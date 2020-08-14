@@ -1,0 +1,9 @@
+.idea
+*.iml
+*.gz
+__pycache__
+dist
+*.egg-info
+build
+.*nii
+brainscapes_client/*.nii
