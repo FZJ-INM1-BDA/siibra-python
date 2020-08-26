@@ -1,6 +1,7 @@
 .idea
 *.iml
 *.gz
+*.zip
 __pycache__
 dist
 *.egg-info

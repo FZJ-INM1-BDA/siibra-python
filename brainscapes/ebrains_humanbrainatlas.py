@@ -1,54 +1,53 @@
-import requests
-import gzip
-import zipfile
-import json
+from pathlib import Path
 
-from brainscapes_client.pmap_service import retrieve_probability_map
-from brainscapes_client.region import Region
+import requests
+import json
+import nibabel as nib
+
+from brainscapes.parcellations import Parcellations
+from brainscapes.pmap_service import retrieve_probability_map
+from brainscapes.region import Region
 
 
 class Atlas:
 
-    def say_hello(self):
-        print("Hello World")
+    schema = Parcellations().CYTOARCHITECTONIC_MAPS
 
     def select_parcellation_schema(self, schema):
         self.schema = schema
 
     def get_map(self, space):
-        print('getting map for: ' + space)
-        url = 'https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2icbm152casym_18_public_a5f6c95f2e7ff6f43b6bf7c816c37c8b.nii.gz'
-        req = requests.get(url)
-
-        if req is not None and req.status_code == 200:
-            data_nii = gzip.decompress(req.content)
-        filename = req.headers['X-Object-Meta-Orig-Filename']
-        print(req.status_code)
-        with open(filename, 'wb') as code:
-            code.write(data_nii)
+        print('getting map for: ' + space['id'])
+        for sp in self.schema['availableIn']:
+            if sp['@id'] == space['id']:
+                url = sp['mapUrl']
+                req = requests.get(url)
+                if req is not None and req.status_code == 200:
+                    filename = req.headers['X-Object-Meta-Orig-Filename']
+                    with open(filename, 'wb') as code:
+                        code.write(req.content)
+                    return nib.load(filename)
+        # throw error
 
     def get_template(self, space, resolution_mu=0, roi=None):
-        print('getting template for: ' + space + ', with resolution: ' + str(resolution_mu))
-        # url = 'http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.zip'
-        # req = requests.get(url)
-        #
-        # if req is not None and req.status_code == 200:
-        #     data_nii = gzip.decompress(req.content)
-        # filename = req.headers['X-Object-Meta-Orig-Filename']
-        # print(req.status_code)
-        # print(req.headers)
-        # with open(filename, 'wb') as code:
-        #     code.write(data_nii)
-
-        zf = zipfile.ZipFile('../data/mni_icbm152_nlin_asym_09c_nifti.zip', 'r')
-        # print(zf.namelist())
-        return zf
+        print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
+        print(space)
+        for sp in self.schema['availableIn']:
+            if sp['@id'] == space['id']:
+                url = space['templateUrl']
+                req = requests.get(url)
+                print(req.headers)
+                if req is not None and req.status_code == 200:
+                    # data_nii = gzip.decompress(req.content)
+                    filename = 'tmp-template.zip'#space['id']#req.headers['X-Object-Meta-Orig-Filename']#.replace('.zip', '')
+                    with open(filename, 'wb') as code:
+                        code.write(req.content)
+                    return nib.load(filename)
+        # throw error
 
     def get_region(self, region):
         print('getting region: ' + region)
         regions = self.regions()
-        # region_data = next((reg for reg in regions if reg['name'] == region), None)
-
         return self._check_for_region(region, regions)
 
     def _check_for_region(self, region, regions):
@@ -75,7 +74,9 @@ class Atlas:
 
     def regions(self):
         print('getting all regions')
-        with open('../data/parcellations/jubrain.json', 'r') as jsonfile:
+        filename = self.schema['shortName'] + '.json'
+        path = Path(__file__).parent / '../definitions/parcellations/' / filename
+        with open(path, 'r') as jsonfile:
             data = json.load(jsonfile)
         return data['regions']
 
@@ -92,7 +93,6 @@ class Atlas:
 
 if __name__ == '__main__':
     atlas = Atlas()
-    atlas.say_hello()
 
     # atlas.get_map('mySpace')
     # atlas.get_template("template")

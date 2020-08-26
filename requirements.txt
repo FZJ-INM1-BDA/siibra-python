@@ -2,3 +2,4 @@ json
 requests
 gzip
 zipfile
+nibabel

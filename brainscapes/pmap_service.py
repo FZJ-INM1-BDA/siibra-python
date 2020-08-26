@@ -2,8 +2,8 @@ import gzip
 
 import requests
 
-from brainscapes_client.roi import Roi
-from brainscapes_client.region import Region
+from brainscapes.roi import Roi
+from brainscapes.region import Region
 
 url = 'http://pmap-pmap-service.apps-dev.hbp.eu/multimerge'
 
