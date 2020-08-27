@@ -1,14 +1,8 @@
 import json
 from pathlib import Path
 
-# ICBM_152_2009c_NONL_ASYM = 'dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2'
-# BIGBRAIN_2015 = 'a1655b99-82f1-420f-a3c2-fe80fd4c8588'
-# MNI_Colin_27 = '7f39f7be-445b-47c0-9791-e971c0b6d992'
-
 
 class Spaces:
-
-
 
     def __init__(self):
         path = Path(__file__).parent / '../definitions/atlas_MultiLevelHuman.json'
