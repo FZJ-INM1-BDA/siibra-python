@@ -37,9 +37,10 @@ class Atlas:
                 url = sp['mapUrl']
                 req = requests.get(url)
                 if req is not None and req.status_code == 200:
-                    filename = req.headers['X-Object-Meta-Orig-Filename']
-                    with open(filename, 'wb') as code:
-                        code.write(req.content)
+                    filename = self._tmp_directory + '/' + req.headers['X-Object-Meta-Orig-Filename']
+                    if not os.path.exists(filename):
+                        with open(filename, 'wb') as code:
+                            code.write(req.content)
                     return nib.load(filename)
         # throw error
 
@@ -48,28 +49,24 @@ class Atlas:
         for sp in self.schema['availableIn']:
             if sp['@id'] == space['id']:
                 # do request only, if file not yet downloaded
-                if not os.path.exists(space['shortName']):
+                download_filename = self._tmp_directory + '/' + space['shortName']
+                if not os.path.exists(download_filename):
+                    print('downloading a big file, this could take some time')
                     url = space['templateUrl']
                     req = requests.get(url)
                     if req is not None and req.status_code == 200:
                         # Write temporary zip file
-                        with open(space['shortName'], 'wb') as code:
+                        with open(download_filename, 'wb') as code:
                             code.write(req.content)
                 # Extract temporary zip file
-                with ZipFile(space['shortName'], 'r') as zip_ref:
-                    print(zip_ref.namelist())
+                with ZipFile(download_filename, 'r') as zip_ref:
                     for zip_info in zip_ref.infolist():
                         if zip_info.filename[-1] == '/':
                             continue
                         zip_info.filename = os.path.basename(zip_info.filename)
                         if zip_info.filename in self._allowed_templates:
                             zip_ref.extract(zip_info, self._tmp_directory)
-                    # for filename in zip_ref.namelist():
-                    #     if filename.endswith('.nii'):
-                    #         zip_ref.extract(filename, self._tmp_directory)
-                # Nibabel load needed file
-                filename = self._tmp_directory + '/mni_icbm152_t1_tal_nlin_asym_09c.nii'
-                return nib.load(filename)
+                            return nib.load(self._tmp_directory + '/' + zip_info.filename)
         # throw error
 
     def get_region(self, region):
