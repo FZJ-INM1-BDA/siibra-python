@@ -28,6 +28,13 @@ class Atlas:
             os.mkdir(self._tmp_directory)
 
     def select_parcellation_schema(self, schema):
+        """
+        Select a parcellation to work with.
+        The default value is: Cytoarchitectonic maps
+
+        :param schema:
+        :return: nibable image or None
+        """
         self.schema = schema
 
     def get_map(self, space):
