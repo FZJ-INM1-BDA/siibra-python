@@ -33,11 +33,16 @@ class Atlas:
         The default value is: Cytoarchitectonic maps
 
         :param schema:
-        :return: nibable image or None
         """
         self.schema = schema
 
     def get_map(self, space):
+        """
+        Getting a map (as nifti) for selected schema and given space.
+        Map files are downloaded from cscs objectstore once and will be cached for further usage
+        :param space:
+        :return: nibabel image
+        """
         print('getting map for: ' + space['id'])
         for sp in self.schema['availableIn']:
             if sp['@id'] == space['id']:
@@ -60,6 +65,14 @@ class Atlas:
         '''
 
     def get_template(self, space, resolution_mu=0, roi=None):
+        """
+        Getting a template (as nifti) for selected schema and space.
+        Template files are downloade from www.bic.mni.mcgill.ca once and will be cached for further usage
+        :param space:
+        :param resolution_mu:
+        :param roi:
+        :return: nibabel image
+        """
         print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
         for sp in self.schema['availableIn']:
             if sp['@id'] == space['id']:
