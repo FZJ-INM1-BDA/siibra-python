@@ -1,4 +1,6 @@
 from pathlib import Path
+from zipfile import ZipFile
+import os
 
 import requests
 import json
@@ -12,6 +14,18 @@ from brainscapes.region import Region
 class Atlas:
 
     schema = Parcellations().CYTOARCHITECTONIC_MAPS
+    _tmp_directory = 'brainscapes_tmp'
+    _allowed_templates = [
+        'mni_icbm152_t1_tal_nlin_asym_09c.nii',
+        'colin27_t1_tal_lin.nii'
+    ]
+
+    def __init__(self):
+        self._create_tmp_dir()
+
+    def _create_tmp_dir(self):
+        if not os.path.exists(self._tmp_directory):
+            os.mkdir(self._tmp_directory)
 
     def select_parcellation_schema(self, schema):
         self.schema = schema
@@ -31,18 +45,31 @@ class Atlas:
 
     def get_template(self, space, resolution_mu=0, roi=None):
         print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
-        print(space)
         for sp in self.schema['availableIn']:
             if sp['@id'] == space['id']:
-                url = space['templateUrl']
-                req = requests.get(url)
-                print(req.headers)
-                if req is not None and req.status_code == 200:
-                    # data_nii = gzip.decompress(req.content)
-                    filename = 'tmp-template.zip'#space['id']#req.headers['X-Object-Meta-Orig-Filename']#.replace('.zip', '')
-                    with open(filename, 'wb') as code:
-                        code.write(req.content)
-                    return nib.load(filename)
+                # do request only, if file not yet downloaded
+                if not os.path.exists(space['shortName']):
+                    url = space['templateUrl']
+                    req = requests.get(url)
+                    if req is not None and req.status_code == 200:
+                        # Write temporary zip file
+                        with open(space['shortName'], 'wb') as code:
+                            code.write(req.content)
+                # Extract temporary zip file
+                with ZipFile(space['shortName'], 'r') as zip_ref:
+                    print(zip_ref.namelist())
+                    for zip_info in zip_ref.infolist():
+                        if zip_info.filename[-1] == '/':
+                            continue
+                        zip_info.filename = os.path.basename(zip_info.filename)
+                        if zip_info.filename in self._allowed_templates:
+                            zip_ref.extract(zip_info, self._tmp_directory)
+                    # for filename in zip_ref.namelist():
+                    #     if filename.endswith('.nii'):
+                    #         zip_ref.extract(filename, self._tmp_directory)
+                # Nibabel load needed file
+                filename = self._tmp_directory + '/mni_icbm152_t1_tal_nlin_asym_09c.nii'
+                return nib.load(filename)
         # throw error
 
     def get_region(self, region):

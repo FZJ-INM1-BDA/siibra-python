@@ -7,6 +7,9 @@ from pathlib import Path
 
 
 class Spaces:
+
+
+
     def __init__(self):
         path = Path(__file__).parent / '../definitions/atlas_MultiLevelHuman.json'
         with open(path, 'r') as jsonfile:
