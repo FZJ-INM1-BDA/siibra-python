@@ -42,7 +42,15 @@ class Atlas:
                         with open(filename, 'wb') as code:
                             code.write(req.content)
                     return nib.load(filename)
-        # throw error
+        # throw error TODO
+        '''
+        - error on response status != 200
+        - error on file read
+        - Nibable error
+        - handle error, when no filename header is set
+        - error or None when space not known
+        - unexpected error
+        '''
 
     def get_template(self, space, resolution_mu=0, roi=None):
         print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
@@ -68,6 +76,14 @@ class Atlas:
                             zip_ref.extract(zip_info, self._tmp_directory)
                             return nib.load(self._tmp_directory + '/' + zip_info.filename)
         # throw error
+        '''
+        - error on response status != 200
+        - error on file read
+        - error on zipfile functions
+        - Nibable error
+        - error or None when space not known
+        - unexpected error
+        '''
 
     def get_region(self, region):
         print('getting region: ' + region)
