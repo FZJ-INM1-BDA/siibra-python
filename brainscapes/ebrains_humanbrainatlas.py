@@ -138,17 +138,21 @@ class Atlas:
         path = Path(__file__).parent / '../definitions/parcellations/' / filename
         with open(path, 'r') as jsonfile:
             data = json.load(jsonfile)
+        #TODO Read further information from region data, created by the preprocessing
         return data['regions']
 
     def connectivity_sources(self):
         print('getting connectivity sources')
+        #TODO parameterize getting the probability map
         return retrieve_probability_map(Region('Area-Fp1', 'colin', 'par1'), 'left', 0.2)
 
     def connectivity_matrix(self, src=None):
         print('get connectivity matrix for src: ' + src)
+        #TODO implement
 
     def connectivity_filter(self, src=None):
         print('connectivity filter for src: ' + src)
+        #TODO implement
 
 
 if __name__ == '__main__':
