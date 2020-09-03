@@ -109,18 +109,18 @@ class Atlas:
         '''
 
     def get_region(self, region):
-        print('getting region: ' + region)
         regions = self.regions()
         return self._check_for_region(region, regions)
 
     def _check_for_region(self, region, regions):
         for reg in regions:
             if reg['name'] == region:
-                return {
-                    'name': reg['name'],
-                    'rgb': reg['rgb'],
-                    # 'position': reg['position']
-                }
+                return Region(reg['name'], self.schema)
+                # return {
+                #     'name': reg['name'],
+                #     'rgb': reg['rgb'],
+                #     # 'position': reg['position']
+                # }
             else:
                 if len(reg['children']) != 0:
                     data = self._check_for_region(region, reg['children'])
@@ -128,20 +128,19 @@ class Atlas:
                         return data
                 else:
                     if reg['name'] == region:
-                        return {
-                            'name': reg['name'],
-                            'rgb': reg['rgb'],
-                            # 'position': reg['position']
-                        }
+                        return Region(reg['name'], self.schema)
+                        # {
+                        #     'name': reg['name'],
+                        #     'rgb': reg['rgb'],
+                        #     # 'position': reg['position']
+                        # }
         return None
 
     def regions(self):
-        print('getting all regions')
         filename = self.schema['shortName'] + '.json'
         path = Path(__file__).parent / '../definitions/parcellations/' / filename
         with open(path, 'r') as jsonfile:
             data = json.load(jsonfile)
-        #TODO Read further information from region data, created by the preprocessing
         return data['regions']
 
     def connectivity_sources(self):
@@ -163,8 +162,8 @@ if __name__ == '__main__':
 
     # atlas.get_map('mySpace')
     # atlas.get_template("template")
-    # data = atlas.regions()
-    # print(data)
+    data = atlas.regions()
+    print(data)
     print('*******************************')
     print(atlas.get_region('LB (Amygdala) - left hemisphere'))
     print('******************************')

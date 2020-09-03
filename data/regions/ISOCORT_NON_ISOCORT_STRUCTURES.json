@@ -1,0 +1,28 @@
+{
+  "name": "Grey/White matter",
+  "type": "parcellation",
+  "ngData": null,
+  "ngId": " tissue type: ",
+  "regions": [
+    {
+      "name": "Grey matter",
+      "labelIndex": 100,
+      "rgb": [
+        200,
+        200,
+        200
+      ],
+      "children": []
+    },
+    {
+      "name": "White matter",
+      "labelIndex": 200,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "children": []
+    }
+  ]
+}
