@@ -1,9 +1,9 @@
-from brainscapes import ebrains_humanbrainatlas as hba
+import brainscapes as bsc
 from brainscapes.spaces import Spaces
 from brainscapes.parcellations import Parcellations
 
 # Setup the atlas
-atlas = hba.Atlas()
+atlas = bsc.human_multi_level_atlas.Atlas()
 jubrain = Parcellations().CYTOARCHITECTONIC_MAPS
 atlas.select_parcellation_schema(jubrain)
 
