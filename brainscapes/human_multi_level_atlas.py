@@ -13,8 +13,10 @@ from brainscapes.region import Region
 
 class Atlas:
 
+    # static Parcellations instance
+    parcellations = Parcellations()
     # default parcellation
-    schema = Parcellations().CYTOARCHITECTONIC_MAPS
+    schema = parcellations.CYTOARCHITECTONIC_MAPS
     # directory for cached files
     _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca

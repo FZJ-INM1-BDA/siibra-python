@@ -4,7 +4,7 @@ from brainscapes.parcellations import Parcellations
 
 # Setup the atlas
 atlas = bsc.human_multi_level_atlas.Atlas()
-jubrain = Parcellations().CYTOARCHITECTONIC_MAPS
+jubrain = atlas.parcellations.CYTOARCHITECTONIC_MAPS
 atlas.select_parcellation_schema(jubrain)
 
 # Retrieve whole brain map in ICBM152 space as a NiftiImage
