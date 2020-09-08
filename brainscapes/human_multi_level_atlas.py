@@ -9,12 +9,15 @@ import nibabel as nib
 from brainscapes.parcellations import Parcellations
 from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
+from brainscapes.spaces import Spaces
 
 
 class Atlas:
 
     # static Parcellations instance
     parcellations = Parcellations()
+    # static Spaces instance
+    spaces = Spaces()
     # default parcellation
     schema = parcellations.CYTOARCHITECTONIC_MAPS
     # directory for cached files
