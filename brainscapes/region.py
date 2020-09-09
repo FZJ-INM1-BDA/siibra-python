@@ -43,6 +43,7 @@ class Region:
 
 
 if __name__ == '__main__':
+
     region = Region('Ch 123 (Basal Forebrain) - left hemisphere', Parcellations().CYTOARCHITECTONIC_MAPS)
     spatial_props = region.get_spatial_props(Spaces().BIG_BRAIN['shortName'])
     print(spatial_props)

@@ -8,3 +8,5 @@ dist
 build
 .*nii
 brainscapes_client/*.nii
+.DS_Store
+*.swp
