@@ -1,0 +1,2 @@
+from brainscapes.ontologies import __init_ontology_module__ 
+__init_ontology_module__(__name__)

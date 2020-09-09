@@ -27,8 +27,8 @@ class Spaces:
 
 
 if __name__ == '__main__':
-    print(resource_filename('definitions.atlases','human.json'))
-    spaces = Spaces(resource_filename('definitions.atlases','human.json'))
+    print(resource_filename('brainscapes.definitions.atlases','human.json'))
+    spaces = Spaces(resource_filename('brainscapes.definitions.atlases','human.json'))
     print(spaces.__dict__)
     print(spaces.BIG_BRAIN)
     print(spaces.ICBM_152_2009C_NONL_ASYM)

@@ -6,18 +6,13 @@ import requests
 import json
 import nibabel as nib
 
-from brainscapes.parcellations import Parcellations
 from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
 from brainscapes.spaces import Spaces
-
+from brainscapes.ontologies import parcellations,spaces
 
 class Atlas:
 
-    # static Parcellations instance
-    parcellations = Parcellations(resource_filename('definitions.atlases','human.json'))
-    # static Spaces instance
-    spaces = Spaces(resource_filename('definitions.atlases','human.json'))
     # default parcellation
     schema = parcellations.CYTOARCHITECTONIC_MAPS
     # directory for cached files
@@ -143,7 +138,7 @@ class Atlas:
 
     def regions(self):
         with open(resource_filename( 
-            'definitions.parcellations',
+            'brainscapes.ontologies.parcellations',
             self.schema['shortName'] + '.json'), 'r') as jsonfile:
             data = json.load(jsonfile)
         return data['regions']

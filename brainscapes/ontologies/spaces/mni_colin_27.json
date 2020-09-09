@@ -1,6 +1,8 @@
-{
-	"@id": "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992",
-	"name": "MNI Colin 27",
-	"shortName": "MNI Colin 27",
-	"templateUrl": "http://packages.bic.mni.mcgill.ca/mni-models/colin27/mni_colin27_1998_nifti.zip"
-}
+[
+	{
+		"@id": "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992",
+		"name": "MNI Colin 27",
+		"shortName": "MNI Colin 27",
+		"templateUrl": "http://packages.bic.mni.mcgill.ca/mni-models/colin27/mni_colin27_1998_nifti.zip"
+	}
+]

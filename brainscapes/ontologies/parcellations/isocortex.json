@@ -1,8 +1,35 @@
-{
-	"name": "Isocortical/Non-isocortical structures",
-	"shortName": "Isocort Non isocort structures",
-	"@id": "juelich/iav/atlas/v1.0.0/4",
-	"maps": {
-		"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : ""
+[
+	{
+		"name": "Isocortex and non-isocortical structures",
+		"shortName": "Isocortex",
+		"@id": "juelich/iav/atlas/v1.0.0/4",
+		"maps": {
+			"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : ""
+		},
+		"type": "parcellation",
+		"ngData": null,
+		"ngId": " tissue type: ",
+		"regions": [
+			{
+				"name": "Isocortex",
+				"labelIndex": 100,
+				"rgb": [
+					200,
+					200,
+					200
+				],
+				"children": []
+			},
+			{
+				"name": "Non-isocortical structures",
+				"labelIndex": 200,
+				"rgb": [
+					255,
+					255,
+					255
+				],
+				"children": []
+			}
+		]
 	}
-}
+]
