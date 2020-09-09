@@ -1,0 +1,45 @@
+{
+	"name": "64 dimensions",
+	"shortName": "dim 64",
+	"@id": "minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+},
+{
+	"name": "128 dimensions",
+	"shortName": "dim 128",
+	"@id": "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+},
+{
+	"name": "256 dimensions",
+	"shortName": "dim 256",
+	"@id": "minds/core/parcellationatlas/v1.0.0/141d510f-0342-4f94-ace7-c97d5f160235",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+},
+{
+	"name": "512 dimensions",
+	"shortName": "dim 512",
+	"@id": "minds/core/parcellationatlas/v1.0.0/63b5794f-79a4-4464-8dc1-b32e170f3d16",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+},
+{
+	"name": "1024 dimensions",
+	"shortName": "dim 1024",
+	"@id": "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+}

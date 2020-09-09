@@ -21,6 +21,7 @@ def retrieve_probability_map(region, hemisphere, threshold):
                '","hemisphere": "' + hemisphere + '" }], "threshold": ' + str(threshold) + '}'
         response = requests.post(url, data=data, headers={'Content-Type': 'application/json'})
     except requests.exceptions.RequestException as e:
+        print(str(e))
         response = None
     if response is not None and response.status_code == 200:
         data_nii = gzip.decompress(response.content)
@@ -31,7 +32,7 @@ def retrieve_probability_map(region, hemisphere, threshold):
 
 
 if __name__ == '__main__':
-    roi = retrieve_probability_map(Region('Area-Fp1', 'colin', 'par1'), 'left', 0.2)
+    roi = retrieve_probability_map(Region('Area-Fp1', 'colin'), 'left', 0.2)
     roi.save("zzz")
     roi.save("yyy.nii")
     print(roi)

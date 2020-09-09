@@ -1,0 +1,8 @@
+{
+	"name": "Cortical Layers Segmentation",
+	"shortName": "Cortical Layers Segmentation",
+	"@id": "juelich/iav/atlas/v1.0.0/3",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : null
+	}
+}

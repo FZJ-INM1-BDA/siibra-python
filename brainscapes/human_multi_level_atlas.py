@@ -6,10 +6,10 @@ import requests
 import json
 import nibabel as nib
 
-from .parcellations import Parcellations
-from .pmap_service import retrieve_probability_map
-from .region import Region
-from .spaces import Spaces
+from brainscapes.parcellations import Parcellations
+from brainscapes.pmap_service import retrieve_probability_map
+from brainscapes.region import Region
+from brainscapes.spaces import Spaces
 
 
 class Atlas:
@@ -142,8 +142,6 @@ class Atlas:
         return None
 
     def regions(self):
-        #filename = self.schema['shortName'] + '.json'
-        #path = Path(__file__).parent / '../definitions/parcellations/' / filename
         with open(resource_filename( 
             'definitions.parcellations',
             self.schema['shortName'] + '.json'), 'r') as jsonfile:

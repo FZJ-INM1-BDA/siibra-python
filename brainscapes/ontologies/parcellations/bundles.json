@@ -1,0 +1,19 @@
+{
+	"name": "Long Bundle",
+	"shortName": "Long Bundle",
+	"@id": "juelich/iav/atlas/v1.0.0/5",
+	"groupName": "Fibre tracts",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+},
+{
+	"ngId": "fibre bundle short",
+	"name": "Short Bundle",
+	"shortName": "Short Bundle",
+	"@id": "juelich/iav/atlas/v1.0.0/6",
+	"groupName": "Fibre tracts",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : ""
+	}
+}
