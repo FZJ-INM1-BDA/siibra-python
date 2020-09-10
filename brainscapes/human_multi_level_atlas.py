@@ -11,19 +11,49 @@ from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
 from brainscapes.ontologies import atlases,parcellations,spaces
 
+def download_file(url,download_folder):
+    """
+    Downloads a file from a URL to local disk, and returns the filename
+
+    TODO Handle and write tests for non-existing URLs, password-protected URLs, too large files, etc.
+    """
+    req = requests.get(url)
+    if req is not None and req.status_code == 200:
+        filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
+        if not os.path.exists(filename):
+            with open(filename, 'wb') as code:
+                code.write(req.content)
+        return filename
+    return none
+    # throw error TODO
+    '''
+        - error on response status != 200
+        - error on file read
+        - Nibable error
+        - handle error, when no filename header is set
+        - error or None when space not known
+        - unexpected error
+        '''
+
+
 class Atlas:
 
     # directory for cached files
     _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca
+    # TODO i would put this information with the space ontologies. We have to
+    # extend the concept of a simple URL and allow to give a URL to the zip and
+    # the target filename. We should also chekc wether we are free to redistribute.
     _allowed_templates = [
         'mni_icbm152_t1_tal_nlin_asym_09c.nii',
         'colin27_t1_tal_lin.nii'
     ]
-    atlas=atlases.MULTILEVEL_HUMAN_ATLAS
-    parcellation=parcellations.CYTOARCHITECTONIC_MAPS
+    __atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
+    __parcellation__ =  parcellations.CYTOARCHITECTONIC_MAPS
 
     def __init__(self):
+        # FIXME uses Python's temp directory functions for amore platform
+        # independent solution
         if not os.path.exists(self._tmp_directory):
             os.mkdir(self._tmp_directory)
 
@@ -33,83 +63,78 @@ class Atlas:
 
         :param schema:
         """
-        # TODO need a more robust handling of the ontology definition datatypes, they should become well defined objects
+        # TODO need more robust handling with ontology definition schemes, they should become well defined objects
         assert('@id' in parcellation.keys())
-        if parcellation['@id'] not in self.atlas['parcellations']:
+        if parcellation['@id'] not in self.__atlas__['parcellations']:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
-            logging.error('    Atlas:         '+self.atlas['name'])
+            logging.error('    Atlas:         '+self.__atlas__['name'])
             raise Exception('Invalid Parcellation')
-        self.parcellation = parcellation
+        self.__parcellation__ = parcellation
 
     def get_map(self, space):
         """
-        Getting a map (as nifti) for selected schema and given space.
-        Map files are downloaded from cscs objectstore once and will be cached for further usage
-        :param space:
-        :return: nibabel image
+        Get a volumetric map for the selected parcellation in the requested
+        template space, if available.
+
+        Parameters
+        ----------
+        space : template space definition, given as a dictionary with an '@id' key
+
+        Yields
+        ------
+        A nibabel Nifti object representing the volumetric map, or None if not available.
+        TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('getting map for: ' + space['id'])
-        for sp in self.schema['availableIn']:
-            if sp['@id'] == space['id']:
-                url = sp['mapUrl']
-                req = requests.get(url)
-                if req is not None and req.status_code == 200:
-                    filename = self._tmp_directory + '/' + req.headers['X-Object-Meta-Orig-Filename']
-                    if not os.path.exists(filename):
-                        with open(filename, 'wb') as code:
-                            code.write(req.content)
-                    return nib.load(filename)
-        # throw error TODO
-        '''
-        - error on response status != 200
-        - error on file read
-        - Nibable error
-        - handle error, when no filename header is set
-        - error or None when space not known
-        - unexpected error
-        '''
+        print('getting map for: ' + space['@id'])
+        if space['@id'] not in self.__parcellation__['maps'].keys():
+            logging.error('The selected atlas parcellation is not available in the requested space.')
+            logging.error('    Selected parcellation: {}'.format(self.__parcellation__['name']))
+            logging.error('    Requested space:       {}'.format(space))
+            return None
+        filename = download_file(self.__parcellation__['maps'][space['@id']],self._tmp_directory)
+        if filename is not None:
+            return nib.load(filename)
+        else:
+            return None
 
     def get_template(self, space, resolution_mu=0, roi=None):
         """
-        Getting a template (as nifti) for selected schema and space.
-        Template files are downloade from www.bic.mni.mcgill.ca once and will be cached for further usage
-        :param space:
-        :param resolution_mu:
-        :param roi:
-        :return: nibabel image
+        Get the volumetric reference template image for the given space.
+
+        Parameters
+        ----------
+        space : template space definition, given as a dictionary with an '@id' key
+        resolution : Desired target pixel spacing in micrometer (default: native spacing)
+        roi : 3D region of interest (not yet implemented)
+
+        TODO model the MNI URLs in the space ontology
+
+        Yields
+        ------
+        A nibabel Nifti object representing the reference template, or None if not available.
+        TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
-        for sp in self.schema['availableIn']:
-            if sp['@id'] == space['id']:
-                # do request only, if file not yet downloaded
-                download_filename = self._tmp_directory + '/' + space['shortName']
-                if not os.path.exists(download_filename):
-                    print('downloading a big file, this could take some time')
-                    url = space['templateUrl']
-                    req = requests.get(url)
-                    if req is not None and req.status_code == 200:
-                        # Write temporary zip file
-                        with open(download_filename, 'wb') as code:
-                            code.write(req.content)
-                # Extract temporary zip file
-                with ZipFile(download_filename, 'r') as zip_ref:
-                    for zip_info in zip_ref.infolist():
-                        if zip_info.filename[-1] == '/':
-                            continue
-                        zip_info.filename = os.path.basename(zip_info.filename)
-                        if zip_info.filename in self._allowed_templates:
-                            zip_ref.extract(zip_info, self._tmp_directory)
-                            return nib.load(self._tmp_directory + '/' + zip_info.filename)
-        # throw error
-        '''
-        - error on response status != 200
-        - error on file read
-        - error on zipfile functions
-        - Nibable error
-        - error or None when space not known
-        - unexpected error
-        '''
+        print('getting template for: ' + space['@id'] + ', with resolution: ' + str(resolution_mu))
+        if space['@id'] not in self.__atlas__['spaces'].keys():
+            logging.error('The selected atlas does not support the requested reference space.')
+            logging.error('    Requested space:       {}'.format(space['name']))
+            return None
+
+        filename = download_file(space['url'],self._tmp_directory)
+
+        # Extract temporary zip file
+        with ZipFile(filename, 'r') as zip_ref:
+            for zip_info in zip_ref.infolist():
+                if zip_info.filename[-1] == '/':
+                    continue
+                zip_info.filename = os.path.basename(zip_info.filename)
+                if zip_info.filename in self._allowed_templates:
+                    zip_ref.extract(zip_info, self._tmp_directory)
+                    return nib.load(self._tmp_directory + '/' + zip_info.filename)
+
+        # not successful
+        return None
 
     def get_region(self, region):
         regions = self.regions()

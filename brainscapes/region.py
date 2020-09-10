@@ -1,7 +1,6 @@
 import json
 
 from brainscapes.ontologies import parcellations,spaces 
-from pkg_resources import resource_filename
 
 class Region:
     """Representation of a region with name and more optional attributes"""
@@ -14,14 +13,8 @@ class Region:
         self.parcellation = parcellation
 
     def get_spatial_props(self, space):
-        filename = resource_filename(
-                'definitions.parcellations',
-                self.parcellation['shortName']+'.json')
-        with open(filename,'r') as jsonfile:
-            data = json.load(jsonfile)
-            for p in data['regions']:
-                if p['name'] == self.name:
-                    return p
+        # TODO implement this
+        pass
         # return {
         #     'centroid': '',
         #     'volume': '',
