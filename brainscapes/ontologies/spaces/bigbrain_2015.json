@@ -3,6 +3,6 @@
 	"@id": "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
 	"name": "Big Brain (Histology)",
 	"shortName": "Big Brain",
-	"templateUrl": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.zip"
+	"templateUrl": ""
 	}
 ]

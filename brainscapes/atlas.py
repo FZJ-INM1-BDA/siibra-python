@@ -3,39 +3,13 @@ import os
 from pkg_resources import resource_filename
 import logging
 
-import requests
 import json
 import nibabel as nib
 
 from .pmap_service import retrieve_probability_map
 from .region import Region
-
-from brainscapes.ontologies import atlases,parcellations,spaces
-
-def download_file(url,download_folder):
-    """
-    Downloads a file from a URL to local disk, and returns the filename
-
-    TODO Handle and write tests for non-existing URLs, password-protected URLs, too large files, etc.
-    """
-    req = requests.get(url)
-    if req is not None and req.status_code == 200:
-        filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
-        if not os.path.exists(filename):
-            with open(filename, 'wb') as code:
-                code.write(req.content)
-        return filename
-    return None
-    # throw error TODO
-    '''
-        - error on response status != 200
-        - error on file read
-        - Nibable error
-        - handle error, when no filename header is set
-        - error or None when space not known
-        - unexpected error
-        '''
-
+from .ontologies import atlases,parcellations,spaces
+from .retrieval import download_file
 
 class Atlas:
 
