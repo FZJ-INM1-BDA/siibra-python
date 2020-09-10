@@ -2,8 +2,8 @@ import brainscapes as bsc
 
 # Setup the atlas
 atlas = bsc.human_multi_level_atlas.Atlas()
-jubrain = atlas.parcellations.CYTOARCHITECTONIC_MAPS
-atlas.select_parcellation_schema(jubrain)
+jubrain = atlas.levels.CYTOARCHITECTONIC_MAPS
+atlas.select_level_schema(jubrain)
 
 # Retrieve whole brain map in ICBM152 space as a NiftiImage
 icbm152space = atlas.templates.ICBM_152_2009C_NONL_ASYM

@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-class Parcellations:
+class Levels:
     def __init__(self):
         path = Path(__file__).parent / '../definitions/atlas_MultiLevelHuman.json'
         with open(path, 'r') as jsonfile:
@@ -21,15 +21,15 @@ class Parcellations:
 
 
 if __name__ == '__main__':
-    parcellations = Parcellations()
-    jubrain = parcellations.CYTOARCHITECTONIC_MAPS
+    levels = Levels()
+    jubrain = levels.CYTOARCHITECTONIC_MAPS
     print(jubrain)
-    print(parcellations.CORTICAL_LAYERS_SEGMENTATION)
-    print(parcellations.ISOCORT_NON_ISOCORT_STRUCTURES)
-    print(parcellations.LONG_BUNDLE)
-    print(parcellations.SHORT_BUNDLE)
-    print(parcellations.DIM_64)
-    print(parcellations.DIM_128)
-    print(parcellations.DIM_256)
-    print(parcellations.DIM_512)
-    print(parcellations.DIM_1024)
+    print(levels.CORTICAL_LAYERS_SEGMENTATION)
+    print(levels.ISOCORT_NON_ISOCORT_STRUCTURES)
+    print(levels.LONG_BUNDLE)
+    print(levels.SHORT_BUNDLE)
+    print(levels.DIM_64)
+    print(levels.DIM_128)
+    print(levels.DIM_256)
+    print(levels.DIM_512)
+    print(levels.DIM_1024)

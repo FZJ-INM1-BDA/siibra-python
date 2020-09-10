@@ -6,7 +6,7 @@ import requests
 import json
 import nibabel as nib
 
-from brainscapes.parcellations import Parcellations
+from brainscapes.levels import Levels
 from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
 from brainscapes.templates import Templates
@@ -14,12 +14,12 @@ from brainscapes.templates import Templates
 
 class Atlas:
 
-    # static Parcellations instance
-    parcellations = Parcellations()
+    # static Levels instance
+    levels = Levels()
     # static Templates instance
     templates = Templates()
-    # default parcellation
-    schema = parcellations.CYTOARCHITECTONIC_MAPS
+    # default level
+    schema = levels.CYTOARCHITECTONIC_MAPS
     # directory for cached files
     _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca
@@ -35,9 +35,9 @@ class Atlas:
         if not os.path.exists(self._tmp_directory):
             os.mkdir(self._tmp_directory)
 
-    def select_parcellation_schema(self, schema):
+    def select_level_schema(self, schema):
         """
-        Select a parcellation to work with.
+        Select a level to work with.
         The default value is: Cytoarchitectonic maps
 
         :param schema:

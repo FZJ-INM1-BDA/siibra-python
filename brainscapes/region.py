@@ -1,22 +1,22 @@
 import json
 from pathlib import Path
 
-from brainscapes.parcellations import Parcellations
+from brainscapes.levels import Levels
 from brainscapes.templates import Templates
 
 
 class Region:
     """Representation of a region with name and more optional attributes"""
     name = None
-    parcellation = None
+    level = None
     index = None
 
-    def __init__(self, name, parcellation, **kwargs):
+    def __init__(self, name, level, **kwargs):
         self.name = name
-        self.parcellation = parcellation
+        self.level = level
 
     def get_spatial_props(self, template):
-        filename = '../data/regions/' + self.parcellation['shortName'] + '.json'
+        filename = '../data/regions/' + self.level['shortName'] + '.json'
         path = Path(__file__).parent / filename
         with open(path, 'r') as jsonfile:
             data = json.load(jsonfile)
@@ -43,6 +43,6 @@ class Region:
 
 
 if __name__ == '__main__':
-    region = Region('Ch 123 (Basal Forebrain) - left hemisphere', Parcellations().CYTOARCHITECTONIC_MAPS)
+    region = Region('Ch 123 (Basal Forebrain) - left hemisphere', Levels().CYTOARCHITECTONIC_MAPS)
     spatial_props = region.get_spatial_props(Templates().BIG_BRAIN['shortName'])
     print(spatial_props)
