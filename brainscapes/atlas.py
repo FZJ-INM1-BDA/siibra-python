@@ -7,8 +7,9 @@ import requests
 import json
 import nibabel as nib
 
-from brainscapes.pmap_service import retrieve_probability_map
-from brainscapes.region import Region
+from .pmap_service import retrieve_probability_map
+from .region import Region
+
 from brainscapes.ontologies import atlases,parcellations,spaces
 
 def download_file(url,download_folder):
@@ -24,7 +25,7 @@ def download_file(url,download_folder):
             with open(filename, 'wb') as code:
                 code.write(req.content)
         return filename
-    return none
+    return None
     # throw error TODO
     '''
         - error on response status != 200
@@ -86,7 +87,7 @@ class Atlas:
         A nibabel Nifti object representing the volumetric map, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('getting map for: ' + space['@id'])
+        print('Retrieving map for ' + space['name'])
         if space['@id'] not in self.__parcellation__['maps'].keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
             logging.error('    Selected parcellation: {}'.format(self.__parcellation__['name']))
@@ -115,7 +116,7 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('getting template for: ' + space['@id'] + ', with resolution: ' + str(resolution_mu))
+        print('Retrieving template for ' + space['name'] + ', with resolution: ' + str(resolution_mu))
         if space['@id'] not in self.__atlas__['spaces'].keys():
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))

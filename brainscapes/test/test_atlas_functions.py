@@ -1,19 +1,19 @@
-import brainscapes as bsc
+from brainscapes import atlas as bsa
+from brainscapes.ontologies import parcellations,spaces
 
 # Setup the atlas
-atlas = bsc.human_multi_level_atlas.Atlas()
-jubrain = atlas.parcellations.CYTOARCHITECTONIC_MAPS
+atlas = bsa.Atlas()
+jubrain = parcellations.CYTOARCHITECTONIC_MAPS
 atlas.select_parcellation_schema(jubrain)
 
 # Retrieve whole brain map in ICBM152 space as a NiftiImage
-icbm152space = atlas.spaces.ICBM_152_2009C_NONL_ASYM
+icbm152space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
 icbm_map = atlas.get_map(icbm152space)
 print(icbm_map.shape)
 print(icbm_map.header)
 icbm_mri = atlas.get_template(icbm152space)
 print(icbm_mri.shape)
 print(icbm_mri.header)
-
 
 # # For high resolution template spaces like BigBrain, a downscale factor or ROI
 # # is required to retrieve a local file. Otherwise, a download URL and warning
