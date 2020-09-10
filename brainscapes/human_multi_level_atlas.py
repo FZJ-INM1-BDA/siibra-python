@@ -1,23 +1,23 @@
-from pathlib import Path
 from zipfile import ZipFile
 import os
+from pkg_resources import resource_filename
 
 import requests
 import json
 import nibabel as nib
 
-from brainscapes.levels import Levels
-from brainscapes.pmap_service import retrieve_probability_map
-from brainscapes.region import Region
-from brainscapes.templates import Templates
+from .levels import Levels
+from .pmap_service import retrieve_probability_map
+from .region import Region
+from .templates import Templates
 
 
 class Atlas:
 
     # static Levels instance
-    levels = Levels()
-    # static Templates instance
-    templates = Templates()
+    levels = Levels(resource_filename('definitions.atlases','human.json'))
+    # static Spaces instance
+    templates = Templates(resource_filename('definitions.atlases','human.json'))
     # default level
     schema = levels.CYTOARCHITECTONIC_MAPS
     # directory for cached files
@@ -142,9 +142,11 @@ class Atlas:
         return None
 
     def regions(self):
-        filename = self.schema['shortName'] + '.json'
-        path = Path(__file__).parent / '../definitions/parcellations/' / filename
-        with open(path, 'r') as jsonfile:
+        #filename = self.schema['shortName'] + '.json'
+        #path = Path(__file__).parent / '../definitions/parcellations/' / filename
+        with open(resource_filename(
+            'definitions.parcellations',
+            self.schema['shortName'] + '.json'), 'r') as jsonfile:
             data = json.load(jsonfile)
         return data['regions']
 

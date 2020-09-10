@@ -1,12 +1,20 @@
 import json
-from pathlib import Path
-
+from pkg_resources import resource_filename
 
 class Templates:
 
-    def __init__(self):
-        path = Path(__file__).parent / '../definitions/atlas_MultiLevelHuman.json'
-        with open(path, 'r') as jsonfile:
+    def __init__(self,filename):
+        """
+        Instantiates a list or template space definitions from a json file.
+
+        Parameters
+        ----------
+        filename : string
+            Filename of a json file including template space definitions.
+            TODO provide a basic schema definition and validator for this
+            format.
+        """
+        with open(filename, 'r') as jsonfile:
             data = json.load(jsonfile)
             for p in data['templateSpaces']:
                 short_name = p['shortName'].replace(' ', '_').upper()
@@ -19,8 +27,8 @@ class Templates:
 
 
 if __name__ == '__main__':
-    templates = Templates()
-    templates = Templates()
+    print(resource_filename('definitions.atlases','human.json'))
+    templates = Templates(resource_filename('definitions.atlases','human.json'))
     print(templates.__dict__)
     print(templates.BIG_BRAIN)
     print(templates.ICBM_152_2009C_NONL_ASYM)

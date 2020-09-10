@@ -1,9 +1,9 @@
-import setuptools
+from setuptools import setup, find_packages
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-setuptools.setup(
+setup(
     name="brainscapes-client",
     version="0.0.1.dev1",
     author="Vadim Marcenko",
@@ -12,7 +12,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     # url="https://github.com/HumanBrainProject/atlas-core-lib.git",
-    packages=setuptools.find_packages(include=['brainscapes_client']),
+    packages=find_packages(include=['brainscapes_client']),
+    package_data={'definitions': ['atlases/*.json','parcellations/*.json']},
+    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
@@ -20,3 +22,4 @@ setuptools.setup(
     python_requires='>=3.6',
     install_requires=[],
 )
+
