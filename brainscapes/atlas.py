@@ -1,37 +1,71 @@
-from zipfile import ZipFile
 import os
-from pkg_resources import resource_filename
 import logging
-
 import json
 import nibabel as nib
+from anytree import Node, RenderTree
 
-from .pmap_service import retrieve_probability_map
 from .region import Region
 from .ontologies import atlases, parcellations, spaces
 from .retrieval import download_file, get_file_from_zip
 
+def regionlist(regions,parent=None):
+    """
+    From a dictionary of regions, as given by brainscapes parcellation
+    definitions, build a consolidated hierarchy of names.
+    """
+    trees = []
+    for regiondef in regions:
+        newnode = Node(regiondef['name'],parent=parent)
+        if 'children' in regiondef.keys():
+            _ = regionlist(regiondef['children'],parent=newnode)
+        trees.append(newnode)
+    return trees
+
+def search_region(regions,name,exact=True):
+    """
+    In a dictionary of regions, as given by brainscapes parcellation
+    definitions, perform a recursive tree search for a given region name.
+
+    If extact==False, will return all regions that match name as a substring.
+    """
+    matches = []
+    for regiondef in regions:
+
+        if exact and (regiondef['name']==name):
+            return Region(regiondef)
+
+        if (not exact) and (name in regiondef['name']):
+            matches.append(Region(regiondef))
+
+        if 'children' in regiondef.keys():
+            more_matches = search_region(regiondef['children'],name,exact=exact)
+            matches += more_matches
+
+    # TODO should rather be a special "Undefined Region"
+    return None if exact else matches
+        
 
 class Atlas:
 
     # directory for cached files
     _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca
-    # TODO i would put this information with the space ontologies. We have to
+    # TODO I would put this information with the space ontologies. We have to
     # extend the concept of a simple URL and allow to give a URL to the zip and
     # the target filename. We should also chekc wether we are free to redistribute.
     _allowed_templates = [
         'mni_icbm152_t1_tal_nlin_asym_09c.nii',
         'colin27_t1_tal_lin.nii'
     ]
-    __atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
-    __parcellation__ =  parcellations.CYTOARCHITECTONIC_MAPS
 
     def __init__(self):
         # FIXME uses Python's temp directory functions for amore platform
         # independent solution
         if not os.path.exists(self._tmp_directory):
             os.mkdir(self._tmp_directory)
+        self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
+        self.__regions__ = []
+        self.select_parcellation_scheme(parcellations.CYTOARCHITECTONIC_MAPS)
 
     def select_parcellation_scheme(self, parcellation):
         """
@@ -39,7 +73,8 @@ class Atlas:
 
         :param schema:
         """
-        # TODO need more robust handling with ontology definition schemes, they should become well defined objects
+        # TODO need more explicit formalization and testing of ontology
+        # definition schemes
         assert('@id' in parcellation.keys())
         if parcellation['@id'] not in self.__atlas__['parcellations']:
             logging.error('The requested parcellation is not supported by the selected atlas.')
@@ -47,6 +82,7 @@ class Atlas:
             logging.error('    Atlas:         '+self.__atlas__['name'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
+        self.__regions__ = parcellation['regions']
 
     def get_map(self, space):
         """
@@ -99,59 +135,24 @@ class Atlas:
 
         filename = download_file(space['templateUrl'], self._tmp_directory)
         return get_file_from_zip(filename)
-        # Extract temporary zip file
-        # TODO shall go to the data retrieval module
-        # with ZipFile(filename, 'r') as zip_ref:
-        #     for zip_info in zip_ref.infolist():
-        #         if zip_info.filename[-1] == '/':
-        #             continue
-        #         zip_info.filename = os.path.basename(zip_info.filename)
-        #         if zip_info.filename in self._allowed_templates:
-        #             zip_ref.extract(zip_info, self._tmp_directory)
-        #             return nib.load(self._tmp_directory + '/' + zip_info.filename)
-        #
-        # # not successful
-        # return None
 
-    def get_region(self, region):
-        regions = self.regions()
-        return self._check_for_region(region, regions)
+    def get_region(self, regionname):
+        return search_region(self.__regions__, regionname, exact=True)
 
-    def _check_for_region(self, region, regions):
-        for reg in regions:
-            if reg['name'] == region:
-                return Region(reg['name'], self.schema)
-                # return {
-                #     'name': reg['name'],
-                #     'rgb': reg['rgb'],
-                #     # 'position': reg['position']
-                # }
-            else:
-                if len(reg['children']) != 0:
-                    data = self._check_for_region(region, reg['children'])
-                    if data:
-                        return data
-                else:
-                    if reg['name'] == region:
-                        return Region(reg['name'], self.schema)
-                        # {
-                        #     'name': reg['name'],
-                        #     'rgb': reg['rgb'],
-                        #     # 'position': reg['position']
-                        # }
-        return None
+    def search_region(self, substring):
+        return search_region(self.__regions__, substring, exact=False)
 
-    def regions(self):
-        with open(resource_filename( 
-            'brainscapes.ontologies.parcellations',
-            self.schema['shortName'] + '.json'), 'r') as jsonfile:
-            data = json.load(jsonfile)
-        return data['regions']
+    def regionhierarchy(self):
+        """
+        Prints a hierarchy of defined region names.
+        """
+        for tree in regionlist(self.__regions__):
+            for pre, _, node in RenderTree(tree):
+                print("%s%s" % (pre, node.name))
 
     def connectivity_sources(self):
         print('getting connectivity sources')
-        #TODO parameterize getting the probability map
-        return retrieve_probability_map(Region('Area-Fp1', 'colin', 'par1'), 'left', 0.2)
+        #TODO Implement
 
     def connectivity_matrix(self, src=None):
         print('get connectivity matrix for src: ' + src)
@@ -167,8 +168,9 @@ if __name__ == '__main__':
 
     # atlas.get_map('mySpace')
     # atlas.get_template("template")
-    data = atlas.regions()
-    print(data)
+    atlas.regionhierarchy()
+    print('*******************************')
+    print(atlas.search_region('hOc1')
     print('*******************************')
     print(atlas.get_region('LB (Amygdala) - left hemisphere'))
     print('******************************')

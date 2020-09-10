@@ -7,3 +7,8 @@ icbm152space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
 icbm_map = atlas.get_map(icbm152space)
 print(icbm_map.shape)
 
+atlas.regionhierarchy()
+matches = atlas.search_region('hOc1')
+print(matches)
+
+
