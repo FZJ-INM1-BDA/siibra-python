@@ -1,6 +1,7 @@
 from zipfile import ZipFile
 import os
 from pkg_resources import resource_filename
+import logging
 
 import requests
 import json
@@ -8,13 +9,10 @@ import nibabel as nib
 
 from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
-from brainscapes.spaces import Spaces
-from brainscapes.ontologies import parcellations,spaces
+from brainscapes.ontologies import atlases,parcellations,spaces
 
 class Atlas:
 
-    # default parcellation
-    schema = parcellations.CYTOARCHITECTONIC_MAPS
     # directory for cached files
     _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca
@@ -22,22 +20,27 @@ class Atlas:
         'mni_icbm152_t1_tal_nlin_asym_09c.nii',
         'colin27_t1_tal_lin.nii'
     ]
+    atlas=atlases.MULTILEVEL_HUMAN_ATLAS
+    parcellation=parcellations.CYTOARCHITECTONIC_MAPS
 
     def __init__(self):
-        self._create_tmp_dir()
-
-    def _create_tmp_dir(self):
         if not os.path.exists(self._tmp_directory):
             os.mkdir(self._tmp_directory)
 
-    def select_parcellation_schema(self, schema):
+    def select_parcellation_scheme(self,parcellation):
         """
-        Select a parcellation to work with.
-        The default value is: Cytoarchitectonic maps
+        Select a different parcellation for the atlas.
 
         :param schema:
         """
-        self.schema = schema
+        # TODO need a more robust handling of the ontology definition datatypes, they should become well defined objects
+        assert('@id' in parcellation.keys())
+        if parcellation['@id'] not in self.atlas['parcellations']:
+            logging.error('The requested parcellation is not supported by the selected atlas.')
+            logging.error('    Parcellation:  '+parcellation['name'])
+            logging.error('    Atlas:         '+self.atlas['name'])
+            raise Exception('Invalid Parcellation')
+        self.parcellation = parcellation
 
     def get_map(self, space):
         """
