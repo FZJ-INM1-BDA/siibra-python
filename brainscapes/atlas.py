@@ -99,6 +99,7 @@ class Atlas:
         filename = download_file(space['url'],self._tmp_directory)
 
         # Extract temporary zip file
+        # TODO shall go to the data retrieval module
         with ZipFile(filename, 'r') as zip_ref:
             for zip_info in zip_ref.infolist():
                 if zip_info.filename[-1] == '/':
