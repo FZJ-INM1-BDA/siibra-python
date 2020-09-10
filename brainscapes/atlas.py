@@ -8,8 +8,9 @@ import nibabel as nib
 
 from .pmap_service import retrieve_probability_map
 from .region import Region
-from .ontologies import atlases,parcellations,spaces
-from .retrieval import download_file
+from .ontologies import atlases, parcellations, spaces
+from .retrieval import download_file, get_file_from_zip
+
 
 class Atlas:
 
@@ -32,7 +33,7 @@ class Atlas:
         if not os.path.exists(self._tmp_directory):
             os.mkdir(self._tmp_directory)
 
-    def select_parcellation_scheme(self,parcellation):
+    def select_parcellation_scheme(self, parcellation):
         """
         Select a different parcellation for the atlas.
 
@@ -67,7 +68,7 @@ class Atlas:
             logging.error('    Selected parcellation: {}'.format(self.__parcellation__['name']))
             logging.error('    Requested space:       {}'.format(space))
             return None
-        filename = download_file(self.__parcellation__['maps'][space['@id']],self._tmp_directory)
+        filename = download_file(self.__parcellation__['maps'][space['@id']], self._tmp_directory)
         if filename is not None:
             return nib.load(filename)
         else:
@@ -91,26 +92,26 @@ class Atlas:
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
         print('Retrieving template for ' + space['name'] + ', with resolution: ' + str(resolution_mu))
-        if space['@id'] not in self.__atlas__['spaces'].keys():
+        if space['@id'] not in self.__atlas__['spaces']:
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))
             return None
 
-        filename = download_file(space['url'],self._tmp_directory)
-
+        filename = download_file(space['templateUrl'], self._tmp_directory)
+        return get_file_from_zip(filename)
         # Extract temporary zip file
         # TODO shall go to the data retrieval module
-        with ZipFile(filename, 'r') as zip_ref:
-            for zip_info in zip_ref.infolist():
-                if zip_info.filename[-1] == '/':
-                    continue
-                zip_info.filename = os.path.basename(zip_info.filename)
-                if zip_info.filename in self._allowed_templates:
-                    zip_ref.extract(zip_info, self._tmp_directory)
-                    return nib.load(self._tmp_directory + '/' + zip_info.filename)
-
-        # not successful
-        return None
+        # with ZipFile(filename, 'r') as zip_ref:
+        #     for zip_info in zip_ref.infolist():
+        #         if zip_info.filename[-1] == '/':
+        #             continue
+        #         zip_info.filename = os.path.basename(zip_info.filename)
+        #         if zip_info.filename in self._allowed_templates:
+        #             zip_ref.extract(zip_info, self._tmp_directory)
+        #             return nib.load(self._tmp_directory + '/' + zip_info.filename)
+        #
+        # # not successful
+        # return None
 
     def get_region(self, region):
         regions = self.regions()
