@@ -142,11 +142,7 @@ class Atlas:
         return None
 
     def regions(self):
-        #filename = self.schema['shortName'] + '.json'
-        #path = Path(__file__).parent / '../definitions/parcellations/' / filename
-        with open(resource_filename(
-            'definitions.parcellations',
-            self.schema['shortName'] + '.json'), 'r') as jsonfile:
+        with open(resource_filename('definitions.levels', self.schema['shortName'] + '.json'), 'r') as jsonfile:
             data = json.load(jsonfile)
         return data['regions']
 
