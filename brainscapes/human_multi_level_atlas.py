@@ -9,15 +9,15 @@ import nibabel as nib
 from brainscapes.parcellations import Parcellations
 from brainscapes.pmap_service import retrieve_probability_map
 from brainscapes.region import Region
-from brainscapes.spaces import Spaces
+from brainscapes.templates import Templates
 
 
 class Atlas:
 
     # static Parcellations instance
     parcellations = Parcellations()
-    # static Spaces instance
-    spaces = Spaces()
+    # static Templates instance
+    templates = Templates()
     # default parcellation
     schema = parcellations.CYTOARCHITECTONIC_MAPS
     # directory for cached files
@@ -44,16 +44,16 @@ class Atlas:
         """
         self.schema = schema
 
-    def get_map(self, space):
+    def get_map(self, template):
         """
-        Getting a map (as nifti) for selected schema and given space.
+        Getting a map (as nifti) for selected schema and given template.
         Map files are downloaded from cscs objectstore once and will be cached for further usage
-        :param space:
+        :param template:
         :return: nibabel image
         """
-        print('getting map for: ' + space['id'])
+        print('getting map for: ' + template['id'])
         for sp in self.schema['availableIn']:
-            if sp['@id'] == space['id']:
+            if sp['@id'] == template['id']:
                 url = sp['mapUrl']
                 req = requests.get(url)
                 if req is not None and req.status_code == 200:
@@ -68,27 +68,27 @@ class Atlas:
         - error on file read
         - Nibable error
         - handle error, when no filename header is set
-        - error or None when space not known
+        - error or None when template not known
         - unexpected error
         '''
 
-    def get_template(self, space, resolution_mu=0, roi=None):
+    def get_template(self, template, resolution_mu=0, roi=None):
         """
-        Getting a template (as nifti) for selected schema and space.
+        Getting a template (as nifti) for selected schema and template.
         Template files are downloade from www.bic.mni.mcgill.ca once and will be cached for further usage
-        :param space:
+        :param template:
         :param resolution_mu:
         :param roi:
         :return: nibabel image
         """
-        print('getting template for: ' + space['id'] + ', with resolution: ' + str(resolution_mu))
+        print('getting template for: ' + template['id'] + ', with resolution: ' + str(resolution_mu))
         for sp in self.schema['availableIn']:
-            if sp['@id'] == space['id']:
+            if sp['@id'] == template['id']:
                 # do request only, if file not yet downloaded
-                download_filename = self._tmp_directory + '/' + space['shortName']
+                download_filename = self._tmp_directory + '/' + template['shortName']
                 if not os.path.exists(download_filename):
                     print('downloading a big file, this could take some time')
-                    url = space['templateUrl']
+                    url = template['templateUrl']
                     req = requests.get(url)
                     if req is not None and req.status_code == 200:
                         # Write temporary zip file
@@ -109,7 +109,7 @@ class Atlas:
         - error on file read
         - error on zipfile functions
         - Nibable error
-        - error or None when space not known
+        - error or None when template not known
         - unexpected error
         '''
 

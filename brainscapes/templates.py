@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 
-class Spaces:
+class Templates:
 
     def __init__(self):
         path = Path(__file__).parent / '../definitions/atlas_MultiLevelHuman.json'
@@ -19,8 +19,9 @@ class Spaces:
 
 
 if __name__ == '__main__':
-    spaces = Spaces()
-    print(spaces.__dict__)
-    print(spaces.BIG_BRAIN)
-    print(spaces.ICBM_152_2009C_NONL_ASYM)
-    print(spaces.MNI_COLIN_27)
+    templates = Templates()
+    templates = Templates()
+    print(templates.__dict__)
+    print(templates.BIG_BRAIN)
+    print(templates.ICBM_152_2009C_NONL_ASYM)
+    print(templates.MNI_COLIN_27)
