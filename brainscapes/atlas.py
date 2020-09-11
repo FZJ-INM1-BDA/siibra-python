@@ -170,7 +170,7 @@ if __name__ == '__main__':
     # atlas.get_template("template")
     atlas.regionhierarchy()
     print('*******************************')
-    print(atlas.search_region('hOc1')
+    print(atlas.search_region('hOc1'))
     print('*******************************')
     print(atlas.get_region('LB (Amygdala) - left hemisphere'))
     print('******************************')
