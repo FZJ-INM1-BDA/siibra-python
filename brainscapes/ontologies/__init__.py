@@ -28,15 +28,16 @@ class __OntologyList__:
 
 def __init__(): 
 
-    from pkg_resources import resource_filename
-    from pkgutil import walk_packages
-    from os import path
     from glob import glob
+    import os
 
-    here = resource_filename(__name__,'')
-    for pkg in walk_packages(__path__):
-        files = glob(path.join(here,pkg.name,'*.json'))
-        globals()[pkg.name.upper()] = __OntologyList__(files)
-
+    for path in __path__:
+        subfolders = filter(
+                os.path.isdir, 
+                [os.path.join(path,f) for f in os.listdir(path)])
+        for folder in subfolders:
+            files = glob(os.path.join(folder,'*.json'))
+            name = os.path.basename(folder)
+            globals()[name] = __OntologyList__(files)
 
 __init__()
