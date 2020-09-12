@@ -3,7 +3,7 @@ from zipfile import ZipFile
 import requests
 import hashlib
 import nibabel as nib
-from os import path
+from os import path,makedirs
 
 # Ideas:
 #
@@ -26,17 +26,34 @@ def download_file(url, download_folder):
 
     TODO Handle and write tests for non-existing URLs, password-protected URLs, too large files, etc.
     """
-    filename = download_folder + '/' + str(hashlib.sha256(str.encode(url)).hexdigest())
-    if path.exists(filename):
+
+    if not path.isdir(download_folder):
+        print("Creating download folder:",download_folder)
+        makedirs(download_folder)
+
+    # Existing downloads are indicated by a hashfile generated from the URL,
+    # which includes the filename of the actual image. This is a workaround to
+    # deal with the fact that we do not know the filetype prior to downloading,
+    # so we cannot determine the suffix in advance.
+    hashfile = download_folder + '/' + str(hashlib.sha256(str.encode(url)).hexdigest())
+    if path.exists(hashfile):
+        with open(hashfile,'r') as f:
+            filename=f.read()
+            if path.exists(filename):
+                print("Loading from cache:",filename)
+                return filename
+
+    # No valid hash and corresponding file found
+    print('Downloading from',url)
+    req = requests.get(url)
+    if req is not None and req.status_code == 200:
+        if 'X-Object-Meta-Orig-Filename' in req.headers:
+            filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
+        with open(hashfile, 'w') as f:
+            f.write(filename)
+        with open(filename, 'wb') as code:
+            code.write(req.content)
         return filename
-    else:
-        req = requests.get(url)
-        if req is not None and req.status_code == 200:
-            if 'X-Object-Meta-Orig-Filename' in req.headers:
-                filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
-            with open(filename, 'wb') as code:
-                code.write(req.content)
-            return filename
         #     if 'X-Object-Meta-Orig-Filename' in req.headers:
         #         filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
         #     else:
