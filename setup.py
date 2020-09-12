@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="brainscapes-client",
+    name="brainscapes",
     version="0.0.1.dev1",
     author="Vadim Marcenko",
     author_email="v.marcenko@fz-juelich.de",
@@ -20,6 +20,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['anytree','json','nibabel'],
+    install_requires=['anytree','nibabel'],
 )
 

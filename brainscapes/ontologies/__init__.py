@@ -1,36 +1,42 @@
-from types import ModuleType
-import sys
 
-class module(ModuleType):
+class __OntologyList__:
     """
-    Derive from module class in order to add ontology definitions as custom
-    module attributes. Automcomplete is provided via a custom __dir__
-    implementation.
-    NOTE: In some versions of ipython using Jedi for autocompletion, this does
-    not work. In an ipython notebook, you might want to use 
-    `%config IPCompleter.use_jedi = False` 
-    to enable autocompletion of ontology definitions.
+    A class representing an ontology as given by the brainscapes json
+    definitions. Ontology items are directly accessible as object attributes.
     """
+    import json
 
-    attribute_names = []
+    def __init__(self,filenames):
+        """
+        Generate an ontology list from json files
+        """
+        self.attrs = {}
+        for fname in filenames:
+            with open(fname,'r') as f:
+                # NOTE that we assume a list at the top level!
+                for item in self.json.load(f):
+                    name = item['name'].replace(' ', '_').upper()
+                    self.attrs[name] = item
 
-    def __init__(self,modulename):
-        
-        from pkg_resources import resource_listdir,resource_filename
-        from os import path
-        import json
-        import sys
+    def __getattr__(self,name):
+        if name in self.attrs.keys():
+            return self.attrs[name]
 
-        for filename in (resource_listdir(modulename,'')):
-            if path.splitext(filename)[-1]=='.json':
-                with open(resource_filename(modulename,filename),'r') as f:
-                    items = json.load(f)
-                    for item in items:
-                        name = item['name'].replace(' ', '_').upper()
-                        setattr(self,name,item)
-                        self.attribute_names.append(name) 
-
-    def __dir__(self): 
-       return self.attribute_names + ModuleType.__dir__(self)
+    def __dir__(self):
+        return self.attrs.keys()
 
 
+def __init__(): 
+
+    from pkg_resources import resource_filename
+    from pkgutil import walk_packages
+    from os import path
+    from glob import glob
+
+    here = resource_filename(__name__,'')
+    for pkg in walk_packages(__path__):
+        files = glob(path.join(here,pkg.name,'*.json'))
+        globals()[pkg.name.upper()] = __OntologyList__(files)
+
+
+__init__()
