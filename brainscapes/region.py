@@ -29,6 +29,10 @@ class Region:
         #     'surface': ''
         # }
 
+    def __getattr__(self,name):
+        if name in self.attrs.keys():
+            return self.attrs[name]
+
     def query_data(self, datatype):
         return None
 
@@ -36,7 +40,7 @@ class Region:
         return True
 
     def __str__(self):
-        return "(name: {0})".format(self.name)
+        return self.name
 
     def __repr__(self):
         return self.__str__()

@@ -3,6 +3,7 @@ from zipfile import ZipFile
 import requests
 import hashlib
 import nibabel as nib
+from tempfile import mkdtemp
 from os import path,makedirs
 
 # Ideas:
@@ -13,16 +14,19 @@ from os import path,makedirs
 # - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key that is setup during package installation
 #
 
-_allowed_templates = [
-    'mni_icbm152_t1_tal_nlin_asym_09c.nii',
-    'colin27_t1_tal_lin.nii'
-]
-_tmp_directory = 'brainscapes_tmp'
-
-
-def download_file(url, download_folder):
+def download_file(url, download_folder, ziptarget=None):
     """
-    Downloads a file from a URL to local disk, and returns the filename
+    Downloads a file from a URL to local disk, and returns the local filename.
+
+    Parameters
+    ----------
+    url : string
+        Download link
+    download_folder : string
+        Path to a folder on the local filesystem for storing the image
+    ziptarget : string
+        [Optional] If the download gives a zip archive, this paramter gives the
+        filename to be extracted from the archive.
 
     TODO Handle and write tests for non-existing URLs, password-protected URLs, too large files, etc.
     """
@@ -43,27 +47,24 @@ def download_file(url, download_folder):
                 print("Loading from cache:",filename)
                 return filename
 
-    # No valid hash and corresponding file found
+    # No valid hash and corresponding file found - need to download
     print('Downloading from',url)
     req = requests.get(url)
     if req is not None and req.status_code == 200:
         if 'X-Object-Meta-Orig-Filename' in req.headers:
             filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
-        with open(hashfile, 'w') as f:
-            f.write(filename)
+        else:
+            filename = path.basename(url)
         with open(filename, 'wb') as code:
             code.write(req.content)
+        print("Filename is",filename)
+        suffix = path.splitext(filename)[-1]
+        if (suffix==".zip") and (ziptarget is not None):
+            filename = get_from_zip(
+                    filename, ziptarget, download_folder)
+        with open(hashfile, 'w') as f:
+            f.write(filename)
         return filename
-        #     if 'X-Object-Meta-Orig-Filename' in req.headers:
-        #         filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
-        #     else:
-        #         filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
-        #     if not path.exists(filename):
-        #         with open(filename, 'wb') as code:
-        #             code.write(req.content)
-        #     return filename
-        # return None
-        # throw error TODO
     '''
         - error on response status != 200
         - error on file read
@@ -74,14 +75,15 @@ def download_file(url, download_folder):
         '''
 
 
-def get_file_from_zip(zipfile):
+def get_from_zip(zipfile,ziptarget,targetdirectory):
     # Extract temporary zip file
-    # TODO shall go to the data retrieval module
+    # TODO catch problem if file is not a nifti
     with ZipFile(zipfile, 'r') as zip_ref:
         for zip_info in zip_ref.infolist():
             if zip_info.filename[-1] == '/':
                 continue
             zip_info.filename = path.basename(zip_info.filename)
-            if zip_info.filename in _allowed_templates:
-                zip_ref.extract(zip_info, _tmp_directory)
-                return nib.load(_tmp_directory + '/' + zip_info.filename)
+            if zip_info.filename == ziptarget:
+                tmpdir = mkdtemp()
+                zip_ref.extract(zip_info, targetdirectory)
+                return targetdirectory + '/' + zip_info.filename

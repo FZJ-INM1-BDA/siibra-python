@@ -12,7 +12,12 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     # url="https://github.com/HumanBrainProject/atlas-core-lib.git",
-    packages=find_packages(include=['brainscapes_client']),
+    scripts=['cli.py'],
+    entry_points='''
+        [console_scripts]
+        brainscapes=cli:brainscapes
+    ''',
+    packages=find_packages(include=['brainscapes']),
     package_data={'brainscapes.ontologies': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
     include_package_data=True,
     classifiers=[

@@ -1,54 +1,14 @@
-import os
 import logging
-import json
 import nibabel as nib
 from anytree import Node, RenderTree
+from tempfile import mkdtemp
 
 from .region import Region
 from .ontologies import atlases, parcellations, spaces
-from .retrieval import download_file, get_file_from_zip
-
-def regionlist(regions,parent=None):
-    """
-    From a dictionary of regions, as given by brainscapes parcellation
-    definitions, build a consolidated hierarchy of names.
-    """
-    trees = []
-    for regiondef in regions:
-        newnode = Node(regiondef['name'],parent=parent)
-        if 'children' in regiondef.keys():
-            _ = regionlist(regiondef['children'],parent=newnode)
-        trees.append(newnode)
-    return trees
-
-def search_region(regions,name,exact=True):
-    """
-    In a dictionary of regions, as given by brainscapes parcellation
-    definitions, perform a recursive tree search for a given region name.
-
-    If extact==False, will return all regions that match name as a substring.
-    """
-    matches = []
-    for regiondef in regions:
-
-        if exact and (regiondef['name']==name):
-            return Region(regiondef)
-
-        if (not exact) and (name in regiondef['name']):
-            matches.append(Region(regiondef))
-
-        if 'children' in regiondef.keys():
-            more_matches = search_region(regiondef['children'],name,exact=exact)
-            matches += more_matches
-
-    # TODO should rather be a special "Undefined Region"
-    return None if exact else matches
-        
+from .retrieval import download_file
 
 class Atlas:
 
-    # directory for cached files
-    _tmp_directory = 'brainscapes_tmp'
     # templates that should be used from www.bic.mni.mcgill.ca
     # TODO I would put this information with the space ontologies. We have to
     # extend the concept of a simple URL and allow to give a URL to the zip and
@@ -58,11 +18,8 @@ class Atlas:
         'colin27_t1_tal_lin.nii'
     ]
 
-    def __init__(self):
-        # FIXME uses Python's temp directory functions for amore platform
-        # independent solution
-        if not os.path.exists(self._tmp_directory):
-            os.mkdir(self._tmp_directory)
+    def __init__(self,cachedir=None):
+        self._cachedir = mkdtemp() if cachedir is None else cachedir
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
         self.__regions__ = []
         self.select_parcellation_scheme(parcellations.CYTOARCHITECTONIC_MAPS)
@@ -98,13 +55,13 @@ class Atlas:
         A nibabel Nifti object representing the volumetric map, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('Retrieving map for ' + space['name'])
         if space['@id'] not in self.__parcellation__['maps'].keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
             logging.error('    Selected parcellation: {}'.format(self.__parcellation__['name']))
             logging.error('    Requested space:       {}'.format(space))
             return None
-        filename = download_file(self.__parcellation__['maps'][space['@id']], self._tmp_directory)
+        print('Loading 3D map for space ', space['name'])
+        filename = download_file(self.__parcellation__['maps'][space['@id']], self._cachedir)
         if filename is not None:
             return nib.load(filename)
         else:
@@ -127,26 +84,90 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        print('Retrieving template for ' + space['name'] + ', with resolution: ' + str(resolution_mu))
         if space['@id'] not in self.__atlas__['spaces']:
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))
             return None
 
-        filename = download_file(space['templateUrl'], self._tmp_directory)
-        return get_file_from_zip(filename)
+        print('Loading template image for space',space['name'])
+        if 'templateFile' in space.keys():
+            filename = download_file( space['templateUrl'], self._cachedir, 
+                    ziptarget=space["templateFile"])
+        else:
+            filename = download_file( space['templateUrl'], self._cachedir)
+        if filename is not None:
+            return nib.load(filename)
+        else:
+            return None
 
+    @staticmethod
+    def __regiontree(regions,parent=None):
+        """
+        From a dictionary of regions, as given by brainscapes parcellation
+        definitions, build a consolidated hierarchy of names.
+        """
+        trees = []
+        for regiondef in regions:
+            newnode = Node(regiondef['name'],parent=parent)
+            if 'children' in regiondef.keys():
+                _ = Atlas.__regiontree(regiondef['children'],parent=newnode)
+            trees.append(newnode)
+        return trees
+
+    @staticmethod
+    def __regionleaves(regions):
+        """
+        Recurses a region tree and returns the list of leaves.
+        """
+        leaves = []
+        for regiondef in regions:
+            if any([
+                'children' not in regiondef.keys(),
+                len(regiondef['children'])==0
+                ]):
+                leaves.append(Region(regiondef))
+            else:
+                leaves+=Atlas.__regionleaves(regiondef['children'])
+        return leaves
+
+    @staticmethod
+    def __regionsearch(regions,name,exact=True):
+        """
+        In a dictionary of regions, as given by brainscapes parcellation
+        definitions, perform a recursive tree search for a given region name.
+
+        If extact==False, will return all regions that match name as a substring.
+        """
+        matches = []
+        for regiondef in regions:
+
+            if exact and (regiondef['name']==name):
+                return Region(regiondef)
+
+            if (not exact) and (name in regiondef['name']):
+                matches.append(Region(regiondef))
+
+            if 'children' in regiondef.keys():
+                more_matches = Atlas.__regionsearch(regiondef['children'],name,exact=exact)
+                matches += more_matches
+
+        # TODO should rather be a special "Undefined Region"
+        return None if exact else matches
+            
     def get_region(self, regionname):
-        return search_region(self.__regions__, regionname, exact=True)
+        return Atlas.__regionsearch(self.__regions__, regionname, exact=True)
 
     def search_region(self, substring):
-        return search_region(self.__regions__, substring, exact=False)
+        return Atlas.__regionsearch(self.__regions__, substring, exact=False)
+
+    def regions(self):
+        return Atlas.__regionleaves(self.__regions__)
 
     def regionhierarchy(self):
         """
         Prints a hierarchy of defined region names.
         """
-        for tree in regionlist(self.__regions__):
+        for tree in Atlas.__regiontree(self.__regions__):
             for pre, _, node in RenderTree(tree):
                 print("%s%s" % (pre, node.name))
 
