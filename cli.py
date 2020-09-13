@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import click
+import logging
 import brainscapes.atlas as bsa
 import brainscapes.preprocessing as proc
 from brainscapes.ontologies import atlases, parcellations, spaces
@@ -30,21 +31,24 @@ def complete_spaces(ctx, args, incomplete):
         help="Local directory for caching downloaded files. If none, a temporary directory will be used.")
 @click.pass_context
 def regionprops(ctx,parcellation,space,cache):
-    print("Preprocessing parcellation",parcellation)
+
     parcellation_obj = getattr(parcellations,parcellation)
     spaces_obj = getattr(spaces,space)
+
     atlas = bsa.Atlas(cachedir=cache)
     atlas.select_parcellation_scheme(parcellation_obj)
-    icbm_map = atlas.get_map(spaces_obj)
-    icbm_tpl = atlas.get_template(spaces_obj)
-    props = proc.regionprops(icbm_map)
+    lbl_volume = atlas.get_map(spaces_obj)
+    tpl_volume = atlas.get_template(spaces_obj)
+    props = proc.regionprops(lbl_volume,tpl_volume)
     for region in atlas.regions():
-        label = region.labelIndex
+        print(region.name)
+        label = int(region.labelIndex)
         if label not in props.keys():
-            print("No properties for label",label)
+            logging.warn("No properties for label {}".format(label))
             continue
-        name = region.name
         stored_position = region.position
-        computed_position_mm = props[label]['centroid']
-        print(name,computed_position_mm)
+        for prop in props[label]:
+            print("{d[0]:12.1f} {d[1]:12.1f} {d[2]:12.1f}   {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}".format(
+                d=stored_position,
+                c=prop.centroid_mm))
 
