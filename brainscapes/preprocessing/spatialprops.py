@@ -4,27 +4,19 @@ from collections import defaultdict
 from nibabel.affines import apply_affine
 
 # NOTE this does not work for histological volume like the BigBrain.
-def regionprops(label_volume,img_volume):
+def regionprops(label_volumes,img_volume):
     """
     Extracts basic properties of all labelled regions in the volume.
 
     Parameters
     ----------
-    label_volume : nibabel Nifti1 image object 
-        The labelled brain volume (parcellation map).
+    label_volumes : Dictionary of nibabel Nifti1 image objects
+        The brain volume labelling (list of parcellation maps).
 
     img_volume : nibabel Nifti1 image object 
         The corresponding reference image (typically the T1/T2 template).
     """
 
-    # relabel connected components to handle the case of multiple
-    # areas with identical label (e.g., in the different hemispheres).
-    T = np.asanyarray(img_volume.dataobj)
-    L = np.asanyarray(label_volume.dataobj)
-    L_cc = measure.label(L)
-    print('Original map has {} labels, relabelled map has {}.'.format(
-        len(np.unique(L)), len(np.unique(L_cc)) ))
-        
     # for now we expect isotropic physical coordinates given in mm for the
     # template volume
     # TODO be more flexible here
@@ -34,16 +26,18 @@ def regionprops(label_volume,img_volume):
     assert(len(pixel_spacings)==1)
     pixel_spacing = pixel_spacings[0]
 
-    # Extraction properties of each connected component, recompute some
+    # Extract properties of each connected component, recompute some
     # spatial props in physical coordinates, and return connected componente
-    # as a list # per original atlas label
-    regionprops_cc = measure.regionprops(L_cc)
+    # as a list 
     regionprops = defaultdict(list)
-    for rprop_cc in regionprops_cc:
-        labels = np.unique(L[L_cc==rprop_cc.label])
-        assert(len(labels)==1)
-        rprop_cc.centroid_mm = apply_affine(img_volume.affine,rprop_cc.centroid)
-        rprop_cc.area_mm = rprop_cc.area * pixel_spacing**3
-        regionprops[labels[0]].append(rprop_cc)
+    for desc,nim in label_volumes.items():
+        L = np.asanyarray(nim.dataobj) 
+        for rprop in measure.regionprops(L):
+            labels = np.unique(L[L==rprop.label])
+            assert(len(labels)==1)
+            rprop.centroid_mm = apply_affine(img_volume.affine,rprop.centroid)
+            rprop.area_mm = rprop.area * pixel_spacing**3
+            rprop.labelled_volume_description = desc
+            regionprops[labels[0]].append(rprop)
 
     return regionprops

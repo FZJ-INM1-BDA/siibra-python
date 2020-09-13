@@ -7,14 +7,14 @@
 		"baseLayer": true,
 		"maps": {
 			"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : "",
-			"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : [
-				"https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2icbm152casym_18_public_a5f6c95f2e7ff6f43b6bf7c816c37c8b.nii.gz",
-				"https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2icbm152casym_18_public_9794c687d322d493f4cf67713349fc59.nii.gz"
-			],
-			"minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992" : [
-				"https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2Stdcolin27_18_public_4720167a11fb4fe3b58b8bd9284a38a3.nii.gz",
-				"https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2Stdcolin27_18_public_2a35bda52754e9cc9d52945b661ca659.nii.gz"
-			]
+			"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : {
+				"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2icbm152casym_18_public_a5f6c95f2e7ff6f43b6bf7c816c37c8b.nii.gz",
+				"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2icbm152casym_18_public_9794c687d322d493f4cf67713349fc59.nii.gz"
+			},
+			"minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992" : {
+				"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2Stdcolin27_18_public_4720167a11fb4fe3b58b8bd9284a38a3.nii.gz",
+				"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2Stdcolin27_18_public_2a35bda52754e9cc9d52945b661ca659.nii.gz"
+			}
 		},
 		"auxillaryMeshIndices": [
 			65535

@@ -5,6 +5,7 @@ class __OntologyList__:
     definitions. Ontology items are directly accessible as object attributes.
     """
     import json
+    import re
 
     def __init__(self,filenames):
         """
@@ -15,12 +16,15 @@ class __OntologyList__:
             with open(fname,'r') as f:
                 # NOTE that we assume a list at the top level!
                 for item in self.json.load(f):
-                    name = item['name'].replace(' ', '_').upper()
+                    name = self.re.sub("[^0-9a-zA-Z]+", "_", item['name']).upper()
                     self.attrs[name] = item
 
     def __getattr__(self,name):
         if name in self.attrs.keys():
             return self.attrs[name]
+        else:
+            raise AttributeError("No such attribute: {}".format(
+                name) )
 
     def __dir__(self):
         return self.attrs.keys()

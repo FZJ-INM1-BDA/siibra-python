@@ -32,23 +32,27 @@ def complete_spaces(ctx, args, incomplete):
 @click.pass_context
 def regionprops(ctx,parcellation,space,cache):
 
+    if not hasattr(parcellations,parcellation):
+        logging.error("No such parcellation available: "+parcellation)
+        exit(1)
     parcellation_obj = getattr(parcellations,parcellation)
     spaces_obj = getattr(spaces,space)
 
     atlas = bsa.Atlas(cachedir=cache)
     atlas.select_parcellation_scheme(parcellation_obj)
-    lbl_volume = atlas.get_map(spaces_obj)
+    lbl_volumes = atlas.get_maps(spaces_obj)
     tpl_volume = atlas.get_template(spaces_obj)
-    props = proc.regionprops(lbl_volume,tpl_volume)
+    props = proc.regionprops(lbl_volumes,tpl_volume)
     for region in atlas.regions():
-        print(region.name)
         label = int(region.labelIndex)
         if label not in props.keys():
-            logging.warn("No properties for label {}".format(label))
+            logging.warn("No properties for label {} (Area {})".format(label,region.name))
             continue
         stored_position = region.position
         for prop in props[label]:
-            print("{d[0]:12.1f} {d[1]:12.1f} {d[2]:12.1f}   {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}".format(
-                d=stored_position,
-                c=prop.centroid_mm))
+            # FIXME this identifies left/right hemisphere labels for
+            # Julich-Brain, but is not a general solution
+            if prop.labelled_volume_description in region.name:
+                print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}".format(
+                    n=region.name, c=prop.centroid_mm))
 
