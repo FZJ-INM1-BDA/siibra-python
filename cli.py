@@ -3,14 +3,10 @@
 import click
 import logging
 import brainscapes.atlas as bsa
-import brainscapes.preprocessing as proc
+from brainscapes import preprocessing 
 from brainscapes.ontologies import atlases, parcellations, spaces
 
-@click.group()
-def brainscapes():
-    """ Command line interface to the brainscapes atlas services.
-    """
-    pass    
+logging.basicConfig(level=logging.INFO)
 
 def complete_parcellations(ctx, args, incomplete):
     """ auto completion for parcellations """
@@ -20,33 +16,81 @@ def complete_spaces(ctx, args, incomplete):
     """ auto completion for parcellations """
     return dir(spaces)
 
-@brainscapes.command()
-@click.argument('parcellation', 
-        type=click.STRING, 
-        autocompletion=complete_parcellations)
-@click.argument('space', 
-        type=click.STRING, 
-        autocompletion=complete_spaces)
+
+@click.group()
+@click.option('-p','--parcellation', type=click.STRING, default=None, 
+        autocompletion=complete_parcellations,
+        help="Specify another than the default parcellation")
 @click.option('--cache', default=None, type=click.Path(dir_okay=True),
         help="Local directory for caching downloaded files. If none, a temporary directory will be used.")
 @click.pass_context
-def regionprops(ctx,parcellation,space,cache):
+def brainscapes(ctx,parcellation,cache):
+    """ Command line interface to the brainscapes atlas services.
     """
-    Test command for extracting core properties of atlas regions as requested by TVB.
+    ctx.obj = bsa.Atlas(cachedir=cache)
+    if parcellation is not None:
+        if not hasattr(parcellations,parcellation):
+            logging.error("No such parcellation available: "+parcellation)
+            exit(1)
+        ctx.obj.select_parcellation_scheme(getattr(parcellations,parcellation))
+    logging.info('Atlas uses parcellation "{}"'.format(ctx.obj.__parcellation__['name']))
+
+@brainscapes.group()
+@click.pass_context
+def region(ctx):
+    """
+    Browse the region hierarchy of the selected parcellation.
+    """
+    pass
+
+@region.command()
+@click.argument('searchstring', type=click.STRING)
+@click.option('-i','--case-insensitive',is_flag=True,
+        help="Ignore case when searching")
+@click.pass_context
+def search(ctx,searchstring,case_insensitive):
+    """
+    Search regions from the selected parcellation by substring matching.
+    """
+    atlas = ctx.obj
+    matches = atlas.search_region(searchstring)
+    for m in matches:
+        print(m.name)
+
+@region.command()
+@click.pass_context
+def hierarchy(ctx):
+    """
+    Plot the complete region hierarchy of the selected parcellation.
+    """
+    atlas = ctx.obj
+    atlas.regionhierarchy()
+
+@brainscapes.group()
+@click.pass_context
+def compute(ctx):
+    """
+    Perform basic computations on brain regions.
+    """
+    pass
+
+@compute.command()
+@click.argument('space', 
+        type=click.STRING, 
+        autocompletion=complete_spaces)
+@click.pass_context
+def regionprops(ctx,space):
+    """
+    Compute basic properties of atlas regions as requested. 
     """
 
-    if not hasattr(parcellations,parcellation):
-        logging.error("No such parcellation available: "+parcellation)
-        exit(1)
-    parcellation_obj = getattr(parcellations,parcellation)
+    atlas = ctx.obj
     spaces_obj = getattr(spaces,space)
 
     # Extract properties of all atlas regions
-    atlas = bsa.Atlas(cachedir=cache)
-    atlas.select_parcellation_scheme(parcellation_obj)
     lbl_volumes = atlas.get_maps(spaces_obj)
     tpl_volume = atlas.get_template(spaces_obj)
-    props = proc.regionprops(lbl_volumes,tpl_volume)
+    props = preprocessing.regionprops(lbl_volumes,tpl_volume)
 
     # Generate commandline report
     for region in atlas.regions():

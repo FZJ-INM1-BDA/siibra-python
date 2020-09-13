@@ -1,6 +1,6 @@
 [
 	{
-		"name": "Long Bundle",
+		"name": "Probabilistic Long White Matter Bundle Atlas",
 		"shortName": "Long Bundle",
 		"@id": "juelich/iav/atlas/v1.0.0/5",
 		"groupName": "Fibre tracts",
@@ -10,7 +10,7 @@
 	},
 	{
 		"ngId": "fibre bundle short",
-		"name": "Short Bundle",
+		"name": "Probabilistic Superficial Fibre Bundle Atlas",
 		"shortName": "Short Bundle",
 		"@id": "juelich/iav/atlas/v1.0.0/6",
 		"groupName": "Fibre tracts",

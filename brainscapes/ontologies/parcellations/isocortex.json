@@ -1,6 +1,6 @@
 [
 	{
-		"name": "Isocortex and non-isocortical structures",
+		"name": "BigBrain Isocortex Segmentation",
 		"shortName": "Isocortex",
 		"@id": "juelich/iav/atlas/v1.0.0/4",
 		"maps": {

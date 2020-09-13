@@ -10,6 +10,8 @@
 		],
 		"parcellations": [
 			"minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
+			"juelich/iav/atlas/v1.0.0/5",
+			"juelich/iav/atlas/v1.0.0/3",
 			"minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721",
 			"minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8",
 			"minds/core/parcellationatlas/v1.0.0/141d510f-0342-4f94-ace7-c97d5f160235",
