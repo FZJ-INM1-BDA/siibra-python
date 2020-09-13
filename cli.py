@@ -31,6 +31,9 @@ def complete_spaces(ctx, args, incomplete):
         help="Local directory for caching downloaded files. If none, a temporary directory will be used.")
 @click.pass_context
 def regionprops(ctx,parcellation,space,cache):
+    """
+    Test command for extracting core properties of atlas regions as requested by TVB.
+    """
 
     if not hasattr(parcellations,parcellation):
         logging.error("No such parcellation available: "+parcellation)
@@ -38,21 +41,28 @@ def regionprops(ctx,parcellation,space,cache):
     parcellation_obj = getattr(parcellations,parcellation)
     spaces_obj = getattr(spaces,space)
 
+    # Extract properties of all atlas regions
     atlas = bsa.Atlas(cachedir=cache)
     atlas.select_parcellation_scheme(parcellation_obj)
     lbl_volumes = atlas.get_maps(spaces_obj)
     tpl_volume = atlas.get_template(spaces_obj)
     props = proc.regionprops(lbl_volumes,tpl_volume)
+
+    # Generate commandline report
     for region in atlas.regions():
         label = int(region.labelIndex)
         if label not in props.keys():
-            logging.warn("No properties for label {} (Area {})".format(label,region.name))
+            print("{n:40.40}  {na[0]:>12.12} {na[0]:>12.12} {na[0]:>12.12}  {na[0]:>10.10}  {na[0]:>10.10}".format(
+                n=region.name, na=["N/A"]*5))
             continue
-        stored_position = region.position
         for prop in props[label]:
             # FIXME this identifies left/right hemisphere labels for
             # Julich-Brain, but is not a general solution
             if prop.labelled_volume_description in region.name:
-                print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}".format(
-                    n=region.name, c=prop.centroid_mm))
+                print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}  {v:10.1f}  {s:10.1f}".format(
+                    n=region.name, 
+                    c=prop.centroid_mm,
+                    v=prop.volume_mm,
+                    s=prop.surface_mm
+                    ))
 

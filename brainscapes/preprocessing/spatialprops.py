@@ -25,19 +25,39 @@ def regionprops(label_volumes,img_volume):
     pixel_spacings = np.unique(img_volume.header.get_zooms()[:3])
     assert(len(pixel_spacings)==1)
     pixel_spacing = pixel_spacings[0]
+    grid2mm = lambda pts : apply_affine(img_volume.affine,pts)
 
     # Extract properties of each connected component, recompute some
     # spatial props in physical coordinates, and return connected componente
     # as a list 
     regionprops = defaultdict(list)
+
     for desc,nim in label_volumes.items():
         L = np.asanyarray(nim.dataobj) 
-        for rprop in measure.regionprops(L):
+        rprops = measure.regionprops(L)
+        for i,rprop in enumerate(rprops):
+
+            print("{0:60.60} {1:10.1%}".format(
+                "Extracting spatial props "+desc,
+                (i+1)/len(rprops)), end="\r")
+
             labels = np.unique(L[L==rprop.label])
             assert(len(labels)==1)
-            rprop.centroid_mm = apply_affine(img_volume.affine,rprop.centroid)
-            rprop.area_mm = rprop.area * pixel_spacing**3
+            label = labels[0]
+
             rprop.labelled_volume_description = desc
-            regionprops[labels[0]].append(rprop)
+
+            # centroid in physical coordinates
+            rprop.centroid_mm = grid2mm(rprop.centroid)
+
+            # volume in physical coordinates
+            rprop.volume_mm = rprop.area * pixel_spacing**3
+
+            # approximate surface
+            verts,faces,_,_ = measure.marching_cubes(L==label)
+            rprop.surface_mm = measure.mesh_surface_area(grid2mm(verts),faces)
+
+            regionprops[label].append(rprop)
+        print()
 
     return regionprops
