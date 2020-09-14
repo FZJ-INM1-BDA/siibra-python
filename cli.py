@@ -53,9 +53,19 @@ def search(ctx,searchstring,case_insensitive):
     Search regions from the selected parcellation by substring matching.
     """
     atlas = ctx.obj
-    matches = atlas.search_region(searchstring)
+    matches = atlas.search_region(searchstring,exact=False)
     for m in matches:
         print(m.name)
+
+@region.command()
+@click.pass_context
+def list(ctx):
+    """
+    List all basic regions (leaves of the region hierarchy)
+    """
+    atlas = ctx.obj
+    for region in atlas.regions():
+        print(region.name)
 
 @region.command()
 @click.pass_context
@@ -94,6 +104,7 @@ def regionprops(ctx,space):
 
     # Generate commandline report
     for region in atlas.regions():
+        is_cortical = region.has_parent('cerebral cortex')
         label = int(region.labelIndex)
         if label not in props.keys():
             print("{n:40.40}  {na[0]:>12.12} {na[0]:>12.12} {na[0]:>12.12}  {na[0]:>10.10}  {na[0]:>10.10}".format(
@@ -103,10 +114,11 @@ def regionprops(ctx,space):
             # FIXME this identifies left/right hemisphere labels for
             # Julich-Brain, but is not a general solution
             if prop.labelled_volume_description in region.name:
-                print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}  {v:10.1f}  {s:10.1f}".format(
+                print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}  {v:10.1f}  {s:10.1f}  {i}".format(
                     n=region.name, 
                     c=prop.centroid_mm,
                     v=prop.volume_mm,
-                    s=prop.surface_mm
+                    s=prop.surface_mm,
+                    i=is_cortical
                     ))
 

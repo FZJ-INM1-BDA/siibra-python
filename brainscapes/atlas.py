@@ -1,7 +1,7 @@
 import logging
 import nibabel as nib
 import numpy as np
-from anytree import Node, RenderTree
+import anytree
 from tempfile import mkdtemp
 
 from .region import Region
@@ -22,7 +22,7 @@ class Atlas:
     def __init__(self,cachedir=None):
         self._cachedir = mkdtemp() if cachedir is None else cachedir
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
-        self.__regions__ = []
+        self.__regiontree__ = None
         self.select_parcellation_scheme(parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS)
 
     def select_parcellation_scheme(self, parcellation):
@@ -40,7 +40,8 @@ class Atlas:
             logging.error('    Atlas:         '+self.__atlas__['name'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.__regions__ = parcellation['regions']
+        self.__regiontree__ = Region({'name':'root'})
+        Atlas.__construct_regiontree(parcellation['regions'],parent=self.__regiontree__)
 
     def get_maps(self, space):
         """
@@ -119,75 +120,39 @@ class Atlas:
             return None
 
     @staticmethod
-    def __regiontree(regions,parent=None):
-        """
-        From a dictionary of regions, as given by brainscapes parcellation
-        definitions, build a consolidated hierarchy of names.
-        """
-        trees = []
-        for regiondef in regions:
-            newnode = Node(regiondef['name'],parent=parent)
-            if 'children' in regiondef.keys():
-                _ = Atlas.__regiontree(regiondef['children'],parent=newnode)
-            trees.append(newnode)
-        return trees
+    def __construct_regiontree(regiondefs,parent):
+        subtrees = []
+        for regiondef in regiondefs:
+            node = Region(regiondef,parent)
+            if "children" in regiondef.keys():
+                _ = Atlas.__construct_regiontree(regiondef['children'],parent=node)
+            subtrees.append(node)
+        return subtrees
 
-    @staticmethod
-    def __regionleaves(regions):
+    def search_region(self,name,exact=True):
         """
-        Recurses a region tree and returns the list of leaves.
-        """
-        leaves = []
-        for regiondef in regions:
-            if any([
-                'children' not in regiondef.keys(),
-                len(regiondef['children'])==0
-                ]):
-                leaves.append(Region(regiondef))
-            else:
-                leaves+=Atlas.__regionleaves(regiondef['children'])
-        return leaves
-
-    @staticmethod
-    def __regionsearch(regions,name,exact=True):
-        """
-        In a dictionary of regions, as given by brainscapes parcellation
-        definitions, perform a recursive tree search for a given region name.
+        Perform a recursive tree search for a given region name.
 
         If extact==False, will return all regions that match name as a substring.
         """
-        matches = []
-        for regiondef in regions:
-
-            if exact and (regiondef['name']==name):
-                return Region(regiondef)
-
-            if (not exact) and (name in regiondef['name']):
-                matches.append(Region(regiondef))
-
-            if 'children' in regiondef.keys():
-                more_matches = Atlas.__regionsearch(regiondef['children'],name,exact=exact)
-                matches += more_matches
-
-        # TODO should rather be a special "Undefined Region"
-        return None if exact else matches
+        if exact:
+            return anytree.search.find_by_attr(self.__regiontree__, name==name)
+        else:
+            return anytree.search.findall(self.__regiontree__, 
+                    lambda node: name in node.name)
             
-    def get_region(self, regionname):
-        return Atlas.__regionsearch(self.__regions__, regionname, exact=True)
-
-    def search_region(self, substring):
-        return Atlas.__regionsearch(self.__regions__, substring, exact=False)
-
     def regions(self):
-        return Atlas.__regionleaves(self.__regions__)
+        print("needs to be implemented: return the leaves of the tree")
+        return [n
+                for n in self.__regiontree__.descendants 
+                if n.is_leaf]
 
     def regionhierarchy(self):
         """
         Prints a hierarchy of defined region names.
         """
-        for tree in Atlas.__regiontree(self.__regions__):
-            for pre, _, node in RenderTree(tree):
-                print("%s%s" % (pre, node.name))
+        for pre, _, node in anytree.RenderTree(self.__regiontree__):
+            print("%s%s" % (pre, node.name))
 
     def connectivity_sources(self):
         print('getting connectivity sources')

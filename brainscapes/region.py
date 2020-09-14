@@ -1,12 +1,13 @@
 import json
 
 from brainscapes.ontologies import parcellations,spaces 
+from anytree import NodeMixin
 
-class Region:
+class Region(NodeMixin):
 
     """Representation of a region with name and more optional attributes"""
 
-    def __init__(self, definition):
+    def __init__(self, definition, parent=None, children=None):
         """
         Constructs a region object from its definition as given in the
         brainscapes parcellation definitions.
@@ -14,11 +15,18 @@ class Region:
         Parameters
         ----------
         definition : dict
-        A dictionary of one particular region as formatted in the brainscapes
-        parcellation defininition json files.
+            A dictionary of one particular region as formatted in the brainscapes parcellation defininition json files.
+        parent : Region
+            Parent of this region, if any
+        children : list of Region
+            Children of this region, if any
         """
         self.name = definition['name']
-        self.attrs =  definition
+        self.attrs = definition
+        if parent is not None:
+            self.parent = parent
+        if children is not None: 
+            self.children = children
 
     def get_spatial_props(self, space):
         # TODO implement this
@@ -29,15 +37,17 @@ class Region:
         #     'surface': ''
         # }
 
+    def has_parent(self,parentname):
+        return parentname in [a.name for a in self.ancestors]
+
     def __getattr__(self,name):
         if name in self.attrs.keys():
             return self.attrs[name]
+        else:
+            raise AttributeError("No such attribute: {}".format(name))
 
     def query_data(self, datatype):
         return None
-
-    def is_cortical(self):
-        return True
 
     def __str__(self):
         return self.name
