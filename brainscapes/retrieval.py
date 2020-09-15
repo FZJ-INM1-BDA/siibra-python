@@ -3,7 +3,7 @@ from zipfile import ZipFile
 import requests
 import hashlib
 from tempfile import mkdtemp
-from os import path, makedirs
+from os import path, makedirs, environ
 
 # Ideas:
 #
@@ -14,6 +14,20 @@ from os import path, makedirs
 # - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key
 #   that is setup during package installation
 #
+
+
+def __check_and_get_token():
+    """
+    Check for a token in the environment variables.
+    A token must be provided for different http calls, to be authenticated
+
+    TODO Method and therefore the token is not yet used. Clarification needed how to use token against object.cscs store
+    """
+    try:
+        token = environ['HBP_AUTH_TOKEN']
+        print('token: ' + token)
+    except KeyError:
+        print('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
 
 
 def download_file(url, download_folder, ziptarget=None):
@@ -89,3 +103,7 @@ def get_from_zip(zipfile, ziptarget, targetdirectory):
                 tmpdir = mkdtemp()
                 zip_ref.extract(zip_info, targetdirectory)
                 return targetdirectory + '/' + zip_info.filename
+
+
+if __name__ == '__main__':
+    __check_and_get_token()
