@@ -10,15 +10,6 @@ from .retrieval import download_file
 
 class Atlas:
 
-    # templates that should be used from www.bic.mni.mcgill.ca
-    # TODO I would put this information with the space ontologies. We have to
-    # extend the concept of a simple URL and allow to give a URL to the zip and
-    # the target filename. We should also chekc wether we are free to redistribute.
-    _allowed_templates = [
-        'mni_icbm152_t1_tal_nlin_asym_09c.nii',
-        'colin27_t1_tal_lin.nii'
-    ]
-
     def __init__(self,cachedir=None):
         self._cachedir = mkdtemp() if cachedir is None else cachedir
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
