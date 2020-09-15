@@ -2,17 +2,19 @@ from zipfile import ZipFile
 
 import requests
 import hashlib
-import nibabel as nib
 from tempfile import mkdtemp
-from os import path,makedirs
+from os import path, makedirs
 
 # Ideas:
 #
 # this module can detect several flavors of download file specifactions, for example:
 # - A nifti file on a standard http URL, no auth required -> just download it
-# - A zip file on a standard http URL -> We need additional specificcation of the desired file in side the zip (needs to be reflected in the metadata scheme for e.g. spaces and parcellations)
-# - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key that is setup during package installation
+# - A zip file on a standard http URL -> We need additional specificcation of the desired file in side the zip
+#   (needs to be reflected in the metadata scheme for e.g. spaces and parcellations)
+# - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key
+#   that is setup during package installation
 #
+
 
 def download_file(url, download_folder, ziptarget=None):
     """
@@ -32,7 +34,7 @@ def download_file(url, download_folder, ziptarget=None):
     """
 
     if not path.isdir(download_folder):
-        print("Creating download folder:",download_folder)
+        print("Creating download folder:", download_folder)
         makedirs(download_folder)
 
     # Existing downloads are indicated by a hashfile generated from the URL,
@@ -41,14 +43,14 @@ def download_file(url, download_folder, ziptarget=None):
     # so we cannot determine the suffix in advance.
     hashfile = download_folder + '/' + str(hashlib.sha256(str.encode(url)).hexdigest())
     if path.exists(hashfile):
-        with open(hashfile,'r') as f:
-            filename=f.read()
+        with open(hashfile, 'r') as f:
+            filename = f.read()
             if path.exists(filename):
-                print("Loading from cache:",filename)
+                print("Loading from cache:", filename)
                 return filename
 
     # No valid hash and corresponding file found - need to download
-    print('Downloading from',url)
+    print('Downloading from', url)
     req = requests.get(url)
     if req is not None and req.status_code == 200:
         if 'X-Object-Meta-Orig-Filename' in req.headers:
@@ -57,9 +59,9 @@ def download_file(url, download_folder, ziptarget=None):
             filename = path.basename(url)
         with open(filename, 'wb') as code:
             code.write(req.content)
-        print("Filename is",filename)
+        print("Filename is", filename)
         suffix = path.splitext(filename)[-1]
-        if (suffix==".zip") and (ziptarget is not None):
+        if (suffix == ".zip") and (ziptarget is not None):
             filename = get_from_zip(
                     filename, ziptarget, download_folder)
         with open(hashfile, 'w') as f:
@@ -75,7 +77,7 @@ def download_file(url, download_folder, ziptarget=None):
         '''
 
 
-def get_from_zip(zipfile,ziptarget,targetdirectory):
+def get_from_zip(zipfile, ziptarget, targetdirectory):
     # Extract temporary zip file
     # TODO catch problem if file is not a nifti
     with ZipFile(zipfile, 'r') as zip_ref:
