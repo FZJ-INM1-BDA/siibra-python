@@ -53,7 +53,7 @@ def search(ctx,searchstring,case_insensitive):
     Search regions from the selected parcellation by substring matching.
     """
     atlas = ctx.obj
-    matches = atlas.search_region(searchstring,exact=False)
+    matches = atlas.regiontree.find(searchstring,exact=False)
     for m in matches:
         print(m.name)
 
@@ -74,7 +74,7 @@ def hierarchy(ctx):
     Plot the complete region hierarchy of the selected parcellation.
     """
     atlas = ctx.obj
-    atlas.regionhierarchy()
+    atlas.regiontree.print_hierarchy()
 
 @brainscapes.group()
 @click.pass_context

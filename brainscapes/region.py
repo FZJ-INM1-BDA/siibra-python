@@ -1,9 +1,29 @@
 import json
 
 from brainscapes.ontologies import parcellations,spaces 
-from anytree import NodeMixin
+import anytree 
 
-class Region(NodeMixin):
+
+def construct_tree(regiondefs,parent=None):
+    """ 
+    Builds a complete tree from a regions data structure as contained
+    inside a brainscapes parcellation ontology. 
+    """
+    if parent is None:
+        root = Region({'name':'root'})
+        construct_tree(regiondefs,parent=root)
+        return root
+
+    subtrees = []
+    for regiondef in regiondefs:
+        node = Region(regiondef,parent)
+        if "children" in regiondef.keys():
+            _ = construct_tree( regiondef['children'],parent=node)
+        subtrees.append(node)
+    return subtrees
+
+
+class Region(anytree.NodeMixin):
 
     """Representation of a region with name and more optional attributes"""
 
@@ -45,6 +65,33 @@ class Region(NodeMixin):
             return self.attrs[name]
         else:
             raise AttributeError("No such attribute: {}".format(name))
+
+    def find(self,name,exact=True):
+        """
+        Find region with the given name in all descendants of this region.
+
+        Parameters
+        ----------
+        name : str
+            The name to search for.
+        exact : Bool (default: True)
+            Wether to return only the exact match (or None if not found), or to
+            return a list of all regions whose name contains the given search
+            name as a substring (or empty list if none).
+        """
+        if exact:
+            return anytree.search.find_by_attr(self, name==name)
+        else:
+            return anytree.search.findall(self,
+                    lambda node: name in node.name)
+
+
+    def print_hierarchy(self):
+        """
+        Prints the hierarchy of all descendants of this region as a tree.
+        """
+        for pre, _, node in anytree.RenderTree(self):
+            print("%s%s" % (pre, node.name))
 
     def query_data(self, datatype):
         return None

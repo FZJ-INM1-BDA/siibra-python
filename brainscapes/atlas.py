@@ -1,10 +1,9 @@
 import logging
 import nibabel as nib
 import numpy as np
-import anytree
 from tempfile import mkdtemp
 
-from .region import Region
+from .region import Region,construct_tree
 from .ontologies import atlases, parcellations, spaces
 from .retrieval import download_file
 
@@ -13,7 +12,7 @@ class Atlas:
     def __init__(self,cachedir=None):
         self._cachedir = mkdtemp() if cachedir is None else cachedir
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
-        self.__regiontree__ = None
+        self.regiontree = None
         self.select_parcellation_scheme(parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS)
 
     def select_parcellation_scheme(self, parcellation):
@@ -31,8 +30,7 @@ class Atlas:
             logging.error('    Atlas:         '+self.__atlas__['name'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.__regiontree__ = Region({'name':'root'})
-        Atlas.__construct_regiontree(parcellation['regions'],parent=self.__regiontree__)
+        self.regiontree = construct_tree(parcellation['regions'])
 
     def get_maps(self, space):
         """
@@ -110,39 +108,10 @@ class Atlas:
         else:
             return None
 
-    @staticmethod
-    def __construct_regiontree(regiondefs,parent):
-        subtrees = []
-        for regiondef in regiondefs:
-            node = Region(regiondef,parent)
-            if "children" in regiondef.keys():
-                _ = Atlas.__construct_regiontree(regiondef['children'],parent=node)
-            subtrees.append(node)
-        return subtrees
-
-    def search_region(self,name,exact=True):
-        """
-        Perform a recursive tree search for a given region name.
-
-        If extact==False, will return all regions that match name as a substring.
-        """
-        if exact:
-            return anytree.search.find_by_attr(self.__regiontree__, name==name)
-        else:
-            return anytree.search.findall(self.__regiontree__, 
-                    lambda node: name in node.name)
-            
     def regions(self):
         return [n
-                for n in self.__regiontree__.descendants 
+                for n in self.regiontree.descendants 
                 if n.is_leaf]
-
-    def regionhierarchy(self):
-        """
-        Prints a hierarchy of defined region names.
-        """
-        for pre, _, node in anytree.RenderTree(self.__regiontree__):
-            print("%s%s" % (pre, node.name))
 
     def connectivity_sources(self):
         print('getting connectivity sources')
@@ -162,10 +131,10 @@ if __name__ == '__main__':
 
     # atlas.get_maps('mySpace')
     # atlas.get_template("template")
-    atlas.regionhierarchy()
+    atlas.regiontree.print_hierarchy()
     print('*******************************')
-    print(atlas.search_region('hOc1'))
+    print(atlas.regiontree.find('hOc1'))
     print('*******************************')
-    print(atlas.get_region('LB (Amygdala) - left hemisphere'))
+    print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
     print('******************************')
-    print(atlas.get_region('Ch 123 (Basal Forebrain) - left hemisphere'))
+    print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))
