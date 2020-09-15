@@ -7,7 +7,7 @@ from collections import defaultdict
 
 from .region import Region,construct_tree
 from .ontologies import atlases, parcellations, spaces
-from . import feature_sources 
+from .features import sources as featuresources
 from .retrieval import download_file
 
 class Atlas:
@@ -36,9 +36,9 @@ class Atlas:
         self.__parcellation__ = parcellation
         self.regiontree = construct_tree(parcellation['regions'])
 
-        # load featuers
+        # load features
         # TODO refactor
-        for targetname,url in feature_sources.CONNECTIVITY.items():
+        for targetname,url in featuresources.items():
             filename = download_file(url, self._cachedir, targetname=targetname)
             with open(filename,'r') as f:
                 for item in json.load(f):
@@ -128,12 +128,32 @@ class Atlas:
                 if n.is_leaf]
 
     def connectivity_sources(self):
-        print('getting connectivity sources')
+        return [f['name'] for f in self.features['Connectivity Profiles']]
         #TODO Implement
 
-    def connectivity_matrix(self, src=None):
-        print('get connectivity matrix for src: ' + src)
-        #TODO implement
+    def connectivity_matrix(self, srcname):
+        """
+        Tries to find a connectivity feature source with the given name, and
+        construct a connectivity matrix from it.
+
+        Parameters
+        ----------
+        srcname : str
+            Name of a connectivity source, as listed by connectivity_sources()
+        
+        Yields
+        ------
+        A numpy object representing a connectivity matrix for the given parcellation, or None 
+        """
+        for f in self.features['Connectivity Profiles']:
+            if f['name'] == srcname:
+                dim = len(f['data']['field names'])
+                result = np.zeros((dim,dim))
+                for i,field in enumerate(f['data']['field names']):
+                    result[i,:] = f['data']['profiles'][field]
+                return result
+        raise Exception('No connectivity feature source found with the given name "{}"'.format(
+            srcname))
 
     def connectivity_filter(self, src=None):
         print('connectivity filter for src: ' + src)

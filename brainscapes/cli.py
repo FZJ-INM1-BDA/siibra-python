@@ -81,6 +81,14 @@ def hierarchy(ctx):
 def features(ctx):
     pass
 
+@features.command()
+@click.pass_context
+def connectivity(ctx):
+    atlas = ctx.obj
+    sources = atlas.connectivity_sources()
+    print("Available sources:",sources)
+    print(atlas.connectivity_matrix(sources[0]))
+
 @brainscapes.group()
 @click.pass_context
 def compute(ctx):
