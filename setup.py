@@ -12,7 +12,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     # url="https://github.com/HumanBrainProject/atlas-core-lib.git",
-    scripts=['cli.py'],
+    scripts=['brainscapes/cli.py'],
     entry_points='''
         [console_scripts]
         brainscapes=cli:brainscapes

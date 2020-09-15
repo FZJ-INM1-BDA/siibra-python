@@ -142,7 +142,6 @@ class Atlas:
                     lambda node: name in node.name)
             
     def regions(self):
-        print("needs to be implemented: return the leaves of the tree")
         return [n
                 for n in self.__regiontree__.descendants 
                 if n.is_leaf]
