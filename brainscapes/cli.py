@@ -78,6 +78,11 @@ def hierarchy(ctx):
 
 @brainscapes.group()
 @click.pass_context
+def features(ctx):
+    pass
+
+@brainscapes.group()
+@click.pass_context
 def compute(ctx):
     """
     Perform basic computations on brain regions.

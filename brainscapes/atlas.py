@@ -2,9 +2,12 @@ import logging
 import nibabel as nib
 import numpy as np
 from tempfile import mkdtemp
+import json
+from collections import defaultdict
 
 from .region import Region,construct_tree
 from .ontologies import atlases, parcellations, spaces
+from . import feature_sources 
 from .retrieval import download_file
 
 class Atlas:
@@ -13,6 +16,7 @@ class Atlas:
         self._cachedir = mkdtemp() if cachedir is None else cachedir
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
         self.regiontree = None
+        self.features = defaultdict(list)
         self.select_parcellation_scheme(parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS)
 
     def select_parcellation_scheme(self, parcellation):
@@ -31,6 +35,16 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
         self.regiontree = construct_tree(parcellation['regions'])
+
+        # load featuers
+        # TODO refactor
+        for targetname,url in feature_sources.CONNECTIVITY.items():
+            filename = download_file(url, self._cachedir, targetname=targetname)
+            with open(filename,'r') as f:
+                for item in json.load(f):
+                    if item['parcellation']==self.__parcellation__['name']:
+                        self.features[item['type']].append(item)
+                        print("Feature loaded:",item['type'],"/",self.features[item['type']][-1]['name'])
 
     def get_maps(self, space):
         """

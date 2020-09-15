@@ -30,7 +30,7 @@ def __check_and_get_token():
         print('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
 
 
-def download_file(url, download_folder, ziptarget=None):
+def download_file(url, download_folder, ziptarget=None, targetname=None ):
     """
     Downloads a file from a URL to local disk, and returns the local filename.
 
@@ -43,6 +43,8 @@ def download_file(url, download_folder, ziptarget=None):
     ziptarget : string
         [Optional] If the download gives a zip archive, this paramter gives the
         filename to be extracted from the archive.
+    targetname : string (optional)
+        Desired filename after download.
 
     TODO Handle and write tests for non-existing URLs, password-protected URLs, too large files, etc.
     """
@@ -67,7 +69,9 @@ def download_file(url, download_folder, ziptarget=None):
     print('Downloading from', url)
     req = requests.get(url)
     if req is not None and req.status_code == 200:
-        if 'X-Object-Meta-Orig-Filename' in req.headers:
+        if targetname is not None:
+            filename = download_folder + "/" + targetname
+        elif 'X-Object-Meta-Orig-Filename' in req.headers:
             filename = download_folder + '/' + req.headers['X-Object-Meta-Orig-Filename']
         else:
             filename = path.basename(url)
