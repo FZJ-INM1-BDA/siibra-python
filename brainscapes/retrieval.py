@@ -1,3 +1,4 @@
+import json
 from zipfile import ZipFile
 
 import requests
@@ -107,6 +108,14 @@ def get_from_zip(zipfile, ziptarget, targetdirectory):
                 tmpdir = mkdtemp()
                 zip_ref.extract(zip_info, targetdirectory)
                 return targetdirectory + '/' + zip_info.filename
+
+
+def get_json_from_url(url):
+    req = requests.get(url)
+    if req is not None and req.status_code == 200:
+        return json.loads(req.content)
+    else:
+        return {}
 
 
 if __name__ == '__main__':
