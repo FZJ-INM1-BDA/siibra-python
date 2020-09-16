@@ -1,7 +1,8 @@
 import json
 
 from brainscapes.ontologies import parcellations,spaces 
-import anytree 
+import anytree
+from brainscapes.retrieval import get_json_from_url
 
 
 def construct_tree(regiondefs,parent=None):
@@ -94,7 +95,12 @@ class Region(anytree.NodeMixin):
             print("%s%s" % (pre, node.name))
 
     def query_data(self, datatype):
-        return None
+        receptor_data_url = 'https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures/-/raw/master/receptordata/julichbrain_v1_18.json'
+        receptor_data = get_json_from_url(receptor_data_url)
+        for data in receptor_data[0]['regions']:
+            if data['name'] in self.name:
+                return data['files']
+        return {}
 
     def __str__(self):
         return self.name
