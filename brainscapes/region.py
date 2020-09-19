@@ -5,13 +5,13 @@ import anytree
 from brainscapes.retrieval import get_json_from_url
 
 
-def construct_tree(regiondefs,parent=None):
+def construct_tree(regiondefs,rootname='root',parent=None):
     """ 
     Builds a complete tree from a regions data structure as contained
     inside a brainscapes parcellation ontology. 
     """
     if parent is None:
-        root = Region({'name':'root'})
+        root = Region({'name':rootname})
         construct_tree(regiondefs,parent=root)
         return root
 

@@ -4,9 +4,8 @@ import numpy as np
 import json
 from collections import defaultdict
 
-from .region import Region,construct_tree
+from .region import construct_tree
 from .ontologies import atlases, parcellations, spaces
-from .features import sources as featuresources
 from .retrieval import download_file
 
 class Atlas:
@@ -30,19 +29,11 @@ class Atlas:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
             logging.error('    Atlas:         '+self.__atlas__['name'])
+            logging.error(parcellation['@id'],self.__atlas__['parcellations'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.regiontree = construct_tree(parcellation['regions'])
-
-        # load features
-        # TODO refactor
-        for targetname,url in featuresources.items():
-            filename = download_file(url, targetname=targetname)
-            with open(filename,'r') as f:
-                for item in json.load(f):
-                    if item['parcellation']==self.__parcellation__['name']:
-                        self.features[item['type']].append(item)
-                        print("Feature loaded:",item['type'],"/",self.features[item['type']][-1]['name'])
+        self.regiontree = construct_tree(parcellation['regions'],
+                rootname=parcellation['name'].upper().replace(' ','_'))
 
     def get_maps(self, space):
         """

@@ -9,10 +9,25 @@ from brainscapes.ontologies import atlases, parcellations, spaces
 
 logging.basicConfig(level=logging.INFO)
 
+STR2UPPER = lambda s: "".join(e if e.isalnum() else '_' for e in s).upper()
+
 def complete_parcellations(ctx, args, incomplete):
     """ auto completion for parcellations """
     return [p for p in dir(parcellations) 
             if p.startswith(incomplete)]
+
+def complete_regions(ctx, args, incomplete):
+    """ auto completion for parcellations """
+    atlas = bsa.Atlas()
+    parcellation = atlas.__parcellation__
+    for option in ['-p','--parcellation']:
+        if args.count(option):
+            pname = args[args.index(option)+1]
+            parcellation = getattr(parcellations,pname)
+            atlas.select_parcellation_scheme(parcellation)
+    regions = [STR2UPPER(r.name) for r in atlas.regions()]
+    search = [r for r in regions if incomplete.upper() in r]
+    return search if len(search)>0 else ""
 
 def complete_spaces(ctx, args, incomplete):
     """ auto completion for parcellations """
@@ -32,14 +47,14 @@ def complete_genes(ctx, args, incomplete):
 def brainscapes(ctx,parcellation):
     """ Command line interface to the brainscapes atlas services.
     """
-    ctx.obj = {}
-    ctx.obj['atlas'] = bsa.Atlas()
+    ctx.obj
+    ctx.obj = bsa.Atlas()
     if parcellation is not None:
         if not hasattr(parcellations,parcellation):
             logging.error("No such parcellation available: "+parcellation)
             exit(1)
         ctx.obj.select_parcellation_scheme(getattr(parcellations,parcellation))
-    logging.info('Atlas uses parcellation "{}"'.format(ctx.obj['atlas'].__parcellation__['name']))
+    logging.info('Atlas uses parcellation "{}"'.format(ctx.obj.__parcellation__['name']))
 
 @brainscapes.group()
 @click.pass_context
@@ -58,7 +73,7 @@ def search(ctx,searchstring,case_insensitive):
     """
     Search regions from the selected parcellation by substring matching.
     """
-    atlas = ctx.obj['atlas']
+    atlas = ctx.obj
     matches = atlas.regiontree.find(searchstring,exact=False)
     for m in matches:
         print(m.name)
@@ -69,7 +84,7 @@ def list(ctx):
     """
     List all basic regions (leaves of the region hierarchy)
     """
-    atlas = ctx.obj['atlas']
+    atlas = ctx.obj
     for region in atlas.regions():
         print(region.name)
 
@@ -79,13 +94,15 @@ def hierarchy(ctx):
     """
     Plot the complete region hierarchy of the selected parcellation.
     """
-    atlas = ctx.obj['atlas']
+    atlas = ctx.obj
     atlas.regiontree.print_hierarchy()
 
 @brainscapes.group()
+@click.argument('region', type=click.STRING,
+        autocompletion=complete_regions )
 @click.pass_context
-def features(ctx):
-    pass
+def features(ctx,region):
+    ctx.obj['region'] = region
 
 @features.command()
 @click.argument('gene', type=click.STRING,
@@ -95,14 +112,15 @@ def gexp(ctx,gene):
     """
     Extract gene expressions from the Allen Human Brain Atlas.
     """
-    atlas = ctx.obj['atlas']
+    region = ctx.obj['region']
+    print(region)
     gex = genes.AllenGeneExpressions()
     print(gex.retrieve_gene(gene))
 
 @features.command()
 @click.pass_context
 def connectivity(ctx):
-    atlas = ctx.obj['atlas']
+    atlas = ctx.obj
     sources = atlas.connectivity_sources()
     print("Available sources:",sources)
     print(atlas.connectivity_matrix(sources[0]))
@@ -125,7 +143,7 @@ def regionprops(ctx,space):
     Compute basic properties of atlas regions as requested. 
     """
 
-    atlas = ctx.obj['atlas']
+    atlas = ctx.obj
     spaces_obj = getattr(spaces,space)
 
     # Extract properties of all atlas regions

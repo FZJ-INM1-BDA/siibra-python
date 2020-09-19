@@ -114,7 +114,7 @@ def get_json_from_url(url):
         return {}
 
 
-def cached_get(url,msg_if_not_hashed=None):
+def cached_get(url,msg_if_not_cached=None):
     """
     Performs a requests.get if the result is not yet available in the local
     cache, otherwise returns the result from the cache.
@@ -130,8 +130,8 @@ def cached_get(url,msg_if_not_hashed=None):
         with open(cachefile_content,'r') as f:
             r = f.read()
     else:
-        if msg_if_not_hashed:
-            print(msg_if_not_hashed)
+        if msg_if_not_cached:
+            print(msg_if_not_cached)
         r = requests.get(url).text
         with open(cachefile_content,'w') as f:
             f.write(r)
