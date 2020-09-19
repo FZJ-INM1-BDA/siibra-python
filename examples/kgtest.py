@@ -8,8 +8,9 @@ import pandas as pd
 from os import path
 import logging
 
-access_token='eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDAzNDA4ODcsInN1YiI6IjI1NTIzMCIsImF1ZCI6WyIzMjMxNDU3My1hMjQ1LTRiNWEtYjM3MS0yZjE1YWNjNzkxYmEiXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiI1NzFjNGY4Yi1hMzdmLTQ3NzktODkxMS00NGE1Y2JkZTQ3NzMiLCJpYXQiOjE2MDAzMjY0ODcsImhicF9rZXkiOiJlZDQ3ZWE3NjgxYTVjMTdjYzIyZjM1MmYxODVlZWZjYWYwOWI0MDUyIn0.h8GMpdlsvjPe11FwdaDbBAgdzNwib-Z7yT2HfE4_befS4yydRzs2OOzxxi6g1B1yBXwDEqZQDpD-993VufKFMPGqvHt7MSk_777K5bgZrPBocrO8091WzMtwfIgaYrdZP-9U3Jc4810Cr6wn6epcbedAyY4H8f3_Lbk5jqDAmrk'
-
+access_token='eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDAzNjczOTAsInN1YiI6IjI1NTIzMCIsImF1ZCI6WyIzMjMxNDU3My1hMjQ1LTRiNWEtYjM3MS0yZjE1YWNjNzkxYmEiXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiI2YTBmNjU3NS05MWI3LTQ5NmUtODFlZi0zNGM3NWY1NmU0NjciLCJpYXQiOjE2MDAzNTI5OTAsImhicF9rZXkiOiJlZDQ3ZWE3NjgxYTVjMTdjYzIyZjM1MmYxODVlZWZjYWYwOWI0MDUyIn0.ql_u3OXNuIT0nNGtmZimXjXs0TQDHIcbJs0i5Hbp3MVgKDwTlzBLFGm5OcMpk8fJz98UBOnoL-NQChxThDVoIKnD5OPnHXyQoE-WFRRci_FJmNWGsByndIr6Uc48qzip14Fu61DaqwkX52h1wh-DS-hMrlHY58hy1L2Sx-Uaa_I'
+namespace='Minds'
+cls_version='core/dataset/v1.0.0'
 
 class ReceptorData:
 
@@ -18,6 +19,7 @@ class ReceptorData:
     # images
     autoradiographs = {}
     # math symbols for receptors
+
 
     def __init__(self,kg_response):
 
@@ -61,46 +63,39 @@ class ReceptorData:
 
 if __name__ == "__main__":
 
-    #
-    # try uploading a query
-    #
-    namespace='Minds'
-    cls_version='core/dataset/v1.0.0'
-    name='bs_datasets'
-    upload = False
+    query_name = None if len(argv)<2 else argv[1]
+    if query_name is None:
+        print("USAGE:",argv[0],"query_name [query_spec.json]")
+        exit(1)
+    query_spec = None if len(argv)<3 else argv[2]
 
-    if len(argv)>1:
+    if query_spec is not None:
         
         # If an argument is given, assume it is a query defintion in json
         # format. Build the query, and store it in the KG.
 
-        spec=argv[1]
-
         url = "https://kg.humanbrainproject.eu/query/{}/{}/{}".format(
                 namespace.lower(), 
                 cls_version,
-                name)
+                query_name)
         print(url)
-        r = requests.put(
-                url,
-                data = open(spec,'r'),
+        r = requests.put( url, 
+                data = open(query_spec,'r'),
                 headers={
                     'Content-Type':'application/json',
                     'Authorization': 'Bearer {}'.format(access_token)})
-
         if r.ok:
             print('Successfully stored the query at %s ' % url)
         else:
             print(r)
             print('Problem with "put" protocol on url: %s ' % url )
 
-
     else: 
 
-        # If no argument is given, run the query stored in the KG..
+        # If no spec is given, run the query. 
 
         url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/instances".format(
-                namespace.lower(),cls_version,name)
+                namespace.lower(),cls_version,query_name)
         r = requests.get(
                 url,
                 headers={
@@ -110,11 +105,17 @@ if __name__ == "__main__":
             print('Successfully issued the query at %s ' % url)
             results = json.loads(r.content)
             for r in results['results']:
-                receptors = ReceptorData(r)
-                for name,dataframe in receptors.profiles.items():
-                    print(name,receptors.receptor_label[name])
-                #print("Profiles found:",recobj.profiles.keys())
-                #print("Autoradiographs found:",recobj.autoradiographs.keys())
+                for k,v in r.items():
+                    print(k,v)
+                try:
+                    receptors = ReceptorData(r)
+                    for name,dataframe in receptors.profiles.items():
+                        print(name,receptors.receptor_label[name])
+                    continue
+                except Exception as e:
+                    logging.info('Could not generate receptor data from the response.')
+                    print(str(e))
+                    continue
         else:
             print('Problem with "get" protocol on url: %s ' % url )
 
