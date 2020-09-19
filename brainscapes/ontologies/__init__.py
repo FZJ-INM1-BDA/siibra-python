@@ -39,6 +39,7 @@ def __init__():
         subfolders = filter(
                 os.path.isdir, 
                 [os.path.join(path,f) for f in os.listdir(path)])
+
         for folder in subfolders:
             files = glob(os.path.join(folder,'*.json'))
             name = os.path.basename(folder)

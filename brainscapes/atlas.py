@@ -1,7 +1,6 @@
 import logging
 import nibabel as nib
 import numpy as np
-from tempfile import mkdtemp
 import json
 from collections import defaultdict
 
@@ -12,8 +11,7 @@ from .retrieval import download_file
 
 class Atlas:
 
-    def __init__(self,cachedir=None):
-        self._cachedir = mkdtemp() if cachedir is None else cachedir
+    def __init__(self):
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
         self.regiontree = None
         self.features = defaultdict(list)
@@ -39,7 +37,7 @@ class Atlas:
         # load features
         # TODO refactor
         for targetname,url in featuresources.items():
-            filename = download_file(url, self._cachedir, targetname=targetname)
+            filename = download_file(url, targetname=targetname)
             with open(filename,'r') as f:
                 for item in json.load(f):
                     if item['parcellation']==self.__parcellation__['name']:
@@ -80,11 +78,11 @@ class Atlas:
             # represents a string that allows to identify them with region name
             # labels.
             for label,url in mapurl.items():
-                filename = download_file(url, self._cachedir)
+                filename = download_file(url)
                 if filename is not None:
                     maps[label] = nib.load(filename)
         else:
-            filename = download_file(mapurl, self._cachedir)
+            filename = download_file(mapurl)
             maps[''] = nib.load(filename)
         
         return maps
@@ -113,10 +111,10 @@ class Atlas:
 
         print('Loading template image for space',space['name'])
         if 'templateFile' in space.keys():
-            filename = download_file( space['templateUrl'], self._cachedir, 
+            filename = download_file( space['templateUrl'], 
                     ziptarget=space["templateFile"])
         else:
-            filename = download_file( space['templateUrl'], self._cachedir)
+            filename = download_file( space['templateUrl'])
         if filename is not None:
             return nib.load(filename)
         else:
