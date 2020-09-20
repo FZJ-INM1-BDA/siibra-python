@@ -1,9 +1,9 @@
 import json
 
+from brainscapes import NAME2IDENTIFIER
 from brainscapes.ontologies import parcellations,spaces 
-import anytree
 from brainscapes.retrieval import get_json_from_url
-
+import anytree
 
 def construct_tree(regiondefs,rootname='root',parent=None):
     """ 
@@ -57,6 +57,17 @@ class Region(anytree.NodeMixin):
         #     'volume': '',
         #     'surface': ''
         # }
+
+
+    def identifier(self):
+        """
+        Returns the unique identifier of this region. As of now, this is the
+        uppercase ascii'd version of the name, as given by brainscapes'
+        NAME2IDENTIFIER function.
+
+        TODO find a more robust yet readable identifier
+        """
+        return NAME2IDENTIFIER(self.name)
 
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]

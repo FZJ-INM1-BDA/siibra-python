@@ -4,19 +4,25 @@ import numpy as np
 import json
 from collections import defaultdict
 
+from . import NAME2IDENTIFIER
 from .region import construct_tree
 from .ontologies import atlases, parcellations, spaces
 from .retrieval import download_file
 
 class Atlas:
 
-    def __init__(self):
-        self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
+    def __init__(self,definition=atlases.MULTILEVEL_HUMAN_ATLAS):
+        # Set an atlas from a json definition. As a default, multilevel human
+        # atlas definition is used. The first parcellation in the atlas
+        # definition is selected as the default parcellation.
+        self._atlas = definition
         self.regiontree = None
         self.features = defaultdict(list)
-        self.select_parcellation_scheme(parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS)
+        self.select_parcellation(
+                parcellations[definition['parcellations'][0]])
+        self.selection = self.regiontree
 
-    def select_parcellation_scheme(self, parcellation):
+    def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.
 
@@ -25,15 +31,15 @@ class Atlas:
         # TODO need more explicit formalization and testing of ontology
         # definition schemes
         assert('@id' in parcellation.keys())
-        if parcellation['@id'] not in self.__atlas__['parcellations']:
+        if parcellation['@id'] not in self._atlas['parcellations']:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
-            logging.error('    Atlas:         '+self.__atlas__['name'])
-            logging.error(parcellation['@id'],self.__atlas__['parcellations'])
+            logging.error('    Atlas:         '+self._atlas['name'])
+            logging.error(parcellation['@id'],self._atlas['parcellations'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
         self.regiontree = construct_tree(parcellation['regions'],
-                rootname=parcellation['name'].upper().replace(' ','_'))
+                rootname=NAME2IDENTIFIER(parcellation['name']))
 
     def get_maps(self, space):
         """
@@ -95,7 +101,7 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if space['@id'] not in self.__atlas__['spaces']:
+        if space['@id'] not in self._atlas['spaces']:
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))
             return None
@@ -112,13 +118,42 @@ class Atlas:
             return None
 
     def regions(self):
+        """ Returns all basic regions of the selected parcellations, that is,
+        the leafs of the region hierarchy."""
         return [n
                 for n in self.regiontree.descendants 
                 if n.is_leaf]
 
+    def select_region(self,region_id):
+        """
+        Selects a particular region. Currently, only basic regions, e.g. leafs
+        of the regiontree, are supported.
+
+        TODO extend carefully to branching points in the region hierarchy, then
+        managing all regions under the tree. This is nontrivial because for
+        incomplete parcellations, the union of all child regions might not
+        represent the complete parent node in the hierarchy.
+
+        Parameters
+        ----------
+        region_id : str
+            Id of the region to be selected, which is its full name converted
+            by brainscapes' NAME2IDENTIFIER function.
+
+        Yields
+        ------
+        True, if selection was successful, otherwise False.
+        """
+        regions_by_id = {NAME2IDENTIFIER(r.name):r for r in self.regions()}
+        if region_id in regions_by_id.keys():
+            self.selection = regions_by_id[region_id]
+            return True
+        else:
+            return False
+
     def connectivity_sources(self):
+        #TODO refactor, this is dirty
         return [f['name'] for f in self.features['Connectivity Profiles']]
-        #TODO Implement
 
     def connectivity_matrix(self, srcname):
         """
@@ -134,6 +169,7 @@ class Atlas:
         ------
         A numpy object representing a connectivity matrix for the given parcellation, or None 
         """
+        # TODO refactor, this is dirty
         for f in self.features['Connectivity Profiles']:
             if f['name'] == srcname:
                 dim = len(f['data']['field names'])

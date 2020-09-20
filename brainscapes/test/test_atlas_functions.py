@@ -4,7 +4,7 @@ from brainscapes.ontologies import parcellations,spaces
 # Setup the atlas
 atlas = bsa.Atlas()
 jubrain = parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS
-atlas.select_parcellation_scheme(jubrain)
+atlas.select_parcellation(jubrain)
 
 # Retrieve whole brain map in ICBM152 space as a NiftiImage
 icbm152space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
