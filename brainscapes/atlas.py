@@ -84,15 +84,51 @@ class Atlas:
         
         return maps
 
+    def get_mask(self, space):
+        """
+        Returns a binary mask  in the given space, where nonzero values denote
+        voxels corresponding to the current region selection. 
+
+        WARNING: Note that for selections of subtrees of the region hierarchy, this
+        might include holes if the leaf regions are not completly covering
+        their parent and the parent itself has no label index in the map.
+
+        Parameters
+        ----------
+        space : str
+            Template space definition, given as a dictionary with an '@id' key
+        """
+        # remember that some parcellations are defined with multiple / split maps
+        maps = self.get_maps(space)
+        mask = affine = header = None 
+        for mlabel,m in maps.items():
+            D = np.array(m.dataobj)
+            if mask is None: 
+                # copy metadata for output mask from the first map!
+                mask = np.zeros_like(D)
+                affine = m.affine
+                header = m.header
+            for region in self.selection.iterate():
+                if 'labelIndex' not in region.attrs.keys():
+                    continue
+                if region.attrs['labelIndex'] is None:
+                    continue
+                mask[D==int(region.attrs['labelIndex'])]=1
+
+        return nib.Nifti1Image(dataobj=mask,affine=affine,header=header)
+
     def get_template(self, space, resolution_mu=0, roi=None):
         """
         Get the volumetric reference template image for the given space.
 
         Parameters
         ----------
-        space : template space definition, given as a dictionary with an '@id' key
-        resolution : Desired target pixel spacing in micrometer (default: native spacing)
-        roi : 3D region of interest (not yet implemented)
+        space : str
+            Template space definition, given as a dictionary with an '@id' key
+        resolution :  float
+            Desired target pixel spacing in micrometer (default: native spacing)
+        roi : n/a
+            3D region of interest (not yet implemented)
 
         TODO model the MNI URLs in the space ontology
 
@@ -117,22 +153,14 @@ class Atlas:
         else:
             return None
 
-    def regions(self):
-        """ Returns all basic regions of the selected parcellations, that is,
-        the leafs of the region hierarchy."""
-        return [n
-                for n in self.regiontree.descendants 
-                if n.is_leaf]
-
     def select_region(self,region_id):
         """
-        Selects a particular region. Currently, only basic regions, e.g. leafs
-        of the regiontree, are supported.
+        Selects a particular region. 
 
-        TODO extend carefully to branching points in the region hierarchy, then
-        managing all regions under the tree. This is nontrivial because for
-        incomplete parcellations, the union of all child regions might not
-        represent the complete parent node in the hierarchy.
+        TODO test carefully for selections of branching points in the region
+        hierarchy, then managing all regions under the tree. This is nontrivial
+        because for incomplete parcellations, the union of all child regions
+        might not represent the complete parent node in the hierarchy.
 
         Parameters
         ----------
@@ -144,7 +172,7 @@ class Atlas:
         ------
         True, if selection was successful, otherwise False.
         """
-        regions_by_id = {NAME2IDENTIFIER(r.name):r for r in self.regions()}
+        regions_by_id = {NAME2IDENTIFIER(r.name):r for r in self.regiontree.descendants}
         if region_id in regions_by_id.keys():
             self.selection = regions_by_id[region_id]
             logging.info('Selected region {}'.format(self.selection.name))

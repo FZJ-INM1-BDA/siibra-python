@@ -105,6 +105,13 @@ class Region(anytree.NodeMixin):
         for pre, _, node in anytree.RenderTree(self):
             print("%s%s" % (pre, node.name))
 
+    def iterate(self):
+        """
+        Returns an iterator that goes through all regions in this subtree
+        (including this parent region)
+        """
+        return anytree.PreOrderIter(self)
+
     def query_data(self, datatype):
         receptor_data_url = 'https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures/-/raw/master/receptordata/julichbrain_v1_18.json'
         receptor_data = get_json_from_url(receptor_data_url)

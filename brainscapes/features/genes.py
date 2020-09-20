@@ -4,7 +4,7 @@ import numpy as np
 import json
 from brainscapes import retrieval
 from brainscapes.ontologies import spaces
-from .feature import SpatialFeature
+from .feature import *
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,7 +36,7 @@ class GeneExpressionFeature(SpatialFeature):
         self.z_scores = z_scores
         self.factors = factors
 
-class AllenBrainAtlasQuery:
+class AllenBrainAtlasQuery(SpatialFeaturePool):
     """
     Interface to Allen Human Brain Atlas Gene Expressions
     TODO add Allen copyright clause
@@ -51,21 +51,33 @@ class AllenBrainAtlasQuery:
       the corresponding donor for the given gene.
     """
 
-    BASE_URL = "http://api.brain-map.org/api/v2/data"
-    API_URL = {
-        "probe" : BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
-        "specimen" : BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
-        "microarray" : BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
-        "gene" : BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
-        "factors" : BASE_URL+"/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]"
+    _BASE_URL = "http://api.brain-map.org/api/v2/data"
+    _QUERY = {
+        "probe" : _BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        "specimen" : _BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
+        "microarray" : _BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
+        "gene" : _BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
+        "factors" : _BASE_URL+"/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]"
         }
 
     # there is a 1:1 mapping between donors and specimen for the 6 adult human brains
-    DONOR_IDS = ['15496', '14380', '15697', '9861', '12876', '10021'] 
-    SPECIMEN_IDS  = ['H0351.1015', 'H0351.1012', 'H0351.1016', 'H0351.2001', 'H0351.1009', 'H0351.2002']
+    _DONOR_IDS = [
+            '15496', 
+            '14380', 
+            '15697', 
+            '9861', 
+            '12876', 
+            '10021'] 
+    _SPECIMEN_IDS  = [
+            'H0351.1015', 
+            'H0351.1012', 
+            'H0351.1016', 
+            'H0351.2001', 
+            'H0351.1009', 
+            'H0351.2002']
 
     # load gene names
-    genes = json.loads(retrieval.cached_get(API_URL['gene'],
+    genes = json.loads(retrieval.cached_get(_QUERY['gene'],
             "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute."))
     GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
 
@@ -76,9 +88,11 @@ class AllenBrainAtlasQuery:
         TODO check that this is only called for ICBM space
         """
 
+        SpatialFeaturePool.__init__(self)
+
         # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
-        url = self.API_URL['probe'].format(gene=gene)
+        url = self._QUERY['probe'].format(gene=gene)
         response = retrieval.cached_get(url) 
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
@@ -87,8 +101,8 @@ class AllenBrainAtlasQuery:
         # get specimen information
         self._specimen = {
                 spcid:self._retrieve_specimen(spcid) 
-                for spcid in self.SPECIMEN_IDS}
-        response = json.loads(retrieval.cached_get(self.API_URL['factors']))
+                for spcid in self._SPECIMEN_IDS}
+        response = json.loads(retrieval.cached_get(self._QUERY['factors']))
         self.factors = {
                 item['id']: {
                     'race' : item['race_only'],
@@ -98,8 +112,7 @@ class AllenBrainAtlasQuery:
                 for item in response['msg'] }
 
         # get expression levels and z_scores for the gene
-        self.features = []
-        for donor_id in self.DONOR_IDS:
+        for donor_id in self._DONOR_IDS:
             self._retrieve_microarray(donor_id,probe_ids)
 
 
@@ -107,7 +120,7 @@ class AllenBrainAtlasQuery:
         """
         Retrieves information about a human specimen. 
         """
-        url = self.API_URL['specimen'].format(specimen_id=specimen_id)
+        url = self._QUERY['specimen'].format(specimen_id=specimen_id)
         response = json.loads(retrieval.cached_get(
             url,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
         if not response['success']:
@@ -130,7 +143,7 @@ class AllenBrainAtlasQuery:
         """
 
         # query the microarray data for this donor
-        url = self.API_URL['microarray'].format(
+        url = self._QUERY['microarray'].format(
                 probe_ids=','.join([str(id) for id in probe_ids]),
                 donor_id=donor_id)
         response = json.loads(retrieval.cached_get(url))
@@ -142,7 +155,6 @@ class AllenBrainAtlasQuery:
 
         # store samples. Convert their MRI coordinates of the samples to ICBM
         # MNI152 space
-        features = []
         for i,sample in enumerate(samples):
 
             # coordinate conversion to ICBM152 standard space
@@ -165,4 +177,4 @@ class AllenBrainAtlasQuery:
 
 if __name__ == "__main__":
 
-    allen_query = AllenBrainAtlasQuery('GABARAPL2')
+    featurepool = AllenBrainAtlasQuery('GABARAPL2')
