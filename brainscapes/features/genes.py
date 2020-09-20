@@ -2,112 +2,167 @@ from xml.etree import ElementTree
 import logging
 import numpy as np
 import json
-from .. import retrieval
+from brainscapes import retrieval
+from brainscapes.ontologies import spaces
+from .feature import SpatialFeature
 
 logging.basicConfig(level=logging.INFO)
 
-BASE_URL = "http://api.brain-map.org/api/v2/data"
-API_CALLS = {
-    "probe" : BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'{product}'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
-    "specimen" : BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen}']&include=alignment3d",
-    "microarray" : BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
-    "gene" : BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all"
-    }
+class GeneExpressionFeature(SpatialFeature):
+    """
+    A spatial feature type for gene expressions.
+    """
 
-# there is a 1:1 mapping between donors and specimen for the 6 adult human brains
-DONOR_IDS = ['15496', '14380', '15697', '9861', '12876', '10021'] 
-SPECIMEN_IDS  = ['H0351.1015', 'H0351.1012', 'H0351.1016', 'H0351.2001', 'H0351.1009', 'H0351.2002']
+    def __init__(self,space,location,expression_levels,z_scores,factors):
+        """
+        Construct the spatial feature for gene expressions measured in a sample.
 
-# load gene names
-genes = json.loads(retrieval.cached_get(API_CALLS['gene'],
-        "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute."))
-GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
+        Parameters:
+        -----------
+        space : str       
+            Name of 3D reference template space in which this feature is defined
+        location : tuple of float    
+            3D location of the gene expression sample in physical coordinates
+            of the given space
+        expression_levels : list of float
+            expression levels measured in possibly multiple probes of the same sample
+        z_scores : list of float
+            z scores measured in possibly multiple probes of the same sample
+        factors : dict (keys: age, race, gender)
+            Dictionary of social factors of the donor 
+        """
+        SpatialFeature.__init__(self,location,space)
+        self.expression_levels = expression_levels
+        self.z_scores = z_scores
+        self.factors = factors
 
-class AllenGeneExpressions:
+class AllenBrainAtlasQuery:
     """
     Interface to Allen Human Brain Atlas Gene Expressions
     TODO add Allen copyright clause
+
+    To better understand the principles:
+    - We have samples from 6 different human donors. 
+    - Each donor corresponds to exactly 1 specimen (tissue used for study)
+    - Each sample was subject to multiple (in fact 4) different probes.
+    - The probe data structures contain the list of gene expression of a
+      particular gene measured in each sample. Therefore the length of the gene
+      expression list in a probe coresponds to the number of samples taken in
+      the corresponding donor for the given gene.
     """
 
-    def __init__(self):
-        pass
+    BASE_URL = "http://api.brain-map.org/api/v2/data"
+    API_URL = {
+        "probe" : BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        "specimen" : BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
+        "microarray" : BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
+        "gene" : BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
+        "factors" : BASE_URL+"/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]"
+        }
 
-    @staticmethod
-    def _retrieve_specimen(specimen):
-        """
-        Retrieves information about each human specimen. Called at object construction.
-        """
-        url = API_CALLS['specimen'].format(specimen=specimen)
-        response = json.loads(retrieval.cached_get(
-            url,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen)))
-        if not response['success']:
-            raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
-        # we ask for 1 specimen, so list should have length 1
-        assert(len(response['msg'])==1)
-        return response['msg'][0]
+    # there is a 1:1 mapping between donors and specimen for the 6 adult human brains
+    DONOR_IDS = ['15496', '14380', '15697', '9861', '12876', '10021'] 
+    SPECIMEN_IDS  = ['H0351.1015', 'H0351.1012', 'H0351.1016', 'H0351.2001', 'H0351.1009', 'H0351.2002']
 
-    def filter_by_coordinate(self,mask,space):
-        """
-        Filters the feature list by their coordinate in a given space. Only
-        those features are kept which are located at nonzero positions of the
-        mask.
-        """
+    # load gene names
+    genes = json.loads(retrieval.cached_get(API_URL['gene'],
+            "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute."))
+    GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
 
-    def retrieve_gene(self,gene,product='HumanMA'): 
+    def __init__(self,gene):
         """
-        Retrieves all probes IDs for the given gene, then collects the
+        Retrieves probes IDs for the given gene, then collects the
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
+
+        # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
-        url = API_CALLS['probe'].format(gene=gene,product=product)
+        url = self.API_URL['probe'].format(gene=gene)
         response = retrieval.cached_get(url) 
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
         probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
-        for donor_id in DONOR_IDS:
-            probes,samples,zscores = AllenGeneExpressions._retrieve_microarray(donor_id,probe_ids)
-            print("{:>15} {} probes {} samples {}x{} zscores ".format(
-                "donor "+donor_id, len(probes), len(samples), zscores.shape[0],zscores.shape[1] ))
 
-    @staticmethod
-    def _retrieve_microarray(donor_id, probe_ids):
+        # get specimen information
+        self._specimen = {
+                spcid:self._retrieve_specimen(spcid) 
+                for spcid in self.SPECIMEN_IDS}
+        response = json.loads(retrieval.cached_get(self.API_URL['factors']))
+        self.factors = {
+                item['id']: {
+                    'race' : item['race_only'],
+                    'gender' : item['sex'],
+                    'age' : item['age']['days']/365
+                    }
+                for item in response['msg'] }
+
+        # get expression levels and z_scores for the gene
+        self.features = []
+        for donor_id in self.DONOR_IDS:
+            self._retrieve_microarray(donor_id,probe_ids)
+
+
+    def _retrieve_specimen(self,specimen_id):
         """
-        Retrieve microarray data for a given donor and probe, and compute the
-        MRI position of the corresponding tissue block.
+        Retrieves information about a human specimen. 
         """
-        url = API_CALLS['microarray'].format(
+        url = self.API_URL['specimen'].format(specimen_id=specimen_id)
+        response = json.loads(retrieval.cached_get(
+            url,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
+        if not response['success']:
+            raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
+        # we ask for 1 specimen, so list should have length 1
+        assert(len(response['msg'])==1)
+        specimen = response['msg'][0]
+        T = specimen['alignment3d']
+        specimen['donor2icbm'] = np.array([
+            [T['tvr_00'], T['tvr_01'], T['tvr_02'], T['tvr_09']],
+            [T['tvr_03'], T['tvr_04'], T['tvr_05'], T['tvr_10']],
+            [T['tvr_06'], T['tvr_07'], T['tvr_08'], T['tvr_11']] ])
+        return specimen
+
+    def _retrieve_microarray(self,donor_id, probe_ids):
+        """
+        Retrieve microarray data for several probes of a given donor, and
+        compute the MRI position of the corresponding tissue block in the ICBM
+        152 space to generate a SpatialFeature object for each sample.
+        """
+
+        # query the microarray data for this donor
+        url = self.API_URL['microarray'].format(
                 probe_ids=','.join([str(id) for id in probe_ids]),
                 donor_id=donor_id)
         response = json.loads(retrieval.cached_get(url))
         if not response['success']:
             raise Exception('Invalid response when retrieving microarray data: {}'.format( url))
-        probes,samples = [response['msg'][k] for  k in ['probes','samples']] 
-        zscores = np.array([ probe['z-score'] for probe in probes],dtype=np.float64).T
 
-        # convert MRI coordinates of the samples to ICBM MNI152 space
-        specimen = {}
-        for probe,sample in zip(probes,samples):
+        # store probes
+        probes,samples = [response['msg'][n] for n in ['probes','samples']]
 
-            spcm_id=sample['donor']['name']
+        # store samples. Convert their MRI coordinates of the samples to ICBM
+        # MNI152 space
+        features = []
+        for i,sample in enumerate(samples):
 
-            # cached retrieval of specimen information - there are only 6 of them
-            if spcm_id not in specimen.keys():
-                specimen[spcm_id] = AllenGeneExpressions._retrieve_specimen(spcm_id)
-                T = specimen[spcm_id]['alignment3d']
-                specimen[spcm_id]['donor2icbm'] = np.array([
-                    [T['tvr_00'], T['tvr_01'], T['tvr_02'], T['tvr_09']],
-                    [T['tvr_03'], T['tvr_04'], T['tvr_05'], T['tvr_10']],
-                    [T['tvr_06'], T['tvr_07'], T['tvr_08'], T['tvr_11']] ])
+            # coordinate conversion to ICBM152 standard space
+            spcid,donor_id = [sample['donor'][k] for k in ['name','id']]
+            icbm_coord = np.matmul(
+                    self._specimen[spcid]['donor2icbm'],
+                    sample['sample']['mri']+[1] ).T
 
-            donor2icbm = specimen[spcm_id]['donor2icbm']
-            donor_coord = sample['sample']['mri']+[1]
-            icbm_coord = np.matmul(donor2icbm, donor_coord).T
-            sample['icbm_coord'] = icbm_coord
-
-        return probes,samples,zscores
+            # Create the spatial feature
+            self.features.append( 
+                    GeneExpressionFeature( 
+                        icbm_coord, 
+                        spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC,
+                        expression_levels = [float(p['expression_level'][i]) 
+                            for p in probes],
+                        z_scores = [float(p['z-score'][i]) for p in probes],
+                        factors = self.factors[donor_id]
+                        )
+                    )
 
 if __name__ == "__main__":
 
-    genes = AllenGeneExpressions()
-    genes.retrieve_gene('GABARAPL2')
+    allen_query = AllenBrainAtlasQuery('GABARAPL2')

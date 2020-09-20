@@ -147,6 +147,7 @@ class Atlas:
         regions_by_id = {NAME2IDENTIFIER(r.name):r for r in self.regions()}
         if region_id in regions_by_id.keys():
             self.selection = regions_by_id[region_id]
+            logging.info('Selected region {}'.format(self.selection.name))
             return True
         else:
             return False

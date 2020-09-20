@@ -3,8 +3,9 @@
 import click
 import logging
 import brainscapes.atlas as bsa
+import json
 from brainscapes import preprocessing, NAME2IDENTIFIER
-from brainscapes.features import genes
+from brainscapes.features.genes import AllenBrainAtlasQuery
 from brainscapes.ontologies import atlases, parcellations, spaces
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +35,7 @@ def complete_spaces(ctx, args, incomplete):
 
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
-    gene_acronyms = genes.GENE_NAMES.keys()
+    gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
     return [a for a in gene_acronyms if a.startswith(incomplete)]
 
 @click.group()
@@ -96,7 +97,6 @@ def region(ctx,region):
     Browse the region hierarchy of the selected parcellation.
     """
     atlas = ctx.obj
-    print("Selecting region",region)
     atlas.select_region(region)
 
 @region.command()
@@ -109,9 +109,8 @@ def gex(ctx,gene):
     """
     atlas = ctx.obj
     region = atlas.selection
-    print(region)
-    gex = genes.AllenGeneExpressions()
-    print(gex.retrieve_gene(gene))
+    query = AllenBrainAtlasQuery(gene)
+
 
 @region.command()
 @click.pass_context

@@ -1,3 +1,5 @@
+from . import genes
+
 def __init__(): 
 
     from glob import glob
