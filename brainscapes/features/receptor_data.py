@@ -6,7 +6,7 @@ import pandas as pd
 import PIL.Image as Image
 from os import path
 
-from brainscapes import kg_service
+from brainscapes import kg_service, retrieval
 
 
 class ReceptorData:
@@ -14,6 +14,7 @@ class ReceptorData:
     profiles = {}
     # images
     autoradiographs = {}
+
     # math symbols for receptors
 
     def __init__(self, kg_response):
@@ -24,31 +25,36 @@ class ReceptorData:
         for fname in kg_response['https://schema.hbp.eu/myQuery/v1.0.0']:
 
             if 'receptors.tsv' in fname:
-                bytestream = io.BytesIO(requests.get(fname).content)
-                self.__symbols = pd.read_csv(bytestream,sep='\t')
-                self.receptor_label = {r._1:r._2
+                bytestream = self._get_bytestream_from_file(fname)
+                self.__symbols = pd.read_csv(bytestream, sep='\t')
+                self.receptor_label = {r._1: r._2
                                        for r in self.__symbols.itertuples()}
 
             # Receive cortical profiles, if any
             if '_pr_' in fname:
                 suffix = path.splitext(fname)[-1]
                 if suffix == '.tsv':
-                    receptor_type,basename = fname.split("/")[-2:]
+                    receptor_type, basename = fname.split("/")[-2:]
                     if receptor_type in basename:
-                        bytestream = io.BytesIO(requests.get(fname).content)
-                        self.profiles[receptor_type] = pd.read_csv(bytestream,sep='\t')
+                        bytestream = self._get_bytestream_from_file(fname)
+                        self.profiles[receptor_type] = pd.read_csv(bytestream, sep='\t')
                 else:
-                    logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix,fname))
+                    logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix, fname))
 
             if '_ar_' in fname:
-                receptor_type,basename = fname.split("/")[-2:]
+                receptor_type, basename = fname.split("/")[-2:]
                 if receptor_type in basename:
-                    bytestream = requests.get(fname).content
-                    self.autoradiographs[receptor_type] = Image.open(io.BytesIO(bytestream))
+                    bytestream = self._get_bytestream_from_file(fname)
+                    self.autoradiographs[receptor_type] = Image.open(bytestream)
 
             if '_fp_' in fname:
-                bytestream = io.BytesIO(requests.get(fname).content)
-                self.fingerprint = pd.read_csv(bytestream,sep='\t')
+                bytestream = self._get_bytestream_from_file(fname)
+                self.fingerprint = pd.read_csv(bytestream, sep='\t')
+
+    def _get_bytestream_from_file(self, fname):
+        file = retrieval.download_file(fname)
+        with open(file, 'rb') as f:
+            return io.BytesIO(f.read())
 
 
 if __name__ == '__main__':

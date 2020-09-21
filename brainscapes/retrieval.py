@@ -1,6 +1,5 @@
 import json
 from zipfile import ZipFile
-import appdirs
 import requests
 import hashlib
 from os import path, environ
@@ -110,7 +109,7 @@ def cached_get(url,msg_if_not_cached=None):
     cachefile_content = path.join(CACHEDIR,url_hash)+".content"
     cachefile_url = path.join(CACHEDIR,url_hash)+".url"
 
-    if path.isfile(cachefile_content):
+    if False:#path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
         logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'r') as f:
@@ -118,12 +117,9 @@ def cached_get(url,msg_if_not_cached=None):
     else:
         if msg_if_not_cached:
             print(msg_if_not_cached)
-        r = requests.get(url).text
+        r = requests.get(url).content
         with open(cachefile_content,'w') as f:
             f.write(r)
         with open(cachefile_url,'w') as f:
             f.write(url)
     return r
-
-if __name__ == '__main__':
-    __check_and_get_token()

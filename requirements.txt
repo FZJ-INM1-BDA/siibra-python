@@ -3,3 +3,4 @@ nibabel
 anytree
 pandas
 PIL
+appdirs
