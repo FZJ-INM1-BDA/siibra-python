@@ -26,5 +26,7 @@ class SpatialFeaturePool:
         """
         return [ f 
                 for f in self.features
-                if (np.all(np.array(self.location)<mask.datashape)mask[f.location[0],f.location[1],f.location[2]]>0]
+                if (np.all(np.array(self.location)<mask.datashape)
+                    and (mask[f.location[0],f.location[1],f.location[2]]>0)
+                    ]
 
