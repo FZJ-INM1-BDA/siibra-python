@@ -1,0 +1,9 @@
+{
+	"name": "Dictionary of functional modes 128 dimensions",
+	"shortName": "dim 128",
+	"@id": "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8",
+	"groupName": "Functional Modes",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : {}
+	}
+}

@@ -103,22 +103,23 @@ def cached_get(url,msg_if_not_cached=None):
     """
     Performs a requests.get if the result is not yet available in the local
     cache, otherwise returns the result from the cache.
+    This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the brainscapes library, and make it a decorator
     """
     url_hash = hashlib.sha256(url.encode('ascii')).hexdigest()
     cachefile_content = path.join(CACHEDIR,url_hash)+".content"
     cachefile_url = path.join(CACHEDIR,url_hash)+".url"
 
-    if False:#path.isfile(cachefile_content):
+    if path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
         logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
-        with open(cachefile_content,'r') as f:
+        with open(cachefile_content,'rb') as f:
             r = f.read()
     else:
         if msg_if_not_cached:
             print(msg_if_not_cached)
         r = requests.get(url).content
-        with open(cachefile_content,'w') as f:
+        with open(cachefile_content,'wb') as f:
             f.write(r)
         with open(cachefile_url,'w') as f:
             f.write(url)

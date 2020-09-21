@@ -1,804 +1,793 @@
-[
-	{
-		"@id": "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
-		"name": "Julich-Brain Probabilistic Cytoarchitectonic Atlas",
-		"shortName": "Cytoarchitectonic maps",
-		"version" : "1.18",
-		"baseLayer": true,
-		"maps": {
-			"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : "",
-			"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : {
-				"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2icbm152casym_18_public_a5f6c95f2e7ff6f43b6bf7c816c37c8b.nii.gz",
-				"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2icbm152casym_18_public_9794c687d322d493f4cf67713349fc59.nii.gz"
-			},
-			"minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992" : {
-				"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2Stdcolin27_18_public_4720167a11fb4fe3b58b8bd9284a38a3.nii.gz",
-				"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2Stdcolin27_18_public_2a35bda52754e9cc9d52945b661ca659.nii.gz"
-			}
+{
+	"@id": "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
+	"name": "Julich-Brain Probabilistic Cytoarchitectonic Atlas",
+	"shortName": "Cytoarchitectonic maps",
+	"version" : "1.18",
+	"maps": {
+		"minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588" : {},
+		"minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2" : {
+			"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2icbm152casym_18_public_a5f6c95f2e7ff6f43b6bf7c816c37c8b.nii.gz",
+			"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2icbm152casym_18_public_9794c687d322d493f4cf67713349fc59.nii.gz"
 		},
-		"auxillaryMeshIndices": [
-			65535
-		],
-		"hasAdditionalViewMode": [
-			"connectivity"
-		],
-		"originDatasets": [
-			{
-				"kgSchema": "minds/core/dataset/v1.0.0",
-				"kgId": "4ac9f0bc-560d-47e0-8916-7b24da9bb0ce"
-			}
-		],
-		"properties": {
-			"version": "1.0",
-			"description": "This dataset contains the whole-brain parcellation of the JuBrain Cytoarchitectonic Atlas (Amunts and Zilles, 2015) in the MNI Colin 27 as well as the MNI ICBM 152 2009c nonlinear asymmetric reference space. The parcellation is derived from the individual probability maps (PMs) of the cytoarchitectonic regions released in the JuBrain Atlas, that are further combined into a Maximum Probability Map (MPM). The MPM is calculated by considering for each voxel the probability of all cytoarchitectonic areas released in the atlas, and determining the most probable assignment (Eickhoff 2005). Note that methodological improvements and integration of new brain structures may lead to small deviations in earlier released datasets.",
-			"publications": [
-				{
-					"doi": "https://doi.org/10.1038/nrn2776",
-					"citation": "Zilles K, Amunts K (2010) Centenary of Brodmann’s map – conception and fate. Nature Reviews Neuroscience 11(2): 139-145 "
-				},
-				{
-					"doi": "https://doi.org/10.1016/j.neuroimage.2007.02.037",
-					"citation": "Amunts K, Schleicher A, Zilles K (2007) Cytoarchitecture of the cerebral cortex – more than localization. Neuroimage 37: 1061-1065"
-				},
-				{
-					"doi": "http://dx.doi.org/10.1016/B978-012693019-1/50023-X",
-					"citation": "Zilles K, Schleicher A, Palomero-Gallagher N, Amunts K (2002) Quantitative analysis of cyto- and receptor architecture of the human brain. In: /Brain Mapping: The Methods/, J. C. Mazziotta and A. Toga (eds.), USA: Elsevier, 2002, p. 573-602."
-				}
-			]
+		"minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992" : {
+			"left hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_l_N10_nlin2Stdcolin27_18_public_4720167a11fb4fe3b58b8bd9284a38a3.nii.gz",
+			"right hemisphere" : "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas_pub/18/MPM/mpmatlas_r_N10_nlin2Stdcolin27_18_public_2a35bda52754e9cc9d52945b661ca659.nii.gz"
+		}
+	},
+	"originDatasets": [
+		{
+			"kgSchema": "minds/core/dataset/v1.0.0",
+			"kgId": "4ac9f0bc-560d-47e0-8916-7b24da9bb0ce"
+		}
+	],
+	"description": "This dataset contains the whole-brain parcellation of the JuBrain Cytoarchitectonic Atlas (Amunts and Zilles, 2015) in the MNI Colin 27 as well as the MNI ICBM 152 2009c nonlinear asymmetric reference space. The parcellation is derived from the individual probability maps (PMs) of the cytoarchitectonic regions released in the JuBrain Atlas, that are further combined into a Maximum Probability Map (MPM). The MPM is calculated by considering for each voxel the probability of all cytoarchitectonic areas released in the atlas, and determining the most probable assignment (Eickhoff 2005). Note that methodological improvements and integration of new brain structures may lead to small deviations in earlier released datasets.",
+	"publications": [
+		{
+			"doi": "https://doi.org/10.1038/nrn2776",
+			"citation": "Zilles K, Amunts K (2010) Centenary of Brodmann’s map – conception and fate. Nature Reviews Neuroscience 11(2): 139-145 "
 		},
-		"regions": [
-			{
-				"name": "telencephalon",
-				"status": null,
-				"labelIndex": null,
-				"synonyms": [],
-				"rgb": null,
-				"children": [
-					{
-						"name": "cerebral nuclei",
-						"status": null,
-						"labelIndex": null,
-						"synonyms": [],
-						"rgb": null,
-						"children": [
-							{
-								"name": "basal forebrain",
-								"status": null,
-								"labelIndex": null,
-								"synonyms": [],
-								"rgb": null,
-								"children": [
-									{
-										"name": "magnocellular group within septum",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "Ch 123 (Basal Forebrain)",
-												"arealabel": "Ch-123",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													124,
-													233,
-													167
-												],
-												"children": [
-													{
-														"name": "Ch 123 (Basal Forebrain) - left hemisphere",
-														"rgb": [
-															124,
-															233,
-															167
-														],
-														"labelIndex": 286,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-3648265,
-															3367508,
-															-8957413
-														]
-													},
-													{
-														"name": "Ch 123 (Basal Forebrain) - right hemisphere",
-														"rgb": [
-															124,
-															233,
-															167
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 286,
-														"children": [],
-														"position": [
-															1687097,
-															4148387,
-															-8461290
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "bb111a95-e04c-4987-8254-4af4ed8b0022"
-													}
+		{
+			"doi": "https://doi.org/10.1016/j.neuroimage.2007.02.037",
+			"citation": "Amunts K, Schleicher A, Zilles K (2007) Cytoarchitecture of the cerebral cortex – more than localization. Neuroimage 37: 1061-1065"
+		},
+		{
+			"doi": "http://dx.doi.org/10.1016/B978-012693019-1/50023-X",
+			"citation": "Zilles K, Schleicher A, Palomero-Gallagher N, Amunts K (2002) Quantitative analysis of cyto- and receptor architecture of the human brain. In: /Brain Mapping: The Methods/, J. C. Mazziotta and A. Toga (eds.), USA: Elsevier, 2002, p. 573-602."
+		}
+	],
+	"regions": [
+		{
+			"name": "telencephalon",
+			"status": null,
+			"labelIndex": null,
+			"synonyms": [],
+			"rgb": null,
+			"children": [
+				{
+					"name": "cerebral nuclei",
+					"status": null,
+					"labelIndex": null,
+					"synonyms": [],
+					"rgb": null,
+					"children": [
+						{
+							"name": "basal forebrain",
+							"status": null,
+							"labelIndex": null,
+							"synonyms": [],
+							"rgb": null,
+							"children": [
+								{
+									"name": "magnocellular group within septum",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "Ch 123 (Basal Forebrain)",
+											"arealabel": "Ch-123",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												124,
+												233,
+												167
+											],
+											"children": [
+												{
+													"name": "Ch 123 (Basal Forebrain) - left hemisphere",
+													"rgb": [
+														124,
+														233,
+														167
+													],
+													"labelIndex": 286,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-3648265,
+														3367508,
+														-8957413
+													]
 												},
-												"relatedAreas": []
-											}
-										]
-									},
-									{
-										"name": "sublenticular part of basal forebrain",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "Ch 4 (Basal Forebrain)",
-												"arealabel": "Ch-4",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													116,
-													243,
-													12
-												],
-												"children": [
-													{
-														"name": "Ch 4 (Basal Forebrain) - left hemisphere",
-														"rgb": [
-															116,
-															243,
-															12
-														],
-														"labelIndex": 264,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-17620275,
-															-2290378,
-															-12609966
-														],
-														"originDatasets": [
-															{
-																"kgId": "791a14c8-b899-414f-b237-27574a4cce7e",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "Ch 4 (Basal Forebrain) [v4.2, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "Ch 4 (Basal Forebrain) - right hemisphere",
-														"rgb": [
-															116,
-															243,
-															12
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 264,
-														"children": [],
-														"position": [
-															15978528,
-															-1288344,
-															-12582822
-														],
-														"originDatasets": [
-															{
-																"kgId": "791a14c8-b899-414f-b237-27574a4cce7e",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "Ch 4 (Basal Forebrain) [v4.2, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "a5c9d95f-8e7c-4454-91b6-a790387370fc"
-													}
-												},
-												"relatedAreas": []
-											}
-										]
-									},
-									{
-										"name": "magnocellular group within horizontal limb of diagnoal band",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "Ch 123 (Basal Forebrain)",
-												"arealabel": "Ch-123",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													124,
-													233,
-													167
-												],
-												"children": [
-													{
-														"name": "Ch 123 (Basal Forebrain) - left hemisphere",
-														"rgb": [
-															124,
-															233,
-															167
-														],
-														"labelIndex": 286,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-3648265,
-															3367508,
-															-8957413
-														]
-													},
-													{
-														"name": "Ch 123 (Basal Forebrain) - right hemisphere",
-														"rgb": [
-															124,
-															233,
-															167
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 286,
-														"children": [],
-														"position": [
-															1687097,
-															4148387,
-															-8461290
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "bb111a95-e04c-4987-8254-4af4ed8b0022"
-													}
-												},
-												"relatedAreas": []
-											}
-										]
-									}
-								]
-							},
-							{
-								"name": "amygdala",
-								"status": null,
-								"labelIndex": null,
-								"synonyms": [],
-								"rgb": null,
-								"children": [
-									{
-										"name": "laterobasal group",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "LB (Amygdala)",
-												"arealabel": "LB",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													188,
-													16,
-													222
-												],
-												"children": [
-													{
-														"name": "LB (Amygdala) - left hemisphere",
-														"rgb": [
-															188,
-															16,
-															222
-														],
-														"labelIndex": 187,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "fa4cab6a-1cec-4cec-b481-90aa0cc7d96c",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "LB (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "LB (Amygdala) - right hemisphere",
-														"rgb": [
-															188,
-															16,
-															222
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 187,
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "fa4cab6a-1cec-4cec-b481-90aa0cc7d96c",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "LB (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "708df0fa-e9a4-4c23-bd85-8957f6d30faf"
-													}
-												},
-												"relatedAreas": []
-											}
-										]
-									},
-									{
-										"name": "superficial group",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "CM (Amygdala)",
-												"arealabel": "CM",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													102,
-													180,
-													202
-												],
-												"children": [
-													{
-														"name": "CM (Amygdala) - left hemisphere",
-														"rgb": [
-															102,
-															180,
-															202
-														],
-														"labelIndex": 22,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "CM (Amygdala) - right hemisphere",
-														"rgb": [
-															102,
-															180,
-															202
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 22,
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "7aba8aef-6430-4fa7-ab54-8ecac558faed"
-													}
-												},
-												"relatedAreas": []
+												{
+													"name": "Ch 123 (Basal Forebrain) - right hemisphere",
+													"rgb": [
+														124,
+														233,
+														167
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 286,
+													"children": [],
+													"position": [
+														1687097,
+														4148387,
+														-8461290
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "bb111a95-e04c-4987-8254-4af4ed8b0022"
+												}
 											},
-											{
-												"name": "SF (Amygdala)",
-												"arealabel": "SF",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													18,
-													168,
-													22
-												],
-												"children": [
-													{
-														"name": "SF (Amygdala) - left hemisphere",
-														"rgb": [
-															18,
-															168,
-															22
-														],
-														"labelIndex": 186,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "37a6a7d9-5252-4605-a792-6fefe2fde816",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "SF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "SF (Amygdala) - right hemisphere",
-														"rgb": [
-															18,
-															168,
-															22
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 186,
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "37a6a7d9-5252-4605-a792-6fefe2fde816",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "SF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "48929163-bf7b-4471-9f14-991c5225eced"
-													}
+											"relatedAreas": []
+										}
+									]
+								},
+								{
+									"name": "sublenticular part of basal forebrain",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "Ch 4 (Basal Forebrain)",
+											"arealabel": "Ch-4",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												116,
+												243,
+												12
+											],
+											"children": [
+												{
+													"name": "Ch 4 (Basal Forebrain) - left hemisphere",
+													"rgb": [
+														116,
+														243,
+														12
+													],
+													"labelIndex": 264,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-17620275,
+														-2290378,
+														-12609966
+													],
+													"originDatasets": [
+														{
+															"kgId": "791a14c8-b899-414f-b237-27574a4cce7e",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "Ch 4 (Basal Forebrain) [v4.2, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
 												},
-												"relatedAreas": []
-											}
-										]
-									},
-									{
-										"name": "fiber masses",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "MF (Amygdala)",
-												"arealabel": "MF",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													190,
-													200,
-													9
-												],
-												"children": [
-													{
-														"name": "MF (Amygdala) - left hemisphere",
-														"rgb": [
-															190,
-															200,
-															9
-														],
-														"labelIndex": 235,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-19722222,
-															-8722222,
-															-16222222
-														],
-														"originDatasets": [
-															{
-																"kgId": "1ea87428-a211-439f-b258-40fa3e3363c9",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "MF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "MF (Amygdala) - right hemisphere",
-														"rgb": [
-															190,
-															200,
-															9
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 235,
-														"children": [],
-														"position": [
-															19157143,
-															-6585714,
-															-15985714
-														],
-														"originDatasets": [
-															{
-																"kgId": "1ea87428-a211-439f-b258-40fa3e3363c9",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "MF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "3741c788-9412-4b8e-9ab4-9ca2d3a715ca"
-													}
-												},
-												"relatedAreas": []
+												{
+													"name": "Ch 4 (Basal Forebrain) - right hemisphere",
+													"rgb": [
+														116,
+														243,
+														12
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 264,
+													"children": [],
+													"position": [
+														15978528,
+														-1288344,
+														-12582822
+													],
+													"originDatasets": [
+														{
+															"kgId": "791a14c8-b899-414f-b237-27574a4cce7e",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "Ch 4 (Basal Forebrain) [v4.2, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "a5c9d95f-8e7c-4454-91b6-a790387370fc"
+												}
 											},
-											{
-												"name": "VTM (Amygdala)",
-												"arealabel": "VTM",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													89,
-													178,
-													185
-												],
-												"children": [
-													{
-														"name": "VTM (Amygdala) - left hemisphere",
-														"rgb": [
-															89,
-															178,
-															185
-														],
-														"labelIndex": 228,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-24442675,
-															-12143312,
-															-15697452
-														],
-														"originDatasets": [
-															{
-																"kgId": "9428d48e-f222-4191-96b8-02d3fa6068da",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "VTM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "VTM (Amygdala) - right hemisphere",
-														"rgb": [
-															89,
-															178,
-															185
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 228,
-														"children": [],
-														"position": [
-															23257426,
-															-10816832,
-															-17326733
-														],
-														"originDatasets": [
-															{
-																"kgId": "9428d48e-f222-4191-96b8-02d3fa6068da",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "VTM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "a964e6e6-8014-41a2-b975-754d75cbb6f2"
-													}
+											"relatedAreas": []
+										}
+									]
+								},
+								{
+									"name": "magnocellular group within horizontal limb of diagnoal band",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "Ch 123 (Basal Forebrain)",
+											"arealabel": "Ch-123",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												124,
+												233,
+												167
+											],
+											"children": [
+												{
+													"name": "Ch 123 (Basal Forebrain) - left hemisphere",
+													"rgb": [
+														124,
+														233,
+														167
+													],
+													"labelIndex": 286,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-3648265,
+														3367508,
+														-8957413
+													]
 												},
-												"relatedAreas": []
+												{
+													"name": "Ch 123 (Basal Forebrain) - right hemisphere",
+													"rgb": [
+														124,
+														233,
+														167
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 286,
+													"children": [],
+													"position": [
+														1687097,
+														4148387,
+														-8461290
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "bb111a95-e04c-4987-8254-4af4ed8b0022"
+												}
 											},
-											{
-												"name": "IF (Amygdala)",
-												"arealabel": "IF",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													120,
-													190,
-													129
-												],
-												"children": [
-													{
-														"name": "IF (Amygdala) - left hemisphere",
-														"rgb": [
-															120,
-															190,
-															129
-														],
-														"labelIndex": 237,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-29180412,
-															-3664948,
-															-18242268
-														],
-														"originDatasets": [
-															{
-																"kgId": "3acdb92c-68f0-42db-a7af-9dbb69cbea1d",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "IF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "IF (Amygdala) - right hemisphere",
-														"rgb": [
-															120,
-															190,
-															129
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 237,
-														"children": [],
-														"position": [
-															27247368,
-															-2310526,
-															-17973684
-														],
-														"originDatasets": [
-															{
-																"kgId": "3acdb92c-68f0-42db-a7af-9dbb69cbea1d",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "IF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "5a1391c8-6056-40e4-a19b-3774df42bd07"
-													}
+											"relatedAreas": []
+										}
+									]
+								}
+							]
+						},
+						{
+							"name": "amygdala",
+							"status": null,
+							"labelIndex": null,
+							"synonyms": [],
+							"rgb": null,
+							"children": [
+								{
+									"name": "laterobasal group",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "LB (Amygdala)",
+											"arealabel": "LB",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												188,
+												16,
+												222
+											],
+											"children": [
+												{
+													"name": "LB (Amygdala) - left hemisphere",
+													"rgb": [
+														188,
+														16,
+														222
+													],
+													"labelIndex": 187,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "fa4cab6a-1cec-4cec-b481-90aa0cc7d96c",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "LB (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
 												},
-												"relatedAreas": []
-											}
-										]
-									},
-									{
-										"name": "centromedial group",
-										"status": null,
-										"labelIndex": null,
-										"synonyms": [],
-										"rgb": null,
-										"children": [
-											{
-												"name": "CM (Amygdala)",
-												"arealabel": "CM",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													89,
-													4,
-													190
-												],
-												"children": [
-													{
-														"name": "CM (Amygdala) - left hemisphere",
-														"rgb": [
-															89,
-															4,
-															190
-														],
-														"labelIndex": 16,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "CM (Amygdala) - right hemisphere",
-														"rgb": [
-															89,
-															4,
-															190
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 16,
-														"children": [],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
-												"fullId": {
-													"kg": {
-														"kgSchema": "minds/core/parcellationregion/v1.0.0",
-														"kgId": "7aba8aef-6430-4fa7-ab54-8ecac558faed"
-													}
-												},
-												"relatedAreas": []
+												{
+													"name": "LB (Amygdala) - right hemisphere",
+													"rgb": [
+														188,
+														16,
+														222
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 187,
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "fa4cab6a-1cec-4cec-b481-90aa0cc7d96c",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "LB (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "708df0fa-e9a4-4c23-bd85-8957f6d30faf"
+												}
 											},
-											{
-												"name": "CM (Amygdala)",
-												"arealabel": "CM",
-												"status": "publicP",
-												"labelIndex": null,
-												"synonyms": [],
-												"rgb": [
-													9,
-													120,
-													220
-												],
-												"children": [
-													{
-														"name": "CM (Amygdala) - left hemisphere",
-														"rgb": [
-															9,
-															120,
-															220
-														],
-														"labelIndex": 21,
-														"ngId": "jubrain mni152 v18 left",
-														"children": [],
-														"position": [
-															-22534091,
-															-5320076,
-															-13793561
-														],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
-															}
-														]
-													},
-													{
-														"name": "CM (Amygdala) - right hemisphere",
-														"rgb": [
-															9,
-															120,
-															220
-														],
-														"ngId": "jubrain mni152 v18 right",
-														"labelIndex": 21,
-														"children": [],
-														"position": [
-															21343972,
-															-4488180,
-															-13743499
-														],
-														"originDatasets": [
-															{
-																"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
-																"kgSchema": "minds/core/dataset/v1.0.0",
-																"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
-															}
-														]
-													}
-												],
+											"relatedAreas": []
+										}
+									]
+								},
+								{
+									"name": "superficial group",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "CM (Amygdala)",
+											"arealabel": "CM",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												102,
+												180,
+												202
+											],
+											"children": [
+												{
+													"name": "CM (Amygdala) - left hemisphere",
+													"rgb": [
+														102,
+														180,
+														202
+													],
+													"labelIndex": 22,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "CM (Amygdala) - right hemisphere",
+													"rgb": [
+														102,
+														180,
+														202
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 22,
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "7aba8aef-6430-4fa7-ab54-8ecac558faed"
+												}
+											},
+											"relatedAreas": []
+										},
+										{
+											"name": "SF (Amygdala)",
+											"arealabel": "SF",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												18,
+												168,
+												22
+											],
+											"children": [
+												{
+													"name": "SF (Amygdala) - left hemisphere",
+													"rgb": [
+														18,
+														168,
+														22
+													],
+													"labelIndex": 186,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "37a6a7d9-5252-4605-a792-6fefe2fde816",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "SF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "SF (Amygdala) - right hemisphere",
+													"rgb": [
+														18,
+														168,
+														22
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 186,
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "37a6a7d9-5252-4605-a792-6fefe2fde816",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "SF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "48929163-bf7b-4471-9f14-991c5225eced"
+												}
+											},
+											"relatedAreas": []
+										}
+									]
+								},
+								{
+									"name": "fiber masses",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "MF (Amygdala)",
+											"arealabel": "MF",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												190,
+												200,
+												9
+											],
+											"children": [
+												{
+													"name": "MF (Amygdala) - left hemisphere",
+													"rgb": [
+														190,
+														200,
+														9
+													],
+													"labelIndex": 235,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-19722222,
+														-8722222,
+														-16222222
+													],
+													"originDatasets": [
+														{
+															"kgId": "1ea87428-a211-439f-b258-40fa3e3363c9",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "MF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "MF (Amygdala) - right hemisphere",
+													"rgb": [
+														190,
+														200,
+														9
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 235,
+													"children": [],
+													"position": [
+														19157143,
+														-6585714,
+														-15985714
+													],
+													"originDatasets": [
+														{
+															"kgId": "1ea87428-a211-439f-b258-40fa3e3363c9",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "MF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "3741c788-9412-4b8e-9ab4-9ca2d3a715ca"
+												}
+											},
+											"relatedAreas": []
+										},
+										{
+											"name": "VTM (Amygdala)",
+											"arealabel": "VTM",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												89,
+												178,
+												185
+											],
+											"children": [
+												{
+													"name": "VTM (Amygdala) - left hemisphere",
+													"rgb": [
+														89,
+														178,
+														185
+													],
+													"labelIndex": 228,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-24442675,
+														-12143312,
+														-15697452
+													],
+													"originDatasets": [
+														{
+															"kgId": "9428d48e-f222-4191-96b8-02d3fa6068da",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "VTM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "VTM (Amygdala) - right hemisphere",
+													"rgb": [
+														89,
+														178,
+														185
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 228,
+													"children": [],
+													"position": [
+														23257426,
+														-10816832,
+														-17326733
+													],
+													"originDatasets": [
+														{
+															"kgId": "9428d48e-f222-4191-96b8-02d3fa6068da",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "VTM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "a964e6e6-8014-41a2-b975-754d75cbb6f2"
+												}
+											},
+											"relatedAreas": []
+										},
+										{
+											"name": "IF (Amygdala)",
+											"arealabel": "IF",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												120,
+												190,
+												129
+											],
+											"children": [
+												{
+													"name": "IF (Amygdala) - left hemisphere",
+													"rgb": [
+														120,
+														190,
+														129
+													],
+													"labelIndex": 237,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-29180412,
+														-3664948,
+														-18242268
+													],
+													"originDatasets": [
+														{
+															"kgId": "3acdb92c-68f0-42db-a7af-9dbb69cbea1d",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "IF (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "IF (Amygdala) - right hemisphere",
+													"rgb": [
+														120,
+														190,
+														129
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 237,
+													"children": [],
+													"position": [
+														27247368,
+														-2310526,
+														-17973684
+													],
+													"originDatasets": [
+														{
+															"kgId": "3acdb92c-68f0-42db-a7af-9dbb69cbea1d",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "IF (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "5a1391c8-6056-40e4-a19b-3774df42bd07"
+												}
+											},
+											"relatedAreas": []
+										}
+									]
+								},
+								{
+									"name": "centromedial group",
+									"status": null,
+									"labelIndex": null,
+									"synonyms": [],
+									"rgb": null,
+									"children": [
+										{
+											"name": "CM (Amygdala)",
+											"arealabel": "CM",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												89,
+												4,
+												190
+											],
+											"children": [
+												{
+													"name": "CM (Amygdala) - left hemisphere",
+													"rgb": [
+														89,
+														4,
+														190
+													],
+													"labelIndex": 16,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "CM (Amygdala) - right hemisphere",
+													"rgb": [
+														89,
+														4,
+														190
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 16,
+													"children": [],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
+											"fullId": {
+												"kg": {
+													"kgSchema": "minds/core/parcellationregion/v1.0.0",
+													"kgId": "7aba8aef-6430-4fa7-ab54-8ecac558faed"
+												}
+											},
+											"relatedAreas": []
+										},
+										{
+											"name": "CM (Amygdala)",
+											"arealabel": "CM",
+											"status": "publicP",
+											"labelIndex": null,
+											"synonyms": [],
+											"rgb": [
+												9,
+												120,
+												220
+											],
+											"children": [
+												{
+													"name": "CM (Amygdala) - left hemisphere",
+													"rgb": [
+														9,
+														120,
+														220
+													],
+													"labelIndex": 21,
+													"ngId": "jubrain mni152 v18 left",
+													"children": [],
+													"position": [
+														-22534091,
+														-5320076,
+														-13793561
+													],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, left hemisphere]"
+														}
+													]
+												},
+												{
+													"name": "CM (Amygdala) - right hemisphere",
+													"rgb": [
+														9,
+														120,
+														220
+													],
+													"ngId": "jubrain mni152 v18 right",
+													"labelIndex": 21,
+													"children": [],
+													"position": [
+														21343972,
+														-4488180,
+														-13743499
+													],
+													"originDatasets": [
+														{
+															"kgId": "21ed6af0-5c39-4153-a3b8-8983530436ac",
+															"kgSchema": "minds/core/dataset/v1.0.0",
+															"filename": "CM (Amygdala) [v6.4, ICBM 2009c Asymmetric, right hemisphere]"
+														}
+													]
+												}
+											],
 												"fullId": {
 													"kg": {
 														"kgSchema": "minds/core/parcellationregion/v1.0.0",
@@ -8117,4 +8106,3 @@
     }
   ]
 }
-]

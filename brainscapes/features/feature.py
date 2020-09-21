@@ -1,7 +1,20 @@
-from brainscapes.region import Region
 import numpy as np
+from abc import ABC,abstractmethod
 
-class SpatialFeature:
+class Feature(ABC):
+    """ 
+    Abstract base class for all data features.
+    """
+
+    @abstractmethod
+    def matches_selection(self,atlas):
+        """
+        Returns True if this feature should be considered part of the current
+        selection of the atlas object, otherwise else.
+        """
+        pass
+
+class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.
     """
@@ -9,9 +22,16 @@ class SpatialFeature:
     def __init__(self,space,location):
         self.space = space
         self.location = location
+ 
+    def matches_selection(self,atlas):
+        """
+        Returns true if the location of this feature is inside the selected
+        region of the atlas, according to the mask in the reference space.
+        """
+        return atlas.inside_selection(self.space,self.location)
 
 
-class SpatialFeaturePool:
+class FeaturePool:
     """
     A container for spatial features which implements basic spatial queries.
     """
@@ -19,14 +39,14 @@ class SpatialFeaturePool:
     def __init__(self):
         self.features = []
 
-    def inside_mask(self,space,mask):
+    def pick_selection(self,atlas):
         """
-        Returns the features in the pool that can be localized inside the given
-        mask of the given template space.
+        Returns the list of features from this pool that are associated with
+        the selected region of the given atlas object.
         """
-        return [ f 
-                for f in self.features
-                if (np.all(np.array(self.location)<mask.datashape)
-                    and (mask[f.location[0],f.location[1],f.location[2]]>0)
-                    ]
+        selection = []
+        for feature in self.features:
+            if feature.matches_selection(atlas):
+                selection.append(feature)
+        return selection
 

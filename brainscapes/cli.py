@@ -10,6 +10,8 @@ from brainscapes.ontologies import atlases, parcellations, spaces
 
 logging.basicConfig(level=logging.INFO)
 
+# ---- Autocompletion functions ----
+
 def complete_parcellations(ctx, args, incomplete):
     """ auto completion for parcellations """
     return [p for p in dir(parcellations) 
@@ -18,12 +20,10 @@ def complete_parcellations(ctx, args, incomplete):
 def complete_regions(ctx, args, incomplete):
     """ auto completion for parcellations """
     atlas = bsa.Atlas()
-    parcellation = atlas.__parcellation__
     for option in ['-p','--parcellation']:
         if args.count(option):
             pname = args[args.index(option)+1]
-            parcellation = parcellations[pname]
-            atlas.select_parcellation(parcellation)
+            atlas.select_parcellation(pname)
     regions = [NAME2IDENTIFIER(r.name) for r in atlas.regiontree.iterate()]
     search = [r for r in regions if incomplete.upper() in r]
     return search if len(search)>0 else ""
@@ -35,8 +35,11 @@ def complete_spaces(ctx, args, incomplete):
 
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
-    gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
-    return [a for a in gene_acronyms if a.startswith(incomplete)]
+    if len(incomplete)>0:
+        gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
+        return [a for a in gene_acronyms if a.startswith(incomplete)]
+
+# ---- Main command ----
 
 @click.group()
 @click.option('-p','--parcellation', type=click.STRING, default=None, 
@@ -49,13 +52,13 @@ def brainscapes(ctx,parcellation):
     ctx.obj = {'atlas' : bsa.Atlas()}
     if parcellation is not None:
         try:
-            ctx.obj['atlas'].select_parcellation(parcellations[parcellation])
+            ctx.obj['atlas'].select_parcellation(parcellation)
         except Exception as e:
             print(str(e))
             logging.error("No such parcellation available: "+parcellation)
             exit(1)
     logging.info('Atlas uses parcellation "{}"'.format(
-        ctx.obj['atlas'].__parcellation__['name']))
+        ctx.obj['atlas'].__parcellation__.name))
 
 @brainscapes.group()
 @click.pass_context
@@ -91,16 +94,13 @@ def show(ctx):
 @brainscapes.group()
 @click.argument('region', type=click.STRING,
         autocompletion=complete_regions )
-@click.argument('space', type=click.STRING,
-        autocompletion=complete_spaces )
 @click.pass_context
-def features(ctx,region,space):
+def features(ctx,region):
     """
     Browse the region hierarchy of the selected parcellation.
     """
     atlas = ctx.obj['atlas']
     atlas.select_region(region)
-    ctx.obj['space'] = spaces[space]
 
 @features.command()
 @click.argument('gene', type=click.STRING,
@@ -111,10 +111,10 @@ def gex(ctx,gene):
     Extract gene expressions from the Allen Human Brain Atlas.
     """
     atlas = ctx.obj['atlas']
-    space = ctx.obj['space']
-    featurepool = AllenBrainAtlasQuery(gene)
-    mask = atlas.get_mask(space)
-    features = featurepool.inside_mask(space,mask)
+    pool = AllenBrainAtlasQuery(gene)
+    selection = pool.pick_selection(atlas)
+    print("Found {} gene expression features inside {}".format(
+        len(selection), atlas.selection) )
 
 @features.command()
 @click.pass_context

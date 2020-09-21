@@ -3,26 +3,26 @@ import nibabel as nib
 import numpy as np
 import json
 from collections import defaultdict
+from functools import lru_cache
 
-from . import NAME2IDENTIFIER
-from .region import construct_tree
-from .ontologies import atlases, parcellations, spaces
-from .retrieval import download_file
+from brainscapes import NAME2IDENTIFIER
+from brainscapes.region import construct_tree
+from brainscapes.definitions import atlases, parcellations, spaces, id2key, key2id
+from brainscapes.retrieval import download_file
 
 class Atlas:
 
-    def __init__(self,definition=atlases.MULTILEVEL_HUMAN_ATLAS):
+    def __init__(self,configuration=atlases['MULTILEVEL_HUMAN_ATLAS']):
         # Set an atlas from a json definition. As a default, multilevel human
         # atlas definition is used. The first parcellation in the atlas
         # definition is selected as the default parcellation.
-        self._atlas = definition
+        self._configuration = configuration
         self.regiontree = None
         self.features = defaultdict(list)
-        self.select_parcellation(
-                parcellations[definition['parcellations'][0]])
+        self.select_parcellation(id2key(configuration.parcellations[0]))
         self.selection = self.regiontree
 
-    def select_parcellation(self, parcellation):
+    def select_parcellation(self, parcellationkey):
         """
         Select a different parcellation for the atlas.
 
@@ -30,18 +30,19 @@ class Atlas:
         """
         # TODO need more explicit formalization and testing of ontology
         # definition schemes
-        assert('@id' in parcellation.keys())
-        if parcellation['@id'] not in self._atlas['parcellations']:
+        assert(parcellationkey in parcellations)
+        parcellation = parcellations[parcellationkey]
+        if parcellation.id not in self._configuration.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
-            logging.error('    Atlas:         '+self._atlas['name'])
-            logging.error(parcellation['@id'],self._atlas['parcellations'])
+            logging.error('    Atlas:         '+self._configuration['name'])
+            logging.error(parcellationobj['@id'],self._configuration['parcellations'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.regiontree = construct_tree(parcellation['regions'],
-                rootname=NAME2IDENTIFIER(parcellation['name']))
+        self.regiontree = construct_tree(parcellation.regions,
+                rootname=NAME2IDENTIFIER(parcellation.name))
 
-    def get_maps(self, space):
+    def get_maps(self, space_key):
         """
         Get the volumetric maps for the selected parcellation in the requested
         template space. Note that this sometimes included multiple Nifti
@@ -50,7 +51,7 @@ class Atlas:
 
         Parameters
         ----------
-        space : template space definition, given as a dictionary with an '@id' key
+        space_key : template space key
 
         Yields
         ------
@@ -60,13 +61,14 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
-        if space['@id'] not in self.__parcellation__['maps'].keys():
+        space_id = key2id(space_key)
+        if space_id not in self.__parcellation__.maps.keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
-            logging.error('    Selected parcellation: {}'.format(self.__parcellation__['name']))
-            logging.error('    Requested space:       {}'.format(space))
+            logging.error('    Selected parcellation: {}'.format(self.__parcellation__.name))
+            logging.error('    Requested space:       {}'.format(space_key))
             return None
-        print('Loading 3D map for space ', space['name'])
-        mapurl = self.__parcellation__['maps'][space['@id']]
+        print('Loading 3D map for space ', space_key)
+        mapurl = self.__parcellation__.maps[space_id]
 
         maps = {}
         if type(mapurl) is dict:
@@ -84,10 +86,10 @@ class Atlas:
         
         return maps
 
-    def get_mask(self, space):
+    def get_mask(self, space_key):
         """
         Returns a binary mask  in the given space, where nonzero values denote
-        voxels corresponding to the current region selection. 
+        voxels corresponding to the current region selection of the atlas. 
 
         WARNING: Note that for selections of subtrees of the region hierarchy, this
         might include holes if the leaf regions are not completly covering
@@ -96,25 +98,49 @@ class Atlas:
         Parameters
         ----------
         space : str
-            Template space definition, given as a dictionary with an '@id' key
+            Template space key
         """
         # remember that some parcellations are defined with multiple / split maps
-        maps = self.get_maps(space)
+        print(space_key)
+        return self._get_regionmask(space_key,self.selection)
+
+    @lru_cache(maxsize=5)
+    def _get_regionmask(self,space_key,regiontree):
+        """
+        Returns a binary mask  in the given space, where nonzero values denote
+        voxels corresponding to the union of regions in the given regiontree.
+
+        WARNING: Note that this might include holes if the leaf regions are not
+        completly covering their parent and the parent itself has no label
+        index in the map.
+
+        NOTE: Function uses lru_cache, so if called repeatedly on the same
+        space it will not recompute the mask.
+
+        Parameters
+        ----------
+        space_key : str
+            Template space key
+        regiontree : Region
+            A region from the region hierarchy (could be any of the root, a
+            subtree, or a leaf)
+        """
+        print("Computing the mask for {} in {}".format(
+            regiontree.name, space_key))
+        maps = self.get_maps(space_key)
         mask = affine = header = None 
         for m in maps.values():
             D = np.array(m.dataobj)
             if mask is None: 
                 # copy metadata for output mask from the first map!
                 mask = np.zeros_like(D)
-                affine = m.affine
-                header = m.header
-            for region in self.selection.iterate():
-                if 'labelIndex' not in region.attrs.keys():
+                affine, header = m.affine, m.header
+            for r in regiontree.iterate():
+                if 'labelIndex' not in r.attrs.keys():
                     continue
-                if region.attrs['labelIndex'] is None:
+                if r.attrs['labelIndex'] is None:
                     continue
-                mask[D==int(region.attrs['labelIndex'])]=1
-
+                mask[D==int(r.attrs['labelIndex'])]=1
         return nib.Nifti1Image(dataobj=mask,affine=affine,header=header)
 
     def get_template(self, space, resolution_mu=0, roi=None):
@@ -137,7 +163,7 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if space['@id'] not in self._atlas['spaces']:
+        if space['@id'] not in self._configuration['spaces']:
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))
             return None
@@ -179,6 +205,21 @@ class Atlas:
             return True
         else:
             return False
+
+    def inside_selection(self,space_key,position):
+        """
+        Verifies wether a position in the given space is inside the current
+        selection.
+        """
+        space_id = key2id(space_key)
+        assert(space_id in self._configuration.spaces)
+        # NOTE since get_mask is lru-cached, this is not necessary slow
+        mask = self.get_mask(space_key)
+        if np.any(np.array(position)>=mask.dataobj.shape):
+            return False
+        if mask[position[0],position[1],position[2]]==0:
+            return False
+        return True
 
     def connectivity_sources(self):
         #TODO refactor, this is dirty

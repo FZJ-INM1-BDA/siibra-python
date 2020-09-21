@@ -3,8 +3,8 @@ import logging
 import numpy as np
 import json
 from brainscapes import retrieval
-from brainscapes.ontologies import spaces
-from .feature import *
+from brainscapes.definitions import spaces
+from brainscapes.features.feature import SpatialFeature,FeaturePool
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,7 +36,7 @@ class GeneExpressionFeature(SpatialFeature):
         self.z_scores = z_scores
         self.factors = factors
 
-class AllenBrainAtlasQuery(SpatialFeaturePool):
+class AllenBrainAtlasQuery(FeaturePool):
     """
     Interface to Allen Human Brain Atlas Gene Expressions
     TODO add Allen copyright clause
@@ -88,7 +88,7 @@ class AllenBrainAtlasQuery(SpatialFeaturePool):
         TODO check that this is only called for ICBM space
         """
 
-        SpatialFeaturePool.__init__(self)
+        FeaturePool.__init__(self)
 
         # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
@@ -114,7 +114,6 @@ class AllenBrainAtlasQuery(SpatialFeaturePool):
         # get expression levels and z_scores for the gene
         for donor_id in self._DONOR_IDS:
             self._retrieve_microarray(donor_id,probe_ids)
-
 
     def _retrieve_specimen(self,specimen_id):
         """
@@ -167,7 +166,7 @@ class AllenBrainAtlasQuery(SpatialFeaturePool):
             self.features.append( 
                     GeneExpressionFeature( 
                         icbm_coord, 
-                        spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC,
+                        'MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC',
                         expression_levels = [float(p['expression_level'][i]) 
                             for p in probes],
                         z_scores = [float(p['z-score'][i]) for p in probes],
