@@ -1,19 +1,16 @@
 import logging
 import nibabel as nib
 import numpy as np
-from tempfile import mkdtemp
 import json
 from collections import defaultdict
 
-from .region import Region,construct_tree
+from .region import construct_tree
 from .ontologies import atlases, parcellations, spaces
-from .features import sources as featuresources
 from .retrieval import download_file
 
 class Atlas:
 
-    def __init__(self,cachedir=None):
-        self._cachedir = mkdtemp() if cachedir is None else cachedir
+    def __init__(self):
         self.__atlas__ = atlases.MULTILEVEL_HUMAN_ATLAS
         self.regiontree = None
         self.features = defaultdict(list)
@@ -32,19 +29,11 @@ class Atlas:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
             logging.error('    Atlas:         '+self.__atlas__['name'])
+            logging.error(parcellation['@id'],self.__atlas__['parcellations'])
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.regiontree = construct_tree(parcellation['regions'])
-
-        # load features
-        # TODO refactor
-        for targetname,url in featuresources.items():
-            filename = download_file(url, self._cachedir, targetname=targetname)
-            with open(filename,'r') as f:
-                for item in json.load(f):
-                    if item['parcellation']==self.__parcellation__['name']:
-                        self.features[item['type']].append(item)
-                        print("Feature loaded:",item['type'],"/",self.features[item['type']][-1]['name'])
+        self.regiontree = construct_tree(parcellation['regions'],
+                rootname=parcellation['name'].upper().replace(' ','_'))
 
     def get_maps(self, space):
         """
@@ -80,11 +69,11 @@ class Atlas:
             # represents a string that allows to identify them with region name
             # labels.
             for label,url in mapurl.items():
-                filename = download_file(url, self._cachedir)
+                filename = download_file(url)
                 if filename is not None:
                     maps[label] = nib.load(filename)
         else:
-            filename = download_file(mapurl, self._cachedir)
+            filename = download_file(mapurl)
             maps[''] = nib.load(filename)
         
         return maps
@@ -113,10 +102,10 @@ class Atlas:
 
         print('Loading template image for space',space['name'])
         if 'templateFile' in space.keys():
-            filename = download_file( space['templateUrl'], self._cachedir, 
+            filename = download_file( space['templateUrl'], 
                     ziptarget=space["templateFile"])
         else:
-            filename = download_file( space['templateUrl'], self._cachedir)
+            filename = download_file( space['templateUrl'])
         if filename is not None:
             return nib.load(filename)
         else:
