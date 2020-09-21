@@ -1,4 +1,5 @@
 from brainscapes.region import Region
+import numpy as np
 
 class SpatialFeature:
     """
@@ -8,9 +9,6 @@ class SpatialFeature:
     def __init__(self,space,location):
         self.space = space
         self.location = location
-
-    def in_region(self,region:Region):
-        pass
 
 
 class SpatialFeaturePool:
@@ -26,5 +24,7 @@ class SpatialFeaturePool:
         Returns the features in the pool that can be localized inside the given
         mask of the given template space.
         """
-        pass
+        return [ f 
+                for f in self.features
+                if (np.all(np.array(self.location)<mask.datashape)mask[f.location[0],f.location[1],f.location[2]]>0]
 

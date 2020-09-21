@@ -101,7 +101,7 @@ class Atlas:
         # remember that some parcellations are defined with multiple / split maps
         maps = self.get_maps(space)
         mask = affine = header = None 
-        for mlabel,m in maps.items():
+        for m in maps.values():
             D = np.array(m.dataobj)
             if mask is None: 
                 # copy metadata for output mask from the first map!
