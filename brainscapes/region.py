@@ -1,6 +1,7 @@
 import json
 
-from brainscapes.ontologies import parcellations,spaces 
+from brainscapes.features import receptors
+from brainscapes.ontologies import parcellations,spaces
 import anytree
 from brainscapes.retrieval import get_json_from_url
 
@@ -101,6 +102,9 @@ class Region(anytree.NodeMixin):
             if data['name'] in self.name:
                 return data['files']
         return {}
+
+    def get_receptor_data(self):
+        return receptors.get_receptor_data_by_region(self.name)
 
     def __str__(self):
         return self.name

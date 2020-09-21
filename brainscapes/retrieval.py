@@ -17,20 +17,6 @@ from os import path, makedirs, environ
 #
 
 
-def __check_and_get_token():
-    """
-    Check for a token in the environment variables.
-    A token must be provided for different http calls, to be authenticated
-
-    TODO Method and therefore the token is not yet used. Clarification needed how to use token against object.cscs store
-    """
-    try:
-        token = environ['HBP_AUTH_TOKEN']
-        print('token: ' + token)
-    except KeyError:
-        print('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
-
-
 def download_file(url, download_folder, ziptarget=None, targetname=None ):
     """
     Downloads a file from a URL to local disk, and returns the local filename.
