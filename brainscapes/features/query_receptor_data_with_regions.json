@@ -64,7 +64,11 @@
         },
         {
           "fieldname": "query:name",
-          "relative_path": "http://schema.org/name"
+          "relative_path": "http://schema.org/name",
+          "filter": {
+            "op": "equals",
+            "parameter": "regionname"
+          }
         }
       ]
     },
