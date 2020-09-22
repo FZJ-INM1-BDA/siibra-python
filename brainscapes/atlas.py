@@ -7,6 +7,7 @@ import json
 from collections import defaultdict
 from functools import lru_cache
 
+from brainscapes.features import receptor_data
 from brainscapes.region import construct_tree, Region
 from brainscapes.retrieval import download_file
 from brainscapes.registry import OntologyRegistry,create_key
@@ -298,6 +299,20 @@ class Atlas:
     def connectivity_filter(self, src=None):
         print('connectivity filter for src: ' + src)
         #TODO implement
+
+    def query_data(self, datatype=None):
+        """
+        Search for a given feature depending on the atlas selection
+
+        Parameters
+        ----------
+        datatype
+            Defines the type of the feature for which the data should be returned
+        """
+        if self.selection:
+            return receptor_data.get_receptor_data_by_region(self.selection.name)
+        else:
+            print('Can not query data, if no region is selected')
 
 
 REGISTRY = OntologyRegistry(
