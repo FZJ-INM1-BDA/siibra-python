@@ -36,25 +36,17 @@ def execute_query_by_id(org, domain, schema, version, query_id):
         schema,
         version,
         query_id)
+    print(url)
     r = cached_get(
         url,
         headers={
             'Content-Type':'application/json',
             'Authorization': 'Bearer {}'.format(authentication.get_token())})
-    if r.ok:
-        return json.loads(r.content)
-        # results = json.loads(r.content)
+    print(r)
+    return json.loads(r)
+        # results = json.loads(r)
         # for r in results['results']:
         #     receptors = ReceptorData(r)
         #     for name,dataframe in receptors.profiles.items():
         #         print(name,receptors.receptor_label[name])
-    if r.status_code == 401:
-        print('The provided authentication token is not valid')
-    elif r.status_code == 403:
-        print('No permission to access the given query')
-    elif r.status_code == 404:
-        print('Query with id {} not found'.format(query_id))
-    else:
-        print('Problem with "get" protocol on url: %s ' % url )
-    return {}
 

@@ -93,7 +93,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
-        response = retrieval.cached_get(url).content
+        response = retrieval.cached_get(url)
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
         probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
@@ -102,7 +102,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         self._specimen = {
                 spcid:self._retrieve_specimen(spcid) 
                 for spcid in self._SPECIMEN_IDS}
-        response = json.loads(retrieval.cached_get(self._QUERY['factors'])).content
+        response = json.loads(retrieval.cached_get(self._QUERY['factors']))
         self.factors = {
                 item['id']: {
                     'race' : item['race_only'],
@@ -122,7 +122,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         url = self._QUERY['specimen'].format(specimen_id=specimen_id)
         response = json.loads(retrieval.cached_get(
             url,msg_if_not_cached="Retrieving specimen information for id {}".format(
-                specimen_id))).content
+                specimen_id)))
         if not response['success']:
             raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
         # we ask for 1 specimen, so list should have length 1
@@ -146,7 +146,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         url = self._QUERY['microarray'].format(
                 probe_ids=','.join([str(id) for id in probe_ids]),
                 donor_id=donor_id)
-        response = json.loads(retrieval.cached_get(url).content)
+        response = json.loads(retrieval.cached_get(url))
         if not response['success']:
             raise Exception('Invalid response when retrieving microarray data: {}'.format( url))
 
