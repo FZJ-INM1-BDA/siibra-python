@@ -69,7 +69,7 @@ def download_file(url, ziptarget=None, targetname=None ):
         elif 'X-Object-Meta-Orig-Filename' in req.headers:
             filename = CACHEDIR + '/' + req.headers['X-Object-Meta-Orig-Filename']
         else:
-            filename = path.basename(url)
+            filename = CACHEDIR + '/' + path.basename(url)
         with open(filename, 'wb') as code:
             code.write(req.content)
         print("Filename is", filename)
