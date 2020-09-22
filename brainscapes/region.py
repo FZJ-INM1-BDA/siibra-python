@@ -6,30 +6,33 @@ import anytree
 from brainscapes.retrieval import get_json_from_url
 import anytree
 
-def construct_tree(regiondefs,rootname='root',parent=None):
+def construct_tree(parcellation,entrypoints=None,parent=None):
     """ 
     Builds a complete tree from a regions data structure as contained
-    inside a brainscapes parcellation ontology. 
+    inside a brainscapes parcellation definition. 
     """
-    if parent is None:
-        root = Region({'name':rootname})
-        construct_tree(regiondefs,parent=root)
+    if entrypoints is None:
+        root = Region({'name':parcellation.name},parcellation)
+        construct_tree(parcellation,parcellation.regions,parent=root)
         return root
 
     subtrees = []
-    for regiondef in regiondefs:
-        node = Region(regiondef,parent)
+    for regiondef in entrypoints:
+        node = Region(regiondef,parcellation,parent)
         if "children" in regiondef.keys():
-            _ = construct_tree( regiondef['children'],parent=node)
+            _ = construct_tree( parcellation, regiondef['children'],parent=node)
         subtrees.append(node)
     return subtrees
 
 
 class Region(anytree.NodeMixin):
+    """
+    Representation of a region with name and more optional attributes
+    TODO implement a Region.from_json factory method to be applied recursively
+    from the Parcellation.from_json method
+    """
 
-    """Representation of a region with name and more optional attributes"""
-
-    def __init__(self, definition, parent=None, children=None):
+    def __init__(self, definition, parcellation, parent=None, children=None):
         """
         Constructs a region object from its definition as given in the
         brainscapes parcellation definitions.
@@ -38,6 +41,8 @@ class Region(anytree.NodeMixin):
         ----------
         definition : dict
             A dictionary of one particular region as formatted in the brainscapes parcellation defininition json files.
+        parcellation : Parcellation
+            The parcellation that this region belongs to
         parent : Region
             Parent of this region, if any
         children : list of Region
@@ -45,6 +50,7 @@ class Region(anytree.NodeMixin):
         """
         self.name = definition['name']
         self.key = create_key(self.name)
+        self.parcellation = parcellation
         self.attrs = definition
         if parent is not None:
             self.parent = parent
@@ -69,6 +75,12 @@ class Region(anytree.NodeMixin):
             return self.attrs[name]
         else:
             raise AttributeError("No such attribute: {}".format(name))
+
+    def includes(self, region):
+        """
+        Determine wether this regiontree includes the given region.
+        """
+        return region==self or region in self.descendants
 
     def find(self,name,exact=True,search_key=False):
         """
@@ -101,12 +113,12 @@ class Region(anytree.NodeMixin):
                 return anytree.search.findall(self,
                         lambda node: name in node.name)
 
-    def print_hierarchy(self):
+    def __str__(self):
         """
-        Prints the hierarchy of all descendants of this region as a tree.
+        Returns the hierarchy of all descendants of this region as a tree.
         """
-        for pre, _, node in anytree.RenderTree(self):
-            print("%s%s" % (pre, node.name))
+        return "\n".join("%s%s" % (pre, node.name)
+                for pre, _, node in anytree.RenderTree(self))
 
     def iterate(self):
         """
@@ -127,11 +139,8 @@ class Region(anytree.NodeMixin):
     #def get_receptor_data(self):
         #return receptors.get_receptor_data_by_region(self.name)
 
-    def __str__(self):
-        return self.name
-
     def __repr__(self):
-        return self.__str__()
+        return self.name
 
 
 if __name__ == '__main__':
@@ -149,6 +158,6 @@ if __name__ == '__main__':
                     'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
                     }]
             }
-    region = Region(definition)
+    region = Region(definition,parcellations[0])
     spatial_props = region.get_spatial_props(spaces.BIG_BRAIN__HISTOLOGY_)
 

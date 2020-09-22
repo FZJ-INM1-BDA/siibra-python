@@ -1,4 +1,4 @@
-from .registry import OntologyRegistry,create_key
+from .registry import Registry,create_key
 
 class Space:
 
@@ -22,5 +22,5 @@ class Space:
             return Space(obj['@id'], obj['name'], obj['templateUrl'])
         return obj
 
-REGISTRY = OntologyRegistry(
-        'brainscapes.ontologies.spaces', Space.from_json )
+REGISTRY = Registry(
+        'brainscapes.definitions.spaces', Space.from_json )

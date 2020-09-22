@@ -18,7 +18,7 @@ setup(
         brainscapes=cli:brainscapes
     ''',
     packages=find_packages(include=['brainscapes']),
-    package_data={'brainscapes.ontologies': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
+    package_data={'brainscapes.definitions': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

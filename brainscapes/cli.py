@@ -5,6 +5,7 @@ import logging
 import brainscapes.atlas as bsa
 import json
 from brainscapes import parcellations, spaces, atlases
+from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
 
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +24,9 @@ def complete_regions(ctx, args, incomplete):
         if args.count(option):
             pname = args[args.index(option)+1]
             atlas.select_parcellation(pname)
-    regions = [r.key for r in atlas.regiontree.iterate()]
+    regions = [c.key 
+            for r in atlas.regiontree.iterate()
+            for c in r.children ]
     search = [r for r in regions if incomplete.upper() in r]
     return search if len(search)>0 else ""
 
@@ -37,6 +40,11 @@ def complete_genes(ctx, args, incomplete):
     if len(incomplete)>0:
         gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
         return [a for a in gene_acronyms if a.startswith(incomplete)]
+
+def complete_featuretypes(ctx, args, incomplete):
+    """ auto completion for feature types """
+    return [m for m in modalities
+            if m.startswith(incomplete)]
 
 # ---- Main command ----
 
@@ -57,7 +65,7 @@ def brainscapes(ctx,parcellation):
             logging.error("No such parcellation available: "+parcellation)
             exit(1)
     logging.info('Atlas uses parcellation "{}"'.format(
-        ctx.obj.__parcellation__.name))
+        ctx.obj.selected_parcellation.name))
 
 @brainscapes.group()
 @click.pass_context
@@ -88,7 +96,7 @@ def show(ctx):
     Print the complete region hierarchy.
     """
     atlas = ctx.obj
-    atlas.regiontree.print_hierarchy()
+    print(atlas.regiontree)
 
 @brainscapes.group()
 @click.argument('region', type=click.STRING,
@@ -110,10 +118,20 @@ def gex(ctx,gene):
     Extract gene expressions from the Allen Human Brain Atlas.
     """
     atlas = ctx.obj
-    pool = AllenBrainAtlasQuery(gene)
-    selection = pool.pick_selection(atlas)
-    print("Found {} gene expression features inside {}".format(
-        len(selection), atlas.selection) )
+    hits = atlas.query_data("GeneExpression",gene=gene)
+    for hit in hits:
+        print(hit)
+
+@features.command()
+@click.pass_context
+def receptors(ctx):
+    """
+    Extract receptor distributions from the EBRAINS knowledge graph.
+    """
+    atlas = ctx.obj
+    hits = atlas.query_data("ReceptorDistribution")
+    for hit in hits:
+        print(hit)
 
 @features.command()
 @click.pass_context
@@ -134,7 +152,7 @@ def props(ctx,space):
     """
 
     atlas = ctx.obj
-    region = atlas.selection
+    region = atlas.selected_region
     spaces_obj = spaces[space]
 
     # Extract properties of all atlas regions

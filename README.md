@@ -1,6 +1,4 @@
-# Brainscapes client
-
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+# Brainscapes 
 
 ## Installation
 
@@ -9,7 +7,7 @@ Installing for local usage: `pip install -e .`
 
 ## Authentication
 
-Brainscapes retrieves data from the EBRAINS Knowledge Graph, which requires
+Brainscapes retrieves some data from the EBRAINS Knowledge Graph, which requires
 authentication. You have to provide an authentication token for EBRAINS. 
 
 Please obtain a token by visiting 
@@ -22,21 +20,68 @@ There are two ways of making the token known to brainscapes:
 1. Set an environment variable **HBP_AUTH_TOKEN** with the token. The client will then use it automatically.
 2. Set it programmatically by getting an instance of **Authentication** as follows: 
 
-```
-authentication = Authentication.instance()
-authentication.set_token(TOKEN)
-```
-
-## Usage
-
-### Getting receptordata
-
-```
+```python
 from brainscapes.authentication import Authentication
-from brainscapes.features import receptors
 auth = Authentication.instance()
-auth.set_token('eyJhbG..........')
-print(receptors.get_receptor_data_by_region('Area 4p (PreCG)').fingerprint))
-print(receptors.get_receptor_data_by_region('Area 4p (PreCG)').profiles)
-print(receptors.get_receptor_data_by_region('Area 4p (PreCG)').autoradiographs)
+auth.set_token(TOKEN)
 ```
+
+## Usage examples
+
+### Retrieving receptor densities for one brain area
+
+```python
+from brainscapes import atlases
+
+# Retrieve data from atlas
+# NOTE: assumes the client is already authenticated, see above
+atlas = atlases.MULTILEVEL_HUMAN_ATLAS
+for region in atlas.regiontree.find('hOc1',exact=False):
+    atlas.select_region(region)
+    hits = atlas.query_data("ReceptorDistribution")
+    for hit in hits:
+        print(hit)
+```
+
+### Retrieving gene expressions for one brain area
+
+```python
+from brainscapes import atlases
+
+# Retrieve data from atlas
+# NOTE: assumes the client is already authenticated, see above
+atlas = atlases.MULTILEVEL_HUMAN_ATLAS
+for region in atlas.regiontree.find('hOc1',exact=False):
+    atlas.select_region(region)
+    hits = atlas.query_data("GeneExpressions","GABAARL2")
+    for hit in hits:
+        print(hit)
+```
+
+## Command line interface
+
+Many of the functionalities are available through the `brainscapes` commandline
+client (brainscapes-cli). Note that many autocompletion functions are available
+on the commandline, if you setup autompletion in your shell as described
+[here](https://click.palletsprojects.com/en/7.x/bashcomplete/#).
+
+Some examples:
+
+ 1. Retrieve receptor densities for a specific brain area:
+
+```shell
+brainscapes features AREA_HOC1__V1__17__CALCS_ receptors
+```
+
+ 2. Retrieve gene expressions for a specific brain area:
+	
+```shell
+brainscapes features AREA_HOC1__V1__17__CALCS_ gex GABARAPL2
+```
+
+ 3. Print the region hierarchy:
+
+```shell
+brainscapes hierarchy show
+```
+ 

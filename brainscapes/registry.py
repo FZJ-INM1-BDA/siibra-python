@@ -4,9 +4,9 @@ from importlib.resources import contents as pkg_contents,path as pkg_path
 import logging
 logging.basicConfig(level=logging.INFO)
 
-class OntologyRegistry:
+class Registry:
     """
-    A class that registers multiple ontologies from json files by converting
+    A class that registers semantic definitions from json files by converting
     them to a specific object class based on the object construction function
     provided as constructor parameter.
     """

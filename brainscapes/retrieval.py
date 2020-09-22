@@ -52,24 +52,22 @@ def download_file(url, ziptarget=None, targetname=None ):
     # which includes the filename of the actual image. This is a workaround to
     # deal with the fact that we do not know the filetype prior to downloading,
     # so we cannot determine the suffix in advance.
-    hashfile = CACHEDIR + '/' + str(hashlib.sha256(str.encode(url)).hexdigest())
+    hashfile = path.join(CACHEDIR,str(hashlib.sha256(str.encode(url)).hexdigest()))
     if path.exists(hashfile):
         with open(hashfile, 'r') as f:
             filename = f.read()
             if path.exists(filename):
-                print("Loading from cache:", filename)
                 return filename
 
     # No valid hash and corresponding file found - need to download
-    print('Downloading from', url)
     req = requests.get(url)
     if req is not None and req.status_code == 200:
         if targetname is not None:
-            filename = CACHEDIR + "/" + targetname
+            filename = path.join(CACHEDIR,targetname)
         elif 'X-Object-Meta-Orig-Filename' in req.headers:
-            filename = CACHEDIR + '/' + req.headers['X-Object-Meta-Orig-Filename']
+            filename = path.join(CACHEDIR,req.headers['X-Object-Meta-Orig-Filename'])
         else:
-            filename = CACHEDIR + '/' + path.basename(url)
+            filename = path.join(CACHEDIR,path.basename(url))
         with open(filename, 'wb') as code:
             code.write(req.content)
         print("Filename is", filename)
@@ -111,7 +109,7 @@ def get_json_from_url(url):
         return {}
 
 
-def cached_get(url,msg_if_not_cached=None):
+def cached_get(url,msg_if_not_cached=None,**kwargs):
     """
     Performs a requests.get if the result is not yet available in the local
     cache, otherwise returns the result from the cache.
@@ -127,12 +125,23 @@ def cached_get(url,msg_if_not_cached=None):
         logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'rb') as f:
             r = f.read()
+            return(r)
     else:
         if msg_if_not_cached:
             print(msg_if_not_cached)
-        r = requests.get(url).content
-        with open(cachefile_content,'wb') as f:
-            f.write(r)
-        with open(cachefile_url,'w') as f:
-            f.write(url)
-    return r
+        r = requests.get(url,**kwargs)
+        if r.ok:
+            with open(cachefile_content,'wb') as f:
+                f.write(r.content)
+            with open(cachefile_url,'w') as f:
+                f.write(url)
+            return r.content
+        elif r.status_code == 401:
+            print('The provided authentication token is not valid')
+        elif r.status_code == 403:
+            print('No permission to access the given query')
+        elif r.status_code == 404:
+            print('Query with this id not found')
+        else:
+            print('Problem with "get" protocol on url: %s ' % url )
+        raise Exception('Could not retrieve data')

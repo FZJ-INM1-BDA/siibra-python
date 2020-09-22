@@ -8,12 +8,12 @@ from brainscapes.features.feature import SpatialFeature,FeaturePool
 
 logging.basicConfig(level=logging.INFO)
 
-class GeneExpressionFeature(SpatialFeature):
+class GeneExpression(SpatialFeature):
     """
     A spatial feature type for gene expressions.
     """
 
-    def __init__(self,space,location,expression_levels,z_scores,factors):
+    def __init__(self,gene,space,location,expression_levels,z_scores,factors):
         """
         Construct the spatial feature for gene expressions measured in a sample.
 
@@ -35,6 +35,11 @@ class GeneExpressionFeature(SpatialFeature):
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.factors = factors
+        self.gene = gene
+
+    def __str__(self):
+        return "Gene {g} expressed in '{s}' at {l[0]:8.1f}|{l[1]:8.1f}|{l[2]:8.1f}".format(
+                g=self.gene, s=self.space, l=self.location)
 
 class AllenBrainAtlasQuery(FeaturePool):
     """
@@ -50,6 +55,7 @@ class AllenBrainAtlasQuery(FeaturePool):
       expression list in a probe coresponds to the number of samples taken in
       the corresponding donor for the given gene.
     """
+    _FEATURETYPE = GeneExpression
 
     _BASE_URL = "http://api.brain-map.org/api/v2/data"
     _QUERY = {
@@ -89,11 +95,12 @@ class AllenBrainAtlasQuery(FeaturePool):
         """
 
         FeaturePool.__init__(self)
+        self.gene = gene
 
         # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
-        response = retrieval.cached_get(url) 
+        response = retrieval.cached_get(url)
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
         probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
@@ -115,13 +122,15 @@ class AllenBrainAtlasQuery(FeaturePool):
         for donor_id in self._DONOR_IDS:
             self._retrieve_microarray(donor_id,probe_ids)
 
+
     def _retrieve_specimen(self,specimen_id):
         """
         Retrieves information about a human specimen. 
         """
         url = self._QUERY['specimen'].format(specimen_id=specimen_id)
         response = json.loads(retrieval.cached_get(
-            url,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
+            url,msg_if_not_cached="Retrieving specimen information for id {}".format(
+                specimen_id)))
         if not response['success']:
             raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
         # we ask for 1 specimen, so list should have length 1
@@ -163,16 +172,14 @@ class AllenBrainAtlasQuery(FeaturePool):
                     sample['sample']['mri']+[1] ).T
 
             # Create the spatial feature
-            self.features.append( 
-                    GeneExpressionFeature( 
-                        icbm_coord, 
-                        spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
-                        expression_levels = [float(p['expression_level'][i]) 
-                            for p in probes],
-                        z_scores = [float(p['z-score'][i]) for p in probes],
-                        factors = self.factors[donor_id]
-                        )
-                    )
+            self.register( GeneExpression( 
+                self.gene,
+                icbm_coord, 
+                spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
+                expression_levels = [float(p['expression_level'][i]) for p in probes],
+                z_scores = [float(p['z-score'][i]) for p in probes],
+                factors = self.factors[donor_id]
+                ))
 
 if __name__ == "__main__":
 

@@ -10,9 +10,10 @@ from functools import lru_cache
 from brainscapes.features import receptor_data
 from brainscapes.region import construct_tree, Region
 from brainscapes.retrieval import download_file
-from brainscapes.registry import OntologyRegistry,create_key
+from brainscapes.registry import Registry,create_key
 from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
 from brainscapes.space import REGISTRY as spaces,  Space
+from brainscapes import features 
 
 class Atlas:
 
@@ -28,15 +29,15 @@ class Atlas:
         self.spaces = [] # add with _add_space
 
         # nothing selected yet at construction time
-        self.selection = self.regiontree
-        self.__parcellation__ = None 
+        self.selected_region = None
+        self.selected_parcellation = None 
 
     def _add_space(self, space):
         self.spaces.append(space)
 
     def _add_parcellation(self, parcellation, select=False):
         self.parcellations.append(parcellation)
-        if self.__parcellation__ is None or select:
+        if self.selected_parcellation is None or select:
             self.select_parcellation(parcellation)
 
     def __str__(self):
@@ -70,18 +71,14 @@ class Atlas:
         parcellation : Parcellation
             The new parcellation to be selected
         """
-        # TODO need more explicit formalization and testing of ontology
-        # definition schemes
-        assert(parcellation.id in parcellations)
         if parcellation not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
             logging.error('    Atlas:         '+self.name)
             logging.error(parcellation.id,self.parcellations)
             raise Exception('Invalid Parcellation')
-        self.__parcellation__ = parcellation
-        self.regiontree = construct_tree(parcellation.regions,
-                rootname=parcellation.key)
+        self.selected_parcellation = parcellation
+        self.regiontree = construct_tree(parcellation)
 
     def get_maps(self, space):
         """
@@ -102,13 +99,13 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
-        if space.id not in self.__parcellation__.maps.keys():
+        if space.id not in self.selected_parcellation.maps.keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
-            logging.error('    Selected parcellation: {}'.format(self.__parcellation__.name))
+            logging.error('    Selected parcellation: {}'.format(self.selected_parcellation.name))
             logging.error('    Requested space:       {}'.format(space))
             return None
         print('Loading 3D map for space ', space)
-        mapurl = self.__parcellation__.maps[space.id]
+        mapurl = self.selected_parcellation.maps[space.id]
 
         maps = {}
         if type(mapurl) is dict:
@@ -141,7 +138,7 @@ class Atlas:
             Template space 
         """
         # remember that some parcellations are defined with multiple / split maps
-        return self._get_regionmask(space,self.selection)
+        return self._get_regionmask(space,self.selected_region)
 
     @lru_cache(maxsize=5)
     def _get_regionmask(self,space : Space,regiontree : Region):
@@ -195,7 +192,7 @@ class Atlas:
         roi : n/a
             3D region of interest (not yet implemented)
 
-        TODO model the MNI URLs in the space ontology
+        TODO model the MNI URLs in the space definition
 
         Yields
         ------
@@ -214,7 +211,7 @@ class Atlas:
         else:
             return None
 
-    def select_region(self,region_key):
+    def select_region(self,region):
         """
         Selects a particular region. 
 
@@ -225,23 +222,30 @@ class Atlas:
 
         Parameters
         ----------
-        region_key : str
-            Key of the region to be selected, which is its full name converted
-            by brainscapes' NAME2IDENTIFIER function.
+        region : Region
+            Region to be selected. Both a region object, as well as a region
+            key (uppercase string identifier) are accepted.
 
         Yields
         ------
         True, if selection was successful, otherwise False.
         """
-        selected = self.regiontree.find(region_key,search_key=True)
+        searchname = region.key if isinstance(region,Region) else region
+        selected = self.regiontree.find(searchname,search_key=True)
         if selected is not None:
-            self.selection = selected
-            logging.info('Selected region {}'.format(self.selection.name))
+            self.selected_region = selected
+            logging.info('Selected region {}'.format(self.selected_region.name))
             return True
         else:
             return False
 
-    def inside_selection(self,space,position):
+    def region_selected(self,region):
+        """
+        Verifies wether a given region is part of the current selection.
+        """
+        return self.selected_region.includes(region)
+
+    def coordinate_selected(self,space,coordinate):
         """
         Verifies wether a position in the given space is inside the current
         selection.
@@ -250,7 +254,7 @@ class Atlas:
         ----------
         space : Space
             The template space in which the test shall be carried out
-        position : tuple x/y/z
+        coordinate : tuple x/y/z
             A coordinate position given in the physical space. It will be
             converted to the voxel space using the inverse affine matrix of the
             template space for the query.
@@ -260,12 +264,27 @@ class Atlas:
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
         mask = self.get_mask(space)
-        voxel = apply_affine(npl.inv(mask.affine),position).astype(int)
+        voxel = apply_affine(npl.inv(mask.affine),coordinate).astype(int)
         if np.any(voxel>=mask.dataobj.shape):
             return False
         if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
             return False
         return True
+
+    def query_data(self,modality,**kwargs):
+        """
+        Query data features for the currently selected region(s) by modality. 
+        See brainscapes.features.modalities for available modalities.
+        """
+        assert(modality in features.modalities)
+        hits = []
+        for Pool in features.pools[modality]:
+            if modality=='GeneExpression':
+                pool = Pool(kwargs['gene'])
+            else:
+                pool = Pool()
+            hits.extend(pool.pick_selection(self))
+        return hits
 
     def connectivity_sources(self):
         #TODO refactor, this is dirty
@@ -315,16 +334,16 @@ class Atlas:
             print('Can not query data, if no region is selected')
 
 
-REGISTRY = OntologyRegistry(
-        'brainscapes.ontologies.atlases', Atlas.from_json )
+REGISTRY = Registry(
+        'brainscapes.definitions.atlases', Atlas.from_json )
 
 if __name__ == '__main__':
-    atlas = REGISTRY[0]
+
     atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
 
     # atlas.get_maps('mySpace')
     # atlas.get_template("template")
-    atlas.regiontree.print_hierarchy()
+    print(atlas.regiontree)
     print('*******************************')
     print(atlas.regiontree.find('hOc1'))
     print('*******************************')

@@ -1,14 +1,9 @@
-from brainscapes.ontologies import atlases,parcellations,spaces
-from brainscapes import atlas as bsa
+from brainscapes import atlases
 
-atlas = bsa.Atlas()
-atlas.select_parcellation(parcellations.CYTOARCHITECTONIC_MAPS)
-icbm152space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
-#icbm_map = atlas.get_map(icbm152space)
-#print(icbm_map.shape)
-
-print(atlas.regions())
-matches = atlas.search_region('hOc1')
-print(matches)
-
+atlas = atlases.MULTILEVEL_HUMAN_ATLAS
+for region in atlas.regiontree.find('hOc1',exact=False):
+    atlas.select_region(region)
+    hits = atlas.query_data("ReceptorDistribution")
+    for hit in hits:
+        print(hit)
 
