@@ -12,15 +12,44 @@ from brainscapes.retrieval import download_file
 
 class Atlas:
 
-    def __init__(self,configuration=atlases['MULTILEVEL_HUMAN_ATLAS']):
-        # Set an atlas from a json definition. As a default, multilevel human
-        # atlas definition is used. The first parcellation in the atlas
-        # definition is selected as the default parcellation.
-        self._configuration = configuration
+    def __init__(self,identifier,name):
+        # Setup an empty. Use _add_space and _add_parcellation to complete
+        # the setup.
+        self.name = name
+        self.identifier = identifier
         self.regiontree = None
         self.features = defaultdict(list)
-        self.select_parcellation(id2key(configuration.parcellations[0]))
+        self.parcellations = [] # add with _add_parcellation
+        self.spaces = [] # add with _add_space
+
+        # nothing selected yet at construction time
         self.selection = self.regiontree
+        self.__parcellation__ = None 
+
+    def _add_space(self, space_id):
+        # TODO check that space_id has a valid object
+        self.spaces.append(space_id)
+
+    def _add_parcellation(self, parcellation_id, select=False):
+        # TODO check that space_id has a valid object
+        self.parcellations.append(parcellation_id)
+        if self.__parcellation__ is None or select:
+            self.select_parcellation(id2key(parcellation_id))
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def from_json(obj):
+        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
+            obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
+            p = Atlas(obj['@id'], obj['name'])
+            for space_id in obj['spaces']:
+                p._add_space( space_id )
+            for parcellation_id in obj['parcellations']:
+                p._add_parcellation( parcellation_id )
+            return p
+        return obj
 
     def select_parcellation(self, parcellationkey):
         """
@@ -32,11 +61,11 @@ class Atlas:
         # definition schemes
         assert(parcellationkey in parcellations)
         parcellation = parcellations[parcellationkey]
-        if parcellation.id not in self._configuration.parcellations:
+        if parcellation.id not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
-            logging.error('    Atlas:         '+self._configuration['name'])
-            logging.error(parcellationobj['@id'],self._configuration['parcellations'])
+            logging.error('    Atlas:         '+self.name)
+            logging.error(parcellationobj['@id'],self._parcellations)
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
         self.regiontree = construct_tree(parcellation.regions,
@@ -163,7 +192,7 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if space['@id'] not in self._configuration['spaces']:
+        if space['@id'] not in self._spaces:
             logging.error('The selected atlas does not support the requested reference space.')
             logging.error('    Requested space:       {}'.format(space['name']))
             return None
@@ -212,7 +241,7 @@ class Atlas:
         selection.
         """
         space_id = key2id(space_key)
-        assert(space_id in self._configuration.spaces)
+        assert(space_id in self._spaces)
         # NOTE since get_mask is lru-cached, this is not necessary slow
         mask = self.get_mask(space_key)
         if np.any(np.array(position)>=mask.dataobj.shape):
