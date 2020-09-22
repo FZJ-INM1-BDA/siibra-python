@@ -1,8 +1,7 @@
-from brainscapes import atlas as bsa
-from brainscapes.ontologies import parcellations,spaces
+from brainscapes import atlases,parcellations,spaces
 
 # Setup the atlas
-atlas = bsa.Atlas()
+atlas = atlases[0]
 jubrain = parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS
 atlas.select_parcellation(jubrain)
 

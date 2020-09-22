@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from brainscapes.region import construct_tree, Region
 from brainscapes.retrieval import download_file
-from brainscapes.registry import OntologyRegistry,create_key
+from brainscapes.registry import Registry,create_key
 from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
 from brainscapes.space import REGISTRY as spaces,  Space
 
@@ -69,9 +69,6 @@ class Atlas:
         parcellation : Parcellation
             The new parcellation to be selected
         """
-        # TODO need more explicit formalization and testing of ontology
-        # definition schemes
-        assert(parcellation.id in parcellations)
         if parcellation not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
@@ -194,7 +191,7 @@ class Atlas:
         roi : n/a
             3D region of interest (not yet implemented)
 
-        TODO model the MNI URLs in the space ontology
+        TODO model the MNI URLs in the space definition
 
         Yields
         ------
@@ -300,8 +297,8 @@ class Atlas:
         #TODO implement
 
 
-REGISTRY = OntologyRegistry(
-        'brainscapes.ontologies.atlases', Atlas.from_json )
+REGISTRY = Registry(
+        'brainscapes.definitions.atlases', Atlas.from_json )
 
 if __name__ == '__main__':
     atlas = REGISTRY[0]

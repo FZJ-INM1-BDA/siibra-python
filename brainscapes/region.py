@@ -9,7 +9,7 @@ import anytree
 def construct_tree(regiondefs,rootname='root',parent=None):
     """ 
     Builds a complete tree from a regions data structure as contained
-    inside a brainscapes parcellation ontology. 
+    inside a brainscapes parcellation defintion. 
     """
     if parent is None:
         root = Region({'name':rootname})

@@ -1,4 +1,4 @@
-from .registry import OntologyRegistry,create_key
+from .registry import Registry,create_key
 from collections import defaultdict
 
 class Parcellation:
@@ -38,5 +38,5 @@ class Parcellation:
             return p
         return obj
 
-REGISTRY = OntologyRegistry(
-        'brainscapes.ontologies.parcellations', Parcellation.from_json )
+REGISTRY = Registry(
+        'brainscapes.definitions.parcellations', Parcellation.from_json )

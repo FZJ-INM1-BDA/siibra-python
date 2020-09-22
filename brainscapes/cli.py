@@ -23,7 +23,9 @@ def complete_regions(ctx, args, incomplete):
         if args.count(option):
             pname = args[args.index(option)+1]
             atlas.select_parcellation(pname)
-    regions = [r.key for r in atlas.regiontree.iterate()]
+    regions = [c.key 
+            for r in atlas.regiontree.iterate()
+            for c in r.children ]
     search = [r for r in regions if incomplete.upper() in r]
     return search if len(search)>0 else ""
 
@@ -112,8 +114,8 @@ def gex(ctx,gene):
     atlas = ctx.obj
     pool = AllenBrainAtlasQuery(gene)
     selection = pool.pick_selection(atlas)
-    print("Found {} gene expression features inside {}".format(
-        len(selection), atlas.selection) )
+    print("Found {} gene expression features inside '{}'".format(
+        len(selection), atlas.selection.name) )
 
 @features.command()
 @click.pass_context
