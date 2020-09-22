@@ -14,6 +14,13 @@ class Feature(ABC):
         """
         pass
 
+    @abstractmethod
+    def __str__(self):
+        """
+        Print a reasonable name of this feature.
+        """
+        return 
+
 class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.
@@ -30,6 +37,10 @@ class SpatialFeature(Feature):
         """
         return atlas.coordinate_selected(self.space,self.location)
 
+    def __str__(self):
+        return "Features in '{space}' at {loc[0]}/{loc[1]}/{loc[2]}".format(
+                space=self.space, loc=self.location)
+
 class RegionalFeature(Feature):
     """
     Base class for region-anchored data features (semantic anchoring to region
@@ -44,8 +55,10 @@ class RegionalFeature(Feature):
         Returns true if this feature is linked to the currently selected region
         in the atlas.
         """
-        return atlas.region_selected(self.region)
-
+        matching_regions = atlas.selection.find(self.region,exact=False)
+        for region in matching_regions:
+            if atlas.region_selected(region):
+                return True
 
 class FeaturePool:
     """
@@ -65,4 +78,7 @@ class FeaturePool:
             if feature.matches_selection(atlas):
                 selection.append(feature)
         return selection
+
+    def __str__(self):
+        return "\n".join([str(f) for f in self.features])
 

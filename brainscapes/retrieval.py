@@ -122,7 +122,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
 
     if path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
-        logging.info("Returning cached response of url {} at {}".format(url,cachefile_content))
+        logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'rb') as f:
             r = f.read()
             return(r)

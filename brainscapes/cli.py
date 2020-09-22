@@ -6,6 +6,7 @@ import brainscapes.atlas as bsa
 import json
 from brainscapes import parcellations, spaces, atlases
 from brainscapes.features.genes import AllenBrainAtlasQuery
+from brainscapes.features.receptors import ReceptorQuery
 
 logging.basicConfig(level=logging.INFO)
 
@@ -115,6 +116,18 @@ def gex(ctx,gene):
     pool = AllenBrainAtlasQuery(gene)
     selection = pool.pick_selection(atlas)
     print("Found {} gene expression features inside '{}'".format(
+        len(selection), atlas.selection.name) )
+
+@features.command()
+@click.pass_context
+def receptors(ctx):
+    """
+    Extract receptor distributions from the EBRAINS knowledge graph.
+    """
+    atlas = ctx.obj
+    pool = ReceptorQuery()
+    selection = pool.pick_selection(atlas)
+    print("Found {} receptor datasets inside '{}'".format(
         len(selection), atlas.selection.name) )
 
 @features.command()

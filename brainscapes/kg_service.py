@@ -8,7 +8,7 @@ from brainscapes.retrieval import cached_get
 authentication = Authentication.instance()
 
 
-def upload_schema_fromn_file(file, org, domain, schema, version, query_id):
+def upload_schema_from_file(file, org, domain, schema, version, query_id):
     url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}".format(
         org,
         domain,
@@ -36,13 +36,11 @@ def execute_query_by_id(org, domain, schema, version, query_id):
         schema,
         version,
         query_id)
-    print(url)
     r = cached_get(
         url,
         headers={
             'Content-Type':'application/json',
             'Authorization': 'Bearer {}'.format(authentication.get_token())})
-    print(r)
     return json.loads(r)
         # results = json.loads(r)
         # for r in results['results']:

@@ -1,31 +1,76 @@
-from brainscapes import kg_service
-from brainscapes.authentication import Authentication
-from brainscapes.features.receptor_data import ReceptorData
+import io
+import logging
+
+import pandas as pd
+import PIL.Image as Image
+from os import path
+
+from brainscapes import kg_service, retrieval
 from brainscapes.features.feature import RegionalFeature,FeaturePool
 
-__receptor_data_repo = {}
+
+class ReceptorDistribution(RegionalFeature):
+
+    profiles = {}
+    autoradiographs = {}
+
+    def __init__(self, region, kg_response):
+
+        RegionalFeature.__init__(self,region)
+
+        self.regions = [e['https://schema.hbp.eu/myQuery/name']
+                        for e in kg_response['https://schema.hbp.eu/myQuery/parcellationRegion']]
+
+        for fname in kg_response['https://schema.hbp.eu/myQuery/v1.0.0']:
+
+            if 'receptors.tsv' in fname:
+                bytestream = self._get_bytestream_from_file(fname)
+                self.__symbols = pd.read_csv(bytestream, sep='\t')
+                self.receptor_label = {r._1: r._2
+                                       for r in self.__symbols.itertuples()}
+
+            # Receive cortical profiles, if any
+            if '_pr_' in fname:
+                suffix = path.splitext(fname)[-1]
+                if suffix == '.tsv':
+                    receptor_type, basename = fname.split("/")[-2:]
+                    if receptor_type in basename:
+                        bytestream = self._get_bytestream_from_file(fname)
+                        self.profiles[receptor_type] = pd.read_csv(bytestream, sep='\t')
+                else:
+                    logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix, fname))
+
+            if '_ar_' in fname:
+                receptor_type, basename = fname.split("/")[-2:]
+                if receptor_type in basename:
+                    bytestream = self._get_bytestream_from_file(fname)
+                    self.autoradiographs[receptor_type] = Image.open(bytestream)
+
+            if '_fp_' in fname:
+                bytestream = self._get_bytestream_from_file(fname)
+                self.fingerprint = pd.read_csv(bytestream, sep='\t')
+
+    def _get_bytestream_from_file(self, fname):
+        file = retrieval.download_file(fname)
+        with open(file, 'rb') as f:
+            return io.BytesIO(f.read())
+
+    def __str__(self):
+        return "Receptor distributions in area '{region}'".format(region=self.region)
 
 
-def get_receptor_data_by_region(region_name):
-    if len(__receptor_data_repo) == 0:
-        _get_receptor_data_for_all_regions()
-    return __receptor_data_repo[region_name]
+class ReceptorQuery(FeaturePool):
 
+    def __init__(self):
 
-def _get_receptor_data_for_all_regions():
-    if len(__receptor_data_repo) == 0:
-        kg_result = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
-        for region in kg_result['results']:
-            region_names = [e['https://schema.hbp.eu/myQuery/name'] for e in region['https://schema.hbp.eu/myQuery/parcellationRegion']]
-            for r in region_names:
-                __receptor_data_repo[r] = ReceptorData(region)
-
+        FeaturePool.__init__(self)
+        kg_query = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
+        for kg_result in kg_query['results']:
+            region_names = [e['https://schema.hbp.eu/myQuery/name'] 
+                    for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]
+            for region_name in region_names:
+                self.features.append(ReceptorDistribution(region_name,kg_result))
 
 if __name__ == '__main__':
-    auth = Authentication.instance()
-    auth.set_token('eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDA3MDEyOTEsInN1YiI6IjMwODExMCIsImF1ZCI6WyJuZXh1cy1rZy1zZWFyY2giXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiJhNjUzM2Y4Ni0xMTJjLTRlNTAtYTkxNi01ZTc4MmE2Njg5NzQiLCJpYXQiOjE2MDA2ODY4OTEsImhicF9rZXkiOiJkYTA1ZDc4NGUzMmZjMTM0N2MzNjI5MDIyNDNlYmRjMjdhNDU5MTYyIn0.fIncJMnkMdLXoJGiAYv60fuvmFZ6rrMoE3BfgMsNfY46KeIqoh_t8jTMrO7PYenYZpe75HC3G3QtqzggtFLt8-EbGbnVB4Uo3gSKxf38Dghdov5ZTuHaXCEYFahL3EEJdyYz53Y5WOaCY06EMTxOOjq3RgwUKbzGZ_AA5RiVYJs')
-    print(get_receptor_data_by_region('Area 4p (PreCG)'))
-    print(get_receptor_data_by_region('Area 4p (PreCG)').profiles)
-    print(get_receptor_data_by_region('Area 4p (PreCG)').autoradiographs)
-    print(get_receptor_data_by_region('Area 4p (PreCG)').fingerprint)
-    # print(__receptor_data_repo)
+    pool = ReceptorQuery()
+    print(pool)

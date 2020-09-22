@@ -13,7 +13,7 @@ class GeneExpressionFeature(SpatialFeature):
     A spatial feature type for gene expressions.
     """
 
-    def __init__(self,space,location,expression_levels,z_scores,factors):
+    def __init__(self,gene,space,location,expression_levels,z_scores,factors):
         """
         Construct the spatial feature for gene expressions measured in a sample.
 
@@ -35,6 +35,11 @@ class GeneExpressionFeature(SpatialFeature):
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.factors = factors
+        self.gene = gene
+
+    def __str__(self):
+        return "Gene {gene} expressed in '{space}' at {loc[0]}/{loc[1]}/{loc[2]}".format(
+                gene=self.gene, space=self.space, loc=self.location)
 
 class AllenBrainAtlasQuery(FeaturePool):
     """
@@ -78,7 +83,7 @@ class AllenBrainAtlasQuery(FeaturePool):
 
     # load gene names
     genes = json.loads(retrieval.cached_get(_QUERY['gene'],
-            "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute.")).content
+            "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute."))
     GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
 
     def __init__(self,gene):
@@ -89,6 +94,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         """
 
         FeaturePool.__init__(self)
+        self.gene = gene
 
         # get probe ids for the given gene
         logging.info("Retrieving probe ids for gene {}".format(gene))
@@ -166,6 +172,7 @@ class AllenBrainAtlasQuery(FeaturePool):
             # Create the spatial feature
             self.features.append( 
                     GeneExpressionFeature( 
+                        self.gene,
                         icbm_coord, 
                         spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
                         expression_levels = [float(p['expression_level'][i]) 
