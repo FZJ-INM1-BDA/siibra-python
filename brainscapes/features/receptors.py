@@ -4,15 +4,29 @@ import logging
 import pandas as pd
 import PIL.Image as Image
 from os import path
+from collections import defaultdict 
 
 from brainscapes import kg_service, retrieval
 from brainscapes.features.feature import RegionalFeature,FeaturePool
 
 
+
+
+class termcolor:
+   PURPLE = '\033[95m'
+   CYAN = '\033[96m'
+   DARKCYAN = '\033[36m'
+   BLUE = '\033[94m'
+   GREEN = '\033[92m'
+   YELLOW = '\033[93m'
+   RED = '\033[91m'
+   BOLD = '\033[1m'
+   UNDERLINE = '\033[4m'
+   END = '\033[0m'
+
 class ReceptorDistribution(RegionalFeature):
 
-    profiles = {}
-    autoradiographs = {}
+    receptors = defaultdict(dict)
 
     def __init__(self, region, kg_response):
 
@@ -36,16 +50,18 @@ class ReceptorDistribution(RegionalFeature):
                     receptor_type, basename = fname.split("/")[-2:]
                     if receptor_type in basename:
                         bytestream = self._get_bytestream_from_file(fname)
-                        self.profiles[receptor_type] = pd.read_csv(bytestream, sep='\t')
+                        self.receptors[receptor_type]['profile'] = pd.read_csv(bytestream, sep='\t')
                 else:
                     logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix, fname))
 
+            # Receive autoradiographs, if any
             if '_ar_' in fname:
                 receptor_type, basename = fname.split("/")[-2:]
                 if receptor_type in basename:
                     bytestream = self._get_bytestream_from_file(fname)
-                    self.autoradiographs[receptor_type] = Image.open(bytestream)
+                    self.receptors[receptor_type]['autoradiograph'] = Image.open(bytestream)
 
+            # receive fingerprint, if any
             if '_fp_' in fname:
                 bytestream = self._get_bytestream_from_file(fname)
                 self.fingerprint = pd.read_csv(bytestream, sep='\t')
@@ -56,11 +72,10 @@ class ReceptorDistribution(RegionalFeature):
             return io.BytesIO(f.read())
 
     def __str__(self):
-        return "\n".join([
-            "Receptors in area '{}':".format(self.region),
-            "Profiles: {}".format(",".join(self.profiles.keys())),
-            "Thumbnails: {}".format(",".join(self.autoradiographs.keys()))
-            ])
+        return "\n".join(
+                [termcolor.BOLD+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+termcolor.END] +
+                ["{!s:20} {!s:>10} {!s:>20}".format(k,'profile' in D.keys(),'autoradiograph' in D.keys()) 
+                    for k,D in self.receptors.items()])
 
 
 class ReceptorQuery(FeaturePool):
