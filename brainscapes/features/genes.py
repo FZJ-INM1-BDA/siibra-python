@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import json
 from brainscapes import retrieval
-from brainscapes.definitions import spaces
+from brainscapes import spaces
 from brainscapes.features.feature import SpatialFeature,FeaturePool
 
 logging.basicConfig(level=logging.INFO)
@@ -166,7 +166,7 @@ class AllenBrainAtlasQuery(FeaturePool):
             self.features.append( 
                     GeneExpressionFeature( 
                         icbm_coord, 
-                        'MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC',
+                        spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
                         expression_levels = [float(p['expression_level'][i]) 
                             for p in probes],
                         z_scores = [float(p['z-score'][i]) for p in probes],

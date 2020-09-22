@@ -1,4 +1,3 @@
-from . import genes
 
 def __init__(): 
 

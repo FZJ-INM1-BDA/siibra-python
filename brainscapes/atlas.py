@@ -1,14 +1,17 @@
 import logging
 import nibabel as nib
+from nibabel.affines import apply_affine
+from numpy import linalg as npl
 import numpy as np
 import json
 from collections import defaultdict
 from functools import lru_cache
 
-from brainscapes import NAME2IDENTIFIER
-from brainscapes.region import construct_tree
-from brainscapes.definitions import atlases, parcellations, spaces, id2key, key2id
-from brainscapes.retrieval import download_file
+from .region import construct_tree, Region
+from .retrieval import download_file
+from .registry import OntologyRegistry,create_key
+from .parcellation import REGISTRY as parcellations, Parcellation
+from .space import REGISTRY as spaces,  Space
 
 class Atlas:
 
@@ -16,7 +19,8 @@ class Atlas:
         # Setup an empty. Use _add_space and _add_parcellation to complete
         # the setup.
         self.name = name
-        self.identifier = identifier
+        self.id = identifier
+        self.key = create_key(name)
         self.regiontree = None
         self.features = defaultdict(list)
         self.parcellations = [] # add with _add_parcellation
@@ -34,13 +38,17 @@ class Atlas:
         # TODO check that space_id has a valid object
         self.parcellations.append(parcellation_id)
         if self.__parcellation__ is None or select:
-            self.select_parcellation(id2key(parcellation_id))
+            self.select_parcellation(parcellation_id)
 
     def __str__(self):
         return self.name
 
     @staticmethod
     def from_json(obj):
+        """
+        Provides an object hook for the json library to construct an Atlas
+        object from a json stream.
+        """
         if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
             obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
             p = Atlas(obj['@id'], obj['name'])
@@ -65,13 +73,13 @@ class Atlas:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
             logging.error('    Atlas:         '+self.name)
-            logging.error(parcellationobj['@id'],self._parcellations)
+            logging.error(parcellation.id,self.parcellations)
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
         self.regiontree = construct_tree(parcellation.regions,
-                rootname=NAME2IDENTIFIER(parcellation.name))
+                rootname=parcellation.key)
 
-    def get_maps(self, space_key):
+    def get_maps(self, space):
         """
         Get the volumetric maps for the selected parcellation in the requested
         template space. Note that this sometimes included multiple Nifti
@@ -80,7 +88,7 @@ class Atlas:
 
         Parameters
         ----------
-        space_key : template space key
+        space : template space 
 
         Yields
         ------
@@ -90,14 +98,13 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
-        space_id = key2id(space_key)
-        if space_id not in self.__parcellation__.maps.keys():
+        if space.id not in self.__parcellation__.maps.keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
             logging.error('    Selected parcellation: {}'.format(self.__parcellation__.name))
-            logging.error('    Requested space:       {}'.format(space_key))
+            logging.error('    Requested space:       {}'.format(space))
             return None
-        print('Loading 3D map for space ', space_key)
-        mapurl = self.__parcellation__.maps[space_id]
+        print('Loading 3D map for space ', space)
+        mapurl = self.__parcellation__.maps[space.id]
 
         maps = {}
         if type(mapurl) is dict:
@@ -115,7 +122,7 @@ class Atlas:
         
         return maps
 
-    def get_mask(self, space_key):
+    def get_mask(self, space : Space):
         """
         Returns a binary mask  in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -126,15 +133,14 @@ class Atlas:
 
         Parameters
         ----------
-        space : str
-            Template space key
+        space : Space
+            Template space 
         """
         # remember that some parcellations are defined with multiple / split maps
-        print(space_key)
-        return self._get_regionmask(space_key,self.selection)
+        return self._get_regionmask(space,self.selection)
 
     @lru_cache(maxsize=5)
-    def _get_regionmask(self,space_key,regiontree):
+    def _get_regionmask(self,space : Space,regiontree : Region):
         """
         Returns a binary mask  in the given space, where nonzero values denote
         voxels corresponding to the union of regions in the given regiontree.
@@ -148,15 +154,15 @@ class Atlas:
 
         Parameters
         ----------
-        space_key : str
-            Template space key
+        space : Space 
+            Template space 
         regiontree : Region
             A region from the region hierarchy (could be any of the root, a
             subtree, or a leaf)
         """
         print("Computing the mask for {} in {}".format(
-            regiontree.name, space_key))
-        maps = self.get_maps(space_key)
+            regiontree.name, space))
+        maps = self.get_maps(space)
         mask = affine = header = None 
         for m in maps.values():
             D = np.array(m.dataobj)
@@ -208,7 +214,7 @@ class Atlas:
         else:
             return None
 
-    def select_region(self,region_id):
+    def select_region(self,region_key):
         """
         Selects a particular region. 
 
@@ -219,34 +225,45 @@ class Atlas:
 
         Parameters
         ----------
-        region_id : str
-            Id of the region to be selected, which is its full name converted
+        region_key : str
+            Key of the region to be selected, which is its full name converted
             by brainscapes' NAME2IDENTIFIER function.
 
         Yields
         ------
         True, if selection was successful, otherwise False.
         """
-        regions_by_id = {NAME2IDENTIFIER(r.name):r for r in self.regiontree.descendants}
-        if region_id in regions_by_id.keys():
-            self.selection = regions_by_id[region_id]
+        selected = self.regiontree.find(region_key,search_key=True)
+        if selected is not None:
+            self.selection = selected
             logging.info('Selected region {}'.format(self.selection.name))
             return True
         else:
             return False
 
-    def inside_selection(self,space_key,position):
+    def inside_selection(self,space,position):
         """
         Verifies wether a position in the given space is inside the current
         selection.
+
+        Parameters
+        ----------
+        space : Space
+            The template space in which the test shall be carried out
+        position : tuple x/y/z
+            A coordinate position given in the physical space. It will be
+            converted to the voxel space using the inverse affine matrix of the
+            template space for the query.
+
+        NOTE: since get_mask is lru-cached, this is not necessary slow
         """
-        space_id = key2id(space_key)
-        assert(space_id in self._spaces)
-        # NOTE since get_mask is lru-cached, this is not necessary slow
-        mask = self.get_mask(space_key)
-        if np.any(np.array(position)>=mask.dataobj.shape):
+        assert(space.id in self.spaces)
+        # transf
+        mask = self.get_mask(space)
+        voxel = apply_affine(npl.inv(mask.affine),position).astype(int)
+        if np.any(voxel>=mask.dataobj.shape):
             return False
-        if mask[position[0],position[1],position[2]]==0:
+        if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
             return False
         return True
 
@@ -284,15 +301,19 @@ class Atlas:
         #TODO implement
 
 
+REGISTRY = OntologyRegistry(
+        'brainscapes.ontologies.atlases', Atlas.from_json )
+
 if __name__ == '__main__':
-    atlas = Atlas()
+    print(dir(REGISTRY))
+    #atlas = Atlas()
 
     # atlas.get_maps('mySpace')
     # atlas.get_template("template")
-    atlas.regiontree.print_hierarchy()
-    print('*******************************')
-    print(atlas.regiontree.find('hOc1'))
-    print('*******************************')
-    print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
-    print('******************************')
-    print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))
+    #atlas.regiontree.print_hierarchy()
+    #print('*******************************')
+    #print(atlas.regiontree.find('hOc1'))
+    #print('*******************************')
+    #print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
+    #print('******************************')
+    #print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))

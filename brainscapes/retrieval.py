@@ -3,7 +3,7 @@ from zipfile import ZipFile
 import requests
 import hashlib
 from os import path, environ
-from . import CACHEDIR,logging
+import logging
 
 # TODO unifiy download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
@@ -17,6 +17,18 @@ from . import CACHEDIR,logging
 # - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key
 #   that is setup during package installation
 #
+
+
+def __compile_cachedir():
+    from os import path,makedirs
+    from appdirs import user_cache_dir
+    cachedir = user_cache_dir(__name__,"")
+    if not path.isdir(cachedir):
+        makedirs(cachedir)
+    return cachedir
+
+CACHEDIR = __compile_cachedir()
+logging.debug('Using cache: {}'.format(CACHEDIR))
 
 
 def download_file(url, ziptarget=None, targetname=None ):

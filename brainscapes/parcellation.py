@@ -1,9 +1,12 @@
+from .registry import OntologyRegistry,create_key
+from collections import defaultdict
 
 class Parcellation:
 
     def __init__(self, identifier, name, version=None):
         self.id = identifier
         self.name = name
+        self.key = create_key(name)
         self.version = version
         self.maps = defaultdict(dict)
         self.regions = {}
@@ -17,6 +20,10 @@ class Parcellation:
 
     @staticmethod
     def from_json(obj):
+        """
+        Provides an object hook for the json library to construct an Atlas
+        object from a json stream.
+        """
         if '@id' in obj and 'maps' in obj:
             if 'version' in obj:
                 p = Parcellation(obj['@id'], obj['name'], obj['version'])
@@ -31,3 +38,5 @@ class Parcellation:
             return p
         return obj
 
+REGISTRY = OntologyRegistry(
+        'brainscapes.ontologies.parcellations', Parcellation.from_json )

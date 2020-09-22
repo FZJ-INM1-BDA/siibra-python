@@ -1,7 +1,7 @@
 import json
 
-from brainscapes import NAME2IDENTIFIER
-from brainscapes.features import receptors
+from brainscapes.registry import create_key
+#from brainscapes.features import receptors
 from brainscapes.ontologies import parcellations,spaces
 import anytree
 from brainscapes.retrieval import get_json_from_url
@@ -45,6 +45,7 @@ class Region(anytree.NodeMixin):
             Children of this region, if any
         """
         self.name = definition['name']
+        self.key = create_key(self.name)
         self.attrs = definition
         if parent is not None:
             self.parent = parent
@@ -61,16 +62,6 @@ class Region(anytree.NodeMixin):
         # }
 
 
-    def identifier(self):
-        """
-        Returns the unique identifier of this region. As of now, this is the
-        uppercase ascii'd version of the name, as given by brainscapes'
-        NAME2IDENTIFIER function.
-
-        TODO find a more robust yet readable identifier
-        """
-        return NAME2IDENTIFIER(self.name)
-
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]
 
@@ -80,7 +71,7 @@ class Region(anytree.NodeMixin):
         else:
             raise AttributeError("No such attribute: {}".format(name))
 
-    def find(self,name,exact=True):
+    def find(self,name,exact=True,search_key=False):
         """
         Find region with the given name in all descendants of this region.
 
@@ -92,13 +83,24 @@ class Region(anytree.NodeMixin):
             Wether to return only the exact match (or None if not found), or to
             return a list of all regions whose name contains the given search
             name as a substring (or empty list if none).
+        search_key : Bool (default: False)
+            If true, the search will compare the region's key instead of name
+            (the uppercase variant without special characters)
         """
-        if exact:
-            return anytree.search.find_by_attr(self, name==name)
+        if search_key:
+            if exact:
+                return anytree.search.find(self, 
+                        lambda node: node.key==name)
+            else:
+                return anytree.search.findall(self,
+                        lambda node: name in node.key)
         else:
-            return anytree.search.findall(self,
-                    lambda node: name in node.name)
-
+            if exact:
+                return anytree.search.find(self, 
+                        lambda node: node.name==name)
+            else:
+                return anytree.search.findall(self,
+                        lambda node: name in node.name)
 
     def print_hierarchy(self):
         """
@@ -122,8 +124,9 @@ class Region(anytree.NodeMixin):
                 return data['files']
         return {}
 
-    def get_receptor_data(self):
-        return receptors.get_receptor_data_by_region(self.name)
+    # DISABLED, yields a circular import and not need yet
+    #def get_receptor_data(self):
+        #return receptors.get_receptor_data_by_region(self.name)
 
     def __str__(self):
         return self.name
