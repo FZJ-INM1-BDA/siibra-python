@@ -8,7 +8,7 @@ from brainscapes.features.feature import SpatialFeature,FeaturePool
 
 logging.basicConfig(level=logging.INFO)
 
-class GeneExpressionFeature(SpatialFeature):
+class GeneExpression(SpatialFeature):
     """
     A spatial feature type for gene expressions.
     """
@@ -38,8 +38,8 @@ class GeneExpressionFeature(SpatialFeature):
         self.gene = gene
 
     def __str__(self):
-        return "Gene {gene} expressed in '{space}' at {loc[0]}/{loc[1]}/{loc[2]}".format(
-                gene=self.gene, space=self.space, loc=self.location)
+        return "Gene {g} expressed in '{s}' at {l[0]:8.1f}|{l[1]:8.1f}|{l[2]:8.1f}".format(
+                g=self.gene, s=self.space, l=self.location)
 
 class AllenBrainAtlasQuery(FeaturePool):
     """
@@ -55,7 +55,7 @@ class AllenBrainAtlasQuery(FeaturePool):
       expression list in a probe coresponds to the number of samples taken in
       the corresponding donor for the given gene.
     """
-    __MODALITY__ = "GeneExpression"
+    _FEATURETYPE = GeneExpression
 
     _BASE_URL = "http://api.brain-map.org/api/v2/data"
     _QUERY = {
@@ -172,17 +172,14 @@ class AllenBrainAtlasQuery(FeaturePool):
                     sample['sample']['mri']+[1] ).T
 
             # Create the spatial feature
-            self.features.append( 
-                    GeneExpressionFeature( 
-                        self.gene,
-                        icbm_coord, 
-                        spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
-                        expression_levels = [float(p['expression_level'][i]) 
-                            for p in probes],
-                        z_scores = [float(p['z-score'][i]) for p in probes],
-                        factors = self.factors[donor_id]
-                        )
-                    )
+            self.register( GeneExpression( 
+                self.gene,
+                icbm_coord, 
+                spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
+                expression_levels = [float(p['expression_level'][i]) for p in probes],
+                z_scores = [float(p['z-score'][i]) for p in probes],
+                factors = self.factors[donor_id]
+                ))
 
 if __name__ == "__main__":
 

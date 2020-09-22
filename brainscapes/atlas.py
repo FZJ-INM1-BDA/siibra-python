@@ -12,7 +12,7 @@ from brainscapes.retrieval import download_file
 from brainscapes.registry import Registry,create_key
 from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
 from brainscapes.space import REGISTRY as spaces,  Space
-from brainscapes.features import  GeneExpressionPool, ReceptorPool
+from brainscapes import features 
 
 class Atlas:
 
@@ -28,15 +28,15 @@ class Atlas:
         self.spaces = [] # add with _add_space
 
         # nothing selected yet at construction time
-        self.selection = self.regiontree
-        self.__parcellation__ = None 
+        self.selected_region = None
+        self.selected_parcellation = None 
 
     def _add_space(self, space):
         self.spaces.append(space)
 
     def _add_parcellation(self, parcellation, select=False):
         self.parcellations.append(parcellation)
-        if self.__parcellation__ is None or select:
+        if self.selected_parcellation is None or select:
             self.select_parcellation(parcellation)
 
     def __str__(self):
@@ -76,7 +76,7 @@ class Atlas:
             logging.error('    Atlas:         '+self.name)
             logging.error(parcellation.id,self.parcellations)
             raise Exception('Invalid Parcellation')
-        self.__parcellation__ = parcellation
+        self.selected_parcellation = parcellation
         self.regiontree = construct_tree(parcellation)
 
     def get_maps(self, space):
@@ -98,13 +98,13 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
-        if space.id not in self.__parcellation__.maps.keys():
+        if space.id not in self.selected_parcellation.maps.keys():
             logging.error('The selected atlas parcellation is not available in the requested space.')
-            logging.error('    Selected parcellation: {}'.format(self.__parcellation__.name))
+            logging.error('    Selected parcellation: {}'.format(self.selected_parcellation.name))
             logging.error('    Requested space:       {}'.format(space))
             return None
         print('Loading 3D map for space ', space)
-        mapurl = self.__parcellation__.maps[space.id]
+        mapurl = self.selected_parcellation.maps[space.id]
 
         maps = {}
         if type(mapurl) is dict:
@@ -137,7 +137,7 @@ class Atlas:
             Template space 
         """
         # remember that some parcellations are defined with multiple / split maps
-        return self._get_regionmask(space,self.selection)
+        return self._get_regionmask(space,self.selected_region)
 
     @lru_cache(maxsize=5)
     def _get_regionmask(self,space : Space,regiontree : Region):
@@ -232,8 +232,8 @@ class Atlas:
         searchname = region.key if isinstance(region,Region) else region
         selected = self.regiontree.find(searchname,search_key=True)
         if selected is not None:
-            self.selection = selected
-            logging.info('Selected region {}'.format(self.selection.name))
+            self.selected_region = selected
+            logging.info('Selected region {}'.format(self.selected_region.name))
             return True
         else:
             return False
@@ -242,7 +242,7 @@ class Atlas:
         """
         Verifies wether a given region is part of the current selection.
         """
-        return self.selection.includes(region)
+        return self.selected_region.includes(region)
 
     def coordinate_selected(self,space,coordinate):
         """
@@ -269,6 +269,21 @@ class Atlas:
         if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
             return False
         return True
+
+    def query_data(self,modality,**kwargs):
+        """
+        Query data features for the currently selected region(s) by modality. 
+        See brainscapes.features.modalities for available modalities.
+        """
+        assert(modality in features.modalities)
+        hits = []
+        for Pool in features.pools[modality]:
+            if modality=='GeneExpression':
+                pool = Pool(kwargs['gene'])
+            else:
+                pool = Pool()
+            hits.extend(pool.pick_selection(self))
+        return hits
 
     def connectivity_sources(self):
         #TODO refactor, this is dirty

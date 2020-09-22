@@ -65,7 +65,7 @@ class ReceptorDistribution(RegionalFeature):
 
 class ReceptorQuery(FeaturePool):
 
-    __MODALITY__ = "ReceptorDistribution"
+    _FEATURETYPE = ReceptorDistribution
 
     def __init__(self):
 
@@ -75,7 +75,7 @@ class ReceptorQuery(FeaturePool):
             region_names = [e['https://schema.hbp.eu/myQuery/name'] 
                     for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]
             for region_name in region_names:
-                self.features.append(ReceptorDistribution(region_name,kg_result))
+                self.register(ReceptorDistribution(region_name,kg_result))
 
 if __name__ == '__main__':
     pool = ReceptorQuery()
