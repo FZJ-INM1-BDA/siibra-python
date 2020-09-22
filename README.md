@@ -68,9 +68,9 @@ on the commandline, if you setup autompletion in your shell as described
 Some examples:
 
  1. Retrieve receptor densities for a specific brain area:
-	`brainscapes features AREA_HOC1__V1__17__CALCS_ receptors`
+	```brainscapes features AREA_HOC1__V1__17__CALCS_ receptors```
  2. Retrieve gene expressions for a specific brain area:
-	`brainscapes features AREA_HOC1__V1__17__CALCS_ gex GABARAPL2`
+	```brainscapes features AREA_HOC1__V1__17__CALCS_ gex GABARAPL2```
  3. Print the region hierarchy:
-    `brainscapes hierarchy show`
+    ```brainscapes hierarchy show```
  
