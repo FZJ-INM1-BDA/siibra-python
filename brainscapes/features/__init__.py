@@ -1,17 +1,8 @@
+from .feature import FeaturePool
+from .receptors import ReceptorQuery as ReceptorPool
+from .genes import AllenBrainAtlasQuery as GeneExpressionPool
+from collections import defaultdict
 
-def __init__(): 
-
-    from glob import glob
-    from os import path
-    import json
-
-    globals()['sources'] = {}
-    for folder in __path__:
-        files = glob(path.join(folder,'*.json'))
-        for fname in files:
-            with open(fname,'r') as f:
-                for k,v in json.load(f).items():
-                    assert(k not in globals()['sources'].keys())
-                    globals()['sources'][k] = v
-
-__init__()
+pools_available = defaultdict(list)
+for cls in FeaturePool.__subclasses__():
+    pools_available[cls.__MODALITY__].append(cls)

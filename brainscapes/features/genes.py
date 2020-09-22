@@ -55,6 +55,7 @@ class AllenBrainAtlasQuery(FeaturePool):
       expression list in a probe coresponds to the number of samples taken in
       the corresponding donor for the given gene.
     """
+    __MODALITY__ = "GeneExpression"
 
     _BASE_URL = "http://api.brain-map.org/api/v2/data"
     _QUERY = {
@@ -120,6 +121,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         # get expression levels and z_scores for the gene
         for donor_id in self._DONOR_IDS:
             self._retrieve_microarray(donor_id,probe_ids)
+
 
     def _retrieve_specimen(self,specimen_id):
         """

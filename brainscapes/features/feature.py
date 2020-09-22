@@ -60,10 +60,11 @@ class RegionalFeature(Feature):
             if atlas.region_selected(region):
                 return True
 
-class FeaturePool:
+class FeaturePool(ABC):
     """
     A container for spatial features which implements basic spatial queries.
     """
+    __MODALITY__ = "Undefined"
 
     def __init__(self):
         self.features = []

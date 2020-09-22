@@ -126,9 +126,9 @@ def receptors(ctx):
     """
     atlas = ctx.obj
     pool = ReceptorQuery()
-    selection = pool.pick_selection(atlas)
-    print("Found {} receptor datasets inside '{}'".format(
-        len(selection), atlas.selection.name) )
+    hits = pool.pick_selection(atlas)
+    for hit in hits:
+        print(hit)
 
 @features.command()
 @click.pass_context

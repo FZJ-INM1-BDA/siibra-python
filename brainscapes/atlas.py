@@ -12,6 +12,7 @@ from brainscapes.retrieval import download_file
 from brainscapes.registry import Registry,create_key
 from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
 from brainscapes.space import REGISTRY as spaces,  Space
+from brainscapes.features import  GeneExpressionPool, ReceptorPool
 
 class Atlas:
 
@@ -209,7 +210,7 @@ class Atlas:
         else:
             return None
 
-    def select_region(self,region_key):
+    def select_region(self,region):
         """
         Selects a particular region. 
 
@@ -220,15 +221,16 @@ class Atlas:
 
         Parameters
         ----------
-        region_key : str
-            Key of the region to be selected, which is its full name converted
-            by brainscapes' NAME2IDENTIFIER function.
+        region : Region
+            Region to be selected. Both a region object, as well as a region
+            key (uppercase string identifier) are accepted.
 
         Yields
         ------
         True, if selection was successful, otherwise False.
         """
-        selected = self.regiontree.find(region_key,search_key=True)
+        searchname = region.key if isinstance(region,Region) else region
+        selected = self.regiontree.find(searchname,search_key=True)
         if selected is not None:
             self.selection = selected
             logging.info('Selected region {}'.format(self.selection.name))
@@ -306,7 +308,7 @@ REGISTRY = Registry(
         'brainscapes.definitions.atlases', Atlas.from_json )
 
 if __name__ == '__main__':
-    atlas = REGISTRY[0]
+
     atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
 
     # atlas.get_maps('mySpace')

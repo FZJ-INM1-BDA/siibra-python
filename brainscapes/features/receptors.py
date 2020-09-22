@@ -56,10 +56,16 @@ class ReceptorDistribution(RegionalFeature):
             return io.BytesIO(f.read())
 
     def __str__(self):
-        return "Receptor distributions in area '{region}'".format(region=self.region)
+        return "\n".join([
+            "Receptors in area '{}':".format(self.region),
+            "Profiles: {}".format(",".join(self.profiles.keys())),
+            "Thumbnails: {}".format(",".join(self.autoradiographs.keys()))
+            ])
 
 
 class ReceptorQuery(FeaturePool):
+
+    __MODALITY__ = "ReceptorDistribution"
 
     def __init__(self):
 
