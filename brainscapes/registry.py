@@ -52,6 +52,11 @@ class OntologyRegistry:
     def __contains__(self,index):
         return index in self.__dir__()
 
+    def __getattr__(self,name):
+        if name in self.by_key.keys():
+            return self.items[self.by_key[name]]
+        else:
+            raise AttributeError("No such attribute: {}".format(name))
 
 
 def create_key(name):

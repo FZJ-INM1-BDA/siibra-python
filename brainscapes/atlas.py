@@ -7,11 +7,11 @@ import json
 from collections import defaultdict
 from functools import lru_cache
 
-from .region import construct_tree, Region
-from .retrieval import download_file
-from .registry import OntologyRegistry,create_key
-from .parcellation import REGISTRY as parcellations, Parcellation
-from .space import REGISTRY as spaces,  Space
+from brainscapes.region import construct_tree, Region
+from brainscapes.retrieval import download_file
+from brainscapes.registry import OntologyRegistry,create_key
+from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
+from brainscapes.space import REGISTRY as spaces,  Space
 
 class Atlas:
 
@@ -30,15 +30,13 @@ class Atlas:
         self.selection = self.regiontree
         self.__parcellation__ = None 
 
-    def _add_space(self, space_id):
-        # TODO check that space_id has a valid object
-        self.spaces.append(space_id)
+    def _add_space(self, space):
+        self.spaces.append(space)
 
-    def _add_parcellation(self, parcellation_id, select=False):
-        # TODO check that space_id has a valid object
-        self.parcellations.append(parcellation_id)
+    def _add_parcellation(self, parcellation, select=False):
+        self.parcellations.append(parcellation)
         if self.__parcellation__ is None or select:
-            self.select_parcellation(parcellation_id)
+            self.select_parcellation(parcellation)
 
     def __str__(self):
         return self.name
@@ -53,23 +51,28 @@ class Atlas:
             obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
             p = Atlas(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
-                p._add_space( space_id )
+                assert(space_id in spaces)
+                p._add_space( spaces[space_id] )
             for parcellation_id in obj['parcellations']:
-                p._add_parcellation( parcellation_id )
+                assert(parcellation_id in parcellations)
+                p._add_parcellation( parcellations[parcellation_id] )
             return p
         return obj
 
-    def select_parcellation(self, parcellationkey):
+    def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.
 
-        :param schema:
+        Parameters
+        ----------
+
+        parcellation : Parcellation
+            The new parcellation to be selected
         """
         # TODO need more explicit formalization and testing of ontology
         # definition schemes
-        assert(parcellationkey in parcellations)
-        parcellation = parcellations[parcellationkey]
-        if parcellation.id not in self.parcellations:
+        assert(parcellation.id in parcellations)
+        if parcellation not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation['name'])
             logging.error('    Atlas:         '+self.name)
@@ -198,17 +201,13 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if space['@id'] not in self._spaces:
+        if space not in self.spaces:
             logging.error('The selected atlas does not support the requested reference space.')
-            logging.error('    Requested space:       {}'.format(space['name']))
+            logging.error('    Requested space:       {}'.format(space.name))
             return None
 
-        print('Loading template image for space',space['name'])
-        if 'templateFile' in space.keys():
-            filename = download_file( space['templateUrl'], 
-                    ziptarget=space["templateFile"])
-        else:
-            filename = download_file( space['templateUrl'])
+        print('Loading template image for space',space.name)
+        filename = download_file( space.url, space.ziptarget )
         if filename is not None:
             return nib.load(filename)
         else:
@@ -257,8 +256,8 @@ class Atlas:
 
         NOTE: since get_mask is lru-cached, this is not necessary slow
         """
-        assert(space.id in self.spaces)
-        # transf
+        assert(space in self.spaces)
+        # transform physical coordinates to voxel coordinates for the query
         mask = self.get_mask(space)
         voxel = apply_affine(npl.inv(mask.affine),position).astype(int)
         if np.any(voxel>=mask.dataobj.shape):
@@ -305,15 +304,15 @@ REGISTRY = OntologyRegistry(
         'brainscapes.ontologies.atlases', Atlas.from_json )
 
 if __name__ == '__main__':
-    print(dir(REGISTRY))
-    #atlas = Atlas()
+    atlas = REGISTRY[0]
+    atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
 
     # atlas.get_maps('mySpace')
     # atlas.get_template("template")
-    #atlas.regiontree.print_hierarchy()
-    #print('*******************************')
-    #print(atlas.regiontree.find('hOc1'))
-    #print('*******************************')
-    #print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
-    #print('******************************')
-    #print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))
+    atlas.regiontree.print_hierarchy()
+    print('*******************************')
+    print(atlas.regiontree.find('hOc1'))
+    print('*******************************')
+    print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
+    print('******************************')
+    print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))

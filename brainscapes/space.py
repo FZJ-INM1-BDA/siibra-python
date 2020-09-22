@@ -2,11 +2,12 @@ from .registry import OntologyRegistry,create_key
 
 class Space:
 
-    def __init__(self, identifier, name, template_url=None):
+    def __init__(self, identifier, name, template_url=None, ziptarget=None):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
-        self.template_url = template_url
+        self.url = template_url
+        self.ziptarget = ziptarget
 
     def __str__(self):
         return self.name

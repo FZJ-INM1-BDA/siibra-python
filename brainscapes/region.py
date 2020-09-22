@@ -1,8 +1,7 @@
 import json
 
 from brainscapes.registry import create_key
-#from brainscapes.features import receptors
-from brainscapes.ontologies import parcellations,spaces
+from brainscapes import parcellations,spaces
 import anytree
 from brainscapes.retrieval import get_json_from_url
 import anytree
@@ -151,5 +150,5 @@ if __name__ == '__main__':
                     }]
             }
     region = Region(definition)
-    spatial_props = region.get_spatial_props(spaces.BIG_BRAIN['shortName'])
-    print(spatial_props)
+    spatial_props = region.get_spatial_props(spaces.BIG_BRAIN__HISTOLOGY_)
+
