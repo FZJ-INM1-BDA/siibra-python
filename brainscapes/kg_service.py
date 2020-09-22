@@ -28,13 +28,14 @@ def upload_schema_fromn_file(file, org, domain, schema, version, query_id):
         print('Some error while uploading the query appeared')
 
 
-def execute_query_by_id(org, domain, schema, version, query_id):
-    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances?databaseScope=RELEASED".format(
+def execute_query_by_id(org, domain, schema, version, query_id, params=''):
+    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances?databaseScope=RELEASED{}".format(
         org,
         domain,
         schema,
         version,
-        query_id)
+        query_id,
+        params)
     r = requests.get(
         url,
         headers={
