@@ -1,5 +1,4 @@
 from brainscapes import atlases
-from brainscapes.features import pools
 
 atlas = atlases.MULTILEVEL_HUMAN_ATLAS
 for region in atlas.regiontree.find('hOc1',exact=False):
