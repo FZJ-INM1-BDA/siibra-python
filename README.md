@@ -63,7 +63,7 @@ for region in atlas.regiontree.find('hOc1',exact=False):
 Many of the functionalities are available through the `brainscapes` commandline
 client (brainscapes-cli). Note that many autocompletion functions are available
 on the commandline, if you setup autompletion in your shell as described
-[https://click.palletsprojects.com/en/7.x/bashcomplete/#](here).
+[here](https://click.palletsprojects.com/en/7.x/bashcomplete/#).
 
 Some examples:
 
