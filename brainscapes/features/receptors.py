@@ -1,6 +1,7 @@
 from brainscapes import kg_service
 from brainscapes.authentication import Authentication
 from brainscapes.features.receptor_data import ReceptorData
+from brainscapes.features.feature import RegionalFeature,FeaturePool
 
 __receptor_data_repo = {}
 

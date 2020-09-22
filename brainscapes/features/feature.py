@@ -28,7 +28,23 @@ class SpatialFeature(Feature):
         Returns true if the location of this feature is inside the selected
         region of the atlas, according to the mask in the reference space.
         """
-        return atlas.inside_selection(self.space,self.location)
+        return atlas.coordinate_selected(self.space,self.location)
+
+class RegionalFeature(Feature):
+    """
+    Base class for region-anchored data features (semantic anchoring to region
+    names instead of coordinates).
+    """
+
+    def __init__(self,region):
+        self.region = region
+ 
+    def matches_selection(self,atlas):
+        """
+        Returns true if this feature is linked to the currently selected region
+        in the atlas.
+        """
+        return atlas.region_selected(self.region)
 
 
 class FeaturePool:

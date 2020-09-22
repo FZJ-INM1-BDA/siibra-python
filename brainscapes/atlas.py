@@ -76,8 +76,7 @@ class Atlas:
             logging.error(parcellation.id,self.parcellations)
             raise Exception('Invalid Parcellation')
         self.__parcellation__ = parcellation
-        self.regiontree = construct_tree(parcellation.regions,
-                rootname=parcellation.key)
+        self.regiontree = construct_tree(parcellation)
 
     def get_maps(self, space):
         """
@@ -237,7 +236,13 @@ class Atlas:
         else:
             return False
 
-    def inside_selection(self,space,position):
+    def region_selected(self,region):
+        """
+        Verifies wether a given region is part of the current selection.
+        """
+        return self.selection.includes(region)
+
+    def coordinate_selected(self,space,coordinate):
         """
         Verifies wether a position in the given space is inside the current
         selection.
@@ -246,7 +251,7 @@ class Atlas:
         ----------
         space : Space
             The template space in which the test shall be carried out
-        position : tuple x/y/z
+        coordinate : tuple x/y/z
             A coordinate position given in the physical space. It will be
             converted to the voxel space using the inverse affine matrix of the
             template space for the query.
@@ -256,7 +261,7 @@ class Atlas:
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
         mask = self.get_mask(space)
-        voxel = apply_affine(npl.inv(mask.affine),position).astype(int)
+        voxel = apply_affine(npl.inv(mask.affine),coordinate).astype(int)
         if np.any(voxel>=mask.dataobj.shape):
             return False
         if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:

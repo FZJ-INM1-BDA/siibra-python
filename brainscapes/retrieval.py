@@ -111,7 +111,7 @@ def get_json_from_url(url):
         return {}
 
 
-def cached_get(url,msg_if_not_cached=None):
+def cached_get(url,msg_if_not_cached=None,**kwargs):
     """
     Performs a requests.get if the result is not yet available in the local
     cache, otherwise returns the result from the cache.
@@ -124,15 +124,15 @@ def cached_get(url,msg_if_not_cached=None):
 
     if path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
-        logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
+        logging.info("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'rb') as f:
             r = f.read()
     else:
         if msg_if_not_cached:
             print(msg_if_not_cached)
-        r = requests.get(url).content
+        r = requests.get(url,**kwargs)
         with open(cachefile_content,'wb') as f:
-            f.write(r)
+            f.write(r.content)
         with open(cachefile_url,'w') as f:
             f.write(url)
     return r

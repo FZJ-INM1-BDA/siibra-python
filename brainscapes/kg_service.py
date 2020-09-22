@@ -2,8 +2,9 @@ import requests
 import json
 
 from brainscapes.authentication import Authentication
+from brainscapes.retrieval import cached_get
 
-access_token = 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDA0NDAyNTEsInN1YiI6IjMwODExMCIsImF1ZCI6WyJuZXh1cy1rZy1zZWFyY2giXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiI0NmI3M2RlMi0yYzBhLTQxMWYtOWY3MC1iYWNmOTM3N2ZiMGEiLCJpYXQiOjE2MDA0MjU4NTIsImhicF9rZXkiOiI3M2VjYjRhNDg2MWY2Mjc5MmYwNzNlM2RiMmY2ZjQxOTRhN2I3NzA2In0.nKnLeLpVv8qmeobQSB-4OyuXYQ27OKFDqyjJUdY5vjlLgikKpdqbrIxEOuVYPG49FsiBCjkfiGxuWt0GcnEBKSz91CgY6nG6SC9QS1XVASGb32SyfbgimG3exB92ze8jSQsnAgQPA84m64jsldCwYdvZFkSGRoZM1YHeZSl6e9I'
+#access_token = 'eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDA0NDAyNTEsInN1YiI6IjMwODExMCIsImF1ZCI6WyJuZXh1cy1rZy1zZWFyY2giXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiI0NmI3M2RlMi0yYzBhLTQxMWYtOWY3MC1iYWNmOTM3N2ZiMGEiLCJpYXQiOjE2MDA0MjU4NTIsImhicF9rZXkiOiI3M2VjYjRhNDg2MWY2Mjc5MmYwNzNlM2RiMmY2ZjQxOTRhN2I3NzA2In0.nKnLeLpVv8qmeobQSB-4OyuXYQ27OKFDqyjJUdY5vjlLgikKpdqbrIxEOuVYPG49FsiBCjkfiGxuWt0GcnEBKSz91CgY6nG6SC9QS1XVASGb32SyfbgimG3exB92ze8jSQsnAgQPA84m64jsldCwYdvZFkSGRoZM1YHeZSl6e9I'
 authentication = Authentication.instance()
 
 
@@ -35,7 +36,7 @@ def execute_query_by_id(org, domain, schema, version, query_id):
         schema,
         version,
         query_id)
-    r = requests.get(
+    r = cached_get(
         url,
         headers={
             'Content-Type':'application/json',

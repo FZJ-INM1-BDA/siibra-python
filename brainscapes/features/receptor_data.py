@@ -7,9 +7,11 @@ import PIL.Image as Image
 from os import path
 
 from brainscapes import kg_service, retrieval
+from brainscapes.features.feature import RegionalFeature,FeaturePool
 
 
-class ReceptorData:
+class ReceptorDistribution(RegionalFeature):
+
     # data rows
     profiles = {}
     # images
@@ -17,7 +19,9 @@ class ReceptorData:
 
     # math symbols for receptors
 
-    def __init__(self, kg_response):
+    def __init__(self, region, kg_response):
+
+        RegionalFeature.__init__(self,region)
 
         self.regions = [e['https://schema.hbp.eu/myQuery/name']
                         for e in kg_response['https://schema.hbp.eu/myQuery/parcellationRegion']]
@@ -57,7 +61,24 @@ class ReceptorData:
             return io.BytesIO(f.read())
 
 
+class ReceptorQuery(FeaturePool):
+
+    def __init__(self):
+
+        FeaturePool.__init__(self)
+        kg_query = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
+        print(kg_query.keys())
+        for kg_result in kg_query['results']:
+            region_names = [e['https://schema.hbp.eu/myQuery/name'] 
+                    for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]
+            for region_name in region_names:
+                print(region_name)
+                self.features.append(
+                        ReceptorDistribution(region_name,kg_result)
+                        )
+
 if __name__ == '__main__':
-    kg_response = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
-    print(kg_response)
-    receptor_data = ReceptorData(kg_response)
+    pool = ReceptorQuery()
+    #kg_response = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
+    #print(kg_response)
+    #receptor_data = ReceptorDistribution(kg_response)
