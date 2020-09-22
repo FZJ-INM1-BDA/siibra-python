@@ -1,14 +1,13 @@
-from brainscapes.ontologies import atlases,parcellations,spaces
-from brainscapes import atlas as bsa
+from brainscapes import atlases,parcellations,spaces
 
-atlas = bsa.Atlas()
-atlas.select_parcellation(parcellations.CYTOARCHITECTONIC_MAPS)
+atlas = atlases[0]
+atlas.select_parcellation(parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_ATLAS)
 icbm152space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
 #icbm_map = atlas.get_map(icbm152space)
 #print(icbm_map.shape)
 
-print(atlas.regions())
-matches = atlas.search_region('hOc1')
+print(atlas.regiontree)
+matches = atlas.regiontree.find('hOc1',exact=False)
 print(matches)
 
 

@@ -88,7 +88,7 @@ def show(ctx):
     Print the complete region hierarchy.
     """
     atlas = ctx.obj
-    atlas.regiontree.print_hierarchy()
+    print(atlas.regiontree)
 
 @brainscapes.group()
 @click.argument('region', type=click.STRING,

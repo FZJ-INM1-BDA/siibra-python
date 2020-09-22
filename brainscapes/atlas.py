@@ -309,7 +309,7 @@ if __name__ == '__main__':
 
     # atlas.get_maps('mySpace')
     # atlas.get_template("template")
-    atlas.regiontree.print_hierarchy()
+    print(atlas.regiontree)
     print('*******************************')
     print(atlas.regiontree.find('hOc1'))
     print('*******************************')
