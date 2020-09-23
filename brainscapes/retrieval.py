@@ -2,7 +2,7 @@ import json
 from zipfile import ZipFile
 import requests
 import hashlib
-from os import path, environ
+from os import path
 import logging
 
 # TODO unifiy download_file and cached_get
