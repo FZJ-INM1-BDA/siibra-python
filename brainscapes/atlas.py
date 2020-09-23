@@ -11,8 +11,8 @@ from brainscapes.features import receptor_data
 from brainscapes.region import construct_tree, Region
 from brainscapes.retrieval import download_file
 from brainscapes.registry import Registry,create_key
-from brainscapes.parcellation import REGISTRY as parcellations, Parcellation
-from brainscapes.space import REGISTRY as spaces,  Space
+from brainscapes import parcellations, spaces
+from brainscapes.space import Space
 from brainscapes import features 
 
 class Atlas:
