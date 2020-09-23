@@ -6,6 +6,7 @@ import PIL.Image as Image
 from os import path
 
 from brainscapes import kg_service, retrieval
+from brainscapes.authentication import Authentication
 from brainscapes.features.feature import RegionalFeature,FeaturePool
 
 
@@ -13,6 +14,7 @@ class ReceptorDistribution(RegionalFeature):
 
     profiles = {}
     autoradiographs = {}
+    autoradiographs_files = {}
 
     def __init__(self, region, kg_response):
 
@@ -45,6 +47,7 @@ class ReceptorDistribution(RegionalFeature):
                 if receptor_type in basename:
                     bytestream = self._get_bytestream_from_file(fname)
                     self.autoradiographs[receptor_type] = Image.open(bytestream)
+                    self.autoradiographs_files[receptor_type] = fname
 
             if '_fp_' in fname:
                 bytestream = self._get_bytestream_from_file(fname)
@@ -78,5 +81,7 @@ class ReceptorQuery(FeaturePool):
                 self.register(ReceptorDistribution(region_name,kg_result))
 
 if __name__ == '__main__':
+    auth = Authentication.instance()
+    auth.set_token('eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDA4NTgyMjAsInN1YiI6IjMwODExMCIsImF1ZCI6WyJuZXh1cy1rZy1zZWFyY2giXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiIzMWYyYTUzNS04NjI0LTQ3NDQtYmEzNS00NDI4NWFlMTI3YWIiLCJpYXQiOjE2MDA4NDM4MjAsImhicF9rZXkiOiJmZmJhYzViYmYyNzdmYzc3NDFhYTBiYjcxNGQxZDAzMWVjNmQxOGNlIn0.b1J8i524HKE2d97VpG9oJppV04TfWjtPCOhN-QPGyH5TG_KfuBZvMeDuUs25umbxmJuSnisdPny-JXJlnbBg7OGvYFeCP1KP3ywmGxSOeoMYx5hhJ41GIwyoXjKhKv6rVQpyB21Y0-MwX2sg1iJz_un7P6kTo1OdMVfX_ulL_v4')
     pool = ReceptorQuery()
     print(pool)
