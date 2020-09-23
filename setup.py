@@ -11,7 +11,7 @@ setup(
     description="brainscapes client",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    # url="https://github.com/HumanBrainProject/atlas-core-lib.git",
+    url="https://jugit.fz-juelich.de/v.marcenko/brainscapes.git",
     scripts=['brainscapes/cli.py'],
     entry_points='''
         [console_scripts]
