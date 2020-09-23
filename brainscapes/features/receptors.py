@@ -11,8 +11,6 @@ from brainscapes.authentication import Authentication
 from brainscapes.features.feature import RegionalFeature,FeaturePool
 
 
-
-
 class termcolor:
    PURPLE = '\033[95m'
    CYAN = '\033[96m'
@@ -25,11 +23,9 @@ class termcolor:
    UNDERLINE = '\033[4m'
    END = '\033[0m'
 
+
 class ReceptorDistribution(RegionalFeature):
 
-    profiles = {}
-    autoradiographs = {}
-    autoradiographs_files = {}
     receptors = defaultdict(dict)
 
     def __init__(self, region, kg_response):
@@ -97,8 +93,9 @@ class ReceptorQuery(FeaturePool):
             for region_name in region_names:
                 self.register(ReceptorDistribution(region_name,kg_result))
 
+
 if __name__ == '__main__':
     auth = Authentication.instance()
-    auth.set_token('eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDA4NTgyMjAsInN1YiI6IjMwODExMCIsImF1ZCI6WyJuZXh1cy1rZy1zZWFyY2giXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiIzMWYyYTUzNS04NjI0LTQ3NDQtYmEzNS00NDI4NWFlMTI3YWIiLCJpYXQiOjE2MDA4NDM4MjAsImhicF9rZXkiOiJmZmJhYzViYmYyNzdmYzc3NDFhYTBiYjcxNGQxZDAzMWVjNmQxOGNlIn0.b1J8i524HKE2d97VpG9oJppV04TfWjtPCOhN-QPGyH5TG_KfuBZvMeDuUs25umbxmJuSnisdPny-JXJlnbBg7OGvYFeCP1KP3ywmGxSOeoMYx5hhJ41GIwyoXjKhKv6rVQpyB21Y0-MwX2sg1iJz_un7P6kTo1OdMVfX_ulL_v4')
+    auth.set_token('eyJhbGci....')
     pool = ReceptorQuery()
     print(pool)

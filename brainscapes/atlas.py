@@ -3,11 +3,9 @@ import nibabel as nib
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
-import json
 from collections import defaultdict
 from functools import lru_cache
 
-from brainscapes.features import receptor_data
 from brainscapes.region import construct_tree, Region
 from brainscapes.retrieval import download_file
 from brainscapes.registry import Registry,create_key
@@ -328,10 +326,11 @@ class Atlas:
         datatype
             Defines the type of the feature for which the data should be returned
         """
-        if self.selection:
-            return receptor_data.get_receptor_data_by_region(self.selection.name)
-        else:
-            print('Can not query data, if no region is selected')
+        # if self.selection:
+        #     return receptor_data.get_receptor_data_by_region(self.selection.name)
+        # else:
+        #     print('Can not query data, if no region is selected')
+        pass
 
 
 REGISTRY = Registry(
