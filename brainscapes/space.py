@@ -27,4 +27,4 @@ class Space:
         return obj
 
 REGISTRY = Registry(
-        'brainscapes.definitions.spaces', Space.from_json )
+        'brainscapes.definitions.spaces', Space )

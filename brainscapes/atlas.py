@@ -69,14 +69,15 @@ class Atlas:
         parcellation : Parcellation
             The new parcellation to be selected
         """
-        if parcellation not in self.parcellations:
+        parcellation_obj = parcellations.object(parcellation)
+        if parcellation_obj not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
-            logging.error('    Parcellation:  '+parcellation.name)
+            logging.error('    Parcellation:  '+parcellation_obj.name)
             logging.error('    Atlas:         '+self.name)
-            logging.error(parcellation.id,self.parcellations)
+            logging.error(parcellation_obj.id,self.parcellations)
             raise Exception('Invalid Parcellation')
-        self.selected_parcellation = parcellation
-        self.regiontree = construct_tree(parcellation)
+        self.selected_parcellation = parcellation_obj
+        self.regiontree = construct_tree(self.selected_parcellation)
 
     def get_maps(self, space):
         """
@@ -322,7 +323,7 @@ class Atlas:
         #TODO implement
 
 REGISTRY = Registry(
-        'brainscapes.definitions.atlases', Atlas.from_json )
+        'brainscapes.definitions.atlases', Atlas )
 
 if __name__ == '__main__':
 

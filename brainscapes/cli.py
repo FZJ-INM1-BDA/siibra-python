@@ -37,10 +37,11 @@ def complete_spaces(ctx, args, incomplete):
 
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
-    print("incomplete",incomplete)
     if len(incomplete)>0:
         gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
         return [a for a in gene_acronyms if a.startswith(incomplete)]
+    else:
+        return ""
 
 def complete_featuretypes(ctx, args, incomplete):
     """ auto completion for feature types """
@@ -92,9 +93,9 @@ def search(ctx,searchstring,case_insensitive):
 
 @hierarchy.command()
 @click.pass_context
-def show(ctx):
+def tree(ctx):
     """
-    Print the complete region hierarchy.
+    Print the complete region hierarchy as a tree.
     """
     atlas = ctx.obj
     print(atlas.regiontree)

@@ -54,4 +54,4 @@ class Parcellation:
         return obj
 
 REGISTRY = Registry(
-        'brainscapes.definitions.parcellations', Parcellation.from_json )
+        'brainscapes.definitions.parcellations', Parcellation )
