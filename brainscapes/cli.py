@@ -4,7 +4,7 @@ import click
 import logging
 import brainscapes.atlas as bsa
 import json
-from brainscapes import parcellations, spaces, atlases
+from brainscapes import parcellations, spaces, atlases, preprocessing
 from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
 
@@ -37,6 +37,7 @@ def complete_spaces(ctx, args, incomplete):
 
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
+    print("incomplete",incomplete)
     if len(incomplete)>0:
         gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
         return [a for a in gene_acronyms if a.startswith(incomplete)]

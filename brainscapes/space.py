@@ -19,7 +19,11 @@ class Space:
         object from a json stream.
         """
         if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
-            return Space(obj['@id'], obj['name'], obj['templateUrl'])
+            if 'templateFile' in obj:
+                return Space(obj['@id'], obj['name'], obj['templateUrl'], 
+                        ziptarget=obj['templateFile'])
+            else:
+                return Space(obj['@id'], obj['name'], obj['templateUrl'])
         return obj
 
 REGISTRY = Registry(

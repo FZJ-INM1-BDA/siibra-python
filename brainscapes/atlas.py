@@ -71,7 +71,7 @@ class Atlas:
         """
         if parcellation not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
-            logging.error('    Parcellation:  '+parcellation['name'])
+            logging.error('    Parcellation:  '+parcellation.name)
             logging.error('    Atlas:         '+self.name)
             logging.error(parcellation.id,self.parcellations)
             raise Exception('Invalid Parcellation')
@@ -203,7 +203,7 @@ class Atlas:
             return None
 
         print('Loading template image for space',space.name)
-        filename = download_file( space.url, space.ziptarget )
+        filename = download_file( space.url, ziptarget=space.ziptarget )
         if filename is not None:
             return nib.load(filename)
         else:
@@ -228,8 +228,12 @@ class Atlas:
         ------
         True, if selection was successful, otherwise False.
         """
-        searchname = region.key if isinstance(region,Region) else region
-        selected = self.regiontree.find(searchname,search_key=True)
+        if isinstance(region,Region):
+            selected = Region
+        else:
+            selected = self.regiontree.find(region,search_key=True)
+            if selected is None:
+                selected = self.regiontree.find(region)
         if selected is not None:
             self.selected_region = selected
             logging.info('Selected region {}'.format(self.selected_region.name))
@@ -316,22 +320,6 @@ class Atlas:
     def connectivity_filter(self, src=None):
         print('connectivity filter for src: ' + src)
         #TODO implement
-
-    def query_data(self, datatype=None):
-        """
-        Search for a given feature depending on the atlas selection
-
-        Parameters
-        ----------
-        datatype
-            Defines the type of the feature for which the data should be returned
-        """
-        # if self.selection:
-        #     return receptor_data.get_receptor_data_by_region(self.selection.name)
-        # else:
-        #     print('Can not query data, if no region is selected')
-        pass
-
 
 REGISTRY = Registry(
         'brainscapes.definitions.atlases', Atlas.from_json )

@@ -73,7 +73,8 @@ class ReceptorDistribution(RegionalFeature):
             return io.BytesIO(f.read())
 
     def __str__(self):
-        return "\n".join(
+        return "\n"+"\n".join(
+                [termcolor.BOLD+"Receptor density measurements for area {}".format(self.region)+termcolor.END] +
                 [termcolor.BOLD+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+termcolor.END] +
                 ["{!s:20} {!s:>10} {!s:>20}".format(k,'profile' in D.keys(),'autoradiograph' in D.keys())
                     for k,D in self.receptors.items()])
