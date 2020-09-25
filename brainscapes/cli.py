@@ -156,7 +156,6 @@ def features(ctx,modality,region,gene):
             modality,region))
     for result in results:
         print(result)
-        print()
 
 @brainscapes.command()
 @click.argument('modality', type=click.STRING, 

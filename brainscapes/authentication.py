@@ -1,4 +1,5 @@
 from os import environ
+from . import logger
 
 
 class Authentication(object):
@@ -19,7 +20,7 @@ class Authentication(object):
             try:
                 self._authentication_token = environ['HBP_AUTH_TOKEN']
             except KeyError:
-                print('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
+                logger.warn('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
         return self._authentication_token
 
     def set_token(self, token):

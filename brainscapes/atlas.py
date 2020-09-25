@@ -170,13 +170,16 @@ class Atlas:
             regiontree.name, space))
         maps = self.get_maps(space)
         mask = affine = header = None 
-        for m in maps.values():
+        for description,m in maps.items():
             D = np.array(m.dataobj)
             if mask is None: 
                 # copy metadata for output mask from the first map!
                 mask = np.zeros_like(D)
                 affine, header = m.affine, m.header
             for r in regiontree.iterate():
+                if description not in r.name:
+                    continue
+                #print(description, r.name)#[r.name for r in regiontree.ancestors])
                 if 'labelIndex' not in r.attrs.keys():
                     continue
                 if r.attrs['labelIndex'] is None:
@@ -302,46 +305,34 @@ class Atlas:
             hits.extend(pool.pick_selection(self))
         return hits
 
-    def regionprops(self,space):
+    def regionprops(self,space,summarize=False):
         """
         Extracts spatial properties of the currently selected region in the
         given space.
 
         Parameters
         ----------
-        space : template space 
+        space : Space
+            The template space in which the spatial properties shall be
+            computed.
+        summarize : bool (default: False)
+            Wether to aggregate the spatial computation for the selected
+            subtree of regions, or return separate regionprops the leaves of
+            the tree. Default: compute regionprops for all leaves of the
+            selected region subtree.
 
         Yields
         ------
-        Dictionary of spatial properties of the region
+        Dictionary with spatial properties of brain regions. If summarize=True,
+        includes only one element representing the union of regions in the
+        currently selected node of the region tree.
         """
+        if summarize:
+            return {self.selected_region:RegionProps(self,space)}
+        else:
+            return {region:RegionProps(self,space,custom_region=region) 
+                    for region in self.selected_region.leaves} 
 
-        return RegionProps(self,space)
-
-    def connectivity_matrix(self, srcname):
-        """
-        Tries to find a connectivity feature source with the given name, and
-        construct a connectivity matrix from it.
-
-        Parameters
-        ----------
-        srcname : str
-            Name of a connectivity source, as listed by connectivity_sources()
-        
-        Yields
-        ------
-        A numpy object representing a connectivity matrix for the given parcellation, or None 
-        """
-        # TODO refactor, this is dirty
-        for f in self.features['Connectivity Profiles']:
-            if f['name'] == srcname:
-                dim = len(f['data']['field names'])
-                result = np.zeros((dim,dim))
-                for i,field in enumerate(f['data']['field names']):
-                    result[i,:] = f['data']['profiles'][field]
-                return result
-        raise Exception('No connectivity feature source found with the given name "{}"'.format(
-            srcname))
 
 REGISTRY = Registry(
         'brainscapes.definitions.atlases', Atlas )
