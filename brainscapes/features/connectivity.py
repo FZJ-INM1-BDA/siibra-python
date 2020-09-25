@@ -21,8 +21,11 @@ class ConnectivityProfile(RegionalFeature):
         self.parcellation = parcellation
         self.globalrange = None
 
-
     def __str__(self):
+        """
+        Returns a multiline barplot of the sorted profiles in log scale.
+        Set ConnectivityProfile.show_as_log to False to see original values
+        """
         if ConnectivityProfile.show_as_log:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
