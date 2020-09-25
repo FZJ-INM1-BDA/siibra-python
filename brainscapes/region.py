@@ -101,11 +101,14 @@ class Region(anytree.NodeMixin):
                         lambda node: name in node.name)
 
     def __str__(self):
+        return self.name
+
+    def print_tree(self):
         """
         Returns the hierarchy of all descendants of this region as a tree.
         """
-        return "\n".join("%s%s" % (pre, node.name)
-                for pre, _, node in anytree.RenderTree(self))
+        print( "\n".join("%s%s" % (pre, node.name)
+                for pre, _, node in anytree.RenderTree(self)))
 
     def iterate(self):
         """

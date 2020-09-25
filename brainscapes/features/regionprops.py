@@ -3,6 +3,7 @@ import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
 from ..termplot import FontStyles as style
+from .. import logger
 
 class RegionProps(RegionalFeature):
     """

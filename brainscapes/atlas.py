@@ -83,6 +83,7 @@ class Atlas:
         self.regionnames = Glossary([c.key 
             for r in self.regiontree.iterate()
             for c in r.children ])
+        logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
     def get_maps(self, space):
         """
@@ -246,6 +247,12 @@ class Atlas:
             return True
         else:
             return False
+
+    def clear_selection(self):
+        """
+        Cancels any current region selection.
+        """
+        self.select_region(self.regiontree)
 
     def region_selected(self,region):
         """
