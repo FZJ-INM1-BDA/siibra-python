@@ -7,6 +7,7 @@ import json
 from brainscapes import parcellations, spaces, atlases
 from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
+from brainscapes.commons import termcolors as tc
 
 logging.basicConfig(level=logging.INFO)
 
@@ -168,14 +169,10 @@ def props(ctx):
     """
     Return spatial properties of the region
     """
-
     atlas,space = [ctx.obj[t] for t in ['atlas','space']]
     props = atlas.regionprops(space)
-    print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}  {v:10.1f}  {s:10.1f}  {i}".format(
-        n=atlas.selected_region.name, 
-        c=props.centroid_mm,
-        v=props.volume_mm,
-        s=props.surface_mm,
-        i=props.is_cortical
-        ))
+    print(tc.BOLD)
+    print("Region properties of {}".format(atlas.selected_region))
+    print(tc.END)
+    print(props)
 

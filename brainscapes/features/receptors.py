@@ -9,20 +9,7 @@ from collections import defaultdict
 from brainscapes import kg_service, retrieval
 from brainscapes.authentication import Authentication
 from brainscapes.features.feature import RegionalFeature,FeaturePool
-
-
-class termcolor:
-   PURPLE = '\033[95m'
-   CYAN = '\033[96m'
-   DARKCYAN = '\033[36m'
-   BLUE = '\033[94m'
-   GREEN = '\033[92m'
-   YELLOW = '\033[93m'
-   RED = '\033[91m'
-   BOLD = '\033[1m'
-   UNDERLINE = '\033[4m'
-   END = '\033[0m'
-
+from brainscapes.commons import termcolors as tc
 
 class ReceptorDistribution(RegionalFeature):
 
@@ -74,7 +61,7 @@ class ReceptorDistribution(RegionalFeature):
 
     def __str__(self):
         return "\n"+"\n".join(
-                [termcolor.BOLD+"Receptor density measurements for area {}".format(self.region)+termcolor.END] +
+                [tc.BOLD+"Receptor density measurements for area {}".format(self.region)+tc.END] +
                 [termcolor.BOLD+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+termcolor.END] +
                 ["{!s:20} {!s:>10} {!s:>20}".format(k,'profile' in D.keys(),'autoradiograph' in D.keys())
                     for k,D in self.receptors.items()])

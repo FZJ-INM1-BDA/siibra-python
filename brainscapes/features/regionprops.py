@@ -2,11 +2,20 @@ from .feature import RegionalFeature
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
+from ..commons import termcolors as tc
 
 class RegionProps(RegionalFeature):
     """
     Computes and represents spatial attributes of a region in an atlas.
     """
+
+    # properties used when printing this feature
+    main_props = [
+            'label',
+            'centroid_mm',
+            'volume_mm',
+            'surface_mm',
+            'is_cortical']
 
     def __init__(self,atlas,space):
 
@@ -55,7 +64,9 @@ class RegionProps(RegionalFeature):
         return list(self.attrs.keys())
 
     def __str__(self):
-        return "\n".join([i.key for i in self.attrs])
+        return "\n".join(["{}{:>15}{} {}".format(
+            tc.BOLD,label,tc.END,self.attrs[label])
+            for label in self.main_props])
 
     def __contains__(self,index):
         return index in self.__dir__()
