@@ -230,7 +230,7 @@ class Atlas:
         True, if selection was successful, otherwise False.
         """
         if isinstance(region,Region):
-            selected = Region
+            selected = region
         else:
             selected = self.regiontree.find(region,search_key=True)
             if selected is None:

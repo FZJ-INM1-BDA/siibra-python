@@ -1,8 +1,5 @@
-import json
-
 from brainscapes.registry import create_key
 from brainscapes import parcellations,spaces
-import anytree
 from brainscapes.retrieval import get_json_from_url
 import anytree
 

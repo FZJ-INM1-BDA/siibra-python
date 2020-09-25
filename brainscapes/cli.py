@@ -2,8 +2,6 @@
 
 import click
 import logging
-import brainscapes.atlas as bsa
-import json
 from brainscapes import parcellations, spaces, atlases
 from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
