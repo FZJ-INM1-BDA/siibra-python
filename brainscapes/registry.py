@@ -41,30 +41,20 @@ class Registry:
         """
         Item access is implemented either by sequential index, key or id.
         """
-        if type(index) is int and index<len(self.items):
+        if isinstance(index,int) and index<len(self.items):
             return self.items[index]
-        if index in self.by_key:
+        elif isinstance(index,self.cls) and (index in self.items):
+            # index is itself already an object of this registry - forward
+            return index
+        elif index in self.by_key:
             return self.items[self.by_key[index]]
-        if index in self.by_id:
+        elif index in self.by_id:
             return self.items[self.by_id[index]]
-        if index in self.by_name:
+        elif index in self.by_name:
             return self.items[self.by_name[index]]
-
-    def object(self,representation):
-        """
-        Given one of the used representations, return the corresponding
-        object in the registry. Representations are either strings, referring to
-        the name, key, or id, or an object pointer (which is then just forwarded).
-        """
-        if isinstance(representation,str):
-            # representation might be key, id, or name
-            return self[representation]
-        elif  isinstance(representation,self.cls):
-            # is already the desired object
-            return representation
         else:
-            # representation does not represent a known object
-            return None
+            raise ValueError("Cannot access this item in the {} Registry:".format(
+                self.cls),index)
 
     def __dir__(self):
         return list(self.by_key.keys()) + list(self.by_id.keys())

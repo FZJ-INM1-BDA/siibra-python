@@ -7,7 +7,8 @@ from collections import defaultdict
 from functools import lru_cache
 
 from brainscapes.region import construct_tree, Region
-from brainscapes.retrieval import download_file
+from brainscapes.features.regionprops import RegionProps
+from brainscapes.retrieval import download_file, CACHEDIR
 from brainscapes.registry import Registry,create_key
 from brainscapes import parcellations, spaces
 from brainscapes.space import Space
@@ -69,7 +70,7 @@ class Atlas:
         parcellation : Parcellation
             The new parcellation to be selected
         """
-        parcellation_obj = parcellations.object(parcellation)
+        parcellation_obj = parcellations[parcellation]
         if parcellation_obj not in self.parcellations:
             logging.error('The requested parcellation is not supported by the selected atlas.')
             logging.error('    Parcellation:  '+parcellation_obj.name)
@@ -278,6 +279,7 @@ class Atlas:
         """
         Query data features for the currently selected region(s) by modality. 
         See brainscapes.features.modalities for available modalities.
+        TODO pools should persist during runtime, not re-generated in each call.
         """
         assert(modality in features.modalities)
         hits = []
@@ -288,6 +290,22 @@ class Atlas:
                 pool = Pool()
             hits.extend(pool.pick_selection(self))
         return hits
+
+    def regionprops(self,space):
+        """
+        Extracts spatial properties of the currently selected region in the
+        given space.
+
+        Parameters
+        ----------
+        space : template space 
+
+        Yields
+        ------
+        Dictionary of spatial properties of the region
+        """
+
+        return RegionProps(self,space)
 
     def connectivity_sources(self):
         #TODO refactor, this is dirty
