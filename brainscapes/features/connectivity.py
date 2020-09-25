@@ -85,6 +85,8 @@ class ConnectivityMatrix(GlobalFeature):
         GlobalFeature.__init__(self,parcellation)
         self.matrix = matrix
         self.column_names = column_names
+        self.src_name = src_name
+        self.src_info = src_info
 
     def __str__(self):
         # TODO implement a reasonable display of the matrix
