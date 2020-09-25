@@ -1,8 +1,8 @@
-from .feature import FeaturePool
-from .receptors import ReceptorQuery as ReceptorPool
-from .genes import AllenBrainAtlasQuery as GeneExpressionPool
 
 def _build_registry():
+    from .receptors import ReceptorQuery
+    from .genes import AllenBrainAtlasQuery
+    from .connectivity import ConnectivityQuery
     from .feature import FeaturePoolRegistry
     return FeaturePoolRegistry()
    

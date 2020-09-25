@@ -23,7 +23,6 @@ class Atlas:
         self.id = identifier
         self.key = create_key(name)
         self.regiontree = None
-        self.features = defaultdict(list)
         self.parcellations = [] # add with _add_parcellation
         self.spaces = [] # add with _add_space
 
@@ -307,10 +306,6 @@ class Atlas:
 
         return RegionProps(self,space)
 
-    def connectivity_sources(self):
-        #TODO refactor, this is dirty
-        return [f['name'] for f in self.features['Connectivity Profiles']]
-
     def connectivity_matrix(self, srcname):
         """
         Tries to find a connectivity feature source with the given name, and
@@ -335,10 +330,6 @@ class Atlas:
                 return result
         raise Exception('No connectivity feature source found with the given name "{}"'.format(
             srcname))
-
-    def connectivity_filter(self, src=None):
-        print('connectivity filter for src: ' + src)
-        #TODO implement
 
 REGISTRY = Registry(
         'brainscapes.definitions.atlases', Atlas )

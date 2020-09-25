@@ -7,7 +7,7 @@ import json
 from brainscapes import parcellations, spaces, atlases
 from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
-from brainscapes.commons import termcolors as tc
+from brainscapes.termplot import FontStyles as style
 
 logging.basicConfig(level=logging.INFO)
 
@@ -160,9 +160,9 @@ def receptors(ctx):
 @click.pass_context
 def connectivity(ctx):
     atlas = ctx.obj['atlas']
-    sources = atlas.connectivity_sources()
-    print("Available sources:",sources)
-    print(atlas.connectivity_matrix(sources[0]))
+    hits = atlas.query_data("ConnectivityProfile")
+    for hit in hits:
+        print(hit)
 
 @features.command()
 @click.pass_context
@@ -172,8 +172,8 @@ def props(ctx):
     """
     atlas,space = [ctx.obj[t] for t in ['atlas','space']]
     props = atlas.regionprops(space)
-    print(tc.BOLD)
+    print(style.BOLD)
     print("Region properties of {}".format(atlas.selected_region))
-    print(tc.END)
+    print(style.END)
     print(props)
 
