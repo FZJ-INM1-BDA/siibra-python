@@ -5,6 +5,7 @@ import logging
 from brainscapes import parcellations, spaces, atlases
 from brainscapes.features import modalities
 from brainscapes.features.genes import AllenBrainAtlasQuery
+from brainscapes.commons import termcolors as tc
 
 logging.basicConfig(level=logging.INFO)
 
@@ -38,6 +39,8 @@ def complete_genes(ctx, args, incomplete):
     if len(incomplete)>0:
         gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
         return [a for a in gene_acronyms if a.startswith(incomplete)]
+    else:
+        return ""
 
 def complete_featuretypes(ctx, args, incomplete):
     """ auto completion for feature types """
@@ -50,20 +53,38 @@ def complete_featuretypes(ctx, args, incomplete):
 @click.option('-p','--parcellation', type=click.STRING, default=None, 
         autocompletion=complete_parcellations,
         help="Specify another than the default parcellation")
+@click.option('-s','--space',  type=click.STRING, default=None,
+        autocompletion=complete_spaces,
+        help="Specify a template space")
 @click.pass_context
-def brainscapes(ctx,parcellation):
+def brainscapes(ctx,parcellation,space):
     """ Command line interface to the brainscapes atlas services.
     """
-    ctx.obj = atlases[0]
+    ctx.obj = {}
+    ctx.obj['atlas'] = atlas = atlases[0]
+
     if parcellation is not None:
         try:
-            ctx.obj.select_parcellation(parcellation)
+            atlas.select_parcellation(parcellation)
         except Exception as e:
             print(str(e))
             logging.error("No such parcellation available: "+parcellation)
             exit(1)
-    logging.info('Atlas uses parcellation "{}"'.format(
-        ctx.obj.selected_parcellation.name))
+    logging.info('Selected parcellation "{}"'.format(
+        ctx.obj['atlas'].selected_parcellation.name))
+
+    if space is None:
+        ctx.obj['space'] = atlas.spaces[0]
+    else:
+        if spaces.obj(space) in atlas.spaces:
+            ctx.obj['space'] = spaces.obj(space)
+        else:
+            logging.error("Space {} is not supported by atlas {}.".format(
+                    atlas,space))
+            exit(1)
+    logging.info('Using template space "{}"'.format(ctx.obj['space']))
+
+# ---- Commands for working with the region hierarchy ----
 
 @brainscapes.group()
 @click.pass_context
@@ -82,19 +103,21 @@ def search(ctx,searchstring,case_insensitive):
     """
     Search regions by name.
     """
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     matches = atlas.regiontree.find(searchstring,exact=False)
     for m in matches:
         print(m.name)
 
 @hierarchy.command()
 @click.pass_context
-def show(ctx):
+def tree(ctx):
     """
-    Print the complete region hierarchy.
+    Print the complete region hierarchy as a tree.
     """
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     print(atlas.regiontree)
+
+# ---- Commands for retrieving data features ---
 
 @brainscapes.group()
 @click.argument('region', type=click.STRING,
@@ -102,9 +125,9 @@ def show(ctx):
 @click.pass_context
 def features(ctx,region):
     """
-    Browse the region hierarchy of the selected parcellation.
+    Retrieve region specific features.
     """
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     atlas.select_region(region)
 
 @features.command()
@@ -115,7 +138,7 @@ def gex(ctx,gene):
     """
     Extract gene expressions from the Allen Human Brain Atlas.
     """
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     hits = atlas.query_data("GeneExpression",gene=gene)
     for hit in hits:
         print(hit)
@@ -126,7 +149,7 @@ def receptors(ctx):
     """
     Extract receptor distributions from the EBRAINS knowledge graph.
     """
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     hits = atlas.query_data("ReceptorDistribution")
     for hit in hits:
         print(hit)
@@ -134,45 +157,21 @@ def receptors(ctx):
 @features.command()
 @click.pass_context
 def connectivity(ctx):
-    atlas = ctx.obj
+    atlas = ctx.obj['atlas']
     sources = atlas.connectivity_sources()
     print("Available sources:",sources)
     print(atlas.connectivity_matrix(sources[0]))
 
 @features.command()
-@click.argument('space', 
-        type=click.STRING, 
-        autocompletion=complete_spaces)
 @click.pass_context
-def props(ctx,space):
+def props(ctx):
     """
-    Compute basic properties of atlas regions as requested. 
+    Return spatial properties of the region
     """
-
-    atlas = ctx.obj
-    region = atlas.selected_region
-    spaces_obj = spaces[space]
-
-    # Extract properties of all atlas regions
-    lbl_volumes = atlas.get_maps(spaces_obj)
-    tpl_volume = atlas.get_template(spaces_obj)
-    props = preprocessing.regionprops(lbl_volumes,tpl_volume)
-
-    # Generate commandline report
-    is_cortical = region.has_parent('cerebral cortex')
-    label = int(region.labelIndex)
-    if label not in props.keys():
-        print("{n:40.40}  {na[0]:>12.12} {na[0]:>12.12} {na[0]:>12.12}  {na[0]:>10.10}  {na[0]:>10.10}".format(
-            n=region.name, na=["N/A"]*5))
-    for prop in props[label]:
-        # FIXME this identifies left/right hemisphere labels for
-        # Julich-Brain, but is not a general solution
-        if prop.labelled_volume_description in region.name:
-            print("{n:40.40}  {c[0]:12.1f} {c[1]:12.1f} {c[2]:12.1f}  {v:10.1f}  {s:10.1f}  {i}".format(
-                n=region.name, 
-                c=prop.centroid_mm,
-                v=prop.volume_mm,
-                s=prop.surface_mm,
-                i=is_cortical
-                ))
+    atlas,space = [ctx.obj[t] for t in ['atlas','space']]
+    props = atlas.regionprops(space)
+    print(tc.BOLD)
+    print("Region properties of {}".format(atlas.selected_region))
+    print(tc.END)
+    print(props)
 

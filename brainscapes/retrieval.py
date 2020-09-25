@@ -70,7 +70,6 @@ def download_file(url, ziptarget=None, targetname=None ):
             filename = path.join(CACHEDIR,path.basename(url))
         with open(filename, 'wb') as code:
             code.write(req.content)
-        print("Filename is", filename)
         suffix = path.splitext(filename)[-1]
         if (suffix == ".zip") and (ziptarget is not None):
             filename = get_from_zip(

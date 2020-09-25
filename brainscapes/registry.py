@@ -11,15 +11,19 @@ class Registry:
     provided as constructor parameter.
     """
 
-    def __init__(self,pkgpath,object_hook):
+    def __init__(self,pkgpath,cls):
         """
         Populate a new registry from the json files in the package path, using
-        the provdided object construction hook function.
+        the "from_json" function of the provided class as hook function.
         """
-        logging.debug("Initializing registry for {}".format(pkgpath))
+        logging.debug("Initializing registry of type {} for {}".format(
+            cls,pkgpath))
+        object_hook = cls.from_json
         self.items = []
         self.by_key = {}
         self.by_id = {}
+        self.by_name = {}
+        self.cls = cls
         for item in pkg_contents(pkgpath):
             if path.splitext(item)[-1]==".json":
                 with pkg_path(pkgpath,item) as fname:
@@ -31,17 +35,26 @@ class Registry:
                         self.items.append(obj)
                         self.by_key[key] = len(self.items)-1
                         self.by_id[identifier] = len(self.items)-1
+                        self.by_name[obj.name] = len(self.items)-1
 
     def __getitem__(self,index):
         """
         Item access is implemented either by sequential index, key or id.
         """
-        if type(index) is int and index<len(self.items):
+        if isinstance(index,int) and index<len(self.items):
             return self.items[index]
-        if index in self.by_key:
+        elif isinstance(index,self.cls) and (index in self.items):
+            # index is itself already an object of this registry - forward
+            return index
+        elif index in self.by_key:
             return self.items[self.by_key[index]]
-        if index in self.by_id:
+        elif index in self.by_id:
             return self.items[self.by_id[index]]
+        elif index in self.by_name:
+            return self.items[self.by_name[index]]
+        else:
+            raise ValueError("Cannot access this item in the {} Registry:".format(
+                self.cls),index)
 
     def __dir__(self):
         return list(self.by_key.keys()) + list(self.by_id.keys())

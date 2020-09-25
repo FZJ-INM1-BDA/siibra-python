@@ -18,6 +18,21 @@ class Parcellation:
     def __str__(self):
         return self.name
 
+    def __eq__(self,other):
+        """
+        Compare this parcellation with other objects. If other is a string,
+        compare to key, name or id.
+        """
+        if isinstance(other,Parcellation):
+            return self.id==other.id
+        elif isinstance(other,str):
+            return any([
+                self.name==other, 
+                self.key==other,
+                self.id==other])
+        else:
+            raise ValueError("Cannot compare object of type {} to Parcellation".format(type(other)))
+
     @staticmethod
     def from_json(obj):
         """
@@ -39,4 +54,4 @@ class Parcellation:
         return obj
 
 REGISTRY = Registry(
-        'brainscapes.definitions.parcellations', Parcellation.from_json )
+        'brainscapes.definitions.parcellations', Parcellation )
