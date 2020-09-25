@@ -7,7 +7,7 @@ class Feature(ABC):
     """
 
     @abstractmethod
-    def matches_selection(self,atlas):
+    def matches(self,atlas):
         """
         Returns True if this feature should be considered part of the current
         selection of the atlas object, otherwise else.
@@ -30,7 +30,7 @@ class SpatialFeature(Feature):
         self.space = space
         self.location = location
  
-    def matches_selection(self,atlas):
+    def matches(self,atlas):
         """
         Returns true if the location of this feature is inside the selected
         region of the atlas, according to the mask in the reference space.
@@ -51,7 +51,7 @@ class RegionalFeature(Feature):
     def __init__(self,region):
         self.region = region
  
-    def matches_selection(self,atlas):
+    def matches(self,atlas):
         """
         Returns true if this feature is linked to the currently selected region
         in the atlas.
@@ -61,9 +61,27 @@ class RegionalFeature(Feature):
             if atlas.region_selected(region):
                 return True
 
+class GlobalFeature(Feature):
+    """
+    Base class for data features which apply to the atlas as a whole
+    instead of a particular location or region. A typical example is a
+    connectivity matrix, which applies to all regions in the atlas.
+    """
+
+    def __init__(self,parcellation):
+        self.parcellation = parcellation
+ 
+    def matches(self,atlas):
+        """
+        Returns true if this global feature is related to the given atlas.
+        """
+        if self.parcellation == atlas.selected_parcellation:
+            return True
+
 class FeaturePool(ABC):
     """
-    A container for spatial features which implements basic spatial queries.
+    An abstract container class for data features of a particular type, related
+    to an atlas.
     """
 
     _FEATURETYPE = Feature
@@ -78,7 +96,7 @@ class FeaturePool(ABC):
         """
         selection = []
         for feature in self._features:
-            if feature.matches_selection(atlas):
+            if feature.matches(atlas):
                 selection.append(feature)
         return selection
 
@@ -94,9 +112,11 @@ class FeaturePoolRegistry:
 
     def __init__(self):
         self._pools = defaultdict(list)
+        self.modalities = {}
         for cls in FeaturePool.__subclasses__():
             modality = str(cls._FEATURETYPE).split("'")[1].split('.')[-1]
             self._pools[modality].append(cls)
+            self.modalities[modality] = cls._FEATURETYPE
 
     def __dir__(self):
         return list(self._pools.keys())
@@ -109,7 +129,7 @@ class FeaturePoolRegistry:
             return self._pools[name]
         else:
             raise AttributeError("No such attribute: {}".format(name))
-
+    
     def __getitem__(self,index):
         if index in self._pools.keys():
             return self._pools[index]

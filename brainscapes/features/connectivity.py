@@ -4,7 +4,7 @@ import json
 import numpy as np
 import warnings
 from brainscapes import retrieval
-from brainscapes.features.feature import RegionalFeature,FeaturePool
+from brainscapes.features.feature import RegionalFeature,GlobalFeature,FeaturePool
 from brainscapes import parcellations
 from brainscapes import termplot 
 
@@ -43,7 +43,7 @@ class ConnectivityProfile(RegionalFeature):
             if self.profile[i]>0
             ])
 
-class ConnectivityQuery(FeaturePool):
+class ConnectivityProfileParser(FeaturePool):
 
     _FEATURETYPE = ConnectivityProfile
     _SOURCES = {
@@ -53,7 +53,7 @@ class ConnectivityQuery(FeaturePool):
     def __init__(self):
 
         FeaturePool.__init__(self)
-        for fname,url in ConnectivityQuery._SOURCES.items():
+        for fname,url in ConnectivityProfileParser._SOURCES.items():
 
             minval = maxval = 0
             new_profiles = []
@@ -78,8 +78,50 @@ class ConnectivityQuery(FeaturePool):
         for profile in new_profiles:
             profile.globalrange = (minval,maxval)
             self.register(profile)
-            
+
+
+class ConnectivityMatrix(GlobalFeature):
+
+    def __init__(self, parcellation, matrix, column_names, src_name, src_info ):
+        GlobalFeature.__init__(self,parcellation)
+        self.matrix = matrix
+        self.column_names = column_names
+
+    def __str__(self):
+        # TODO implement a reasonable display of the matrix
+        return "Connectivity matrix for {}".format(
+                self.parcellation)
+
+
+class ConnectivityMatrixParser(FeaturePool):
+
+    _FEATURETYPE = ConnectivityMatrix
+    _SOURCES = {
+            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master"
+            }
+
+    def __init__(self):
+
+        FeaturePool.__init__(self)
+        for fname,url in ConnectivityMatrixParser._SOURCES.items():
+
+            profiles = []
+            with open(retrieval.download_file(url,targetname=fname),'r') as f:
+                data = json.load(f)
+                src_name = data['name']
+                src_info  = data['description']
+                parcellation = parcellations[data['parcellation']]
+                column_names = data['data']['field names']
+                for region in column_names:
+                    profiles.append(data['data']['profiles'][region])
+
+            matrix = np.array(profiles)
+            assert(all(N==len(column_names) for N in matrix.shape))
+            self.register( ConnectivityMatrix(
+                parcellation, matrix, column_names, src_name, src_info ))
 
 if __name__ == '__main__':
 
-    featurepool = ConnectivityQuery()
+    profilepool = ConnectivityProfileParser()
+    matrixpool = ConnectivityMatrixParser()
+

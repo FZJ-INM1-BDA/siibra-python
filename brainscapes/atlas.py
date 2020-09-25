@@ -8,11 +8,11 @@ from functools import lru_cache
 
 from brainscapes.region import construct_tree, Region
 from brainscapes.features.regionprops import RegionProps
-from brainscapes.retrieval import download_file, CACHEDIR
+from brainscapes.retrieval import download_file 
 from brainscapes.registry import Registry,create_key
 from brainscapes import parcellations, spaces
 from brainscapes.space import Space
-from brainscapes import features 
+from brainscapes import features
 
 class Atlas:
 
@@ -280,7 +280,7 @@ class Atlas:
         See brainscapes.features.modalities for available modalities.
         TODO pools should persist during runtime, not re-generated in each call.
         """
-        assert(modality in features.modalities)
+        assert(modality in features.pools.modalities)
         hits = []
         for Pool in features.pools[modality]:
             if modality=='GeneExpression':

@@ -3,7 +3,7 @@
 import click
 import logging
 from brainscapes import parcellations, spaces, atlases
-from brainscapes.features import modalities
+from brainscapes.features import modalities,pools,gene_names
 from brainscapes.features.genes import AllenBrainAtlasQuery
 from brainscapes.termplot import FontStyles as style
 
@@ -37,15 +37,17 @@ def complete_spaces(ctx, args, incomplete):
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
     if len(incomplete)>0:
-        gene_acronyms = AllenBrainAtlasQuery.GENE_NAMES.keys()
-        return [a for a in gene_acronyms if a.startswith(incomplete)]
+        return [a for a in gene_names.keys() 
+                if a.startswith(incomplete)]
     else:
         return ""
 
-def complete_featuretypes(ctx, args, incomplete):
+def complete_feature_modalities(ctx, args, incomplete):
     """ auto completion for feature types """
     return [m for m in modalities
-            if m.startswith(incomplete)]
+            if m.startswith(incomplete) 
+            and pools[m][0]._FEATURETYPE
+            and ]
 
 # ---- Main command ----
 
@@ -119,56 +121,41 @@ def tree(ctx):
 
 # ---- Commands for retrieving data features ---
 
-@brainscapes.group()
+@brainscapes.command()
+@click.argument('modality', type=click.STRING, 
+        autocompletion=complete_modalities )
 @click.argument('region', type=click.STRING,
         autocompletion=complete_regions )
+@click.option('-g','--gene', type=click.STRING, default=None,
+        autocompletion=complete_genes )
 @click.pass_context
-def features(ctx,region):
+def features(ctx,modality,region,gene):
     """
     Retrieve region specific features.
     """
     atlas = ctx.obj['atlas']
     atlas.select_region(region)
 
-@features.command()
-@click.argument('gene', type=click.STRING,
-        autocompletion=complete_genes )
-@click.pass_context
-def gex(ctx,gene):
-    """
-    Extract gene expressions from the Allen Human Brain Atlas.
-    """
-    atlas = ctx.obj['atlas']
-    hits = atlas.query_data("GeneExpression",gene=gene)
-    for hit in hits:
-        print(hit)
+    if modality=='GeneExpression':
+        if gene is None:
+            print("You need to specify a gene with the -g option when looking up gene expressions.")
+            return 1
+        features = atlas.query_data(modality,gene=gene)
+    else:
+        features = atlas.query_data(modality)
+    for feature in features:
+        print(feature)
 
-@features.command()
+@brainscapes.command()
+@click.argument('region', type=click.STRING,
+        autocompletion=complete_regions )
 @click.pass_context
-def receptors(ctx):
-    """
-    Extract receptor distributions from the EBRAINS knowledge graph.
-    """
-    atlas = ctx.obj['atlas']
-    hits = atlas.query_data("ReceptorDistribution")
-    for hit in hits:
-        print(hit)
-
-@features.command()
-@click.pass_context
-def connectivity(ctx):
-    atlas = ctx.obj['atlas']
-    hits = atlas.query_data("ConnectivityProfile")
-    for hit in hits:
-        print(hit)
-
-@features.command()
-@click.pass_context
-def props(ctx):
+def regionprops(ctx,region):
     """
     Return spatial properties of the region
     """
     atlas,space = [ctx.obj[t] for t in ['atlas','space']]
+    atlas.select_region(region)
     props = atlas.regionprops(space)
     print(style.BOLD)
     print("Region properties of {}".format(atlas.selected_region))
