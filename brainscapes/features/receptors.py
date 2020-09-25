@@ -9,7 +9,7 @@ from collections import defaultdict
 from brainscapes import kg_service, retrieval
 from brainscapes.authentication import Authentication
 from brainscapes.features.feature import RegionalFeature,FeaturePool
-from brainscapes.commons import termcolors as tc
+from brainscapes.termplot import FontStyles as style
 
 class ReceptorDistribution(RegionalFeature):
 
@@ -61,8 +61,8 @@ class ReceptorDistribution(RegionalFeature):
 
     def __str__(self):
         return "\n"+"\n".join(
-                [tc.BOLD+"Receptor density measurements for area {}".format(self.region)+tc.END] +
-                [termcolor.BOLD+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+termcolor.END] +
+                [style.BOLD+"Receptor density measurements for area {}".format(self.region)+style.END] +
+                [style.BOLD+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+style.END] +
                 ["{!s:20} {!s:>10} {!s:>20}".format(k,'profile' in D.keys(),'autoradiograph' in D.keys())
                     for k,D in self.receptors.items()])
 

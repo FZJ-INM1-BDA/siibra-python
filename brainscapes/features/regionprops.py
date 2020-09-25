@@ -2,7 +2,7 @@ from .feature import RegionalFeature
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
-from ..commons import termcolors as tc
+from ..termplot import FontStyles as style
 
 class RegionProps(RegionalFeature):
     """
@@ -65,7 +65,7 @@ class RegionProps(RegionalFeature):
 
     def __str__(self):
         return "\n".join(["{}{:>15}{} {}".format(
-            tc.BOLD,label,tc.END,self.attrs[label])
+            style.BOLD,label,style.END,self.attrs[label])
             for label in self.main_props])
 
     def __contains__(self,index):

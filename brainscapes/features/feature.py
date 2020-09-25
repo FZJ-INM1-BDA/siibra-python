@@ -45,6 +45,7 @@ class RegionalFeature(Feature):
     """
     Base class for region-anchored data features (semantic anchoring to region
     names instead of coordinates).
+    TODO store region as an object that has a link to the parcellation
     """
 
     def __init__(self,region):
@@ -112,7 +113,6 @@ class FeaturePoolRegistry:
     def __getitem__(self,index):
         if index in self._pools.keys():
             return self._pools[index]
-
 
     def __str__(self):
         return str(self._pools)
