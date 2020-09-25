@@ -56,7 +56,8 @@ def complete_featuretypes(ctx, args, incomplete):
         autocompletion=complete_parcellations,
         help="Specify another than the default parcellation")
 @click.option('-s','--space',  type=click.STRING, default=None,
-        autocompletion=complete_spaces)
+        autocompletion=complete_spaces,
+        help="Specify a template space")
 @click.pass_context
 def brainscapes(ctx,parcellation,space):
     """ Command line interface to the brainscapes atlas services.
@@ -126,7 +127,7 @@ def tree(ctx):
 @click.pass_context
 def features(ctx,region):
     """
-    Browse the region hierarchy of the selected parcellation.
+    Retrieve region specific features.
     """
     atlas = ctx.obj['atlas']
     atlas.select_region(region)

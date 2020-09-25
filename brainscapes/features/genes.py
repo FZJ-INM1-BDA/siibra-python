@@ -38,8 +38,12 @@ class GeneExpression(SpatialFeature):
         self.gene = gene
 
     def __str__(self):
-        return "Gene {g} expressed in '{s}' at {l[0]:8.1f}|{l[1]:8.1f}|{l[2]:8.1f}".format(
-                g=self.gene, s=self.space, l=self.location)
+        return " ".join([
+            "At ("+",".join("{:4.0f}".format(v) for v in self.location)+")",
+            " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.factors.items()]),
+            "Expression: ["+",".join(["%4.1f"%v for v in self.expression_levels])+"]",
+            "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
+            ])
 
 class AllenBrainAtlasQuery(FeaturePool):
     """
@@ -114,7 +118,7 @@ class AllenBrainAtlasQuery(FeaturePool):
                 item['id']: {
                     'race' : item['race_only'],
                     'gender' : item['sex'],
-                    'age' : item['age']['days']/365
+                    'age' : int(item['age']['days']/365)
                     }
                 for item in response['msg'] }
 
