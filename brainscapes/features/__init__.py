@@ -1,5 +1,3 @@
-from .genes import AllenBrainAtlasQuery
-
 class Glossary:
     """
     A simple class that provides enum-like siple autocompletion for an
@@ -15,6 +13,9 @@ class Glossary:
     def __str__(self):
         return "\n".join(self.words)
 
+    def __iter__(self):
+        return (w for w in self.words)
+
     def __contains__(self,index):
         return index in self.__dir__()
 
@@ -26,6 +27,9 @@ class Glossary:
 
 
 def __init__():
+    """
+    Setup the module silently
+    """
     from .receptors import ReceptorQuery
     from .genes import AllenBrainAtlasQuery
     from .connectivity import ConnectivityProfileParser, ConnectivityMatrixParser
@@ -36,3 +40,4 @@ def __init__():
             Glossary(pools.modalities.keys()) ]
 
 pools,gene_names,modalities = __init__()
+classes = {name:pools._pools[name][0]._FEATURETYPE for name in pools._pools.keys()}

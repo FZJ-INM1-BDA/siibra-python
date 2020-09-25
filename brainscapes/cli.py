@@ -2,9 +2,7 @@
 
 import click
 import logging
-from brainscapes import parcellations, spaces, atlases
-from brainscapes.features import modalities,pools,gene_names
-from brainscapes.features.genes import AllenBrainAtlasQuery
+from brainscapes import parcellations, spaces, atlases, features as features_
 from brainscapes.termplot import FontStyles as style
 
 logging.basicConfig(level=logging.INFO)
@@ -37,17 +35,24 @@ def complete_spaces(ctx, args, incomplete):
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
     if len(incomplete)>0:
-        return [a for a in gene_names.keys() 
+        return [a for a in features_.gene_names.keys() 
                 if a.startswith(incomplete)]
     else:
         return ""
 
-def complete_feature_modalities(ctx, args, incomplete):
-    """ auto completion for feature types """
-    return [m for m in modalities
+def complete_regional_modalities(ctx, args, incomplete):
+    """ auto completion for regional feature types """
+    return [m for m in features_.modalities
             if m.startswith(incomplete) 
-            and pools[m][0]._FEATURETYPE
-            and ]
+            and features_.feature.GlobalFeature 
+            not in features_.classes[m].__bases__ ] + ['RegionProps']
+
+def complete_global_modalities(ctx, args, incomplete):
+    """ auto completion for global feature types """
+    return [m for m in features_.modalities
+            if m.startswith(incomplete) 
+            and features_.feature.GlobalFeature 
+            in features_.classes[m].__bases__ ]
 
 # ---- Main command ----
 
@@ -90,13 +95,13 @@ def brainscapes(ctx,parcellation,space):
 
 @brainscapes.group()
 @click.pass_context
-def hierarchy(ctx):
+def regions(ctx):
     """
     Work with the region hierarchy of the selected parcellation.
     """
     pass
 
-@hierarchy.command()
+@regions.command()
 @click.argument('searchstring', type=click.STRING)
 @click.option('-i','--case-insensitive',is_flag=True,
         help="Ignore case when searching")
@@ -110,7 +115,7 @@ def search(ctx,searchstring,case_insensitive):
     for m in matches:
         print(m.name)
 
-@hierarchy.command()
+@regions.command()
 @click.pass_context
 def tree(ctx):
     """
@@ -123,7 +128,7 @@ def tree(ctx):
 
 @brainscapes.command()
 @click.argument('modality', type=click.STRING, 
-        autocompletion=complete_modalities )
+        autocompletion=complete_regional_modalities)
 @click.argument('region', type=click.STRING,
         autocompletion=complete_regions )
 @click.option('-g','--gene', type=click.STRING, default=None,
@@ -131,34 +136,40 @@ def tree(ctx):
 @click.pass_context
 def features(ctx,modality,region,gene):
     """
-    Retrieve region specific features.
+    Retrieve region specific data features.
     """
     atlas = ctx.obj['atlas']
     atlas.select_region(region)
+    print(atlas.selected_region)
 
-    if modality=='GeneExpression':
+    if modality=='RegionProps':
+        space = ctx.obj['space']
+        results = [atlas.regionprops(space)]
+        print(style.BOLD+"Region properties"+style.END)
+    elif modality=='GeneExpression':
         if gene is None:
             print("You need to specify a gene with the -g option when looking up gene expressions.")
             return 1
-        features = atlas.query_data(modality,gene=gene)
+        results = atlas.query_data(modality,gene=gene)
+        print(style.BOLD+"Gene Expressions"+style.END)
     else:
-        features = atlas.query_data(modality)
-    for feature in features:
-        print(feature)
+        results = atlas.query_data(modality)
+        print(style.BOLD+"{} features".format(modality)+style.END)
+
+    print(style.END)
+    for result in results:
+        print(result)
 
 @brainscapes.command()
-@click.argument('region', type=click.STRING,
-        autocompletion=complete_regions )
+@click.argument('modality', type=click.STRING, 
+        autocompletion=complete_global_modalities)
 @click.pass_context
-def regionprops(ctx,region):
+def globals(ctx,modality):
     """
-    Return spatial properties of the region
+    Retrieve global data features.
     """
-    atlas,space = [ctx.obj[t] for t in ['atlas','space']]
-    atlas.select_region(region)
-    props = atlas.regionprops(space)
-    print(style.BOLD)
-    print("Region properties of {}".format(atlas.selected_region))
-    print(style.END)
-    print(props)
+    atlas = ctx.obj['atlas']
+    features = atlas.query_data(modality)
+    for feature in features:
+        print(feature)
 
