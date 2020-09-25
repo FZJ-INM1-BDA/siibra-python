@@ -4,7 +4,8 @@ import warnings
 from brainscapes import retrieval
 from brainscapes.features.feature import RegionalFeature,GlobalFeature,FeaturePool
 from brainscapes import parcellations
-from brainscapes import termplot 
+from brainscapes import termplot
+from brainscapes.termplot import FontStyles as style
 
 class ConnectivityProfile(RegionalFeature):
 
@@ -35,11 +36,11 @@ class ConnectivityProfile(RegionalFeature):
             profile = self.profile
             vrange = self.globalrange
         calib = termplot.calibrate(vrange, self.column_names)
-        return "\n".join([
-            termplot.format_row(self.column_names[i],profile[i],calib)
-            for i in np.argsort(profile)
-            if self.profile[i]>0
-            ])
+        return "\n".join([style.BOLD+'Connectivity profile of "{}"'.format(self.region)+style.END] 
+                + [ termplot.format_row(self.column_names[i],profile[i],calib)
+                    for i in np.argsort(profile)
+                    if self.profile[i]>0
+                    ])
 
 class ConnectivityProfileParser(FeaturePool):
 

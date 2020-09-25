@@ -31,7 +31,7 @@ def complete_spaces(ctx, args, incomplete):
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
     if len(incomplete)>0:
-        return [a for a in features_.gene_names.keys() 
+        return [a for a in dir(features_.gene_names)
                 if a.startswith(incomplete)]
     else:
         return ""
@@ -73,8 +73,6 @@ def brainscapes(ctx,parcellation,space):
             print(str(e))
             logger.error("No such parcellation available: "+parcellation)
             exit(1)
-    logger.info('Selected parcellation "{}"'.format(
-        ctx.obj['atlas'].selected_parcellation.name))
 
     if space is None:
         ctx.obj['space'] = atlas.spaces[0]
@@ -136,25 +134,29 @@ def features(ctx,modality,region,gene):
     """
     atlas = ctx.obj['atlas']
     atlas.select_region(region)
-    print(atlas.selected_region)
 
+    header = ""
     if modality=='RegionProps':
         space = ctx.obj['space']
         results = [atlas.regionprops(space)]
-        print(style.BOLD+"Region properties"+style.END)
+        header = style.BOLD+"Region properties"+style.END
     elif modality=='GeneExpression':
         if gene is None:
             print("You need to specify a gene with the -g option when looking up gene expressions.")
             return 1
         results = atlas.query_data(modality,gene=gene)
-        print(style.BOLD+"Gene Expressions"+style.END)
+        header = style.BOLD+"Gene Expressions"+style.END
     else:
         results = atlas.query_data(modality)
-        print(style.BOLD+"{} features".format(modality)+style.END)
 
-    print(style.END)
+    if len(results)>0:
+        print(header)
+    else:
+        print('No "{}" features found for "{}".'.format(
+            modality,region))
     for result in results:
         print(result)
+        print()
 
 @brainscapes.command()
 @click.argument('modality', type=click.STRING, 

@@ -72,7 +72,7 @@ class RegionProps(RegionalFeature):
         Formats the main attributes as a multiline string.
         """
         return "\n".join(["{}{:>15}{} {}".format(
-            style.BOLD,label,style.END,self.attrs[label])
+            style.ITALIC,label,style.END,self.attrs[label])
             for label in self.main_props])
 
     def __contains__(self,index):
