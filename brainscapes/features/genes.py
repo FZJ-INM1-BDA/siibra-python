@@ -1,12 +1,8 @@
 from xml.etree import ElementTree
-import logging
 import numpy as np
 import json
-from brainscapes import retrieval
-from brainscapes import spaces
+from brainscapes import retrieval,spaces,logger
 from brainscapes.features.feature import SpatialFeature,FeaturePool
-
-logging.basicConfig(level=logging.INFO)
 
 class GeneExpression(SpatialFeature):
     """
@@ -102,7 +98,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         self.gene = gene
 
         # get probe ids for the given gene
-        logging.info("Retrieving probe ids for gene {}".format(gene))
+        logger.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
         response = retrieval.cached_get(url)
         root = ElementTree.fromstring(response)

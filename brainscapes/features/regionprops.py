@@ -25,6 +25,7 @@ class RegionProps(RegionalFeature):
         tmpl = atlas.get_template(space)
         mask = atlas.get_mask(space)
         M = np.asanyarray(mask.dataobj) 
+        self.attrs = {}
 
         # Setup coordinate units 
         # for now we expect isotropic physical coordinates given in mm for the
@@ -41,8 +42,10 @@ class RegionProps(RegionalFeature):
         # spatial props in physical coordinates, and return connected componente
         # as a list 
         rprops = measure.regionprops(M)
+        if len(rprops)==0:
+            logger.warn('Zero size area - constructing an empty region property object .')
+            return 
         assert(len(rprops)==1)
-        self.attrs = {}
         for prop in rprops[0]:
             try:
                 self.attrs[prop] = rprops[0][prop]
@@ -64,6 +67,9 @@ class RegionProps(RegionalFeature):
         return list(self.attrs.keys())
 
     def __str__(self):
+        """
+        Formats the main attributes as a multiline string.
+        """
         return "\n".join(["{}{:>15}{} {}".format(
             style.BOLD,label,style.END,self.attrs[label])
             for label in self.main_props])
@@ -76,6 +82,5 @@ class RegionProps(RegionalFeature):
             return self.attrs[name]
         else:
             raise AttributeError("No such attribute: {}".format(name))
-
 
 

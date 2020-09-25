@@ -1,12 +1,10 @@
 import io
-import logging
-
 import pandas as pd
 import PIL.Image as Image
 from os import path
 from collections import defaultdict
 
-from brainscapes import kg_service, retrieval
+from brainscapes import kg_service, retrieval, logger
 from brainscapes.authentication import Authentication
 from brainscapes.features.feature import RegionalFeature,FeaturePool
 from brainscapes.termplot import FontStyles as style
@@ -39,7 +37,7 @@ class ReceptorDistribution(RegionalFeature):
                         bytestream = self._get_bytestream_from_file(fname)
                         self.receptors[receptor_type]['profile'] = pd.read_csv(bytestream, sep='\t')
                 else:
-                    logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix, fname))
+                    logger.debug('Expected .tsv for profile, got {}: {}'.format(suffix, fname))
 
             # Receive autoradiographs, if any
             if '_ar_' in fname:

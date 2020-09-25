@@ -1,8 +1,35 @@
 import json
 from os import path
 from importlib.resources import contents as pkg_contents,path as pkg_path
-import logging
-logging.basicConfig(level=logging.INFO)
+from . import logger
+
+class Glossary:
+    """
+    A simple class that provides enum-like siple autocompletion for an
+    arbitrary list of names.
+    """
+
+    def __init__(self,words):
+        self.words = list(words)
+
+    def __dir__(self):
+        return self.words
+
+    def __str__(self):
+        return "\n".join(self.words)
+
+    def __iter__(self):
+        return (w for w in self.words)
+
+    def __contains__(self,index):
+        return index in self.__dir__()
+
+    def __getattr__(self,name):
+        if name in self.words:
+            return name
+        else:
+            raise AttributeError("No such term: {}".format(name))
+
 
 class Registry:
     """
@@ -16,7 +43,7 @@ class Registry:
         Populate a new registry from the json files in the package path, using
         the "from_json" function of the provided class as hook function.
         """
-        logging.debug("Initializing registry of type {} for {}".format(
+        logger.debug("Initializing registry of type {} for {}".format(
             cls,pkgpath))
         object_hook = cls.from_json
         self.items = []
@@ -31,7 +58,7 @@ class Registry:
                         obj = json.load(f,object_hook=object_hook)
                         key = create_key(str(obj))
                         identifier = obj.id
-                        logging.debug("Defining object '{}' with key '{}'".format( obj,key))
+                        logger.debug("Defining object '{}' with key '{}'".format( obj,key))
                         self.items.append(obj)
                         self.by_key[key] = len(self.items)-1
                         self.by_id[identifier] = len(self.items)-1

@@ -1,4 +1,3 @@
-import logging
 import nibabel as nib
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
@@ -6,13 +5,13 @@ import numpy as np
 from collections import defaultdict
 from functools import lru_cache
 
-from brainscapes.region import construct_tree, Region
-from brainscapes.features.regionprops import RegionProps
-from brainscapes.retrieval import download_file 
-from brainscapes.registry import Registry,create_key
-from brainscapes import parcellations, spaces
-from brainscapes.space import Space
-from brainscapes import features
+from . import logger
+from .region import construct_tree, Region
+from .features.regionprops import RegionProps
+from .retrieval import download_file 
+from .registry import Registry,create_key,Glossary
+from . import parcellations, spaces, features
+from .space import Space
 
 class Atlas:
 
@@ -22,13 +21,16 @@ class Atlas:
         self.name = name
         self.id = identifier
         self.key = create_key(name)
+
+        # no parcellation initialized at construction
         self.regiontree = None
         self.parcellations = [] # add with _add_parcellation
         self.spaces = [] # add with _add_space
 
-        # nothing selected yet at construction time
+        # nothing selected yet at construction 
         self.selected_region = None
         self.selected_parcellation = None 
+        self.regionnames = None
 
     def _add_space(self, space):
         self.spaces.append(space)
@@ -71,13 +73,16 @@ class Atlas:
         """
         parcellation_obj = parcellations[parcellation]
         if parcellation_obj not in self.parcellations:
-            logging.error('The requested parcellation is not supported by the selected atlas.')
-            logging.error('    Parcellation:  '+parcellation_obj.name)
-            logging.error('    Atlas:         '+self.name)
-            logging.error(parcellation_obj.id,self.parcellations)
+            logger.error('The requested parcellation is not supported by the selected atlas.')
+            logger.error('    Parcellation:  '+parcellation_obj.name)
+            logger.error('    Atlas:         '+self.name)
+            logger.error(parcellation_obj.id,self.parcellations)
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.regiontree = construct_tree(self.selected_parcellation)
+        self.regionnames = Glossary([c.key 
+            for r in self.regiontree.iterate()
+            for c in r.children ])
 
     def get_maps(self, space):
         """
@@ -99,11 +104,11 @@ class Atlas:
         hemisphere" and "right hemisphere".
         """
         if space.id not in self.selected_parcellation.maps.keys():
-            logging.error('The selected atlas parcellation is not available in the requested space.')
-            logging.error('    Selected parcellation: {}'.format(self.selected_parcellation.name))
-            logging.error('    Requested space:       {}'.format(space))
+            logger.error('The selected atlas parcellation is not available in the requested space.')
+            logger.error('    Selected parcellation: {}'.format(self.selected_parcellation.name))
+            logger.error('    Requested space:       {}'.format(space))
             return None
-        print('Loading 3D map for space ', space)
+        logger.debug('Loading 3D map for space {}'.format(space))
         mapurl = self.selected_parcellation.maps[space.id]
 
         maps = {}
@@ -160,7 +165,7 @@ class Atlas:
             A region from the region hierarchy (could be any of the root, a
             subtree, or a leaf)
         """
-        print("Computing the mask for {} in {}".format(
+        logger.debug("Computing the mask for {} in {}".format(
             regiontree.name, space))
         maps = self.get_maps(space)
         mask = affine = header = None 
@@ -199,11 +204,11 @@ class Atlas:
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
         if space not in self.spaces:
-            logging.error('The selected atlas does not support the requested reference space.')
-            logging.error('    Requested space:       {}'.format(space.name))
+            logger.error('The selected atlas does not support the requested reference space.')
+            logger.error('    Requested space:       {}'.format(space.name))
             return None
 
-        print('Loading template image for space',space.name)
+        logger.debug('Loading template image for space {}'.format(space.name))
         filename = download_file( space.url, ziptarget=space.ziptarget )
         if filename is not None:
             return nib.load(filename)
@@ -237,7 +242,7 @@ class Atlas:
                 selected = self.regiontree.find(region)
         if selected is not None:
             self.selected_region = selected
-            logging.info('Selected region {}'.format(self.selected_region.name))
+            logger.info('Selected region {}'.format(self.selected_region.name))
             return True
         else:
             return False

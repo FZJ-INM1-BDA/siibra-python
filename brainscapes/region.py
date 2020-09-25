@@ -54,16 +54,6 @@ class Region(anytree.NodeMixin):
         if children is not None: 
             self.children = children
 
-    def get_spatial_props(self, space):
-        # TODO implement this
-        return {}
-        # return {
-        #     'centroid': '',
-        #     'volume': '',
-        #     'surface': ''
-        # }
-
-
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]
 

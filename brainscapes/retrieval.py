@@ -3,7 +3,7 @@ from zipfile import ZipFile
 import requests
 import hashlib
 from os import path
-import logging
+from . import logger
 
 # TODO unifiy download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
@@ -28,7 +28,7 @@ def __compile_cachedir():
     return cachedir
 
 CACHEDIR = __compile_cachedir()
-logging.debug('Using cache: {}'.format(CACHEDIR))
+logger.debug('Using cache: {}'.format(CACHEDIR))
 
 
 def download_file(url, ziptarget=None, targetname=None ):
@@ -121,7 +121,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
 
     if path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
-        logging.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
+        logger.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'rb') as f:
             r = f.read()
             return(r)

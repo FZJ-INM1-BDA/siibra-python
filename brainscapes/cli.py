@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-
 import click
-import logging
-from brainscapes import parcellations, spaces, atlases, features as features_
+from brainscapes import logger, parcellations, spaces, atlases, features as features_
 from brainscapes.termplot import FontStyles as style
-
-logging.basicConfig(level=logging.INFO)
 
 # ---- Autocompletion functions ----
 
@@ -75,9 +71,9 @@ def brainscapes(ctx,parcellation,space):
             atlas.select_parcellation(parcellation)
         except Exception as e:
             print(str(e))
-            logging.error("No such parcellation available: "+parcellation)
+            logger.error("No such parcellation available: "+parcellation)
             exit(1)
-    logging.info('Selected parcellation "{}"'.format(
+    logger.info('Selected parcellation "{}"'.format(
         ctx.obj['atlas'].selected_parcellation.name))
 
     if space is None:
@@ -86,10 +82,10 @@ def brainscapes(ctx,parcellation,space):
         if spaces.obj(space) in atlas.spaces:
             ctx.obj['space'] = spaces.obj(space)
         else:
-            logging.error("Space {} is not supported by atlas {}.".format(
+            logger.error("Space {} is not supported by atlas {}.".format(
                     atlas,space))
             exit(1)
-    logging.info('Using template space "{}"'.format(ctx.obj['space']))
+    logger.info('Using template space "{}"'.format(ctx.obj['space']))
 
 # ---- Commands for working with the region hierarchy ----
 

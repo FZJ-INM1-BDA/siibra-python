@@ -6,7 +6,7 @@ import io
 import PIL.Image as Image
 import pandas as pd
 from os import path
-import logging
+from brainscapes import logger
 
 access_token='eyJhbGciOiJSUzI1NiIsImtpZCI6ImJicC1vaWRjIn0.eyJleHAiOjE2MDAzNjczOTAsInN1YiI6IjI1NTIzMCIsImF1ZCI6WyIzMjMxNDU3My1hMjQ1LTRiNWEtYjM3MS0yZjE1YWNjNzkxYmEiXSwiaXNzIjoiaHR0cHM6XC9cL3NlcnZpY2VzLmh1bWFuYnJhaW5wcm9qZWN0LmV1XC9vaWRjXC8iLCJqdGkiOiI2YTBmNjU3NS05MWI3LTQ5NmUtODFlZi0zNGM3NWY1NmU0NjciLCJpYXQiOjE2MDAzNTI5OTAsImhicF9rZXkiOiJlZDQ3ZWE3NjgxYTVjMTdjYzIyZjM1MmYxODVlZWZjYWYwOWI0MDUyIn0.ql_u3OXNuIT0nNGtmZimXjXs0TQDHIcbJs0i5Hbp3MVgKDwTlzBLFGm5OcMpk8fJz98UBOnoL-NQChxThDVoIKnD5OPnHXyQoE-WFRRci_FJmNWGsByndIr6Uc48qzip14Fu61DaqwkX52h1wh-DS-hMrlHY58hy1L2Sx-Uaa_I'
 namespace='Minds'
@@ -45,7 +45,7 @@ class ReceptorData:
                         bytestream = io.BytesIO(requests.get(fname).content)
                         self.profiles[receptor_type] = pd.read_csv(bytestream,sep='\t')
                 else:
-                    logging.debug('Expected .tsv for profile, got {}: {}'.format(suffix,fname))
+                    logger.debug('Expected .tsv for profile, got {}: {}'.format(suffix,fname))
 
             if '_ar_' in fname:
                 receptor_type,basename = fname.split("/")[-2:]
@@ -113,7 +113,7 @@ if __name__ == "__main__":
                         print(name,receptors.receptor_label[name])
                     continue
                 except Exception as e:
-                    logging.info('Could not generate receptor data from the response.')
+                    logger.info('Could not generate receptor data from the response.')
                     print(str(e))
                     continue
         else:
