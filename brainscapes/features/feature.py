@@ -87,7 +87,7 @@ class FeaturePool(ABC):
     _FEATURETYPE = Feature
 
     def __init__(self):
-        self._features = []
+        self.features = []
 
     def pick_selection(self,atlas):
         """
@@ -95,17 +95,17 @@ class FeaturePool(ABC):
         the selected region of the given atlas object.
         """
         selection = []
-        for feature in self._features:
+        for feature in self.features:
             if feature.matches(atlas):
                 selection.append(feature)
         return selection
 
     def __str__(self):
-        return "\n".join([str(f) for f in self._features])
+        return "\n".join([str(f) for f in self.features])
 
     def register(self,feature):
         assert(isinstance(feature,self._FEATURETYPE))
-        self._features.append(feature)
+        self.features.append(feature)
 
 
 class FeaturePoolRegistry:

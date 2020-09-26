@@ -84,21 +84,31 @@ class Region(anytree.NodeMixin):
         search_key : Bool (default: False)
             If true, the search will compare the region's key instead of name
             (the uppercase variant without special characters)
+
+        Yield
+        -----
+        list of matching regions
         """
         if search_key:
             if exact:
-                return anytree.search.find(self, 
+                result = anytree.search.find(self, 
                         lambda node: node.key==name)
             else:
-                return anytree.search.findall(self,
+                result = anytree.search.findall(self,
                         lambda node: name in node.key)
         else:
             if exact:
-                return anytree.search.find(self, 
+                result = anytree.search.find(self, 
                         lambda node: node.name==name)
             else:
-                return anytree.search.findall(self,
+                result = anytree.search.findall(self,
                         lambda node: name in node.name)
+        if isinstance(result,Region):
+            return [result]
+        elif result is None:
+            return []
+        else:
+            return result
 
     def __str__(self):
         return self.name

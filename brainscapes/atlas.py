@@ -239,17 +239,20 @@ class Atlas:
         True, if selection was successful, otherwise False.
         """
         if isinstance(region,Region):
-            selected = region
+            # argument is already a region object - use it
+            self.selected_region = region
         else:
+            # try to interpret argument as the key for a region 
             selected = self.regiontree.find(region,search_key=True)
-            if selected is None:
+            if len(selected)==0:
                 selected = self.regiontree.find(region)
-        if selected is not None:
-            self.selected_region = selected
-            logger.info('Selected region {}'.format(self.selected_region.name))
-            return True
-        else:
-            return False
+            if len(selected)==1:
+                self.selected_region = selected[0]
+            else:
+                logger.warn('Request region selection could not be identified: '+region)
+                return False
+        logger.info('Selected region {}'.format(self.selected_region.name))
+        return True
 
     def clear_selection(self):
         """
