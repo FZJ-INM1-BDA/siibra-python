@@ -308,14 +308,25 @@ class Atlas:
         Query data features for the currently selected region(s) by modality. 
         See brainscapes.features.modalities for available modalities.
         """
-        assert(modality in features.extractor_types.modalities)
         hits = []
+
+        if modality not in features.extractor_types.modalities:
+            logger.error("Cannot query features - no feature extractor known "\
+                    "for feature type {}.".format(modality))
+            return hits
+
+        if not self.selected_region:
+            logger.error("Not querying features - "\
+                    "Select a region first using 'select_region'")
+            return hits
+
         for cls in features.extractor_types[modality]:
             if modality=='GeneExpression':
                 extractor = cls(kwargs['gene'])
             else:
                 extractor = cls()
             hits.extend(extractor.pick_selection(self))
+
         return hits
 
     def regionprops(self,space,summarize=False):

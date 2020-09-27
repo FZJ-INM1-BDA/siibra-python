@@ -1,4 +1,5 @@
 from abc import ABC,abstractmethod
+from .. import logger
 
 class Feature(ABC):
     """ 
@@ -55,6 +56,9 @@ class RegionalFeature(Feature):
         Returns true if this feature is linked to the currently selected region
         in the atlas.
         """
+        if not atlas.selected_region:
+            logger.warn("No region selected in atlas - cannot filter features.")
+            return False
         matching_regions = atlas.selected_region.find(self.region,exact=False)
         for region in matching_regions:
             if atlas.region_selected(region):
