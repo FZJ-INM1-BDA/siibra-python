@@ -13,19 +13,19 @@ def get_bytestream_from_file(url):
     with open(fname, 'rb') as f:
         return io.BytesIO(f.read())
 
-def decode_tsv(url):
-    bytestream = get_bytestream_from_file(url)
-    header = bytestream.readline()
-    lines = bytestream.readlines() 
-    sep = b'{' if b'{' in lines[0] else b'\t' 
-    keys = [n.decode('utf8') for n in header.split(sep)] 
-    return  { l.split(sep)[0].decode('utf8') : dict(
-        zip(keys[1:], [v.decode('utf8') for v in l.split(sep)[1:]])) 
-        for l in lines }
+def unify_stringlist(L: list):
+    """ Adds asterisks to strings that appear multiple times, so the resulting
+    list has only unique strings but still the same length, order, and meaning. 
+    For example: 
+        unify_stringlist(['a','a','b','a','c']) -> ['a','a*','b','a**','c']
+    """
+    assert(all([isinstance(l,str) for l in L]))
+    return [L[i]+"*"*L[:i].count(L[i]) for i in range(len(L))]
 
 def edits1(word):
     """
-    All edits that are one edit away from `word`.
+    Produces a list of  all possible edits of a given word that can be produced
+    by applying a single character modification.
     From Peter Norvig, see http://norvig.com/spell-correct.html.
     """
     letters    = 'abcdefghijklmnopqrstuvwxyz'
@@ -36,6 +36,20 @@ def edits1(word):
     inserts    = [L + c + R               for L, R in splits for c in letters]
     return set(deletes + transposes + replaces + inserts)
 
+def decode_tsv(url):
+    bytestream = get_bytestream_from_file(url)
+    header = bytestream.readline()
+    lines = [l.strip() 
+            for l in bytestream.readlines() 
+            if len(l.strip())>0]
+    sep = b'{' if b'{' in lines[0] else b'\t' 
+    keys = unify_stringlist([n.decode('utf8').strip() 
+        for n in header.split(sep)])
+    assert(len(keys)==len(set(keys)))
+    return  { l.split(sep)[0].decode('utf8') : dict(
+        zip(keys, [v.decode('utf8').strip() for v in l.split(sep)])) 
+        for l in lines }
+
 
 class ReceptorDistribution(RegionalFeature):
 
@@ -45,6 +59,7 @@ class ReceptorDistribution(RegionalFeature):
         self.profiles = {}
         self.autoradiographs = {}
         self.fingerprint = None
+        self.profile_unit = None
         self.symbols = {}
 
         # find symbols first
@@ -62,8 +77,11 @@ class ReceptorDistribution(RegionalFeature):
                     rtype, basename = url.split("/")[-2:]
                     if rtype in basename:
                         data = decode_tsv(url)
+                        units = {list(v.values())[3] for v in data.values()}
+                        assert(len(units)==1)
+                        self.profile_unit=next(iter(units))
                         # column headers are sometimes messed up, so we fix the 2nd value
-                        densities = {int(k):float(list(v.values())[1]) 
+                        densities = {int(k):float(list(v.values())[2]) 
                                 for k,v in data.items()
                                 if k.isnumeric()}
                         rtype = self._check_rtype(rtype)
