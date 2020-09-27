@@ -296,16 +296,15 @@ class Atlas:
         """
         Query data features for the currently selected region(s) by modality. 
         See brainscapes.features.modalities for available modalities.
-        TODO pools should persist during runtime, not re-generated in each call.
         """
-        assert(modality in features.pools.modalities)
+        assert(modality in features.extractors.modalities)
         hits = []
-        for Pool in features.pools[modality]:
+        for cls in features.extractors[modality]:
             if modality=='GeneExpression':
-                pool = Pool(kwargs['gene'])
+                extractor = cls(kwargs['gene'])
             else:
-                pool = Pool()
-            hits.extend(pool.pick_selection(self))
+                extractor = cls()
+            hits.extend(extractor.pick_selection(self))
         return hits
 
     def regionprops(self,space,summarize=False):

@@ -6,12 +6,12 @@ def __init__():
     """
     from .receptors import ReceptorQuery
     from .genes import AllenBrainAtlasQuery
-    from .connectivity import ConnectivityProfileParser, ConnectivityMatrixParser
-    from .feature import FeaturePoolRegistry
-    pools = FeaturePoolRegistry() 
-    return [ pools,
+    from .connectivity import ConnectivityProfileExtractor, ConnectivityMatrixExtractor
+    from .feature import FeatureExtractorRegistry
+    extractors = FeatureExtractorRegistry() 
+    return [ extractors,
             Glossary(AllenBrainAtlasQuery.GENE_NAMES.keys()),
-            Glossary(pools.modalities.keys()) ]
+            Glossary(extractors.modalities.keys()) ]
 
-pools,gene_names,modalities = __init__()
-classes = {name:pools._pools[name][0]._FEATURETYPE for name in pools._pools.keys()}
+extractors,gene_names,modalities = __init__()
+classes = {name:extractors._extractors[name][0]._FEATURETYPE for name in extractors._extractors.keys()}

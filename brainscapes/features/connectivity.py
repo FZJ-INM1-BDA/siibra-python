@@ -2,7 +2,7 @@ import json
 import numpy as np
 import warnings
 from brainscapes import retrieval
-from brainscapes.features.feature import RegionalFeature,GlobalFeature,FeaturePool
+from brainscapes.features.feature import RegionalFeature,GlobalFeature,FeatureExtractor
 from brainscapes import parcellations
 from brainscapes import termplot
 from brainscapes.termplot import FontStyles as style
@@ -42,7 +42,7 @@ class ConnectivityProfile(RegionalFeature):
                     if self.profile[i]>0
                     ])
 
-class ConnectivityProfileParser(FeaturePool):
+class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
     _SOURCES = {
@@ -51,8 +51,8 @@ class ConnectivityProfileParser(FeaturePool):
 
     def __init__(self):
 
-        FeaturePool.__init__(self)
-        for fname,url in ConnectivityProfileParser._SOURCES.items():
+        FeatureExtractor.__init__(self)
+        for fname,url in ConnectivityProfileExtractor._SOURCES.items():
 
             minval = maxval = 0
             new_profiles = []
@@ -94,7 +94,7 @@ class ConnectivityMatrix(GlobalFeature):
                 self.parcellation)
 
 
-class ConnectivityMatrixParser(FeaturePool):
+class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
     _SOURCES = {
@@ -103,8 +103,8 @@ class ConnectivityMatrixParser(FeaturePool):
 
     def __init__(self):
 
-        FeaturePool.__init__(self)
-        for fname,url in ConnectivityMatrixParser._SOURCES.items():
+        FeatureExtractor.__init__(self)
+        for fname,url in ConnectivityMatrixExtractor._SOURCES.items():
 
             profiles = []
             with open(retrieval.download_file(url,targetname=fname),'r') as f:
@@ -123,6 +123,6 @@ class ConnectivityMatrixParser(FeaturePool):
 
 if __name__ == '__main__':
 
-    profilepool = ConnectivityProfileParser()
-    matrixpool = ConnectivityMatrixParser()
+    profileextractor = ConnectivityProfileExtractor()
+    matrixextractor = ConnectivityMatrixExtractor()
 

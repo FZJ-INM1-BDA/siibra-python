@@ -2,7 +2,7 @@ from xml.etree import ElementTree
 import numpy as np
 import json
 from brainscapes import retrieval,spaces,logger
-from brainscapes.features.feature import SpatialFeature,FeaturePool
+from brainscapes.features.feature import SpatialFeature,FeatureExtractor
 
 class GeneExpression(SpatialFeature):
     """
@@ -41,7 +41,7 @@ class GeneExpression(SpatialFeature):
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
 
-class AllenBrainAtlasQuery(FeaturePool):
+class AllenBrainAtlasQuery(FeatureExtractor):
     """
     Interface to Allen Human Brain Atlas Gene Expressions
     TODO add Allen copyright clause
@@ -94,7 +94,7 @@ class AllenBrainAtlasQuery(FeaturePool):
         TODO check that this is only called for ICBM space
         """
 
-        FeaturePool.__init__(self)
+        FeatureExtractor.__init__(self)
         self.gene = gene
 
         # get probe ids for the given gene
@@ -183,4 +183,4 @@ class AllenBrainAtlasQuery(FeaturePool):
 
 if __name__ == "__main__":
 
-    featurepool = AllenBrainAtlasQuery('GABARAPL2')
+    featureextractor = AllenBrainAtlasQuery('GABARAPL2')
