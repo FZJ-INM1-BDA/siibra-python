@@ -24,8 +24,8 @@ def decode_tsv(url):
         for l in lines }
 
 def edits1(word):
-    """All edits that are one edit away from `word`.
-
+    """
+    All edits that are one edit away from `word`.
     From Peter Norvig, see http://norvig.com/spell-correct.html.
     """
     letters    = 'abcdefghijklmnopqrstuvwxyz'
@@ -38,7 +38,6 @@ def edits1(word):
 
 
 class ReceptorDistribution(RegionalFeature):
-
 
     def __init__(self, region, file_urls):
 
@@ -82,8 +81,15 @@ class ReceptorDistribution(RegionalFeature):
 
             # receive fingerprint, if any
             if '_fp_' in url:
-                self.fingerprint = decode_tsv(url)
+                self.fingerprint = decode_tsv(url) 
 
+    def __bool__(self):
+        nonempty = any([ 
+            len(self.profiles)>0,
+            len(self.autoradiographs)>0,
+            self.fingerprint is not None])
+        return nonempty
+    __nonzero__ = __bool__
 
     def _check_rtype(self,rtype):
         """ 
@@ -105,12 +111,20 @@ class ReceptorDistribution(RegionalFeature):
         
 
     def __str__(self):
-        """ TODO improve """
+        """ Outputs a small table of available profiles and autoradiographs. """
+        if len(self.profiles)+len(self.autoradiographs)==0:
+                return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
-                [style.BOLD+"Receptor density measurements for area {}".format(self.region)+style.END] +
-                [style.ITALIC+"{!s:20} {!s:>10} {!s:>20}".format('Type','profile','autoradiograph')+style.END] +
-                ["{!s:20} {!s:>10} {!s:>20}".format(k,'profile' in D.keys(),'autoradiograph' in D.keys())
-                    for k,D in self.profiles.items()])
+                [style.BOLD+"Receptor densities for area {}".format(self.region)+style.END] +
+                [style.ITALIC+"{!s:20} {!s:>10} {!s:>20}".format(
+                    'Type','profile','autoradiograph')+style.END] +
+                ["{!s:20} {!s:>10} {!s:>20}".format(
+                    rtype,
+                    'x'*(rtype in self.profiles),
+                    'x'*(rtype in self.autoradiographs))
+                    for rtype in self.symbols.keys()
+                    if (rtype in self.profiles 
+                        or rtype in self.autoradiographs)] )
 
 
 class ReceptorQuery(FeatureExtractor):
@@ -126,7 +140,9 @@ class ReceptorQuery(FeatureExtractor):
                     for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]
             for region_name in region_names:
                 file_urls = kg_result["https://schema.hbp.eu/myQuery/v1.0.0"]
-                self.register(ReceptorDistribution(region_name,file_urls))
+                feature = ReceptorDistribution(region_name,file_urls)
+                if feature:
+                    self.register(feature)
 
 
 if __name__ == '__main__':
