@@ -104,14 +104,20 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
-        if space.id not in self.selected_parcellation.maps.keys():
+        if space.id not in self.selected_parcellation.maps:
             logger.error('The selected atlas parcellation is not available in the requested space.')
-            logger.error('    Selected parcellation: {}'.format(self.selected_parcellation.name))
-            logger.error('    Requested space:       {}'.format(space))
+            logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
+            logger.error('- Requested space: {}'.format(space))
             return None
-        logger.debug('Loading 3D map for space {}'.format(space))
-        mapurl = self.selected_parcellation.maps[space.id]
 
+        mapurl = self.selected_parcellation.maps[space.id]
+        if not mapurl:
+            logger.error('Downloading parcellation maps for the requested reference space is not yet supported.')
+            logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
+            logger.error('- Requested space: {}'.format(space))
+            return None
+
+        logger.debug('Loading 3D map for space {}'.format(space))
         maps = {}
         if type(mapurl) is dict:
             # Some maps are split across multiple files, e.g. separated per
@@ -209,7 +215,12 @@ class Atlas:
         """
         if space not in self.spaces:
             logger.error('The selected atlas does not support the requested reference space.')
-            logger.error('    Requested space:       {}'.format(space.name))
+            logger.error('- Atlas: {}'.format(self.name))
+            return None
+
+        if not space.url:
+            logger.error('Downloading the template image for the requested reference space is not yet supported.')
+            logger.error('- Requested space: {}'.format(space.name))
             return None
 
         logger.debug('Loading template image for space {}'.format(space.name))
@@ -343,8 +354,6 @@ if __name__ == '__main__':
 
     atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
 
-    # atlas.get_maps('mySpace')
-    # atlas.get_template("template")
     print(atlas.regiontree)
     print('*******************************')
     print(atlas.regiontree.find('hOc1'))
