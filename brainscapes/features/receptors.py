@@ -2,10 +2,11 @@ import io
 import PIL.Image as Image
 from os import path
 
-from brainscapes import kg_service, retrieval, logger
-from brainscapes.authentication import Authentication
-from brainscapes.features.feature import RegionalFeature,FeatureExtractor
-from brainscapes.termplot import FontStyles as style
+from .feature import RegionalFeature
+from .extractor import FeatureExtractor
+from ..authentication import Authentication
+from ..termplot import FontStyles as style
+from .. import ebrains, retrieval, logger
 
 def get_bytestream_from_file(url):
     fname = retrieval.download_file(url)
@@ -119,7 +120,7 @@ class ReceptorQuery(FeatureExtractor):
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        kg_query = kg_service.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
+        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
         for kg_result in kg_query['results']:
             region_names = [e['https://schema.hbp.eu/myQuery/name'] 
                     for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]

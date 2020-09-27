@@ -1,9 +1,10 @@
-from .feature import RegionalFeature
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
-from ..termplot import FontStyles as style
+
+from .feature import RegionalFeature
 from .. import logger
+from ..termplot import FontStyles as style
 
 class RegionProps(RegionalFeature):
     """

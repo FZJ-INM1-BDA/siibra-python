@@ -1,4 +1,4 @@
-from brainscapes.registry import create_key
+from brainscapes.commons import create_key
 from brainscapes import parcellations,spaces
 from brainscapes.retrieval import get_json_from_url
 import anytree
@@ -32,7 +32,7 @@ class Region(anytree.NodeMixin):
     def __init__(self, definition, parcellation, parent=None, children=None):
         """
         Constructs a region object from its definition as given in the
-        brainscapes parcellation definitions.
+        brainscapes parcellation configurations.
 
         Parameters
         ----------

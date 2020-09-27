@@ -1,4 +1,5 @@
-from .registry import Registry,create_key
+from .commons import create_key
+from .config import ConfigurationRegistry
 
 class Space:
 
@@ -26,5 +27,5 @@ class Space:
                 return Space(obj['@id'], obj['name'], obj['templateUrl'])
         return obj
 
-REGISTRY = Registry(
-        'brainscapes.definitions.spaces', Space )
+REGISTRY = ConfigurationRegistry(
+        'brainscapes.configurations.spaces', Space )

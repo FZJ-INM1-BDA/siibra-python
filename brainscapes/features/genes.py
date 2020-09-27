@@ -1,8 +1,9 @@
 from xml.etree import ElementTree
 import numpy as np
 import json
-from brainscapes import retrieval,spaces,logger
-from brainscapes.features.feature import SpatialFeature,FeatureExtractor
+from .. import retrieval,spaces,logger
+from .feature import SpatialFeature
+from .extractor import FeatureExtractor
 
 class GeneExpression(SpatialFeature):
     """

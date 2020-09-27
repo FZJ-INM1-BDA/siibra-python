@@ -1,4 +1,5 @@
-from .registry import Registry,create_key
+from .config import ConfigurationRegistry
+from .commons import create_key
 from collections import defaultdict
 
 class Parcellation:
@@ -53,5 +54,5 @@ class Parcellation:
             return p
         return obj
 
-REGISTRY = Registry(
-        'brainscapes.definitions.parcellations', Parcellation )
+REGISTRY = ConfigurationRegistry(
+        'brainscapes.configurations.parcellations', Parcellation )

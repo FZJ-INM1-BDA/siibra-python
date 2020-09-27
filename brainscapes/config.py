@@ -2,38 +2,14 @@ import json
 from os import path
 from importlib.resources import contents as pkg_contents,path as pkg_path
 from . import logger
+from .commons import create_key
 
-class Glossary:
+class ConfigurationRegistry:
     """
-    A very simple class that provides enum-like siple autocompletion for an
-    arbitrary list of names.
-    """
-    def __init__(self,words):
-        self.words = list(words)
-
-    def __dir__(self):
-        return self.words
-
-    def __str__(self):
-        return "\n".join(self.words)
-
-    def __iter__(self):
-        return (w for w in self.words)
-
-    def __contains__(self,index):
-        return index in self.__dir__()
-
-    def __getattr__(self,name):
-        if name in self.words:
-            return name
-        else:
-            raise AttributeError("No such term: {}".format(name))
-
-class Registry:
-    """
-    A class that registers semantic definitions from json files by converting
+    A class that registers configurations from json files by converting
     them to a specific object class based on the object construction function
-    provided as constructor parameter.
+    provided as constructor parameter. Used for atlas, space, and parcellation
+    configurations.
     """
 
     def __init__(self,pkgpath,cls):
@@ -95,13 +71,4 @@ class Registry:
             return self.items[self.by_key[name]]
         else:
             raise AttributeError("No such attribute: {}".format(name))
-
-
-def create_key(name):
-    """
-    Creates an uppercase identifier string that includes only alphanumeric
-    characters and underscore from a natural language name.
-    """
-    return "".join(e if e.isalnum() else '_' 
-        for e in name.strip()).upper()
 

@@ -5,12 +5,12 @@ import numpy as np
 from collections import defaultdict
 from functools import lru_cache
 
-from . import logger
+from . import parcellations, spaces, features, logger
 from .region import construct_tree, Region
 from .features.regionprops import RegionProps
 from .retrieval import download_file 
-from .registry import Registry,create_key,Glossary
-from . import parcellations, spaces, features
+from .commons import create_key,Glossary
+from .config import ConfigurationRegistry
 from .space import Space
 
 class Atlas:
@@ -297,9 +297,9 @@ class Atlas:
         Query data features for the currently selected region(s) by modality. 
         See brainscapes.features.modalities for available modalities.
         """
-        assert(modality in features.extractors.modalities)
+        assert(modality in features.extractor_types.modalities)
         hits = []
-        for cls in features.extractors[modality]:
+        for cls in features.extractor_types[modality]:
             if modality=='GeneExpression':
                 extractor = cls(kwargs['gene'])
             else:
@@ -336,8 +336,8 @@ class Atlas:
                     for region in self.selected_region.leaves} 
 
 
-REGISTRY = Registry(
-        'brainscapes.definitions.atlases', Atlas )
+REGISTRY = ConfigurationRegistry(
+        'brainscapes.configurations.atlases', Atlas )
 
 if __name__ == '__main__':
 

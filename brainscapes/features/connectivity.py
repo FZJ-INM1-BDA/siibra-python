@@ -1,11 +1,11 @@
 import json
 import numpy as np
 import warnings
-from brainscapes import retrieval
-from brainscapes.features.feature import RegionalFeature,GlobalFeature,FeatureExtractor
-from brainscapes import parcellations
-from brainscapes import termplot
-from brainscapes.termplot import FontStyles as style
+
+from .feature import RegionalFeature,GlobalFeature
+from .extractor import FeatureExtractor
+from ..termplot import FontStyles as style
+from .. import retrieval, termplot, parcellations
 
 class ConnectivityProfile(RegionalFeature):
 
