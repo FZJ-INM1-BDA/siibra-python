@@ -13,7 +13,6 @@ class RegionProps(RegionalFeature):
 
     # properties used when printing this feature
     main_props = [
-            'label',
             'centroid_mm',
             'volume_mm',
             'surface_mm',

@@ -8,6 +8,8 @@ from functools import lru_cache
 from . import parcellations, spaces, features, logger
 from .region import construct_tree, Region
 from .features.regionprops import RegionProps
+from .features.feature import GlobalFeature
+from .features import classes as feature_classes
 from .retrieval import download_file 
 from .commons import create_key,Glossary
 from .config import ConfigurationRegistry
@@ -315,9 +317,10 @@ class Atlas:
                     "for feature type {}.".format(modality))
             return hits
 
-        if not self.selected_region:
-            logger.error("Not querying features - "\
-                    "Select a region first using 'select_region'")
+        local_query = GlobalFeature not in feature_classes[modality].__bases__ 
+        if local_query and not self.selected_region:
+            logger.error("For non-global feature types "\
+                    "select a region using 'select_region' to query data.")
             return hits
 
         for cls in features.extractor_types[modality]:
