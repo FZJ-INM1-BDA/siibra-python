@@ -113,12 +113,15 @@ class Region(anytree.NodeMixin):
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return  "\n".join("%s%s" % (pre, node.name)
+                for pre, _, node in anytree.RenderTree(self))
+
     def print_tree(self):
         """
         Returns the hierarchy of all descendants of this region as a tree.
         """
-        print( "\n".join("%s%s" % (pre, node.name)
-                for pre, _, node in anytree.RenderTree(self)))
+        print(self.__repr__())
 
     def iterate(self):
         """
@@ -138,9 +141,6 @@ class Region(anytree.NodeMixin):
     # DISABLED, yields a circular import and not need yet
     #def get_receptor_data(self):
         #return receptors.get_receptor_data_by_region(self.name)
-
-    def __repr__(self):
-        return self.name
 
 
 if __name__ == '__main__':
