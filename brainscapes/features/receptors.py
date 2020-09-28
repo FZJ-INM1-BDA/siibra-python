@@ -134,12 +134,13 @@ class ReceptorDistribution(RegionalFeature):
                 return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
                 [style.BOLD+"Receptor densities for area {}".format(self.region)+style.END] +
-                [style.ITALIC+"{!s:20} {!s:>10} {!s:>20}".format(
-                    'Type','profile','autoradiograph')+style.END] +
-                ["{!s:20} {!s:>10} {!s:>20}".format(
+                [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
+                    'Type','profile','autoradiograph','fingerprint')+style.END] +
+                ["{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
                     rtype,
                     'x'*(rtype in self.profiles),
-                    'x'*(rtype in self.autoradiographs))
+                    'x'*(rtype in self.autoradiographs),
+                    'x'*(rtype in self.fingerprint))
                     for rtype in self.symbols.keys()
                     if (rtype in self.profiles 
                         or rtype in self.autoradiographs)] )
