@@ -45,6 +45,9 @@ def decode_tsv(url):
     sep = b'{' if b'{' in lines[0] else b'\t' 
     keys = unify_stringlist([n.decode('utf8').strip() 
         for n in header.split(sep)])
+    if any(k.endswith('*') for k in keys):
+        logger.debug('Redundant headers: {} in file {}'.format(
+            "/".join(keys), url))
     assert(len(keys)==len(set(keys)))
     return  { l.split(sep)[0].decode('utf8') : dict(
         zip(keys, [v.decode('utf8').strip() for v in l.split(sep)])) 
