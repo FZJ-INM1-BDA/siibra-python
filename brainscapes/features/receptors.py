@@ -120,13 +120,15 @@ class ReceptorDistribution(RegionalFeature):
         close_matches = list(edits1(rtype).intersection(self.symbols.keys()))
         if len(close_matches)==1:
             prev,new = rtype, close_matches[0]
-            logger.warn("Receptor type identifier '{}' replaced by '{}' for {}".format(
+            logger.debug("Receptor type identifier '{}' replaced by '{}' for {}".format(
                 prev,new, self.region))
             return new
         else:
             raise ValueError("Inconsistent rtype '{}' in {}".format(
                 rtype, self.region))
-        
+
+    def __repr__(self):
+        return self.__str__()
 
     def __str__(self):
         """ Outputs a small table of available profiles and autoradiographs. """

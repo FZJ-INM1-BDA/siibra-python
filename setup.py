@@ -17,7 +17,7 @@ setup(
         [console_scripts]
         brainscapes=cli:brainscapes
     ''',
-    packages=find_packages(include=['brainscapes']),
+    packages=find_packages(include=['.']),
     package_data={'brainscapes.configurations': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
     include_package_data=True,
     classifiers=[
@@ -25,6 +25,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['anytree','nibabel','clint','appdirs'],
+    install_requires=['anytree','nibabel','click','clint','appdirs'],
 )
 
