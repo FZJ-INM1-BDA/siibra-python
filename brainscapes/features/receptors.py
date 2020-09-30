@@ -176,7 +176,9 @@ class ReceptorDistribution(RegionalFeature):
                 prev,new, self.region))
             return new
         else:
-            logger.warn("Receptor type identifier '{}' is not listed in the corresponding symbol table. Please verify.".format(rtype))
+            logger.warn("Receptor type identifier '{}' is not listed in the \
+                    corresponding symbol table of region {}. Please verify.".format(
+                        rtype, self.region))
             return rtype
 
     def __repr__(self):
