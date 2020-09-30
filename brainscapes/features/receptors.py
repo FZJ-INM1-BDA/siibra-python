@@ -1,6 +1,7 @@
 import io
 import PIL.Image as Image
 from os import path
+from collections import namedtuple
 
 from .feature import RegionalFeature
 from .extractor import FeatureExtractor
@@ -54,6 +55,55 @@ def decode_tsv(url):
         for l in lines }
 
 
+Density = namedtuple('Density','name, mean, std, unit')
+
+class DensityFingerprint():
+
+    unit = None
+    labels = []
+    meanvals = []
+    stdvals = []
+    n = 0
+
+    def __init__(self,datadict):
+        """
+        Create a DensityFingerprint from a data dictionary coming from a
+        receptor fingerprint tsv file.
+        """
+        units = {list(v.values())[3] for v in datadict.values()}
+        assert(len(units)==1)
+        self.unit=next(iter(units))
+        self.labels=list(datadict.keys())
+        mean=[datadict[l]['density (mean)'] for l in self.labels]
+        std=[datadict[l]['density (sd)'] for l in self.labels]
+        self.meanvals=[float(m) if m.isnumeric() else 0 for m in mean]
+        self.stdvals=[float(s) if s.isnumeric() else 0 for s in std]
+
+    def __getitem__(self,index):
+        assert(index<len(self.labels))
+        return Density(
+                name=self.labels[index],
+                mean=self.meanvals[index],
+                std=self.stdvals[index],
+                unit=self.unit)
+
+    def __iter__(self):
+            self.n = 0
+            return self
+
+    def __next__(self):
+        if self.n < len(self.labels):
+            self.n += 1
+            return self[self.n-1]
+        else:
+            raise StopIteration
+
+    def __str__(self):
+        return "\n".join(
+                "{d.name:15.15s} {d.mean:8.1f} {d.unit} (+/-{d.std:5.1f})".format(d=d)
+                for d in iter(self))
+
+
 class ReceptorDistribution(RegionalFeature):
 
     def __init__(self, region, file_urls):
@@ -102,7 +152,8 @@ class ReceptorDistribution(RegionalFeature):
 
             # receive fingerprint, if any
             if '_fp_' in url:
-                self.fingerprint = decode_tsv(url) 
+                data = decode_tsv(url) 
+                self.fingerprint = DensityFingerprint(data)
 
     def __bool__(self):
         nonempty = any([ 

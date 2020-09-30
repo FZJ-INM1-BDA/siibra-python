@@ -1,4 +1,5 @@
 import brainscapes as bs
+bs.logger.setLevel("DEBUG")
 
 
 # find available cortical receptor profiles
@@ -7,6 +8,8 @@ profiles = {}
 symbols = {}
 for feature in receptor_extractor.features:
     symbols = {**symbols, **feature.symbols} # merge symbol definitions of receptors
+    print(feature.fingerprint)
+    break
     for rtype,profile in feature.profiles.items():
         assert(rtype in symbols)
         profiles[feature.region,rtype] = profile
