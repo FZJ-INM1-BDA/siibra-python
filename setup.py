@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="brainscapes",
-    version="0.0.1.dev1",
+    version="0.0.4.dev1",
     author="Vadim Marcenko",
     author_email="v.marcenko@fz-juelich.de",
     description="brainscapes client",
@@ -17,7 +17,8 @@ setup(
         [console_scripts]
         brainscapes=cli:brainscapes
     ''',
-    packages=find_packages(include=['.']),
+    packages=find_packages(include=['brainscapes', 'brainscapes.*']),
+    # packages=find_packages(include=['.']),
     package_data={'brainscapes.configurations': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
     include_package_data=True,
     classifiers=[
