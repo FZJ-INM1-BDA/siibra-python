@@ -139,8 +139,6 @@ class ReceptorDistribution(RegionalFeature):
                                 if k.isnumeric()}
                         rtype = self._check_rtype(rtype)
                         self.profiles[rtype] = densities
-                else:
-                    logger.debug('Expected .tsv for profile, got {}: {}'.format(suffix, url))
 
             # Receive autoradiographs, if any
             if '_ar_' in url:
@@ -178,8 +176,8 @@ class ReceptorDistribution(RegionalFeature):
                 prev,new, self.region))
             return new
         else:
-            raise ValueError("Inconsistent rtype '{}' in {}".format(
-                rtype, self.region))
+            logger.warn("Receptor type identifier '{}' is not listed in the corresponding symbol table. Please verify.".format(rtype))
+            return rtype
 
     def __repr__(self):
         return self.__str__()
