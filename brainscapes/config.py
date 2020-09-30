@@ -1,8 +1,12 @@
 import json
 from os import path
-from importlib.resources import contents as pkg_contents,path as pkg_path
 from . import logger
 from .commons import create_key
+try:
+    from importlib.resources import contents as pkg_contents,path as pkg_path
+except ImportError as e:
+    logger.info("importlib.resources not found. Will use importlib_resources instead.")
+    from importlib_resources import contents as pkg_contents,path as pkg_path
 
 class ConfigurationRegistry:
     """
