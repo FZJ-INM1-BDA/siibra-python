@@ -10,3 +10,5 @@ build
 brainscapes_client/*.nii
 .DS_Store
 *.swp
+docs/make.bat
+docs/_*
