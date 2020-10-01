@@ -277,9 +277,9 @@ class Atlas:
                 self.selected_region = selected[0]
             else:
                 logger.warn('Request region selection could not be identified: '+region)
-                return False
+                return None
         logger.info('Selected region {}'.format(self.selected_region.name))
-        return True
+        return self.selected_region
 
     def clear_selection(self):
         """
