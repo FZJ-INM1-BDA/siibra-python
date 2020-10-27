@@ -56,12 +56,15 @@ class ConnectivityProfile(RegionalFeature):
                     if self.profile[i]>0
                     ])
 
+fget_pattern = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F{name}/raw?ref=master'
+glob_url = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/tree?path=connectivity'
+
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
-    _SOURCES = {
-            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master"
-            }
+    with open(retrieval.download_file(glob_url),'r') as f:
+        _SOURCES = { e['name'] :fget_pattern.format(name=e['name'])
+                for e in json.load(f) }
 
     def __init__(self):
 
@@ -88,9 +91,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                         src_name, src_info, 
                         parcellation ) )
 
-        for profile in new_profiles:
-            profile.globalrange = (minval,maxval)
-            self.register(profile)
+            for profile in new_profiles:
+                profile.globalrange = (minval,maxval)
+                self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):
@@ -111,9 +114,9 @@ class ConnectivityMatrix(GlobalFeature):
 class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
-    _SOURCES = {
-            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master"
-            }
+    with open(retrieval.download_file(glob_url),'r') as f:
+        _SOURCES = { e['name'] :fget_pattern.format(name=e['name'])
+                for e in json.load(f) }
 
     def __init__(self):
 
