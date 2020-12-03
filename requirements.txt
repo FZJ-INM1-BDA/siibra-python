@@ -4,3 +4,4 @@ anytree
 pandas
 PIL
 appdirs
+scikit-image
