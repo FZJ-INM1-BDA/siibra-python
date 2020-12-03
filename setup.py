@@ -26,6 +26,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['anytree','nibabel','click','clint','appdirs'],
+    install_requires=['anytree','nibabel','click','clint','appdirs', 'scikit-image','pandas','requests','PIL'],
 )
 

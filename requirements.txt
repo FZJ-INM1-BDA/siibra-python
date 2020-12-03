@@ -5,3 +5,5 @@ pandas
 PIL
 appdirs
 scikit-image
+click
+clint
