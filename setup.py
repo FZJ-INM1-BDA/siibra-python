@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="brainscapes",
-    version="0.0.4.dev1",
+    version="0.0.5.dev1",
     author="Vadim Marcenko",
     author_email="v.marcenko@fz-juelich.de",
     description="brainscapes client",
