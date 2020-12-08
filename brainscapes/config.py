@@ -21,6 +21,7 @@ try:
 except ImportError as e:
     logger.info("importlib.resources not found. Will use importlib_resources instead.")
     from importlib_resources import contents as pkg_contents,path as pkg_path
+from . import retrieval
 
 class ConfigurationRegistry:
     """
@@ -43,18 +44,17 @@ class ConfigurationRegistry:
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
-        for item in pkg_contents(pkgpath):
-            if path.splitext(item)[-1]==".json":
-                with pkg_path(pkgpath,item) as fname:
-                    with open(fname) as f:
-                        obj = json.load(f,object_hook=object_hook)
-                        key = create_key(str(obj))
-                        identifier = obj.id
-                        logger.debug("Defining object '{}' with key '{}'".format( obj,key))
-                        self.items.append(obj)
-                        self.by_key[key] = len(self.items)-1
-                        self.by_id[identifier] = len(self.items)-1
-                        self.by_name[obj.name] = len(self.items)-1
+        config_files = retrieval.get_config_files_by_type(str(pkgpath).split('.')[-1])
+        for configfile in config_files:
+            obj = retrieval.get_json_for_config_file(configfile, object_hook)
+            key = create_key(str(obj))
+            identifier = obj.id
+            logger.debug("Defining object '{}' with key '{}'".format( obj,key))
+            self.items.append(obj)
+            self.by_key[key] = len(self.items)-1
+            self.by_id[identifier] = len(self.items)-1
+            self.by_name[obj.name] = len(self.items)-1
+        
 
     def __getitem__(self,index):
         """
