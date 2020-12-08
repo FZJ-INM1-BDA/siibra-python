@@ -44,7 +44,7 @@ class ConfigurationRegistry:
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
-        config_files = retrieval.get_config_files_by_type(str(pkgpath).split('.')[-1])
+        config_files = retrieval.get_config_files_by_type(pkgpath)
         for configfile in config_files:
             obj = retrieval.get_json_for_config_file(configfile, object_hook)
             key = create_key(str(obj))

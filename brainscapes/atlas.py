@@ -375,8 +375,7 @@ class Atlas:
                     for region in self.selected_region.leaves} 
 
 
-REGISTRY = ConfigurationRegistry(
-        'brainscapes.configurations.atlases', Atlas )
+REGISTRY = ConfigurationRegistry('atlases', Atlas)
 
 if __name__ == '__main__':
 

@@ -41,5 +41,4 @@ class Space:
                 return Space(obj['@id'], obj['name'], obj['templateUrl'])
         return obj
 
-REGISTRY = ConfigurationRegistry(
-        'brainscapes.configurations.spaces', Space )
+REGISTRY = ConfigurationRegistry('spaces', Space)

@@ -68,5 +68,4 @@ class Parcellation:
             return p
         return obj
 
-REGISTRY = ConfigurationRegistry(
-        'brainscapes.configurations.parcellations', Parcellation )
+REGISTRY = ConfigurationRegistry('parcellations', Parcellation)
