@@ -274,9 +274,11 @@ class Atlas:
             if len(selected)==1:
                 self.selected_region = selected[0]
             else:
-                logger.warn('Region could not be selected: '+region)
-                return None
-        logger.info('Selected region {}'.format(self.selected_region.name))
+                logger.error('Cannot select this region, the spec "{}" is not unique. It matches: {}'.format(
+                    region,", ".join([s.name for s in selected])))
+
+        if self.selected_region is not None:
+            logger.info('Selected region {}'.format(self.selected_region.name))
         return self.selected_region
 
     def clear_selection(self):

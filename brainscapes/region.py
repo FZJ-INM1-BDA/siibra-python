@@ -15,6 +15,7 @@
 from brainscapes.commons import create_key
 from brainscapes import parcellations,spaces
 from brainscapes.retrieval import get_json_from_url
+from . import logger
 import anytree
 
 def construct_tree(parcellation,entrypoints=None,parent=None):
@@ -105,7 +106,7 @@ class Region(anytree.NodeMixin):
             all_results = result
             mindepth = min([r.depth for r in result])
             result = [r for r in all_results if r.depth==mindepth]
-            print("Using only the {} uppermost from {} matching regions for name {}.".format(
+            logger.info("Using only the {} parent nodes of in total {} matching regions for spec '{}'.".format(
                 len(result), len(all_results), name))
         if isinstance(result,Region):
             return [result]
