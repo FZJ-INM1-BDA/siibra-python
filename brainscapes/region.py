@@ -83,7 +83,7 @@ class Region(anytree.NodeMixin):
         """
         return region==self or region in self.descendants
 
-    def find(self,name,exact=True,search_key=False):
+    def find(self,name,select_uppermost=False):
         """
         Find region with the given name in all descendants of this region.
 
@@ -91,38 +91,43 @@ class Region(anytree.NodeMixin):
         ----------
         name : str
             The name to search for.
-        exact : Bool (default: True)
-            Wether to return only the exact match (or None if not found), or to
-            return a list of all regions whose name contains the given search
-            name as a substring (or empty list if none).
-        search_key : Bool (default: False)
-            If true, the search will compare the region's key instead of name
-            (the uppercase variant without special characters)
+        select_uppermost : Boolean
+            If true, only the uppermost matches in the region hierarchy are
+            returned (otherwise all siblings as well if they match the name)
 
         Yield
         -----
         list of matching regions
         """
-        if search_key:
-            if exact:
-                result = anytree.search.find(self, 
-                        lambda node: node.key==name)
-            else:
-                result = anytree.search.findall(self,
-                        lambda node: name in node.key)
-        else:
-            if exact:
-                result = anytree.search.find(self, 
-                        lambda node: node.name==name)
-            else:
-                result = anytree.search.findall(self,
-                        lambda node: name in node.name)
+        result = anytree.search.findall(self,
+                lambda node: node.might_be(name))
+        if len(result)>1 and select_uppermost:
+            all_results = result
+            mindepth = min([r.depth for r in result])
+            result = [r for r in all_results if r.depth==mindepth]
+            print("Using only the {} uppermost from {} matching regions for name {}.".format(
+                len(result), len(all_results), name))
         if isinstance(result,Region):
             return [result]
         elif result is None:
             return []
         else:
             return result
+
+    def might_be(self,regionspec):
+        """ 
+        Checks wether this region might match the given specification, which
+        could be any of 
+            - a string with a name.
+            - a region object
+        """
+        if isinstance(regionspec,Region):
+            return self.key==regionspec.key 
+        elif isinstance(regionspec,str):
+            return all([w.lower() in self.name.lower() 
+                for w in regionspec.split(' ')])
+        else:
+            raise ValueError("Cannot say if object of type {} might correspond to region".format(type(regionspec)))
 
     def __str__(self):
         return self.name

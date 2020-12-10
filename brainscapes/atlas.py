@@ -270,13 +270,11 @@ class Atlas:
             self.selected_region = region
         else:
             # try to interpret argument as the key for a region 
-            selected = self.regiontree.find(region,search_key=True)
-            if len(selected)==0:
-                selected = self.regiontree.find(region)
+            selected = self.regiontree.find(region,select_uppermost=True)
             if len(selected)==1:
                 self.selected_region = selected[0]
             else:
-                logger.warn('Request region selection could not be identified: '+region)
+                logger.warn('Region could not be selected: '+region)
                 return None
         logger.info('Selected region {}'.format(self.selected_region.name))
         return self.selected_region

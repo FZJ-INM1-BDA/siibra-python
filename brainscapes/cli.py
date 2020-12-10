@@ -14,7 +14,8 @@
 
 #!/usr/bin/env python3
 import click
-from brainscapes import logger, parcellations, spaces, atlases, features as features_
+from brainscapes import logger
+from brainscapes import parcellations, spaces, atlases, features as features_
 from brainscapes.termplot import FontStyles as style
 
 # ---- Autocompletion functions ----
@@ -34,6 +35,7 @@ def complete_regions(ctx, args, incomplete):
     regions = [c.key 
             for r in atlas.regiontree.iterate()
             for c in r.children ]
+    print(regions)
     search = [r for r in regions if incomplete.upper() in r]
     return search if len(search)>0 else ""
 
@@ -119,7 +121,7 @@ def search(ctx,searchstring,case_insensitive):
     Search regions by name.
     """
     atlas = ctx.obj['atlas']
-    matches = atlas.regiontree.find(searchstring,exact=False)
+    matches = atlas.regiontree.find(searchstring)
     for m in matches:
         print(m.name)
 

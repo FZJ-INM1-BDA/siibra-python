@@ -23,6 +23,13 @@ from ..authentication import Authentication
 from ..termplot import FontStyles as style
 from .. import ebrains, retrieval, logger
 
+try:
+    import matplotlib.pyplot as plt
+    HAVE_PLT=True
+except Exception as e:
+    HAVE_PLT=False
+
+
 def get_bytestream_from_file(url):
     fname = retrieval.download_file(url)
     with open(fname, 'rb') as f:
@@ -119,23 +126,62 @@ class DensityFingerprint():
 
 
 class ReceptorDistribution(RegionalFeature):
+    """
+    Reprecent a receptor distribution dataset with fingerprint, profiles and
+    autoradiograph samples. This implements a lazy loading scheme.
+    TODO lazy loading could be more elegant.
+    """
 
     def __init__(self, region, file_urls):
 
         RegionalFeature.__init__(self,region)
-        self.profiles = {}
-        self.autoradiographs = {}
-        self.fingerprint = None
-        self.profile_unit = None
-        self.symbols = {}
+        self.active = False
+        self.urls = file_urls
+        self.__profiles = {}
+        self.__autoradiographs = {}
+        self.__fingerprint = None
+        self.__profile_unit = None
+        self.__symbols = {}
+
+    @property
+    def autoradiographs(self):
+        self._load()
+        return self.__autoradiographs
+
+    @property
+    def fingerprint(self):
+        self._load()
+        return self.__fingerprint
+
+    @property
+    def profile_unit(self):
+        self._load()
+        return self.__profile_unit
+
+    @property
+    def symbols(self):
+        self._load()
+        return self.__symbols
+
+    @property
+    def profiles(self):
+        self._load()
+        return self.__profiles
+
+    def _load(self):
+
+        if self.active:
+            return
+
+        logger.info('Loading receptor data for'+self.region)
 
         # find symbols first
-        for url in file_urls:
+        for url in self.urls:
 
             if 'receptors.tsv' in url:
-                self.symbols = decode_tsv(url)
+                self.__symbols = decode_tsv(url)
 
-        for url in file_urls:
+        for url in self.urls:
 
             # Receive cortical profiles, if any
             if '_pr_' in url:
@@ -146,60 +192,54 @@ class ReceptorDistribution(RegionalFeature):
                         data = decode_tsv(url)
                         units = {list(v.values())[3] for v in data.values()}
                         assert(len(units)==1)
-                        self.profile_unit=next(iter(units))
+                        self.__profile_unit=next(iter(units))
                         # column headers are sometimes messed up, so we fix the 2nd value
                         densities = {int(k):float(list(v.values())[2]) 
                                 for k,v in data.items()
                                 if k.isnumeric()}
                         rtype = self._check_rtype(rtype)
-                        self.profiles[rtype] = densities
+                        self.__profiles[rtype] = densities
 
             # Receive autoradiographs, if any
             if '_ar_' in url:
                 rtype, basename = url.split("/")[-2:]
                 if rtype in basename:
-                    bytestream = get_bytestream_from_file(url)
                     rtype = self._check_rtype(rtype)
-                    self.autoradiographs[rtype] = Image.open(bytestream)
+                    self.__autoradiographs[rtype] = url
 
             # receive fingerprint, if any
             if '_fp_' in url:
                 data = decode_tsv(url) 
-                self.fingerprint = DensityFingerprint(data)
+                self.__fingerprint = DensityFingerprint(data) 
 
-    def __bool__(self):
-        nonempty = any([ 
-            len(self.profiles)>0,
-            len(self.autoradiographs)>0,
-            self.fingerprint is not None])
-        return nonempty
-    __nonzero__ = __bool__
+        self.active = True
 
     def _check_rtype(self,rtype):
         """ 
         Verify that the receptor type name matches the symbol table. 
         Return if ok, fix if a close match is found, raise Excpetion otherwise.
         """
-        if rtype in self.symbols.keys():
+        if rtype in self.__symbols.keys():
             return rtype
         # fix if only different by 1 letter from a close match in the symbol table
-        close_matches = list(edits1(rtype).intersection(self.symbols.keys()))
+        close_matches = list(edits1(rtype).intersection(self.__symbols.keys()))
         if len(close_matches)==1:
             prev,new = rtype, close_matches[0]
             logger.debug("Receptor type identifier '{}' replaced by '{}' for {}".format(
                 prev,new, self.region))
             return new
         else:
-            logger.warn("Receptor type identifier '{}' is not listed in the \
-                    corresponding symbol table of region {}. Please verify.".format(
+            logger.warn("Receptor type identifier '{}' is not listed in the corresponding symbol table of region {}. Please verify.".format(
                         rtype, self.region))
             return rtype
 
     def __repr__(self):
+        self._load()
         return self.__str__()
 
     def __str__(self):
         """ Outputs a small table of available profiles and autoradiographs. """
+        self._load()
         if len(self.profiles)+len(self.autoradiographs)==0:
                 return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
@@ -214,6 +254,44 @@ class ReceptorDistribution(RegionalFeature):
                     for rtype in self.symbols.keys()
                     if (rtype in self.profiles 
                         or rtype in self.autoradiographs)] )
+
+    def plot(self,title=None):
+        if not HAVE_PLT:
+            logger.warn('matplotlib.pyplot not available to brainscapes. plotting disabled.')
+            return None
+
+        self._load()
+        import numpy as np
+        from collections import deque
+
+        mathlabel = lambda l: self.symbols[l]['receptor (label_latex)']  \
+                if l in self.symbols.keys() else l
+
+        # plot profiles and fingerprint
+        fig = plt.figure(figsize=(8,3))
+        plt.subplot(121)
+        for _,profile in self.profiles.items():
+            plt.plot(list(profile.keys()),np.fromiter(profile.values(),dtype='d'))
+        plt.xlabel('Cortical depth (%)')
+        plt.ylabel("Receptor density\n({})".format(self.profile_unit))
+        plt.grid(True)
+        if title is not None:
+            plt.title(title)
+        plt.legend(labels=[mathlabel(l) for l in self.profiles],
+                   loc="center right", prop={'size': 5})
+
+        ax = plt.subplot(122,projection='polar')
+        angles = deque(np.linspace(0, 2*np.pi, len(self.fingerprint.labels)+1)[:-1][::-1])
+        angles.rotate(5)
+        plt.plot(angles,[d.mean for d in self.fingerprint],'k-',lw=3)
+        plt.plot(angles,[d.mean+d.std for d in self.fingerprint],'k',lw=1)
+        ax.set_xticks(angles)
+        ax.set_xticklabels([mathlabel(l)
+                            for l in self.fingerprint.labels])
+        ax.set_yticklabels([])
+        ax.tick_params(pad=9,labelsize=9)
+
+        return fig
 
 
 class ReceptorQuery(FeatureExtractor):
@@ -230,9 +308,7 @@ class ReceptorQuery(FeatureExtractor):
             for region_name in region_names:
                 file_urls = kg_result["https://schema.hbp.eu/myQuery/v1.0.0"]
                 feature = ReceptorDistribution(region_name,file_urls)
-                if feature:
-                    self.register(feature)
-
+                self.register(feature)
 
 if __name__ == '__main__':
     auth = Authentication.instance()

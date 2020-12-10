@@ -99,7 +99,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
 
     # load gene names
     genes = json.loads(retrieval.cached_get(_QUERY['gene'],
-            "Gene acronyms not found in cache. Retrieving list of all gene acronyms from Allen Atlas now. This may take a minute."))
+            "Seems you are running brainscapes for the first time or cleared the cache.\n"
+            +"Will retrieve a list of gene acronyms from Allen Atlas now.\n"
+            +"This may take a minute."))
     GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
 
     def __init__(self,gene):
