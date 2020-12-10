@@ -19,7 +19,7 @@ import hashlib
 from os import path
 from . import logger
 
-# TODO unifiy download_file and cached_get
+# TODO unify download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
 
 # Ideas:
@@ -31,9 +31,6 @@ from . import logger
 # - a UID of data provider like EBRAINS -> need to detecto the provider, and use an auth key
 #   that is setup during package installation
 #
-
-# URL pointing to container
-_CSCS_CONTAINER_URL = 'https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/Brainscapes_Configuration/'
 
 
 def __compile_cachedir():
@@ -166,24 +163,3 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
         raise Exception('Could not retrieve data')
 
 
-def get_config_content():
-    """
-    Get all config files from the CSCS container as a simple list
-    """
-    # GET on container URL returns string with list of available files separated by newline
-    response = requests.get(_CSCS_CONTAINER_URL)
-
-    # Split string to get a python list
-    file_list = response.text.split()
-    return list(filter(lambda f: f.split('.')[-1] == "json", file_list))
-
-
-def get_config_files_by_type(file_type):
-    return list(filter(lambda s: s.startswith(file_type), get_config_content()))
-
-
-def get_json_for_config_file(config_file, object_hook):
-    """
-    Get the content of the config file as json
-    """
-    return json.loads(requests.get(_CSCS_CONTAINER_URL + config_file).text, object_hook=object_hook)

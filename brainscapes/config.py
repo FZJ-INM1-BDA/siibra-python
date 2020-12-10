@@ -16,37 +16,42 @@ import json
 from os import path
 from . import logger
 from .commons import create_key
-try:
-    from importlib.resources import contents as pkg_contents,path as pkg_path
-except ImportError as e:
-    logger.info("importlib.resources not found. Will use importlib_resources instead.")
-    from importlib_resources import contents as pkg_contents,path as pkg_path
-from . import retrieval
+from .retrieval import cached_get
 
 class ConfigurationRegistry:
     """
-    A class that registers configurations from json files by converting
-    them to a specific object class based on the object construction function
-    provided as constructor parameter. Used for atlas, space, and parcellation
-    configurations.
-    """
+    Registers atlas configurations from json files managed in EBRAINS, by
+    converting them to a specific object class based on the object construction
+    function provided as constructor parameter. Used for atlas, space, and parcellation
+    configurations. 
 
-    def __init__(self,pkgpath,cls):
+    This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
+    """
+    _ATLAS_CONFIG_CONTAINER_URL = 'https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/Brainscapes_Configuration/'
+
+    def __init__(self,config_subfolder,cls):
         """
         Populate a new registry from the json files in the package path, using
         the "from_json" function of the provided class as hook function.
         """
         logger.debug("Initializing registry of type {} for {}".format(
-            cls,pkgpath))
-        object_hook = cls.from_json
+            cls,config_subfolder))
+
+        # Read atlas configurations from EBRAINS
+        response = cached_get(self._ATLAS_CONFIG_CONTAINER_URL).decode()
+        config_files = [ path for path in response.split() 
+                if path.split('.')[-1] == "json"
+                and path.startswith(config_subfolder) ]
+
         self.items = []
         self.by_key = {}
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
-        config_files = retrieval.get_config_files_by_type(pkgpath)
         for configfile in config_files:
-            obj = retrieval.get_json_for_config_file(configfile, object_hook)
+            url = self._ATLAS_CONFIG_CONTAINER_URL + configfile
+            response = cached_get(url).decode()
+            obj = json.loads(response, object_hook=cls.from_json)
             key = create_key(str(obj))
             identifier = obj.id
             logger.debug("Defining object '{}' with key '{}'".format( obj,key))
@@ -55,6 +60,13 @@ class ConfigurationRegistry:
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
         
+    def load_config(self,config_file, object_hook):
+        """
+        Load a particular config file from EBRAINS
+        """
+        url = self._ATLAS_CONFIG_CONTAINER_URL + config_file
+        response = cached_get(url).decode()
+        return json.loads(response, object_hook=object_hook)
 
     def __getitem__(self,index):
         """

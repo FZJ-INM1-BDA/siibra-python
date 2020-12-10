@@ -130,7 +130,7 @@ def tree(ctx):
     Print the complete region hierarchy as a tree.
     """
     atlas = ctx.obj['atlas']
-    print(atlas.regiontree)
+    print(repr(atlas.regiontree))
 
 # ---- Commands for retrieving data features ---
 
