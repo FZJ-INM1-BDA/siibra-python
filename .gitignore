@@ -12,3 +12,4 @@ brainscapes_client/*.nii
 *.swp
 docs/make.bat
 docs/_*
+play
