@@ -16,6 +16,7 @@ from brainscapes.commons import create_key
 from brainscapes import parcellations,spaces
 from brainscapes.retrieval import get_json_from_url
 from . import logger
+import re
 import anytree
 
 def construct_tree(parcellation,entrypoints=None,parent=None):
@@ -106,8 +107,9 @@ class Region(anytree.NodeMixin):
             all_results = result
             mindepth = min([r.depth for r in result])
             result = [r for r in all_results if r.depth==mindepth]
-            logger.info("Using only the {} parent nodes of in total {} matching regions for spec '{}'.".format(
-                len(result), len(all_results), name))
+            if len(result)<len(all_results):
+                logger.info("Using only {} parent nodes of in total {} matching regions for spec '{}'.".format(
+                    len(result), len(all_results), name))
         if isinstance(result,Region):
             return [result]
         elif result is None:
@@ -122,11 +124,15 @@ class Region(anytree.NodeMixin):
             - a string with a name.
             - a region object
         """
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9]', s) if len(w)>0]
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
         elif isinstance(regionspec,str):
-            return all([w.lower() in self.name.lower() 
-                for w in regionspec.split(' ')])
+            return any([
+                    all([w.lower() in splitstr(self.name.lower()) 
+                        for w in splitstr(regionspec)]),
+                    regionspec==self.key,
+                    regionspec==self.name ])
         else:
             raise ValueError("Cannot say if object of type {} might correspond to region".format(type(regionspec)))
 

@@ -87,7 +87,7 @@ class RegionProps(RegionalFeature):
         self.attrs['centroid_mm'] = grid2mm(self.attrs['centroid'])
         self.attrs['volume_mm'] = self.attrs['area'] * pixel_spacing**3
         # TODO test if the surface estimate makes really sense
-        verts,faces,_,_ = measure.marching_cubes_lewiner(M)
+        verts,faces,_,_ = measure.marching_cubes(M)
         self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
 
         # add additional attributes

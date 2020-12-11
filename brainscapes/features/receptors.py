@@ -16,6 +16,7 @@ import io
 import PIL.Image as Image
 from os import path
 from collections import namedtuple
+import re
 
 from .feature import RegionalFeature
 from .extractor import FeatureExtractor
@@ -72,7 +73,7 @@ def decode_tsv(url):
             "/".join(keys), url))
     assert(len(keys)==len(set(keys)))
     return  { l.split(sep)[0].decode('utf8') : dict(
-        zip(keys, [v.decode('utf8').strip() for v in l.split(sep)])) 
+        zip(keys, [re.sub(r"\\+",r"\\",v.decode('utf8').strip()) for v in l.split(sep)])) 
         for l in lines }
 
 
@@ -264,8 +265,8 @@ class ReceptorDistribution(RegionalFeature):
         import numpy as np
         from collections import deque
 
-        mathlabel = lambda l: self.symbols[l]['receptor (label_latex)']  \
-                if l in self.symbols.keys() else l
+        #mathlabel = lambda l: self.symbols[l]['receptor (label_latex)']  \
+                #if l in self.symbols.keys() else l
 
         # plot profiles and fingerprint
         fig = plt.figure(figsize=(8,3))
@@ -277,20 +278,22 @@ class ReceptorDistribution(RegionalFeature):
         plt.grid(True)
         if title is not None:
             plt.title(title)
-        plt.legend(labels=[mathlabel(l) for l in self.profiles],
+        plt.legend(labels=[l for l in self.profiles],
                    loc="center right", prop={'size': 5})
 
         ax = plt.subplot(122,projection='polar')
-        angles = deque(np.linspace(0, 2*np.pi, len(self.fingerprint.labels)+1)[:-1][::-1])
+        angles = deque(np.linspace(0, 2*np.pi,  len(self.fingerprint.labels)+1)[:-1][::-1])
         angles.rotate(5)
-        plt.plot(angles,[d.mean for d in self.fingerprint],'k-',lw=3)
-        plt.plot(angles,[d.mean+d.std for d in self.fingerprint],'k',lw=1)
+        angles = list(angles)
+        means = [d.mean for d in self.fingerprint]
+        stds = [d.mean+d.std for d in self.fingerprint]
+        plt.plot(angles+[angles[0]],means+[means[0]],'k-',lw=3)
+        plt.plot(angles+[angles[0]],stds+[stds[0]],'k',lw=1)
         ax.set_xticks(angles)
-        ax.set_xticklabels([mathlabel(l)
-                            for l in self.fingerprint.labels])
-        ax.set_yticklabels([])
+        ax.set_xticklabels([l for l in self.fingerprint.labels])
+        #ax.set_yticklabels([])
         ax.tick_params(pad=9,labelsize=9)
-
+        ax.tick_params(axis='y',labelsize=6)
         return fig
 
 

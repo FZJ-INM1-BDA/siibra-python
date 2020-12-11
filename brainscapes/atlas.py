@@ -265,6 +265,7 @@ class Atlas:
         ------
         True, if selection was successful, otherwise False.
         """
+        previous_region = self.selected_region
         if isinstance(region,Region):
             # argument is already a region object - use it
             self.selected_region = region
@@ -273,13 +274,15 @@ class Atlas:
             selected = self.regiontree.find(region,select_uppermost=True)
             if len(selected)==1:
                 self.selected_region = selected[0]
+            elif len(selected)==0:
+                logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
-                logger.error('Cannot select this region, the spec "{}" is not unique. It matches: {}'.format(
+                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
-
-        if self.selected_region is not None:
+        if not self.selected_region == previous_region:
             logger.info('Selected region {}'.format(self.selected_region.name))
-        return self.selected_region
+            return self.selected_region
+        return None
 
     def clear_selection(self):
         """
