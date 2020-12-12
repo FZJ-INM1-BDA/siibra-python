@@ -69,31 +69,34 @@ def download_file(url, ziptarget=None, targetname=None ):
     # which includes the filename of the actual image. This is a workaround to
     # deal with the fact that we do not know the filetype prior to downloading,
     # so we cannot determine the suffix in advance.
-    hashfile = path.join(CACHEDIR,str(hashlib.sha256(str.encode(url)).hexdigest()))
+    hash_str = str(hashlib.sha256(str.encode(url)).hexdigest())
+    hashfile = path.join(CACHEDIR,hash_str)
     if path.exists(hashfile):
         with open(hashfile, 'r') as f:
-            filename = f.read()
-            if path.exists(filename):
-                return filename
+            filename,cachename = f.read().split(';')
+            if path.exists(cachename):
+                return cachename
 
     # No valid hash and corresponding file found - need to download
     req = requests.get(url)
     if req is not None and req.status_code == 200:
         if targetname is not None:
-            filename = path.join(CACHEDIR,targetname)
+            filename = targetname
         elif 'X-Object-Meta-Orig-Filename' in req.headers:
-            filename = path.join(CACHEDIR,req.headers['X-Object-Meta-Orig-Filename'])
+            filename = req.headers['X-Object-Meta-Orig-Filename']
         else:
-            filename = path.join(CACHEDIR,path.basename(url))
-        with open(filename, 'wb') as code:
-            code.write(req.content)
+            filename = path.basename(url)
         suffix = path.splitext(filename)[-1]
+        cachename = path.join(CACHEDIR,hash_str+suffix)
+        with open(cachename, 'wb') as code:
+            code.write(req.content)
         if (suffix == ".zip") and (ziptarget is not None):
             filename = get_from_zip(
                     filename, ziptarget)
         with open(hashfile, 'w') as f:
-            f.write(filename)
-        return filename
+            f.write(filename+";")
+            f.write(cachename)
+        return cachename
     '''
         - error on response status != 200
         - error on file read

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import json
-from os import path
+from os import path,environ
 from . import logger
 from .commons import create_key
 from .retrieval import cached_get
@@ -38,10 +38,17 @@ class ConfigurationRegistry:
             cls,config_subfolder))
 
         # Read atlas configurations from EBRAINS
-        response = cached_get(self._ATLAS_CONFIG_CONTAINER_URL).decode()
-        config_files = [ path for path in response.split() 
-                if path.split('.')[-1] == "json"
-                and path.startswith(config_subfolder) ]
+        use_local_config = 'BRAINSCAPES_LOCAL_CONFIG' in environ.keys()
+        if use_local_config:
+            from glob import glob
+            localpath = environ['BRAINSCAPES_LOCAL_CONFIG']
+            logger.info('Using local configuration site: '+localpath)
+            paths = glob(path.join(localpath,'*/*.json'))
+        else:
+            paths = cached_get(self._ATLAS_CONFIG_CONTAINER_URL).decode().split()
+        config_files = [ p for p in paths
+                if p.split('.')[-1] == "json"
+                and path.split(path.split(p)[0])[-1]==config_subfolder ]
 
         self.items = []
         self.by_key = {}
@@ -49,9 +56,13 @@ class ConfigurationRegistry:
         self.by_name = {}
         self.cls = cls
         for configfile in config_files:
-            url = self._ATLAS_CONFIG_CONTAINER_URL + configfile
-            response = cached_get(url).decode()
-            obj = json.loads(response, object_hook=cls.from_json)
+            if use_local_config:
+                with open(configfile,'r') as f:
+                    obj = json.load(f,object_hook=cls.from_json)
+            else:
+                url = self._ATLAS_CONFIG_CONTAINER_URL + configfile
+                response = cached_get(url).decode()
+                obj = json.loads(response, object_hook=cls.from_json)
             key = create_key(str(obj))
             identifier = obj.id
             logger.debug("Defining object '{}' with key '{}'".format( obj,key))
@@ -60,14 +71,6 @@ class ConfigurationRegistry:
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
         
-    def load_config(self,config_file, object_hook):
-        """
-        Load a particular config file from EBRAINS
-        """
-        url = self._ATLAS_CONFIG_CONTAINER_URL + config_file
-        response = cached_get(url).decode()
-        return json.loads(response, object_hook=object_hook)
-
     def __getitem__(self,index):
         """
         Item access is implemented either by sequential index, key or id.

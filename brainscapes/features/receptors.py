@@ -31,6 +31,255 @@ except Exception as e:
     HAVE_PLT=False
 
 
+RECEPTOR_SYMBOLS = {
+        "5-HT1A": { 
+            "receptor" : {
+                "latex" : "$5-HT_{1A}$", 
+                "markdown" : "5-HT<sub>1A</sub>", 
+                "name" : "5-hydroxytryptamine receptor type 1A" 
+                }, 
+            'neurotransmitter' : { 
+                "label" : "5-HT",
+                "latex" : "$5-HT$",
+                "markdown" : "5-HT",
+                "name" : "serotonin",
+                } 
+            },
+        "5-HT2": {
+            "receptor" : {
+                "latex" : "$5-HT_2$",
+                "markdown" : "5-HT<sub>2</sub>",
+                "name" : "5-hydroxytryptamine receptor type 2" 
+                },
+            'neurotransmitter' : {
+                "label" : "5-HT",
+                "latex" : "$5-HT$",
+                "markdown" : "5-HT",
+                "name" : "serotonin" 
+                } 
+            } ,
+        "AMPA": { 
+            "receptor" : {
+                "latex" : "$AMPA$",
+                "markdown" : "AMPA",
+                "name" : "alpha-amino-3hydroxy-5-methyl-4isoxazolepropionic acid receptor" 
+                },
+            'neurotransmitter' : { 
+                "label" : "Glu",
+                "latex" : "$Glu$",
+                "markdown" : "Glu",
+                "name" : "glutamate" 
+                } 
+            },
+        "BZ": { 
+            "receptor" : {
+                "latex" : "$GABA_A/BZ$",
+                "markdown" : "GABA<sub>A</sub>/BZ",
+                "name" : "gamma-aminobutyric acid receptor type A / benzodiazepine associated binding site" 
+                },
+            'neurotransmitter' : { 
+                "label" : "GABA",
+                "latex" : "$GABA$",
+                "markdown" : "GABA",
+                "name" : "gamma-aminobutyric acid" 
+                } 
+            },
+        "D1": { 
+            "receptor" : {
+                "latex" : "$D_1$", 
+                "markdown" : "D<sub>1</sub>", 
+                "name" : "dopamine receptor type 1" 
+                } , 
+            'neurotransmitter' : { 
+                "label" : "DA", 
+                "latex" : "$DA$", 
+                "markdown" : "DA", 
+                "name" : "dopamine" 
+                }
+            },
+            "GABAA": {
+                    "receptor" : {
+                        "latex" : "$GABA_A$",
+                        "markdown" : "GABA<sub>A</sub>",
+                        "name" : "gamma-aminobutyric acid receptor type A" 
+                        },
+                    'neurotransmitter' : {
+                        "label" : "GABA",
+                        "latex" : "$GABA$",
+                        "markdown" : "GABA",
+                        "name" : "gamma-aminobutyric acid" 
+                        }
+                    },
+        "GABAB": {
+                "receptor" : {
+                    "latex" : "$GABA_B$",
+                    "markdown" : "GABA<sub>B</sub>",
+                    "name" : "gamma-aminobutyric acid receptor type B" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "GABA",
+                    "latex" : "$GABA$",
+                    "markdown" : "GABA",
+                    "name" : "gamma-aminobutyric acid" }
+                },
+        "M1": {
+                "receptor" : {
+                    "latex" : "$M_1$",
+                    "markdown" : "M<sub>1</sub>",
+                    "name" : "muscarinic acetylcholine receptor type 1" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "ACh",
+                    "latex" : "$ACh$",
+                    "markdown" : "ACh",
+                    "name" : "acetylcholine" 
+                    }
+                },
+        "M2": {
+                "receptor" : {
+                    "latex" : "$M_2$",
+                    "markdown" : "M<sub>2</sub>",
+                    "name" : "muscarinic acetylcholine receptor type 2" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "ACh",
+                    "latex" : "$ACh$",
+                    "markdown" : "ACh",
+                    "name" : "acetylcholine" 
+                    }
+                },
+        "M3": {
+                "receptor" : {
+                    "latex" : "$M_3$",
+                    "markdown" : "M<sub>3</sub>",
+                    "name" : "muscarinic acetylcholine receptor type 3" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "ACh",
+                    "latex" : "$ACh$",
+                    "markdown" : "ACh",
+                    "name" : "acetylcholine" 
+                    }
+                },
+        "NMDA": {
+                "receptor" : {
+                    "latex" : "$NMDA$",
+                    "markdown" : "NMDA",
+                    "name" : "N-methyl-D-aspartate receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "Glu",
+                    "latex" : "$Glu$",
+                    "markdown" : "Glu",
+                    "name" : "glutamate" 
+                    }
+                },
+        "alpha1": {
+                "receptor" : {
+                    "latex" : "$\\alpha_1$",
+                    "markdown" : "&#945<sub>1</sub>",
+                    "name" : "alpha-1 adrenergic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "NE",
+                    "latex" : "$NE$",
+                    "markdown" : "NE",
+                    "name" : "norepinephrine" 
+                    }
+                },
+        "alpha1": {
+                "receptor" : {
+                    "latex" : "$\alpha_1$",
+                    "markdown" : "&#945<sub>1</sub>",
+                    "name" : "alpha-1 adrenergic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "NE",
+                    "latex" : "$NE$",
+                    "markdown" : "NE",
+                    "name" : "norepinephrine" 
+                    }
+                },
+        "alpha2": {
+                "receptor" : {
+                    "latex" : "$\\alpha_2$",
+                    "markdown" : "&#945<sub>2</sub>",
+                    "name" : "alpha-2 adrenergic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "NE",
+                    "latex" : "$NE$",
+                    "markdown" : "NE",
+                    "name" : "norepinephrine" 
+                    }
+                },
+        "alpha2": {
+                "receptor" : {
+                    "latex" : "$\alpha_2$",
+                    "markdown" : "&#945<sub>2</sub>",
+                    "name" : "alpha-2 adrenergic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "NE",
+                    "latex" : "$NE$",
+                    "markdown" : "NE",
+                    "name" : "norepinephrine"
+                    }
+                },
+        "alpha4beta2": {
+                "receptor" : {
+                    "latex" : "$\\alpha_4\beta_2$",
+                    "markdown" : "&#945<sub>4</sub>&#946<sub>2</sub>",
+                    "name" : "alpha-4 beta-2 nicotinic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "ACh",
+                    "latex" : "$ACh$",
+                    "markdown" : "ACh",
+                    "name" : "acetylcholine"
+                    }
+                },
+        "alpha4beta2": {
+                "receptor" : {
+                    "latex" : "$\alpha_4\beta_2$",
+                    "markdown" : "&#945<sub>4</sub>&#946<sub>2</sub>",
+                    "name" : "alpha-4 beta-2 nicotinic receptor" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "ACh",
+                    "latex" : "$ACh$",
+                    "markdown" : "ACh",
+                    "name" : "acetylcholine"
+                    }
+                },
+        "kainate": {
+                "receptor" : {
+                    "latex" : "$kainate$",
+                    "markdown" : "kainate",
+                    "name" : "kainate receptors" 
+                    },
+                'neurotransmitter' : {
+                    "label" : "Glu",
+                    "latex" : "$Glu$",
+                    "markdown" : "Glu",
+                    "name" : "glutamate"
+                    }
+                },
+        "mGluR2_3": {
+                "receptor" : {
+                    "latex" : "$mGluR2/3$",
+                    "markdown" : "mGluR2/3",
+                    "name" : "metabotropic glutamate receptor type 2 and 3"
+                    },
+                'neurotransmitter' : {
+                    "label" : "Glu",
+                    "latex" : "$Glu$",
+                    "markdown" : "Glu",
+                    "name" : "glutamate"
+                    }
+                }
+        }
+
 def get_bytestream_from_file(url):
     fname = retrieval.download_file(url)
     with open(fname, 'rb') as f:
@@ -66,7 +315,8 @@ def decode_tsv(url):
             for l in bytestream.readlines() 
             if len(l.strip())>0]
     sep = b'{' if b'{' in lines[0] else b'\t' 
-    keys = unify_stringlist([n.decode('utf8').strip() 
+    keys = unify_stringlist([
+        n.decode('utf8').replace('"','').replace("'","").strip() 
         for n in header.split(sep)])
     if any(k.endswith('*') for k in keys):
         logger.debug('Redundant headers: {} in file {}'.format(
@@ -96,8 +346,16 @@ class DensityFingerprint():
         assert(len(units)==1)
         self.unit=next(iter(units))
         self.labels=list(datadict.keys())
-        mean=[datadict[l]['density (mean)'] for l in self.labels]
-        std=[datadict[l]['density (sd)'] for l in self.labels]
+        try:
+            mean=[datadict[l]['density (mean)'] for l in self.labels]
+            std=[datadict[l]['density (sd)'] for l in self.labels]
+        except KeyError as e: 
+            print(str(e))
+            logger.error('Could not parser fingerprint from this dictionary')
+            print(datadict)
+            for l in self.labels:
+                print(l)
+                print(datadict[l].keys())
         self.meanvals=[float(m) if m.isnumeric() else 0 for m in mean]
         self.stdvals=[float(s) if s.isnumeric() else 0 for s in std]
 
@@ -133,16 +391,18 @@ class ReceptorDistribution(RegionalFeature):
     TODO lazy loading could be more elegant.
     """
 
-    def __init__(self, region, file_urls):
+    def __init__(self, region, kg_result):
 
         RegionalFeature.__init__(self,region)
         self.active = False
-        self.urls = file_urls
+        self.name = kg_result["name"]
+        self.urls = kg_result["files"]
+        self.info = kg_result['description']
+        self.modality = kg_result['modality']
         self.__profiles = {}
         self.__autoradiographs = {}
         self.__fingerprint = None
         self.__profile_unit = None
-        self.__symbols = {}
 
     @property
     def autoradiographs(self):
@@ -160,11 +420,6 @@ class ReceptorDistribution(RegionalFeature):
         return self.__profile_unit
 
     @property
-    def symbols(self):
-        self._load()
-        return self.__symbols
-
-    @property
     def profiles(self):
         self._load()
         return self.__profiles
@@ -174,13 +429,7 @@ class ReceptorDistribution(RegionalFeature):
         if self.active:
             return
 
-        logger.info('Loading receptor data for'+self.region)
-
-        # find symbols first
-        for url in self.urls:
-
-            if 'receptors.tsv' in url:
-                self.__symbols = decode_tsv(url)
+        logger.debug('Loading receptor data for'+self.region)
 
         for url in self.urls:
 
@@ -220,10 +469,10 @@ class ReceptorDistribution(RegionalFeature):
         Verify that the receptor type name matches the symbol table. 
         Return if ok, fix if a close match is found, raise Excpetion otherwise.
         """
-        if rtype in self.__symbols.keys():
+        if rtype in RECEPTOR_SYMBOLS.keys():
             return rtype
         # fix if only different by 1 letter from a close match in the symbol table
-        close_matches = list(edits1(rtype).intersection(self.__symbols.keys()))
+        close_matches = list(edits1(rtype).intersection(RECEPTOR_SYMBOLS.keys()))
         if len(close_matches)==1:
             prev,new = rtype, close_matches[0]
             logger.debug("Receptor type identifier '{}' replaced by '{}' for {}".format(
@@ -241,8 +490,8 @@ class ReceptorDistribution(RegionalFeature):
     def __str__(self):
         """ Outputs a small table of available profiles and autoradiographs. """
         self._load()
-        if len(self.profiles)+len(self.autoradiographs)==0:
-                return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
+        #if len(self.profiles)+len(self.autoradiographs)==0:
+                #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
                 [style.BOLD+"Receptor densities for area {}".format(self.region)+style.END] +
                 [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
@@ -252,7 +501,7 @@ class ReceptorDistribution(RegionalFeature):
                     'x'*(rtype in self.profiles),
                     'x'*(rtype in self.autoradiographs),
                     'x'*(rtype in self.fingerprint))
-                    for rtype in self.symbols.keys()
+                    for rtype in RECEPTOR_SYMBOLS.keys()
                     if (rtype in self.profiles 
                         or rtype in self.autoradiographs)] )
 
@@ -264,9 +513,6 @@ class ReceptorDistribution(RegionalFeature):
         self._load()
         import numpy as np
         from collections import deque
-
-        #mathlabel = lambda l: self.symbols[l]['receptor (label_latex)']  \
-                #if l in self.symbols.keys() else l
 
         # plot profiles and fingerprint
         fig = plt.figure(figsize=(8,3))
@@ -304,13 +550,11 @@ class ReceptorQuery(FeatureExtractor):
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'bs_datasets_tmp')
+        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'brainscapes_receptor_densities')
         for kg_result in kg_query['results']:
-            region_names = [e['https://schema.hbp.eu/myQuery/name'] 
-                    for e in kg_result['https://schema.hbp.eu/myQuery/parcellationRegion']]
+            region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
-                file_urls = kg_result["https://schema.hbp.eu/myQuery/v1.0.0"]
-                feature = ReceptorDistribution(region_name,file_urls)
+                feature = ReceptorDistribution(region_name,kg_result)
                 self.register(feature)
 
 if __name__ == '__main__':
