@@ -13,10 +13,11 @@
 # limitations under the License.
 
 import json
-from os import path,environ
+from os import path
 from . import logger
 from .commons import create_key
 from .retrieval import cached_get
+from gitlab import Gitlab
 logger.setLevel('INFO')
 
 class ConfigurationRegistry:
@@ -28,7 +29,6 @@ class ConfigurationRegistry:
 
     This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
     """
-    _ATLAS_CONFIG_CONTAINER_URL = 'https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/Brainscapes_Configuration/'
 
     def __init__(self,config_subfolder,cls):
         """
@@ -38,32 +38,26 @@ class ConfigurationRegistry:
         logger.debug("Initializing registry of type {} for {}".format(
             cls,config_subfolder))
 
-        # Read atlas configurations from EBRAINS
-        use_local_config = 'BRAINSCAPES_LOCAL_CONFIG' in environ.keys()
-        if use_local_config:
-            from glob import glob
-            localpath = environ['BRAINSCAPES_LOCAL_CONFIG']
-            logger.info('Using local configuration site: '+localpath)
-            paths = glob(path.join(localpath,'*/*.json'))
-        else:
-            paths = cached_get(self._ATLAS_CONFIG_CONTAINER_URL).decode().split()
-        config_files = [ p for p in paths
-                if p.split('.')[-1] == "json"
-                and path.split(path.split(p)[0])[-1]==config_subfolder ]
+        # open gitlab repository with atlas configurations
+        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3484)
+        subfolders = [node['name'] 
+                for node in project.repository_tree() 
+                if node['type']=='tree']
 
+        # parse the selected subfolder
+        assert(config_subfolder in subfolders)
         self.items = []
         self.by_key = {}
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
+        config_files = [ v['name'] 
+                for v in project.repository_tree(path=config_subfolder)
+                if v['type']=='blob'
+                and v['name'].endswith('.json') ]
         for configfile in config_files:
-            if use_local_config:
-                with open(configfile,'r') as f:
-                    obj = json.load(f,object_hook=cls.from_json)
-            else:
-                url = self._ATLAS_CONFIG_CONTAINER_URL + configfile
-                response = cached_get(url).decode()
-                obj = json.loads(response, object_hook=cls.from_json)
+            f = project.files.get(file_path=config_subfolder+"/"+configfile, ref='master')
+            obj = json.loads(f.decode(), object_hook=cls.from_json)
             key = create_key(str(obj))
             identifier = obj.id
             logger.debug("Defining object '{}' with key '{}'".format( obj,key))
