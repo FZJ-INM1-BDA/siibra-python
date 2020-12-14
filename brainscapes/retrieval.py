@@ -94,7 +94,7 @@ def download_file(url, ziptarget=None, targetname=None ):
         # build a uid-based alternative filename for the cache which is not redundant
         # (but keep the original filename for reference)
         namefields = os.path.basename(original_filename).split(".")
-        suffix =  ".".join(namefields[1:]) if len(namefields)>1 else namefields
+        suffix =  ".".join(namefields[1:]) if len(namefields)>1 else ".".join(namefields)
         cachename = os.path.join(CACHEDIR,"{}.{}".format(hash_str,suffix))
         filename = original_filename
 
@@ -186,5 +186,12 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
         else:
             print('Problem with "get" protocol on url: %s ' % url )
         raise Exception('Could not retrieve data')
+
+def clear_cache():
+    import shutil
+    logger.info("Clearing brainscapes cache.")
+    shutil.rmtree(CACHEDIR)
+    __compile_cachedir()
+
 
 

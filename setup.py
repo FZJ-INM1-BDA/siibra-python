@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="brainscapes",
-    version="0.0.8.4.3.dev1",
+    version="0.0.8.5.dev1",
     author="Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1) - V. Marcenko, T. Dickscheid",
     author_email="v.marcenko@fz-juelich.de",
     description="Brainscapes - Multilevel Human Brain Atlas",
@@ -24,6 +24,6 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['anytree','nibabel','click','clint','appdirs', 'scikit-image','pandas','requests','pillow'],
+    install_requires=['anytree','nibabel','click','clint','appdirs', 'scikit-image','pandas','requests','pillow','gitlab'],
 )
 

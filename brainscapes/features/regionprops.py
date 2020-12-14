@@ -52,11 +52,16 @@ class RegionProps(RegionalFeature):
 
         region = atlas.selected_region if custom_region is None else custom_region
         RegionalFeature.__init__(self,region)
+        self.attrs = {}
+    
+        # derive non-spatial properties
+        assert(atlas.regiontree.find('cerebral cortex'))
+        self.attrs['is_cortical'] = atlas.selected_region.has_parent('cerebral cortex')
 
+        # compute mask in the given space
         tmpl = atlas.get_template(space)
         mask = atlas.get_mask(space)
         M = np.asanyarray(mask.dataobj) 
-        self.attrs = {}
 
         # Setup coordinate units 
         # for now we expect isotropic physical coordinates given in mm for the
@@ -68,13 +73,17 @@ class RegionProps(RegionalFeature):
         assert(len(pixel_spacings)==1)
         pixel_spacing = pixel_spacings[0]
         grid2mm = lambda pts : apply_affine(tmpl.affine,pts)
-
+        
         # Extract properties of each connected component, recompute some
         # spatial props in physical coordinates, and return connected componente
         # as a list 
         rprops = measure.regionprops(M)
         if len(rprops)==0:
-            logger.warn('Zero size area - constructing an empty region property object .')
+            logger.warn('Region "{}" has zero size - {}'.format(
+                self.region.name, "constructing an empty region property object"))
+            self.attrs['centroid_mm'] = 0.
+            self.attrs['volume_mm'] = 0.
+            self.attrs['surface_mm'] = 0.
             return 
         assert(len(rprops)==1)
         for prop in rprops[0]:
@@ -90,9 +99,6 @@ class RegionProps(RegionalFeature):
         verts,faces,_,_ = measure.marching_cubes_lewiner(M)
         self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
 
-        # add additional attributes
-        assert(atlas.regiontree.find('cerebral cortex'))
-        self.attrs['is_cortical'] = atlas.selected_region.has_parent('cerebral cortex')
 
     def __dir__(self):
         return list(self.attrs.keys())
