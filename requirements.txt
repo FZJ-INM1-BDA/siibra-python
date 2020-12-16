@@ -7,3 +7,4 @@ appdirs
 scikit-image
 click
 clint
+python-gitlab

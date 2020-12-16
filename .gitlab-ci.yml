@@ -6,7 +6,7 @@ build-job:
 test-job1:
   stage: test
   script:
-    - echo "This job tests something"
+    - python -m unittest discover
 
 deploy-prod:
   stage: deploy
