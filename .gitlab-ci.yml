@@ -1,13 +1,15 @@
+image: docker:stable
 stages:
   - test
   - build
   - deploy
 
+before-script:
+  - apk add python python-dev python pip
+
 test:
   stage: test
   script:
-    - apt-get update -qy
-    - apt-get install -y python-dev python-pip
     - pip install -r requirements.txt
     - python -m unittest discover
 
