@@ -15,9 +15,12 @@ test:
     - pip install coverage
     - coverage run -m unittest
     - coverage html -d coverage
+    - coverage xml
   artifacts:
     paths:
       - coverage/
+    reports:
+      cobertura: coverage.xml
 
 staging:
   stage: build
