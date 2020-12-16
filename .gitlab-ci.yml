@@ -1,0 +1,33 @@
+image: python:3.8
+stages:
+  - test
+  - build
+  - deploy
+
+before-script:
+  script:
+    - python -m pip install --upgrade pip
+
+test:
+  stage: test
+  script:
+    - pip install -r requirements.txt
+    - pip install coverage
+    - coverage run -m unittest
+    - coverage html -d coverage
+    - coverage xml
+  artifacts:
+    paths:
+      - coverage/
+    reports:
+      cobertura: coverage.xml
+
+staging:
+  stage: build
+  script:
+    - echo "Hello, $GITLAB_USER_LOGIN!"
+
+pypi:
+  stage: deploy
+  script:
+    - echo "This job deploys something from the $CI_COMMIT_BRANCH branch."

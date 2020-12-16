@@ -14,44 +14,58 @@
 
 import json
 from os import path
-from importlib.resources import contents as pkg_contents,path as pkg_path
 from . import logger
 from .commons import create_key
+from .retrieval import cached_get
+from gitlab import Gitlab
+logger.setLevel('INFO')
 
 class ConfigurationRegistry:
     """
-    A class that registers configurations from json files by converting
-    them to a specific object class based on the object construction function
-    provided as constructor parameter. Used for atlas, space, and parcellation
-    configurations.
+    Registers atlas configurations from json files managed in EBRAINS, by
+    converting them to a specific object class based on the object construction
+    function provided as constructor parameter. Used for atlas, space, and parcellation
+    configurations. 
+
+    This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
     """
 
-    def __init__(self,pkgpath,cls):
+    def __init__(self,config_subfolder,cls):
         """
         Populate a new registry from the json files in the package path, using
         the "from_json" function of the provided class as hook function.
         """
         logger.debug("Initializing registry of type {} for {}".format(
-            cls,pkgpath))
-        object_hook = cls.from_json
+            cls,config_subfolder))
+
+        # open gitlab repository with atlas configurations
+        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3484)
+        subfolders = [node['name'] 
+                for node in project.repository_tree() 
+                if node['type']=='tree']
+
+        # parse the selected subfolder
+        assert(config_subfolder in subfolders)
         self.items = []
         self.by_key = {}
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
-        for item in pkg_contents(pkgpath):
-            if path.splitext(item)[-1]==".json":
-                with pkg_path(pkgpath,item) as fname:
-                    with open(fname) as f:
-                        obj = json.load(f,object_hook=object_hook)
-                        key = create_key(str(obj))
-                        identifier = obj.id
-                        logger.debug("Defining object '{}' with key '{}'".format( obj,key))
-                        self.items.append(obj)
-                        self.by_key[key] = len(self.items)-1
-                        self.by_id[identifier] = len(self.items)-1
-                        self.by_name[obj.name] = len(self.items)-1
-
+        config_files = [ v['name'] 
+                for v in project.repository_tree(path=config_subfolder)
+                if v['type']=='blob'
+                and v['name'].endswith('.json') ]
+        for configfile in config_files:
+            f = project.files.get(file_path=config_subfolder+"/"+configfile, ref='master')
+            obj = json.loads(f.decode(), object_hook=cls.from_json)
+            key = create_key(str(obj))
+            identifier = obj.id
+            logger.debug("Defining object '{}' with key '{}'".format( obj,key))
+            self.items.append(obj)
+            self.by_key[key] = len(self.items)-1
+            self.by_id[identifier] = len(self.items)-1
+            self.by_name[obj.name] = len(self.items)-1
+        
     def __getitem__(self,index):
         """
         Item access is implemented either by sequential index, key or id.

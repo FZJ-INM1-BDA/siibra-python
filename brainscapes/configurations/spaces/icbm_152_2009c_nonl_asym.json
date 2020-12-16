@@ -1,8 +1,0 @@
-{
-	"@id": "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
-	"name": "MNI 152 ICBM 2009c Nonlinear Asymmetric",
-	"shortName": "ICBM 152 2009c Nonl Asym",
-	"templateUrl": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.zip",
-	"templateFile": "mni_icbm152_t1_tal_nlin_asym_09c.nii",
-	"displayName": "ICBM 152 2009c Nonlinear Asymmetric"
-}

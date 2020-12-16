@@ -15,6 +15,7 @@
 import json
 import numpy as np
 import warnings
+from gitlab import Gitlab
 
 from .feature import RegionalFeature,GlobalFeature
 from .extractor import FeatureExtractor
@@ -62,9 +63,10 @@ glob_url = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/tree?pat
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
-    with open(retrieval.download_file(glob_url),'r') as f:
-        _SOURCES = { e['name'] :fget_pattern.format(name=e['name'])
-                for e in json.load(f) }
+    _SOURCES = {
+            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master",
+            '1000brain_julichbrain_2.5.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains-v2.5.1.json/raw?ref=master"
+            }
 
     def __init__(self):
 
@@ -77,7 +79,8 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                 data = json.load(f)
                 src_name = data['name']
                 src_info  = data['description']
-                parcellation = parcellations[data['parcellation']]
+                #parcellation = parcellations[data['parcellation']]
+                parcellation = parcellations[data['parcellation id']]
                 regions_available = data['data']['field names']
                 for region in regions_available:
                     profile = data['data']['profiles'][region]
@@ -114,25 +117,26 @@ class ConnectivityMatrix(GlobalFeature):
 class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
-    with open(retrieval.download_file(glob_url),'r') as f:
-        _SOURCES = { e['name'] :fget_pattern.format(name=e['name'])
-                for e in json.load(f) }
 
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        for fname,url in ConnectivityMatrixExtractor._SOURCES.items():
 
+        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
+        jsonfiles = [f['name'] 
+                for f in project.repository_tree() 
+                if f['type']=='blob' 
+                and f['name'].endswith('json')]
+        for jsonfile in jsonfiles: 
+            f = project.files.get(file_path=jsonfile, ref='master')
             profiles = []
-            with open(retrieval.download_file(url,targetname=fname),'r') as f:
-                data = json.load(f)
-                src_name = data['name']
-                src_info  = data['description']
-                parcellation = parcellations[data['parcellation']]
-                column_names = data['data']['field names']
-                for region in column_names:
-                    profiles.append(data['data']['profiles'][region])
-
+            data = json.loads(f.decode())
+            src_name = data['name']
+            src_info  = data['description']
+            parcellation = parcellations[data['parcellation id']]
+            column_names = data['data']['field names']
+            for region in column_names:
+                profiles.append(data['data']['profiles'][region])
             matrix = np.array(profiles)
             assert(all(N==len(column_names) for N in matrix.shape))
             self.register( ConnectivityMatrix(

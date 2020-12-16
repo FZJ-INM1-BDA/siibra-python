@@ -1,11 +1,13 @@
-FROM python:3.8-alpine
+FROM python:3.8
 
-RUN apk update
-RUN apk add make automake gcc g++ subversion python3-dev
+#RUN apk update
+#RUN apk add make automake gcc g++ subversion python3-dev
+# Upgrade pip to latest version
+RUN python -m pip install --upgrade pip
 
 ADD . /brainscapes_client
 WORKDIR /brainscapes_client
 
 RUN pip install -r requirements.txt
 
-# run unit tests as soon as available
+RUN python -m unittest

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from sys import stdout, stdin
+from sys import stdout, stdin, platform
 from os import popen
 
-if stdin.isatty():
+if stdin.isatty() and not platform.startswith('win'):
     # running interactively
     _,TERMWIDTH = [int(v) for v in popen('stty size', 'r').read().split()]
 else:

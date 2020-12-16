@@ -2,5 +2,9 @@ requests
 nibabel
 anytree
 pandas
-PIL
+pillow
 appdirs
+scikit-image
+click
+clint
+python-gitlab

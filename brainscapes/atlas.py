@@ -265,21 +265,24 @@ class Atlas:
         ------
         True, if selection was successful, otherwise False.
         """
+        previous_region = self.selected_region
         if isinstance(region,Region):
             # argument is already a region object - use it
             self.selected_region = region
         else:
             # try to interpret argument as the key for a region 
-            selected = self.regiontree.find(region,search_key=True)
-            if len(selected)==0:
-                selected = self.regiontree.find(region)
+            selected = self.regiontree.find(region,select_uppermost=True)
             if len(selected)==1:
                 self.selected_region = selected[0]
+            elif len(selected)==0:
+                logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
-                logger.warn('Request region selection could not be identified: '+region)
-                return False
-        logger.info('Selected region {}'.format(self.selected_region.name))
-        return True
+                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                    region,", ".join([s.name for s in selected])))
+        if not self.selected_region == previous_region:
+            logger.info('Selected region {}'.format(self.selected_region.name))
+            return self.selected_region
+        return None
 
     def clear_selection(self):
         """
@@ -375,8 +378,7 @@ class Atlas:
                     for region in self.selected_region.leaves} 
 
 
-REGISTRY = ConfigurationRegistry(
-        'brainscapes.configurations.atlases', Atlas )
+REGISTRY = ConfigurationRegistry('atlases', Atlas)
 
 if __name__ == '__main__':
 

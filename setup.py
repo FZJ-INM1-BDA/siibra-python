@@ -5,10 +5,10 @@ with open("README.md", "r") as fh:
 
 setup(
     name="brainscapes",
-    version="0.0.4.dev1",
-    author="Vadim Marcenko",
+    version="0.0.8.6.1dev1",
+    author="Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1) - V. Marcenko, T. Dickscheid",
     author_email="v.marcenko@fz-juelich.de",
-    description="brainscapes client",
+    description="Brainscapes - Multilevel Human Brain Atlas",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://jugit.fz-juelich.de/v.marcenko/brainscapes.git",
@@ -19,13 +19,11 @@ setup(
     ''',
     packages=find_packages(include=['brainscapes', 'brainscapes.*']),
     # packages=find_packages(include=['.']),
-    package_data={'brainscapes.configurations': ['atlases/*.json','parcellations/*.json','spaces/*.json']},
-    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6',
-    install_requires=['anytree','nibabel','click','clint','appdirs'],
+    install_requires=['anytree','nibabel','click','clint','appdirs', 'scikit-image','pandas','requests','pillow','python-gitlab'],
 )
 

@@ -16,10 +16,11 @@ import json
 from zipfile import ZipFile
 import requests
 import hashlib
-from os import path
+import os
+#from os import os.path
 from . import logger
 
-# TODO unifiy download_file and cached_get
+# TODO unify download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
 
 # Ideas:
@@ -34,9 +35,12 @@ from . import logger
 
 
 def __compile_cachedir():
-    from os import path,makedirs
+    from os import path,makedirs,environ
     from appdirs import user_cache_dir
-    cachedir = user_cache_dir(__name__,"")
+    if "BRAINSCAPES_CACHEDIR" in environ:
+        cachedir = environ['BRAINSCAPES_CACHEDIR']
+    else:
+        cachedir = user_cache_dir(__name__,"")
     if not path.isdir(cachedir):
         makedirs(cachedir)
     return cachedir
@@ -66,31 +70,48 @@ def download_file(url, ziptarget=None, targetname=None ):
     # which includes the filename of the actual image. This is a workaround to
     # deal with the fact that we do not know the filetype prior to downloading,
     # so we cannot determine the suffix in advance.
-    hashfile = path.join(CACHEDIR,str(hashlib.sha256(str.encode(url)).hexdigest()))
-    if path.exists(hashfile):
+    url_str = url if ziptarget is None else url+ziptarget
+    hash_str = str(hashlib.sha256(str.encode(url_str)).hexdigest())
+    hashfile = os.path.join(CACHEDIR,hash_str)
+    if os.path.exists(hashfile):
         with open(hashfile, 'r') as f:
-            filename = f.read()
-            if path.exists(filename):
-                return filename
+            filename,cachename = f.read().split(';')
+            if os.path.exists(cachename):
+                return cachename
 
     # No valid hash and corresponding file found - need to download
     req = requests.get(url)
     if req is not None and req.status_code == 200:
+
+        # try to figure out the original filename for the requested file
         if targetname is not None:
-            filename = path.join(CACHEDIR,targetname)
+            original_filename = targetname
         elif 'X-Object-Meta-Orig-Filename' in req.headers:
-            filename = path.join(CACHEDIR,req.headers['X-Object-Meta-Orig-Filename'])
+            original_filename = req.headers['X-Object-Meta-Orig-Filename']
         else:
-            filename = path.join(CACHEDIR,path.basename(url))
-        with open(filename, 'wb') as code:
+            original_filename = os.path.basename(url)
+
+        # build a uid-based alternative filename for the cache which is not redundant
+        # (but keep the original filename for reference)
+        namefields = os.path.basename(original_filename).split(".")
+        suffix =  ".".join(namefields[1:]) if len(namefields)>1 else ".".join(namefields)
+        cachename = os.path.join(CACHEDIR,"{}.{}".format(hash_str,suffix))
+        filename = original_filename
+
+        # now save the file
+        with open(cachename, 'wb') as code:
             code.write(req.content)
-        suffix = path.splitext(filename)[-1]
-        if (suffix == ".zip") and (ziptarget is not None):
-            filename = get_from_zip(
-                    filename, ziptarget)
+
+        # if this was a zip file, and a particular target file in the zip was
+        # requested, we need to extract it now. We will later drop the zipfile.
+        if suffix.endswith("zip") and (ziptarget is not None):
+            filename = ziptarget
+            cachename = get_from_zip(
+                    cachename, ziptarget)
         with open(hashfile, 'w') as f:
-            f.write(filename)
-        return filename
+            f.write(filename+";")
+            f.write(cachename)
+        return cachename
     '''
         - error on response status != 200
         - error on file read
@@ -108,10 +129,17 @@ def get_from_zip(zipfile, ziptarget ):
         for zip_info in zip_ref.infolist():
             if zip_info.filename[-1] == '/':
                 continue
-            zip_info.filename = path.basename(zip_info.filename)
+            zip_info.filename = os.path.basename(zip_info.filename)
             if zip_info.filename == ziptarget:
+                downloadname = CACHEDIR + '/' + zip_info.filename
                 zip_ref.extract(zip_info, CACHEDIR)
-                return CACHEDIR + '/' + zip_info.filename
+                targetname = "{}.{}".format(
+                    os.path.splitext(zipfile)[0],
+                    os.path.basename(ziptarget) )
+                os.rename(downloadname,targetname)
+                os.remove(zipfile)
+                return targetname
+    raise Exception("target file",ziptarget,"not found in zip archive",zipfile)
 
 
 def get_json_from_url(url):
@@ -130,10 +158,10 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     TODO we might extend this as a general tool for the brainscapes library, and make it a decorator
     """
     url_hash = hashlib.sha256(url.encode('ascii')).hexdigest()
-    cachefile_content = path.join(CACHEDIR,url_hash)+".content"
-    cachefile_url = path.join(CACHEDIR,url_hash)+".url"
+    cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"
+    cachefile_url = os.path.join(CACHEDIR,url_hash)+".url"
 
-    if path.isfile(cachefile_content):
+    if os.path.isfile(cachefile_content):
         # This URL target is already in the cache - just return it
         logger.debug("Returning cached response of url {} at {}".format(url,cachefile_content))
         with open(cachefile_content,'rb') as f:
@@ -158,3 +186,12 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
         else:
             print('Problem with "get" protocol on url: %s ' % url )
         raise Exception('Could not retrieve data')
+
+def clear_cache():
+    import shutil
+    logger.info("Clearing brainscapes cache.")
+    shutil.rmtree(CACHEDIR)
+    __compile_cachedir()
+
+
+
