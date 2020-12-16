@@ -6,7 +6,7 @@ stages:
 
 before-script:
   script:
-    - apk update && apk add python
+    - apk update && apk add python pip
 
 test:
   stage: test
