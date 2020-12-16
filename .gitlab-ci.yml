@@ -7,12 +7,17 @@ stages:
 before-script:
   script:
     - python -m pip install --upgrade pip
+    - python -m pip install coverage
 
 test:
   stage: test
   script:
     - pip install -r requirements.txt
-    - python -m unittest discover
+    - coverage run -m unittest
+    - coverage html -d coverage
+  artifacts:
+    paths:
+      - coverage/
 
 staging:
   stage: build
