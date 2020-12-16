@@ -7,12 +7,12 @@ stages:
 before-script:
   script:
     - python -m pip install --upgrade pip
-    - python -m pip install coverage
 
 test:
   stage: test
   script:
     - pip install -r requirements.txt
+    - pip install coverage
     - coverage run -m unittest
     - coverage html -d coverage
   artifacts:
