@@ -5,7 +5,8 @@ stages:
   - deploy
 
 before-script:
-  - apk add python python-dev python pip
+  script:
+    - apk add python python-dev python pip
 
 test:
   stage: test
