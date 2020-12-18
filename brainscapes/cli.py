@@ -14,20 +14,21 @@
 
 #!/usr/bin/env python3
 import click
-from brainscapes import logger
-from brainscapes import parcellations, spaces, atlases, features as features_
+import brainscapes as bs
 from brainscapes.termplot import FontStyles as style
+
+bs.logger.setLevel('INFO')
 
 # ---- Autocompletion functions ----
 
 def complete_parcellations(ctx, args, incomplete):
     """ auto completion for parcellations """
-    return [p for p in dir(parcellations) 
+    return [p for p in dir(bs.parcellations) 
             if p.startswith(incomplete)]
 
 def complete_regions(ctx, args, incomplete):
-    """ auto completion for parcellations """
-    atlas = atlases[0]
+    """ auto completion for regions """
+    atlas = bs.atlases[0]
     for option in ['-p','--parcellation']:
         if args.count(option):
             pname = args[args.index(option)+1]
@@ -40,31 +41,31 @@ def complete_regions(ctx, args, incomplete):
     return search if len(search)>0 else ""
 
 def complete_spaces(ctx, args, incomplete):
-    """ auto completion for parcellations """ 
-    return [s for s in dir(spaces) 
+    """ auto completion for spaces """ 
+    return [s for s in dir(bs.spaces) 
             if s.startswith(incomplete)]
 
 def complete_genes(ctx, args, incomplete):
     """ autocompletion for genes """
     if len(incomplete)>0:
-        return [a for a in dir(features_.gene_names)
+        return [a for a in dir(bs.features.gene_names)
                 if a.startswith(incomplete)]
     else:
         return ""
 
 def complete_regional_modalities(ctx, args, incomplete):
     """ auto completion for regional feature types """
-    return [m for m in features_.modalities
+    return [m for m in bs.features.modalities
             if m.startswith(incomplete) 
-            and features_.feature.GlobalFeature 
-            not in features_.classes[m].__bases__ ] + ['RegionProps']
+            and bs.features.feature.GlobalFeature 
+            not in bs.features.classes[m].__bases__ ] + ['RegionProps']
 
 def complete_global_modalities(ctx, args, incomplete):
     """ auto completion for global feature types """
-    return [m for m in features_.modalities
+    return [m for m in bs.features.modalities
             if m.startswith(incomplete) 
-            and features_.feature.GlobalFeature 
-            in features_.classes[m].__bases__ ]
+            and bs.features.feature.GlobalFeature 
+            in bs.features.classes[m].__bases__ ]
 
 # ---- Main command ----
 
@@ -80,26 +81,26 @@ def brainscapes(ctx,parcellation,space):
     """ Command line interface to the brainscapes atlas services.
     """
     ctx.obj = {}
-    ctx.obj['atlas'] = atlas = atlases[0]
+    ctx.obj['atlas'] = atlas = bs.atlases[0]
 
     if parcellation is not None:
         try:
             atlas.select_parcellation(parcellation)
         except Exception as e:
             print(str(e))
-            logger.error("No such parcellation available: "+parcellation)
+            bs.logger.error("No such parcellation available: "+parcellation)
             exit(1)
 
     if space is None:
         ctx.obj['space'] = atlas.spaces[0]
     else:
-        if spaces.obj(space) in atlas.spaces:
-            ctx.obj['space'] = spaces.obj(space)
+        if bs.spaces.obj(space) in atlas.spaces:
+            ctx.obj['space'] = bs.spaces.obj(space)
         else:
-            logger.error("Space {} is not supported by atlas {}.".format(
+            bs.logger.error("Space {} is not supported by atlas {}.".format(
                     atlas,space))
             exit(1)
-    logger.info('Using template space "{}"'.format(ctx.obj['space']))
+    bs.logger.info('Using template space "{}"'.format(ctx.obj['space']))
 
 # ---- Commands for working with the region hierarchy ----
 

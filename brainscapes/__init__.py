@@ -23,4 +23,3 @@ from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
 
-logger.setLevel(logging.INFO)
