@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/env python3
+# disable logging during setup
+from brainscapes import logger
+logger.setLevel('DEBUG')
+
 import click
 import brainscapes as bs
 from brainscapes.termplot import FontStyles as style
 
-bs.logger.setLevel('INFO')
+# re-enable logging for execution of cli commands
+logger.setLevel('DEBUG')
 
 # ---- Autocompletion functions ----
 

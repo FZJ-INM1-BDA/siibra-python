@@ -351,11 +351,7 @@ class DensityFingerprint():
             std=[datadict[l]['density (sd)'] for l in self.labels]
         except KeyError as e: 
             print(str(e))
-            logger.error('Could not parser fingerprint from this dictionary')
-            print(datadict)
-            for l in self.labels:
-                print(l)
-                print(datadict[l].keys())
+            logger.error('Could not parse fingerprint from this dictionary')
         self.meanvals=[float(m) if m.isnumeric() else 0 for m in mean]
         self.stdvals=[float(s) if s.isnumeric() else 0 for s in std]
 
@@ -551,12 +547,9 @@ class ReceptorQuery(FeatureExtractor):
 
         FeatureExtractor.__init__(self)
         kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'brainscapes_receptor_densities')
-        print("kg_query",kg_query)
         for kg_result in kg_query['results']:
-            print("result",kg_result)
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
-                print("region name",region_name)
                 feature = ReceptorDistribution(region_name,kg_result)
                 self.register(feature)
 

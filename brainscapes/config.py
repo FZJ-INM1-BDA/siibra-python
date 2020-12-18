@@ -18,7 +18,6 @@ from . import logger
 from .commons import create_key
 from .retrieval import cached_get
 from gitlab import Gitlab
-logger.setLevel('INFO')
 
 class ConfigurationRegistry:
     """
