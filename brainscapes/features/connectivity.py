@@ -57,6 +57,9 @@ class ConnectivityProfile(RegionalFeature):
                     if self.profile[i]>0
                     ])
 
+fget_pattern = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F{name}/raw?ref=master'
+glob_url = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/tree?path=connectivity'
+
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
@@ -91,9 +94,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                         src_name, src_info, 
                         parcellation ) )
 
-        for profile in new_profiles:
-            profile.globalrange = (minval,maxval)
-            self.register(profile)
+            for profile in new_profiles:
+                profile.globalrange = (minval,maxval)
+                self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):
