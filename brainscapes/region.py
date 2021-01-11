@@ -176,18 +176,6 @@ class Region(anytree.NodeMixin):
         """
         return anytree.PreOrderIter(self)
 
-    def query_data(self, datatype):
-        receptor_data_url = 'https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures/-/raw/master/receptordata/julichbrain_v1_18.json'
-        receptor_data = get_json_from_url(receptor_data_url)
-        for data in receptor_data[0]['regions']:
-            if data['name'] in self.name:
-                return data['files']
-        return {}
-
-    # DISABLED, yields a circular import and not need yet
-    #def get_receptor_data(self):
-        #return receptors.get_receptor_data_by_region(self.name)
-
 
 if __name__ == '__main__':
 
