@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from brainscapes.commons import create_key
-from brainscapes import parcellations,spaces
+from brainscapes import parcellations,spaces,ebrains
 from brainscapes.retrieval import get_json_from_url
 from . import logger
 import re
@@ -69,6 +69,26 @@ class Region(anytree.NodeMixin):
             self.parent = parent
         if children is not None: 
             self.children = children
+
+    def _ebrains_files(self):
+        """
+        Returns a list of downloadable files from EBRAINS that could be found
+        for this region, if any.
+        """
+        files = []
+        if not all([
+            'originDatasets' in self.attrs.keys(),
+            len(self.attrs['originDatasets'])>0,
+            'kgId' in self.attrs['originDatasets'][0].keys() ]):
+            return files
+        dataset = self.attrs['originDatasets'][0]['kgId']
+        res = ebrains.execute_query_by_id(
+                'minds','core','dataset','v1.0.0',
+                'brainscapes_files_in_dataset',
+                parameters={'dataset':dataset} )
+        for dataset in res['results']:
+            files.extend(dataset['files'])
+        return files
 
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]

@@ -39,17 +39,18 @@ def upload_schema_from_file(file, org, domain, schema, version, query_id):
         logger.error('Error while uploading EBRAINS Knowledge Graph query.')
 
 
-def execute_query_by_id(org, domain, schema, version, query_id, params=''):
+def execute_query_by_id(org, domain, schema, version, query_id, parameters={}):
     """
     TODO needs documentation and cleanup
     """
-    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances?databaseScope=RELEASED{}".format(
-        org, domain, schema, version, query_id, params)
+    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances?databaseScope=RELEASED".format(
+        org, domain, schema, version, query_id )
     r = cached_get( url, headers={
             'Content-Type':'application/json',
             'Authorization': 'Bearer {}'.format(authentication.get_token())
             }, 
             msg_if_not_cached="No cached data. Will now run EBRAINS KG query {}. This may take a while...".format(
-                query_id))
+                query_id),
+            params=parameters)
     return json.loads(r)
 

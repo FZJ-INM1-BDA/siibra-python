@@ -2,8 +2,8 @@
 
 ## Installation
 
-The library is not yet available over a global repository.
-Installing for local usage: `pip install -e .`
+The library is available on pypi.
+To install the latest version, simply run `pip install brainscapes`.
 
 ## Authentication
 
