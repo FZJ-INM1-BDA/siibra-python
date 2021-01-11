@@ -14,7 +14,6 @@
 
 from brainscapes.commons import create_key
 from brainscapes import parcellations,spaces,ebrains
-from brainscapes.retrieval import get_json_from_url
 from . import logger
 import re
 import anytree
