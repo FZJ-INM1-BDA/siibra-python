@@ -157,7 +157,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the brainscapes library, and make it a decorator
     """
-    url_hash = hashlib.sha256(url.encode('ascii')).hexdigest()
+    url_hash = hashlib.sha256((url+json.dumps(kwargs)).encode('ascii')).hexdigest()
     cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"
     cachefile_url = os.path.join(CACHEDIR,url_hash)+".url"
 
