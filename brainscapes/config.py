@@ -27,6 +27,8 @@ class ConfigurationRegistry:
     configurations. 
 
     This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
+
+    TODO provide documentation and mechanisms to keep this fixed to a certain release.
     """
 
     def __init__(self,config_subfolder,cls):
@@ -81,8 +83,11 @@ class ConfigurationRegistry:
         elif index in self.by_name:
             return self.items[self.by_name[index]]
         else:
-            raise ValueError("Cannot access this item in the {} Registry:".format(
+            raise IndexError("Cannot access this item in the {} Registry:".format(
                 self.cls),index)
+
+    def __len__(self):
+        return len(self.items)
 
     def __dir__(self):
         return list(self.by_key.keys()) + list(self.by_id.keys())
