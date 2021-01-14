@@ -13,11 +13,15 @@
 # limitations under the License.
 
 import json
-from os import path
 from . import logger
 from .commons import create_key
-from .retrieval import cached_get
 from gitlab import Gitlab
+
+# Until openminds is fully supported, 
+# we store atlas configurations in a gitlab repo.
+GITLAB_SERVER = 'https://jugit.fz-juelich.de'
+GITLAB_PROJECT_ID=3484
+GITLAB_PROJECT_TAG="develop"
 
 class ConfigurationRegistry:
     """
@@ -29,7 +33,9 @@ class ConfigurationRegistry:
     This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
 
     TODO provide documentation and mechanisms to keep this fixed to a certain release.
+    TODO Cache configuration files
     """
+
 
     def __init__(self,config_subfolder,cls):
         """
@@ -40,9 +46,9 @@ class ConfigurationRegistry:
             cls,config_subfolder))
 
         # open gitlab repository with atlas configurations
-        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3484)
+        project = Gitlab(GITLAB_SERVER).projects.get(GITLAB_PROJECT_ID)
         subfolders = [node['name'] 
-                for node in project.repository_tree() 
+                for node in project.repository_tree(ref=GITLAB_PROJECT_TAG) 
                 if node['type']=='tree']
 
         # parse the selected subfolder
@@ -57,7 +63,7 @@ class ConfigurationRegistry:
                 if v['type']=='blob'
                 and v['name'].endswith('.json') ]
         for configfile in config_files:
-            f = project.files.get(file_path=config_subfolder+"/"+configfile, ref='master')
+            f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
             obj = json.loads(f.decode(), object_hook=cls.from_json)
             key = create_key(str(obj))
             identifier = obj.id

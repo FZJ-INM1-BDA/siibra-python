@@ -39,7 +39,7 @@ def upload_schema_from_file(file, org, domain, schema, version, query_id):
         logger.error('Error while uploading EBRAINS Knowledge Graph query.')
 
 
-def execute_query_by_id(org, domain, schema, version, query_id, parameters={}):
+def execute_query_by_id(org, domain, schema, version, query_id, params={}):
     """
     TODO needs documentation and cleanup
     """
@@ -51,6 +51,6 @@ def execute_query_by_id(org, domain, schema, version, query_id, parameters={}):
             }, 
             msg_if_not_cached="No cached data. Will now run EBRAINS KG query {}. This may take a while...".format(
                 query_id),
-            params=parameters)
+           params=params)
     return json.loads(r)
 
