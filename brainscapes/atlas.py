@@ -16,7 +16,6 @@ import nibabel as nib
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
-from collections import defaultdict
 from functools import lru_cache
 
 from . import parcellations, spaces, features, logger
@@ -168,7 +167,8 @@ class Atlas:
             Template space 
         """
         # remember that some parcellations are defined with multiple / split maps
-        return self._get_regionmask(space,self.selected_region)
+        return self._get_regionmask(space,self.selected_region,
+                try_thres=self._threshold_continuous_map)
 
     def enable_continuous_map_thresholding(self,threshold):
         """
@@ -186,7 +186,7 @@ class Atlas:
         self._threshold_continuous_map = threshold
 
     @lru_cache(maxsize=5)
-    def _get_regionmask(self,space : Space,regiontree : Region):
+    def _get_regionmask(self,space : Space,regiontree : Region, try_thres=None ):
         """
         Returns a binary mask  in the given space, where nonzero values denote
         voxels corresponding to the union of regions in the given regiontree.
@@ -205,6 +205,9 @@ class Atlas:
         regiontree : Region
             A region from the region hierarchy (could be any of the root, a
             subtree, or a leaf)
+        try_thres : float or None,
+            If defined, will prefere threshold continous maps for mask building, see self._threshold_continuous_map.
+            We make this an explicit parameter to make lru_cache aware of using it.
         """
         logger.debug("Computing the mask for {} in {}".format(
             regiontree.name, space))
@@ -228,13 +231,12 @@ class Atlas:
                 # if enabled, check for available continous maps that could be
                 # thresholded instead of using the mask from the static
                 # parcellation
-                if self._threshold_continuous_map is not None:
-                    thres = self._threshold_continuous_map
+                if try_thres is not None:
                     continuous_map = r.get_specific_map(space)
                     if continuous_map is not None:
                         print('Using continuous map thresholded by {} for masking region {}.'.format(
-                            thres, r))
-                        mask[np.asarray(continuous_map.dataobj)>thres]=1
+                            try_thres, r))
+                        mask[np.asarray(continuous_map.dataobj)>try_thres]=1
                         continue
 
                 # in the default case, use the labelled area from the parcellation map
