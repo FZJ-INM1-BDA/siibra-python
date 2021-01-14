@@ -6,22 +6,23 @@ from concurrent.futures import ThreadPoolExecutor
 from brainscapes.atlas import Atlas
 from brainscapes import spaces,logger
 from brainscapes.features import gene_names, modalities
+from collections import defaultdict
 
 class DifferentialGeneExpression:
 
-    ICBMSPACE = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC 
+    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
 
     def __init__(self,atlas: Atlas, n_rep=1000, gene_names=[], random_seed=None):
         self.n_rep = n_rep
         self.random_seed = random_seed
-        spaces_supported = atlas.selected_parcellation.maps.keys()
         self.result = None
-        self.samples1 = {}
-        self.samples2 = {}
+        self.samples1 = defaultdict(dict)
+        self.samples2 = defaultdict(dict)
         self.gene_names = gene_names
-        if ICBMSPACE not in spaces_supported:
+        spaces_supported = atlas.selected_parcellation.maps.keys()
+        if self.icbm_id not in spaces_supported:
             raise Exception("Atlas provided to DifferentialGeneExpression analysis does not support the {} space in its selected parcellation {}.".format(
-                ICBMSPACE, atlas.selected_parcellation))
+                self.icbm_id, atlas.selected_parcellation))
         self.atlas = atlas
 
     @staticmethod
@@ -40,6 +41,14 @@ class DifferentialGeneExpression:
 
     def run(self):
 
+        if len(self.gene_names)==0:
+            logger.warn('No candidate genes defined. Use "add_candidate_gene"')
+            return
+
+        if len(self.samples1)<1 or len(self.samples2)<1:
+            logger.warn('Not enough samples found for the given genes and regions.')
+            return
+
         # aggregate factors
         samples = self.samples1|self.samples2
         specimen = [ s['name'] for loc,s in samples.items()]
@@ -47,8 +56,8 @@ class DifferentialGeneExpression:
         race = [ s['race'] for loc,s in samples.items()]
         area = [ s['area'] for loc,s in samples.items()]
         coords = [ loc for loc,_ in samples.items()]
-        zscores = { gene : [s[gene] for loc,s in samples.items()]
-                          for gene in gene_list }
+        zscores = { gene_name : [s[gene_name] for loc,s in samples.items()]
+                          for gene_name in self.gene_names }
 
         # split constant and variable factors
         donor_factors = { "specimen":specimen, "age":age, "race":race }
@@ -65,7 +74,7 @@ class DifferentialGeneExpression:
 
         # multi-threaded permutations
         if self.random_seed is not None:
-            print("Random seed:",self.random_seed)
+            logger.info("Using random seed:",self.random_seed)
             np.random.seed(self.random_seed)
         trials = ((np.random.permutation(brain_area),mean_zscores)
                   for _,mean_zscores
@@ -150,7 +159,7 @@ class DifferentialGeneExpression:
         if region is None:
             logger.warn("Region definition '{}' could not be matched in atlas.".format(regiondef))
             return None
-        samples = {}
+        samples = defaultdict(dict)
         for gene_name in self.gene_names:
             for f in self.atlas.query_data(
                     modalities.GeneExpression,
@@ -160,5 +169,7 @@ class DifferentialGeneExpression:
                 samples[loc]['area'] = region.name
                 samples[loc][gene_name] =  np.mean(
                         winsorize(f.z_scores, limits=0.1))
+        logger.info('{} samples found for region {}.'.format(
+            len(samples), regiondef))
         return samples
 
