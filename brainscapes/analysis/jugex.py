@@ -2,7 +2,7 @@ from scipy.stats.mstats import winsorize
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
+from concurrent import futures 
 from brainscapes.atlas import Atlas
 from brainscapes import spaces,logger
 from brainscapes.features import gene_names, modalities
@@ -12,13 +12,11 @@ class DifferentialGeneExpression:
 
     icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
 
-    def __init__(self,atlas: Atlas, n_rep=1000, gene_names=[], random_seed=None):
-        self.n_rep = n_rep
-        self.random_seed = random_seed
+    def __init__(self,atlas: Atlas, gene_names=[]):
         self.result = None
         self.samples1 = defaultdict(dict)
         self.samples2 = defaultdict(dict)
-        self.gene_names = gene_names
+        self.genes = set(gene_names)
         spaces_supported = atlas.selected_parcellation.maps.keys()
         if self.icbm_id not in spaces_supported:
             raise Exception("Atlas provided to DifferentialGeneExpression analysis does not support the {} space in its selected parcellation {}.".format(
@@ -39,9 +37,9 @@ class DifferentialGeneExpression:
         aov_table = sm.stats.anova_lm(mod, typ=1)
         return aov_table['F'][0]
 
-    def run(self):
+    def run(self, permutations=1000, random_seed=None):
 
-        if len(self.gene_names)==0:
+        if len(self.genes)==0:
             logger.warn('No candidate genes defined. Use "add_candidate_gene"')
             return
 
@@ -51,18 +49,22 @@ class DifferentialGeneExpression:
 
         # aggregate factors
         samples = self.samples1|self.samples2
-        specimen = [ s['name'] for loc,s in samples.items()]
-        age = [ s['age'] for loc,s in samples.items()]
-        race = [ s['race'] for loc,s in samples.items()]
-        area = [ s['area'] for loc,s in samples.items()]
-        coords = [ loc for loc,_ in samples.items()]
-        zscores = { gene_name : [s[gene_name] for loc,s in samples.items()]
-                          for gene_name in self.gene_names }
+        specimen = [ s['name'] for _,s in samples.items()]
+        age = [ s['age'] for _,s in samples.items()]
+        race = [ s['race'] for _,s in samples.items()]
+        area = [ s['area'] for _,s in samples.items()]
+        zscores = { gene_name : [s[gene_name] for _,s in samples.items()]
+                          for gene_name in self.genes }
 
         # split constant and variable factors
         donor_factors = { "specimen":specimen, "age":age, "race":race }
         brain_area = area
         averaged_zscores = zscores
+
+        if random_seed is not None:
+            logger.info("Using random seed:",random_seed)
+            np.random.seed(random_seed)
+        logger.info('Running {} random permutations. This may take a while...'.format(permutations)) 
 
         # convenience function for reuse below
         run_iteration = lambda t: self._anova_iteration(t[0],t[1],donor_factors)
@@ -73,20 +75,17 @@ class DifferentialGeneExpression:
                        in averaged_zscores.items()])
 
         # multi-threaded permutations
-        if self.random_seed is not None:
-            logger.info("Using random seed:",self.random_seed)
-            np.random.seed(self.random_seed)
         trials = ((np.random.permutation(brain_area),mean_zscores)
                   for _,mean_zscores
                   in averaged_zscores.items()
-                  for _ in range(self.n_rep-1))
-        with ThreadPoolExecutor() as executor:
+                  for _ in range(permutations-1))
+        with futures.ThreadPoolExecutor() as executor:
             scores = list(executor.map(run_iteration, trials))
-            Fm = np.array(scores).reshape((-1,self.n_rep-1)).T
+            Fm = np.array(scores).reshape((-1,permutations-1)).T
 
         # collate result
         FWE_corrected_p = np.apply_along_axis(
-                lambda arr : np.count_nonzero(arr)/self.n_rep, 0,
+                lambda arr : np.count_nonzero(arr)/permutations, 0,
                 Fm.max(1)[:, np.newaxis] >= np.array(Fv)
                 )
 
@@ -108,7 +107,7 @@ class DifferentialGeneExpression:
         if gene_name not in gene_names:
             logger.warn("'{}' not found in the list of valid gene names.")
             return False
-        self.gene_names.append(gene_name)
+        self.genes.add(gene_name)
         return True
 
     def define_roi1(self,regiondef):
@@ -160,7 +159,7 @@ class DifferentialGeneExpression:
             logger.warn("Region definition '{}' could not be matched in atlas.".format(regiondef))
             return None
         samples = defaultdict(dict)
-        for gene_name in self.gene_names:
+        for gene_name in self.genes:
             for f in self.atlas.query_data(
                     modalities.GeneExpression,
                     gene=gene_name):
