@@ -24,7 +24,7 @@ class GeneExpression(SpatialFeature):
     A spatial feature type for gene expressions.
     """
 
-    def __init__(self,gene,space,location,expression_levels,z_scores,probe_ids,donor_info):
+    def __init__(self,gene,space,location,expression_levels,z_scores,probe_ids,donor_info,mri_coord=None):
         """
         Construct the spatial feature for gene expressions measured in a sample.
 
@@ -43,6 +43,8 @@ class GeneExpression(SpatialFeature):
             The probe_ids corresponding to each z_score element
         donor_info : dict (keys: age, race, gender, donor, speciment)
             Dictionary of donor attributes
+        mri_coord : tuple  (optional)
+            coordinates in original mri space
         """
         SpatialFeature.__init__(self,location,space)
         self.expression_levels = expression_levels
@@ -50,6 +52,7 @@ class GeneExpression(SpatialFeature):
         self.donor_info = donor_info
         self.gene = gene
         self.probe_ids = probe_ids
+        self.mri_coord = mri_coord
 
     def __str__(self):
         return " ".join([
@@ -199,7 +202,8 @@ class AllenBrainAtlasQuery(FeatureExtractor):
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
                 probe_ids = [p['id'] for p in probes],
-                donor_info = self.factors[donor['id']]|donor
+                donor_info = self.factors[donor['id']]|donor,
+                mri_coord = sample['sample']['mri']
                 ))
 
 if __name__ == "__main__":

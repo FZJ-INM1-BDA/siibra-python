@@ -62,7 +62,7 @@ class DifferentialGeneExpression:
         averaged_zscores = zscores
 
         if random_seed is not None:
-            logger.info("Using random seed:",random_seed)
+            logger.info("Using random seed {}.".format(random_seed))
             np.random.seed(random_seed)
         logger.info('Running {} random permutations. This may take a while...'.format(permutations)) 
 

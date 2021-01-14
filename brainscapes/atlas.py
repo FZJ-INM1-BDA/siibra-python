@@ -234,7 +234,7 @@ class Atlas:
                 if try_thres is not None:
                     continuous_map = r.get_specific_map(space)
                     if continuous_map is not None:
-                        print('Using continuous map thresholded by {} for masking region {}.'.format(
+                        logger.info('Using continuous map thresholded by {} for masking region {}.'.format(
                             try_thres, r))
                         mask[np.asarray(continuous_map.dataobj)>try_thres]=1
                         continue
@@ -350,7 +350,7 @@ class Atlas:
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
         mask = self.get_mask(space)
-        voxel = apply_affine(npl.inv(mask.affine),coordinate).astype(int)
+        voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
         if np.any(voxel>=mask.dataobj.shape):
             return False
         if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
