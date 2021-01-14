@@ -15,7 +15,7 @@
 from xml.etree import ElementTree
 import numpy as np
 import json
-from .. import retrieval,spaces,logger
+from brainscapes import retrieval,spaces,logger
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
@@ -24,7 +24,7 @@ class GeneExpression(SpatialFeature):
     A spatial feature type for gene expressions.
     """
 
-    def __init__(self,gene,space,location,expression_levels,z_scores,probe_ids,factors):
+    def __init__(self,gene,space,location,expression_levels,z_scores,probe_ids,donor_info):
         """
         Construct the spatial feature for gene expressions measured in a sample.
 
@@ -41,20 +41,20 @@ class GeneExpression(SpatialFeature):
             z scores measured in possibly multiple probes of the same sample
         probe_ids : list of int
             The probe_ids corresponding to each z_score element
-        factors : dict (keys: age, race, gender)
-            Dictionary of social factors of the donor 
+        donor_info : dict (keys: age, race, gender, donor, speciment)
+            Dictionary of donor attributes
         """
         SpatialFeature.__init__(self,location,space)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
-        self.factors = factors
+        self.donor_info = donor_info
         self.gene = gene
         self.probe_ids = probe_ids
 
     def __str__(self):
         return " ".join([
             "At ("+",".join("{:4.0f}".format(v) for v in self.location)+")",
-            " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.factors.items()]),
+            " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.donor_info.items()]),
             "Expression: ["+",".join(["%4.1f"%v for v in self.expression_levels])+"]",
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
@@ -186,9 +186,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
         for i,sample in enumerate(samples):
 
             # coordinate conversion to ICBM152 standard space
-            spcid,donor_id = [sample['donor'][k] for k in ['name','id']]
+            donor = {k:sample['donor'][k] for k in ['name','id']}
             icbm_coord = np.matmul(
-                    self._specimen[spcid]['donor2icbm'],
+                    self._specimen[donor['name']]['donor2icbm'],
                     sample['sample']['mri']+[1] ).T
 
             # Create the spatial feature
@@ -199,7 +199,7 @@ class AllenBrainAtlasQuery(FeatureExtractor):
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
                 probe_ids = [p['id'] for p in probes],
-                factors = self.factors[donor_id]
+                donor_info = self.factors[donor['id']]|donor
                 ))
 
 if __name__ == "__main__":

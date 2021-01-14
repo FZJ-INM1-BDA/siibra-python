@@ -48,6 +48,9 @@ class Atlas:
         self.selected_parcellation = None 
         self.regionnames = None
 
+        # this can be set to prefer thresholded continuous maps as masks
+        self._threshold_continuous_map = None
+
     def _add_space(self, space):
         self.spaces.append(space)
 
@@ -167,6 +170,21 @@ class Atlas:
         # remember that some parcellations are defined with multiple / split maps
         return self._get_regionmask(space,self.selected_region)
 
+    def enable_continuous_map_thresholding(self,threshold):
+        """
+        Enables thresholding of continous maps with the given threshold as a
+        preference of using region masks from the static parcellation. For
+        example, when setting threshold to 0.2, the atlas will check if it
+        finds a probability map for a selected region. If it does, it will use
+        the thresholded probability map as a region mask for defining the
+        region, and uses it e.g. for searching spatial features.
+
+        Use with care, because a) continuous maps are not always available, and
+        b) the value ranges of continuous maps are defined in different ways
+        and require careful interpretation.
+        """
+        self._threshold_continuous_map = threshold
+
     @lru_cache(maxsize=5)
     def _get_regionmask(self,space : Space,regiontree : Region):
         """
@@ -206,7 +224,22 @@ class Atlas:
                     continue
                 if r.attrs['labelIndex'] is None:
                     continue
+
+                # if enabled, check for available continous maps that could be
+                # thresholded instead of using the mask from the static
+                # parcellation
+                if self._threshold_continuous_map is not None:
+                    thres = self._threshold_continuous_map
+                    continuous_map = r.get_specific_map(space)
+                    if continuous_map is not None:
+                        print('Using continuous map thresholded by {} for masking region {}.'.format(
+                            thres, r))
+                        mask[np.asarray(continuous_map.dataobj)>thres]=1
+                        continue
+
+                # in the default case, use the labelled area from the parcellation map
                 mask[D==int(r.attrs['labelIndex'])]=1
+
         return nib.Nifti1Image(dataobj=mask,affine=affine,header=header)
 
     def get_template(self, space, resolution_mu=0, roi=None):
@@ -334,6 +367,7 @@ class Atlas:
                     "for feature type {}.".format(modality))
             return hits
 
+        # make sure that a region is selected when expected
         local_query = GlobalFeature not in feature_classes[modality].__bases__ 
         if local_query and not self.selected_region:
             logger.error("For non-global feature types "\
