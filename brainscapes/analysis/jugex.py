@@ -172,3 +172,30 @@ class DifferentialGeneExpression:
             len(samples), regiondef))
         return samples
 
+
+    def save_params(self,filename):
+        """
+        Saves all relevant input parameters that were generated for the
+        analysis to file.
+
+        Parameters
+        ----------
+
+        filename : str
+            Name of output file (will be json formatted!)
+        """
+        import json
+        samples = self.samples1|self.samples2
+        inputs = {
+            'race' : [s['race'] for _,s in samples.items()],
+            'age' : [s['age'] for _,s in samples.items()],
+            'specimen' : [s['name'] for _,s in samples.items()],
+            'area' : [s['area'] for _,s in samples.items()],
+            'z-scores' : {g:[s[g] for _,s in samples.items()]
+                          for g in self.genes},
+            'mnicoord' : [loc for loc,_ in samples.items()],
+        }
+        with open(filename,'w') as f:
+            json.dump(inputs,f,indent="\t")
+            logger.info(
+                    "Exported input parameters to {}.".format(filename))
