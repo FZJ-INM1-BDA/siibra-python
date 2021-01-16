@@ -111,21 +111,35 @@ class DifferentialGeneExpression:
                 Fm.max(1)[:, np.newaxis] >= np.array(Fv)
                 )
 
-        self.result = dict(zip(factors['zscores'].keys(), FWE_corrected_p))
+        self.result = {'p-values':dict(zip(factors['zscores'].keys(), FWE_corrected_p))}
 
-    def add_candidate_gene(self,gene_name):
+    def add_candidate_genes(self,gene_name, reset=False):
         """
-        Adds a candidate gene to be used for the analysis.
+        Adds a single candidate gene or a list of multiple candidate genes to
+        be used for the analysis. 
 
         Parameters:
         -----------
 
-        gene_name : str
-            Name of a gene, as defeined in the Allen API. See
+        gene_name : str or list
+            Name of a gene, as defined in the Allen API. See
             brainscapes.features.gene_names for a full list.
+            It is also possible to provide a list of gene names instead of
+            repeated calls to this function.
+
+        reset : bool
+            If True, the existing list of candidate genes will be replaced with
+            the new ones. (Default: False)
 
         TODO on invalid parameter, we could show suggestions!
         """
+        if reset: 
+            self.genes = set()
+        if isinstance(gene_name,list):
+            return all([ self.add_candidate_genes(g) 
+                for g in gene_name ])
+
+        assert(isinstance(gene_name,str))
         if gene_name not in gene_names:
             logger.warn("'{}' not found in the list of valid gene names.")
             return False

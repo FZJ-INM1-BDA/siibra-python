@@ -64,10 +64,14 @@ class GeneExpression(SpatialFeature):
 
 class AllenBrainAtlasQuery(FeatureExtractor):
     """
-    Interface to Allen Human Brain Atlas Gene Expressions
-    TODO add Allen copyright clause
+    Interface to Allen Human Brain Atlas microarray data.
+    
+    This class connects to the web API of the Allen Brain Atlas:
+    © 2015 Allen Institute for Brain Science. Allen Brain Atlas API. 
+    Available from: brain-map.org/api/index.html
+    Any use of the data needs to be in accordance with their terms of use, see
+    https://alleninstitute.org/legal/terms-use/
 
-    To better understand the principles:
     - We have samples from 6 different human donors. 
     - Each donor corresponds to exactly 1 specimen (tissue used for study)
     - Each sample was subject to multiple (in fact 4) different probes.
@@ -77,6 +81,15 @@ class AllenBrainAtlasQuery(FeatureExtractor):
       the corresponding donor for the given gene.
     """
     _FEATURETYPE = GeneExpression
+
+    ALLEN_ATLAS_NOTIFICATION=\
+"""For retrieving microarray data, brainscapes connects to the web API of
+the Allen Brain Atlas (© 2015 Allen Institute for Brain Science), available
+from https://brain-map.org/api/index.html. Any use of the microarray data needs
+to be in accordance with their terms of use, as specified at
+https://alleninstitute.org/legal/terms-use/."""
+    _notification_shown=False
+
 
     _BASE_URL = "http://api.brain-map.org/api/v2/data"
     _QUERY = {
@@ -120,7 +133,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
         FeatureExtractor.__init__(self)
         self.gene = gene
 
-        # get probe ids for the given gene
+        if not self.__class__._notification_shown:
+            print(self.__class__.ALLEN_ATLAS_NOTIFICATION) 
+            self.__class__._notification_shown=True
         logger.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
         response = retrieval.cached_get(url)
