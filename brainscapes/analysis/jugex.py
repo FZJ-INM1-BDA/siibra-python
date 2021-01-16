@@ -1,3 +1,18 @@
+# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1),
+# Forschungszentrum Jülich GmbH
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from scipy.stats.mstats import winsorize
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
@@ -9,13 +24,30 @@ from brainscapes.features import gene_names, modalities
 from collections import defaultdict
 
 class DifferentialGeneExpression:
+    """
+    Compute differential gene expresssion in two different brain regions,
+    following the JuGEx algorithm described in the following publication:
+
+    Sebastian Bludau, Thomas W. Mühleisen, Simon B. Eickhoff, Michael J.
+    Hawrylycz, Sven Cichon, Katrin Amunts. Integration of transcriptomic and
+    cytoarchitectonic data implicates a role for MAOA and TAC1 in the
+    limbic-cortical network. 2018, Brain Structure and Function.
+    https://doi.org/10.1007/s00429-018-1620-6
+
+    The code follows the Matlab implementation of the original authors, which
+    is available at
+    https://www.fz-juelich.de/inm/inm-1/DE/Forschung/_docs/JuGex/JuGex_node.html
+    """
 
     icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
 
     def __init__(self,atlas: Atlas, gene_names=[]):
         self.result = None
-        self.samples1 = defaultdict(dict)
-        self.samples2 = defaultdict(dict)
+        self._samples_by_regiondef = {}
+        self._regiondef1 = None
+        self._regiondef2 = None
+        self._samples1 = defaultdict(dict)
+        self._samples2 = defaultdict(dict)
         self.genes = set(gene_names)
         spaces_supported = atlas.selected_parcellation.maps.keys()
         if self.icbm_id not in spaces_supported:
@@ -43,23 +75,13 @@ class DifferentialGeneExpression:
             logger.warn('No candidate genes defined. Use "add_candidate_gene"')
             return
 
-        if len(self.samples1)<1 or len(self.samples2)<1:
+        if len(self._samples1)<1 or len(self._samples2)<1:
             logger.warn('Not enough samples found for the given genes and regions.')
             return
 
-        # aggregate factors
-        samples = self.samples1|self.samples2
-        specimen = [ s['name'] for _,s in samples.items()]
-        age = [ s['age'] for _,s in samples.items()]
-        race = [ s['race'] for _,s in samples.items()]
-        area = [ s['area'] for _,s in samples.items()]
-        zscores = { gene_name : [s[gene_name] for _,s in samples.items()]
-                          for gene_name in self.genes }
-
-        # split constant and variable factors
-        donor_factors = { "specimen":specimen, "age":age, "race":race }
-        brain_area = area
-        averaged_zscores = zscores
+        # retrieve aggregated factors and split the constant donor factors
+        factors = self.get_aggregated_sample_factors()
+        donor_factors = {k:factors[k] for k in ["specimen","age","race"]}
 
         if random_seed is not None:
             logger.info("Using random seed {}.".format(random_seed))
@@ -70,14 +92,14 @@ class DifferentialGeneExpression:
         run_iteration = lambda t: self._anova_iteration(t[0],t[1],donor_factors)
 
         # first iteration
-        Fv = np.array([ run_iteration((brain_area,mean_zscores))
+        Fv = np.array([ run_iteration((factors['area'],mean_zscores))
                        for _,mean_zscores
-                       in averaged_zscores.items()])
+                       in factors['zscores'].items()])
 
         # multi-threaded permutations
-        trials = ((np.random.permutation(brain_area),mean_zscores)
+        trials = ((np.random.permutation(factors['area']),mean_zscores)
                   for _,mean_zscores
-                  in averaged_zscores.items()
+                  in factors['zscores'].items()
                   for _ in range(permutations-1))
         with futures.ThreadPoolExecutor() as executor:
             scores = list(executor.map(run_iteration, trials))
@@ -89,7 +111,7 @@ class DifferentialGeneExpression:
                 Fm.max(1)[:, np.newaxis] >= np.array(Fv)
                 )
 
-        self.result = dict(zip(averaged_zscores.keys(), FWE_corrected_p))
+        self.result = dict(zip(factors['zscores'].keys(), FWE_corrected_p))
 
     def add_candidate_gene(self,gene_name):
         """
@@ -123,7 +145,11 @@ class DifferentialGeneExpression:
         new_samples = self._retrieve_samples(regiondef)
         if new_samples is None:
             raise Exception("Could not define ROI 2.")
-        self.samples1 = new_samples
+        if self._regiondef1 is not None:
+            self._samples_by_regiondef.pop(self._regiondef1)
+        self._regiondef1 = regiondef
+        self._samples1 = new_samples
+        self._samples_by_regiondef[regiondef] = self._samples1
 
     def define_roi2(self,regiondef):
         """
@@ -138,7 +164,11 @@ class DifferentialGeneExpression:
         new_samples = self._retrieve_samples(regiondef)
         if new_samples is None:
             raise Exception("Could not define ROI 2.")
-        self.samples2 = new_samples
+        if self._regiondef2 is not None:
+            self._samples_by_regiondef.pop(self._regiondef2)
+        self._regiondef2 = regiondef
+        self._samples2 = new_samples
+        self._samples_by_regiondef[regiondef] = self._samples2
 
     def _retrieve_samples(self,regiondef):
         """
@@ -163,39 +193,64 @@ class DifferentialGeneExpression:
             for f in self.atlas.query_data(
                     modalities.GeneExpression,
                     gene=gene_name):
-                loc = tuple(f.location)
-                samples[loc] = samples[loc]|f.donor_info
-                samples[loc]['area'] = region.name
-                samples[loc][gene_name] =  np.mean(
+                key = tuple(list(f.location)+[regiondef])
+                samples[key] = samples[key]|f.donor_info
+                samples[key]['mnicoord'] = tuple(f.location)
+                samples[key]['region'] = region
+                samples[key][gene_name] =  np.mean(
                         winsorize(f.z_scores, limits=0.1))
         logger.info('{} samples found for region {}.'.format(
             len(samples), regiondef))
         return samples
 
-
-    def save_params(self,filename):
+    def get_aggregated_sample_factors(self):
         """
-        Saves all relevant input parameters that were generated for the
-        analysis to file.
+        Creates a dictionary of flattened sample factors for the analysis from
+        the two sets of collected samples per gene.
+        """
+        samples = self._samples1|self._samples2
+        factors = {
+            'race' : [s['race'] for s in samples.values()],
+            'age' : [s['age'] for s in samples.values()],
+            'specimen' : [s['name'] for s in samples.values()],
+            'area' : [s['region'].name for s in samples.values()],
+            'zscores' : {g:[s[g] for s in samples.values()]
+                          for g in self.genes},
+            'mnicoord' : [s['mnicoord'] for s in samples.values()]
+        }
+        return factors
+
+    def get_samples(self,regiondef):
+        """
+        Returns the aggregated sampel information for the region specification
+        that has been used previously to define a ROI using define_roi1() or
+        define_roi2().
+
+        Parameters
+        ---------
+        regiondef : str
+            Region identifier string used previously in define_roi1() or define_roi2()
+        """
+        if regiondef not in self._samples_by_regiondef.keys():
+            logger.warn("The provided region definition string is not known.")
+            return None
+        return self._samples_by_regiondef[regiondef]
+
+
+    def save_inputs(self,filename):
+        """
+        Saves all aggregated input data for the analysis to a json file. 
 
         Parameters
         ----------
-
         filename : str
-            Name of output file (will be json formatted!)
+            Output filename
         """
         import json
-        samples = self.samples1|self.samples2
-        inputs = {
-            'race' : [s['race'] for _,s in samples.items()],
-            'age' : [s['age'] for _,s in samples.items()],
-            'specimen' : [s['name'] for _,s in samples.items()],
-            'area' : [s['area'] for _,s in samples.items()],
-            'z-scores' : {g:[s[g] for _,s in samples.items()]
-                          for g in self.genes},
-            'mnicoord' : [loc for loc,_ in samples.items()],
-        }
+        factors = self.get_aggregated_sample_factors()
         with open(filename,'w') as f:
-            json.dump(inputs,f,indent="\t")
-            logger.info(
-                    "Exported input parameters to {}.".format(filename))
+            json.dump(factors,f,indent="\t")
+            logger.info("Exported input factors to file {}.".format(
+                filename))
+
+
