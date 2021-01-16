@@ -42,7 +42,7 @@ class DifferentialGeneExpression:
     icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
 
     def __init__(self,atlas: Atlas, gene_names=[]):
-        self.result = None
+        self._pvals = None
         self._samples_by_regiondef = {}
         self._regiondef1 = None
         self._regiondef2 = None
@@ -70,6 +70,26 @@ class DifferentialGeneExpression:
         return aov_table['F'][0]
 
     def run(self, permutations=1000, random_seed=None):
+        """
+        Runs a differential gene analysis on the configured microarray samples
+        in two regions of interest (ROI). Requires that gene candidates and
+        ROIs have been specified in advance using add_candidate_genes(),
+        define_roi1() and define_roi2().
+
+        Parameters
+        ----------
+        permutations: int
+            Number of permutations to perform for ANOVA. Default: 1000
+        random_seed: int or None
+            (optional) Random seed to be applied before doing the ANOVA
+            permutations in order to produce repeated identical results.
+            Default: None
+
+
+        Returns
+        -------
+        Dictionary of resulting p-values and factors used for the analysis.
+        """
 
         if len(self.genes)==0:
             logger.warn('No candidate genes defined. Use "add_candidate_gene"')
@@ -111,7 +131,17 @@ class DifferentialGeneExpression:
                 Fm.max(1)[:, np.newaxis] >= np.array(Fv)
                 )
 
-        self.result = {'p-values':dict(zip(factors['zscores'].keys(), FWE_corrected_p))}
+        self._pvals = dict(zip(factors['zscores'].keys(), FWE_corrected_p))
+        return self.result()
+
+    def result(self):
+        """
+        Returns a dictionary with the results of the analysis.
+        """
+        if self._pvals is None:
+            logger.warn('No result has been computed yet.')
+            return {}
+        return self.get_aggregated_sample_factors()|{'p-values':self._pvals }
 
     def add_candidate_genes(self,gene_name, reset=False):
         """
@@ -251,9 +281,9 @@ class DifferentialGeneExpression:
         return self._samples_by_regiondef[regiondef]
 
 
-    def save_inputs(self,filename):
+    def save(self,filename):
         """
-        Saves all aggregated input data for the analysis to a json file. 
+        Saves the aggregated factors and computed p-values to file.
 
         Parameters
         ----------
@@ -261,10 +291,10 @@ class DifferentialGeneExpression:
             Output filename
         """
         import json
-        factors = self.get_aggregated_sample_factors()
+        data = self.result()
         with open(filename,'w') as f:
-            json.dump(factors,f,indent="\t")
-            logger.info("Exported input factors to file {}.".format(
+            json.dump(data,f,indent="\t")
+            logger.info("Exported p-values and factors to file {}.".format(
                 filename))
 
 
