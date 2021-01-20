@@ -141,7 +141,7 @@ class DifferentialGeneExpression:
         if self._pvals is None:
             logger.warn('No result has been computed yet.')
             return {}
-        return {**self.get_aggregated_sample_factors(), **{'p-values':self._pvals }}
+        return {**self.get_aggregated_sample_factors(), 'p-values':self._pvals}
 
     def add_candidate_genes(self,gene_name, reset=False):
         """
