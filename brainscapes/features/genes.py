@@ -217,7 +217,7 @@ https://alleninstitute.org/legal/terms-use/."""
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
                 probe_ids = [p['id'] for p in probes],
-                donor_info = self.factors[donor['id']]|donor,
+                donor_info = {**self.factors[donor['id']], **donor},
                 mri_coord = sample['sample']['mri']
                 ))
 

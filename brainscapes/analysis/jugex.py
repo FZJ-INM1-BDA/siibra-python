@@ -65,7 +65,7 @@ class DifferentialGeneExpression:
             "zscores": zscores
         }
         mod = ols( 'zscores ~ area + specimen + age + race',
-                  data=variable_factors|donor_factors ).fit()
+                    data={**variable_factors, **donor_factors} ).fit()
         aov_table = sm.stats.anova_lm(mod, typ=1)
         return aov_table['F'][0]
 
@@ -141,7 +141,7 @@ class DifferentialGeneExpression:
         if self._pvals is None:
             logger.warn('No result has been computed yet.')
             return {}
-        return self.get_aggregated_sample_factors()|{'p-values':self._pvals }
+        return {**self.get_aggregated_sample_factors(), **{'p-values':self._pvals }}
 
     def add_candidate_genes(self,gene_name, reset=False):
         """
@@ -238,7 +238,7 @@ class DifferentialGeneExpression:
                     modalities.GeneExpression,
                     gene=gene_name):
                 key = tuple(list(f.location)+[regiondef])
-                samples[key] = samples[key]|f.donor_info
+                samples[key] = {**samples[key], **f.donor_info}
                 samples[key]['mnicoord'] = tuple(f.location)
                 samples[key]['region'] = region
                 samples[key][gene_name] =  np.mean(
@@ -252,7 +252,7 @@ class DifferentialGeneExpression:
         Creates a dictionary of flattened sample factors for the analysis from
         the two sets of collected samples per gene.
         """
-        samples = self._samples1|self._samples2
+        samples = {**self._samples1, **self._samples2}
         factors = {
             'race' : [s['race'] for s in samples.values()],
             'age' : [s['age'] for s in samples.values()],
