@@ -69,14 +69,14 @@ Below are some code snippets to give you an initial idea.
 
 ### Retrieving receptor densities for one brain area
 ```python
-from brainscapes import atlases
+import brainscapes as bs
 
 # Retrieve data from atlas
 # NOTE: assumes the client is already authenticated, see above
-atlas = atlases.MULTILEVEL_HUMAN_ATLAS
+atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
 for region in atlas.regiontree.find('hOc1',exact=False):
     atlas.select_region(region)
-    hits = atlas.query_data("ReceptorDistribution")
+    hits = atlas.query_data(bs.features.modalities.ReceptorDistribution)
     for hit in hits:
         print(hit)
 ```
@@ -84,14 +84,17 @@ for region in atlas.regiontree.find('hOc1',exact=False):
 ### Retrieving gene expressions for one brain area
 
 ```python
-from brainscapes import atlases
+import brainscapes as bs
 
 # Retrieve data from atlas
 # NOTE: assumes the client is already authenticated, see above
-atlas = atlases.MULTILEVEL_HUMAN_ATLAS
+atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
 for region in atlas.regiontree.find('hOc1',exact=False):
     atlas.select_region(region)
-    hits = atlas.query_data("GeneExpressions","GABAARL2")
+    hits = atlas.query_data(
+        modality=bs.features.modalities.GeneExpression,
+        gene="GABAARL2"
+    )
     for hit in hits:
         print(hit)
 ```
