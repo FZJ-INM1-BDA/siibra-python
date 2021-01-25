@@ -17,11 +17,15 @@ from scipy.stats.mstats import winsorize
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
 import numpy as np
-from concurrent import futures 
+from concurrent import futures
 from brainscapes.atlas import Atlas
 from brainscapes import spaces,logger
 from brainscapes.features import gene_names, modalities
 from collections import defaultdict
+
+# Remove these imports after development
+import pprint
+import sys
 
 class DifferentialGeneExpression:
     """
@@ -39,7 +43,7 @@ class DifferentialGeneExpression:
     https://www.fz-juelich.de/inm/inm-1/DE/Forschung/_docs/JuGex/JuGex_node.html
     """
 
-    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
+    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id
 
     def __init__(self,atlas: Atlas, gene_names=[]):
         self._pvals = None
@@ -106,7 +110,7 @@ class DifferentialGeneExpression:
         if random_seed is not None:
             logger.info("Using random seed {}.".format(random_seed))
             np.random.seed(random_seed)
-        logger.info('Running {} random permutations. This may take a while...'.format(permutations)) 
+        logger.info('Running {} random permutations. This may take a while...'.format(permutations))
 
         # convenience function for reuse below
         run_iteration = lambda t: self._anova_iteration(t[0],t[1],donor_factors)
@@ -146,7 +150,7 @@ class DifferentialGeneExpression:
     def add_candidate_genes(self,gene_name, reset=False):
         """
         Adds a single candidate gene or a list of multiple candidate genes to
-        be used for the analysis. 
+        be used for the analysis.
 
         Parameters:
         -----------
@@ -163,10 +167,10 @@ class DifferentialGeneExpression:
 
         TODO on invalid parameter, we could show suggestions!
         """
-        if reset: 
+        if reset:
             self.genes = set()
         if isinstance(gene_name,list):
-            return all([ self.add_candidate_genes(g) 
+            return all([ self.add_candidate_genes(g)
                 for g in gene_name ])
 
         assert(isinstance(gene_name,str))
@@ -178,7 +182,7 @@ class DifferentialGeneExpression:
 
     def define_roi1(self,regiondef):
         """
-        (Re-)Defines the first region of interest. 
+        (Re-)Defines the first region of interest.
 
         Parameters:
         -----------
@@ -186,18 +190,37 @@ class DifferentialGeneExpression:
         regiondef : str
             Identifier for a brain region in the selected atlas parcellation
         """
-        new_samples = self._retrieve_samples(regiondef)
-        if new_samples is None:
-            raise Exception("Could not define ROI 2.")
-        if self._regiondef1 is not None:
-            self._samples_by_regiondef.pop(self._regiondef1)
-        self._regiondef1 = regiondef
-        self._samples1 = new_samples
-        self._samples_by_regiondef[regiondef] = self._samples1
+        if type(regiondef) == str:
+            new_samples = self._retrieve_samples(regiondef)
+            if new_samples is None:
+                raise Exception("Could not define ROI 1.")
+            if self._regiondef1 is not None:
+                self._samples_by_regiondef.pop(self._regiondef1)
+            self._regiondef1 = regiondef
+            self._samples1 = new_samples
+            self._samples_by_regiondef[regiondef] = self._samples1
+        elif type(regiondef) == list:
+            new_samples = None
+            for region in regiondef:
+                print(region)
+                if new_samples is None:
+                    new_samples = self._retrieve_samples(region)
+                else:
+                    new_samples.update(self._retrieve_samples(region))
+            if new_samples is None:
+                raise Exception("Could not define ROI 1.")
+            if self._regiondef1 is not None:
+                self._samples_by_regiondef.pop(self._regiondef1)
+            self._regiondef1 = "Merged ROI1"
+            self._samples1 = new_samples
+            self._samples_by_regiondef["Merged ROI1"] = self._samples1
+        else:
+            print("Unsupported parameter in ROI 1")
+
 
     def define_roi2(self,regiondef):
         """
-        (Re-)defines the second region of interest. 
+        (Re-)defines the second region of interest.
 
         Parameters:
         -----------
@@ -296,5 +319,3 @@ class DifferentialGeneExpression:
             json.dump(data,f,indent="\t")
             logger.info("Exported p-values and factors to file {}.".format(
                 filename))
-
-
