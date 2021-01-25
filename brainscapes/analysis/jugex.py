@@ -228,14 +228,42 @@ class DifferentialGeneExpression:
         regiondef : str
             Identifier for a brain region in the selected atlas parcellation
         """
-        new_samples = self._retrieve_samples(regiondef)
-        if new_samples is None:
-            raise Exception("Could not define ROI 2.")
-        if self._regiondef2 is not None:
-            self._samples_by_regiondef.pop(self._regiondef2)
-        self._regiondef2 = regiondef
-        self._samples2 = new_samples
-        self._samples_by_regiondef[regiondef] = self._samples2
+        #new_samples = self._retrieve_samples(regiondef)
+        #if new_samples is None:
+        #    raise Exception("Could not define ROI 2.")
+        #if self._regiondef2 is not None:
+        #    self._samples_by_regiondef.pop(self._regiondef2)
+        #self._regiondef2 = regiondef
+        #self._samples2 = new_samples
+        #self._samples_by_regiondef[regiondef] = self._samples2
+        if type(regiondef) == str:
+            new_samples = self._retrieve_samples(regiondef)
+            if new_samples is None:
+                raise Exception("Could not define ROI 2.")
+            if self._regiondef2 is not None:
+                self._samples_by_regiondef.pop(self._regiondef2)
+            self._regiondef2 = regiondef
+            self._samples2 = new_samples
+            self._samples_by_regiondef[regiondef] = self._samples2
+        elif type(regiondef) == list:
+            new_samples = None
+            for region in regiondef:
+                print(region)
+                if new_samples is None:
+                    new_samples = self._retrieve_samples(region)
+                else:
+                    new_samples.update(self._retrieve_samples(region))
+            if new_samples is None:
+                raise Exception("Could not define ROI 2.")
+            if self._regiondef2 is not None:
+                self._samples_by_regiondef.pop(self._regiondef2)
+            self._regiondef2 = "Merged ROI2"
+            self._samples2 = new_samples
+            self._samples_by_regiondef["Merged ROI2"] = self._samples2
+        else:
+            print("Unsupported parameter in ROI 2")
+
+
 
     def _retrieve_samples(self,regiondef):
         """
