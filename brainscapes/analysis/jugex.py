@@ -259,7 +259,6 @@ class DifferentialGeneExpression:
             print("Unsupported parameter in ROI 2")
 
 
-
     def _retrieve_samples(self,regiondef):
         """
         Retrieves and prepares gene expression samples for the given region
