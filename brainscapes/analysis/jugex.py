@@ -231,14 +231,6 @@ class DifferentialGeneExpression:
             Identifier or list of identifiers for a brain region in the
             selected atlas parcellation
         """
-        #new_samples = self._retrieve_samples(regiondef)
-        #if new_samples is None:
-        #    raise Exception("Could not define ROI 2.")
-        #if self._regiondef2 is not None:
-        #    self._samples_by_regiondef.pop(self._regiondef2)
-        #self._regiondef2 = regiondef
-        #self._samples2 = new_samples
-        #self._samples_by_regiondef[regiondef] = self._samples2
         if type(regiondef) == str:
             new_samples = self._retrieve_samples(regiondef)
             if new_samples is None:
