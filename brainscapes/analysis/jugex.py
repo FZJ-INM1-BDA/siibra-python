@@ -187,8 +187,10 @@ class DifferentialGeneExpression:
         Parameters:
         -----------
 
-        regiondef : str
-            Identifier for a brain region in the selected atlas parcellation
+        regiondef : str or list
+            Identifier or list of identifiers for a brain region in the
+            selected atlas parcellation
+
         """
         if type(regiondef) == str:
             new_samples = self._retrieve_samples(regiondef)
@@ -225,8 +227,9 @@ class DifferentialGeneExpression:
         Parameters:
         -----------
 
-        regiondef : str
-            Identifier for a brain region in the selected atlas parcellation
+        regiondef : str or list
+            Identifier or list of identifiers for a brain region in the
+            selected atlas parcellation
         """
         #new_samples = self._retrieve_samples(regiondef)
         #if new_samples is None:
