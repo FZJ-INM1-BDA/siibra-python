@@ -36,7 +36,7 @@ class TestAtlas(unittest.TestCase):
 
     def test_parcellations(self):
         parcellations = self.atlas.parcellations
-        self.assertTrue(len(parcellations) == 10)
+        self.assertTrue(len(parcellations) == 11)
 
     def test_spaces(self):
         spaces = self.atlas.spaces
