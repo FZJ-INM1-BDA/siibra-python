@@ -28,6 +28,34 @@ from .commons import create_key,Glossary
 from .config import ConfigurationRegistry
 from .space import Space
 
+def nifti_argmax_dim4(img,dim=-1):
+    """
+    Given a nifti image object with four dimensions, returns a modified object
+    with 3 dimensions that is obtained by taking the argmax along one of the
+    four dimensions (default: the last one).
+    """
+    assert(len(img.shape)==4)
+    assert(dim>=-1 and dim<4)
+    newarr = np.asarray(img.dataobj).argmax(dim)
+    return nib.Nifti1Image(
+            dataobj = newarr,
+            header = img.header,
+            affine = img.affine )
+
+# Some parcellation maps require special handling to be expressed as a static
+# parcellation. This dictionary contains postprocessing functions for converting
+# the image objects returned when loading the map of a specific parcellations,
+# in order to convert them to a 3D statis map. The dictionary is indexed by the
+# parcellation ids.
+STATIC_MAP_HOOKS = {
+        "minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721": lambda img : nifti_argmax_dim4(img),
+        "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8": lambda img : nifti_argmax_dim4(img),
+        "minds/core/parcellationatlas/v1.0.0/141d510f-0342-4f94-ace7-c97d5f160235": lambda img : nifti_argmax_dim4(img),
+        "minds/core/parcellationatlas/v1.0.0/63b5794f-79a4-4464-8dc1-b32e170f3d16": lambda img : nifti_argmax_dim4(img),
+        "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1": lambda img : nifti_argmax_dim4(img)
+        }
+
+
 class Atlas:
 
     def __init__(self,identifier,name):
@@ -149,6 +177,12 @@ class Atlas:
         else:
             filename = download_file(mapurl)
             maps[''] = nib.load(filename)
+
+        # apply postprocessing hook, if applicable
+        if self.selected_parcellation.id in STATIC_MAP_HOOKS.keys():
+            hook = STATIC_MAP_HOOKS[self.selected_parcellation.id]
+            for k,v in maps.items():
+                maps[k] = hook(v)
         
         return maps
 
@@ -412,6 +446,7 @@ class Atlas:
         else:
             return {region:RegionProps(self,space,custom_region=region) 
                     for region in self.selected_region.leaves} 
+
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)
