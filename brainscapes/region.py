@@ -148,7 +148,8 @@ class Region(anytree.NodeMixin):
             - a string with a name.
             - a region object
         """
-        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9]', s) if len(w)>0]
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9\.]', s) 
+                if len(w)>0]
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
         elif isinstance(regionspec,str):
