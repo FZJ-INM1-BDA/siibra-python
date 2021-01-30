@@ -41,8 +41,14 @@ def __compile_cachedir():
         cachedir = environ['BRAINSCAPES_CACHEDIR']
     else:
         cachedir = user_cache_dir(__name__,"")
-    if not path.isdir(cachedir):
-        makedirs(cachedir)
+    # make sure cachedir exists and is writable
+    try: 
+        if not path.isdir(cachedir):
+            makedirs(cachedir)
+        assert(os.access(cachedir, os.W_OK))
+    except Exception as e:
+        print(str(e))
+        raise PermissionError('Cannot create local cache folder at {}. Please set a writable cache directory using the environment variable BRAINSCAPES_CACHEDIR, and reload brainscapes.'.format(cachedir))
     return cachedir
 
 CACHEDIR = __compile_cachedir()
