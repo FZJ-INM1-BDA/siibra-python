@@ -32,11 +32,10 @@ class RegionProps(RegionalFeature):
             'surface_mm',
             'is_cortical']
 
-    def __init__(self,atlas,space,custom_region=None):
+    def __init__(self,atlas,space):
         """
         Construct region properties from a region selected in the given atlas,
-        in the specified template space. Optinally, a custom region can be
-        supplied and the selected region of the atlas is ignored.
+        in the specified template space. 
 
         Parameters
         ----------
@@ -44,14 +43,10 @@ class RegionProps(RegionalFeature):
             An atlas object
         space : Space
             A template space (needs to be supported by the given atlas)
-        custom_region : Region (default: None)
-            If specified, this region will be used instead of the currently
-            selected region in the atlas.
         """
         assert(space in atlas.spaces)
 
-        region = atlas.selected_region if custom_region is None else custom_region
-        RegionalFeature.__init__(self,region)
+        RegionalFeature.__init__(self,atlas.selected_region)
         self.attrs = {}
     
         # derive non-spatial properties

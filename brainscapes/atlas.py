@@ -419,33 +419,35 @@ class Atlas:
 
         return hits
 
-    def regionprops(self,space,summarize=False):
+    def regionprops(self,space, include_children=False):
         """
-        Extracts spatial properties of the currently selected region in the
-        given space.
+        Extracts spatial properties of the currently selected region.
+        Optionally, separate spatial properties of all child regions are
+        computed.
 
         Parameters
         ----------
         space : Space
             The template space in which the spatial properties shall be
             computed.
-        summarize : bool (default: False)
-            Wether to aggregate the spatial computation for the selected
-            subtree of regions, or return separate regionprops the leaves of
-            the tree. Default: compute regionprops for all leaves of the
-            selected region subtree.
+        include_children : Boolean (default: False)
+            If true, compute the properties of all children in the region
+            hierarchy as well.
 
         Yields
         ------
-        Dictionary with spatial properties of brain regions. If summarize=True,
-        includes only one element representing the union of regions in the
-        currently selected node of the region tree.
+        List of RegionProps objects (refer to RegionProp.regionname for
+        identification of each)
         """
-        if summarize:
-            return {self.selected_region:RegionProps(self,space)}
-        else:
-            return {region:RegionProps(self,space,custom_region=region) 
-                    for region in self.selected_region.leaves} 
+        result = []
+        result.append ( RegionProps(self,space) )
+        if include_children:
+            parentregion = self.selected_region
+            for region in self.selected_region.descendants:
+                self.select_region(region)
+                result.append ( RegionProps(self,space) )
+            self.select_region(parentregion)
+        return result
 
 
 
