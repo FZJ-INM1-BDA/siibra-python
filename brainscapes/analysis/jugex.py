@@ -17,11 +17,15 @@ from scipy.stats.mstats import winsorize
 from statsmodels.formula.api import ols
 import statsmodels.api as sm
 import numpy as np
-from concurrent import futures 
+from concurrent import futures
 from brainscapes.atlas import Atlas
 from brainscapes import spaces,logger
 from brainscapes.features import gene_names, modalities
 from collections import defaultdict
+
+# Remove these imports after development
+import pprint
+import sys
 
 class DifferentialGeneExpression:
     """
@@ -39,7 +43,7 @@ class DifferentialGeneExpression:
     https://www.fz-juelich.de/inm/inm-1/DE/Forschung/_docs/JuGex/JuGex_node.html
     """
 
-    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id 
+    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id
 
     def __init__(self,atlas: Atlas, gene_names=[]):
         self._pvals = None
@@ -65,7 +69,7 @@ class DifferentialGeneExpression:
             "zscores": zscores
         }
         mod = ols( 'zscores ~ area + specimen + age + race',
-                  data=variable_factors|donor_factors ).fit()
+                    data={**variable_factors, **donor_factors} ).fit()
         aov_table = sm.stats.anova_lm(mod, typ=1)
         return aov_table['F'][0]
 
@@ -106,7 +110,7 @@ class DifferentialGeneExpression:
         if random_seed is not None:
             logger.info("Using random seed {}.".format(random_seed))
             np.random.seed(random_seed)
-        logger.info('Running {} random permutations. This may take a while...'.format(permutations)) 
+        logger.info('Running {} random permutations. This may take a while...'.format(permutations))
 
         # convenience function for reuse below
         run_iteration = lambda t: self._anova_iteration(t[0],t[1],donor_factors)
@@ -141,12 +145,12 @@ class DifferentialGeneExpression:
         if self._pvals is None:
             logger.warn('No result has been computed yet.')
             return {}
-        return self.get_aggregated_sample_factors()|{'p-values':self._pvals }
+        return {**self.get_aggregated_sample_factors(), 'p-values':self._pvals}
 
     def add_candidate_genes(self,gene_name, reset=False):
         """
         Adds a single candidate gene or a list of multiple candidate genes to
-        be used for the analysis. 
+        be used for the analysis.
 
         Parameters:
         -----------
@@ -163,10 +167,10 @@ class DifferentialGeneExpression:
 
         TODO on invalid parameter, we could show suggestions!
         """
-        if reset: 
+        if reset:
             self.genes = set()
         if isinstance(gene_name,list):
-            return all([ self.add_candidate_genes(g) 
+            return all([ self.add_candidate_genes(g)
                 for g in gene_name ])
 
         assert(isinstance(gene_name,str))
@@ -178,41 +182,81 @@ class DifferentialGeneExpression:
 
     def define_roi1(self,regiondef):
         """
-        (Re-)Defines the first region of interest. 
+        (Re-)Defines the first region of interest.
 
         Parameters:
         -----------
 
-        regiondef : str
-            Identifier for a brain region in the selected atlas parcellation
+        regiondef : str or list
+            Identifier or list of identifiers for a brain region in the
+            selected atlas parcellation
         """
-        new_samples = self._retrieve_samples(regiondef)
-        if new_samples is None:
-            raise Exception("Could not define ROI 2.")
-        if self._regiondef1 is not None:
-            self._samples_by_regiondef.pop(self._regiondef1)
-        self._regiondef1 = regiondef
-        self._samples1 = new_samples
-        self._samples_by_regiondef[regiondef] = self._samples1
+        if type(regiondef) == str:
+            new_samples = self._retrieve_samples(regiondef)
+            if new_samples is None:
+                raise Exception("Could not define ROI 1.")
+            if self._regiondef1 is not None:
+                self._samples_by_regiondef.pop(self._regiondef1)
+            self._regiondef1 = regiondef
+            self._samples1 = new_samples
+            self._samples_by_regiondef[regiondef] = self._samples1
+        elif type(regiondef) == list:
+            new_samples = None
+            for region in regiondef:
+                print(region)
+                if new_samples is None:
+                    new_samples = self._retrieve_samples(region)
+                else:
+                    new_samples.update(self._retrieve_samples(region))
+            if new_samples is None:
+                raise Exception("Could not define ROI 1.")
+            if self._regiondef1 is not None:
+                self._samples_by_regiondef.pop(self._regiondef1)
+            self._regiondef1 = "Merged ROI1"
+            self._samples1 = self._filter_samples(new_samples)
+            self._samples_by_regiondef["Merged ROI1"] = self._samples1
+        else:
+            print("Unsupported parameter in ROI 1")
+
 
     def define_roi2(self,regiondef):
         """
-        (Re-)defines the second region of interest. 
+        (Re-)defines the second region of interest.
 
         Parameters:
         -----------
 
-        regiondef : str
-            Identifier for a brain region in the selected atlas parcellation
+        regiondef : str or list
+            Identifier or list of identifiers for a brain region in the
+            selected atlas parcellation
         """
-        new_samples = self._retrieve_samples(regiondef)
-        if new_samples is None:
-            raise Exception("Could not define ROI 2.")
-        if self._regiondef2 is not None:
-            self._samples_by_regiondef.pop(self._regiondef2)
-        self._regiondef2 = regiondef
-        self._samples2 = new_samples
-        self._samples_by_regiondef[regiondef] = self._samples2
+        if type(regiondef) == str:
+            new_samples = self._retrieve_samples(regiondef)
+            if new_samples is None:
+                raise Exception("Could not define ROI 2.")
+            if self._regiondef2 is not None:
+                self._samples_by_regiondef.pop(self._regiondef2)
+            self._regiondef2 = regiondef
+            self._samples2 = new_samples
+            self._samples_by_regiondef[regiondef] = self._samples2
+        elif type(regiondef) == list:
+            new_samples = None
+            for region in regiondef:
+                print(region)
+                if new_samples is None:
+                    new_samples = self._retrieve_samples(region)
+                else:
+                    new_samples.update(self._retrieve_samples(region))
+            if new_samples is None:
+                raise Exception("Could not define ROI 2.")
+            if self._regiondef2 is not None:
+                self._samples_by_regiondef.pop(self._regiondef2)
+            self._regiondef2 = "Merged ROI2"
+            self._samples2 = self._filter_samples(new_samples)
+            self._samples_by_regiondef["Merged ROI2"] = self._samples2
+        else:
+            print("Unsupported parameter in ROI 2")
+
 
     def _retrieve_samples(self,regiondef):
         """
@@ -238,7 +282,7 @@ class DifferentialGeneExpression:
                     modalities.GeneExpression,
                     gene=gene_name):
                 key = tuple(list(f.location)+[regiondef])
-                samples[key] = samples[key]|f.donor_info
+                samples[key] = {**samples[key], **f.donor_info}
                 samples[key]['mnicoord'] = tuple(f.location)
                 samples[key]['region'] = region
                 samples[key][gene_name] =  np.mean(
@@ -247,12 +291,37 @@ class DifferentialGeneExpression:
             len(samples), regiondef))
         return samples
 
+
+    def _filter_samples(self, samples):
+        """
+        Filter out duplicate samples from the samples dictionary.
+
+        Parameters:
+        -----------
+
+        samples : defaultdict
+            Gene expression data samples for the provided region
+
+        Returns: dictionary
+            Filtered gene expression data samples for the provided region
+        """
+        test_list = []
+
+        for coord in list(samples.keys()):
+            if coord[0:3] not in test_list:
+                test_list.append(coord[0:3])
+            else:
+                del samples[coord]
+
+        return samples
+
+
     def get_aggregated_sample_factors(self):
         """
         Creates a dictionary of flattened sample factors for the analysis from
         the two sets of collected samples per gene.
         """
-        samples = self._samples1|self._samples2
+        samples = {**self._samples1, **self._samples2}
         factors = {
             'race' : [s['race'] for s in samples.values()],
             'age' : [s['age'] for s in samples.values()],
@@ -296,5 +365,3 @@ class DifferentialGeneExpression:
             json.dump(data,f,indent="\t")
             logger.info("Exported p-values and factors to file {}.".format(
                 filename))
-
-
