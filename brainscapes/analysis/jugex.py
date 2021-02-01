@@ -305,11 +305,11 @@ class DifferentialGeneExpression:
         Returns: dictionary
             Filtered gene expression data samples for the provided region
         """
-        test_dict = {}
+        test_list = []
 
         for coord in list(samples.keys()):
-            if coord[0:3] not in test_dict:
-                test_dict[coord[0:3]] = coord[3]
+            if coord[0:3] not in test_list:
+                test_list.append(coord[0:3])
             else:
                 del samples[coord]
 
