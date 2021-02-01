@@ -291,17 +291,30 @@ class DifferentialGeneExpression:
             len(samples), regiondef))
         return samples
 
+
     def _filter_samples(self, samples):
-        keys = list(samples.keys())
+        """
+        Filter out duplicate samples from the samples dictionary.
+
+        Parameters:
+        -----------
+
+        samples : defaultdict
+            Gene expression data samples for the provided region
+
+        Returns: dictionary
+            Filtered gene expression data samples for the provided region
+        """
         test_dict = {}
 
-        for coord in keys:
+        for coord in list(samples.keys()):
             if coord[0:3] not in test_dict:
                 test_dict[coord[0:3]] = coord[3]
             else:
                 del samples[coord]
 
         return samples
+
 
     def get_aggregated_sample_factors(self):
         """
