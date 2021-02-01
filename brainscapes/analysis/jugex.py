@@ -213,7 +213,7 @@ class DifferentialGeneExpression:
             if self._regiondef1 is not None:
                 self._samples_by_regiondef.pop(self._regiondef1)
             self._regiondef1 = "Merged ROI1"
-            self._samples1 = new_samples
+            self._samples1 = self._filter_samples(new_samples)
             self._samples_by_regiondef["Merged ROI1"] = self._samples1
         else:
             print("Unsupported parameter in ROI 1")
@@ -252,7 +252,7 @@ class DifferentialGeneExpression:
             if self._regiondef2 is not None:
                 self._samples_by_regiondef.pop(self._regiondef2)
             self._regiondef2 = "Merged ROI2"
-            self._samples2 = new_samples
+            self._samples2 = self._filter_samples(new_samples)
             self._samples_by_regiondef["Merged ROI2"] = self._samples2
         else:
             print("Unsupported parameter in ROI 2")
@@ -289,6 +289,18 @@ class DifferentialGeneExpression:
                         winsorize(f.z_scores, limits=0.1))
         logger.info('{} samples found for region {}.'.format(
             len(samples), regiondef))
+        return samples
+
+    def _filter_samples(self, samples):
+        keys = list(samples.keys())
+        test_dict = {}
+
+        for coord in keys:
+            if coord[0:3] not in test_dict:
+                test_dict[coord[0:3]] = coord[3]
+            else:
+                del samples[coord]
+
         return samples
 
     def get_aggregated_sample_factors(self):
