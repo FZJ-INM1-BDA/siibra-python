@@ -1,6 +1,8 @@
 import os
 import requests
 
+from string import Template
+
 REFRESH_TOKEN_env = 'JUGEX_REFRESH_TOKEN'
 CLIENT_ID_env = 'JUGEX_CLIENT_ID'
 CLIENT_SECRET_env = 'JUGEX_CLIENT_SECRET'
