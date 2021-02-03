@@ -1,6 +1,12 @@
+import os
 import brainscapes as bs
+
+from test.get_token import get_token
+
 bs.logger.setLevel("DEBUG")
 
+token = get_token()
+os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 # find available cortical receptor profiles
 receptor_extractor = bs.features.extractor_types.ReceptorDistribution[0]()
