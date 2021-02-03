@@ -37,7 +37,7 @@ def get_token():
     _check_envs()
     result = requests.post(
                 os.environ[HBP_OIDC_ENDPOINT_env],
-                data = build_request_object(),
+                data = _build_request_object(),
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
     return result
