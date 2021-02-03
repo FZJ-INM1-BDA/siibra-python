@@ -41,7 +41,7 @@ def get_token():
                 data = _build_request_object(),
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
-    return result
+    return json.loads(result.content.decode("utf-8"))
 
 
 def main():
