@@ -42,7 +42,7 @@ def __compile_cachedir():
     else:
         cachedir = user_cache_dir(__name__,"")
     # make sure cachedir exists and is writable
-    try: 
+    try:
         if not path.isdir(cachedir):
             makedirs(cachedir)
         assert(os.access(cachedir, os.W_OK))
@@ -131,6 +131,7 @@ def download_file(url, ziptarget=None, targetname=None ):
 def get_from_zip(zipfile, ziptarget ):
     # Extract temporary zip file
     # TODO catch problem if file is not a nifti
+    targetname = None
     with ZipFile(zipfile, 'r') as zip_ref:
         for zip_info in zip_ref.infolist():
             if zip_info.filename[-1] == '/':
@@ -142,9 +143,11 @@ def get_from_zip(zipfile, ziptarget ):
                 targetname = "{}.{}".format(
                     os.path.splitext(zipfile)[0],
                     os.path.basename(ziptarget) )
-                os.rename(downloadname,targetname)
-                os.remove(zipfile)
-                return targetname
+                if not os.path.exists(targetname):
+                    os.rename(downloadname,targetname)
+    os.remove(zipfile)
+    if targetname is None:
+        return targetname
     raise Exception("target file",ziptarget,"not found in zip archive",zipfile)
 
 
@@ -198,6 +201,3 @@ def clear_cache():
     logger.info("Clearing brainscapes cache.")
     shutil.rmtree(CACHEDIR)
     __compile_cachedir()
-
-
-
