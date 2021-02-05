@@ -23,6 +23,8 @@ class Parcellation:
         self.name = name
         self.key = create_key(name)
         self.version = version
+        self.publications = []
+        self.description = ""
         self.maps = defaultdict(dict)
         self.regions = {}
 
@@ -65,6 +67,10 @@ class Parcellation:
             # TODO model the regions already here as a hierarchy tree
             if 'regions' in obj:
                 p.regions = obj['regions']
+            if 'description' in obj:
+                p.description = obj['description']
+            if 'publications' in obj:
+                p.publications = obj['publications']
             return p
         return obj
 

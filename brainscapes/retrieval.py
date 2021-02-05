@@ -41,8 +41,14 @@ def __compile_cachedir():
         cachedir = environ['BRAINSCAPES_CACHEDIR']
     else:
         cachedir = user_cache_dir(__name__,"")
-    if not path.isdir(cachedir):
-        makedirs(cachedir)
+    # make sure cachedir exists and is writable
+    try: 
+        if not path.isdir(cachedir):
+            makedirs(cachedir)
+        assert(os.access(cachedir, os.W_OK))
+    except Exception as e:
+        print(str(e))
+        raise PermissionError('Cannot create local cache folder at {}. Please set a writable cache directory using the environment variable BRAINSCAPES_CACHEDIR, and reload brainscapes.'.format(cachedir))
     return cachedir
 
 CACHEDIR = __compile_cachedir()
@@ -157,7 +163,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the brainscapes library, and make it a decorator
     """
-    url_hash = hashlib.sha256(url.encode('ascii')).hexdigest()
+    url_hash = hashlib.sha256((url+json.dumps(kwargs)).encode('ascii')).hexdigest()
     cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"
     cachefile_url = os.path.join(CACHEDIR,url_hash)+".url"
 

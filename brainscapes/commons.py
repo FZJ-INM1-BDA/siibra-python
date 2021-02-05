@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
+
 class Glossary:
     """
     A very simple class that provides enum-like siple autocompletion for an
@@ -43,9 +45,9 @@ def create_key(name):
     Creates an uppercase identifier string that includes only alphanumeric
     characters and underscore from a natural language name.
     """
-    result = "".join(e if e.isalnum() else '_' 
-        for e in name.strip()).upper()
-    while "__" in result:
-        result = result.replace('__','_')
-    return result         
+    return re.sub(
+            r' +','_',
+            "".join([e if e.isalnum() else " " 
+                for e in name]).upper().strip() 
+            )
 

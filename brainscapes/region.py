@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from brainscapes import parcellations,spaces,ebrains
 from brainscapes.commons import create_key
-from brainscapes import parcellations,spaces
-from brainscapes.retrieval import get_json_from_url
-from . import logger
+from brainscapes.retrieval import download_file 
+import numpy as np
+import nibabel as nib
+from brainscapes import logger
 import re
 import anytree
 
@@ -69,6 +71,28 @@ class Region(anytree.NodeMixin):
             self.parent = parent
         if children is not None: 
             self.children = children
+
+    def _related_ebrains_files(self):
+        """
+        Returns a list of downloadable files from EBRAINS that could be found
+        for this region, if any.
+        FIXME: parameter is not used!
+        """
+        files = []
+        if 'originDatasets' not in self.attrs.keys():
+            return files
+        if len(self.attrs['originDatasets'])==0:
+            return files
+        if 'kgId' not in self.attrs['originDatasets'][0].keys():
+            return files
+        dataset = self.attrs['originDatasets'][0]['kgId']
+        res = ebrains.execute_query_by_id(
+                'minds','core','dataset','v1.0.0',
+                'brainscapes_files_in_dataset',
+                params={'dataset':dataset} )
+        for dataset in res['results']:
+            files.extend(dataset['files'])
+        return files
 
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]
@@ -124,7 +148,8 @@ class Region(anytree.NodeMixin):
             - a string with a name.
             - a region object
         """
-        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9]', s) if len(w)>0]
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9\.]', s) 
+                if len(w)>0]
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
         elif isinstance(regionspec,str):
@@ -135,6 +160,44 @@ class Region(anytree.NodeMixin):
                     regionspec==self.name ])
         else:
             raise ValueError("Cannot say if object of type {} might correspond to region".format(type(regionspec)))
+
+    def get_specific_map(self,space,threshold=None):
+        """
+        Retrieves and returns a specific map of this region, if available
+        (otherwise None). This is typically a probability or otherwise
+        continuous map, as opposed to the standard label mask from the discrete
+        parcellation.
+
+        Parameters
+        ----------
+        space : Space 
+            Template space 
+        threshold : float or None
+            Threshold for optional conversion to binary mask
+        """
+        if "maps" not in self.attrs.keys():
+            logger.warn("No specific maps known for",self)
+            return None
+        if space.id not in self.attrs["maps"].keys():
+            logger.warn("No specific map known for {} in space {}.".format(
+                self,space))
+            return None
+        url = self.attrs["maps"][space.id]
+        filename = download_file( url )
+        if filename is not None:
+            img = nib.load(filename)
+            if threshold is not None:
+                M = (np.asarray(img.dataobj)>threshold).astype('uint8')
+                return nib.Nifti1Image(
+                        dataobj=M,
+                        affine=img.affine,
+                        header=img.header)
+            else:
+                return img
+        else:
+            logger.warn("Could not retrieve and create Nifti file from",url)
+            return None
+
 
     def __str__(self):
         return self.name
@@ -155,18 +218,6 @@ class Region(anytree.NodeMixin):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
-
-    def query_data(self, datatype):
-        receptor_data_url = 'https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures/-/raw/master/receptordata/julichbrain_v1_18.json'
-        receptor_data = get_json_from_url(receptor_data_url)
-        for data in receptor_data[0]['regions']:
-            if data['name'] in self.name:
-                return data['files']
-        return {}
-
-    # DISABLED, yields a circular import and not need yet
-    #def get_receptor_data(self):
-        #return receptors.get_receptor_data_by_region(self.name)
 
 
 if __name__ == '__main__':

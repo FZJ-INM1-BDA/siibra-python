@@ -15,7 +15,7 @@
 from xml.etree import ElementTree
 import numpy as np
 import json
-from .. import retrieval,spaces,logger
+from brainscapes import retrieval,spaces,logger
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
@@ -24,7 +24,7 @@ class GeneExpression(SpatialFeature):
     A spatial feature type for gene expressions.
     """
 
-    def __init__(self,gene,space,location,expression_levels,z_scores,factors):
+    def __init__(self,gene,space,location,expression_levels,z_scores,probe_ids,donor_info,mri_coord=None):
         """
         Construct the spatial feature for gene expressions measured in a sample.
 
@@ -39,29 +39,39 @@ class GeneExpression(SpatialFeature):
             expression levels measured in possibly multiple probes of the same sample
         z_scores : list of float
             z scores measured in possibly multiple probes of the same sample
-        factors : dict (keys: age, race, gender)
-            Dictionary of social factors of the donor 
+        probe_ids : list of int
+            The probe_ids corresponding to each z_score element
+        donor_info : dict (keys: age, race, gender, donor, speciment)
+            Dictionary of donor attributes
+        mri_coord : tuple  (optional)
+            coordinates in original mri space
         """
         SpatialFeature.__init__(self,location,space)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
-        self.factors = factors
+        self.donor_info = donor_info
         self.gene = gene
+        self.probe_ids = probe_ids
+        self.mri_coord = mri_coord
 
     def __str__(self):
         return " ".join([
             "At ("+",".join("{:4.0f}".format(v) for v in self.location)+")",
-            " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.factors.items()]),
+            " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.donor_info.items()]),
             "Expression: ["+",".join(["%4.1f"%v for v in self.expression_levels])+"]",
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
 
 class AllenBrainAtlasQuery(FeatureExtractor):
     """
-    Interface to Allen Human Brain Atlas Gene Expressions
-    TODO add Allen copyright clause
+    Interface to Allen Human Brain Atlas microarray data.
+    
+    This class connects to the web API of the Allen Brain Atlas:
+    © 2015 Allen Institute for Brain Science. Allen Brain Atlas API. 
+    Available from: brain-map.org/api/index.html
+    Any use of the data needs to be in accordance with their terms of use, see
+    https://alleninstitute.org/legal/terms-use/
 
-    To better understand the principles:
     - We have samples from 6 different human donors. 
     - Each donor corresponds to exactly 1 specimen (tissue used for study)
     - Each sample was subject to multiple (in fact 4) different probes.
@@ -71,6 +81,15 @@ class AllenBrainAtlasQuery(FeatureExtractor):
       the corresponding donor for the given gene.
     """
     _FEATURETYPE = GeneExpression
+
+    ALLEN_ATLAS_NOTIFICATION=\
+"""For retrieving microarray data, brainscapes connects to the web API of
+the Allen Brain Atlas (© 2015 Allen Institute for Brain Science), available
+from https://brain-map.org/api/index.html. Any use of the microarray data needs
+to be in accordance with their terms of use, as specified at
+https://alleninstitute.org/legal/terms-use/."""
+    _notification_shown=False
+
 
     _BASE_URL = "http://api.brain-map.org/api/v2/data"
     _QUERY = {
@@ -114,7 +133,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
         FeatureExtractor.__init__(self)
         self.gene = gene
 
-        # get probe ids for the given gene
+        if not self.__class__._notification_shown:
+            print(self.__class__.ALLEN_ATLAS_NOTIFICATION) 
+            self.__class__._notification_shown=True
         logger.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
         response = retrieval.cached_get(url)
@@ -183,9 +204,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
         for i,sample in enumerate(samples):
 
             # coordinate conversion to ICBM152 standard space
-            spcid,donor_id = [sample['donor'][k] for k in ['name','id']]
+            donor = {k:sample['donor'][k] for k in ['name','id']}
             icbm_coord = np.matmul(
-                    self._specimen[spcid]['donor2icbm'],
+                    self._specimen[donor['name']]['donor2icbm'],
                     sample['sample']['mri']+[1] ).T
 
             # Create the spatial feature
@@ -195,7 +216,9 @@ class AllenBrainAtlasQuery(FeatureExtractor):
                 spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
-                factors = self.factors[donor_id]
+                probe_ids = [p['id'] for p in probes],
+                donor_info = {**self.factors[donor['id']], **donor},
+                mri_coord = sample['sample']['mri']
                 ))
 
 if __name__ == "__main__":
