@@ -114,7 +114,6 @@ def download_file(url, ziptarget=None, targetname=None ):
             filename = ziptarget
             cachename = get_from_zip(
                     cachename, ziptarget)
-            print(cachename) #TODO Remove after debug
         with open(hashfile, 'w') as f:
             f.write(filename+";")
             f.write(cachename)
@@ -132,7 +131,6 @@ def download_file(url, ziptarget=None, targetname=None ):
 def get_from_zip(zipfile, ziptarget ):
     # Extract temporary zip file
     # TODO catch problem if file is not a nifti
-    print("get_from_zip called") #TODO Remove after debug
     targetname = None
     with ZipFile(zipfile, 'r') as zip_ref:
         for zip_info in zip_ref.infolist():
@@ -148,8 +146,7 @@ def get_from_zip(zipfile, ziptarget ):
                 if not os.path.exists(targetname):
                     os.rename(downloadname,targetname)
     os.remove(zipfile)
-    print(targetname) # TODO Remove after debug
-    if targetname is None:
+    if targetname is not None:
         return targetname
     raise Exception("target file",ziptarget,"not found in zip archive",zipfile)
 
