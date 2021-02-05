@@ -149,7 +149,7 @@ def get_from_zip(zipfile, ziptarget ):
                     os.rename(downloadname,targetname)
     os.remove(zipfile)
     print(targetname) # TODO Remove after debug
-    if targetname is not None:
+    if targetname is None:
         return targetname
     raise Exception("target file",ziptarget,"not found in zip archive",zipfile)
 
