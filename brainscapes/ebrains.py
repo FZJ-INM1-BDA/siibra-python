@@ -49,8 +49,7 @@ def execute_query_by_id(org, domain, schema, version, query_id, params={}):
             'Content-Type':'application/json',
             'Authorization': 'Bearer {}'.format(authentication.get_token())
             }, 
-            msg_if_not_cached="No cached data. Will now run EBRAINS KG query {}. This may take a while...".format(
-                query_id),
+            msg_if_not_cached="No cached data. Will now run EBRAINS KG query. This may take a while...",
            params=params)
     return json.loads(r)
 
