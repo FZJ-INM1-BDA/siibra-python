@@ -4,6 +4,11 @@ Authors: T. Dickscheid, V. Marcenko,  Forschungszentrum Jülich GmbH
 
 Copyright Forschungszentrum Jülich GmbH 2020
 
+**Brainscapes is still at the prototype stage. The API of the library is not
+stable, and the software is not yet fully tested. You are welcome to install and
+test it, but please be aware that you may run into features that are not yet
+implemented and may obtain wrong results.**
+
 Brainscapes is a Python client for interacting with "multilevel" brain atlases,
 which combine multiple brain parcellations and neuroscience datasets across
 different reference template spaces. It is designed to allow safe and
@@ -16,11 +21,6 @@ space, as well as microstructural maps and microscopic data in the BigBrain spac
 
 Brainscapes is largely developed inside the [Human Brain Project](https://humanbrainproject.eu) for accessing the [human brain atlas of EBRAINS](https://ebrains.eu/service/human-brain-atlas). 
 It retrieves most of its concept and datasets from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the recently established [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
-
-**Brainscapes is currently at the prototype stage. The API of the library is not
-stable, and the software is not yet fully tested. You are welcome to install and
-test it, but please be aware that you may run into features that are not yet
-implemented and obtain wrong results.**
 
 The functionality of brainscapes matches common actions known from browsing the [EBRAINS Interactive Atlas Viewer](https://atlases.ebrains.eu/viewer): Selecting different 
 parcellations, browsing and searching brain region hierarchies, downloading maps, selecting regions, and accessing multimodal data features
@@ -64,66 +64,73 @@ without refreshing the token.
 
 ## Usage examples
 
-For learning how to use brainscapes, we recommend to checkout the jupyter notebooks in the `examples/` subfolder of this repository. 
+To get familiar with brainscapes, we recommend to checkout the jupyter notebooks in the `examples/` subfolder of this repository. 
 Below are some code snippets to give you an initial idea.
 
 ### Retrieving receptor densities for one brain area
 ```python
 import brainscapes as bs
-
-# Retrieve data from atlas
 # NOTE: assumes the client is already authenticated, see above
 atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
-for region in atlas.regiontree.find('hOc1',exact=False):
-    atlas.select_region(region)
-    hits = atlas.query_data(bs.features.modalities.ReceptorDistribution)
-    for hit in hits:
-        print(hit)
+atlas.select_region('v1')
+features = atlas.query_data(
+    bs.features.modalities.ReceptorDistribution)
+for r in features:
+    fig = r.plot(r.region)
 ```
 
 ### Retrieving gene expressions for one brain area
 
 ```python
 import brainscapes as bs
-
-# Retrieve data from atlas
-# NOTE: assumes the client is already authenticated, see above
+from nilearn import plotting
 atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
-for region in atlas.regiontree.find('hOc1',exact=False):
-    atlas.select_region(region)
-    hits = atlas.query_data(
-        modality=bs.features.modalities.GeneExpression,
-        gene="GABAARL2"
-    )
-    for hit in hits:
-        print(hit)
+# request gene expressions from Allen Atlas
+atlas.select_region("v1 left")
+features = atlas.query_data(
+    bs.features.modalities.GeneExpression,
+    gene=bs.features.gene_names.GABARAPL2 )
+print(features[0])
+
+# plot
+all_coords = [tuple(g.location) for g in features]
+mask = atlas.get_mask(bs.spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC)
+display = plotting.plot_roi(mask)
+display.add_markers(all_coords,marker_size=5)
 ```
 
 ## Command line interface
 
-Many of the functionalities are available through the `brainscapes` commandline
-client (brainscapes-cli). Note that many autocompletion functions are available
+All functionalities will be exposed through the `brainscapes` commandline
+client (brainscapes-cli). Currently, the cli is still rudimentary. It will
+mostly print summaries of query results on the commandline, and includes
+only a subset of features. 
+
+Note that many autocompletion functions are available
 on the commandline, if you setup autompletion in your shell as described
 [here](https://click.palletsprojects.com/en/7.x/bashcomplete/#).
+Just as for the Python client, authentification with EBRAINS is required. For
+the commandline client, set the environment variable `HBP_AUTH_TOKEN` to your
+token.
 
 Some examples:
 
  1. Retrieve receptor densities for a specific brain area:
 
 ```shell
-brainscapes features AREA_HOC1__V1__17__CALCS_ receptors
+brainscapes features ReceptorDistribution v1
 ```
 
- 2. Retrieve gene expressions for a specific brain area:
+ 2. Retrieve gene expressions for a specific brain area and gene:
 	
 ```shell
-brainscapes features AREA_HOC1__V1__17__CALCS_ gex GABARAPL2
+brainscapes features GeneExpression "v1 left" -g MAOA
 ```
 
  3. Print the region hierarchy:
 
 ```shell
-brainscapes hierarchy show
+brainscapes regions tree
 ```
  
 ## Acknowledgements

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="brainscapes",
-    version="0.0.8.7",
+    version="0.0.8.7.1",
     author="Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1) - V. Marcenko, T. Dickscheid",
     author_email="v.marcenko@fz-juelich.de",
     description="Brainscapes - Multilevel Human Brain Atlas",
