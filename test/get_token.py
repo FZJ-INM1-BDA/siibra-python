@@ -41,8 +41,11 @@ def get_token():
                 data = _build_request_object(),
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
-    return json.loads(result.content.decode("utf-8"))
+    token = json.loads(result.content.decode("utf-8"))
+    if 'error' in token:
+        raise Exception(token['error_description'])
 
+    return token
 
 def main():
     print(get_token())

@@ -4,9 +4,10 @@ from brainscapes.atlas import REGISTRY
 from brainscapes.features import modalities
 import brainscapes as bs
 from brainscapes import retrieval
-from get_token import get_token
+from test.get_token import get_token
 
 token = get_token()
+print(token)
 os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):

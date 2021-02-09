@@ -6,6 +6,7 @@ from test.get_token import get_token
 bs.logger.setLevel("DEBUG")
 
 token = get_token()
+print(token)
 os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 # find available cortical receptor profiles
