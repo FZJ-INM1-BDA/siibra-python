@@ -7,7 +7,6 @@ from brainscapes import retrieval
 from test.get_token import get_token
 
 token = get_token()
-print(token)
 os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):
