@@ -1,6 +1,7 @@
 import os
 import unittest
 import brainscapes as bs
+from test.get_token import get_token
 
 class TestRetrievalDownloadFile(unittest.TestCase):
 
