@@ -3,6 +3,9 @@ import unittest
 import brainscapes as bs
 from test.get_token import get_token
 
+token = get_token()
+os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
+
 class TestRetrievalDownloadFile(unittest.TestCase):
 
     def test_download_file(self):
