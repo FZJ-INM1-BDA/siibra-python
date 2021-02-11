@@ -9,19 +9,25 @@ CLIENT_ID_env = 'JUGEX_CLIENT_ID'
 CLIENT_SECRET_env = 'JUGEX_CLIENT_SECRET'
 HBP_OIDC_ENDPOINT_env = 'HBP_OIDC_ENDPOINT'
 
+HBP_TOKEN_env = 'HBP_AUTH_TOKEN'
+
 
 def _check_envs():
-    if REFRESH_TOKEN_env not in os.environ:
-        raise Exception("Refresh token not set")
+    if "CI_PIPELINE" not in os.environ:
+        if HBP_TOKEN_env not in os.environ:
+            raise Exception("HBP_AUTH_TOKEN not set")
+    else:
+        if REFRESH_TOKEN_env not in os.environ:
+            raise Exception("Refresh token not set")
 
-    if CLIENT_ID_env not in os.environ:
-        raise Exception("Client ID not set")
+        if CLIENT_ID_env not in os.environ:
+            raise Exception("Client ID not set")
 
-    if CLIENT_SECRET_env not in os.environ:
-        raise Exception("Client secret not set")
+        if CLIENT_SECRET_env not in os.environ:
+            raise Exception("Client secret not set")
 
-    if HBP_OIDC_ENDPOINT_env not in os.environ:
-        raise Exception("Endpoint URL not set")
+        if HBP_OIDC_ENDPOINT_env not in os.environ:
+            raise Exception("Endpoint URL not set")
 
 
 def _build_request_object():
