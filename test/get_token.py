@@ -42,14 +42,17 @@ def _build_request_object():
 
 def get_token():
     _check_envs()
-    result = requests.post(
-                os.environ[HBP_OIDC_ENDPOINT_env],
-                data = _build_request_object(),
-                headers = {'content-type': 'application/x-www-form-urlencoded'}
-            )
-    token = json.loads(result.content.decode("utf-8"))
-    if 'error' in token:
-        raise Exception(token['error_description'])
+    if "CI_PIPELINE" not in os.environ:
+        result = requests.post(
+            os.environ[HBP_OIDC_ENDPOINT_env],
+            data = _build_request_object(),
+            headers = {'content-type': 'application/x-www-form-urlencoded'}
+        )
+        token = json.loads(result.content.decode("utf-8"))
+        if 'error' in token:
+            raise Exception(token['error_description'])
+    else:
+        token = os.environ(HBP_TOKEN_env)    
 
     return token
 
