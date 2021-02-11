@@ -42,7 +42,7 @@ def _build_request_object():
 
 def get_token():
     _check_envs()
-    if "CI_PIPELINE" not in os.environ:
+    if "CI_PIPELINE" in os.environ:
         result = requests.post(
             os.environ[HBP_OIDC_ENDPOINT_env],
             data = _build_request_object(),
@@ -52,7 +52,7 @@ def get_token():
         if 'error' in token:
             raise Exception(token['error_description'])
     else:
-        token = os.environ(HBP_TOKEN_env)    
+        token = {'access_token': os.environ[HBP_TOKEN_env]}
 
     return token
 
