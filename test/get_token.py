@@ -44,6 +44,7 @@ def get_token():
     _check_envs()
     if "CI_PIPELINE" in os.environ:
         print("CI Pipeline run")
+        print(os.environ[HBP_OIDC_ENDPOINT_env])
         result = requests.post(
             os.environ[HBP_OIDC_ENDPOINT_env],
             data = _build_request_object(),
@@ -52,7 +53,7 @@ def get_token():
         token = None
         try:
                 token = json.loads(result.content.decode("utf-8"))
-        except JSONDecodeError as error:
+        except json.JSONDecodeError as error:
             print("invalid json: %s" % error)
             raise Exception("Invalid response from OIDC")
         
