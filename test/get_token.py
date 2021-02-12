@@ -48,7 +48,13 @@ def get_token():
             data = _build_request_object(),
             headers = {'content-type': 'application/x-www-form-urlencoded'}
         )
-        token = json.loads(result.content.decode("utf-8"))
+        token = None
+        try:
+                token = json.loads(result.content.decode("utf-8"))
+        except JSONDecodeError as error:
+            print("invalid json: %s" % error)
+            raise Exception("Invalid response from OIDC")
+        
         if 'error' in token:
             raise Exception(token['error_description'])
     else:
