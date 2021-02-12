@@ -4,6 +4,8 @@ from brainscapes.atlas import REGISTRY
 import brainscapes as bs
 from test.get_token import get_token
 
+token = get_token()
+os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 class TestSelectionBrainRegions(unittest.TestCase):
 
