@@ -2,6 +2,7 @@ import os
 import unittest
 from brainscapes.atlas import REGISTRY
 import brainscapes as bs
+from test.get_token import get_token
 
 
 class TestSelectionBrainRegions(unittest.TestCase):
