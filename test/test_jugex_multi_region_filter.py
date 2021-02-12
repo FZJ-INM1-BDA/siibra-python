@@ -1,12 +1,17 @@
+import os
 import unittest
 import brainscapes as bs
+from test.get_token import get_token
+
+token = get_token()
+os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
 class TestJugexMultiRegionFilter(unittest.TestCase):
 
     def test_region_filter(self):
         bs.logger.setLevel("INFO")
         atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
-        atlas.select_parcellation(bs.parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_MAPS_V2_5_)
+        atlas.select_parcellation(bs.parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_MAPS_V2_5)
         atlas.enable_continuous_map_thresholding(0.2)
         jugex = bs.analysis.DifferentialGeneExpression(atlas)
 
