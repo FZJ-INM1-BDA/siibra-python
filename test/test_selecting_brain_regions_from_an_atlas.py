@@ -1,3 +1,4 @@
+import os
 import unittest
 from brainscapes.atlas import REGISTRY
 import brainscapes as bs
