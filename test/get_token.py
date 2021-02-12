@@ -44,7 +44,6 @@ def get_token():
     _check_envs()
     if "CI_PIPELINE" in os.environ:
         print("CI Pipeline run")
-        print(os.environ[HBP_OIDC_ENDPOINT_env])
         result = requests.post(
             os.environ[HBP_OIDC_ENDPOINT_env],
             data = _build_request_object(),
