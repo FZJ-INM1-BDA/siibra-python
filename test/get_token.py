@@ -52,7 +52,8 @@ def get_token():
         )
         token = None
         try:
-                token = json.loads(result.content.decode("utf-8"))
+            print(result.content.decode("utf-8")) # TODO Remove after debugging
+            token = json.loads(result.content.decode("utf-8"))
         except json.JSONDecodeError as error:
             print("invalid json: %s" % error)
             raise Exception("Invalid response from OIDC")
