@@ -187,19 +187,6 @@ RECEPTOR_SYMBOLS = {
                     "name" : "norepinephrine" 
                     }
                 },
-        "alpha1": {
-                "receptor" : {
-                    "latex" : "$\alpha_1$",
-                    "markdown" : "&#945<sub>1</sub>",
-                    "name" : "alpha-1 adrenergic receptor" 
-                    },
-                'neurotransmitter' : {
-                    "label" : "NE",
-                    "latex" : "$NE$",
-                    "markdown" : "NE",
-                    "name" : "norepinephrine" 
-                    }
-                },
         "alpha2": {
                 "receptor" : {
                     "latex" : "$\\alpha_2$",
@@ -213,35 +200,9 @@ RECEPTOR_SYMBOLS = {
                     "name" : "norepinephrine" 
                     }
                 },
-        "alpha2": {
-                "receptor" : {
-                    "latex" : "$\alpha_2$",
-                    "markdown" : "&#945<sub>2</sub>",
-                    "name" : "alpha-2 adrenergic receptor" 
-                    },
-                'neurotransmitter' : {
-                    "label" : "NE",
-                    "latex" : "$NE$",
-                    "markdown" : "NE",
-                    "name" : "norepinephrine"
-                    }
-                },
         "alpha4beta2": {
                 "receptor" : {
-                    "latex" : "$\\alpha_4\beta_2$",
-                    "markdown" : "&#945<sub>4</sub>&#946<sub>2</sub>",
-                    "name" : "alpha-4 beta-2 nicotinic receptor" 
-                    },
-                'neurotransmitter' : {
-                    "label" : "ACh",
-                    "latex" : "$ACh$",
-                    "markdown" : "ACh",
-                    "name" : "acetylcholine"
-                    }
-                },
-        "alpha4beta2": {
-                "receptor" : {
-                    "latex" : "$\alpha_4\beta_2$",
+                    "latex" : "$\\alpha_4\\beta_2$",
                     "markdown" : "&#945<sub>4</sub>&#946<sub>2</sub>",
                     "name" : "alpha-4 beta-2 nicotinic receptor" 
                     },
