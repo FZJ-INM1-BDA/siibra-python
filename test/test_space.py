@@ -2,10 +2,9 @@ import unittest
 
 from brainscapes.space import Space
 from brainscapes.atlas import REGISTRY
-import json
 
 
-class TestAtlas(unittest.TestCase):
+class TestSpaces(unittest.TestCase):
 
     space_id = 'space_id'
     name = 'space name'
