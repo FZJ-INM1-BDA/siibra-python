@@ -19,6 +19,7 @@ from nilearn import image
 from numpy import linalg as npl
 import numpy as np
 from functools import lru_cache
+from anytree import PreOrderIter
 
 from . import parcellations, spaces, features, logger
 from .region import construct_tree, Region
@@ -134,7 +135,7 @@ class Atlas:
             for c in r.children ])
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
-    def get_maps(self, space):
+    def get_maps(self, space : Space, tree : Region = None):
         """
         Get the volumetric maps for the selected parcellation in the requested
         template space. Note that this sometimes includes multiple Nifti
@@ -162,6 +163,7 @@ class Atlas:
             logger.error('- Requested space: {}'.format(space))
 
         mapurl = self.selected_parcellation.maps[space.id]
+
         if not mapurl:
             logger.error('Downloading parcellation maps for the requested reference space is not yet supported.')
             logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
@@ -173,6 +175,7 @@ class Atlas:
             # represents a string that allows to identify them with region name
             # labels.
             for label,url in mapurl.items():
+
                 if url=="collect":
                     assert(space.type=="neuroglancer")
                     logger.info("This space has no complete map available. Will try to find individual area maps and aggregate them into one instead.")
@@ -183,7 +186,8 @@ class Atlas:
                     M = SpatialImage( 
                             np.zeros(V.volume.mip_shape(mip),dtype=int), 
                             affine=V.affine(mip) )
-                    for region in self.regiontree.descendants:
+                    regiontree = self.regiontree if tree is None else tree
+                    for region in PreOrderIter(regiontree):
                         if "maps" not in region.attrs.keys():
                             continue
                         if space.id in region.attrs["maps"].keys():
@@ -194,10 +198,12 @@ class Atlas:
                             Mr = image.resample_to_img(Mr0,M)
                             M.dataobj[Mr.dataobj>0] = int(region.attrs['labelIndex'])
                     maps[label] = M
+
                 else:
                     filename = download_file(url)
                     if filename is not None:
                         maps[label] = nib.load(filename)
+
         else:
             filename = download_file(mapurl)
             maps[''] = nib.load(filename)
@@ -269,7 +275,7 @@ class Atlas:
         """
         logger.debug("Computing the mask for {} in {}".format(
             regiontree.name, space))
-        maps = self.get_maps(space)
+        maps = self.get_maps(space,tree=regiontree)
         mask = affine = header = None 
         for description,m in maps.items():
             D = np.array(m.dataobj)
@@ -278,9 +284,8 @@ class Atlas:
                 mask = np.zeros_like(D)
                 affine, header = m.affine, m.header
             for r in regiontree.iterate():
-                if description not in r.name:
+                if len(maps)>1 and (description not in r.name):
                     continue
-                #print(description, r.name)#[r.name for r in regiontree.ancestors])
                 if 'labelIndex' not in r.attrs.keys():
                     continue
                 if r.attrs['labelIndex'] is None:
