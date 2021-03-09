@@ -17,10 +17,11 @@ from .config import ConfigurationRegistry
 
 class Space:
 
-    def __init__(self, identifier, name, template_url=None, ziptarget=None):
+    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
+        self.type = template_type
         self.url = template_url
         self.ziptarget = ziptarget
 
@@ -35,10 +36,14 @@ class Space:
         """
         if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
             if 'templateFile' in obj:
-                return Space(obj['@id'], obj['name'], obj['templateUrl'], 
+                return Space(obj['@id'], obj['name'], 
+                        template_url = obj['templateUrl'], 
+                        template_type = obj['templateType'],
                         ziptarget=obj['templateFile'])
             else:
-                return Space(obj['@id'], obj['name'], obj['templateUrl'])
+                return Space(obj['@id'], obj['name'], 
+                        template_url = obj['templateUrl'], 
+                        template_type = obj['templateType'])
         return obj
 
 REGISTRY = ConfigurationRegistry('spaces', Space)

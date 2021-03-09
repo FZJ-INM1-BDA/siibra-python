@@ -14,6 +14,8 @@
 
 import nibabel as nib
 from nibabel.affines import apply_affine
+from nibabel.spatialimages import SpatialImage
+from nilearn import image
 from numpy import linalg as npl
 import numpy as np
 from functools import lru_cache
@@ -27,6 +29,7 @@ from .retrieval import download_file
 from .commons import create_key,Glossary
 from .config import ConfigurationRegistry
 from .space import Space
+from .bigbrain import BigBrainVolume
 
 def nifti_argmax_dim4(img,dim=-1):
     """
@@ -134,7 +137,7 @@ class Atlas:
     def get_maps(self, space):
         """
         Get the volumetric maps for the selected parcellation in the requested
-        template space. Note that this sometimes included multiple Nifti
+        template space. Note that this sometimes includes multiple Nifti
         objects. For example, the Julich-Brain atlas provides two separate
         maps, one per hemisphere.
 
@@ -150,30 +153,51 @@ class Atlas:
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
         """
+
+        maps = {}
+
         if space.id not in self.selected_parcellation.maps:
             logger.error('The selected atlas parcellation is not available in the requested space.')
             logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
             logger.error('- Requested space: {}'.format(space))
-            return None
 
         mapurl = self.selected_parcellation.maps[space.id]
         if not mapurl:
             logger.error('Downloading parcellation maps for the requested reference space is not yet supported.')
             logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
             logger.error('- Requested space: {}'.format(space))
-            return None
 
-        logger.debug('Loading 3D map for space {}'.format(space))
-        maps = {}
         if type(mapurl) is dict:
             # Some maps are split across multiple files, e.g. separated per
             # hemisphere. They are then given as a dictionary, where the key
             # represents a string that allows to identify them with region name
             # labels.
             for label,url in mapurl.items():
-                filename = download_file(url)
-                if filename is not None:
-                    maps[label] = nib.load(filename)
+                if url=="collect":
+                    assert(space.type=="neuroglancer")
+                    logger.info("This space has no complete map available. Will try to find individual area maps and aggregate them into one instead.")
+                    V = BigBrainVolume(space.url)
+                    maxres = V.largest_feasible_resolution()
+                    logger.info('This template volume is too large to download at full resolution. Will use the largest feasible resolution of {} micron'.format(maxres))
+                    mip = V.resolutions_available[maxres]['mip']
+                    M = SpatialImage( 
+                            np.zeros(V.volume.mip_shape(mip),dtype=int), 
+                            affine=V.affine(mip) )
+                    for region in self.regiontree.descendants:
+                        if "maps" not in region.attrs.keys():
+                            continue
+                        if space.id in region.attrs["maps"].keys():
+                            logger.info("Found a map for region '{}'".format(str(region)))
+                            assert("labelIndex" in region.attrs.keys())
+                            Vr = BigBrainVolume(region.attrs["maps"][space.id])
+                            Mr0 = Vr.Image(mip)
+                            Mr = image.resample_to_img(Mr0,M)
+                            M.dataobj[Mr.dataobj>0] = int(region.attrs['labelIndex'])
+                    maps[label] = M
+                else:
+                    filename = download_file(url)
+                    if filename is not None:
+                        maps[label] = nib.load(filename)
         else:
             filename = download_file(mapurl)
             maps[''] = nib.load(filename)
@@ -278,7 +302,7 @@ class Atlas:
 
         return nib.Nifti1Image(dataobj=mask,affine=affine,header=header)
 
-    def get_template(self, space, resolution_mu=0, roi=None):
+    def get_template(self, space, resolution=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -286,12 +310,10 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution :  float
-            Desired target pixel spacing in micrometer (default: native spacing)
-        roi : n/a
-            3D region of interest (not yet implemented)
-
-        TODO model the MNI URLs in the space definition
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
 
         Yields
         ------
@@ -303,17 +325,34 @@ class Atlas:
             logger.error('- Atlas: {}'.format(self.name))
             return None
 
-        if not space.url:
-            logger.error('Downloading the template image for the requested reference space is not yet supported.')
-            logger.error('- Requested space: {}'.format(space.name))
+        if space.type == 'nii':
+            logger.debug('Loading template image for space {}'.format(space.name))
+            filename = download_file( space.url, ziptarget=space.ziptarget )
+            if filename is not None:
+                return nib.load(filename)
+            else:
+                return None
+
+        if space.type == 'neuroglancer':
+            vol = BigBrainVolume(space.url)
+            helptext = "\n".join(["{:7.0f} micron {:10.4f} GByte".format(k,v['GBytes']) 
+                for k,v in vol.resolutions_available.items()])
+            if resolution is None:
+                maxres = vol.largest_feasible_resolution()
+                logger.info('This template volume is too large to download at full resolution. Will use the largest feasible resolution of {} micron'.format(maxres))
+                print(helptext)
+                return vol.Image(vol.resolutions_available[maxres]['mip'])
+            elif resolution in vol.resolutions_available.keys(): 
+                return vol.Image(vol.resolutions_available[resolution]['mip'])
+
+            logger.error('The requested resolution is not available. Choose one of:')
+            print(helptext)
             return None
 
-        logger.debug('Loading template image for space {}'.format(space.name))
-        filename = download_file( space.url, ziptarget=space.ziptarget )
-        if filename is not None:
-            return nib.load(filename)
-        else:
-            return None
+        logger.error('Downloading the template image for the requested reference space is not supported.')
+        logger.error('- Requested space: {}'.format(space.name))
+        return None
+
 
     def select_region(self,region):
         """
