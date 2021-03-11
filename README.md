@@ -1,5 +1,7 @@
 # Brainscapes 
 
+![](images/brainscapes-logo5.png)
+
 Authors: T. Dickscheid, V. Marcenko,  Forschungszentrum Jülich GmbH
 
 Copyright Forschungszentrum Jülich GmbH 2020

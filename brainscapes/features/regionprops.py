@@ -50,7 +50,7 @@ class RegionProps(RegionalFeature):
         self.attrs = {}
     
         # derive non-spatial properties
-        assert(atlas.regiontree.find('cerebral cortex'))
+        assert(atlas.selected_parcellation.regions.find('cerebral cortex'))
         self.attrs['is_cortical'] = atlas.selected_region.has_parent('cerebral cortex')
 
         # compute mask in the given space

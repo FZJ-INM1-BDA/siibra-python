@@ -3,7 +3,6 @@ import requests
 import json
 import numpy as np
 from cloudvolume import CloudVolume,Bbox
-import numpy as np
 from brainscapes import logger
 
 def chunks3d(xyzt,maxshape):
@@ -34,18 +33,22 @@ def get_chunk(spimg,bbox):
 
 class BigBrainVolume:
     """
-    TODO: Consider deriving the class from SpatialImage
+    TODO use brainscapes requests cache
+    
     """
     # function to switch x/y coordinates on a vector or matrix.
     # Note that direction doesn't matter here since the inverse is the same.
     switch_xy = lambda X : np.dot(np.identity(4)[[1,0,2,3],:],X) 
-    max_gbytes = 0.5
-    
+
+    # Gigabyte size that is considered feasible for ad-hoc downloads of
+    # BigBrain data. This is used to avoid accidental huge downloads.
+    gbyte_feasible = 0.5
     
     def __init__(self,ngsite):
         """
         ngsite: base url of neuroglancer http location
-        """        
+        """
+        assert(is_ngprecomputed(ngsite))
         with requests.get(ngsite+'/transform.json') as r:
             self._translation_nm = np.array(json.loads(r.content))[:,-1]
         with requests.get(ngsite+'/info') as r:
@@ -65,7 +68,7 @@ class BigBrainVolume:
         # still below the threshold of downloadable volume sizes.
         return min([res
             for res,v in self.resolutions_available.items()
-            if v['GBytes']<self.max_gbytes ])
+            if v['GBytes']<self.gbyte_feasible ])
         
     def affine(self,mip,clip=False):
         """
@@ -112,7 +115,7 @@ class BigBrainVolume:
         clipcoords[:,1] = np.minimum(clipcoords[:,1],self.volume.mip_shape(mip))
         return clipcoords
 
-    def _load_data(self,mip,clip=False):
+    def _load_data(self,mip,clip=False,force=False):
         """
         Actually load image data.
         TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
@@ -123,6 +126,9 @@ class BigBrainVolume:
             If true, clip by computing the bounding box from nonempty pixels
             if False, get the complete data of the selected mip
             If Bbox, clip by this bounding box
+        force : Boolean (default: False)
+            if true, will start downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable.
         """
         if (type(clip)==bool) and clip is True:
             clipcoords = self._clipcoords(mip)
@@ -132,13 +138,13 @@ class BigBrainVolume:
         else:
             bbox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
         gbytes = bbox.volume()*self.nbits/(8*1024**3)
-        if gbytes>BigBrainVolume.max_gbytes:
+        if not force and gbytes>BigBrainVolume.gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
-            raise Exception("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {})".format(gbytes,self.max_gbytes))
+            raise Exception("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {})".format(gbytes,self.gbyte_feasible))
         data = self.volume.download(bbox=bbox,mip=mip)
         return np.array(data)
         
-    def Image(self,mip,clip=True,transform=lambda I: I):
+    def Image(self,mip,clip=True,transform=lambda I: I, force=False):
         """
         Compute and return a spatial image for the given mip.
         
@@ -148,9 +154,12 @@ class BigBrainVolume:
             If true, clip by computing the bounding box from nonempty pixels
             if False, get the complete data of the selected mip
             If Bbox, clip by this bounding box
+        force : Boolean (default: False)
+            If true, will start downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable.
         """
         return SpatialImage(
-            transform(self._load_data(mip,clip)),
+            transform(self._load_data(mip,clip,force)),
             affine=self.affine(mip,clip)
         )
     
