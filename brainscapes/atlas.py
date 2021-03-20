@@ -98,13 +98,13 @@ class Atlas:
         self.selected_region = parcellation_obj.regions
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
-    def get_maps(self, space : Space, tree : Region = None, force=False):
+    def get_maps(self, space : Space, tree : Region = None, force=False, resolution=None):
         """
         return the maps provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object.
         see Parcellation.get_maps()
         """
-        return self.selected_parcellation.get_maps(space, tree, force)
+        return self.selected_parcellation.get_maps(space, tree, force, resolution)
 
 
     def get_mask(self, space : Space, force=False):

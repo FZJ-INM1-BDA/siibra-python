@@ -4,6 +4,14 @@ import json
 import numpy as np
 from cloudvolume import CloudVolume,Bbox
 from brainscapes import logger
+from brainscapes import logger
+from memoization import cached
+
+@cached
+def is_ngprecomputed(url):
+    # Check if the given URL is likely a neuroglancer precomputed cloud store
+    r = requests.get(url+"/info")
+    return r.status_code==200
 
 def chunks3d(xyzt,maxshape):
     """
@@ -101,7 +109,8 @@ class BigBrainVolume:
         # warp from nm to mm   
         affine[:3,:]/=1000000.
     
-        return BigBrainVolume.switch_xy(np.dot(affine,voxelshift))
+        return np.dot(affine,voxelshift)
+        #return BigBrainVolume.switch_xy(np.dot(affine,voxelshift))
 
     def _clipcoords(self,mip):
         # compute clip coordinates in voxels for the given mip 

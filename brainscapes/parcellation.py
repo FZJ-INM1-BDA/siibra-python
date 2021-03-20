@@ -17,7 +17,7 @@ from .space import Space
 from .region import Region
 from .commons import create_key, Glossary
 from .retrieval import download_file 
-from .bigbrain import BigBrainVolume
+from .bigbrain import BigBrainVolume,is_ngprecomputed
 from .config import ConfigurationRegistry
 from collections import defaultdict
 import numpy as np
@@ -102,12 +102,6 @@ def load_nifti(url):
         return None
     return nib.load(filename)
 
-@cached
-def is_ngprecomputed(url):
-    # Check if the given URL is likely a neuroglancer precomputed cloud store
-    r = requests.get(url+"/info")
-    return r.status_code==200
-
 
 class Parcellation:
 
@@ -161,6 +155,9 @@ class Parcellation:
         ----------
         space : Space
             template space 
+        tree : Region (optional, default: None)
+            if provided, only regions inside the region tree are included in the map.
+            TODO this applies only to BigBrain for now
         force : Boolean (default: False)
             if true, will start large downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable (applies only
@@ -185,8 +182,10 @@ class Parcellation:
         for label,url in self.maps[space].items():
             if url=="collect":
                 logger.info("This space has no complete map available. Will try to find individual area maps and aggregate them into one instead.")
-                assert(tree is not None)
-                maps[label] = load_collect(space,tree,force)
+                if tree is None:
+                    maps[label] = load_collect(space,self.regions,force)
+                else:
+                    maps[label] = load_collect(space,tree,force)
             elif is_ngprecomputed(url):
                 maps[label] = load_ngprecomputed(url,mip,force)
             else:
