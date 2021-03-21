@@ -13,3 +13,5 @@
 # limitations under the License.
 
 from .jugex import DifferentialGeneExpression
+from .bigbrain import BigBrainExtractor
+
