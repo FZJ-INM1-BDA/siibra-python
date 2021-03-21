@@ -25,7 +25,6 @@ import nibabel as nib
 from nibabel.spatialimages import SpatialImage
 from nilearn import image
 from anytree import PreOrderIter
-import requests
 # TODO consider a custom cache implementation
 from memoization import cached
 
@@ -61,20 +60,28 @@ def load_ngprecomputed(url,mip,force):
     """
     Creates a map by loading from a neuroglancer precomputed volume.
     """
+    assert(type(mip)==int)
     V = BigBrainVolume(url)
-    return V.Image(mip,force=force)
+    return V.Image(mip,force=force,clip=True)
 
-def load_collect(space,regiontree,force):
+def load_collect(space,regiontree,resolution,force):
     """
     Creates a map by collecting all available individual region maps in the
     given tree into a blank volume that fills the given space.
+
+    Parameters
+    ----------
+    resolution : float or None (Default: None)
+        Request the template at a particular physical resolution. If None,
+        the native resolution is used.
+        Currently, this only works for the BigBrain volume.
     """
 
     # initialize the empty map volume
     V = BigBrainVolume(space.url)
-    maxres = V.largest_feasible_resolution()
-    logger.info('This template volume is too large to download at full resolution. Will use the largest feasible resolution of {} micron'.format(maxres))
-    mip = V.resolutions_available[maxres]['mip']
+    mip = V.determine_mip(resolution)
+    if mip is None:
+        return None
     M = SpatialImage( 
             np.zeros(V.volume.mip_shape(mip),dtype=int), 
             affine=V.affine(mip) )
@@ -133,18 +140,15 @@ class Parcellation:
                 for r in self.regions.iterate()
                 for c in r.children ])
 
-        #subtrees = []
         for regiondef in regions:
             node = Region(regiondef,self,parent)
             if "children" in regiondef.keys():
                 #_ = self.construct_tree(
                 self.construct_tree(
                         regiondef['children'],parent=node)
-            #subtrees.append(node)
-        #return subtrees
 
 
-    def get_maps(self, space: Space, tree: Region=None, mip=-1, force=False):
+    def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, compact_output=True):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. Note that this in general includes multiple Nifti
@@ -158,15 +162,22 @@ class Parcellation:
         tree : Region (optional, default: None)
             if provided, only regions inside the region tree are included in the map.
             TODO this applies only to BigBrain for now
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
         force : Boolean (default: False)
             if true, will start large downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable (applies only
             to BigBrain space currently).
+        compact_output : Boolean (default: True)
+            If only one map is available, return only the SpatialImage
 
         Yields
         ------
-        A dictionary of SpatialImage objects representing the volumetric map.
-        The key of each object is a string that indicates which part of the
+        A single SpatialImage, or dictionary of multiple SpatialImage objects
+        representing the volumetric map.
+        The key in the dictionary is a string that indicates which part of the
         brain each map describes, and may be used to identify the proper
         region name. In case of Julich-Brain, for example, it is "left
         hemisphere" and "right hemisphere".
@@ -178,29 +189,37 @@ class Parcellation:
         if len(self.maps[space])==0:
             logger.error(not_avail_msg)
 
+
         maps = {}
         for label,url in self.maps[space].items():
+            m = None
             if url=="collect":
                 logger.info("This space has no complete map available. Will try to find individual area maps and aggregate them into one instead.")
-                if tree is None:
-                    maps[label] = load_collect(space,self.regions,force)
-                else:
-                    maps[label] = load_collect(space,tree,force)
+                regiontree = self.regions if tree is None else tree
+                m = load_collect(space,regiontree,resolution,force)
             elif is_ngprecomputed(url):
-                maps[label] = load_ngprecomputed(url,mip,force)
+                vol = BigBrainVolume(space.url)
+                mip = vol.determine_mip(resolution)
+                if mip is not None:
+                    m = load_ngprecomputed(url,mip,force)
             else:
-                maps[label] = load_nifti(url)
+                m = load_nifti(url)
+            if m is not None:
+                    maps[label] = m
 
         # apply postprocessing hook, if applicable
         if self.id in STATIC_MAP_HOOKS.keys():
             hook = STATIC_MAP_HOOKS[self.id]
             for k,v in maps.items():
                 maps[k] = hook(v)
-        
-        return maps
+
+        if compact_output and len(maps)==1:
+            return next(iter(maps.values()))
+        else:
+            return maps
 
     @cached(max_size=10)
-    def get_regionmask(self,space : Space, regiontree : Region, try_thres=None,force=False ):
+    def get_regionmask(self,space : Space, regiontree : Region, try_thres=None,force=False, resolution=None ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the union of regions in the given regiontree.
@@ -226,6 +245,10 @@ class Parcellation:
             if true, will start large downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable (applies only
             to BigBrain space currently).
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
         """
 
         not_avail_msg = 'Parcellation "{}" does not provide a map for space "{}"'.format(
@@ -237,7 +260,7 @@ class Parcellation:
 
         logger.debug("Computing the mask for {} in {}".format(
             regiontree.name, space))
-        maps = self.get_maps(space,tree=regiontree,force=force)
+        maps = self.get_maps(space,tree=regiontree,force=force,resolution=resolution,compact_output=False)
         mask = affine = None 
         for description,m in maps.items():
             D = np.array(m.dataobj)
@@ -253,7 +276,7 @@ class Parcellation:
                 if r.attrs['labelIndex'] is None:
                     continue
 
-                # if enabled, check for available continous maps that could be
+                # if enabled, check for available continuous maps that could be
                 # thresholded instead of using the mask from the static
                 # parcellation
                 if try_thres is not None:

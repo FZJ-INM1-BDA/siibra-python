@@ -104,10 +104,10 @@ class Atlas:
         This just forwards to the selected parcellation object.
         see Parcellation.get_maps()
         """
-        return self.selected_parcellation.get_maps(space, tree, force, resolution)
+        return self.selected_parcellation.get_maps(space, tree, resolution, force)
 
 
-    def get_mask(self, space : Space, force=False):
+    def get_mask(self, space : Space, force=False, resolution=None ):
         """
         Returns a binary mask  in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -124,12 +124,17 @@ class Atlas:
             if true, will start large downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable (applies only
             to BigBrain space currently).
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
         """
         return self.selected_parcellation.get_regionmask(
                 space,
                 self.selected_region,
                 try_thres=self._threshold_continuous_map, 
-                force=force)
+                force=force, 
+                resolution=resolution )
 
     def enable_continuous_map_thresholding(self,threshold):
         """
@@ -183,19 +188,8 @@ class Atlas:
 
         if space.type == 'neuroglancer':
             vol = BigBrainVolume(space.url)
-            helptext = "\n".join(["{:7.0f} micron {:10.4f} GByte".format(k,v['GBytes']) 
-                for k,v in vol.resolutions_available.items()])
-            if resolution is None:
-                maxres = vol.largest_feasible_resolution()
-                logger.info('This template volume is too large to download at full resolution. Will use the largest feasible resolution of {} micron'.format(maxres))
-                print(helptext)
-                return vol.Image(vol.resolutions_available[maxres]['mip'],force=force)
-            elif resolution in vol.resolutions_available.keys(): 
-                return vol.Image(vol.resolutions_available[resolution]['mip'],force=force)
-
-            logger.error('The requested resolution is not available. Choose one of:')
-            print(helptext)
-            return None
+            mip = vol.determine_mip(resolution)
+            return None if mip is None else vol.Image(mip,force=force)
 
         logger.error('Downloading the template image for the requested reference space is not supported.')
         logger.error('- Requested space: {}'.format(space.name))

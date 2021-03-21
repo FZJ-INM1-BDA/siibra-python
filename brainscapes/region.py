@@ -47,6 +47,9 @@ class Region(anytree.NodeMixin):
         self.name = definition['name']
         self.key = create_key(self.name)
         self.parcellation = parcellation
+        self.labelindex = None
+        if 'labelIndex' in definition.keys():
+            self.labelindex = definition['labelIndex'] 
         self.attrs = definition
         if parent is not None:
             self.parent = parent
