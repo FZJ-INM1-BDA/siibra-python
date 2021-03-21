@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from brainscapes import parcellations,spaces,ebrains
+from brainscapes import ebrains
 from brainscapes.commons import create_key
 from brainscapes.retrieval import download_file 
 import numpy as np
@@ -20,25 +20,6 @@ import nibabel as nib
 from brainscapes import logger
 import re
 import anytree
-
-def construct_tree(parcellation,entrypoints=None,parent=None):
-    """ 
-    Builds a complete tree from a regions data structure as contained
-    inside a brainscapes parcellation definition. 
-    """
-    if entrypoints is None:
-        root = Region({'name':parcellation.name},parcellation)
-        construct_tree(parcellation,parcellation.regions,parent=root)
-        return root
-
-    subtrees = []
-    for regiondef in entrypoints:
-        node = Region(regiondef,parcellation,parent)
-        if "children" in regiondef.keys():
-            _ = construct_tree( parcellation, regiondef['children'],parent=node)
-        subtrees.append(node)
-    return subtrees
-
 
 class Region(anytree.NodeMixin):
     """
@@ -66,6 +47,9 @@ class Region(anytree.NodeMixin):
         self.name = definition['name']
         self.key = create_key(self.name)
         self.parcellation = parcellation
+        self.labelindex = None
+        if 'labelIndex' in definition.keys():
+            self.labelindex = definition['labelIndex'] 
         self.attrs = definition
         if parent is not None:
             self.parent = parent
@@ -235,6 +219,4 @@ if __name__ == '__main__':
                     'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
                     }]
             }
-    region = Region(definition,parcellations[0])
-    spatial_props = region.get_spatial_props(spaces.BIG_BRAIN__HISTOLOGY_)
 

@@ -40,7 +40,7 @@ def complete_regions(ctx, args, incomplete):
             pname = args[args.index(option)+1]
             atlas.select_parcellation(pname)
     regions = [c.key 
-            for r in atlas.regiontree.iterate()
+            for r in atlas.selected_parcellation.regions.iterate()
             for c in r.children ]
     print(regions)
     search = [r for r in regions if incomplete.upper() in r]
@@ -128,7 +128,7 @@ def search(ctx,searchstring,case_insensitive):
     Search regions by name.
     """
     atlas = ctx.obj['atlas']
-    matches = atlas.regiontree.find(searchstring)
+    matches = atlas.selected_parcellation.regions.find(searchstring)
     for m in matches:
         print(m.name)
 
@@ -139,7 +139,7 @@ def tree(ctx):
     Print the complete region hierarchy as a tree.
     """
     atlas = ctx.obj['atlas']
-    print(repr(atlas.regiontree))
+    print(repr(atlas.selected_parcellation.regions))
 
 # ---- Commands for retrieving data features ---
 

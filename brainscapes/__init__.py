@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+__version__ = "0.0.8.7.1"
+
 import logging
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler()

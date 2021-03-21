@@ -16,45 +16,17 @@ import nibabel as nib
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
-from functools import lru_cache
 
 from . import parcellations, spaces, features, logger
-from .region import construct_tree, Region
+from .region import Region
 from .features.regionprops import RegionProps
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
 from .retrieval import download_file 
-from .commons import create_key,Glossary
+from .commons import create_key
 from .config import ConfigurationRegistry
 from .space import Space
-
-def nifti_argmax_dim4(img,dim=-1):
-    """
-    Given a nifti image object with four dimensions, returns a modified object
-    with 3 dimensions that is obtained by taking the argmax along one of the
-    four dimensions (default: the last one).
-    """
-    assert(len(img.shape)==4)
-    assert(dim>=-1 and dim<4)
-    newarr = np.asarray(img.dataobj).argmax(dim)
-    return nib.Nifti1Image(
-            dataobj = newarr,
-            header = img.header,
-            affine = img.affine )
-
-# Some parcellation maps require special handling to be expressed as a static
-# parcellation. This dictionary contains postprocessing functions for converting
-# the image objects returned when loading the map of a specific parcellations,
-# in order to convert them to a 3D statis map. The dictionary is indexed by the
-# parcellation ids.
-STATIC_MAP_HOOKS = {
-        "minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721": lambda img : nifti_argmax_dim4(img),
-        "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8": lambda img : nifti_argmax_dim4(img),
-        "minds/core/parcellationatlas/v1.0.0/141d510f-0342-4f94-ace7-c97d5f160235": lambda img : nifti_argmax_dim4(img),
-        "minds/core/parcellationatlas/v1.0.0/63b5794f-79a4-4464-8dc1-b32e170f3d16": lambda img : nifti_argmax_dim4(img),
-        "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1": lambda img : nifti_argmax_dim4(img)
-        }
-
+from .bigbrain import BigBrainVolume
 
 class Atlas:
 
@@ -66,14 +38,12 @@ class Atlas:
         self.key = create_key(name)
 
         # no parcellation initialized at construction
-        self.regiontree = None
         self.parcellations = [] # add with _add_parcellation
         self.spaces = [] # add with _add_space
 
         # nothing selected yet at construction 
         self.selected_region = None
         self.selected_parcellation = None 
-        self.regionnames = None
 
         # this can be set to prefer thresholded continuous maps as masks
         self._threshold_continuous_map = None
@@ -125,68 +95,19 @@ class Atlas:
             logger.error(parcellation_obj.id,self.parcellations)
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
-        self.regiontree = construct_tree(self.selected_parcellation)
-        self.regionnames = Glossary([c.key 
-            for r in self.regiontree.iterate()
-            for c in r.children ])
+        self.selected_region = parcellation_obj.regions
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
-    def get_maps(self, space):
+    def get_maps(self, space : Space, tree : Region = None, force=False, resolution=None):
         """
-        Get the volumetric maps for the selected parcellation in the requested
-        template space. Note that this sometimes included multiple Nifti
-        objects. For example, the Julich-Brain atlas provides two separate
-        maps, one per hemisphere.
-
-        Parameters
-        ----------
-        space : template space 
-
-        Yields
-        ------
-        A dictionary of nibabel Nifti objects representing the volumetric map.
-        The key of each object is a string that indicates which part of the
-        brain each map describes, and may be used to identify the proper
-        region name. In case of Julich-Brain, for example, it is "left
-        hemisphere" and "right hemisphere".
+        return the maps provided by the selected parcellation in the given space.
+        This just forwards to the selected parcellation object.
+        see Parcellation.get_maps()
         """
-        if space.id not in self.selected_parcellation.maps:
-            logger.error('The selected atlas parcellation is not available in the requested space.')
-            logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
-            logger.error('- Requested space: {}'.format(space))
-            return None
+        return self.selected_parcellation.get_maps(space, tree, resolution, force)
 
-        mapurl = self.selected_parcellation.maps[space.id]
-        if not mapurl:
-            logger.error('Downloading parcellation maps for the requested reference space is not yet supported.')
-            logger.error('- Selected parcellation: {}'.format(self.selected_parcellation.name))
-            logger.error('- Requested space: {}'.format(space))
-            return None
 
-        logger.debug('Loading 3D map for space {}'.format(space))
-        maps = {}
-        if type(mapurl) is dict:
-            # Some maps are split across multiple files, e.g. separated per
-            # hemisphere. They are then given as a dictionary, where the key
-            # represents a string that allows to identify them with region name
-            # labels.
-            for label,url in mapurl.items():
-                filename = download_file(url)
-                if filename is not None:
-                    maps[label] = nib.load(filename)
-        else:
-            filename = download_file(mapurl)
-            maps[''] = nib.load(filename)
-
-        # apply postprocessing hook, if applicable
-        if self.selected_parcellation.id in STATIC_MAP_HOOKS.keys():
-            hook = STATIC_MAP_HOOKS[self.selected_parcellation.id]
-            for k,v in maps.items():
-                maps[k] = hook(v)
-        
-        return maps
-
-    def get_mask(self, space : Space):
+    def get_mask(self, space : Space, force=False, resolution=None ):
         """
         Returns a binary mask  in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -199,10 +120,21 @@ class Atlas:
         ----------
         space : Space
             Template space 
+        force : Boolean (default: False)
+            if true, will start large downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable (applies only
+            to BigBrain space currently).
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
         """
-        # remember that some parcellations are defined with multiple / split maps
-        return self._get_regionmask(space,self.selected_region,
-                try_thres=self._threshold_continuous_map)
+        return self.selected_parcellation.get_regionmask(
+                space,
+                self.selected_region,
+                try_thres=self._threshold_continuous_map, 
+                force=force, 
+                resolution=resolution )
 
     def enable_continuous_map_thresholding(self,threshold):
         """
@@ -219,66 +151,7 @@ class Atlas:
         """
         self._threshold_continuous_map = threshold
 
-    @lru_cache(maxsize=5)
-    def _get_regionmask(self,space : Space,regiontree : Region, try_thres=None ):
-        """
-        Returns a binary mask  in the given space, where nonzero values denote
-        voxels corresponding to the union of regions in the given regiontree.
-
-        WARNING: Note that this might include holes if the leaf regions are not
-        completly covering their parent and the parent itself has no label
-        index in the map.
-
-        NOTE: Function uses lru_cache, so if called repeatedly on the same
-        space it will not recompute the mask.
-
-        Parameters
-        ----------
-        space : Space 
-            Template space 
-        regiontree : Region
-            A region from the region hierarchy (could be any of the root, a
-            subtree, or a leaf)
-        try_thres : float or None,
-            If defined, will prefere threshold continous maps for mask building, see self._threshold_continuous_map.
-            We make this an explicit parameter to make lru_cache aware of using it.
-        """
-        logger.debug("Computing the mask for {} in {}".format(
-            regiontree.name, space))
-        maps = self.get_maps(space)
-        mask = affine = header = None 
-        for description,m in maps.items():
-            D = np.array(m.dataobj)
-            if mask is None: 
-                # copy metadata for output mask from the first map!
-                mask = np.zeros_like(D)
-                affine, header = m.affine, m.header
-            for r in regiontree.iterate():
-                if description not in r.name:
-                    continue
-                #print(description, r.name)#[r.name for r in regiontree.ancestors])
-                if 'labelIndex' not in r.attrs.keys():
-                    continue
-                if r.attrs['labelIndex'] is None:
-                    continue
-
-                # if enabled, check for available continous maps that could be
-                # thresholded instead of using the mask from the static
-                # parcellation
-                if try_thres is not None:
-                    continuous_map = r.get_specific_map(space)
-                    if continuous_map is not None:
-                        logger.info('Using continuous map thresholded by {} for masking region {}.'.format(
-                            try_thres, r))
-                        mask[np.asarray(continuous_map.dataobj)>try_thres]=1
-                        continue
-
-                # in the default case, use the labelled area from the parcellation map
-                mask[D==int(r.attrs['labelIndex'])]=1
-
-        return nib.Nifti1Image(dataobj=mask,affine=affine,header=header)
-
-    def get_template(self, space, resolution_mu=0, roi=None):
+    def get_template(self, space, resolution=None, force=False ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -286,12 +159,14 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution :  float
-            Desired target pixel spacing in micrometer (default: native spacing)
-        roi : n/a
-            3D region of interest (not yet implemented)
-
-        TODO model the MNI URLs in the space definition
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        force : Boolean (default: False)
+            if true, will start large downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable (applies only
+            to BigBrain space currently).
 
         Yields
         ------
@@ -303,17 +178,23 @@ class Atlas:
             logger.error('- Atlas: {}'.format(self.name))
             return None
 
-        if not space.url:
-            logger.error('Downloading the template image for the requested reference space is not yet supported.')
-            logger.error('- Requested space: {}'.format(space.name))
-            return None
+        if space.type == 'nii':
+            logger.debug('Loading template image for space {}'.format(space.name))
+            filename = download_file( space.url, ziptarget=space.ziptarget )
+            if filename is not None:
+                return nib.load(filename)
+            else:
+                return None
 
-        logger.debug('Loading template image for space {}'.format(space.name))
-        filename = download_file( space.url, ziptarget=space.ziptarget )
-        if filename is not None:
-            return nib.load(filename)
-        else:
-            return None
+        if space.type == 'neuroglancer':
+            vol = BigBrainVolume(space.url)
+            mip = vol.determine_mip(resolution)
+            return None if mip is None else vol.Image(mip,force=force)
+
+        logger.error('Downloading the template image for the requested reference space is not supported.')
+        logger.error('- Requested space: {}'.format(space.name))
+        return None
+
 
     def select_region(self,region):
         """
@@ -340,7 +221,8 @@ class Atlas:
             self.selected_region = region
         else:
             # try to interpret argument as the key for a region 
-            selected = self.regiontree.find(region,select_uppermost=True)
+            selected = self.selected_parcellation.regions.find(
+                    region,select_uppermost=True)
             if len(selected)==1:
                 self.selected_region = selected[0]
             elif len(selected)==0:
@@ -357,7 +239,7 @@ class Atlas:
         """
         Cancels any current region selection.
         """
-        self.select_region(self.regiontree)
+        self.select_region(self.selected_parcellation.regions)
 
     def region_selected(self,region):
         """
@@ -457,10 +339,3 @@ if __name__ == '__main__':
 
     atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
 
-    print(atlas.regiontree)
-    print('*******************************')
-    print(atlas.regiontree.find('hOc1'))
-    print('*******************************')
-    print(atlas.regiontree.find('LB (Amygdala) - left hemisphere'))
-    print('******************************')
-    print(atlas.regiontree.find('Ch 123 (Basal Forebrain) - left hemisphere'))
