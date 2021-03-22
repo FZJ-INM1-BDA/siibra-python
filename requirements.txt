@@ -9,4 +9,4 @@ click
 clint
 python-gitlab
 statsmodels
-cloudvolume
+cloud-volume
