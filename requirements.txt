@@ -11,3 +11,4 @@ python-gitlab
 statsmodels
 cloud-volume
 memoization
+nilearn
