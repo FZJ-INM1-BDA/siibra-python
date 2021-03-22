@@ -10,3 +10,4 @@ clint
 python-gitlab
 statsmodels
 cloud-volume
+memoization
