@@ -54,6 +54,15 @@ def __compile_cachedir():
 CACHEDIR = __compile_cachedir()
 logger.debug('Using cache: {}'.format(CACHEDIR))
 
+hashstr = lambda s: str(hashlib.sha256(s).hexdigest())
+
+def cachefile(str_rep,suffix=None):
+    hashfile = os.path.join(CACHEDIR,hashstr(str_rep))
+    if suffix is None:
+        return hashfile
+    else:
+        return hashfile+"."+suffix
+
 
 def download_file(url, ziptarget=None, targetname=None ):
     """
@@ -77,8 +86,7 @@ def download_file(url, ziptarget=None, targetname=None ):
     # deal with the fact that we do not know the filetype prior to downloading,
     # so we cannot determine the suffix in advance.
     url_str = url if ziptarget is None else url+ziptarget
-    hash_str = str(hashlib.sha256(str.encode(url_str)).hexdigest())
-    hashfile = os.path.join(CACHEDIR,hash_str)
+    hashfile = cachefile(str.encode(url_str))
     if os.path.exists(hashfile):
         with open(hashfile, 'r') as f:
             filename,cachename = f.read().split(';')
@@ -101,7 +109,7 @@ def download_file(url, ziptarget=None, targetname=None ):
         # (but keep the original filename for reference)
         namefields = os.path.basename(original_filename).split(".")
         suffix =  ".".join(namefields[1:]) if len(namefields)>1 else ".".join(namefields)
-        cachename = os.path.join(CACHEDIR,"{}.{}".format(hash_str,suffix))
+        cachename = hashfile+"."+suffix
         filename = original_filename
 
         # now save the file

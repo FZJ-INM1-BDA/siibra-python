@@ -14,7 +14,9 @@
 # limitations under the License.
 
 from . import logger
+from . import retrieval 
 from nibabel.spatialimages import SpatialImage
+import os
 import requests
 import json
 import numpy as np
@@ -56,7 +58,7 @@ class BigBrainVolume:
     # BigBrain data. This is used to avoid accidental huge downloads.
     gbyte_feasible = 0.5
     
-    def __init__(self,ngsite):
+    def __init__(self,ngsite,fill_missing=True):
         """
         ngsite: base url of neuroglancer http location
         """
@@ -64,7 +66,8 @@ class BigBrainVolume:
             self._translation_nm = np.array(json.loads(r.content))[:,-1]
         with requests.get(ngsite+'/info') as r:
             self.info = json.loads(r.content)
-        self.volume = CloudVolume(ngsite,progress=False)
+        self.volume = CloudVolume(ngsite,fill_missing=fill_missing,progress=False)
+        self.ngsite = ngsite
         self.nbits = np.iinfo(self.volume.info['data_type']).bits
         self.bbox_phys = self._bbox_phys()
         self.resolutions_available = {
@@ -133,6 +136,8 @@ class BigBrainVolume:
         """
         Actually load image data.
         TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
+        NOTE: this function caches chunks as numpy arrays (*.npy) to the
+        CACHEDIR defined in the retrieval module.
         
         Parameters:
         -----------
@@ -148,7 +153,10 @@ class BigBrainVolume:
             clipcoords = self._clipcoords(mip)
             bbox = Bbox(clipcoords[:3,0],clipcoords[:3,1])
         elif isinstance(clip,Bbox):
-            bbox = clip
+            # make sure the bounding box is integer, some are not
+            bbox = Bbox(
+                    np.array(clip.minpt).astype('int'),
+                    np.array(clip.maxpt).astype('int'))
         else:
             bbox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
         gbytes = bbox.volume()*self.nbits/(8*1024**3)
@@ -157,8 +165,14 @@ class BigBrainVolume:
             logger.error("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(gbytes,self.gbyte_feasible))
             print(self.helptext)
             raise RuntimeError("The requested resolution is too high to provide a feasible download, but you can override this behavior with the 'force' parameter.")
-        data = self.volume.download(bbox=bbox,mip=mip)
-        return np.array(data)
+        cachefile = retrieval.cachefile("{}{}{}".format(
+            self.ngsite, bbox.serialize(), str(mip)).encode('utf8'),suffix='npy')
+        if os.path.exists(cachefile):
+            return np.load(cachefile)
+        else:
+            data = self.volume.download(bbox=bbox,mip=mip)
+            np.save(cachefile,np.array(data))
+            return np.array(data)
 
     def determine_mip(self,resolution=None):
         # given a resolution in micrometer, try to determine the mip that can

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.0.8.7.1"
+__version__ = "0.0.8.8"
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,6 +24,5 @@ logger.addHandler(ch)
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
-from . import analysis
 from .retrieval import clear_cache
 

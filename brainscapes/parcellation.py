@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger, spaces
+from . import logger, spaces, retrieval
 from .space import Space
 from .region import Region
 from .commons import create_key, Glossary
-from .retrieval import download_file 
 from .bigbrain import BigBrainVolume,is_ngprecomputed
 from .config import ConfigurationRegistry
 from collections import defaultdict
@@ -104,7 +103,7 @@ def load_nifti(url):
     """
     Try to generate a map by loading a nifti from the given url.
     """
-    filename = download_file(url)
+    filename = retrieval.download_file(url)
     if filename is None:
         return None
     return nib.load(filename)

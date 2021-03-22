@@ -30,8 +30,8 @@ def get_chunk(spimg,bbox):
     # the bounding box needs to start inside the image
     assert(all([v>=0 for v in bbox.minpt]))
     assert(all([a<b for a,b in zip(bbox.minpt,spimg.dataobj.shape[:3])]))
-    x0,y0,z0 = bbox.minpt
-    x1,y1,z1 = bbox.maxpt
+    x0,y0,z0 = np.array(bbox.minpt).astype('int')
+    x1,y1,z1 = np.array(bbox.maxpt).astype('int')
     return spimg.dataobj[x0:x1,y0:y1,z0:z1,:]
 
 def chunks3d(xyzt,maxshape):
@@ -39,26 +39,30 @@ def chunks3d(xyzt,maxshape):
     Returns a list of 3D chunks for the given 3D grid points, 
     formatted as cloudvolume bounding box objects.
     NOTE: This assumes a regular grid and infers the chunksize 
-    from the distances off the first entries
+    from the distances of the first entries
     """
-    chunksizes = [
+    chunksizes = np.array([
         np.diff(np.unique(sorted(xyzt[i,:]))[:2])[0]
-        for i in range(3) ]
-    return [
+        for i in range(3) ])
+    bboxes = [
         Bbox(
-            np.minimum(np.maximum(xyz,0),np.array(maxshape)-1).astype('int'),
-            np.minimum(xyz+chunksizes+1,maxshape).astype('int')
+            np.minimum(np.maximum(xyz,0),np.array(maxshape)-1),
+            np.minimum(xyz+chunksizes+1,maxshape)
         ) for xyz in xyzt.T[:,:3]]
 
+    return bboxes
 
 class BigBrainExtractor:
     """
     A class for convenient grayvalue extraction of BigBrain voxels via masks
     through neuroglancer precomputed data of the BigBrain template and
     parcellations.
+
+    TODO This requires more testing! While the dertermined chunks look good across
+    mips, the grayvalue histograms have not yet been thoroughly verified.
     """
     
-    def __init__(self,maskres:int=320,fullres=20):
+    def __init__(self,maskres:int=320,fullres:int=20):
         """
         Generate a new Extractor with a neuroglancer image volume as the basis.
         """
@@ -69,7 +73,7 @@ class BigBrainExtractor:
         self.mask_mip = self.tpl.determine_mip(maskres)
         self.full_mip = self.tpl.determine_mip(fullres)
         
-    def apply_mask(self,atlas : Atlas):
+    def apply_mask(self,atlas : Atlas, reset=False):
         """
         Use the selected region of interest in the given atlas object to define a mask
         on the BigBrain Volume.
@@ -77,6 +81,9 @@ class BigBrainExtractor:
         There are two ways: either the region itself has mask, 
         or it has a labelindex which needs to be applied to the parcellation mask.
         """
+        if reset:
+            self.mask = None
+            self.maskvolume = None
         region = atlas.selected_region
         if hasattr(region,'maps') and (self.space.id in region.maps.keys()):
             self.__intersect_mask(region.maps[self.space.id])
@@ -151,35 +158,34 @@ class BigBrainExtractor:
         chunks_mask = chunks3d(grid_mask,
                 self.maskvolume.info['scales'][self.full_mip]['size'])
 
-        # Produce a histogram of the grayvalues of the template in the mask, as well as a mask of the chunks.
+        # Produce a histogram of the template's grayvalues inside the mask, 
+        # as well as a mask of the chunks.
         overview = None
         if include_chunk_overview:
             overview = self.maskvolume.Image(self.mask_mip,clip=True)
             overview.dataobj[:,:,:] = 0
         hist = np.zeros((256))
         logger.info("Extracting {} chunks at resolution {} micron".format(
-            len(fg_indices),np.min(self.tpl.volume.scales[0]['resolution']/1000))
+            len(fg_indices),np.min(self.tpl.volume.scales[self.full_mip]['resolution'])/1000))
+
+        # TODO we might want to run parallel threads for chunk retrieval to speed this up
         for i in tqdm(fg_indices):
                         
             # get full-res chunk and mask it to update histogram
             t = self.tpl.Image(self.full_mip,clip=chunks_tpl[i]).dataobj
             m = self.maskvolume.Image(self.full_mip,clip=chunks_mask[i]).dataobj
-            try:
-                # Note that the mask chunk could be smaller than the data
-                # chunk, as it had been clipped.
-                values, counts = np.unique(
-                    t[:m.shape[0],:m.shape[1]][m>0],
+            # Note that the mask chunk could be smaller than the data
+            # chunk, as it had been clipped.
+            fg = (m>0)[:t.shape[0],:t.shape[1],:t.shape[2]]
+            values, counts = np.unique(
+                    t[:m.shape[0],:m.shape[1],:m.shape[2]][fg],
                     return_counts=True)
-            except Exception as e:
-                print(t.shape,m.shape)
-                raise(e)
-
             hist[values] += counts
             
             if overview is not None:
                 # update the stamp image
-                x,y,z =  chunks_mask_lo[i].minpt
-                X,Y,Z =  chunks_mask_lo[i].maxpt
+                x,y,z =  np.array(chunks_mask_lo[i].minpt).astype('int')
+                X,Y,Z =  np.array(chunks_mask_lo[i].maxpt).astype('int')
                 overview.dataobj[x:X,y:Y,z:Z] = 1
 
         if include_chunk_overview:
