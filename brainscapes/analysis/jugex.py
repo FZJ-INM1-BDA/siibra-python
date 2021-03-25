@@ -278,7 +278,7 @@ class DifferentialGeneExpression:
             return None
         samples = defaultdict(dict)
         for gene_name in self.genes:
-            for f in self.atlas.query_data(
+            for f in self.atlas.get_features(
                     modalities.GeneExpression,
                     gene=gene_name):
                 key = tuple(list(f.location)+[regiondef])

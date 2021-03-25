@@ -29,7 +29,7 @@ parcellations, browsing and searching brain region hierarchies, downloading maps
 associated with brain regions. 
 A key feature is a streamlined implementation of performing structured data queries for selected brain regions, which gives access to multimodal regional “data features”. 
 Brainscapes implements a hierarchy of features, which unifies handling of *spatial data features* (which are linked to atlas regions via coordinates; like contact points of physiological electrodes), *regional data features* (which are linked to atlases via a brain region specifications, like cell densities or neurotransmitter distributions) and *global data features* (linked to an atlas via the whole brain or parcellation, like connectivity matrices or activation maps). 
-As a result, all forms of data features can be queried using the same mechanism (`query_data()`) which takes as an argument a specification of the desired data modality, and respects the current selections made in the atlas. 
+As a result, all forms of data features can be queried using the same mechanism (`get_features()`) which takes as an argument a specification of the desired data modality, and respects the current selections made in the atlas. 
 Currently, available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, gene expressions, and spatial properties of brain regions.
 Additional features, including distributions of neuronal cells, functional activation maps and electrophysiologal recordings, will become available soon.
 
@@ -75,7 +75,7 @@ import brainscapes as bs
 # NOTE: assumes the client is already authenticated, see above
 atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
 atlas.select_region('v1')
-features = atlas.query_data(
+features = atlas.get_features(
     bs.features.modalities.ReceptorDistribution)
 for r in features:
     fig = r.plot(r.region)
@@ -89,7 +89,7 @@ from nilearn import plotting
 atlas = bs.atlases.MULTILEVEL_HUMAN_ATLAS
 # request gene expressions from Allen Atlas
 atlas.select_region("v1 left")
-features = atlas.query_data(
+features = atlas.get_features(
     bs.features.modalities.GeneExpression,
     gene=bs.features.gene_names.GABARAPL2 )
 print(features[0])

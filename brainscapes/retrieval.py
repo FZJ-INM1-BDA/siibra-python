@@ -34,12 +34,13 @@ from . import logger
 #
 
 
-def __compile_cachedir():
+def __compile_cachedir(suffix=None):
     from os import path,makedirs,environ
     from appdirs import user_cache_dir
     if "BRAINSCAPES_CACHEDIR" in environ:
         cachedir = environ['BRAINSCAPES_CACHEDIR']
     else:
+        dname = __name__ if suffix is None else __name__+"_"+suffix
         cachedir = user_cache_dir(__name__,"")
     # make sure cachedir exists and is writable
     try:
@@ -195,14 +196,14 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
                 f.write(url)
             return r.content
         elif r.status_code == 401:
-            print('The provided authentication token is not valid')
+            logger.error('The provided authentication token is not valid')
         elif r.status_code == 403:
-            print('No permission to access the given query')
+            logger.error('No permission to access the given query')
         elif r.status_code == 404:
-            print('Query with this id not found')
+            logger.error('Query with this id not found')
         else:
-            print('Problem with "get" protocol on url: %s ' % url )
-        raise Exception('Could not retrieve data')
+            logger.error('Problem with "get" protocol on url: %s ' % url )
+        raise Exception('Could not retrieve data.')
 
 def clear_cache():
     import shutil

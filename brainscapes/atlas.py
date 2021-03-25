@@ -303,9 +303,9 @@ class Atlas:
             return False
         return True
 
-    def query_data(self,modality,**kwargs):
+    def get_features(self,modality,**kwargs):
         """
-        Query data features for the currently selected region(s) by modality. 
+        Retrieve data features linked to the selected atlas configuration, by modality. 
         See brainscapes.features.modalities for available modalities.
         """
         hits = []

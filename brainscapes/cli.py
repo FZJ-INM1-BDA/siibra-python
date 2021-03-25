@@ -167,10 +167,10 @@ def features(ctx,modality,region,gene):
         if gene is None:
             print("You need to specify a gene with the -g option when looking up gene expressions.")
             return 1
-        results = atlas.query_data(modality,gene=gene)
+        results = atlas.get_features(modality,gene=gene)
         header = style.BOLD+"Gene Expressions"+style.END
     else:
-        results = atlas.query_data(modality)
+        results = atlas.get_features(modality)
 
     if len(results)>0:
         print(header)
@@ -189,7 +189,7 @@ def globals(ctx,modality):
     Retrieve global data features.
     """
     atlas = ctx.obj['atlas']
-    features = atlas.query_data(modality)
+    features = atlas.get_features(modality)
     for feature in features:
         print(feature)
 

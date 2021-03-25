@@ -25,4 +25,5 @@ from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
 from .retrieval import clear_cache
+from .features import modalities
 

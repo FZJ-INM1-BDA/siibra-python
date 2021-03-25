@@ -111,7 +111,7 @@ class TestAtlas(unittest.TestCase):
     def test_coordinate_selected(self):
         pass
 
-    def test_query_data(self):
+    def test_get_features(self):
         # more than one test needed
         # wrong modality, no region selected
         # GeneExpression
