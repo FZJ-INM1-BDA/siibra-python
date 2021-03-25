@@ -129,13 +129,16 @@ class Region(anytree.NodeMixin):
         """ 
         Checks wether this region might match the given specification, which
         could be any of 
-            - a string with a name.
+            - a string with a name,
+            - an integer, interpreted as a labelIndex,
             - a region object
         """
         splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.]', s) 
                 if len(w)>0]
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
+        elif isinstance(regionspec,int):
+            return (self.labelindex is not None) and self.labelindex == regionspec
         elif isinstance(regionspec,str):
             return any([
                     all([w.lower() in splitstr(self.name.lower()) 

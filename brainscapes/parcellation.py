@@ -147,12 +147,14 @@ class Parcellation:
                         regiondef['children'],parent=node)
 
 
-    def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, compact_output=True):
+    def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, return_dict=False):
         """
         Get the volumetric maps for the parcellation in the requested
-        template space. Note that this in general includes multiple Nifti
-        objects. For example, the Julich-Brain atlas provides two separate
-        maps, one per hemisphere.
+        template space. Note that this might in general include multiple 
+        3D volumes. For example, the Julich-Brain atlas provides two separate
+        maps, one per hemisphere. Per default, these are concatenated into a 4D
+        array in this case, but you can choose to retrieve a dict of 3D
+        volumes.
 
         Parameters
         ----------
@@ -169,8 +171,9 @@ class Parcellation:
             if true, will start large downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable (applies only
             to BigBrain space currently).
-        compact_output : Boolean (default: True)
-            If only one map is available, return only the SpatialImage
+        return_dict : Boolean (default: False)
+            If true, mulitple available maps will not be concatenated into a 4D
+            array, but put returned as a dictionary of separate 3D objects.
 
         Yields
         ------
@@ -212,10 +215,19 @@ class Parcellation:
             for k,v in maps.items():
                 maps[k] = hook(v)
 
-        if compact_output and len(maps)==1:
+        if len(maps)==1:
             return next(iter(maps.values()))
-        else:
+        elif return_dict:
             return maps
+        else:
+            # concatenate multiple maps into 4D image
+            return image.concat_imgs(maps.values())
+
+    def find(self,region):
+        """
+        Search the regiontree.
+        """
+        return self.regions.find(region)
 
     @cached(max_size=10)
     def get_regionmask(self,space : Space, regiontree : Region, try_thres=None,force=False, resolution=None ):
@@ -259,7 +271,8 @@ class Parcellation:
 
         logger.debug("Computing the mask for {} in {}".format(
             regiontree.name, space))
-        maps = self.get_maps(space,tree=regiontree,force=force,resolution=resolution,compact_output=False)
+        maps = self.get_maps(space, tree=regiontree, force=force,
+                resolution=resolution,return_dict=True)
         mask = affine = None 
         for description,m in maps.items():
             D = np.array(m.dataobj)

@@ -197,6 +197,25 @@ class Atlas:
         logger.error('- Requested space: {}'.format(space.name))
         return None
 
+    def find(self,regionspec,all_parcellations=False):
+        """
+        Searches for regions in the selected parcellation.
+
+        Parameters
+        ----------
+        regionspec : Region, string, or integer
+            Any valid specification of a region object, could be a name, labelindex or region id.
+        all_parcellations : Boolean (default:False)
+            Do not only search the selected but instead all available parcellations.
+        """
+        if not all_parcellations:
+            return self.selected_parcellation.find(regionspec)
+
+        result = []
+        for p in self.parcellations:
+            result.extend(p.find(regionspec))
+        return result
+
 
     def select_region(self,region):
         """
@@ -217,7 +236,7 @@ class Atlas:
         ------
         True, if selection was successful, otherwise False.
         """
-        previous_region = self.selected_region
+        previous_selection = self.selected_region
         if isinstance(region,Region):
             # argument is already a region object - use it
             self.selected_region = region
@@ -226,16 +245,25 @@ class Atlas:
             selected = self.selected_parcellation.regions.find(
                     region,select_uppermost=True)
             if len(selected)==1:
+                # one match found - fine
                 self.selected_region = selected[0]
             elif len(selected)==0:
+                # no match found
                 logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
-                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
-                    region,", ".join([s.name for s in selected])))
-        if not self.selected_region == previous_region:
+                # multiple matches found. Let's see if they represent a unique parent that we could select instead.
+                parents = [r.parent for r in selected]
+                if all([
+                    parents.count(parents[0])==len(selected),
+                    len(parents[0].children)==len(selected) ]):
+                    self.selected_region = parents[0]
+                    #logger.info('Selected parent region {}'.format(self.selected_region.name))
+                else:
+                    logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                        region,", ".join([s.name for s in selected])))
+        if not self.selected_region == previous_selection:
             logger.info('Selected region {}'.format(self.selected_region.name))
-            return self.selected_region
-        return None
+        return self.selected_region
 
     def clear_selection(self):
         """
