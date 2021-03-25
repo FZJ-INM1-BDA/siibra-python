@@ -74,7 +74,7 @@ class RegionProps(RegionalFeature):
         # as a list 
         rprops = measure.regionprops(M)
         if len(rprops)==0:
-            logger.warn('Region "{}" has zero size - {}'.format(
+            logger.warning('Region "{}" has zero size - {}'.format(
                 self.region.name, "constructing an empty region property object"))
             self.attrs['centroid_mm'] = 0.
             self.attrs['volume_mm'] = 0.

@@ -71,7 +71,7 @@ class RegionalFeature(Feature):
         in the atlas.
         """
         if not atlas.selected_region:
-            logger.warn("No region selected in atlas - cannot filter features.")
+            logger.warning("No region selected in atlas - cannot filter features.")
             return False
         matching_regions = atlas.selected_region.find(self.region)
         for region in matching_regions:

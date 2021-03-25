@@ -36,11 +36,12 @@ class TestAtlas(unittest.TestCase):
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
         self.assertIsNone(a.selected_region)
         self.assertIsNone(a.selected_parcellation)
-        self.assertIsNone(a.regionnames)
 
     def test_parcellations(self):
         parcellations = self.atlas.parcellations
-        self.assertTrue(len(parcellations) == 11)
+        self.assertTrue(len(parcellations) >= 11)
+        self.atlas.select_parcellation(self.atlas.parcellations[0])
+        self.assertIsNotNone(self.atlas.selected_parcellation)
 
     def test_spaces(self):
         spaces = self.atlas.spaces

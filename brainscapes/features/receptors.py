@@ -436,7 +436,7 @@ class ReceptorDistribution(RegionalFeature):
                 prev,new, self.region))
             return new
         else:
-            logger.warn("Receptor type identifier '{}' is not listed in the corresponding symbol table of region {}. Please verify.".format(
+            logger.warning("Receptor type identifier '{}' is not listed in the corresponding symbol table of region {}. Please verify.".format(
                         rtype, self.region))
             return rtype
 
@@ -464,7 +464,7 @@ class ReceptorDistribution(RegionalFeature):
 
     def plot(self,title=None):
         if not HAVE_PLT:
-            logger.warn('matplotlib.pyplot not available to brainscapes. plotting disabled.')
+            logger.warning('matplotlib.pyplot not available to brainscapes. plotting disabled.')
             return None
 
         self._load()

@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from brainscapes import parcellations, ebrains, spaces, retrieval
-from brainscapes.region import Region, construct_tree
+from brainscapes.region import Region
 
 
 class TestRegions(unittest.TestCase):
@@ -55,11 +55,6 @@ class TestRegions(unittest.TestCase):
             parcellations[0],
             parent=cls.parent_region
         )
-
-    def test_region_tree_construct(self):
-        region_tree = construct_tree(parcellations[0])
-        self.assertIsNotNone(region_tree)
-        self.assertIsNotNone(region_tree.children)
 
     def test_regions_init(self):
         self.assertEqual(str(self.child_region), self.region_name)

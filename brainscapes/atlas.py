@@ -44,6 +44,7 @@ class Atlas:
         # nothing selected yet at construction 
         self.selected_region = None
         self.selected_parcellation = None 
+        self.regionnames = None 
 
         # this can be set to prefer thresholded continuous maps as masks
         self._threshold_continuous_map = None
@@ -96,6 +97,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regions
+        self.regionnames = parcellation_obj.regionnames
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
     def get_maps(self, space : Space, tree : Region = None, force=False, resolution=None):

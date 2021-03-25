@@ -34,7 +34,7 @@ class Authentication(object):
             try:
                 self._authentication_token = environ['HBP_AUTH_TOKEN']
             except KeyError:
-                logger.warn('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
+                logger.warning('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
         return self._authentication_token
 
     def set_token(self, token):

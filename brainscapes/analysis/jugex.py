@@ -43,7 +43,7 @@ class DifferentialGeneExpression:
     https://www.fz-juelich.de/inm/inm-1/DE/Forschung/_docs/JuGex/JuGex_node.html
     """
 
-    icbm_id = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC.id
+    icbm_space = spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
 
     def __init__(self,atlas: Atlas, gene_names=[]):
         self._pvals = None
@@ -54,9 +54,9 @@ class DifferentialGeneExpression:
         self._samples2 = defaultdict(dict)
         self.genes = set(gene_names)
         spaces_supported = atlas.selected_parcellation.maps.keys()
-        if self.icbm_id not in spaces_supported:
+        if self.icbm_space not in spaces_supported:
             raise Exception("Atlas provided to DifferentialGeneExpression analysis does not support the {} space in its selected parcellation {}.".format(
-                self.icbm_id, atlas.selected_parcellation))
+                self.icbm_space, atlas.selected_parcellation))
         self.atlas = atlas
 
     @staticmethod
@@ -96,11 +96,11 @@ class DifferentialGeneExpression:
         """
 
         if len(self.genes)==0:
-            logger.warn('No candidate genes defined. Use "add_candidate_gene"')
+            logger.warning('No candidate genes defined. Use "add_candidate_gene"')
             return
 
         if len(self._samples1)<1 or len(self._samples2)<1:
-            logger.warn('Not enough samples found for the given genes and regions.')
+            logger.warning('Not enough samples found for the given genes and regions.')
             return
 
         # retrieve aggregated factors and split the constant donor factors
@@ -143,7 +143,7 @@ class DifferentialGeneExpression:
         Returns a dictionary with the results of the analysis.
         """
         if self._pvals is None:
-            logger.warn('No result has been computed yet.')
+            logger.warning('No result has been computed yet.')
             return {}
         return {**self.get_aggregated_sample_factors(), 'p-values':self._pvals}
 
@@ -175,7 +175,7 @@ class DifferentialGeneExpression:
 
         assert(isinstance(gene_name,str))
         if gene_name not in gene_names:
-            logger.warn("'{}' not found in the list of valid gene names.")
+            logger.warning("'{}' not found in the list of valid gene names.")
             return False
         self.genes.add(gene_name)
         return True
@@ -274,7 +274,7 @@ class DifferentialGeneExpression:
         """
         region = self.atlas.select_region(regiondef)
         if region is None:
-            logger.warn("Region definition '{}' could not be matched in atlas.".format(regiondef))
+            logger.warning("Region definition '{}' could not be matched in atlas.".format(regiondef))
             return None
         samples = defaultdict(dict)
         for gene_name in self.genes:
@@ -345,7 +345,7 @@ class DifferentialGeneExpression:
             Region identifier string used previously in define_roi1() or define_roi2()
         """
         if regiondef not in self._samples_by_regiondef.keys():
-            logger.warn("The provided region definition string is not known.")
+            logger.warning("The provided region definition string is not known.")
             return None
         return self._samples_by_regiondef[regiondef]
 

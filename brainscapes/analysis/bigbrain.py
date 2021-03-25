@@ -91,7 +91,7 @@ class BigBrainExtractor:
             for ngsite in region.parcellation.maps[self.space].values():
                 self.__intersect_mask(ngsite,region.labelindex)
         else:
-            logger.warn("Cannot instantiate a neuroglancer site from this selection. Mask is not applied.")
+            logger.warning("Cannot instantiate a neuroglancer site from this selection. Mask is not applied.")
             return False
         return True
             

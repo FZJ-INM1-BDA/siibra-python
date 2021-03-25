@@ -132,7 +132,7 @@ class Region(anytree.NodeMixin):
             - a string with a name.
             - a region object
         """
-        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9\.]', s) 
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.]', s) 
                 if len(w)>0]
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
@@ -160,10 +160,10 @@ class Region(anytree.NodeMixin):
             Threshold for optional conversion to binary mask
         """
         if "maps" not in self.attrs.keys():
-            logger.warn("No specific maps known for",self)
+            logger.warning("No specific maps known for {}".format(self))
             return None
         if space.id not in self.attrs["maps"].keys():
-            logger.warn("No specific map known for {} in space {}.".format(
+            logger.warning("No specific map known for {} in space {}.".format(
                 self,space))
             return None
         url = self.attrs["maps"][space.id]
@@ -179,7 +179,7 @@ class Region(anytree.NodeMixin):
             else:
                 return img
         else:
-            logger.warn("Could not retrieve and create Nifti file from",url)
+            logger.warning("Could not retrieve and create Nifti file from {}".format(url))
             return None
 
 

@@ -11,18 +11,21 @@ class TestSpaces(unittest.TestCase):
     url = 'space_url'
     ziptarget = 'space_zip_target'
     template = 'temp_file'
+    ttype = 'nii'
 
     json_space_with_zip = {
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
         'templateUrl': url,
-        'templateFile': ziptarget
+        'templateFile': ziptarget,
+        'templateType': ttype
     }
 
     json_space_without_zip = {
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
-        'templateUrl': url
+        'templateUrl': url,
+        'templateType': ttype
     }
 
     def test_space_init(self):
@@ -35,6 +38,7 @@ class TestSpaces(unittest.TestCase):
             str(space),
             self.name
         )
+        self.assertEqual(space.type,self.ttype)
         self.assertIsNotNone(space.ziptarget)
 
     def test_space_from_json_without_zip(self):
