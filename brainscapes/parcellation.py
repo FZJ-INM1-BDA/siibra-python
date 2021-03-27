@@ -325,7 +325,7 @@ class Parcellation:
     @staticmethod
     def from_json(obj):
         """
-        Provides an object hook for the json library to construct an Atlas
+        Provides an object hook for the json library to construct a Parcellation
         object from a json stream.
         """
         if '@id' in obj and 'maps' in obj:
