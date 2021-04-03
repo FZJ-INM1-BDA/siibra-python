@@ -26,8 +26,12 @@ from memoization import cached
 @cached
 def is_ngprecomputed(url):
     # Check if the given URL is likely a neuroglancer precomputed cloud store
-    r = requests.get(url+"/info")
-    return r.status_code==200
+    try: 
+        r = requests.get(url+"/info")
+        info = json.loads(r.content)
+        return info['type'] == 'image'
+    except Exception as _:
+        return False
 
 def bbox3d(A):
     # https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
