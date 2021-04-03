@@ -246,7 +246,7 @@ class Atlas:
                     region,select_uppermost=True)
             if len(selected)==1:
                 # one match found - fine
-                self.selected_region = selected[0]
+                self.selected_region = next(iter(selected))
             elif len(selected)==0:
                 # no match found
                 logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))

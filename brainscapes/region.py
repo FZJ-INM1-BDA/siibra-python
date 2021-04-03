@@ -78,6 +78,15 @@ class Region(anytree.NodeMixin):
             files.extend(dataset['files'])
         return files
 
+    def __eq__(self,other):
+        return self.__hash__() == other.__hash__()
+
+    def __hash__(self):
+        """
+        Identify each region by its parcellation and region key.
+        """
+        return hash(self.parcellation.key+self.key)
+
     def has_parent(self,parentname):
         return parentname in [a.name for a in self.ancestors]
 
@@ -119,11 +128,11 @@ class Region(anytree.NodeMixin):
                 logger.info("Using only {} parent nodes of in total {} matching regions for spec '{}'.".format(
                     len(result), len(all_results), name))
         if isinstance(result,Region):
-            return [result]
+            return {result}
         elif result is None:
-            return []
+            return set()
         else:
-            return result
+            return set(result)
 
     def might_be(self,regionspec):
         """ 
