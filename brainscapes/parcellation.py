@@ -138,6 +138,10 @@ class Parcellation:
             self.regionnames = Glossary([c.key 
                 for r in self.regions.iterate()
                 for c in r.children ])
+            self.labelindices = { c.labelIndex 
+                    for r in self.regions.iterate()
+                    for c in r.children 
+                    if 'labelIndex' in c.attrs.keys() }
 
         for regiondef in regions:
             node = Region(regiondef,self,parent)
@@ -215,10 +219,10 @@ class Parcellation:
             for k,v in maps.items():
                 maps[k] = hook(v)
 
-        if len(maps)==1:
-            return next(iter(maps.values()))
-        elif return_dict:
+        if return_dict:
             return maps
+        elif len(maps)==1:
+            return next(iter(maps.values()))
         else:
             # concatenate multiple maps into 4D image
             return image.concat_imgs(maps.values())
