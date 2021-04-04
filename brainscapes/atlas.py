@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import nibabel as nib
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
@@ -22,11 +21,9 @@ from .region import Region
 from .features.regionprops import RegionProps
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
-from .retrieval import download_file 
 from .commons import create_key
 from .config import ConfigurationRegistry
 from .space import Space
-from .bigbrain import BigBrainVolume
 
 class Atlas:
 
@@ -157,6 +154,10 @@ class Atlas:
         """
         Get the volumetric reference template image for the given space.
 
+        See
+        ---
+        Space.get_template()
+
         Parameters
         ----------
         space : str
@@ -180,22 +181,7 @@ class Atlas:
             logger.error('- Atlas: {}'.format(self.name))
             return None
 
-        if space.type == 'nii':
-            logger.debug('Loading template image for space {}'.format(space.name))
-            filename = download_file( space.url, ziptarget=space.ziptarget )
-            if filename is not None:
-                return nib.load(filename)
-            else:
-                return None
-
-        if space.type == 'neuroglancer':
-            vol = BigBrainVolume(space.url)
-            mip = vol.determine_mip(resolution)
-            return None if mip is None else vol.Image(mip,force=force)
-
-        logger.error('Downloading the template image for the requested reference space is not supported.')
-        logger.error('- Requested space: {}'.format(space.name))
-        return None
+        return space.get_template(resolution,force)
 
     def find(self,regionspec,all_parcellations=False):
         """

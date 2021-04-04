@@ -14,6 +14,10 @@
 
 from .commons import create_key
 from .config import ConfigurationRegistry
+from .retrieval import download_file
+from .bigbrain import BigBrainVolume
+from . import logger
+import nibabel as nib
 
 class Space:
 
@@ -27,6 +31,43 @@ class Space:
 
     def __str__(self):
         return self.name
+
+    def get_template(self, resolution=None, force=False ):
+        """
+        Get the volumetric reference template image for this space.
+
+        Parameters
+        ----------
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        force : Boolean (default: False)
+            if true, will start large downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable (applies only
+            to BigBrain space currently).
+
+        Yields
+        ------
+        A nibabel Nifti object representing the reference template, or None if not available.
+        TODO Returning None is not ideal, requires to implement a test on the other side. 
+        """
+        if self.type == 'nii':
+            logger.debug('Loading template image for space {}'.format(self.name))
+            filename = download_file( self.url, ziptarget=self.ziptarget )
+            if filename is not None:
+                return nib.load(filename)
+            else:
+                return None
+
+        if self.type == 'neuroglancer':
+            vol = BigBrainVolume(self.url)
+            mip = vol.determine_mip(resolution)
+            return None if mip is None else vol.Image(mip,force=force)
+
+        logger.error('Downloading the template image for the requested reference space is not supported.')
+        logger.error('- Requested space: {}'.format(self.name))
+        return None
 
     @staticmethod
     def from_json(obj):
