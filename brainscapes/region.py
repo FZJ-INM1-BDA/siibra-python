@@ -147,7 +147,13 @@ class Region(anytree.NodeMixin):
         if isinstance(regionspec,Region):
             return self.key==regionspec.key 
         elif isinstance(regionspec,int):
-            return (self.labelindex is not None) and self.labelindex == regionspec
+            # argument is int - a labelindex is expected
+            if self.labelindex is None:
+                # if this region has no labelindex, see if all children match
+                # the given labelindex
+                return all([c.might_be(regionspec) for c in self.children])
+            else:
+                return self.labelindex==regionspec
         elif isinstance(regionspec,str):
             return any([
                     all([w.lower() in splitstr(self.name.lower()) 
