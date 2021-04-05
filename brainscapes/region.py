@@ -15,11 +15,13 @@
 from brainscapes import ebrains
 from brainscapes.commons import create_key
 from brainscapes.retrieval import download_file 
+from brainscapes.space import Space
 import numpy as np
 import nibabel as nib
 from brainscapes import logger
 import re
 import anytree
+from nibabel.spatialimages import SpatialImage
 
 class Region(anytree.NodeMixin):
     """
@@ -162,6 +164,50 @@ class Region(anytree.NodeMixin):
                     regionspec==self.name ])
         else:
             raise ValueError("Cannot say if object of type {} might correspond to region".format(type(regionspec)))
+
+    def get_mask(self,space : Space, force=False, resolution=None ):
+        """
+        Returns a binary mask where nonzero values denote
+        voxels corresponding to the region.
+
+        TODO better handling of the case that labelindex is None (use children? stop right away?)
+
+        Parameters
+        ----------
+        space : Space
+            The desired template space.
+        force : Boolean (default: False)
+            if true, will start large downloads even if they exceed the download
+            threshold set in the gbytes_feasible member variable (applies only
+            to BigBrain space currently).
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        """
+        not_avail_msg = 'Parcellation "{}" does not provide a map for space "{}"'.format(
+                str(self), str(space) )
+        if space not in self.parcellation.maps:
+            logger.error(not_avail_msg)
+        if len(self.parcellation.maps[space])==0:
+            logger.error(not_avail_msg)
+
+        logger.debug("Computing mask for {} in {}".format(
+            self.name, space))
+        maps = self.parcellation.get_maps(space, force=force, resolution=resolution,return_dict=True)
+        mask = affine = None 
+        for description,m in maps.items():
+            D = np.array(m.dataobj)
+            if mask is None: 
+                # copy metadata for output mask from the first map!
+                mask = np.zeros_like(D)
+                affine = m.affine
+            if len(maps)>1 and (description not in self.name):
+                continue
+            if self.labelindex is None:
+                continue
+            mask[D==int(self.labelindex)]=1
+        return SpatialImage(dataobj=mask,affine=affine)
 
     def get_specific_map(self,space,threshold=None):
         """

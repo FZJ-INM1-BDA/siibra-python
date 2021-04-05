@@ -31,11 +31,15 @@ def nifti_argmax_dim4(img,dim=-1):
     """
     Given a nifti image object with four dimensions, returns a modified object
     with 3 dimensions that is obtained by taking the argmax along one of the
-    four dimensions (default: the last one).
+    four dimensions (default: the last one). To distinguish the pure background
+    voxels from the foreground voxels of channel 0, the argmax indices are
+    incremented by 1 and label index 0 is kept to represent the background.
     """
     assert(len(img.shape)==4)
     assert(dim>=-1 and dim<4)
-    newarr = np.asarray(img.dataobj).argmax(dim)
+    newarr = np.asarray(img.dataobj).argmax(dim)+1
+    # reset the true background voxels to zero
+    newarr[np.asarray(img.dataobj).max(dim)==0]=0
     return nib.Nifti1Image(
             dataobj = newarr,
             header = img.header,
@@ -247,6 +251,8 @@ class Parcellation:
         space it will not recompute the mask.
 
         TODO passing a regiontree is a big akward since this cannot work with arbitrary regiontrees - we need to make sure it is a subtree of the parcellation that owns this map.
+
+        TODO this has redundancies with Region.get_mask(), consider streamlining the two
 
         Parameters
         ----------
