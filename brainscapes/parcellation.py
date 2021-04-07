@@ -146,13 +146,18 @@ class Parcellation:
                     for r in self.regions.iterate()
                     for c in r.children 
                     if 'labelIndex' in c.attrs.keys() }
-
-        for regiondef in regions:
-            node = Region(regiondef,self,parent)
-            if "children" in regiondef.keys():
-                #_ = self.construct_tree(
-                self.construct_tree(
-                        regiondef['children'],parent=node)
+        else:
+            for regiondef in regions:
+                node = Region(regiondef,self,parent)
+                if "children" in regiondef.keys():
+                    #_ = self.construct_tree(
+                    self.construct_tree(
+                            regiondef['children'],parent=node)
+            # inherit labelindex from children, if they agree
+            if (parent.labelindex is None) and (parent.children is not None):
+                L = [c.labelindex for c in parent.children]
+                if (len(L)>0) and (L.count(L[0])==len(L)):
+                    parent.labelindex = L[0]
 
 
     def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, return_dict=False):
