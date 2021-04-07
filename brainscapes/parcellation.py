@@ -234,7 +234,9 @@ class Parcellation:
             return next(iter(maps.values()))
         else:
             # concatenate multiple maps into 4D image
-            return image.concat_imgs(maps.values())
+            dtypes = [c.dataobj.dtype for c in maps.values()]
+            assert(all([d==dtypes[0] for d in dtypes]))
+            return image.concat_imgs(maps.values(),dtype=dtypes[0])
 
     def find(self,region):
         """
