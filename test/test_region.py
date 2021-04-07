@@ -132,7 +132,7 @@ class TestRegions(unittest.TestCase):
         regions = self.parent_region.find(self.region_name)
         self.assertIsNotNone(regions)
         self.assertEqual(len(regions), 1)
-        self.assertEqual(str(regions[0]), self.region_name)
+        self.assertEqual(next(iter(regions)), self.child_region)
 
     def test_find_child_no_result(self):
         regions = self.child_region.find(self.parentname)
