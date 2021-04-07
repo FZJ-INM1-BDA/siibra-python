@@ -194,20 +194,37 @@ class Region(anytree.NodeMixin):
 
         logger.debug("Computing mask for {} in {}".format(
             self.name, space))
-        maps = self.parcellation.get_maps(space, force=force, resolution=resolution,return_dict=True)
         mask = affine = None 
-        for description,m in maps.items():
-            D = np.array(m.dataobj)
-            if mask is None: 
-                # copy metadata for output mask from the first map!
-                mask = np.zeros_like(D)
-                affine = m.affine
-            if len(maps)>1 and (description not in self.name):
-                continue
-            if self.labelindex is None:
-                continue
-            mask[D==int(self.labelindex)]=1
+
+        if self.labelindex is not None:
+
+            maps = self.parcellation.get_maps(space, force=force, resolution=resolution,return_dict=True)
+            for description,m in maps.items():
+                D = np.array(m.dataobj)
+                if mask is None: 
+                    mask = np.zeros_like(D)
+                    affine = m.affine
+                if len(maps)>1 and (description not in self.name):
+                    continue
+                mask[D==int(self.labelindex)]=1
+
+        if mask is None:
+            print("has no own mask:",self," - trying children")
+            for child in self.children:
+                childmask = child.get_mask(space,force,resolution)
+                print("child",child)
+                if mask is None:
+                    mask = childmask.dataobj
+                    affine = childmask.affine
+                else:
+                    mask = (mask | childmask.dataobj).astype('int')
+
+        if mask is None:
+            logger.error("No mask could be computed for the given region "+str(self))
+            raise RuntimeError()
+
         return SpatialImage(dataobj=mask,affine=affine)
+
 
     def get_specific_map(self,space,threshold=None):
         """
