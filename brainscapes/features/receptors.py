@@ -353,8 +353,10 @@ class ReceptorDistribution(RegionalFeature):
         RegionalFeature.__init__(self,region)
         self.active = False
         self.name = kg_result["name"]
-        self.urls = kg_result["files"]
+        self.files = kg_result["files"]
         self.info = kg_result['description']
+        self.identifier = kg_result['identifier']
+        self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.identifier)
         self.modality = kg_result['modality']
         self.__profiles = {}
         self.__autoradiographs = {}
@@ -388,7 +390,7 @@ class ReceptorDistribution(RegionalFeature):
 
         logger.debug('Loading receptor data for'+self.region)
 
-        for url in self.urls:
+        for url in self.files:
 
             # Receive cortical profiles, if any
             if '_pr_' in url:
@@ -507,7 +509,7 @@ class ReceptorQuery(FeatureExtractor):
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'brainscapes_receptor_densities')
+        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
