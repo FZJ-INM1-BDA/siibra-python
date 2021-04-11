@@ -200,9 +200,9 @@ class Region(anytree.NodeMixin):
 
             maps = self.parcellation.get_maps(space, force=force, resolution=resolution,return_dict=True)
             for description,m in maps.items():
-                D = np.array(m.dataobj)
+                D = np.array(m.dataobj).squeeze()
                 if mask is None: 
-                    mask = np.zeros_like(D)
+                    mask = np.zeros_like(D,dtype=np.uint8)
                     affine = m.affine
                 if len(maps)>1 and (description not in self.name):
                     continue
