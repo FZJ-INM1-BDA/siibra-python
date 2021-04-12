@@ -217,6 +217,8 @@ class Parcellation:
                 mip = vol.determine_mip(resolution)
                 if mip is not None:
                     m = load_ngprecomputed(url,mip,force)
+                else:
+                    logger.warn('Requested resolution invalid.')
             else:
                 m = load_nifti(url)
             if m is not None:

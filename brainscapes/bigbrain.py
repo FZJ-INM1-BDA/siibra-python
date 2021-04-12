@@ -29,7 +29,7 @@ def is_ngprecomputed(url):
     try: 
         r = requests.get(url+"/info")
         info = json.loads(r.content)
-        return info['type'] == 'image'
+        return info['type'] in ['image','segmentation']
     except Exception as _:
         return False
 
