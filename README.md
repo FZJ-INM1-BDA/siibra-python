@@ -1,9 +1,10 @@
-# siibra-python - Software interface for interacting with brain atlases 
 ![](images/siibra-python.jpeg)
 
-Authors: T. Dickscheid, V. Marcenko,  Forschungszentrum Jülich GmbH
+# siibra-python - Software interface for interacting with brain atlases 
 
-Copyright Forschungszentrum Jülich GmbH 2020
+Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+
+Copyright 2020-2021, Forschungszentrum Jülich GmbH 
 
 **`siibra-python` is still at an experimental stage. The API of the library is not
 stable, and the software is not yet fully tested. You are welcome to install and
