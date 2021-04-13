@@ -25,8 +25,8 @@ Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1
    :maxdepth: 2
    :caption: Contents:
 
-   installation
    overview
+   installation
    authentication
    usage
    acknowledgements
