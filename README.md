@@ -6,7 +6,7 @@
 
 Copyright 2020-2021, Forschungszentrum Jülich GmbH 
 
-> :warning: ** `siibra-python` is still at an experimental stage.** The API of the library is not
+> :warning: **`siibra-python` is still at an experimental stage.** The API of the library is not
 stable, and the software is not yet fully tested. You are welcome to install and
 test it, but be aware that you will likely encounter bugs.
 
