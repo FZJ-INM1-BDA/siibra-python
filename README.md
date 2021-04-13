@@ -1,4 +1,4 @@
-![](images/siibra-python.jpeg =450x)
+<img src="images/siibra-python.jpeg" width="450">
 
 # siibra-python - Python interface for interacting with brain atlases 
 
