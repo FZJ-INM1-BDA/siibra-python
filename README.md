@@ -1,4 +1,6 @@
-<img src="images/siibra-python.jpeg" width="450">
+<p align="center">
+    <img src="images/siibra-python.jpeg" width="450">
+</p>
 
 # siibra-python - Python interface for interacting with brain atlases 
 
