@@ -2,7 +2,7 @@
     <img src="images/siibra-python.jpeg" width="450">
 </p>
 
-# siibra-python - Python interface for interacting with brain atlases 
+# siibra - Python interface for interacting with brain atlases 
 
 *Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH*
 
