@@ -15,8 +15,10 @@ setup(
     packages=find_packages(include=['siibra', 'siibra.*']),
     # packages=find_packages(include=['.']),
     classifiers=[
+        'Development Status :: 2 - Pre.Alpha',
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
+        'Intended Audience :: Developers',
     ],
     python_requires='>=3.6',
     install_requires=['anytree','statsmodels','nibabel','click','appdirs','scikit-image','scipy','statsmodels','requests','python-gitlab','memoization','cloud-volume','nilearn'],
