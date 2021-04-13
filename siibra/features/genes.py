@@ -15,7 +15,7 @@
 from xml.etree import ElementTree
 import numpy as np
 import json
-from brainscapes import retrieval,spaces,logger
+from siibra import retrieval,spaces,logger
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
@@ -83,7 +83,7 @@ class AllenBrainAtlasQuery(FeatureExtractor):
     _FEATURETYPE = GeneExpression
 
     ALLEN_ATLAS_NOTIFICATION=\
-"""For retrieving microarray data, brainscapes connects to the web API of
+"""For retrieving microarray data, siibra connects to the web API of
 the Allen Brain Atlas (© 2015 Allen Institute for Brain Science), available
 from https://brain-map.org/api/index.html. Any use of the microarray data needs
 to be in accordance with their terms of use, as specified at
@@ -118,7 +118,7 @@ https://alleninstitute.org/legal/terms-use/."""
 
     # load gene names
     genes = json.loads(retrieval.cached_get(_QUERY['gene'],
-            "Seems you are running brainscapes for the first time or cleared the cache.\n"
+            "Seems you are running siibra for the first time or cleared the cache.\n"
             +"Will retrieve a list of gene acronyms from Allen Atlas now.\n"
             +"This may take a minute."))
     GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}

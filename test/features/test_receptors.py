@@ -2,7 +2,7 @@ import unittest
 from io import BytesIO
 from unittest.mock import patch, MagicMock
 
-from brainscapes.features import receptors
+from siibra.features import receptors
 import tempfile
 
 
@@ -14,7 +14,7 @@ class TestReceptors(unittest.TestCase):
     def test_receptor_symbols(self):
         self.assertEqual(len(receptors.RECEPTOR_SYMBOLS), 16)
 
-    @patch('brainscapes.features.receptors.retrieval.download_file')
+    @patch('siibra.features.receptors.retrieval.download_file')
     def test_get_bytestream_from_file(self, download_file_mock):
         self.file = tempfile.NamedTemporaryFile(mode='w', delete=False)
         download_file_mock.return_value = self.file.name
@@ -35,7 +35,7 @@ class TestReceptors(unittest.TestCase):
         self.assertEqual(len(receptors.edits1('ok')), 130)
         self.assertEqual(len(receptors.edits1('atlas')), 286)
 
-    @patch('brainscapes.features.receptors.get_bytestream_from_file')
+    @patch('siibra.features.receptors.get_bytestream_from_file')
     def test_decode_tsv(self, get_bytestream_mock):
         bytestream = MagicMock()
         get_bytestream_mock.return_value = bytestream

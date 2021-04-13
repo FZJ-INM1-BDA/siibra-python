@@ -1,7 +1,7 @@
 import unittest
 
-from brainscapes.space import Space
-from brainscapes.atlas import REGISTRY
+from siibra.space import Space
+from siibra.atlas import REGISTRY
 
 
 class TestSpaces(unittest.TestCase):

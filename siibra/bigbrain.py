@@ -51,7 +51,7 @@ def bbox3d(A):
 
 class BigBrainVolume:
     """
-    TODO use brainscapes requests cache
+    TODO use siibra requests cache
     
     """
     # function to switch x/y coordinates on a vector or matrix.

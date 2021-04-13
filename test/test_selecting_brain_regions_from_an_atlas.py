@@ -1,7 +1,7 @@
 import os
 import unittest
-from brainscapes.atlas import REGISTRY
-import brainscapes as bs
+from siibra.atlas import REGISTRY
+import siibra as sb
 from test.get_token import get_token
 
 token = get_token()
@@ -11,7 +11,7 @@ class TestSelectionBrainRegions(unittest.TestCase):
 
     def test_select_brain_regions(self):
         atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
-        atlas.select_parcellation(bs.parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_MAPS_V2_5)
+        atlas.select_parcellation(sb.parcellations.JULICH_BRAIN_PROBABILISTIC_CYTOARCHITECTONIC_MAPS_V2_5)
         # we can just give a string and see if the system can disambiguiate it
         atlas.select_region('v1')
         print("Selected region from 'v1' is", atlas.selected_region)

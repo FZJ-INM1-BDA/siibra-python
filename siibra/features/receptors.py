@@ -466,7 +466,7 @@ class ReceptorDistribution(RegionalFeature):
 
     def plot(self,title=None):
         if not HAVE_PLT:
-            logger.warning('matplotlib.pyplot not available to brainscapes. plotting disabled.')
+            logger.warning('matplotlib.pyplot not available to siibra. plotting disabled.')
             return None
 
         self._load()

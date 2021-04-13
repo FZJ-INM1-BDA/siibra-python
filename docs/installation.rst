@@ -4,11 +4,11 @@ Installation
 
 To get the latest release::
 
-   pip install brainscapes
+   pip install siibra
 
 
 To get the development version::
 
-   git clone https://jugit.fz-juelich.de/v.marcenko/brainscapes.git
-   pip install -r ./brainscapes/requirements.txt
-   pip install -U ./brainscapes
+   git clone https://github.com/FZJ-INM1-BDA/siibra-python
+   pip install -r ./siibra/requirements.txt
+   pip install -U ./siibra

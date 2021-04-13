@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from brainscapes import parcellations, ebrains, spaces, retrieval
-from brainscapes.region import Region
+from siibra import parcellations, ebrains, spaces, retrieval
+from siibra.region import Region
 
 
 class TestRegions(unittest.TestCase):
@@ -151,12 +151,12 @@ class TestRegions(unittest.TestCase):
     def test_might_be_with_wrong_region(self):
         self.assertFalse(self.child_region.might_be(self.parent_region))
 
-    @patch('brainscapes.region.download_file')
+    @patch('siibra.region.download_file')
     def test_get_specific_map_none(self, download_mock):
         self.assertIsNone(self.parent_region.get_specific_map(spaces[0]))
         download_mock.assert_not_called()
 
-    @patch('brainscapes.region.download_file')
+    @patch('siibra.region.download_file')
     def test_get_specific_map_wrong_space(self, download_mock):
         self.child_region.attrs['maps'] = {
             'spaceId': 'map_url'
@@ -164,7 +164,7 @@ class TestRegions(unittest.TestCase):
         self.assertIsNone(self.child_region.get_specific_map(spaces[0]))
         download_mock.assert_not_called()
 
-    @patch('brainscapes.region.download_file')
+    @patch('siibra.region.download_file')
     def test_get_specific_map_no_filename(self, download_mock):
         download_mock.return_value = None
         self.child_region.attrs['maps'] = {
