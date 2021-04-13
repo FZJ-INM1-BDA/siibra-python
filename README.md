@@ -1,14 +1,14 @@
 ![](images/siibra-python.jpeg)
 
-# siibra-python - Software interface for interacting with brain atlases 
+# siibra-python - Python interface for interacting with brain atlases 
 
-Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+*Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH*
 
 Copyright 2020-2021, Forschungszentrum Jülich GmbH 
 
-**`siibra-python` is still at an experimental stage. The API of the library is not
+> :warning: **`siibra-python` is still at an experimental stage.** The API of the library is not
 stable, and the software is not yet fully tested. You are welcome to install and
-test it, but be aware that you will likely encounter bugs.**
+test it, but be aware that you will likely encounter bugs.
 
 `siibra` is a Python client for interacting with "multilevel" brain atlases,
 which combine multiple brain parcellations and neuroscience datasets across
@@ -39,7 +39,7 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 ## Installation
 
 `siibra` is available on pypi.
-To install the latest version, simply run `pip install siibra-python`.
+To install the latest version, simply run `pip install siibra`.
 
 ## Authentication
 
