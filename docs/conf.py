@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'siibra'
+project = 'siibra-python'
 copyright = '2020-2021, Forschungszentrum Juelich GmbH'
 author = 'Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH'
 
