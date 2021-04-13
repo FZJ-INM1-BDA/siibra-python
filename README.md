@@ -39,7 +39,7 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 ## Installation
 
 `siibra` is available on pypi.
-To install the latest version, simply run `pip install siibra-python`.
+To install the latest version, simply run `pip install siibra`.
 
 ## Authentication
 
