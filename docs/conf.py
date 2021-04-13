@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'brainscapes'
-copyright = '2020, Timo Dickscheid, Vadim Marcenko'
-author = 'Timo Dickscheid, Vadim Marcenko'
+project = 'siibra'
+copyright = '2020-2021, Forschungszentrum Juelich GmbH'
+author = 'Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH'
 
 
 # -- General configuration ---------------------------------------------------

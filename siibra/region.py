@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from brainscapes import ebrains
-from brainscapes.commons import create_key
-from brainscapes.retrieval import download_file 
-from brainscapes.space import Space
+from . import ebrains,logger
+from .commons import create_key
+from .retrieval import download_file 
+from .space import Space
 import numpy as np
 import nibabel as nib
-from brainscapes import logger
+from nibabel.spatialimages import SpatialImage
 import re
 import anytree
-from nibabel.spatialimages import SpatialImage
 
 class Region(anytree.NodeMixin):
     """
@@ -33,12 +32,12 @@ class Region(anytree.NodeMixin):
     def __init__(self, definition, parcellation, parent=None, children=None):
         """
         Constructs a region object from its definition as given in the
-        brainscapes parcellation configurations.
+        siibra parcellation configurations.
 
         Parameters
         ----------
         definition : dict
-            A dictionary of one particular region as formatted in the brainscapes parcellation defininition json files.
+            A dictionary of one particular region as formatted in the siibra parcellation defininition json files.
         parcellation : Parcellation
             The parcellation that this region belongs to
         parent : Region

@@ -1,7 +1,7 @@
 import os
 import unittest
-from brainscapes.atlas import REGISTRY
-from brainscapes import atlas
+from siibra.atlas import REGISTRY
+from siibra import atlas
 from test.get_token import get_token
 
 token = get_token()

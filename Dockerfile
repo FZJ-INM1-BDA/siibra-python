@@ -5,8 +5,8 @@ FROM python:3.8
 # Upgrade pip to latest version
 RUN python -m pip install --upgrade pip
 
-ADD . /brainscapes_client
-WORKDIR /brainscapes_client
+ADD . /siibra_client
+WORKDIR /siibra_client
 
 RUN pip install -r requirements.txt
 

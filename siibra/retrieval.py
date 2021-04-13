@@ -37,8 +37,8 @@ from . import logger
 def __compile_cachedir(suffix=None):
     from os import path,makedirs,environ
     from appdirs import user_cache_dir
-    if "BRAINSCAPES_CACHEDIR" in environ:
-        cachedir = environ['BRAINSCAPES_CACHEDIR']
+    if "SIIBRA_CACHEDIR" in environ:
+        cachedir = environ['SIIBRA_CACHEDIR']
     else:
         dname = __name__ if suffix is None else __name__+"_"+suffix
         cachedir = user_cache_dir(__name__,"")
@@ -49,7 +49,7 @@ def __compile_cachedir(suffix=None):
         assert(os.access(cachedir, os.W_OK))
     except Exception as e:
         print(str(e))
-        raise PermissionError('Cannot create local cache folder at {}. Please set a writable cache directory using the environment variable BRAINSCAPES_CACHEDIR, and reload brainscapes.'.format(cachedir))
+        raise PermissionError('Cannot create local cache folder at {}. Please set a writable cache directory using the environment variable SIIBRA_CACHEDIR, and reload siibra.'.format(cachedir))
     return cachedir
 
 CACHEDIR = __compile_cachedir()
@@ -173,7 +173,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     Performs a requests.get if the result is not yet available in the local
     cache, otherwise returns the result from the cache.
     This leaves the interpretation of the returned content to the caller.
-    TODO we might extend this as a general tool for the brainscapes library, and make it a decorator
+    TODO we might extend this as a general tool for the siibra library, and make it a decorator
     """
     url_hash = hashlib.sha256((url+json.dumps(kwargs)).encode('ascii')).hexdigest()
     cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"
@@ -207,6 +207,6 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
 
 def clear_cache():
     import shutil
-    logger.info("Clearing brainscapes cache.")
+    logger.info("Clearing siibra cache.")
     shutil.rmtree(CACHEDIR)
     __compile_cachedir()

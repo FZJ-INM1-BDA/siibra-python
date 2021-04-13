@@ -1,4 +1,4 @@
-from brainscapes import retrieval
+from siibra import retrieval
 
 
 retrieval.CACHEDIR = retrieval.__compile_cachedir(suffix='pytest')

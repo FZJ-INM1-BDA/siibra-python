@@ -292,7 +292,7 @@ class Atlas:
     def get_features(self,modality,**kwargs):
         """
         Retrieve data features linked to the selected atlas configuration, by modality. 
-        See brainscapes.features.modalities for available modalities.
+        See siibra.features.modalities for available modalities.
         """
         hits = []
 
