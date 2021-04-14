@@ -13,3 +13,4 @@ brainscapes_client/*.nii
 docs/make.bat
 docs/_build
 play
+venv

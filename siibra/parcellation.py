@@ -26,6 +26,7 @@ from nilearn import image
 from anytree import PreOrderIter
 # TODO consider a custom cache implementation
 from memoization import cached
+import json
 
 def nifti_argmax_dim4(img,dim=-1):
     """
@@ -98,7 +99,7 @@ def load_collect(space,regiontree,resolution,force):
             assert("labelIndex" in region.attrs.keys())
             Mr0 = load_ngprecomputed(
                     region.attrs["maps"][space.id],mip,force)
-            Mr = image.resample_to_img(Mr0,M)
+            Mr = image.resample_to_img(Mr0,M,interpolation='nearest')
             M.dataobj[Mr.dataobj>0] = int(region.attrs['labelIndex'])
 
     return M
@@ -115,7 +116,7 @@ def load_nifti(url):
 
 class Parcellation:
 
-    def __init__(self, identifier, name, version=None):
+    def __init__(self, identifier : str, name : str, regiontree : Region, version=None):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
@@ -123,41 +124,22 @@ class Parcellation:
         self.publications = []
         self.description = ""
         self.maps = defaultdict(dict)
-
-        # rely on a dedicated call to construct_tree():
-        self.regions = None
         self.regionnames = None
+        self.labelindices = {}
+        self.regions = regiontree
+
+        if self.regions is not None:
+            for r in self.regions:
+                r.parcellation = self
+            self.regionnames = Glossary(
+                    [c.key for r in self.regions for c in r.children ] )
+            self.labelindices = { c.labelindex 
+                    for r in self.regions for c in r.children 
+                    if c.labelindex is not None }
 
     def register_map(self, space_id, name, url):
         assert(space_id in spaces)
         self.maps[spaces[space_id]][name] = url
-
-    def construct_tree(self,regions,parent=None):
-        """ 
-        Builds a complete tree recursively from a regions data structure.
-        """
-        if parent is None:
-            self.regions = Region({'name':self.name},self)
-            self.construct_tree(regions,parent=self.regions)
-            self.regionnames = Glossary([c.key 
-                for r in self.regions.iterate()
-                for c in r.children ])
-            self.labelindices = { c.labelIndex 
-                    for r in self.regions.iterate()
-                    for c in r.children 
-                    if 'labelIndex' in c.attrs.keys() }
-        else:
-            for regiondef in regions:
-                node = Region(regiondef,self,parent)
-                if "children" in regiondef.keys():
-                    #_ = self.construct_tree(
-                    self.construct_tree(
-                            regiondef['children'],parent=node)
-            # inherit labelindex from children, if they agree
-            if (parent.labelindex is None) and (parent.children is not None):
-                L = [c.labelindex for c in parent.children]
-                if (len(L)>0) and (L.count(L[0])==len(L)):
-                    parent.labelindex = L[0]
 
 
     def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, return_dict=False):
@@ -299,7 +281,7 @@ class Parcellation:
                 # copy metadata for output mask from the first map!
                 mask = np.zeros_like(D)
                 affine = m.affine
-            for r in regiontree.iterate():
+            for r in regiontree:
                 if len(maps)>1 and (description not in r.name):
                     continue
                 if 'labelIndex' not in r.attrs.keys():
@@ -347,22 +329,23 @@ class Parcellation:
         Provides an object hook for the json library to construct a Parcellation
         object from a json stream.
         """
-        if '@id' in obj and 'maps' in obj:
-            if 'version' in obj:
-                p = Parcellation(obj['@id'], obj['name'], obj['version'])
-            else:
-                p = Parcellation(obj['@id'], obj['name'])
-            for space_id,maps in obj['maps'].items():
-                for name, url in maps.items():
-                    p.register_map( space_id, name, url) 
-            # TODO model the regions already here as a hierarchy tree
-            if 'regions' in obj:
-                p.construct_tree(obj['regions'])
-            if 'description' in obj:
-                p.description = obj['description']
-            if 'publications' in obj:
-                p.publications = obj['publications']
-            return p
-        return obj
+        required_keys = ['@id','name','maps','regions']
+        if any([k not in obj for k in required_keys]):
+            return obj
+
+        # create the parent region node for the whole parcellation
+        regiontree = Region(obj['name'])
+        regiontree.children = tuple( 
+                Region.from_json(regiondef) for regiondef in obj['regions'] )
+        version = obj['version'] if 'version' in obj else None
+        p = Parcellation(obj['@id'], obj['name'], regiontree, version)
+        for space_id,maps in obj['maps'].items():
+            for name, url in maps.items():
+                p.register_map( space_id, name, url) 
+        if 'description' in obj:
+            p.description = obj['description']
+        if 'publications' in obj:
+            p.publications = obj['publications']
+        return p
 
 REGISTRY = ConfigurationRegistry('parcellations', Parcellation)

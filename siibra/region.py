@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import ebrains,logger
+from . import ebrains
+from . import logger
 from .commons import create_key
 from .retrieval import download_file 
 from .space import Space
@@ -25,37 +26,31 @@ import anytree
 class Region(anytree.NodeMixin):
     """
     Representation of a region with name and more optional attributes
-    TODO implement a Region.from_json factory method to be applied recursively
-    from the Parcellation.from_json method
     """
 
-    def __init__(self, definition, parcellation, parent=None, children=None):
+    def __init__(self, name, labelindex=None, attrs={}, parent=None):
         """
-        Constructs a region object from its definition as given in the
-        siibra parcellation configurations.
+        Constructs a new region object.
 
         Parameters
         ----------
-        definition : dict
-            A dictionary of one particular region as formatted in the siibra parcellation defininition json files.
-        parcellation : Parcellation
-            The parcellation that this region belongs to
+        name : str
+            Human-readable name of the rgion
+        labelindex : int
+            the integer label index used to mark the region in a labelled brain volume
+        attrs : dict
+            A dictionary of arbitrary additional information
         parent : Region
             Parent of this region, if any
-        children : list of Region
-            Children of this region, if any
         """
-        self.name = definition['name']
-        self.key = create_key(self.name)
-        self.parcellation = parcellation
-        self.labelindex = None
-        if 'labelIndex' in definition.keys():
-            self.labelindex = definition['labelIndex'] 
-        self.attrs = definition
-        if parent is not None:
-            self.parent = parent
-        if children is not None: 
-            self.children = children
+        self.name = name
+        self.key = create_key(name)
+        # usually set explicitely after constructing an option
+        self.parcellation = None
+        self.labelindex = labelindex
+        self.attrs = attrs
+        self.parent = parent
+        self.children = []
 
     def _related_ebrains_files(self):
         """
@@ -262,6 +257,11 @@ class Region(anytree.NodeMixin):
             logger.warning("Could not retrieve and create Nifti file from {}".format(url))
             return None
 
+    def __getitem__(self, key):
+        """
+        Implement direct access to children by labelindex.
+        """
+        pass
 
     def __str__(self):
         return self.name
@@ -276,13 +276,40 @@ class Region(anytree.NodeMixin):
         """
         print(self.__repr__())
 
-    def iterate(self):
+    def __iter__(self):
         """
         Returns an iterator that goes through all regions in this subtree
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
 
+    @staticmethod
+    def from_json(jsonstr):
+        """
+        Provides an object hook for the json library to construct a Region
+        object from a json definition.
+        """
+
+        # setup the plain region object
+        assert('name' in jsonstr)
+        name = jsonstr['name'] 
+        labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
+        r = Region(name, labelindex, jsonstr)
+
+        # add any children recursively
+        if "children" in jsonstr:
+            r.children = tuple( Region.from_json(regiondef) 
+                    for regiondef in jsonstr["children"] )
+            for c in r.children:
+                c.parent = r
+
+        # inherit labelindex from children, if they agree
+        if labelindex is None and r.children: 
+            L = [c.labelindex for c in r.children]
+            if (len(L)>0) and (L.count(L[0])==len(L)):
+                r.labelindex = L[0]
+
+        return r
 
 if __name__ == '__main__':
 

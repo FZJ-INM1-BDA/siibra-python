@@ -65,7 +65,8 @@ class ConfigurationRegistry:
                 and v['name'].endswith('.json') ]
         for configfile in config_files:
             f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
-            obj = json.loads(f.decode(), object_hook=cls.from_json)
+            jsonstr = f.decode()
+            obj = json.loads(jsonstr, object_hook=cls.from_json)
             key = create_key(str(obj))
             identifier = obj.id
             logger.debug("Defining object '{}' with key '{}'".format( obj,key))
