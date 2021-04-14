@@ -334,7 +334,7 @@ class Parcellation:
             return obj
 
         # create the parent region node for the whole parcellation
-        regiontree = Region(obj['name'])
+        regiontree = Region(obj['name'],attrs=obj['regions'])
         regiontree.children = tuple( 
                 Region.from_json(regiondef) for regiondef in obj['regions'] )
         version = obj['version'] if 'version' in obj else None

@@ -46,15 +46,12 @@ class TestRegions(unittest.TestCase):
         retrieval.download_file = MagicMock()
         retrieval.download_file.return_value = None
 
-        cls.parent_region = Region(
-            cls.parent_definition,
-            parcellations[0],
-        )
-        cls.child_region = Region(
-            cls.definition,
-            parcellations[0],
-            parent=cls.parent_region
-        )
+        cls.parent_region = Region.from_json(cls.parent_definition)
+        cls.parent_region.parcellation = parcellations[0]
+
+        cls.child_region = Region.from_json(cls.definition)
+        cls.child_region.parcellation = parcellations[0]
+        cls.child_region.parent=cls.parent_region
 
     def test_regions_init(self):
         self.assertEqual(str(self.child_region), self.region_name)
