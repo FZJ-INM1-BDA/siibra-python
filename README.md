@@ -14,13 +14,21 @@ test it, but be aware that you will likely encounter bugs.
 
 ## Overview
 
-`siibra` is a Python client for interacting with "multilevel" brain atlases, which combine multiple brain parcellations and neuroscience datasets acrossdifferent reference template spaces. It is designed to allow safe and convenient interaction with brain regions from different parcellations, to provide streamlined access to multimodal data features linked to brain regions, and to perform basic analyses of region-specific data features. The intention of `siibra`  is to unify interaction with brain atlas data at different spatial scales, including parcellations and datasets at the millimeter scale in MNI space, as well as microstructural maps and microscopic data in the BigBrain space.
+`siibra` is a Python client for interacting with "multilevel" brain atlases, which combine multiple brain parcellations, reference coordinate spaces and modalities. 
+`siibra` is designed to allow safe and convenient interaction with brain definitions from different parcellations, to provide streamlined access to multimodal data features linked to brain regions, and to facilitate reproducible implementation of basic analyses with region-specific data features. 
+In particular, `siibra` aims to unify access to regional data features at the millimeter and micrometer scale of the human brain.
 
-`siibra` is largely developed inside the [Human Brain Project](https://humanbrainproject.eu) for accessing the [human brain atlas of EBRAINS](https://ebrains.eu/service/human-brain-atlas). It retrieves most of its concept and datasets from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the recently established [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
+`siibra` is largely developed inside the [Human Brain Project](https://humanbrainproject.eu) for accessing the [EBRAINS human brain atlas](https://ebrains.eu/service/human-brain-atlas). 
+It stores most of its configuration and data features in the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
 
-The functionality of `siibra` matches common actions known from browsing the [`siibra explorer` hosted on EBRAINS](https://atlases.ebrains.eu/viewer): Selecting different 
-parcellations, browsing and searching brain region hierarchies, downloading maps, selecting regions, and accessing multimodal data features associated with brain regions.  A key feature is a streamlined implementation of performing structured data queries for selected brain regions, which gives access to multimodal regional “data features”. `siibra` implements a hierarchy of features, which unifies handling of *spatial data features* (which are linked to atlas regions via coordinates; like contact points of physiological electrodes), *regional data features* (which are linked to atlases via a brain region specifications, like cell densities or neurotransmitter distributions) and *global data features* (linked to an atlas via the whole brain or parcellation, like connectivity matrices or activation maps). As a result, all forms of data features can be queried using the same mechanism (`get_features()`) which takes as an argument a specification of the desired data modality, and respects the current selections made in the atlas. 
-Currently, available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, gene expressions, and spatial properties of brain regions. Additional features, including distributions of neuronal cells, functional activation maps and electrophysiologal recordings, will become available soon.
+The functionality of `siibra-python` matches common actions known from browsing the `siibra explorer` [hosted on EBRAINS](https://atlases.ebrains.eu/viewer): 
+Selecting different parcellations, browsing and searching brain region hierarchies, downloading maps, selecting regions, and accessing multimodal data features associated with brain regions.
+A key feature is a streamlined implementation of performing structured data queries for selected brain regions. 
+`siibra` implements a hierarchy of features, which unifies handling of *spatial data features* (which are linked to atlas regions via coordinates; like contact points of physiological electrodes), *regional data features* (which are linked to atlases via a brain region specifications, like cell densities or neurotransmitter distributions) and *global data features* (linked to an atlas via the whole brain or parcellation, like connectivity matrices or activation maps). 
+As a result, all forms of data features can be queried using the same mechanism (`get_features()`) which accepts the specification of a data modality, and considers the selected parcellation and regions in the atlas. 
+Currently available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, gene expressions, and spatial properties of brain regions. 
+Additional features, including distributions of neuronal cells, functional activation maps and electrophysiologal recordings, will become available soon.
+Stay tuned!
 
 `siibra` hides much of the complexity that would be required to interact with the individual data repositories that host the associated data.
 By encapsulating many aspects of interacting with different maps and reference templates spaces, it also minimizes common risks like misinterpretation of coordinates from different reference spaces, or utilisation of inconsistent versions of parcellation maps. 
@@ -60,39 +68,7 @@ without refreshing the token.
 ## Usage examples
 
 To get familiar with `siibra`, we recommend to checkout the jupyter notebooks in the `examples/` subfolder of this repository. 
-Below are some code snippets to give you an initial idea.
 
-### Retrieving receptor densities for one brain area
-```python
-import siibra as sb
-# NOTE: assumes the client is already authenticated, see above
-atlas = sb.atlases.MULTILEVEL_HUMAN_ATLAS
-atlas.select_region('v1')
-features = atlas.get_features(
-    sb.features.modalities.ReceptorDistribution)
-for r in features:
-    fig = r.plot(r.region)
-```
-
-### Retrieving gene expressions for one brain area
-
-```python
-import siibra as sb
-from nilearn import plotting
-atlas = sb.atlases.MULTILEVEL_HUMAN_ATLAS
-# request gene expressions from Allen Atlas
-atlas.select_region("v1 left")
-features = atlas.get_features(
-    sb.features.modalities.GeneExpression,
-    gene=sb.features.gene_names.GABARAPL2 )
-print(features[0])
-
-# plot
-all_coords = [tuple(g.location) for g in features]
-mask = atlas.get_mask(sb.spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC)
-display = plotting.plot_roi(mask)
-display.add_markers(all_coords,marker_size=5)
-```
 
 ## Acknowledgements
 
