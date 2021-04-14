@@ -14,3 +14,4 @@ docs/make.bat
 docs/_build
 play
 venv
+.vim
