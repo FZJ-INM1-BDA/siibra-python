@@ -10,7 +10,9 @@ There are two ways to do so:
 
 1. Set an environment variable **HBP_AUTH_TOKEN** with the token. The client will then use it automatically.
 2. Set it programmatically by getting an instance of **Authentication** as follows: 
-.. code:: python
+
+   .. code:: python
+
     from siibra.authentication import Authentication
     auth = Authentication.instance()
     auth.set_token(TOKEN)
