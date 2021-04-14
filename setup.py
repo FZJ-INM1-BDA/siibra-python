@@ -7,7 +7,7 @@ setup(
     name="siibra",
     version="0.0.8.9.dev1",
     author="Big Data Analytics Group, Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1)",
-    author_email="bda_inm1@fz-juelich.de",
+    author_email="inm1-bda@fz-juelich.de",
     description="siibra - Software interfaces for interacting with brain atlases",
     long_description=long_description,
     long_description_content_type="text/markdown",
