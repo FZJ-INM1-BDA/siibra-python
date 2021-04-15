@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="siibra",
-    version="0.0.8.9.dev1",
+    version="0.0.8.9.dev2",
     author="Big Data Analytics Group, Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1)",
     author_email="inm1-bda@fz-juelich.de",
     description="siibra - Software interfaces for interacting with brain atlases",
@@ -13,6 +13,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=['siibra', 'siibra.*']),
+    include_package_data=True,
     # packages=find_packages(include=['.']),
     classifiers=[
         'Development Status :: 2 - Pre.Alpha',

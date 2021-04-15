@@ -15,9 +15,11 @@
 from xml.etree import ElementTree
 import numpy as np
 import json
+import siibra
 from siibra import retrieval,spaces,logger
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
+from os import path
 
 class GeneExpression(SpatialFeature):
     """
@@ -117,11 +119,9 @@ https://alleninstitute.org/legal/terms-use/."""
             'H0351.2002']
 
     # load gene names
-    genes = json.loads(retrieval.cached_get(_QUERY['gene'],
-            "Seems you are running siibra for the first time or cleared the cache.\n"
-            +"Will retrieve a list of gene acronyms from Allen Atlas now.\n"
-            +"This may take a minute."))
-    GENE_NAMES = {g['acronym']:g['name'] for g in genes['msg']}
+    genename_file = path.join(path.dirname(siibra.__file__),'features','gene_names.json')
+    with open(genename_file,'r') as f:
+        GENE_NAMES = json.load(f)
 
     def __init__(self,gene):
         """

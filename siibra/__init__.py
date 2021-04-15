@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.0.8.9.dev1"
+__version__ = "0.0.8.9.dev2"
 
 import logging
 logger = logging.getLogger(__name__)
