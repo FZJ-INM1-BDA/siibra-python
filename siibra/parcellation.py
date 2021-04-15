@@ -15,9 +15,9 @@
 from . import logger, spaces, retrieval
 from .space import Space
 from .region import Region
-from .commons import create_key, Glossary
 from .bigbrain import BigBrainVolume,is_ngprecomputed
 from .config import ConfigurationRegistry
+from .commons import create_key
 from collections import defaultdict
 import numpy as np
 import nibabel as nib
@@ -91,7 +91,7 @@ def load_collect(space,regiontree,resolution,force):
             affine=V.affine(mip) )
 
     # collect and add regional maps
-    for region in PreOrderIter(regiontree):
+    for region in regiontree:
         if "maps" not in region.attrs.keys():
             continue
         if space.id in region.attrs["maps"].keys():
@@ -116,7 +116,7 @@ def load_nifti(url):
 
 class Parcellation:
 
-    def __init__(self, identifier : str, name : str, regiontree : Region, version=None):
+    def __init__(self, identifier : str, name : str, version=None):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
@@ -124,23 +124,11 @@ class Parcellation:
         self.publications = []
         self.description = ""
         self.maps = defaultdict(dict)
-        self.regionnames = None
-        self.labelindices = {}
-        self.regions = regiontree
+        self.regiontree = Region(self.name,self)
 
-        if self.regions is not None:
-            for r in self.regions:
-                r.parcellation = self
-            self.regionnames = Glossary(
-                    [c.key for r in self.regions for c in r.children ] )
-            self.labelindices = { c.labelindex 
-                    for r in self.regions for c in r.children 
-                    if c.labelindex is not None }
-
-    def register_map(self, space_id, name, url):
+    def _register_map(self, space_id, name, url):
         assert(space_id in spaces)
         self.maps[spaces[space_id]][name] = url
-
 
     def get_maps(self, space: Space, tree: Region=None, resolution=None, force=False, return_dict=False):
         """
@@ -192,7 +180,7 @@ class Parcellation:
             m = None
             if url=="collect":
                 logger.info("This space has no complete map available. Will try to find individual area maps and aggregate them into one instead.")
-                regiontree = self.regions if tree is None else tree
+                regiontree = self.regiontree if tree is None else tree
                 m = load_collect(space,regiontree,resolution,force)
             elif is_ngprecomputed(url):
                 vol = BigBrainVolume(space.url)
@@ -222,11 +210,64 @@ class Parcellation:
             assert(all([d==dtypes[0] for d in dtypes]))
             return image.concat_imgs(maps.values(),dtype=dtypes[0])
 
-    def find(self,region):
+
+    @property
+    def labels(self):
+        return self.regiontree.labels
+
+    @property
+    def names(self):
+        return self.regiontree.names
+
+    def get_region(self,regionspec):
         """
-        Search the regiontree.
+        Given a unique specification, return the corresponding region.
+        The spec could be a label index, a (possibly incomplete) name, or a
+        region object.
+        This method is meant to definitely determine a valid region. Therefore, 
+        if no match is found, it raises a ValueError. If it finds multiple
+        matches, it tries to return only the common parent node. If there are
+        multiple remaining parent nodes, which is rare, a custom group region is constructed.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+
+        Return
+        ------
+        Region object
         """
-        return self.regions.find(region)
+        candidates = self.regiontree.find(regionspec,select_uppermost=True)
+        if not candidates:
+            raise ValueError("Regionspec {} could not be decoded under '{}'".format(
+                regionspec,self.name))
+        elif len(candidates)==1:
+            return candidates[0]
+        else:
+            return Region._build_grouptree(candidates,self)
+
+
+    def find_regions(self,regionspec):
+        """
+        Find regions with the given specification in this parcellation.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex
+            - a region object
+
+        Yield
+        -----
+        list of matching regions
+        """
+        return self.regiontree.find(regionspec)
 
     @cached(max_size=10)
     def get_regionmask(self,space : Space, regiontree : Region, try_thres=None,force=False, resolution=None ):
@@ -323,6 +364,12 @@ class Parcellation:
         else:
             raise ValueError("Cannot compare object of type {} to Parcellation".format(type(other)))
 
+    def __iter__(self):
+        """
+        Returns an iterator that goes through all regions in this parcellation
+        """
+        return self.regiontree.__iter__()
+
     @staticmethod
     def from_json(obj):
         """
@@ -333,15 +380,18 @@ class Parcellation:
         if any([k not in obj for k in required_keys]):
             return obj
 
-        # create the parent region node for the whole parcellation
-        regiontree = Region(obj['name'],attrs=obj['regions'])
-        regiontree.children = tuple( 
-                Region.from_json(regiondef) for regiondef in obj['regions'] )
+        # create the parcellation, it will create a parent region node for the regiontree.
         version = obj['version'] if 'version' in obj else None
-        p = Parcellation(obj['@id'], obj['name'], regiontree, version)
+        p = Parcellation(obj['@id'], obj['name'], version)
+
+        # add any children to the parent regiontree
+        p.regiontree.children = tuple( 
+                Region.from_json(regiondef,p) 
+                for regiondef in obj['regions'] )
+
         for space_id,maps in obj['maps'].items():
             for name, url in maps.items():
-                p.register_map( space_id, name, url) 
+                p._register_map( space_id, name, url) 
         if 'description' in obj:
             p.description = obj['description']
         if 'publications' in obj:

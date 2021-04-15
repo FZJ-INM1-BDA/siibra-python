@@ -14,7 +14,7 @@
 
 from . import ebrains
 from . import logger
-from .commons import create_key
+from .commons import create_key, Glossary
 from .retrieval import download_file 
 from .space import Space
 import numpy as np
@@ -28,7 +28,7 @@ class Region(anytree.NodeMixin):
     Representation of a region with name and more optional attributes
     """
 
-    def __init__(self, name, labelindex=None, attrs={}, parent=None):
+    def __init__(self, name, parcellation, labelindex=None, attrs={}, parent=None, children=None):
         """
         Constructs a new region object.
 
@@ -36,6 +36,8 @@ class Region(anytree.NodeMixin):
         ----------
         name : str
             Human-readable name of the rgion
+        parcellation : Parcellation
+            the parcellation object that this region belongs to
         labelindex : int
             the integer label index used to mark the region in a labelled brain volume
         attrs : dict
@@ -46,11 +48,39 @@ class Region(anytree.NodeMixin):
         self.name = name
         self.key = create_key(name)
         # usually set explicitely after constructing an option
-        self.parcellation = None
+        self.parcellation = parcellation
         self.labelindex = labelindex
         self.attrs = attrs
         self.parent = parent
-        self.children = []
+        if children:
+            self.children = children
+            for c in self.children:
+                c.parent = self
+                c.parcellation = self.parcellation
+
+    @staticmethod
+    def copy(other):
+        """
+        copy contructor must detach the parent in to avoid problems with
+        the Anytree implementation.
+        """
+        # create an isolated object, detached from the other's tree
+        region = Region(other.name, other.parcellation, other.labelindex, other.attrs)
+
+        # Build the new subtree recursively
+        region.children = tuple(Region.copy(c) for c in other.children)
+        for c in region.children:
+            c.parent = region
+
+        return region
+
+    @property
+    def labels(self):
+        return {r.labelindex for r in self if r.labelindex is not None}
+
+    @property
+    def names(self):
+        return Glossary([r.key for r in self])
 
     def _related_ebrains_files(self):
         """
@@ -98,14 +128,18 @@ class Region(anytree.NodeMixin):
         """
         return region==self or region in self.descendants
 
-    def find(self,name,select_uppermost=False):
+    def find(self,regionspec,select_uppermost=False):
         """
-        Find region with the given name in all descendants of this region.
+        Find region that match the given region specification in the subtree
+        headed by this region. 
 
         Parameters
         ----------
-        name : str
-            The name to search for.
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
+            - a region object
         select_uppermost : Boolean
             If true, only the uppermost matches in the region hierarchy are
             returned (otherwise all siblings as well if they match the name)
@@ -115,28 +149,38 @@ class Region(anytree.NodeMixin):
         list of matching regions
         """
         result = anytree.search.findall(self,
-                lambda node: node.might_be(name))
+                lambda node: node.matches(regionspec))
         if len(result)>1 and select_uppermost:
             all_results = result
             mindepth = min([r.depth for r in result])
             result = [r for r in all_results if r.depth==mindepth]
             if len(result)<len(all_results):
-                logger.info("Using only {} parent nodes of in total {} matching regions for spec '{}'.".format(
-                    len(result), len(all_results), name))
-        if isinstance(result,Region):
-            return {result}
-        elif result is None:
-            return set()
-        else:
-            return set(result)
+                logger.debug("Returning only {} parent nodes of in total {} matching regions for spec '{}'.".format(
+                    len(result), len(all_results), regionspec))
 
-    def might_be(self,regionspec):
+        if isinstance(result,Region):
+            return [result]
+        elif result is None:
+            return []
+        else:
+            return list(result)
+
+    def matches(self,regionspec):
         """ 
-        Checks wether this region might match the given specification, which
-        could be any of 
-            - a string with a name,
-            - an integer, interpreted as a labelIndex,
+        Checks wether this region matches the given region specification. 
+
+        Parameters
+        ---------
+
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
             - a region object
+
+        Yield
+        -----
+        True or False
         """
         splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.]', s) 
                 if len(w)>0]
@@ -144,20 +188,18 @@ class Region(anytree.NodeMixin):
             return self.key==regionspec.key 
         elif isinstance(regionspec,int):
             # argument is int - a labelindex is expected
-            if self.labelindex is None:
-                # if this region has no labelindex, see if all children match
-                # the given labelindex
-                return all([c.might_be(regionspec) for c in self.children])
-            else:
-                return self.labelindex==regionspec
+            return self.labelindex==regionspec#(self[regionspec] is not None)
         elif isinstance(regionspec,str):
+            # string is given, perform some lazy string matching
             return any([
                     all([w.lower() in splitstr(self.name.lower()) 
                         for w in splitstr(regionspec)]),
                     regionspec==self.key,
                     regionspec==self.name ])
         else:
-            raise ValueError("Cannot say if object of type {} might correspond to region".format(type(regionspec)))
+            raise TypeError(
+                    "Cannot interpret region specification of type '{}'".format(
+                        type(regionspec)))
 
     def get_mask(self,space : Space, force=False, resolution=None ):
         """
@@ -257,11 +299,66 @@ class Region(anytree.NodeMixin):
             logger.warning("Could not retrieve and create Nifti file from {}".format(url))
             return None
 
-    def __getitem__(self, key):
+    def __getitem__(self, labelindex):
         """
-        Implement direct access to children by labelindex.
+        Given an integer label index, return the corresponding region.
+        If multiple matches are found, return the unique parent if possible,
+        otherwise create an artificial parent node.
+        Otherwise, return None
+
+        Parameters
+        ----------
+
+        regionlabel: int
+            label index of the desired region.
+
+        Return
+        ------
+        Region object
         """
-        pass
+        if not isinstance(labelindex,int):
+            raise TypeError("Index access into the regiontree excepts label indices of integer type")
+
+        # first test this head node
+        if self.labelindex==labelindex:
+            return self 
+
+        # Consider children, and return the one with smallest depth
+        matches = list(filter(lambda x: x is not None,
+            [c[labelindex] for c in self.children] ))
+        if matches:
+            parentmatches = [m for m in matches if m.parent not in matches]
+            if len(parentmatches)==1:
+                return parentmatches[0]
+            else:
+                # create an articicial parent region from the multiple matches
+                custom_parent = Region._build_grouptree(
+                        parentmatches,self.parcellation)
+                assert(custom_parent.labelindex==labelindex)
+                logger.warn("Label index {} resolves to multiple regions. A customized region subtree is returned: {}".format(
+                    labelindex, custom_parent.name))
+                return custom_parent
+        return None
+
+    @staticmethod
+    def _build_grouptree(regions,parcellation):
+        """
+        Creates an artificial subtree from a list of regions by adding a group
+        parent and adding the regions as deep copies recursively.
+        """
+        # determine appropriate labelindex
+        indices = []
+        for tree in regions:
+            indices.extend([r.labelindex for r in tree])
+        unique = set(indices)
+        labelindex = next(iter(unique)) if len(unique)==1 else None
+
+        group = Region(
+                "Group: "+",".join([r.name for r in regions]),
+                parcellation, labelindex, 
+                children=[Region.copy(r) for r in regions])
+        return group
+
 
     def __str__(self):
         return self.name
@@ -284,24 +381,23 @@ class Region(anytree.NodeMixin):
         return anytree.PreOrderIter(self)
 
     @staticmethod
-    def from_json(jsonstr):
+    def from_json(jsonstr,parcellation):
         """
         Provides an object hook for the json library to construct a Region
         object from a json definition.
         """
 
-        # setup the plain region object
+        # first collect any children 
+        children = []
+        if "children" in jsonstr:
+            for regiondef in jsonstr["children"]:
+                children.append(Region.from_json(regiondef,parcellation))
+
+        # Then setup the new region object
         assert('name' in jsonstr)
         name = jsonstr['name'] 
         labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
-        r = Region(name, labelindex, jsonstr)
-
-        # add any children recursively
-        if "children" in jsonstr:
-            r.children = tuple( Region.from_json(regiondef) 
-                    for regiondef in jsonstr["children"] )
-            for c in r.children:
-                c.parent = r
+        r = Region(name, parcellation, labelindex, jsonstr, children=children)
 
         # inherit labelindex from children, if they agree
         if labelindex is None and r.children: 

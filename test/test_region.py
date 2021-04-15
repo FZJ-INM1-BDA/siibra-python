@@ -46,11 +46,9 @@ class TestRegions(unittest.TestCase):
         retrieval.download_file = MagicMock()
         retrieval.download_file.return_value = None
 
-        cls.parent_region = Region.from_json(cls.parent_definition)
-        cls.parent_region.parcellation = parcellations[0]
+        cls.parent_region = Region.from_json(cls.parent_definition,parcellations[0])
 
-        cls.child_region = Region.from_json(cls.definition)
-        cls.child_region.parcellation = parcellations[0]
+        cls.child_region = Region.from_json(cls.definition,parcellations[0])
         cls.child_region.parent=cls.parent_region
 
     def test_regions_init(self):
@@ -136,17 +134,17 @@ class TestRegions(unittest.TestCase):
         self.assertIsNotNone(regions)
         self.assertEqual(len(regions), 0)
 
-    def test_might_be_with_valid_string(self):
-        self.assertTrue(self.child_region.might_be('Interposed Nucleus'))
+    def test_matches_with_valid_string(self):
+        self.assertTrue(self.child_region.matches('Interposed Nucleus'))
 
-    def test_might_be_with_invalid_string(self):
-        self.assertFalse(self.child_region.might_be('Area 51'))
+    def test_matches_with_invalid_string(self):
+        self.assertFalse(self.child_region.matches('Area 51'))
 
-    def test_might_be_with_valid_region(self):
-        self.assertTrue(self.child_region.might_be(self.child_region))
+    def test_matches_with_valid_region(self):
+        self.assertTrue(self.child_region.matches(self.child_region))
 
-    def test_might_be_with_wrong_region(self):
-        self.assertFalse(self.child_region.might_be(self.parent_region))
+    def test_matches_with_wrong_region(self):
+        self.assertFalse(self.child_region.matches(self.parent_region))
 
     @patch('siibra.region.download_file')
     def test_get_specific_map_none(self, download_mock):

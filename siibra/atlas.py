@@ -41,7 +41,6 @@ class Atlas:
         # nothing selected yet at construction 
         self.selected_region = None
         self.selected_parcellation = None 
-        self.regionnames = None 
 
         # this can be set to prefer thresholded continuous maps as masks
         self._threshold_continuous_map = None
@@ -75,6 +74,15 @@ class Atlas:
             return p
         return obj
 
+    @property
+    def regionnames(self):
+        return self.selected_parcellation.regiontree.names
+
+    @property
+    def regionlabels(self):
+        return self.selected_parcellation.regiontree.labels
+
+
     def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.
@@ -93,8 +101,7 @@ class Atlas:
             logger.error(parcellation_obj.id,self.parcellations)
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
-        self.selected_region = parcellation_obj.regions
-        self.regionnames = parcellation_obj.regionnames
+        self.selected_region = parcellation_obj.regiontree
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
     def get_maps(self, space : Space, tree : Region = None, force=False, resolution=None):
@@ -183,23 +190,30 @@ class Atlas:
 
         return space.get_template(resolution,force)
 
-    def find(self,regionspec,all_parcellations=False):
+    def find_regions(self,regionspec,all_parcellations=False):
         """
-        Searches for regions in the selected parcellation.
+        Find regions with the given specification in the current or all
+        available parcellations of this atlas.
 
         Parameters
         ----------
-        regionspec : Region, string, or integer
-            Any valid specification of a region object, could be a name, labelindex or region id.
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex
+            - a region object
         all_parcellations : Boolean (default:False)
             Do not only search the selected but instead all available parcellations.
+
+        Yield
+        -----
+        list of matching regions
         """
         if not all_parcellations:
-            return self.selected_parcellation.find(regionspec)
-
+            return self.selected_parcellation.find_regions(regionspec)
         result = []
         for p in self.parcellations:
-            result.extend(p.find(regionspec))
+            result.extend(p.find_regions(regionspec))
         return result
 
 
@@ -228,7 +242,7 @@ class Atlas:
             self.selected_region = region
         else:
             # try to interpret argument as the key for a region 
-            selected = self.selected_parcellation.regions.find(
+            selected = self.selected_parcellation.regiontree.find(
                     region,select_uppermost=True)
             if len(selected)==1:
                 # one match found - fine
@@ -237,16 +251,9 @@ class Atlas:
                 # no match found
                 logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
-                # multiple matches found. Let's see if they represent a unique parent that we could select instead.
-                parents = [r.parent for r in selected]
-                if all([
-                    parents.count(parents[0])==len(selected),
-                    len(parents[0].children)==len(selected) ]):
-                    self.selected_region = parents[0]
-                    #logger.info('Selected parent region {}'.format(self.selected_region.name))
-                else:
-                    logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
-                        region,", ".join([s.name for s in selected])))
+                # multiple matches found. We do not allow this for now.
+                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                    region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
             logger.info('Selected region {}'.format(self.selected_region.name))
         return self.selected_region
@@ -255,7 +262,7 @@ class Atlas:
         """
         Cancels any current region selection.
         """
-        self.select_region(self.selected_parcellation.regions)
+        self.select_region(self.selected_parcellation.regiontree)
 
     def region_selected(self,region):
         """
