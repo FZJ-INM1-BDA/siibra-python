@@ -16,7 +16,7 @@ setup(
     include_package_data=True,
     # packages=find_packages(include=['.']),
     classifiers=[
-        'Development Status :: 2 - Pre.Alpha',
+        'Development Status :: 2 - Pre-Alpha',
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
         'Intended Audience :: Developers',
