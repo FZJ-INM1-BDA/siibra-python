@@ -36,11 +36,10 @@ This software code is funded from the European Union’s Horizon 2020 Framework 
    contribute
    acknowledgements
 
-
 ..
     Indices and tables
     ------------------
-    
+
     * :ref:`genindex`
     * :ref:`modindex`
     * :ref:`search`

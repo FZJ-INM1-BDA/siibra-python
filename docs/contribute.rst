@@ -1,7 +1,7 @@
 
 
-----------------------------------
-How to contribute to siibra-python
-----------------------------------
+-----------------
+How to contribute
+-----------------
 
 todo: Stefan

@@ -15,3 +15,4 @@ docs/_build
 play
 venv
 .vim
+_autosummary
