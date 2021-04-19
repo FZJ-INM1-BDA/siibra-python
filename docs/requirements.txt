@@ -1,0 +1,15 @@
+sphinx-autoapi
+requests
+nibabel
+anytree
+pandas
+pillow
+appdirs
+scikit-image
+click
+clint
+python-gitlab
+statsmodels
+cloud-volume
+memoization
+nilearn
