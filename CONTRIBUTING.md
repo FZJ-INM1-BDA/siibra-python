@@ -1,0 +1,1 @@
+Please read our contribution guide here: https://siibra-python.readthedocs.io/en/latest/contribute.html
