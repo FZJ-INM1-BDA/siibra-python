@@ -57,46 +57,45 @@ class ConnectivityProfile(RegionalFeature):
                     if self.profile[i]>0
                     ])
 
-fget_pattern = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F{name}/raw?ref=master'
-glob_url = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/tree?path=connectivity'
 
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
-    _SOURCES = {
-            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master",
-            '1000brain_julichbrain_2.5.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains-v2.5.1.json/raw?ref=master"
-            }
 
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        for fname,url in ConnectivityProfileExtractor._SOURCES.items():
 
-            minval = maxval = 0
-            new_profiles = []
-            with open(retrieval.download_file(url,targetname=fname),'r') as f:
-                data = json.load(f)
-                src_name = data['name']
-                src_info  = data['description']
-                #parcellation = parcellations[data['parcellation']]
-                parcellation = parcellations[data['parcellation id']]
-                regions_available = data['data']['field names']
-                for region in regions_available:
-                    profile = data['data']['profiles'][region]
-                    if max(profile)>maxval:
-                        maxval = max(profile)
-                    if min(profile)>minval:
-                        minval = min(profile)
-                    new_profiles.append( ConnectivityProfile(
-                        region, profile, 
-                        regions_available,
-                        src_name, src_info, 
-                        parcellation ) )
+        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
+        jsonfiles = [f['name'] 
+                for f in project.repository_tree() 
+                if f['type']=='blob' 
+                and f['name'].endswith('json')]
 
-            for profile in new_profiles:
-                profile.globalrange = (minval,maxval)
-                self.register(profile)
+        minval = maxval = 0
+        new_profiles = []
+        for jsonfile in jsonfiles: 
+            f = project.files.get(file_path=jsonfile, ref='master')
+            data = json.loads(f.decode())
+            src_name = data['name']
+            src_info  = data['description']
+            parcellation = parcellations[data['parcellation id']]
+            regions_available = data['data']['field names']
+            for region in regions_available:
+                profile = data['data']['profiles'][region]
+                if max(profile)>maxval:
+                    maxval = max(profile)
+                if min(profile)>minval:
+                    minval = min(profile)
+                new_profiles.append( ConnectivityProfile(
+                    region, profile, 
+                    regions_available,
+                    src_name, src_info, 
+                    parcellation ) )
+
+        for profile in new_profiles:
+            profile.globalrange = (minval,maxval)
+            self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):
