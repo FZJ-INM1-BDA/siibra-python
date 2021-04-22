@@ -25,6 +25,7 @@ from enum import Enum
 from tqdm import tqdm
 from memoization import cached
 from scipy.ndimage import gaussian_filter
+from .volume_src import VolumeSrc
 
 class Parcellation:
 
@@ -36,7 +37,26 @@ class Parcellation:
         self.publications = []
         self.description = ""
         self.maps = {}
+        self.volume_src = {}
         self.regiontree = Region(self.name,self)
+
+    def get_volume_src(self, space: Space):
+        """
+        Get volumes sources for the parcellation in the requested template space.
+
+        Parameters
+        ----------
+        space : Space
+            template space
+
+        Yields
+        ------
+        A list of volume sources
+        """
+        if space not in self.volume_src:
+            raise ValueError('Parcellation "{}" does not provide volume sources for space "{}"'.format(
+                str(self), str(space) ))
+        return self.volume_src[space]
 
     @cached
     def get_map(self, space: Space, resolution=None, regional=False, squeeze=True ):
@@ -187,6 +207,13 @@ class Parcellation:
 
         p.maps = { spaces[space_id] : urls 
                 for space_id, urls in obj['maps'].items() }
+        
+        if 'volumeSrc' in obj:
+            p.volume_src = { spaces[space_id] : {
+                key : [
+                    VolumeSrc.from_json(v_src) for v_src in v_srcs
+                ] for key, v_srcs in key_vsrcs.items()
+            } for space_id, key_vsrcs in obj['volumeSrc'].items() }
 
         if 'description' in obj:
             p.description = obj['description']

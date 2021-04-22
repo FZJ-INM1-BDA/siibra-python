@@ -17,17 +17,19 @@ from .config import ConfigurationRegistry
 from .retrieval import download_file
 from .bigbrain import BigBrainVolume
 from . import logger
+from .volume_src import VolumeSrc
 import nibabel as nib
 
 class Space:
 
-    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None):
+    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None, volume_src=[]):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
         self.type = template_type
         self.url = template_url
         self.ziptarget = ziptarget
+        self.volume_src=volume_src
 
     def __str__(self):
         return self.name
@@ -71,19 +73,22 @@ class Space:
         """
         required_keys = ['@id','name','shortName','templateUrl','templateType']
         if any([k not in obj for k in required_keys]):
-            logger.warning('Could not parse Space object')
             return obj
 
+        volume_src = [VolumeSrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
+        
         if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
             if 'templateFile' in obj:
                 return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
-                        ziptarget=obj['templateFile'])
+                        ziptarget=obj['templateFile'],
+                        volume_src=volume_src)
             else:
                 return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
-                        template_type = obj['templateType'])
+                        template_type = obj['templateType'],
+                        volume_src=volume_src)
         return obj
 
 REGISTRY = ConfigurationRegistry('spaces', Space)
