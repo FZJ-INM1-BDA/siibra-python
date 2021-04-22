@@ -479,7 +479,11 @@ class ParcellationMap:
         Get an iterator along the fourth dimension of the parcellation map (if
         any), returning the 3D maps in order.
         """
-        return image.iter_img(self.image)
+        if len(self.shape)==4:
+            return image.iter_img(self.image)
+        else:
+            # not much to iterate, this is a single 3D volume
+            return iter((self.image,))
 
     def __contains__(self,spec):
         """
