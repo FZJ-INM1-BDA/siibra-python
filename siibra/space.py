@@ -32,7 +32,7 @@ class Space:
     def __str__(self):
         return self.name
 
-    def get_template(self, resolution=None, force=False ):
+    def get_template(self, resolution=None ):
         """
         Get the volumetric reference template image for this space.
 
@@ -42,10 +42,6 @@ class Space:
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
-        force : Boolean (default: False)
-            if true, will start large downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable (applies only
-            to BigBrain space currently).
 
         Yields
         ------
@@ -61,9 +57,7 @@ class Space:
                 return None
 
         if self.type == 'neuroglancer':
-            vol = BigBrainVolume(self.url)
-            mip = vol.determine_mip(resolution)
-            return None if mip is None else vol.Image(mip,force=force)
+            return BigBrainVolume(self.url).build_image(resolution)
 
         logger.error('Downloading the template image for the requested reference space is not supported.')
         logger.error('- Requested space: {}'.format(self.name))
@@ -75,14 +69,19 @@ class Space:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
+        required_keys = ['@id','name','shortName','templateUrl','templateType']
+        if any([k not in obj for k in required_keys]):
+            logger.warning('Could not parse Space object')
+            return obj
+
         if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
             if 'templateFile' in obj:
-                return Space(obj['@id'], obj['name'], 
+                return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
                         ziptarget=obj['templateFile'])
             else:
-                return Space(obj['@id'], obj['name'], 
+                return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'])
         return obj

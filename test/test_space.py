@@ -16,6 +16,7 @@ class TestSpaces(unittest.TestCase):
     json_space_with_zip = {
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
+        'shortName': name,
         'templateUrl': url,
         'templateFile': ziptarget,
         'templateType': ttype
@@ -24,6 +25,7 @@ class TestSpaces(unittest.TestCase):
     json_space_without_zip = {
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
+        'shortName': name,
         'templateUrl': url,
         'templateType': ttype
     }

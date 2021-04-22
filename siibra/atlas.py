@@ -18,7 +18,6 @@ import numpy as np
 
 from . import parcellations, spaces, features, logger
 from .region import Region
-from .features.regionprops import RegionProps
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
 from .commons import create_key
@@ -41,9 +40,6 @@ class Atlas:
         # nothing selected yet at construction 
         self.selected_region = None
         self.selected_parcellation = None 
-
-        # this can be set to prefer thresholded continuous maps as masks
-        self._threshold_continuous_map = None
 
     def _add_space(self, space):
         self.spaces.append(space)
@@ -104,18 +100,18 @@ class Atlas:
         self.selected_region = parcellation_obj.regiontree
         logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
 
-    def get_maps(self, space : Space, tree : Region = None, force=False, resolution=None):
+    def get_map(self, space : Space, resolution=None):
         """
-        return the maps provided by the selected parcellation in the given space.
-        This just forwards to the selected parcellation object.
-        see Parcellation.get_maps()
+        return the map provided by the selected parcellation in the given space.
+        This just forwards to the selected parcellation object, see
+        Parcellation.get_map()
         """
-        return self.selected_parcellation.get_maps(space, tree, resolution, force)
+        return self.selected_parcellation.get_map(space, resolution)
 
 
-    def get_mask(self, space : Space, force=False, resolution=None ):
+    def build_mask(self, space : Space, resolution=None ):
         """
-        Returns a binary mask  in the given space, where nonzero values denote
+        Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
 
         WARNING: Note that for selections of subtrees of the region hierarchy, this
@@ -126,38 +122,14 @@ class Atlas:
         ----------
         space : Space
             Template space 
-        force : Boolean (default: False)
-            if true, will start large downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable (applies only
-            to BigBrain space currently).
         resolution : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_parcellation.get_regionmask(
-                space,
-                self.selected_region,
-                try_thres=self._threshold_continuous_map, 
-                force=force, 
-                resolution=resolution )
+        return self.selected_region.build_mask( space, resolution=resolution )
 
-    def enable_continuous_map_thresholding(self,threshold):
-        """
-        Enables thresholding of continous maps with the given threshold as a
-        preference of using region masks from the static parcellation. For
-        example, when setting threshold to 0.2, the atlas will check if it
-        finds a probability map for a selected region. If it does, it will use
-        the thresholded probability map as a region mask for defining the
-        region, and uses it e.g. for searching spatial features.
-
-        Use with care, because a) continuous maps are not always available, and
-        b) the value ranges of continuous maps are defined in different ways
-        and require careful interpretation.
-        """
-        self._threshold_continuous_map = threshold
-
-    def get_template(self, space, resolution=None, force=False ):
+    def get_template(self, space, resolution=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -173,10 +145,6 @@ class Atlas:
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
-        force : Boolean (default: False)
-            if true, will start large downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable (applies only
-            to BigBrain space currently).
 
         Yields
         ------
@@ -188,7 +156,7 @@ class Atlas:
             logger.error('- Atlas: {}'.format(self.name))
             return None
 
-        return space.get_template(resolution,force)
+        return space.get_template(resolution)
 
     def find_regions(self,regionspec,all_parcellations=False):
         """
@@ -270,9 +238,27 @@ class Atlas:
         """
         return self.selected_region.includes(region)
 
+    def assign_coordinate(self,space,coordinate):
+        """
+        Assigns brain regions to the given coordinate, according to the
+        selected parcellation in the given space.
+
+        Parameters
+        ----------
+        space : Space
+            The template space in which the test shall be carried out
+        coordinate : tuple x/y/z
+            A coordinate position given in the physical space of the template
+            space. It will be converted to the voxel space using the inverse
+            affine matrix of the template space for the query.
+
+        """
+        raise NotImplementedError()
+
+
     def coordinate_selected(self,space,coordinate):
         """
-        Verifies wether a position in the given space is inside the current
+        Verifies wether a position in the given space is part of the current
         selection.
 
         Parameters
@@ -288,7 +274,7 @@ class Atlas:
         """
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
-        mask = self.get_mask(space)
+        mask = self.build_mask(space)
         voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
         if np.any(voxel>=mask.dataobj.shape):
             return False
@@ -324,36 +310,27 @@ class Atlas:
 
         return hits
 
-    def regionprops(self,space, include_children=False):
+    def assign_regions(self,space:Space,xyz_phys,sigma_phys=0,thres_percent=1):
         """
-        Extracts spatial properties of the currently selected region.
-        Optionally, separate spatial properties of all child regions are
-        computed.
+        Assign regions to a physical coordinates with optional standard deviation.
 
         Parameters
         ----------
         space : Space
-            The template space in which the spatial properties shall be
-            computed.
-        include_children : Boolean (default: False)
-            If true, compute the properties of all children in the region
-            hierarchy as well.
-
-        Yields
-        ------
-        List of RegionProps objects (refer to RegionProp.regionname for
-        identification of each)
+            reference template space for computing the assignemnt
+        xyz_phys : coordinate tuple 
+            3D point in physical coordinates of the template space of the
+            ParcellationMap
+        sigma_phys : float (default: 0)
+            standard deviation /expected localization accuracy of the point, in
+            physical units. If nonzero, A 3D Gaussian distribution with that
+            bandwidth will be used for representing the location instead of a
+            deterministic coordinate.
+        thres_percent : float (default: 1)
+            Regions with a probability below this threshold will not be returned.
         """
-        result = []
-        result.append ( RegionProps(self,space) )
-        if include_children:
-            parentregion = self.selected_region
-            for region in self.selected_region.descendants:
-                self.select_region(region)
-                result.append ( RegionProps(self,space) )
-            self.select_region(parentregion)
-        return result
-
+        smap = self.selected_parcellation.get_map( space, regional=True, squeeze=False )
+        return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)

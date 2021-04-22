@@ -17,9 +17,12 @@ from . import logger
 from .commons import create_key, Glossary
 from .retrieval import download_file 
 from .space import Space
+from .bigbrain import is_ngprecomputed,load_ngprecomputed
 import numpy as np
+from skimage import measure
+from nibabel.affines import apply_affine
 import nibabel as nib
-from nibabel.spatialimages import SpatialImage
+from memoization import cached
 import re
 import anytree
 
@@ -28,7 +31,7 @@ class Region(anytree.NodeMixin):
     Representation of a region with name and more optional attributes
     """
 
-    def __init__(self, name, parcellation, labelindex=None, attrs={}, parent=None, children=None):
+    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=0, parent=None, children=None):
         """
         Constructs a new region object.
 
@@ -40,6 +43,8 @@ class Region(anytree.NodeMixin):
             the parcellation object that this region belongs to
         labelindex : int
             the integer label index used to mark the region in a labelled brain volume
+        mapindex : int
+            the integer label index used to specify one of muliple available maps, if any
         attrs : dict
             A dictionary of arbitrary additional information
         parent : Region
@@ -50,6 +55,7 @@ class Region(anytree.NodeMixin):
         # usually set explicitely after constructing an option
         self.parcellation = parcellation
         self.labelindex = labelindex
+        self.mapindex = mapindex
         self.attrs = attrs
         self.parent = parent
         if children:
@@ -201,54 +207,41 @@ class Region(anytree.NodeMixin):
                     "Cannot interpret region specification of type '{}'".format(
                         type(regionspec)))
 
-    def get_mask(self,space : Space, force=False, resolution=None ):
+    @cached(max_size=100)
+    def build_mask(self,space : Space, resolution=None ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
-
-        TODO better handling of the case that labelindex is None (use children? stop right away?)
 
         Parameters
         ----------
         space : Space
             The desired template space.
-        force : Boolean (default: False)
-            if true, will start large downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable (applies only
-            to BigBrain space currently).
         resolution : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        not_avail_msg = 'Parcellation "{}" does not provide a map for space "{}"'.format(
-                str(self), str(space) )
         if space not in self.parcellation.maps:
-            logger.error(not_avail_msg)
-        if len(self.parcellation.maps[space])==0:
-            logger.error(not_avail_msg)
+            logger.error('Parcellation "{}" does not provide a map for space "{}"'.format(
+                str(self), str(space) ))
 
-        logger.debug("Computing mask for {} in {}".format(
-            self.name, space))
         mask = affine = None 
 
         if self.labelindex is not None:
 
-            maps = self.parcellation.get_maps(space, force=force, resolution=resolution,return_dict=True)
-            for description,m in maps.items():
-                D = np.array(m.dataobj).squeeze()
-                if mask is None: 
-                    mask = np.zeros_like(D,dtype=np.uint8)
-                    affine = m.affine
-                if len(maps)>1 and (description not in self.name):
-                    continue
-                mask[D==int(self.labelindex)]=1
+            smap = self.parcellation.get_map(space,resolution=resolution)
+            maskimg = smap.get_mask(self.labelindex,self.mapindex)
+            mask = maskimg.dataobj
+            affine = maskimg.affine
 
         if mask is None:
-            print("has no own mask:",self," - trying children")
+            logger.debug("{} has no own mask, trying to build mask from children".format(
+                self.name))
             for child in self.children:
-                childmask = child.get_mask(space,force,resolution)
-                print("child",child)
+                childmask = child.build_mask(space,resolution)
+                if childmask is None: 
+                    continue
                 if mask is None:
                     mask = childmask.dataobj
                     affine = childmask.affine
@@ -256,13 +249,25 @@ class Region(anytree.NodeMixin):
                     mask = (mask | childmask.dataobj).astype('int')
 
         if mask is None:
-            logger.error("No mask could be computed for the given region "+str(self))
-            raise RuntimeError()
+            raise RuntimeError("No mask could be computed for the given region "+str(self))
 
-        return SpatialImage(dataobj=mask,affine=affine)
+        return nib.Nifti1Image(dataobj=mask,affine=affine)
 
+    def has_regional_map(self,space):
+        """
+        Tests wether a specific map is available for this region.
 
-    def get_specific_map(self,space,threshold=None):
+        Parameters
+        ----------
+        space : Space 
+            Template space 
+        """
+        if "maps" in self.attrs.keys():
+            if space.id in self.attrs["maps"].keys():
+                return True
+        return False
+
+    def get_regional_map(self,space,quiet=False,resolution=None):
         """
         Retrieves and returns a specific map of this region, if available
         (otherwise None). This is typically a probability or otherwise
@@ -273,31 +278,29 @@ class Region(anytree.NodeMixin):
         ----------
         space : Space 
             Template space 
-        threshold : float or None
-            Threshold for optional conversion to binary mask
+        resolution : int 
+            Physical resolution, used to determine downsampling level for
+            BigBrain volume maps
         """
-        if "maps" not in self.attrs.keys():
-            logger.warning("No specific maps known for {}".format(self))
+
+        if not self.has_regional_map(space):
+            if not quiet:
+                logger.warning("No regional map known for {} in space {}.".format(
+                    self,space))
             return None
-        if space.id not in self.attrs["maps"].keys():
-            logger.warning("No specific map known for {} in space {}.".format(
-                self,space))
-            return None
+
         url = self.attrs["maps"][space.id]
-        filename = download_file( url )
-        if filename is not None:
-            img = nib.load(filename)
-            if threshold is not None:
-                M = (np.asarray(img.dataobj)>threshold).astype('uint8')
-                return nib.Nifti1Image(
-                        dataobj=M,
-                        affine=img.affine,
-                        header=img.header)
-            else:
-                return img
+        if is_ngprecomputed(url):
+            img = load_ngprecomputed(url,resolution)
+            return img
         else:
-            logger.warning("Could not retrieve and create Nifti file from {}".format(url))
-            return None
+            filename = download_file( url )
+            if filename is not None:
+                img = nib.load(filename)
+                return img
+
+        logger.warning("Could not retrieve image data from {}".format(url))
+        return None
 
     def __getitem__(self, labelindex):
         """
@@ -367,6 +370,13 @@ class Region(anytree.NodeMixin):
         return  "\n".join("%s%s" % (pre, node.name)
                 for pre, _, node in anytree.RenderTree(self))
 
+    @cached
+    def spatialprops(self,space):
+        """
+        Computes spatial region properties for this region.
+        """
+        return RegionProps(self,space)
+
     def print_tree(self):
         """
         Returns the hierarchy of all descendants of this region as a tree.
@@ -397,7 +407,9 @@ class Region(anytree.NodeMixin):
         assert('name' in jsonstr)
         name = jsonstr['name'] 
         labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
-        r = Region(name, parcellation, labelindex, jsonstr, children=children)
+        mapindex = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else 0
+        r = Region(name, parcellation, labelindex, 
+                attrs=jsonstr, mapindex=mapindex, children=children)
 
         # inherit labelindex from children, if they agree
         if labelindex is None and r.children: 
@@ -406,6 +418,104 @@ class Region(anytree.NodeMixin):
                 r.labelindex = L[0]
 
         return r
+
+
+class RegionProps():
+    """
+    Computes and represents spatial attributes of a region in an atlas.
+    """
+
+    # properties used when printing this feature
+    main_props = [
+            'centroid_mm',
+            'volume_mm',
+            'surface_mm',
+            'is_cortical']
+
+    def __init__(self,region,space):
+        """
+        Construct region properties from a region selected in the given atlas,
+        in the specified template space. 
+
+        Parameters
+        ----------
+        region : Region
+            An region object
+        space : Space
+            A template space 
+        """
+        assert(region.parcellation.supports_space(space))
+
+        self.region = region
+        self.attrs = {}
+    
+        # derive non-spatial properties
+        assert(region.parcellation.regiontree.find('cerebral cortex'))
+        self.attrs['is_cortical'] = region.has_parent('cerebral cortex')
+
+        # compute mask in the given space
+        tmpl = space.get_template()
+        mask = region.build_mask(space)
+        M = np.asanyarray(mask.dataobj) 
+
+        # Setup coordinate units 
+        # for now we expect isotropic physical coordinates given in mm for the
+        # template volume
+        # TODO be more flexible here
+        pixel_unit = tmpl.header.get_xyzt_units()[0]
+        assert(pixel_unit == 'mm')
+        pixel_spacings = np.unique(tmpl.header.get_zooms()[:3])
+        assert(len(pixel_spacings)==1)
+        pixel_spacing = pixel_spacings[0]
+        grid2mm = lambda pts : apply_affine(tmpl.affine,pts)
+        
+        # Extract properties of each connected component, recompute some
+        # spatial props in physical coordinates, and return connected componente
+        # as a list 
+        rprops = measure.regionprops(M)
+        if len(rprops)==0:
+            logger.warning('Region "{}" has zero size - {}'.format(
+                self.region.name, "constructing an empty region property object"))
+            self.attrs['centroid_mm'] = 0.
+            self.attrs['volume_mm'] = 0.
+            self.attrs['surface_mm'] = 0.
+            return 
+        assert(len(rprops)==1)
+        for prop in rprops[0]:
+            try:
+                self.attrs[prop] = rprops[0][prop]
+            except NotImplementedError:
+                pass
+
+        # Transfer some properties into physical coordinates
+        self.attrs['centroid_mm'] = grid2mm(self.attrs['centroid'])
+        self.attrs['volume_mm'] = self.attrs['area'] * pixel_spacing**3
+        # TODO test if the surface estimate makes really sense
+        verts,faces,_,_ = measure.marching_cubes_lewiner(M)
+        self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
+
+
+    def __dir__(self):
+        return list(self.attrs.keys())
+
+    def __str__(self):
+        """
+        Formats the main attributes as a multiline string.
+        """
+        printobj = lambda o: "Array {} {}".format(o.dtype,o.shape) if isinstance(o,np.ndarray) else o
+        return "\n".join(['Region properties of "{}"'.format(self.region)] 
+                +["{:>20.20} {}".format(label,printobj(self.attrs[label]))
+            for label in self.attrs.keys()])
+
+    def __contains__(self,index):
+        return index in self.__dir__()
+
+    def __getattr__(self,name):
+        if name in self.attrs.keys():
+            return self.attrs[name]
+        else:
+            raise AttributeError("No such attribute: {}".format(name))
+
 
 if __name__ == '__main__':
 

@@ -15,13 +15,13 @@
 
 from . import logger
 from . import retrieval 
-from nibabel.spatialimages import SpatialImage
 import os
 import requests
 import json
 import numpy as np
 from cloudvolume import CloudVolume,Bbox
 from memoization import cached
+import nibabel as nib
 
 @cached
 def is_ngprecomputed(url):
@@ -32,6 +32,16 @@ def is_ngprecomputed(url):
         return info['type'] in ['image','segmentation']
     except Exception as _:
         return False
+
+
+@cached
+def load_ngprecomputed(url,resolution):
+    """
+    Shortcut for loading data from a neuroglancer precomputed volume directly
+    into a spatial image object
+    """
+    V = BigBrainVolume(url)
+    return V.build_image(resolution,clip=True)
 
 def bbox3d(A):
     # https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
@@ -187,11 +197,11 @@ class BigBrainVolume:
             return self.resolutions_available[maxres]['mip']
         elif resolution in self.resolutions_available.keys(): 
             return self.resolutions_available[resolution]['mip']
-        logger.error('The requested resolution is not available. Choose one of:')
+        logger.error('The requested resolution ({} micron) is not available. Choose one of:'.format(resolution))
         print(self.helptext)
         return None
         
-    def Image(self,mip,clip=True,transform=lambda I: I, force=False):
+    def build_image(self,resolution,clip=True,transform=lambda I: I, force=False):
         """
         Compute and return a spatial image for the given mip.
         
@@ -205,8 +215,10 @@ class BigBrainVolume:
             If true, will start downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable.
         """
-        assert(type(mip)==int)
-        return SpatialImage(
+        mip = self.determine_mip(resolution)
+        if not mip:
+            raise ValueError("Invalid image resolution for this neuroglancer precomputed tile source.")
+        return nib.Nifti1Image(
             transform(self._load_data(mip,clip,force)),
             affine=self.affine(mip,clip)
         )

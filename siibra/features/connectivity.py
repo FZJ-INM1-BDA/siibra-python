@@ -20,17 +20,18 @@ from gitlab import Gitlab
 from .feature import RegionalFeature,GlobalFeature
 from .extractor import FeatureExtractor
 from ..termplot import FontStyles as style
-from .. import retrieval, termplot, parcellations
+from .. import termplot,parcellations
 
 class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, region, profile, column_names, src_name, src_info, parcellation):
+    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation):
         RegionalFeature.__init__(self,region)
         self.profile = profile
         self.src_name = src_name
         self.src_info = src_info
+        self.src_file = src_file
         self.column_names = column_names
         self.parcellation = parcellation
         self.globalrange = None
@@ -57,46 +58,57 @@ class ConnectivityProfile(RegionalFeature):
                     if self.profile[i]>0
                     ])
 
-fget_pattern = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F{name}/raw?ref=master'
-glob_url = 'https://jugit.fz-juelich.de/api/v4/projects/3009/repository/tree?path=connectivity'
+
+    def decode(self,parcellation,minstrength=0):
+        """
+        Decode the profile into a list of connections strengths to real regions
+        that match the given parcellation.
+        """
+        decoded = (
+                (strength,parcellation.decode_region(regionname))
+                for strength,regionname in zip(self.profile,self.column_names)
+                if strength>minstrength)
+        return sorted(decoded,key=lambda q:q[0],reverse=True)
 
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
-    _SOURCES = {
-            '1000brain.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains.json/raw?ref=master",
-            '1000brain_julichbrain_2.5.json':"https://jugit.fz-juelich.de/api/v4/projects/3009/repository/files/connectivity%2F1000brains-v2.5.1.json/raw?ref=master"
-            }
 
     def __init__(self):
 
         FeatureExtractor.__init__(self)
-        for fname,url in ConnectivityProfileExtractor._SOURCES.items():
 
-            minval = maxval = 0
-            new_profiles = []
-            with open(retrieval.download_file(url,targetname=fname),'r') as f:
-                data = json.load(f)
-                src_name = data['name']
-                src_info  = data['description']
-                #parcellation = parcellations[data['parcellation']]
-                parcellation = parcellations[data['parcellation id']]
-                regions_available = data['data']['field names']
-                for region in regions_available:
-                    profile = data['data']['profiles'][region]
-                    if max(profile)>maxval:
-                        maxval = max(profile)
-                    if min(profile)>minval:
-                        minval = min(profile)
-                    new_profiles.append( ConnectivityProfile(
-                        region, profile, 
-                        regions_available,
-                        src_name, src_info, 
-                        parcellation ) )
+        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
+        jsonfiles = [f['name'] 
+                for f in project.repository_tree() 
+                if f['type']=='blob' 
+                and f['name'].endswith('json')]
 
-            for profile in new_profiles:
-                profile.globalrange = (minval,maxval)
-                self.register(profile)
+        minval = maxval = 0
+        new_profiles = []
+        for jsonfile in jsonfiles: 
+            f = project.files.get(file_path=jsonfile, ref='master')
+            data = json.loads(f.decode())
+            src_name = data['name']
+            src_info  = data['description']
+            src_file = jsonfile
+            parcellation = parcellations[data['parcellation id']]
+            regions_available = data['data']['field names']
+            for region in regions_available:
+                profile = data['data']['profiles'][region]
+                if max(profile)>maxval:
+                    maxval = max(profile)
+                if min(profile)>minval:
+                    minval = min(profile)
+                new_profiles.append( ConnectivityProfile(
+                    region, profile, 
+                    regions_available,
+                    src_name, src_info, src_file,
+                    parcellation ) )
+
+        for profile in new_profiles:
+            profile.globalrange = (minval,maxval)
+            self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):
