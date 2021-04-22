@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__version__ = "0.0.8.9.dev2"
-
 import logging
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler()
 formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+logger.setLevel("INFO")
+
+# read in the package version from file
+from os import path
+PKG_DIR = path.dirname(path.abspath(__file__))
+with open(path.join(PKG_DIR,"..","VERSION"),"r") as f:
+    __version__ = f.read().strip()
+logger.info("Version: "+__version__)
 
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations

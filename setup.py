@@ -1,11 +1,15 @@
 from setuptools import setup, find_packages
+import os
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(ROOT_DIR,"VERSION"),"r") as f:
+    version = f.read()
+with open(os.path.join(ROOT_DIR,"README.md"), "r", encoding="utf-8") as f:
+    long_description = f.read()
 
 setup(
     name="siibra",
-    version="0.0.8.9.dev2",
+    version=version,
     author="Big Data Analytics Group, Forschungszentrum Juelich, Institute of Neuroscience and Medicine (INM-1)",
     author_email="inm1-bda@fz-juelich.de",
     description="siibra - Software interfaces for interacting with brain atlases",
