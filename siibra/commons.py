@@ -16,7 +16,7 @@ import re
 
 class Glossary:
     """
-    A very simple class that provides enum-like siple autocompletion for an
+    A very simple class that provides enum-like simple autocompletion for an
     arbitrary list of names.
     """
     def __init__(self,words):

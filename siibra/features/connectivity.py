@@ -20,17 +20,18 @@ from gitlab import Gitlab
 from .feature import RegionalFeature,GlobalFeature
 from .extractor import FeatureExtractor
 from ..termplot import FontStyles as style
-from .. import retrieval, termplot, parcellations
+from .. import termplot,parcellations
 
 class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, region, profile, column_names, src_name, src_info, parcellation):
+    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation):
         RegionalFeature.__init__(self,region)
         self.profile = profile
         self.src_name = src_name
         self.src_info = src_info
+        self.src_file = src_file
         self.column_names = column_names
         self.parcellation = parcellation
         self.globalrange = None
@@ -58,6 +59,17 @@ class ConnectivityProfile(RegionalFeature):
                     ])
 
 
+    def decode(self,parcellation,minstrength=0):
+        """
+        Decode the profile into a list of connections strengths to real regions
+        that match the given parcellation.
+        """
+        decoded = (
+                (strength,parcellation.decode_region(regionname))
+                for strength,regionname in zip(self.profile,self.column_names)
+                if strength>minstrength)
+        return sorted(decoded,key=lambda q:q[0],reverse=True)
+
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
@@ -79,6 +91,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             data = json.loads(f.decode())
             src_name = data['name']
             src_info  = data['description']
+            src_file = jsonfile
             parcellation = parcellations[data['parcellation id']]
             regions_available = data['data']['field names']
             for region in regions_available:
@@ -90,7 +103,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                 new_profiles.append( ConnectivityProfile(
                     region, profile, 
                     regions_available,
-                    src_name, src_info, 
+                    src_name, src_info, src_file,
                     parcellation ) )
 
         for profile in new_profiles:

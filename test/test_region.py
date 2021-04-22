@@ -147,25 +147,25 @@ class TestRegions(unittest.TestCase):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
     @patch('siibra.region.download_file')
-    def test_get_specific_map_none(self, download_mock):
-        self.assertIsNone(self.parent_region.get_specific_map(spaces[0]))
+    def test_regional_map_none(self, download_mock):
+        self.assertIsNone(self.parent_region.get_regional_map(spaces[0]))
         download_mock.assert_not_called()
 
     @patch('siibra.region.download_file')
-    def test_get_specific_map_wrong_space(self, download_mock):
+    def test_get_regional_map_wrong_space(self, download_mock):
         self.child_region.attrs['maps'] = {
             'spaceId': 'map_url'
         }
-        self.assertIsNone(self.child_region.get_specific_map(spaces[0]))
+        self.assertIsNone(self.child_region.get_regional_map(spaces[0]))
         download_mock.assert_not_called()
 
     @patch('siibra.region.download_file')
-    def test_get_specific_map_no_filename(self, download_mock):
+    def test_get_regional_map_no_filename(self, download_mock):
         download_mock.return_value = None
         self.child_region.attrs['maps'] = {
             spaces[0].id: spaces[0].id
         }
-        self.assertIsNone(self.child_region.get_specific_map(spaces[0]))
+        self.assertIsNone(self.child_region.get_regional_map(spaces[0]))
         download_mock.assert_called_with(spaces[0].id)
 
 

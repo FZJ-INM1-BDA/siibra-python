@@ -213,7 +213,7 @@ https://alleninstitute.org/legal/terms-use/."""
             self.register( GeneExpression( 
                 self.gene,
                 icbm_coord, 
-                spaces['MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC'],
+                spaces.MNI152_2009C_NONL_ASYM,
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
                 probe_ids = [p['id'] for p in probes],
