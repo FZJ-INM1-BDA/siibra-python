@@ -84,13 +84,13 @@ class Space:
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
                         ziptarget=obj['templateFile'],
-                        src_volume_type = obj['srcVolumeType'],
+                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
                         volume_src = volume_src)
             else:
                 return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
-                        src_volume_type = obj['srcVolumeType'],
+                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
                         volume_src = volume_src)
         return obj
 
