@@ -265,24 +265,6 @@ class Atlas:
         """
         return self.selected_region.includes(region)
 
-    def assign_coordinate(self,space,coordinate):
-        """
-        Assigns brain regions to the given coordinate, according to the
-        selected parcellation in the given space.
-
-        Parameters
-        ----------
-        space : Space
-            The template space in which the test shall be carried out
-        coordinate : tuple x/y/z
-            A coordinate position given in the physical space of the template
-            space. It will be converted to the voxel space using the inverse
-            affine matrix of the template space for the query.
-
-        """
-        raise NotImplementedError()
-
-
     def coordinate_selected(self,space,coordinate):
         """
         Verifies wether a position in the given space is part of the current
