@@ -17,6 +17,8 @@ import numpy as np
 import warnings
 from gitlab import Gitlab
 
+from .. import logger
+from ..region import Region
 from .feature import RegionalFeature,GlobalFeature
 from .extractor import FeatureExtractor
 from ..termplot import FontStyles as style
@@ -59,13 +61,23 @@ class ConnectivityProfile(RegionalFeature):
                     ])
 
 
-    def decode(self,parcellation,minstrength=0):
+    def decode(self,parcellation,minstrength=0,force=True):
         """
         Decode the profile into a list of connections strengths to real regions
-        that match the given parcellation.
+        that match the given parcellation. 
+        If a column name for the profile cannot be decoded, a dummy region is
+        returned if force==True, otherwise we fail.
         """
-        decoded = (
-                (strength,parcellation.decode_region(regionname))
+        def decoderegion(parcellation,regionname,force):
+            try:
+                return parcellation.decode_region(regionname)
+            except ValueError as e:
+                logger.warning(f'Region name "{regionname}" cannot be decoded by parcellation {parcellation.key}, returning dummy region.')
+                if force:
+                    return Region(regionname, parcellation)
+                raise e
+
+        decoded = ( (strength,decoderegion(parcellation,regionname,force))
                 for strength,regionname in zip(self.profile,self.column_names)
                 if strength>minstrength)
         return sorted(decoded,key=lambda q:q[0],reverse=True)
