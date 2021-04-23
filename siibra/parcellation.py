@@ -18,6 +18,7 @@ from .region import Region
 from .bigbrain import BigBrainVolume,is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key
+import numbers
 import numpy as np
 import nibabel as nib
 from nilearn import image
@@ -542,7 +543,7 @@ class ParcellationMap:
             return self[region]
 
     @staticmethod
-    def _roiimg(refimg,xyz_phys,sigma_phys=1,sigma_point=3):
+    def _roiimg(refimg,xyz_phys,sigma_phys=1,sigma_point=3,resample=True):
         """
         Compute a region of interest heatmap with a Gaussian kernel 
         at the given position in physical coordinates corresponding 
@@ -555,7 +556,6 @@ class ParcellationMap:
         # position in voxel coordinates
         phys2vox = np.linalg.inv(refimg.affine)
         xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
-        
         
         # to the parcellation map in voxel space, given the physical kernel width.
         scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
@@ -581,7 +581,25 @@ class ParcellationMap:
         
         # create the resampled output image
         roiimg = nib.Nifti1Image(kernel,affine=affine)
-        return image.resample_to_img(roiimg,refimg)
+        return image.resample_to_img(roiimg,refimg) if resample else roiimg
+
+    @staticmethod
+    def _kernelimg(refimg,sigma_phys=1,sigma_point=3):
+        """
+        Compute a 3D Gaussian kernel for the voxel space of the given reference
+        image, matching its bandwidth provided in physical coordinates.
+        """
+        scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
+                            for i in range(3)]).mean()
+        sigma_vox = sigma_phys / scaling
+        r = int(sigma_point*sigma_vox)
+        k_size = 2*r + 1
+        impulse = np.zeros((k_size,k_size,k_size))
+        impulse[r,r,r] = 1
+        kernel = gaussian_filter(impulse, sigma_vox)
+        kernel /= kernel.sum()
+        
+        return kernel
 
     @cached
     def assign_regions(self,xyz_phys,sigma_phys=0,sigma_point=3,thres_percent=1,print_report=True):
@@ -592,8 +610,8 @@ class ParcellationMap:
 
         Parameters
         ----------
-        xyz_phys : coordinate tuple 
-            3D point in physical coordinates of the template space of the
+        xyz_phys : 3D coordinate tuple, list of 3D tuples, or Nx3 array of coordinate tuples
+            3D point(s) in physical coordinates of the template space of the
             ParcellationMap
         sigma_phys : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
@@ -611,57 +629,91 @@ class ParcellationMap:
         if self.maptype!=ParcellationMap.MapType.REGIONAL_MAPS:
             raise NotImplementedError("Region assignment is only implemented for floating type regional maps for now.")
 
+        # Convert input to Nx4 list of homogenous coordinates
+        assert(len(xyz_phys)>0)
+        if isinstance(xyz_phys[0],numbers.Number):
+            # only a single point provided
+            assert(len(xyz_phys) in [3,4])
+            XYZH = np.ones((1,4))
+            XYZH[0,:len(xyz_phys)] = xyz_phys
+        else:
+            XYZ = np.array(xyz_phys)
+            assert(XYZ.shape[1]==3)
+            XYZH = np.c_[XYZ,np.ones_like(XYZ[:,0])]
+        numpts = XYZH.shape[0]
+
         if sigma_phys>0:
             logger.info((
-                "Performing assignment of 1 uncertain coordinate "
+                f"Performing assignment of {numpts} uncertain coordinates "
                 f"(stderr={sigma_phys}) to {len(self)} maps." ))
         else:
             logger.info((
-                "Performing assignment of 1 deterministic coordinate "
+                f"Performing assignment of {numpts} deterministic coordinates "
                 f"to {len(self)} maps."))
-        xyzh = _assert_homogeneous_3d(xyz_phys)
 
-        roi = None
-        probs = []
+        probs = {i:[] for i in range(numpts)}
         for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
             pmap = loadfnc(quiet=True)
             assert(pmap.dataobj.dtype.kind=='f')
             if not pmap:
                 logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
-                probs.append(-1)
+                for i in range(numpts):
+                    probs[i].append(-1)
                 continue
+            phys2vox = np.linalg.inv(pmap.affine)
+            A = np.asanyarray(pmap.dataobj)
 
             if sigma_phys>0:
-                # multiple with a weight map represetning the uncertain region
+
+                # multiply with a weight kernel representing the uncertain region
                 # of interest around the coordinate
-                if not roi:
-                    # first iteration, compute the roi volume
-                    roi = ParcellationMap._roiimg(pmap,xyzh,sigma_phys,sigma_point)
-                prob = np.sum(np.multiply(roi.dataobj,pmap.dataobj))
-                probs.append(prob)
+                kernel = ParcellationMap._kernelimg(pmap,sigma_phys,sigma_point)
+                r = int(kernel.shape[0]/2) # effective radius
+
+                for i,xyzh in enumerate(XYZH):
+                    xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
+                    x0,y0,z0 = [v-r for v in xyz_vox[:3]]
+                    xs,ys,zs = [max(-v,0) for v in (x0,y0,z0)] # possible offsets
+                    x1,y1,z1 = [min(xyz_vox[i]+r+1,A.shape[i]) for i in range(3)]
+                    xd = x1-x0-xs
+                    yd = y1-y0-ys
+                    zd = z1-z0-zs
+                    mapdata = A[x0+xs:x1,y0+ys:y1,z0+zs:z1] 
+                    weights = kernel[xs:xs+xd,ys:ys+yd,zs:zs+zd]
+                    assert(np.all(weights.shape==mapdata.shape))
+                    prob = np.sum(np.multiply(weights,mapdata))
+                    probs[i].append(prob)
+
             else:
                 # just read out the coordinate
-                phys2vox = np.linalg.inv(pmap.affine)
-                xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
-                x,y,z,_ = xyz_vox
-                probs.append(pmap.slicer[x,y,z])
+                for i,xyzh in enumerate(XYZH):
+                    xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
+                    x,y,z,_ = xyz_vox
+                    probs[i].append(A[x,y,z])
 
-        matches = {self.decode_region(index):round(prob*100,2)
-                for index,prob in enumerate(probs) 
-                if prob>0 }
 
-        assignments = [(region,prob_percent) for region,prob_percent
-                in sorted(matches.items(),key=lambda item:item[1],reverse=True)
-                if prob_percent>=thres_percent]
+        matches = [
+                {self.decode_region(index):round(prob*100,2)
+                    for index,prob in enumerate(P) 
+                    if prob>0 }
+                for P in probs.values() ]
+
+        assignments = [
+                [(region,prob_percent) for region,prob_percent
+                    in sorted(M.items(),key=lambda item:item[1],reverse=True)
+                    if prob_percent>=thres_percent]
+                for M in matches ]
 
         if print_report:
             layout = "{:50.50} {:>12.12}"
-            print()
-            print(layout.format("Brain region name","map value"))
-            print(layout.format("-----------------","-----------"))
-            for region,prob in assignments:
-                print(layout.format(region.name,prob))
+            for i,assignment in enumerate(assignments):
+                print()
+                print(f"Assignment of location {XYZH[i,:3]} in {self.space.name}")
+                print(layout.format("Brain region name","map value"))
+                print(layout.format("-----------------","-----------"))
+                for region,prob in assignment:
+                    print(layout.format(region.name,prob))
 
         return assignments
 
