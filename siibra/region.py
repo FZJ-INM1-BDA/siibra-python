@@ -31,7 +31,7 @@ class Region(anytree.NodeMixin):
     Representation of a region with name and more optional attributes
     """
 
-    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=0, parent=None, children=None):
+    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=None, parent=None, children=None):
         """
         Constructs a new region object.
 
@@ -43,8 +43,8 @@ class Region(anytree.NodeMixin):
             the parcellation object that this region belongs to
         labelindex : int
             the integer label index used to mark the region in a labelled brain volume
-        mapindex : int
-            the integer label index used to specify one of muliple available maps, if any
+        mapindex : int, or None
+            the integer label index used to specify one of muliple available maps, if any (otherwise None)
         attrs : dict
             A dictionary of arbitrary additional information
         parent : Region
@@ -134,7 +134,7 @@ class Region(anytree.NodeMixin):
         """
         return region==self or region in self.descendants
 
-    def find(self,regionspec,select_uppermost=False):
+    def find(self,regionspec,select_uppermost=False,mapindex=None):
         """
         Find region that match the given region specification in the subtree
         headed by this region. 
@@ -149,13 +149,18 @@ class Region(anytree.NodeMixin):
         select_uppermost : Boolean
             If true, only the uppermost matches in the region hierarchy are
             returned (otherwise all siblings as well if they match the name)
+        mapindex : integer, or None (optional)
+            Some parcellation maps are defined over multiple 3D parcellation
+            volumes with overlapping labelindices (e.g. splitting the
+            hemispheres). For those, the optional mapindex can be used to 
+            further restrict the matching regions.
 
         Yield
         -----
         list of matching regions
         """
         result = anytree.search.findall(self,
-                lambda node: node.matches(regionspec))
+                lambda node: node.matches(regionspec,mapindex))
         if len(result)>1 and select_uppermost:
             all_results = result
             mindepth = min([r.depth for r in result])
@@ -171,7 +176,7 @@ class Region(anytree.NodeMixin):
         else:
             return list(result)
 
-    def matches(self,regionspec):
+    def matches(self,regionspec,mapindex=None):
         """ 
         Checks wether this region matches the given region specification. 
 
@@ -183,6 +188,11 @@ class Region(anytree.NodeMixin):
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex,
             - a region object
+        mapindex : integer, or None (optional)
+            Some parcellation maps are defined over multiple 3D parcellation
+            volumes with overlapping labelindices (e.g. splitting the
+            hemispheres). For those, the optional mapindex can be used to 
+            further restrict the matching regions.
 
         Yield
         -----
@@ -194,7 +204,10 @@ class Region(anytree.NodeMixin):
             return self.key==regionspec.key 
         elif isinstance(regionspec,int):
             # argument is int - a labelindex is expected
-            return self.labelindex==regionspec#(self[regionspec] is not None)
+            if mapindex:
+                return all([self.labelindex==regionspec,self.mapindex==mapindex])
+            else:
+                return all([self.labelindex==regionspec])
         elif isinstance(regionspec,str):
             # string is given, perform some lazy string matching
             return any([
@@ -207,7 +220,7 @@ class Region(anytree.NodeMixin):
                     "Cannot interpret region specification of type '{}'".format(
                         type(regionspec)))
 
-    @cached(max_size=100)
+    @cached
     def build_mask(self,space : Space, resolution=None ):
         """
         Returns a binary mask where nonzero values denote
@@ -231,9 +244,10 @@ class Region(anytree.NodeMixin):
         if self.labelindex is not None:
 
             smap = self.parcellation.get_map(space,resolution=resolution)
-            maskimg = smap.get_mask(self.labelindex,self.mapindex)
-            mask = maskimg.dataobj
-            affine = maskimg.affine
+            maskimg = smap.get_mask(self)
+            if maskimg:
+                mask = maskimg.dataobj
+                affine = maskimg.affine
 
         if mask is None:
             logger.debug("{} has no own mask, trying to build mask from children".format(
@@ -249,7 +263,8 @@ class Region(anytree.NodeMixin):
                     mask = (mask | childmask.dataobj).astype('int')
 
         if mask is None:
-            raise RuntimeError("No mask could be computed for the given region "+str(self))
+            logger.warning(f"No mask could be computed for {self.name}")
+            return None
 
         return nib.Nifti1Image(dataobj=mask,affine=affine)
 
@@ -371,10 +386,21 @@ class Region(anytree.NodeMixin):
                 for pre, _, node in anytree.RenderTree(self))
 
     @cached
-    def spatialprops(self,space):
+    def spatialprops(self,space,force=False):
         """
         Computes spatial region properties for this region.
+
+        Parameters
+        ----------
+        space : Space
+            the space in which the computation shall be performed
+        force : Boolean (Default: False)
+            spatialprops will only be computed for leave regions (without
+            children), except this is set to True.
         """
+        if not force and len(self.children)>0:
+            logger.warning('Computation of spatial properties for a group region requested. This is prevented by default. Use "force=True" to do that.')
+            return None
         return RegionProps(self,space)
 
     def print_tree(self):
@@ -407,7 +433,7 @@ class Region(anytree.NodeMixin):
         assert('name' in jsonstr)
         name = jsonstr['name'] 
         labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
-        mapindex = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else 0
+        mapindex = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else None
         r = Region(name, parcellation, labelindex, 
                 attrs=jsonstr, mapindex=mapindex, children=children)
 

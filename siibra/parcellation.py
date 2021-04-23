@@ -18,6 +18,7 @@ from .region import Region
 from .bigbrain import BigBrainVolume,is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key
+import numbers
 import numpy as np
 import nibabel as nib
 from nilearn import image
@@ -25,6 +26,7 @@ from enum import Enum
 from tqdm import tqdm
 from memoization import cached
 from scipy.ndimage import gaussian_filter
+from .volume_src import VolumeSrc
 
 class Parcellation:
 
@@ -36,7 +38,26 @@ class Parcellation:
         self.publications = []
         self.description = ""
         self.maps = {}
+        self.volume_src = {}
         self.regiontree = Region(self.name,self)
+
+    def get_volume_src(self, space: Space):
+        """
+        Get volumes sources for the parcellation in the requested template space.
+
+        Parameters
+        ----------
+        space : Space
+            template space
+
+        Yields
+        ------
+        A list of volume sources
+        """
+        if space not in self.volume_src:
+            raise ValueError('Parcellation "{}" does not provide volume sources for space "{}"'.format(
+                str(self), str(space) ))
+        return self.volume_src[space]
 
     @cached
     def get_map(self, space: Space, resolution=None, regional=False, squeeze=True ):
@@ -88,7 +109,7 @@ class Parcellation:
         """
         return space in self.maps.keys()
 
-    def decode_region(self,regionspec):
+    def decode_region(self,regionspec,mapindex=None):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -105,12 +126,17 @@ class Parcellation:
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex,
             - a region object
+        mapindex : integer, or None (optional)
+            Some parcellation maps are defined over multiple 3D parcellation
+            volumes with overlapping labelindices (e.g. splitting the
+            hemispheres). For those, the optional mapindex can be used to 
+            further restrict the matching regions.
 
         Return
         ------
         Region object
         """
-        candidates = self.regiontree.find(regionspec,select_uppermost=True)
+        candidates = self.regiontree.find(regionspec,select_uppermost=True,mapindex=mapindex)
         if not candidates:
             raise ValueError("Regionspec {} could not be decoded under '{}'".format(
                 regionspec,self.name))
@@ -187,6 +213,13 @@ class Parcellation:
 
         p.maps = { spaces[space_id] : urls 
                 for space_id, urls in obj['maps'].items() }
+        
+        if 'volumeSrc' in obj:
+            p.volume_src = { spaces[space_id] : {
+                key : [
+                    VolumeSrc.from_json(v_src) for v_src in v_srcs
+                ] for key, v_srcs in key_vsrcs.items()
+            } for space_id, key_vsrcs in obj['volumeSrc'].items() }
 
         if 'description' in obj:
             p.description = obj['description']
@@ -264,7 +297,6 @@ class ParcellationMap:
                 header = img.header,
                 affine = img.affine )
 
-
     def __init__(self, parcellation: Parcellation, space: Space, maptype=MapType.LABELLED_VOLUME, resolution=None, squeeze=True):
         """
         Construct a ParcellationMap for the given parcellation and space.
@@ -289,204 +321,165 @@ class ParcellationMap:
             raise ValueError( 'Parcellation "{}" does not provide a map for space "{}"'.format(
                 parcellation.name, space.name ))
 
-        # load the image data
-        if maptype==ParcellationMap.MapType.REGIONAL_MAPS:
-            maps = ParcellationMap._load_regional_maps(parcellation,space,resolution)
-        elif maptype==ParcellationMap.MapType.LABELLED_VOLUME:
-            maps = ParcellationMap._load_parcellation_maps(parcellation,space,resolution)
+        self.maptype = maptype
+        self.parcellation = parcellation
+        self.space = space
+        self.resolution = resolution
+
+        # check for available maps per region
+        self.maploaders = []
+        self.regions = {} # indexed by (labelindex,mapindex)
+
+        if maptype==ParcellationMap.MapType.LABELLED_VOLUME:
+            for mapindex,url in enumerate(self.parcellation.maps[self.space]):
+                regionmap = self._load_parcellation_map(url)
+                if regionmap:
+                    self.maploaders.append(lambda quiet=False,url=url:self._load_parcellation_map(url,quiet=quiet))
+                    for labelindex in np.unique(np.asarray(regionmap.dataobj)):
+                        if labelindex==0:
+                            continue # this is the background only
+                        region = self.parcellation.decode_region(int(labelindex),mapindex)
+                        if labelindex>0:
+                            self.regions[labelindex,mapindex] = region
+
+        elif maptype==ParcellationMap.MapType.REGIONAL_MAPS:
+            regions = [r for r in parcellation.regiontree if r.has_regional_map(space)]
+            labelindex = -1
+            for region in regions:
+                if region in self.regions.values():
+                    logger.debug(f"Region already seen in tree: {region.key}")
+                    continue
+                #regionmap = self._load_regional_map(region)
+                self.maploaders.append(lambda quiet=False,region=region:self._load_regional_map(region,quiet=quiet))
+                mapindex = len(self.maploaders)-1
+                self.regions[labelindex,mapindex] = region
+
         else:
             raise ValueError("Invalid maptype requested.")
 
-        # determine region assignments to indices
-        if maptype==ParcellationMap.MapType.LABELLED_VOLUME:
-            self.regions = {
-                    (labelindex,mapindex) : parcellation.decode_region(int(labelindex))
-                    for mapindex,img in enumerate(maps.values())
-                    for labelindex in np.unique(np.asarray(img.dataobj))
-                    if labelindex>0 }
-        else:
-            self.regions = { (i,0) : region
-                    for i,region in enumerate(maps.keys()) }
-
-        # initialize the Nifti1Image with the retrieved data
-        dtypes = list({m.dataobj.dtype for m in maps.values()})
-        if len(dtypes)!=1:
-            raise ValueError("dtypes not consistent in the different maps")
-        dtype = dtypes[0]
-
-        if len(maps)>1:
-            logger.info('Concatenating {} 3D volumes into the final parcellation map...'.format(len(maps)))
-            mapimg = image.concat_imgs(maps.values(),dtype=dtype)
-            self.image = nib.Nifti1Image(mapimg.dataobj,mapimg.affine)
-        else:
-            mapimg = next(iter(maps.values()))
-            if squeeze:
-                self.image = nib.Nifti1Image(np.asanyarray(mapimg.dataobj).squeeze(),mapimg.affine)
-            else:
-                self.image = mapimg
-        self.maptype = maptype
-        self.space = space
-        self.squeeze = squeeze
-        self.parcellation = parcellation
-
-    @staticmethod
-    def _load_parcellation_maps(parcellation,space,resolution):
+    def build_image(self):
         """
-        Load the parcellation map in the given space.
-        maps.
+        Builds a full 3D or 4D Nifti1Image object from this parcellation map.
+        Use with caution, this might get large!
+        """
+        if len(self)>1:
+            logger.info(f'Concatenating {len(self)} 3D volumes into the final parcellation map...')
+            mapimg = image.concat_imgs((fnc() for fnc in self.maploaders))
+            return nib.Nifti1Image(mapimg.dataobj,mapimg.affine)
+        else:
+            return self.maploaders[0]()
+
+    @cached
+    def _load_parcellation_map(self,url,quiet=False):
+        """
+        Try to generate a 3D parcellation map from given url.
 
         Parameters
         ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution if it is a
-            neuroglancer high-resolution volume. 
+        url : str
+            map url as provided by a siibra parcellation configuration file
+        quiet : Boolean (default: False)
+            suppress output messages
 
         Return
         ------
-        maps : dict of Nifti1Images
-            The found maps indexed by their corresponding region
+        map : Nifti1Image, or None
+            The found map, if any
         """
+        m = None
+        if url=="collect":
 
-        maps = {}
-        for mapindex,url in enumerate(parcellation.maps[space]):
-            m = None
-            if url=="collect":
-
-                # build a 3D volume from the list of all regional maps
+            # build a 3D volume from the list of all regional maps
+            if not quiet:
                 logger.debug("Collecting labelled volume maps")
-                regionmaps = ParcellationMap._load_regional_maps(parcellation,space,resolution)
-                logger.debug("{} labelled volume maps found".format(len(regionmaps)))
-                maplist = list(regionmaps.items())
-                if len(maplist)==0: 
-                    continue
-                _,m = maplist[0]
-                for region,mask_ in maplist:
-                    # we also process maplist[0] again, so the labelindex is correct
-                    assert(region.labelindex)
-                    if mask_.shape != m.shape:
-                        mask = image.resample_to_img(mask_,m,interpolation='nearest')
-                    else:
-                        mask = mask_
-                    m.dataobj[mask.dataobj>0] = region.labelindex
 
-            elif is_ngprecomputed(url):
-                m = load_ngprecomputed(url,resolution)
+            # collect all available region maps
+            regions = [r for r in self.parcellation.regiontree 
+                    if r.has_regional_map(self.space)]
+            m = None
+            for region in regions:
+                assert(region.labelindex)
 
-            else:
-                filename = retrieval.download_file(url)
-                if filename is None:
+                # load region mask
+                mask_ = self._load_regional_map(region)
+                if not mask_:
                     continue
+                if mask_.dataobj.dtype.kind!='u':
+                    if not quiet:
+                        logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(mask_.dataobj.dtype))
+                    mask_ = nib.Nifti1Image(np.asanyarray(mask_.dataobj).astype('uint'),m.affine)
+
+                # build up the aggregated mask with labelled indices
+                if m is None:
+                    m = mask_
+                if mask_.shape!=m.shape:
+                    mask = image.resample_to_img(mask_,m,interpolation='nearest')
+                else:
+                    mask = mask_
+                m.dataobj[mask.dataobj>0] = region.labelindex
+
+        elif is_ngprecomputed(url):
+            m = load_ngprecomputed(url,self.resolution)
+
+        else:
+            filename = retrieval.download_file(url)
+            if filename is not None:
                 m = nib.load(filename)
                 if m.dataobj.dtype.kind!='u':
-                    logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(m.dataobj.dtype))
+                    if not quiet:
+                        logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(m.dataobj.dtype))
                     m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
 
-            # apply postprocessing hook, if applicable
-            if parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
-                hook = ParcellationMap._STATIC_MAP_HOOKS[parcellation.id]
-                m = hook(m)
+        if not m:
+            return None
 
-            if m.dataobj.dtype.kind!='u':
-                raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
-                    m.dataobj.dtype))
+        # apply postprocessing hook, if applicable
+        if self.parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
+            hook = ParcellationMap._STATIC_MAP_HOOKS[self.parcellation.id]
+            m = hook(m)
 
-            maps[mapindex] = m
+        if m.dataobj.dtype.kind!='u':
+            raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
+                m.dataobj.dtype))
 
-        return maps
+        return m
 
-
-    @staticmethod
-    def _load_regional_maps(parcellation:Parcellation, space:Space, resolution=None):
+    @cached
+    def _load_regional_map(self,region : Region, quiet=False):
         """
-        Traverse the parcellation object's regiontree to find region-specific
-        maps.
+        Load a region-specific map
 
         Parameters
         ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution if it is a
-            neuroglancer high-resolution volume. 
+        region : Region
+            the requested region
+        quiet : Boolean (default: False)
+            suppress output messages
 
         Return
         ------
-        maps : dict of Nifti1Images
-            The found maps indexed by their corresponding region
+        maps : Nifti1Image, or None
+            The found map, if any
         """
-
-        regions = [r for r in parcellation.regiontree if r.has_regional_map(space)]
-        if len(regions)>10:
-            logger.info('Loading regional maps for {} regions, this may take a bit.'.format(len(regions)))
-
-        maps = {}
-        num_redundant = 0
-        for r in tqdm(regions,total=len(regions)):
-            logger.debug("Loading regional map for {}".format(r.name))
-            regionmap = r.get_regional_map(space,quiet=True,resolution=resolution)
-            if regionmap is None:
-                logger.debug("not found")
-                continue
-            logger.debug("Loaded regional map for {}".format(r.name))
-            if r in maps.keys():
-                logger.debug("Region already seen in tree: {}".format(r.key))
-                num_redundant += 1
-            maps[r] = regionmap
-
-        if num_redundant>0:
-            logger.info("{} regions were redundant in the tree (possibly same child region anchored to multiple parent regions).".format(num_redundant))
-        return maps
-
-    # Forward a few Nifti1Image methods to this class.
-    # Unfortunately, directly deriving from Nifti1Image did not work well
-    # since nilearn performs some explicit type() checks internally, so it
-    # turned out that many functions could not be applied to the derived class.
-
-    @property
-    def shape(self):
-        return self.image.shape
-
-    @property
-    def dataobj(self):
-        return self.image.dataobj
-
-    @property
-    def affine(self):
-        return self.image.affine
-
-    @property
-    def dtype(self):
-        return self.image.dataobj.dtype
-
-    def as_image(self):
-        """
-        Expose this ParcellationMap as a Nifti1Image object.
-        """
-        return self.image
-
-    @property
-    def slicer(self):
-        """
-        Get numpy-style index slicing access to the internal Nifti1Image.
-        """
-        return self.image.slicer
+        if not quiet:
+            logger.info(f"Loading regional map for {region.name} in {self.space.name}")
+        regionmap = region.get_regional_map(self.space,quiet=quiet, resolution=self.resolution)
+        if regionmap is None:
+            return  None
+        return regionmap
 
     def __iter__(self):
         """
-        Get an iterator along the fourth dimension of the parcellation map (if
-        any), returning the 3D maps in order.
+        Get an iterator along the parcellation maps, returning 3D maps in
+        order.
         """
-        if len(self.shape)==4:
-            return image.iter_img(self.image)
-        else:
-            # not much to iterate, this is a single 3D volume
-            return iter((self.image,))
+        return (loadfunc() for loadfunc in self.maploaders)
+
+    def __len__(self):
+        """
+        Returns the number of maps available in this parcellation.
+        """
+        return len(self.maploaders)
 
     def __contains__(self,spec):
         """
@@ -496,59 +489,41 @@ class ParcellationMap:
         You might find the decode_region() function of Parcellation and Region objects useful for the latter.
         """
         if isinstance(spec,int):
-            if len(self.image.shape)==3 and spec!=0:
-                return False
-            if len(self.image.shape)==4 and spec>=self.shape[3]:
-                return False
-            return True
+            return spec in range(len(self.maploaders))
         elif isinstance(spec,Region):
             for _,region in self.regions.items():
                 if region==spec:
                     return True
         return False
 
-    def __len__(self):
-        return 1 if len(self.image.shape)==3 else self.image.shape[3]
-
-    def __getitem__(self,index):
+    def __getitem__(self,spec):
         """
         Get access to the different 3D maps included in this parcellation map, if any.
-        For integer values, the corresponding slice along the fourth dimension at the given index is returned.
+        For integer values, the corresponding slice along the fourth dimension
+        at the given index is returned.
         Alternatively, a region object can be provided, and an attempt will be
         made to recover the index for this region.
-        You might find the decode_region() function of Parcellation and Region objects useful for the latter.
+        You might find the decode_region() function of Parcellation and Region
+        objects useful for the latter.
         """
+        if not spec in self:
+            raise ValueError(f"Index '{spec}' is not valid for this ParcellationMap.")
         
         # Try to convert the given index into a valid slice index
+        # this should always be successful since we checked validity of the index above
         sliceindex = None
-        if isinstance(index,int):
-            if any([ 
-                len(self.image.shape)==3 and index==0, 
-                len(self.image.shape)==4 and index<self.shape[3] ]):
-                sliceindex=index
-        elif isinstance(index,Region):
-            for (labelindex,mapindex),region in self.regions.items():
-                if region==index:
-                    if self.maptype==ParcellationMap.MapType.LABELLED_VOLUME:
-                        sliceindex = mapindex
-                    else:
-                        sliceindex = labelindex
+        if isinstance(spec,int):
+            sliceindex=spec
         else:
-            raise ValueError("Index access to ParcellationMap expects an Integer or Region object as index, but type {} was provided.".format(type(index)))
-
-        # Fail if that wasn't successful
+            for (_,mapindex),region in self.regions.items():
+                if region==spec:
+                    sliceindex = mapindex
         if sliceindex is None:
-            raise ValueError("Parcellation map of {} in {} cannot be indexed by '{}'".format(
-                    self.parcellation.name, self.space.name, index))
+            raise RuntimeError(f"Invalid index '{spec}' for accessing this ParcellationMap.")
 
-        # We have a valid slice index! Return the requested slice.
-        if len(self.image.shape)==3:
-            assert(sliceindex==0)
-            return self.image
-        else:
-            return self.image.slicer[:,:,:,sliceindex]
+        return self.maploaders[sliceindex]()
 
-    def decode_region(self,index:int,map_index=0):
+    def decode_region(self,index:int,mapindex=None):
         """
         Decode the region associated to a particular index.
         for REGIONAL_MAPS, this is the index of the slice along the fourth dimension.
@@ -559,13 +534,16 @@ class ParcellationMap:
         ----------
         index : int
             The index
-        map_index : int (default=0)
+        mapindex : int, or None (default=None)
             Index of the fourth dimension of a labelled volume with more than
             a single parcellation map.
         """
-        return self.regions[index,map_index]
+        if self.MapType==ParcellationMap.MapType.LABELLED_VOLUME:
+            return self.regions[index,mapindex]
+        else:
+            return self.regions[-1,index]
 
-    def get_mask(self,index:int, map_index=0):
+    def get_mask(self,region:Region):
         """
         Extract the mask for one particular region. For parcellation maps, this
         is a binary mask volume. For overlapping maps, this is the
@@ -573,24 +551,26 @@ class ParcellationMap:
 
         Parameters
         ----------
-        index : int
-            For 4D (overlapping) maps, the index into the 4th dimension.
-            For 3D maps, the label index of a region.
-        map_index : int (default=0)
-            Index of the fourth dimension of a labelled volume with more than
-            a single parcellation map.
-        """
-        region = self.decode_region(index,map_index)
-        assert(region)
-        if self.maptype == ParcellationMap.MapType.LABELLED_VOLUME:
-            map3d = self[map_index] 
-            return nib.Nifti1Image(
-                    dataobj=(np.asarray(map3d.dataobj)==index).astype(int),
-                    affine=map3d.affine)
-        else:
-            return self[index]
+        region : Region
+            The desired region.
 
-    def _roiimg(self,xyz_phys,sigma_phys=1,sigma_point=3):
+        Return
+        ------
+        Nifti1Image, if found, otherwise None
+        """
+        if not region in self:
+            return None
+        if self.maptype == ParcellationMap.MapType.LABELLED_VOLUME:
+            mapimg = self[region] 
+            index = region.labelindex
+            return nib.Nifti1Image(
+                    dataobj=(np.asarray(mapimg.dataobj)==index).astype(int),
+                    affine=mapimg.affine)
+        else:
+            return self[region]
+
+    @staticmethod
+    def _roiimg(refimg,xyz_phys,sigma_phys=1,sigma_point=3,resample=True):
         """
         Compute a region of interest heatmap with a Gaussian kernel 
         at the given position in physical coordinates corresponding 
@@ -599,15 +579,13 @@ class ParcellationMap:
         the heatmap.
         """
         xyzh = _assert_homogeneous_3d(xyz_phys)
-        tpl = self[0] 
 
         # position in voxel coordinates
-        phys2vox = np.linalg.inv(tpl.affine)
+        phys2vox = np.linalg.inv(refimg.affine)
         xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
         
-        # Compute a rasterized 3D Gaussian kernel to be applied 
         # to the parcellation map in voxel space, given the physical kernel width.
-        scaling = np.array([np.linalg.norm(tpl.affine[:,i]) 
+        scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
                             for i in range(3)]).mean()
         sigma_vox = sigma_phys / scaling
         r = int(sigma_point*sigma_vox)
@@ -626,13 +604,31 @@ class ParcellationMap:
             [0,0,1,zs],
             [0,0,0,1]
         ])
-        affine = np.dot(tpl.affine,shift)
+        affine = np.dot(refimg.affine,shift)
         
         # create the resampled output image
         roiimg = nib.Nifti1Image(kernel,affine=affine)
-        return image.resample_to_img(roiimg,tpl)
+        return image.resample_to_img(roiimg,refimg) if resample else roiimg
 
+    @staticmethod
+    def _kernelimg(refimg,sigma_phys=1,sigma_point=3):
+        """
+        Compute a 3D Gaussian kernel for the voxel space of the given reference
+        image, matching its bandwidth provided in physical coordinates.
+        """
+        scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
+                            for i in range(3)]).mean()
+        sigma_vox = sigma_phys / scaling
+        r = int(sigma_point*sigma_vox)
+        k_size = 2*r + 1
+        impulse = np.zeros((k_size,k_size,k_size))
+        impulse[r,r,r] = 1
+        kernel = gaussian_filter(impulse, sigma_vox)
+        kernel /= kernel.sum()
+        
+        return kernel
 
+    @cached
     def assign_regions(self,xyz_phys,sigma_phys=0,sigma_point=3,thres_percent=1,print_report=True):
         """
         Assign regions to a physical coordinates with optional standard deviation.
@@ -641,8 +637,8 @@ class ParcellationMap:
 
         Parameters
         ----------
-        xyz_phys : coordinate tuple 
-            3D point in physical coordinates of the template space of the
+        xyz_phys : 3D coordinate tuple, list of 3D tuples, or Nx3 array of coordinate tuples
+            3D point(s) in physical coordinates of the template space of the
             ParcellationMap
         sigma_phys : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
@@ -657,45 +653,94 @@ class ParcellationMap:
         print_report : Boolean (default: True)
             Wether to print a short report to stdout
         """
-        if any([
-            self.maptype!=ParcellationMap.MapType.REGIONAL_MAPS,
-            self.dtype.kind!='f' ]):
+        if self.maptype!=ParcellationMap.MapType.REGIONAL_MAPS:
             raise NotImplementedError("Region assignment is only implemented for floating type regional maps for now.")
 
-        logger.info("Performing assignment of 1 coordinate to {} maps.".format(len(self)))
-        xyzh = _assert_homogeneous_3d(xyz_phys)
-
-        if sigma_phys==0:
-            
-            phys2vox = np.linalg.inv(self.affine)
-            xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
-            x,y,z,_ = xyz_vox
-            probs = self.image.dataobj[x,y,z,:]
-
+        # Convert input to Nx4 list of homogenous coordinates
+        assert(len(xyz_phys)>0)
+        if isinstance(xyz_phys[0],numbers.Number):
+            # only a single point provided
+            assert(len(xyz_phys) in [3,4])
+            XYZH = np.ones((1,4))
+            XYZH[0,:len(xyz_phys)] = xyz_phys
         else:
+            XYZ = np.array(xyz_phys)
+            assert(XYZ.shape[1]==3)
+            XYZH = np.c_[XYZ,np.ones_like(XYZ[:,0])]
+        numpts = XYZH.shape[0]
 
-            # TODO it should be more efficient to no resample the roi above, 
-            # but instead resample the pmap to the roi here. However, this didn't 
-            # work when I tried it, maybe resample is instable if the target is much smaller?
-            roi = self._roiimg(xyzh,sigma_phys,sigma_point=sigma_point)
-            probs = []
-            for pmap in tqdm(self,total=self.shape[3]):
-                probs.append(np.sum(np.multiply(roi.dataobj,pmap.dataobj)))
+        if sigma_phys>0:
+            logger.info((
+                f"Performing assignment of {numpts} uncertain coordinates "
+                f"(stderr={sigma_phys}) to {len(self)} maps." ))
+        else:
+            logger.info((
+                f"Performing assignment of {numpts} deterministic coordinates "
+                f"to {len(self)} maps."))
 
-        matches = {self.decode_region(index):round(prob*100,2)
-                for index,prob in enumerate(probs) 
-                if prob>0 }
+        probs = {i:[] for i in range(numpts)}
+        for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
-        assignments = [(region,prob_percent) for region,prob_percent
-                in sorted(matches.items(),key=lambda item:item[1],reverse=True)
-                if prob_percent>=thres_percent]
+            pmap = loadfnc(quiet=True)
+            assert(pmap.dataobj.dtype.kind=='f')
+            if not pmap:
+                logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
+                for i in range(numpts):
+                    probs[i].append(-1)
+                continue
+            phys2vox = np.linalg.inv(pmap.affine)
+            A = np.asanyarray(pmap.dataobj)
 
-        layout = "{:50.50} {:>12.12}"
-        print()
-        print(layout.format("Brain region name","Probability"))
-        print(layout.format("-----------------","-----------"))
-        for region,prob in assignments:
-            print(layout.format(region.name,prob))
+            if sigma_phys>0:
+
+                # multiply with a weight kernel representing the uncertain region
+                # of interest around the coordinate
+                kernel = ParcellationMap._kernelimg(pmap,sigma_phys,sigma_point)
+                r = int(kernel.shape[0]/2) # effective radius
+
+                for i,xyzh in enumerate(XYZH):
+                    xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
+                    x0,y0,z0 = [v-r for v in xyz_vox[:3]]
+                    xs,ys,zs = [max(-v,0) for v in (x0,y0,z0)] # possible offsets
+                    x1,y1,z1 = [min(xyz_vox[i]+r+1,A.shape[i]) for i in range(3)]
+                    xd = x1-x0-xs
+                    yd = y1-y0-ys
+                    zd = z1-z0-zs
+                    mapdata = A[x0+xs:x1,y0+ys:y1,z0+zs:z1] 
+                    weights = kernel[xs:xs+xd,ys:ys+yd,zs:zs+zd]
+                    assert(np.all(weights.shape==mapdata.shape))
+                    prob = np.sum(np.multiply(weights,mapdata))
+                    probs[i].append(prob)
+
+            else:
+                # just read out the coordinate
+                for i,xyzh in enumerate(XYZH):
+                    xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
+                    x,y,z,_ = xyz_vox
+                    probs[i].append(A[x,y,z])
+
+
+        matches = [
+                {self.decode_region(index):round(prob*100,2)
+                    for index,prob in enumerate(P) 
+                    if prob>0 }
+                for P in probs.values() ]
+
+        assignments = [
+                [(region,prob_percent) for region,prob_percent
+                    in sorted(M.items(),key=lambda item:item[1],reverse=True)
+                    if prob_percent>=thres_percent]
+                for M in matches ]
+
+        if print_report:
+            layout = "{:50.50} {:>12.12}"
+            for i,assignment in enumerate(assignments):
+                print()
+                print(f"Assignment of location {XYZH[i,:3]} in {self.space.name}")
+                print(layout.format("Brain region name","map value"))
+                print(layout.format("-----------------","-----------"))
+                for region,prob in assignment:
+                    print(layout.format(region.name,prob))
 
         return assignments
 

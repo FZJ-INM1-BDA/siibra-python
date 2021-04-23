@@ -158,6 +158,33 @@ class Atlas:
 
         return space.get_template(resolution)
 
+    def decode_region(self,regionspec,mapindex=0):
+        """
+        Given a unique specification, return the corresponding region from the selected parcellation.
+        The spec could be a label index, a (possibly incomplete) name, or a
+        region object.
+        This method is meant to definitely determine a valid region. Therefore, 
+        if no match is found, it raises a ValueError. If it finds multiple
+        matches, it tries to return only the common parent node. If there are
+        multiple remaining parent nodes, which is rare, a custom group region is constructed.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+        map_index : int (default=0)
+            Index of the fourth dimension of a labelled volume with more than
+            a single parcellation map.
+
+        Return
+        ------
+        Region object
+        """
+        return self.selected_parcellation.decode_region(regionspec,mapindex)
+
     def find_regions(self,regionspec,all_parcellations=False):
         """
         Find regions with the given specification in the current or all
