@@ -16,13 +16,14 @@ import json
 from . import logger,__version__
 from .commons import create_key
 from gitlab import Gitlab
+import os
 
 # Until openminds is fully supported, 
 # we store atlas configurations in a gitlab repo.
 # We tag the configuration with each release
 GITLAB_SERVER = 'https://jugit.fz-juelich.de'
 GITLAB_PROJECT_ID=3484
-GITLAB_PROJECT_TAG="siibra-{}".format(__version__)
+GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
 
 class ConfigurationRegistry:
     """
