@@ -22,14 +22,15 @@ import nibabel as nib
 
 class Space:
 
-    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None, volume_src=[]):
+    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None, src_volume_type=None, volume_src=[]):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
         self.type = template_type
         self.url = template_url
         self.ziptarget = ziptarget
-        self.volume_src=volume_src
+        self.src_volume_type = src_volume_type
+        self.volume_src = volume_src
 
     def __str__(self):
         return self.name
@@ -83,12 +84,14 @@ class Space:
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
                         ziptarget=obj['templateFile'],
-                        volume_src=volume_src)
+                        src_volume_type = obj['srcVolumeType'],
+                        volume_src = volume_src)
             else:
                 return Space(obj['@id'], obj['shortName'], 
                         template_url = obj['templateUrl'], 
                         template_type = obj['templateType'],
-                        volume_src=volume_src)
+                        src_volume_type = obj['srcVolumeType'],
+                        volume_src = volume_src)
         return obj
 
 REGISTRY = ConfigurationRegistry('spaces', Space)
