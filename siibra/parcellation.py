@@ -408,6 +408,9 @@ class ParcellationMap:
                 if filename is None:
                     continue
                 m = nib.load(filename)
+                if m.dataobj.dtype.kind!='u':
+                    logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(m.dataobj.dtype))
+                    m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
 
             # apply postprocessing hook, if applicable
             if parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
@@ -506,7 +509,11 @@ class ParcellationMap:
         Get an iterator along the fourth dimension of the parcellation map (if
         any), returning the 3D maps in order.
         """
-        return image.iter_img(self.image)
+        if len(self.shape)==4:
+            return image.iter_img(self.image)
+        else:
+            # not much to iterate, this is a single 3D volume
+            return iter((self.image,))
 
     def __contains__(self,spec):
         """
