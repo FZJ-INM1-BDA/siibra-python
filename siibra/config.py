@@ -21,9 +21,15 @@ import os
 # Until openminds is fully supported, 
 # we store atlas configurations in a gitlab repo.
 # We tag the configuration with each release
-GITLAB_SERVER = 'https://jugit.fz-juelich.de'
-GITLAB_PROJECT_ID=3484
+GITLAB_SERVER=os.getenv("SIIBRA_CONFIG_GITLAB_SERVER", 'https://jugit.fz-juelich.de')
+GITLAB_PROJECT_ID=os.getenv('SIIBRA_CONFIG_GITLAB_PROJECT_ID', 3484)
 GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
+
+if "SIIBRA_CONFIG_GITLAB_SERVER" in os.environ:
+    logger.warning(f"environ SIIBRA_CONFIG_GITLAB_SERVER set, using {GITLAB_SERVER} as GITLAB_SERVER")
+
+if "SIIBRA_CONFIG_GITLAB_PROJECT_ID" in os.environ:
+    logger.warning(f"environ SIIBRA_CONFIG_GITLAB_PROJECT_ID set, using {GITLAB_PROJECT_ID} as GITLAB_PROJECT_ID")
 
 if "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ:
     logger.warning(f"environ SIIBRA_CONFIG_GITLAB_PROJECT_TAG set, using {GITLAB_PROJECT_TAG} as GITLAB_PROJECT_TAG")
