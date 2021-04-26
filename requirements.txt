@@ -8,7 +8,7 @@ appdirs
 scikit-image
 click
 clint
-python-gitlab
+python-gitlab==2.6.0
 statsmodels
 cloud-volume
 memoization
