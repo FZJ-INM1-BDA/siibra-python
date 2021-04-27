@@ -70,9 +70,6 @@ class RegionalFeature(Feature):
         Returns true if this feature is linked to the currently selected region
         in the atlas.
         """
-        if not atlas.selected_region:
-            logger.warning("No region selected in atlas - cannot filter features.")
-            return False
         matching_regions = atlas.selected_region.find(self.region)
         for region in matching_regions:
             if atlas.region_selected(region):

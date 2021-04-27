@@ -201,7 +201,7 @@ class Region(anytree.NodeMixin):
         splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.]', s) 
                 if len(w)>0]
         if isinstance(regionspec,Region):
-            return self.key==regionspec.key 
+            return self==regionspec
         elif isinstance(regionspec,int):
             # argument is int - a labelindex is expected
             if mapindex:

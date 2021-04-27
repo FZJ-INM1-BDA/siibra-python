@@ -105,16 +105,26 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             src_info  = data['description']
             src_file = jsonfile
             parcellation = parcellations[data['parcellation id']]
-            regions_available = data['data']['field names']
-            for region in regions_available:
-                profile = data['data']['profiles'][region]
+            column_names = data['data']['field names']
+            valid_regions = {}
+            for i,name in enumerate(column_names):
+                try:
+                    region = parcellation.decode_region(name)
+                except ValueError:
+                    continue
+                valid_regions[i] = region
+            if len(valid_regions)<len(column_names):
+                logger.warning(f'Only {len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
+            for i,region in valid_regions.items():
+                regionname = column_names[i]
+                profile = data['data']['profiles'][regionname]
                 if max(profile)>maxval:
                     maxval = max(profile)
                 if min(profile)>minval:
                     minval = min(profile)
                 new_profiles.append( ConnectivityProfile(
                     region, profile, 
-                    regions_available,
+                    [r.name for r in valid_regions.values()],
                     src_name, src_info, src_file,
                     parcellation ) )
 
@@ -159,8 +169,20 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
             src_info  = data['description']
             parcellation = parcellations[data['parcellation id']]
             column_names = data['data']['field names']
-            for region in column_names:
-                profiles.append(data['data']['profiles'][region])
+            valid_regions = {}
+            for i,name in enumerate(column_names):
+                try:
+                    region = parcellation.decode_region(name)
+                except ValueError:
+                    continue
+                valid_regions[i] = region
+            if len(valid_regions)<len(column_names):
+                logger.warning(f'Only {len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
+            for i,region in valid_regions.items():
+                regionname = column_names[i]
+                profile = [data['data']['profiles'][regionname][i] 
+                        for i in valid_regions.keys()]
+                profiles.append(profile)
             matrix = np.array(profiles)
             assert(all(N==len(column_names) for N in matrix.shape))
             self.register( ConnectivityMatrix(

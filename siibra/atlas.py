@@ -23,6 +23,7 @@ from .features import classes as feature_classes
 from .commons import create_key
 from .config import ConfigurationRegistry
 from .space import Space
+from memoization import cached
 
 class Atlas:
 
@@ -158,6 +159,7 @@ class Atlas:
 
         return space.get_template(resolution)
 
+    @cached
     def decode_region(self,regionspec,mapindex=0):
         """
         Given a unique specification, return the corresponding region from the selected parcellation.
