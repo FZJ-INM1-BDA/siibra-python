@@ -123,14 +123,14 @@ https://alleninstitute.org/legal/terms-use/."""
     with open(genename_file,'r') as f:
         GENE_NAMES = json.load(f)
 
-    def __init__(self,gene):
+    def __init__(self,atlas,gene):
         """
         Retrieves probes IDs for the given gene, then collects the
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
 
-        FeatureExtractor.__init__(self)
+        FeatureExtractor.__init__(self,atlas)
         self.gene = gene
 
         if not self.__class__._notification_shown:

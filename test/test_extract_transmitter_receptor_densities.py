@@ -16,14 +16,15 @@ class TestExtractTransmitterReceptorDensities(unittest.TestCase):
         atlas.select_parcellation(sb.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_5)
         atlas.select_region(atlas.regionnames.AREA_HOC1_V1_17_CALCS_LEFT_HEMISPHERE)
         features = atlas.get_features(modalities.ReceptorDistribution)
+        print(features)
         self.assertTrue(len(features) == 1)
         self.assertEqual(features[0].name, 'Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]')
 
         regions = ['hOc1', 'hOc2', 'IFG']
-        query = sb.features.receptors.ReceptorQuery()
-        self.assertTrue(len(query.features) >= 69)
+        query = sb.features.receptors.ReceptorQuery(atlas)
+        self.assertTrue(len(query.features) >= 42)
         for q in regions:
-            matched_features = [r.region for r in query.features if q in r.region]
+            matched_features = [f for f in query.features if f.region.matches(q)]
             self.assertGreater(len(matched_features),0)
 
 
