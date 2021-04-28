@@ -388,7 +388,7 @@ class ReceptorDistribution(RegionalFeature):
         if self.active:
             return
 
-        logger.debug('Loading receptor data for'+self.region)
+        logger.debug('Loading receptor data for'+self.region.name)
 
         for url in self.files:
 
@@ -435,11 +435,11 @@ class ReceptorDistribution(RegionalFeature):
         if len(close_matches)==1:
             prev,new = rtype, close_matches[0]
             logger.debug("Receptor type identifier '{}' replaced by '{}' for {}".format(
-                prev,new, self.region))
+                prev,new, self.region.name))
             return new
         else:
             logger.warning("Receptor type identifier '{}' is not listed in the corresponding symbol table of region {}. Please verify.".format(
-                        rtype, self.region))
+                        rtype, self.region.name))
             return rtype
 
     def __repr__(self):
@@ -452,7 +452,7 @@ class ReceptorDistribution(RegionalFeature):
         #if len(self.profiles)+len(self.autoradiographs)==0:
                 #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
-                [style.BOLD+"Receptor densities for area {}".format(self.region)+style.END] +
+                [style.BOLD+"Receptor densities for area {}".format(self.region.name)+style.END] +
                 [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
                     'Type','profile','autoradiograph','fingerprint')+style.END] +
                 ["{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
@@ -506,15 +506,20 @@ class ReceptorQuery(FeatureExtractor):
 
     _FEATURETYPE = ReceptorDistribution
 
-    def __init__(self):
+    def __init__(self,atlas):
 
-        FeatureExtractor.__init__(self)
+        FeatureExtractor.__init__(self,atlas)
         kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
-                feature = ReceptorDistribution(region_name,kg_result)
-                self.register(feature)
+                try:
+                    region = self.parcellation.decode_region(region_name)
+                    feature = ReceptorDistribution(region,kg_result)
+                    self.register(feature)
+                except ValueError as e:
+                    # if the region name cannot be decoded, we skip this feature
+                    continue
 
 
 if __name__ == '__main__':

@@ -312,9 +312,9 @@ class Atlas:
 
         for cls in features.extractor_types[modality]:
             if modality=='GeneExpression':
-                extractor = cls(kwargs['gene'])
+                extractor = cls(self,kwargs['gene'])
             else:
-                extractor = cls()
+                extractor = cls(self)
             hits.extend(extractor.pick_selection(self))
 
         return hits

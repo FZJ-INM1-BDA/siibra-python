@@ -24,8 +24,10 @@ class FeatureExtractor(ABC):
 
     _FEATURETYPE = Feature
 
-    def __init__(self):
+    def __init__(self,atlas):
         self.features = []
+        self.parcellation = atlas.selected_parcellation
+        self.region = atlas.selected_region
 
     def pick_selection(self,atlas):
         """

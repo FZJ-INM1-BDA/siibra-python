@@ -174,6 +174,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     cache, otherwise returns the result from the cache.
     This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the siibra library, and make it a decorator
+    TODO this hashes the authentication token as part of kwargs, which might not be desired
     """
     url_hash = hashlib.sha256((url+json.dumps(kwargs)).encode('ascii')).hexdigest()
     cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"

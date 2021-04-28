@@ -14,6 +14,7 @@
 
 from abc import ABC,abstractmethod
 from .. import logger
+from ..region import Region
 
 class Feature(ABC):
     """ 
@@ -62,7 +63,8 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self,region):
+    def __init__(self,region : Region):
+        assert(isinstance(region,Region))
         self.region = region
  
     def matches(self,atlas):
@@ -70,9 +72,9 @@ class RegionalFeature(Feature):
         Returns true if this feature is linked to the currently selected region
         in the atlas.
         """
-        matching_regions = atlas.selected_region.find(self.region)
-        for region in matching_regions:
-            if atlas.region_selected(region):
+        for r in self.region:
+            matching_regions = atlas.selected_region.find(r)
+            if len(matching_regions)>0:
                 return True
 
 class GlobalFeature(Feature):

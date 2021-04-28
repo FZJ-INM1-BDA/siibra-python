@@ -136,7 +136,7 @@ class Region(anytree.NodeMixin):
 
     def find(self,regionspec,select_uppermost=False,mapindex=None):
         """
-        Find region that match the given region specification in the subtree
+        Find regions that match the given region specification in the subtree
         headed by this region. 
 
         Parameters
@@ -176,6 +176,7 @@ class Region(anytree.NodeMixin):
         else:
             return list(result)
 
+    @cached
     def matches(self,regionspec,mapindex=None):
         """ 
         Checks wether this region matches the given region specification. 
@@ -210,11 +211,13 @@ class Region(anytree.NodeMixin):
                 return all([self.labelindex==regionspec])
         elif isinstance(regionspec,str):
             # string is given, perform some lazy string matching
+            words = splitstr(self.name.lower())
             return any([
-                    all([w.lower() in splitstr(self.name.lower()) 
-                        for w in splitstr(regionspec)]),
                     regionspec==self.key,
-                    regionspec==self.name ])
+                    regionspec==self.name,
+                    all([w.lower() in words 
+                        for w in splitstr(regionspec)])
+                    ])
         else:
             raise TypeError(
                     "Cannot interpret region specification of type '{}'".format(

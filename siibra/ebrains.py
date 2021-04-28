@@ -46,10 +46,10 @@ def execute_query_by_id(org, domain, schema, version, query_id, params={}):
     url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances?databaseScope=RELEASED".format(
         org, domain, schema, version, query_id )
     r = cached_get( url, headers={
-            'Content-Type':'application/json',
-            'Authorization': 'Bearer {}'.format(authentication.get_token())
-            }, 
-            msg_if_not_cached="No cached data. Will now run EBRAINS KG query. This may take a while...",
-           params=params)
+        'Content-Type':'application/json',
+        'Authorization': 'Bearer {}'.format(authentication.get_token())
+        }, 
+        msg_if_not_cached="No cached data. Will now run EBRAINS KG query. This may take a while...",
+        params=params)
     return json.loads(r)
 

@@ -86,9 +86,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
 
-    def __init__(self):
+    def __init__(self,atlas):
 
-        FeatureExtractor.__init__(self)
+        FeatureExtractor.__init__(self,atlas)
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
@@ -105,6 +105,8 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             src_info  = data['description']
             src_file = jsonfile
             parcellation = parcellations[data['parcellation id']]
+            if parcellation!=self.parcellation:
+                continue
             column_names = data['data']['field names']
             valid_regions = {}
             for i,name in enumerate(column_names):
@@ -152,9 +154,9 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
 
-    def __init__(self):
+    def __init__(self,atlas):
 
-        FeatureExtractor.__init__(self)
+        FeatureExtractor.__init__(self,atlas)
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
@@ -168,6 +170,10 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
             src_name = data['name']
             src_info  = data['description']
             parcellation = parcellations[data['parcellation id']]
+            if parcellation!=self.parcellation:
+                continue
+
+            # determine the valid brain regions defined in the file
             column_names = data['data']['field names']
             valid_regions = {}
             for i,name in enumerate(column_names):
@@ -178,13 +184,14 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
                 logger.warning(f'Only {len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
+
             for i,region in valid_regions.items():
                 regionname = column_names[i]
                 profile = [data['data']['profiles'][regionname][i] 
                         for i in valid_regions.keys()]
                 profiles.append(profile)
             matrix = np.array(profiles)
-            assert(all(N==len(column_names) for N in matrix.shape))
+            assert(all(N==len(valid_regions) for N in matrix.shape))
             self.register( ConnectivityMatrix(
                 parcellation, matrix, column_names, src_name, src_info ))
 
