@@ -1,7 +1,7 @@
 import os
 import unittest
 from siibra.atlas import REGISTRY
-from siibra import atlas
+from siibra import atlas,parcellations,modalities
 from test.get_token import get_token
 
 token = get_token()
@@ -116,6 +116,14 @@ class TestAtlas(unittest.TestCase):
         # wrong modality, no region selected
         # GeneExpression
         pass
+
+    def test_get_features_connectivity_profile_filter_by_sel_parc(self):
+        
+        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25'
+        self.atlas.select_parcellation(parcellations[expected_p_id])
+        self.atlas.select_region('hoc1 left')
+        conns=self.atlas.get_features(modalities.ConnectivityProfile)
+        assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
 
     def test_regionsprops(self):
         pass
