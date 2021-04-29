@@ -58,11 +58,17 @@ class Region(anytree.NodeMixin):
         self.mapindex = mapindex
         self.attrs = attrs
         self.parent = parent
+        child_has_mapindex = False
         if children:
             self.children = children
             for c in self.children:
                 c.parent = self
                 c.parcellation = self.parcellation
+                if c.mapindex is not None:
+                    child_has_mapindex=True
+
+        if (self.mapindex is None) and (not child_has_mapindex):
+            self.mapindex=0
 
     @staticmethod
     def copy(other):
