@@ -9,12 +9,12 @@ Retrieving receptor densities for one brain area
 
 .. code:: python
 
-    import siibra as sb
+    import siibra
     # NOTE: assumes the client is already authenticated, see above
-    atlas = sb.atlases.MULTILEVEL_HUMAN_ATLAS
+    atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
     atlas.select_region('v1')
     features = atlas.get_features(
-        sb.features.modalities.ReceptorDistribution)
+        siibra.features.modalities.ReceptorDistribution)
     for r in features:
         fig = r.plot(r.region)
 
@@ -24,19 +24,19 @@ Retrieving gene expressions for one brain area
 
 .. code:: python
 
-    import siibra as sb
+    import siibra
     from nilearn import plotting
-    atlas = sb.atlases.MULTILEVEL_HUMAN_ATLAS
+    atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
     # request gene expressions from Allen Atlas
     atlas.select_region("v1 left")
     features = atlas.get_features(
-        sb.features.modalities.GeneExpression,
-        gene=sb.features.gene_names.GABARAPL2 )
+        siibra.features.modalities.GeneExpression,
+        gene=siibra.features.gene_names.GABARAPL2 )
     print(features[0])
 
     # plot
     all_coords = [tuple(g.location) for g in features]
-    mask = atlas.get_mask(sb.spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC)
+    mask = atlas.build_mask(siibra.spaces.MNI152_2009C_NONL_ASYM)
     display = plotting.plot_roi(mask)
     display.add_markers(all_coords,marker_size=5)
 
