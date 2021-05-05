@@ -1,4 +1,4 @@
-name: Python package
+name: Siibra testing
 
 on: [push]
 jobs:
