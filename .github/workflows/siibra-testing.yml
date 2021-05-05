@@ -34,7 +34,6 @@ jobs:
         method: 'POST'
         contentType: 'application/x-www-form-urlencoded'
         data: '{ "grant_type": "refresh_token", "refresh_token": "${{ secrets.JUGEX_REFRESH_TOKEN }}", "client_id": "${{ secrets.JUGEX_CLIENT_ID }}", "client_secret": "${{ secrets.JUGEX_CLIENT_SECRET}}" }'
-    - name: Set HBP token as environment variable
       env:
         HBP_AUTH_TOKEN: ${{ steps.tokenRequest.outputs.access_token }}
     - name: Test with pytest
