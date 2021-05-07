@@ -58,8 +58,10 @@ class Atlas:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
-            obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
+        if obj.get('@type') != TYPE_STRING:
+            return obj
+
+        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj ]):
             p = Atlas(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
                 assert(space_id in spaces)
@@ -341,7 +343,7 @@ class Atlas:
         smap = self.selected_parcellation.get_map( space, regional=True, squeeze=False )
         return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
 
-
+TYPE_STRING='juelich/iav/atlas/v1.0.0'
 REGISTRY = ConfigurationRegistry('atlases', Atlas)
 
 if __name__ == '__main__':

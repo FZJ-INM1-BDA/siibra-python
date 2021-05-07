@@ -72,6 +72,10 @@ class Space:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
+
+        if obj.get('@type') != TYPE_STRING:
+            return obj
+            
         required_keys = ['@id','name','shortName','templateUrl','templateType']
         if any([k not in obj for k in required_keys]):
             return obj
@@ -94,4 +98,5 @@ class Space:
                         volume_src = volume_src)
         return obj
 
+TYPE_STRING='minds/core/referencespace/v1.0.0'
 REGISTRY = ConfigurationRegistry('spaces', Space)

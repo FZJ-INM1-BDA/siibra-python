@@ -439,7 +439,7 @@ class Region(anytree.NodeMixin):
         # first collect any children 
         children = []
         if "children" in jsonstr:
-            for regiondef in jsonstr["children"]:
+            for regiondef in jsonstr.get("children", []) or []: # catch either: children not defined or defined, but nullish
                 children.append(Region.from_json(regiondef,parcellation))
 
         # Then setup the new region object

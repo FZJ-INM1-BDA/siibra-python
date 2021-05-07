@@ -65,7 +65,7 @@ class ConfigurationRegistry:
         self.cls = cls
         config_files = [ v['name'] 
                 for v in project.repository_tree(
-                    path=config_subfolder, ref=GITLAB_PROJECT_TAG)
+                    path=config_subfolder, ref=GITLAB_PROJECT_TAG, all=True) # by default, only returning 20 items
                 if v['type']=='blob'
                 and v['name'].endswith('.json') ]
         for configfile in config_files:

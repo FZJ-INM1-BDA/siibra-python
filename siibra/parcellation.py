@@ -199,7 +199,7 @@ class Parcellation:
         object from a json stream.
         """
         required_keys = ['@id','name','shortName','maps','regions']
-        if any([k not in obj for k in required_keys]):
+        if obj.get('@type') != TYPE_STRING or any([k not in obj for k in required_keys]):
             return obj
 
         # create the parcellation, it will create a parent region node for the regiontree.
@@ -744,4 +744,5 @@ class ParcellationMap:
 
         return assignments
 
+TYPE_STRING = 'minds/core/parcellationatlas/v1.0.0'
 REGISTRY = ConfigurationRegistry('parcellations', Parcellation)
