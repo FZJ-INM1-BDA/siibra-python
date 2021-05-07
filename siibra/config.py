@@ -23,10 +23,12 @@ import os
 # We tag the configuration with each release
 GITLAB_SERVER = 'https://jugit.fz-juelich.de'
 GITLAB_PROJECT_ID=3484
-GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
+GITLAB_PROJECT_TAG="siibra-{}".format(__version__)
+SIIBRA_CONFIG_GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG")
 
-if "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ:
-    logger.warning(f"environ SIIBRA_CONFIG_GITLAB_PROJECT_TAG set, using {GITLAB_PROJECT_TAG} as GITLAB_PROJECT_TAG")
+if SIIBRA_CONFIG_GITLAB_PROJECT_TAG is not None and SIIBRA_CONFIG_GITLAB_PROJECT_TAG != '':
+    logger.warning(f"environ SIIBRA_CONFIG_GITLAB_PROJECT_TAG set, using {SIIBRA_CONFIG_GITLAB_PROJECT_TAG} as GITLAB_PROJECT_TAG")
+    GITLAB_PROJECT_TAG=SIIBRA_CONFIG_GITLAB_PROJECT_TAG
 
 class ConfigurationRegistry:
     """

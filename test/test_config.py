@@ -7,6 +7,9 @@ import siibra
 class TestConfig1(TestCase):
 
     def test_exported_variable(self):
+        os.environ['SIIBRA_CONFIG_GITLAB_PROJECT_TAG'] = ''
+        importlib.reload(siibra)
+        importlib.reload(siibra.config)
         self.assertEqual(
             siibra.config.GITLAB_PROJECT_TAG,
             f"siibra-{siibra.__version__}"
