@@ -4,6 +4,12 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      JUGEX_REFRESH_TOKEN: ${{ secrets.JUGEX_REFRESH_TOKEN }}
+      JUGEX_CLIENT_ID: ${{ secrets.JUGEX_CLIENT_ID }}
+      JUGEX_CLIENT_SECRET: ${{ secrets.JUGEX_CLIENT_SECRET }}
+      HBP_OIDC_ENDPOINT: ${{ secrets.HBP_OIDC_ENDPOINT }}
+      CI_PIPELINE: ${{ secrets.CI_PIPELINE }}
     strategy:
       fail-fast: false
       matrix:
@@ -26,18 +32,8 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Get HBP token
-      uses: fjogeleit/http-request-action@master
-      id: tokenRequest
-      with:
-        url: 'https://services.humanbrainproject.eu/oidc/token'
-        method: 'POST'
-        contentType: 'application/x-www-form-urlencoded'
-        data: '{ "grant_type": "refresh_token", "refresh_token": "${{ secrets.JUGEX_REFRESH_TOKEN }}", "client_id": "${{ secrets.JUGEX_CLIENT_ID }}", "client_secret": "${{ secrets.JUGEX_CLIENT_SECRET}}" }'
-      env:
-        HBP_AUTH_TOKEN: ${{ steps.tokenRequest.outputs.access_token }}
     - name: Test with pytest
       run: |
         pip install pytest
         pip install pytest-cov
-        pytest --doctest-modules --junitxml=junit/test-results.xml --cov=com --cov-report=xml --cov-report=html
+        pytest --doctest-modules --junitxml=junit/test-results.xml --cov=siibra-python . --cov-report=xml --cov-report=html

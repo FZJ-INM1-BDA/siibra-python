@@ -28,9 +28,54 @@ from memoization import cached
 from scipy.ndimage import gaussian_filter
 from .volume_src import VolumeSrc
 
+class ParcellationVersion:
+    def __init__(self, name=None, prev_id=None, next_id=None):
+        self.name=name
+        self.next_id=next_id
+        self.prev_id=prev_id
+    
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return  self.name
+
+    def __iter__(self):
+        yield 'name', self.name
+        yield 'prev', self.prev.id if self.prev is not None else None
+        yield 'next', self.next.id if self.next is not None else None
+
+    @property
+    def next(self):
+        if self.next_id is None:
+            return None
+        try:
+            return REGISTRY[self.next_id]
+        except IndexError:
+            return None
+        except NameError:
+            logger.warning('Accessing REGISTRY before its declaration!')
+    
+    @property
+    def prev(self):
+        if self.prev_id is None:
+            return None
+        try:
+            return REGISTRY[self.prev_id]
+        except IndexError:
+            return None
+        except NameError:
+            logger.warning('Accessing REGISTRY before its declaration!')
+
+    @staticmethod
+    def from_json(obj):
+        if obj is None:
+            return None
+        return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
+
 class Parcellation:
 
-    def __init__(self, identifier : str, name : str, version=None):
+    def __init__(self, identifier : str, name : str, version=None, modality=None):
         self.id = identifier
         self.name = name
         self.key = create_key(name)
@@ -39,6 +84,7 @@ class Parcellation:
         self.description = ""
         self.maps = {}
         self.volume_src = {}
+        self.modality = modality
         self.regiontree = Region(self.name,self)
 
     def get_volume_src(self, space: Space):
@@ -203,8 +249,7 @@ class Parcellation:
             return obj
 
         # create the parcellation, it will create a parent region node for the regiontree.
-        version = obj['version'] if 'version' in obj else None
-        p = Parcellation(obj['@id'], obj['shortName'], version)
+        p = Parcellation(obj['@id'], obj['shortName'])
 
         # add any children to the parent regiontree
         p.regiontree.children = tuple( 
@@ -220,6 +265,12 @@ class Parcellation:
                     VolumeSrc.from_json(v_src) for v_src in v_srcs
                 ] for key, v_srcs in key_vsrcs.items()
             } for space_id, key_vsrcs in obj['volumeSrc'].items() }
+        
+        if '@version' in obj:
+            p.version = ParcellationVersion.from_json(obj['@version'])
+
+        if 'modality' in obj:
+            p.modality = obj['modality']
 
         if 'description' in obj:
             p.description = obj['description']

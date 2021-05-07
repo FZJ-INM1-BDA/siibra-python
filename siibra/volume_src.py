@@ -14,11 +14,12 @@
 
 class VolumeSrc:
 
-    def __init__(self, identifier, name, volume_type, url):
+    def __init__(self, identifier, name, volume_type, url, detail=None):
         self.id = identifier
         self.name = name
         self.url = url
         self.volume_type = volume_type
+        self.detail=detail
 
     def __str__(self):
         return f'{self.volume_type} {self.url}'
@@ -35,6 +36,7 @@ class VolumeSrc:
         if "@type" in obj and obj['@type'] == "fzj/tmp/volume_type/v0.0.1":
             return VolumeSrc(obj['@id'], obj['name'],
                     volume_type=obj['volume_type'],
-                    url=obj['url'])
+                    url=obj['url'],
+                    detail=obj.get('detail'))
         
         return obj
