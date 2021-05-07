@@ -4,6 +4,8 @@ on: [ 'push' ]
 jobs:
   check-importable:
     runs-on: ubuntu-latest
+    env:
+      SIIBRA_CONFIG_GITLAB_PROJECT_TAG: develop # test against develop branch of config
     strategy:
       fail-fast: false
       matrix:
@@ -21,4 +23,4 @@ jobs:
     
     - name: cd to / and try to import
       run: |
-        cd / && SIIBRA_CONFIG_GITLAB_PROJECT_TAG=master python -c 'import siibra'
+        cd / && python -c 'import siibra'
