@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.8', '3.7', '3.6' ]
+        python-version: [ '3.8', '3.7' ]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
@@ -21,4 +21,4 @@ jobs:
     
     - name: cd to / and try to import
       run: |
-        cd / && python -c 'import siibra'
+        cd / && SIIBRA_CONFIG_GITLAB_PROJECT_TAG=master python -c 'import siibra'
