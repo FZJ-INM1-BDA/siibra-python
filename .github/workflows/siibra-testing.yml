@@ -10,6 +10,7 @@ jobs:
       JUGEX_CLIENT_SECRET: ${{ secrets.JUGEX_CLIENT_SECRET }}
       HBP_OIDC_ENDPOINT: ${{ secrets.HBP_OIDC_ENDPOINT }}
       CI_PIPELINE: ${{ secrets.CI_PIPELINE }}
+      SIIBRA_CONFIG_GITLAB_PROJECT_TAG: master # test against master branch of config
     strategy:
       fail-fast: false
       matrix:
