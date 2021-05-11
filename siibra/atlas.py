@@ -303,13 +303,6 @@ class Atlas:
                     "for feature type {}.".format(modality))
             return hits
 
-        # make sure that a region is selected when expected
-        local_query = GlobalFeature not in feature_classes[modality].__bases__ 
-        if local_query and not self.selected_region:
-            logger.error("For non-global feature types "\
-                    "select a region using 'select_region' to query data.")
-            return hits
-
         for cls in features.extractor_types[modality]:
             if modality=='GeneExpression':
                 extractor = cls(self,kwargs['gene'])
