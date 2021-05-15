@@ -282,7 +282,7 @@ class Parcellation:
             p.description = obj['description']
         if 'publications' in obj:
             p.publications = obj['publications']
-        logger.info(f'Adding parcellation "{str(p)}"')
+        logger.debug(f'Adding parcellation "{str(p)}"')
         return p
 
 
