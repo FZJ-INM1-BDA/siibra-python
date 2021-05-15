@@ -58,14 +58,18 @@ class Atlas:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
-            obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
+        if all([ 
+            '@id' in obj, 
+            'spaces' in obj, 
+            'parcellations' in obj ]):
             p = Atlas(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
-                assert(space_id in spaces)
+                if space_id not in spaces:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - space {space_id} not known")
                 p._add_space( spaces[space_id] )
             for parcellation_id in obj['parcellations']:
-                assert(parcellation_id in parcellations)
+                if parcellation_id not in parcellations:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
                 p._add_parcellation( parcellations[parcellation_id] )
             return p
         return obj

@@ -243,6 +243,8 @@ class Parcellation:
         """
         Provides an object hook for the json library to construct a Parcellation
         object from a json stream.
+
+        TODO the 'maps' and 'volumeSrc' fields should be unified
         """
         required_keys = ['@id','name','shortName','maps','regions']
         if any([k not in obj for k in required_keys]):
@@ -252,12 +254,16 @@ class Parcellation:
         p = Parcellation(obj['@id'], obj['shortName'])
 
         # add any children to the parent regiontree
-        p.regiontree.children = tuple( 
-                Region.from_json(regiondef,p) 
-                for regiondef in obj['regions'] )
+        try:
+            p.regiontree.children = tuple( 
+                    Region.from_json(regiondef,p) 
+                    for regiondef in obj['regions'] )
 
-        p.maps = { spaces[space_id] : urls 
+            p.maps = { spaces[space_id] : urls 
                 for space_id, urls in obj['maps'].items() }
+        except Exception as e:
+            logger.error(f"Could not generate child regions for {str(p)}")
+            raise(e)
         
         if 'volumeSrc' in obj:
             p.volume_src = { spaces[space_id] : {
@@ -276,6 +282,7 @@ class Parcellation:
             p.description = obj['description']
         if 'publications' in obj:
             p.publications = obj['publications']
+        logger.info(f'Adding parcellation "{str(p)}"')
         return p
 
 

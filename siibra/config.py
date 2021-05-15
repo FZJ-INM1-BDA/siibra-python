@@ -72,6 +72,8 @@ class ConfigurationRegistry:
             f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
             jsonstr = f.decode()
             obj = json.loads(jsonstr, object_hook=cls.from_json)
+            if not isinstance(obj,cls):
+                raise RuntimeError(f'Could not generate object of type {cls} from configuration {configfile}')
             key = create_key(str(obj))
             identifier = obj.id
             logger.debug("Defining object '{}' with key '{}'".format( obj,key))
