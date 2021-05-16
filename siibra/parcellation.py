@@ -15,7 +15,7 @@
 from . import logger, spaces, retrieval
 from .space import Space
 from .region import Region
-from .bigbrain import BigBrainVolume,is_ngprecomputed,load_ngprecomputed
+from .neuroglancer import is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key
 import numbers
@@ -69,6 +69,10 @@ class ParcellationVersion:
 
     @staticmethod
     def from_json(obj):
+        """
+        Provides an object hook for the json library to construct a
+        ParcellationVersion object from a json string.
+        """
         if obj is None:
             return None
         return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
@@ -76,13 +80,26 @@ class ParcellationVersion:
 class Parcellation:
 
     def __init__(self, identifier : str, name : str, version=None, modality=None):
+        """
+        Constructs a new parcellation object.
+
+        Parameters
+        ----------
+        id : str
+            Unique identifier of the parcellation
+        name : str
+            Human-readable name of the parcellation
+        version : str or None
+            a version specification, optional
+        modality  :  str or None
+            a specification of the modality used for creating the parcellation.
+        """
         self.id = identifier
         self.name = name
         self.key = create_key(name)
         self.version = version
         self.publications = []
         self.description = ""
-        self.maps = {}
         self.volume_src = {}
         self.modality = modality
         self.regiontree = Region(self.name,self)
@@ -100,13 +117,13 @@ class Parcellation:
         ------
         A list of volume sources
         """
-        if space not in self.volume_src:
+        if not self.supports_space(space):
             raise ValueError('Parcellation "{}" does not provide volume sources for space "{}"'.format(
                 str(self), str(space) ))
         return self.volume_src[space]
 
     @cached
-    def get_map(self, space: Space, resolution=None, regional=False, squeeze=True ):
+    def get_map(self, space: Space=None, resolution=None, regional=False, squeeze=True ):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. This might in general include multiple 
@@ -134,7 +151,12 @@ class Parcellation:
         ------
         A ParcellationMap representing the volumetric map.
         """
-        if space not in self.maps:
+        if space is None:
+            space = next(iter(self.volume_src.keys()))
+            if len(self.volume_src)>1:
+                logger.warning(f'Parcellation "{str(self)}" provides maps in multiple spaces. Using the first, "{str(space)}"')
+
+        if not self.supports_space(self):
             raise ValueError('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
@@ -153,7 +175,7 @@ class Parcellation:
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return space in self.maps.keys()
+        return space in self.volume_src.keys()
 
     def decode_region(self,regionspec,mapindex=None):
         """
@@ -242,11 +264,9 @@ class Parcellation:
     def from_json(obj):
         """
         Provides an object hook for the json library to construct a Parcellation
-        object from a json stream.
-
-        TODO the 'maps' and 'volumeSrc' fields should be unified
+        object from a json string.
         """
-        required_keys = ['@id','name','shortName','maps','regions']
+        required_keys = ['@id','name','shortName','volumeSrc','regions']
         if any([k not in obj for k in required_keys]):
             return obj
 
@@ -258,9 +278,6 @@ class Parcellation:
             p.regiontree.children = tuple( 
                     Region.from_json(regiondef,p) 
                     for regiondef in obj['regions'] )
-
-            p.maps = { spaces[space_id] : urls 
-                for space_id, urls in obj['maps'].items() }
         except Exception as e:
             logger.error(f"Could not generate child regions for {str(p)}")
             raise(e)
@@ -294,7 +311,6 @@ def _assert_homogeneous_3d(xyz):
 
 
 class ParcellationMap:
-
     """
     Represents a brain map in a reference space, with
     specific knowledge about the region information per labelindex or channel.
@@ -375,7 +391,7 @@ class ParcellationMap:
             map is only one, will only create a 3D volume image.
         """
 
-        if space not in parcellation.maps:
+        if not parcellation.supports_space(space):
             raise ValueError( 'Parcellation "{}" does not provide a map for space "{}"'.format(
                 parcellation.name, space.name ))
 
@@ -383,22 +399,32 @@ class ParcellationMap:
         self.parcellation = parcellation
         self.space = space
         self.resolution = resolution
+        print("parcellation volume with resolution",resolution)
 
         # check for available maps per region
         self.maploaders = []
         self.regions = {} # indexed by (labelindex,mapindex)
 
         if maptype==ParcellationMap.MapType.LABELLED_VOLUME:
-            for mapindex,url in enumerate(self.parcellation.maps[self.space]):
-                regionmap = self._load_parcellation_map(url)
-                if regionmap:
-                    self.maploaders.append(lambda quiet=False,url=url:self._load_parcellation_map(url,quiet=quiet))
-                    for labelindex in np.unique(np.asarray(regionmap.dataobj)):
-                        if labelindex==0:
-                            continue # this is the background only
-                        region = self.parcellation.decode_region(int(labelindex),mapindex)
-                        if labelindex>0:
-                            self.regions[labelindex,mapindex] = region
+            for mapindex,mapname in enumerate(self.parcellation.volume_src[self.space]):
+                for source in self.parcellation.volume_src[self.space][mapname]:
+                    url = None
+                    if source.volume_type=="detailed maps":
+                        url = "collect"
+                    elif source.volume_type==space.type:
+                        url = source.url
+                    if url:
+                        self.maploaders.append(lambda q=False,u=url: self._load_parcellation_map(u,quiet=q))
+                        regionmap = self.maploaders[-1]()
+                        for labelindex in np.unique(np.asarray(regionmap.dataobj)):
+                            if labelindex==0:
+                                continue # this is the background only
+                            try:
+                                region = self.parcellation.decode_region(int(labelindex),mapindex)
+                                if labelindex>0:
+                                    self.regions[labelindex,mapindex] = region
+                            except ValueError:
+                                logger.error(f'Labelindex {labelindex} could not be decoded by {self.parcellation.name}')
 
         elif maptype==ParcellationMap.MapType.REGIONAL_MAPS:
             regions = [r for r in parcellation.regiontree if r.has_regional_map(space)]
@@ -593,7 +619,7 @@ class ParcellationMap:
         index : int
             The index
         mapindex : int, or None (default=None)
-            Index of the fourth dimension of a labelled volume with more than
+            Index of the map, in a labelled volume with more than
             a single parcellation map.
         """
         if self.MapType==ParcellationMap.MapType.LABELLED_VOLUME:
