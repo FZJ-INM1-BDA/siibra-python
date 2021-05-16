@@ -156,7 +156,7 @@ class Parcellation:
             if len(self.volume_src)>1:
                 logger.warning(f'Parcellation "{str(self)}" provides maps in multiple spaces. Using the first, "{str(space)}"')
 
-        if not self.supports_space(self):
+        if not self.supports_space(space):
             raise ValueError('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
@@ -171,7 +171,7 @@ class Parcellation:
     def names(self):
         return self.regiontree.names
 
-    def supports_space(self,space):
+    def supports_space(self,space : Space):
         """
         Return true if this parcellation supports the given space, else False.
         """

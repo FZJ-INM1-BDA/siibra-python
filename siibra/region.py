@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger
+from . import logger,spaces
 from .commons import create_key, Glossary
 from .retrieval import download_file 
 from .space import Space
@@ -51,7 +51,7 @@ class Region(anytree.NodeMixin):
         parent : Region
             Parent of this region, if any
         volume_src : Dict of VolumeSrc
-            VolumeSrc objects indexed by Space id, representing available image datasets for this region map.
+            VolumeSrc objects indexed by Space, representing available image datasets for this region map.
         """
         self.name = name
         self.key = create_key(name)
@@ -293,7 +293,7 @@ class Region(anytree.NodeMixin):
                 logger.warning("No regional map known for {} in space {}.".format(
                     self,space))
             return None
-        return self.volume_src[space.id].fetch(space)
+        return self.volume_src[space].fetch(space)
 
     def __getitem__(self, labelindex):
         """
@@ -420,14 +420,15 @@ class Region(anytree.NodeMixin):
         # TODO the json structure should be simplified, the usage type clarified. 
         # @see https://github.com/FZJ-INM1-BDA/siibra-python/issues/42 
         volume_src = defaultdict(list)
-        if 'volume_src' in jsonstr:
+        if 'volumeSrc' in jsonstr:
             for space_id,space_vsources in jsonstr['volumeSrc'].items():
+                space = spaces[space_id]
                 vsrc_definitions = [vsrc|{'usage_type':utype} 
-                        for vsrc in vsources 
-                        for utype,vsources in space_vsources.items()]
+                        for utype,vsources in space_vsources.items()
+                        for vsrc in vsources ]
                 if len(vsrc_definitions)>1:
-                    raise NotImplementedError("Multiple volume sources defined for the same brain region and template space. This is not yet supported by siibra.")
-                volume_src[space_id].append(VolumeSrc.from_json(vsrc_definitions[0]))
+                    raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
+                volume_src[space].append(VolumeSrc.from_json(vsrc_definitions[0]))
 
         r = Region( name, parcellation, labelindex, 
                 attrs=jsonstr, mapindex=mapindex, children=children, 
@@ -466,7 +467,6 @@ class RegionProps():
         space : Space
             A template space 
         """
-        assert(region.parcellation.supports_space(space))
         if not region.parcellation.supports_space(space):
             logger.error(f'Region "{region.name}" does not support for space "{space.name}"')
 
