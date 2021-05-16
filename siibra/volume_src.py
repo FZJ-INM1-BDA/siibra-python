@@ -55,11 +55,11 @@ class VolumeSrc:
         if 'SIIBRA_URL_MODS' in environ and url:
             mods = json.loads(environ['SIIBRA_URL_MODS'])
             for old,new in mods.items():
-                self.url.replace(old,new)
+                self.url = self.url.replace(old,new)
             if self.url!=url:
-                logger.warning(f'Applied URL modification! "{mods}"') 
-                logger.info(f'Old URL: {url}')
-                logger.info(f'New URL: {self.url}')
+                logger.warning(f'Applied URL modification:') 
+                print(f' - Old URL: {url}')
+                print(f' - New URL: {self.url}')
         self.volume_type = volume_type
         self.usage_type = usage_type
         self.detail = detail

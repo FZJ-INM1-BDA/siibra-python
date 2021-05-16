@@ -14,15 +14,12 @@
 
 from . import logger,spaces
 from .commons import create_key, Glossary
-from .retrieval import download_file 
 from .space import Space
-from .neuroglancer import is_ngprecomputed,load_ngprecomputed
 from .volume_src import VolumeSrc
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
 import nibabel as nib
-from collections import defaultdict
 from memoization import cached
 import re
 import anytree
@@ -293,7 +290,7 @@ class Region(anytree.NodeMixin):
                 logger.warning("No regional map known for {} in space {}.".format(
                     self,space))
             return None
-        return self.volume_src[space].fetch(space)
+        return self.volume_src[space].fetch(resolution)
 
     def __getitem__(self, labelindex):
         """
@@ -419,7 +416,7 @@ class Region(anytree.NodeMixin):
         # Parse the volume sources in this region definition, if any
         # TODO the json structure should be simplified, the usage type clarified. 
         # @see https://github.com/FZJ-INM1-BDA/siibra-python/issues/42 
-        volume_src = defaultdict(list)
+        volume_src = {}
         if 'volumeSrc' in jsonstr:
             for space_id,space_vsources in jsonstr['volumeSrc'].items():
                 space = spaces[space_id]
@@ -428,7 +425,7 @@ class Region(anytree.NodeMixin):
                         for vsrc in vsources ]
                 if len(vsrc_definitions)>1:
                     raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
-                volume_src[space].append(VolumeSrc.from_json(vsrc_definitions[0]))
+                volume_src[space] = VolumeSrc.from_json(vsrc_definitions[0])
 
         r = Region( name, parcellation, labelindex, 
                 attrs=jsonstr, mapindex=mapindex, children=children, 

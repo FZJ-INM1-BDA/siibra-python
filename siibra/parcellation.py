@@ -399,7 +399,6 @@ class ParcellationMap:
         self.parcellation = parcellation
         self.space = space
         self.resolution = resolution
-        print("parcellation volume with resolution",resolution)
 
         # check for available maps per region
         self.maploaders = []
@@ -416,6 +415,7 @@ class ParcellationMap:
                     if url:
                         self.maploaders.append(lambda q=False,u=url: self._load_parcellation_map(u,quiet=q))
                         regionmap = self.maploaders[-1]()
+                        unmatched_labels = []
                         for labelindex in np.unique(np.asarray(regionmap.dataobj)):
                             if labelindex==0:
                                 continue # this is the background only
@@ -424,7 +424,9 @@ class ParcellationMap:
                                 if labelindex>0:
                                     self.regions[labelindex,mapindex] = region
                             except ValueError:
-                                logger.error(f'Labelindex {labelindex} could not be decoded by {self.parcellation.name}')
+                                unmatched_labels.append(labelindex)
+                        if unmatched_labels:
+                            logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
 
         elif maptype==ParcellationMap.MapType.REGIONAL_MAPS:
             regions = [r for r in parcellation.regiontree if r.has_regional_map(space)]
