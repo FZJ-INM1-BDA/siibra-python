@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # __version__ is parsed by setup.py
-__version__='0.0.9.dev4'
+__version__='0.1a1'
 
 import logging
 logger = logging.getLogger(__name__)
