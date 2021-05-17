@@ -23,7 +23,7 @@ import json
 
 class VolumeSrc:
 
-    def __init__(self, identifier, name, volume_type, url, detail=None, zipped_file=None, usage_type=None):
+    def __init__(self, identifier, name, volume_type, url, detail=None, zipped_file=None):
         """
         Construct a new volume source.
 
@@ -36,9 +36,6 @@ class VolumeSrc:
         volume_type : str
             Type of volume source, clarifying the data format. Typical names: "nii", "neuroglancer/precomputed".
             TODO create a fixed list (enum?) of supported types, or better: derive types from VolumeSrc object
-        usage_type : str
-            Indicates the use of the volume src, for example "pmap", "collect"
-            TODO Find a clearer way of modeling this.
         url : str
             The URL to the volume src, typically a url to the corresponding image or tilesource.
         detail : dict
@@ -57,12 +54,9 @@ class VolumeSrc:
             for old,new in mods.items():
                 self.url = self.url.replace(old,new)
             if self.url!=url:
-                logger.warning(f'Applied URL modification:') 
-                print(f' - Old URL: {url}')
-                print(f' - New URL: {self.url}')
+                logger.warning(f'Applied URL modification\nfrom {url}\nto   {self.url}') 
         self.volume_type = volume_type
-        self.usage_type = usage_type
-        self.detail = detail
+        self.detail = {} if detail is None else detail
         self.zipped_file = zipped_file
         self.space = None
 
@@ -74,7 +68,7 @@ class VolumeSrc:
 
     def fetch(self,resolution=None):
         """
-        Loads and returns a Nifti1Image object representing the template space.
+        Loads and returns a Nifti1Image object representing the volume source.
         """
         if self.volume_type=='nii':
             filename = download_file(self.url,ziptarget=self.zipped_file)
@@ -84,13 +78,19 @@ class VolumeSrc:
                 return None
 
         elif self.volume_type=='neuroglancer/precomputed':
-            try:
-                transform = np.array(self.detail['neuroglancer/precomputed']['transform'])
-            except AttributeError:
-                logger.warning('No transform provided by neuroglancer volume source.')
-                transform = np.identity(4)
+            transform = np.identity(4)
+            vsrc_labelindex = None
+            if 'neuroglancer/precomputed' in self.detail:
+                if 'transform' in self.detail['neuroglancer/precomputed']:
+                    transform = np.array(self.detail['neuroglancer/precomputed']['transform'])
+                if 'labelIndex' in self.detail['neuroglancer/precomputed']:
+                    vsrc_labelindex = int(self.detail['neuroglancer/precomputed']['labelIndex'])
             volume = NgVolume(self.url,transform_phys=transform)
-            return volume.build_image(resolution)
+            img = volume.build_image(resolution)
+            if vsrc_labelindex is not None:
+                # this volume src has a local labelindex - we apply it
+                img.dataobj[img.dataobj!=vsrc_labelindex] = 0
+            return img
 
         else:
             logger.error(f'Cannot fetch a volume for type "{self.volume_type}".')
@@ -107,8 +107,7 @@ class VolumeSrc:
                     volume_type=obj['volume_type'],
                     url=obj['url'],
                     detail=obj.get('detail'),
-                    zipped_file=obj.get('zipped_file'),
-                    usage_type=obj.get('usage_type')
+                    zipped_file=obj.get('zipped_file')
                     )
         
         return obj
