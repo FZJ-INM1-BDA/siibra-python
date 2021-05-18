@@ -439,11 +439,13 @@ class Region(anytree.NodeMixin):
         if 'volumeSrc' in jsonstr:
             for space_id,space_vsources in jsonstr['volumeSrc'].items():
                 space = spaces[space_id]
-                vsrc_definitions = [vsrc|{'key':key} 
+                vsrc_definitions = [{**vsrc,**{'key':key}}
                         for key,vsources in space_vsources.items()
                         for vsrc in vsources ]
                 if len(vsrc_definitions)>1:
                     raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
+                if len(vsrc_definitions)==0 or vsrc_definitions[0] is None:
+                    raise ValueError(f"No valid volume source found!")
                 vsrc = VolumeSrc.from_json(vsrc_definitions[0])
                 key = vsrc_definitions[0]['key']
                 if key not in key2maptype:
