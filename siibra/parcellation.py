@@ -314,11 +314,11 @@ class ParcellationMap:
     Contains a Nifti1Image object as the "image" member.
 
     There are two types:
-        1) Parcellation maps / labelled volumes
+        1) Parcellation maps / labelled volumes (MapType.LABELLED)
             A 3D or 4D volume with integer labels separating different,
             non-overlapping regions. The number of regions corresponds to the
             number of nonzero image labels in the volume.
-        2) 4D overlapping regional maps (often probability maps).
+        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
             a 4D volume where each "time"-slice is a 3D volume representing
             a map of a particular brain region. This format is used for
             probability maps and similar continuous forms. The number of

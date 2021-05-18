@@ -243,7 +243,7 @@ class Region(anytree.NodeMixin):
 
             else:
                 if self.has_regional_map(space,MapType.CONTINUOUS):
-                    logger.info(f"Could have generated a mask for '{self.name}' in '{space.name}' by tresholding the continuous map.")
+                    logger.debug(f"Could have generated a mask for '{self.name}' in '{space.name}' by tresholding the continuous map.")
                 logger.info(f"{self.name}: Need to get mask from parcellation volume")
                 smap = self.parcellation.get_map(space,resolution=resolution)
                 maskimg = smap.get_mask(self)

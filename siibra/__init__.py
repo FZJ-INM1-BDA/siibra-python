@@ -33,4 +33,5 @@ from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
 from .retrieval import clear_cache
 from .features import modalities
-
+from .ebrains import set_token as set_ebrains_token
+from .commons import MapType

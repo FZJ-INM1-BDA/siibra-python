@@ -12,12 +12,45 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import logger
+from .retrieval import cached_get
 import requests
 import json
+from os import environ
 
-from . import logger
-from .authentication import Authentication
-from .retrieval import cached_get
+class Authentication(object):
+    """
+    Implements the authentication to EBRAINS API with an authentication token. Uses a Singleton pattern.
+    """
+    _instance = None
+    _authentication_token = ''
+
+    def __init__(self):
+        raise RuntimeError('Call instance() instead')
+
+    @classmethod
+    def instance(cls):
+        if cls._instance is None:
+            cls._instance = cls.__new__(cls)
+        return cls._instance
+
+    def get_token(self):
+        if self._authentication_token == '':
+            try:
+                self._authentication_token = environ['HBP_AUTH_TOKEN']
+            except KeyError:
+                logger.warning('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
+        return self._authentication_token
+
+    def set_token(self, token):
+        logger.info('Updating EBRAINS authentication token.')
+        self._authentication_token = token
+
+
+# convenience function that is importet at the package level
+def set_token(token):
+    auth = Authentication.instance()
+    auth.set_token(token)
 
 authentication = Authentication.instance()
 

@@ -20,7 +20,7 @@ import re
 
 from .feature import RegionalFeature
 from .extractor import FeatureExtractor
-from ..authentication import Authentication
+from ..ebrains import Authentication
 from ..termplot import FontStyles as style
 from .. import ebrains, retrieval, logger
 

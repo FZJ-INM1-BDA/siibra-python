@@ -12,13 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import RegionalFeature,GlobalFeature
+from .feature import RegionalFeature
 from .extractor import FeatureExtractor
-import requests
-import json
-import os
 import re
-from .. import retrieval, ebrains
+from .. import ebrains
 
 kg_feature_query_kwargs={
     'params': {

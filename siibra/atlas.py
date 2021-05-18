@@ -102,7 +102,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info(f'{str(self)}: Selected parcellation "{format(self.selected_parcellation)}"')
+        logger.info(f'{str(self)} | parcellation: "{format(self.selected_parcellation)}"')
 
     def get_map(self, space=None, resolution=None):
         """
