@@ -481,11 +481,13 @@ class ParcellationMap:
             regions = [r for r in self.parcellation.regiontree 
                     if r.has_regional_map(self.space,MapType.LABELLED)]
 
-            for region in regions:
+            msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
+            logger.info(msg)
+            for region in tqdm(regions,total=len(regions)):
                 assert(region.labelindex)
 
                 # load region mask
-                mask_ = self._load_regional_map(region,MapType.LABELLED)
+                mask_ = self._load_regional_map(region,MapType.LABELLED,quiet=True)
                 if not mask_:
                     continue
                 if mask_.dataobj.dtype.kind!='u':
