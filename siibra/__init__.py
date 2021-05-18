@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # __version__ is parsed by setup.py
-__version__='0.0.9.dev4'
+__version__='0.1a1'
 
 import logging
 logger = logging.getLogger(__name__)
@@ -22,6 +22,8 @@ formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.setLevel("INFO")
+
+logger.info(f"Version: {__version__}")
 
 # read in the package version from file
 from os import path
@@ -32,4 +34,3 @@ from .atlas import REGISTRY as atlases
 from .retrieval import clear_cache
 from .features import modalities
 
-logger.info("Version: "+__version__)

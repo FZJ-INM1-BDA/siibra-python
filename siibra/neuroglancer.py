@@ -33,14 +33,13 @@ def is_ngprecomputed(url):
     except Exception as _:
         return False
 
-
 @cached
 def load_ngprecomputed(url,resolution):
     """
     Shortcut for loading data from a neuroglancer precomputed volume directly
     into a spatial image object
     """
-    V = BigBrainVolume(url)
+    V = NgVolume(url)
     return V.build_image(resolution,clip=True)
 
 def bbox3d(A):
@@ -59,25 +58,26 @@ def bbox3d(A):
     ])
 
 
-class BigBrainVolume:
+class NgVolume:
     """
     TODO use siibra requests cache
-    
     """
     # function to switch x/y coordinates on a vector or matrix.
     # Note that direction doesn't matter here since the inverse is the same.
     switch_xy = lambda X : np.dot(np.identity(4)[[1,0,2,3],:],X) 
 
     # Gigabyte size that is considered feasible for ad-hoc downloads of
-    # BigBrain data. This is used to avoid accidental huge downloads.
+    # neuroglancer volume data. This is used to avoid accidental huge downloads.
     gbyte_feasible = 0.5
     
-    def __init__(self,ngsite,fill_missing=True):
+    def __init__(self,ngsite,transform_phys=np.identity(4),fill_missing=True):
         """
         ngsite: base url of neuroglancer http location
+        transform_phys: transform to be applied after scaling voxels to nm
         """
-        with requests.get(ngsite+'/transform.json') as r:
-            self._translation_nm = np.array(json.loads(r.content))[:,-1]
+        self.transform_phys = transform_phys
+        #with requests.get(ngsite+'/transform.json') as r:
+            #transform_phys_onsite = np.array(json.loads(r.content))
         with requests.get(ngsite+'/info') as r:
             self.info = json.loads(r.content)
         self.volume = CloudVolume(ngsite,fill_missing=fill_missing,progress=False)
@@ -92,6 +92,7 @@ class BigBrainVolume:
                 for i,v in enumerate(self.volume.scales) }
         self.helptext = "\n".join(["{:7.0f} micron {:10.4f} GByte".format(k,v['GBytes']) 
             for k,v in self.resolutions_available.items()])
+        logger.debug(f"Available resolutions for volume:\n {self.helptext}")
 
     def largest_feasible_resolution(self):
         # returns the highest resolution in micrometer that is available and
@@ -112,27 +113,26 @@ class BigBrainVolume:
             If Bbox, clip by this bounding box
         """
 
-        # correct clipping offset, if needed
+        # possible clipping offset in voxel space
         voxelshift = np.identity(4)
         if (type(clip)==bool) and clip is True:
             voxelshift[:3,-1] = self._clipcoords(mip)[:3,0]
         elif isinstance(clip,Bbox):
             voxelshift[:3,-1] = clip.minpt
 
-        # retrieve the pixel resolution
+        # the scaling matrix from voxel to nm
         resolution_nm = self.info['scales'][mip]['resolution']
-
-        # build affine matrix in nm physical space
-        affine = np.identity(4)
+        scaling = np.identity(4)
         for i in range(3):
-            affine[i,i] = resolution_nm[i]
-            affine[i,-1] = self._translation_nm[i]
+            scaling[i,i] = resolution_nm[i]
+
+        affine = np.dot(self.transform_phys,scaling)
             
         # warp from nm to mm   
         affine[:3,:]/=1000000.
     
         return np.dot(affine,voxelshift)
-        #return BigBrainVolume.switch_xy(np.dot(affine,voxelshift))
+        #return NgVolume.switch_xy(np.dot(affine,voxelshift))
 
     def _clipcoords(self,mip):
         # compute clip coordinates in voxels for the given mip 
@@ -174,7 +174,7 @@ class BigBrainVolume:
         else:
             bbox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
         gbytes = bbox.volume()*self.nbits/(8*1024**3)
-        if not force and gbytes>BigBrainVolume.gbyte_feasible:
+        if not force and gbytes>NgVolume.gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
             logger.error("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(gbytes,self.gbyte_feasible))
             print(self.helptext)
@@ -193,15 +193,17 @@ class BigBrainVolume:
         # be used to move on.
         if resolution is None:
             maxres = self.largest_feasible_resolution()
-            logger.info('Using the largest feasible resolution of {} micron'.format(maxres))
-            return self.resolutions_available[maxres]['mip']
-        elif resolution in self.resolutions_available.keys(): 
-            return self.resolutions_available[resolution]['mip']
-        logger.error('The requested resolution ({} micron) is not available. Choose one of:'.format(resolution))
-        print(self.helptext)
-        return None
+            mip = self.resolutions_available[maxres]['mip']
+            logger.info(f'Using largest feasible resolution of {maxres} micron (mip={mip})')
+        elif resolution in self.resolutions_available:
+            mip = self.resolutions_available[resolution]['mip']
+        else:
+            logger.error(f'Requested resolution of {resolution} micron not available.')
+            print(self.helptext)
+            mip = None
+        return mip
         
-    def build_image(self,resolution,clip=True,transform=lambda I: I, force=False):
+    def build_image(self,resolution=None,clip=True,transform=lambda I: I, force=False):
         """
         Compute and return a spatial image for the given mip.
         
@@ -216,8 +218,8 @@ class BigBrainVolume:
             threshold set in the gbytes_feasible member variable.
         """
         mip = self.determine_mip(resolution)
-        if not mip:
-            raise ValueError("Invalid image resolution for this neuroglancer precomputed tile source.")
+        if mip is None:
+            raise ValueError(f"Invalid image resolution '{resolution}' for this tile source.")
         return nib.Nifti1Image(
             transform(self._load_data(mip,clip,force)),
             affine=self.affine(mip,clip)

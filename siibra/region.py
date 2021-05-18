@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import ebrains
-from . import logger
-from .commons import create_key, Glossary
-from .retrieval import download_file 
+from . import logger,spaces
+from .commons import create_key, Glossary, MapType
 from .space import Space
-from .bigbrain import is_ngprecomputed,load_ngprecomputed
+from .volume_src import VolumeSrc
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
@@ -31,7 +29,7 @@ class Region(anytree.NodeMixin):
     Representation of a region with name and more optional attributes
     """
 
-    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=None, parent=None, children=None):
+    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=None, parent=None, children=None, volume_src={}):
         """
         Constructs a new region object.
 
@@ -49,15 +47,17 @@ class Region(anytree.NodeMixin):
             A dictionary of arbitrary additional information
         parent : Region
             Parent of this region, if any
+        volume_src : Dict of VolumeSrc
+            VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
         self.name = name
         self.key = create_key(name)
-        # usually set explicitely after constructing an option
         self.parcellation = parcellation
         self.labelindex = labelindex
         self.mapindex = mapindex
         self.attrs = attrs
         self.parent = parent
+        self.volume_src = volume_src
         child_has_mapindex = False
         if children:
             self.children = children
@@ -93,28 +93,6 @@ class Region(anytree.NodeMixin):
     @property
     def names(self):
         return Glossary([r.key for r in self])
-
-    def _related_ebrains_files(self):
-        """
-        Returns a list of downloadable files from EBRAINS that could be found
-        for this region, if any.
-        FIXME: parameter is not used!
-        """
-        files = []
-        if 'originDatasets' not in self.attrs.keys():
-            return files
-        if len(self.attrs['originDatasets'])==0:
-            return files
-        if 'kgId' not in self.attrs['originDatasets'][0].keys():
-            return files
-        dataset = self.attrs['originDatasets'][0]['kgId']
-        res = ebrains.execute_query_by_id(
-                'minds','core','dataset','v1.0.0',
-                'brainscapes_files_in_dataset',
-                params={'dataset':dataset} )
-        for dataset in res['results']:
-            files.extend(dataset['files'])
-        return files
 
     def __eq__(self,other):
         return self.__hash__() == other.__hash__()
@@ -248,7 +226,7 @@ class Region(anytree.NodeMixin):
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        if space not in self.parcellation.maps:
+        if not self.parcellation.supports_space(space):
             logger.error('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
@@ -256,11 +234,22 @@ class Region(anytree.NodeMixin):
 
         if self.labelindex is not None:
 
-            smap = self.parcellation.get_map(space,resolution=resolution)
-            maskimg = smap.get_mask(self)
-            if maskimg:
-                mask = maskimg.dataobj
-                affine = maskimg.affine
+            # see if a local mask is defined
+            if self.has_regional_map(space,MapType.LABELLED):
+                logger.info(f"{self.name}: Getting mask from regional volume src")
+                labelimg = self.volume_src[space,MapType.LABELLED].fetch()
+                mask = labelimg.dataobj
+                affine = labelimg.affine
+
+            else:
+                if self.has_regional_map(space,MapType.CONTINUOUS):
+                    logger.info(f"Could have generated a mask for '{self.name}' in '{space.name}' by tresholding the continuous map.")
+                logger.info(f"{self.name}: Need to get mask from parcellation volume")
+                smap = self.parcellation.get_map(space,resolution=resolution)
+                maskimg = smap.get_mask(self)
+                if maskimg:
+                    mask = maskimg.dataobj
+                    affine = maskimg.affine
 
         if mask is None:
             logger.debug("{} has no own mask, trying to build mask from children".format(
@@ -281,7 +270,7 @@ class Region(anytree.NodeMixin):
 
         return nib.Nifti1Image(dataobj=mask,affine=affine)
 
-    def has_regional_map(self,space):
+    def has_regional_map(self,space,maptype : MapType):
         """
         Tests wether a specific map is available for this region.
 
@@ -289,13 +278,12 @@ class Region(anytree.NodeMixin):
         ----------
         space : Space 
             Template space 
+        maptype : MapType
+            Type of map (e.g. continuous, labelled - see commons.MapType)
         """
-        if "maps" in self.attrs.keys():
-            if space.id in self.attrs["maps"].keys():
-                return True
-        return False
+        return (space,maptype) in self.volume_src
 
-    def get_regional_map(self,space,quiet=False,resolution=None):
+    def get_regional_map(self,space:Space,maptype:MapType,quiet=False,resolution=None):
         """
         Retrieves and returns a specific map of this region, if available
         (otherwise None). This is typically a probability or otherwise
@@ -306,29 +294,18 @@ class Region(anytree.NodeMixin):
         ----------
         space : Space 
             Template space 
+        maptype : MapType
+            Type of map (e.g. continuous, labelled - see commons.MapType)
         resolution : int 
             Physical resolution, used to determine downsampling level for
             BigBrain volume maps
         """
-
-        if not self.has_regional_map(space):
+        if not self.has_regional_map(space,maptype):
             if not quiet:
                 logger.warning("No regional map known for {} in space {}.".format(
                     self,space))
             return None
-
-        url = self.attrs["maps"][space.id]
-        if is_ngprecomputed(url):
-            img = load_ngprecomputed(url,resolution)
-            return img
-        else:
-            filename = download_file( url )
-            if filename is not None:
-                img = nib.load(filename)
-                return img
-
-        logger.warning("Could not retrieve image data from {}".format(url))
-        return None
+        return self.volume_src[space,maptype].fetch(resolution)
 
     def __getitem__(self, labelindex):
         """
@@ -436,20 +413,49 @@ class Region(anytree.NodeMixin):
         object from a json definition.
         """
 
-        # first collect any children 
+        # first construct any child objects
+        # This is important due to the bottom-up way the tree gets
+        # constructed # in the Region constructor.
         children = []
         if "children" in jsonstr:
             if jsonstr["children"] is not None:
                 for regiondef in jsonstr["children"]:
                     children.append(Region.from_json(regiondef,parcellation))
 
-        # Then setup the new region object
+        # Then setup the parent object
         assert('name' in jsonstr)
         name = jsonstr['name'] 
         labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
         mapindex = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else None
-        r = Region(name, parcellation, labelindex, 
-                attrs=jsonstr, mapindex=mapindex, children=children)
+
+        # Parse the volume sources in this region definition, if any
+        # TODO the json structure should be simplified, the usage type clarified. 
+        # @see https://github.com/FZJ-INM1-BDA/siibra-python/issues/42 
+        volume_src = {}
+        key2maptype = {
+                'pmap' : MapType.CONTINUOUS,
+                'collect' : MapType.LABELLED
+                }
+        if 'volumeSrc' in jsonstr:
+            for space_id,space_vsources in jsonstr['volumeSrc'].items():
+                space = spaces[space_id]
+                vsrc_definitions = [{**vsrc,**{'key':key}}
+                        for key,vsources in space_vsources.items()
+                        for vsrc in vsources ]
+                if len(vsrc_definitions)>1:
+                    raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
+                if len(vsrc_definitions)==0 or vsrc_definitions[0] is None:
+                    raise ValueError(f"No valid volume source found!")
+                vsrc = VolumeSrc.from_json(vsrc_definitions[0])
+                key = vsrc_definitions[0]['key']
+                if key not in key2maptype:
+                    raise NotImplementedError(f"'volumeSrc' field has unknown key '{key}', cannot determine MapType")
+                volume_src[space,key2maptype[key]] = vsrc
+
+
+        r = Region( name, parcellation, labelindex, 
+                attrs=jsonstr, mapindex=mapindex, children=children, 
+                volume_src=volume_src )
 
         # inherit labelindex from children, if they agree
         if labelindex is None and r.children: 
@@ -484,7 +490,8 @@ class RegionProps():
         space : Space
             A template space 
         """
-        assert(region.parcellation.supports_space(space))
+        if not region.parcellation.supports_space(space):
+            logger.error(f'Region "{region.name}" does not support for space "{space.name}"')
 
         self.region = region
         self.attrs = {}

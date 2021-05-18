@@ -102,9 +102,9 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
+        logger.info(f'{str(self)}: Selected parcellation "{format(self.selected_parcellation)}"')
 
-    def get_map(self, space : Space, resolution=None):
+    def get_map(self, space=None, resolution=None):
         """
         return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
@@ -133,7 +133,7 @@ class Atlas:
         """
         return self.selected_region.build_mask( space, resolution=resolution )
 
-    def get_template(self, space, resolution=None ):
+    def get_template(self, space=None, resolution=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -155,9 +155,16 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
+        if space is None:
+            space = self.spaces[0]
+            if len(self.spaces)>1:
+                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
+
         if space not in self.spaces:
-            logger.error('The selected atlas does not support the requested reference space.')
-            logger.error('- Atlas: {}'.format(self.name))
+            logger.error(f'Atlas "{self.name}" does not support reference space "{space.name}" (id {space.id}).')
+            print("Available spaces:")
+            for space in self.spaces:
+                print(space.name,space.id)
             return None
 
         return space.get_template(resolution)
