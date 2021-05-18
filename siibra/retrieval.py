@@ -175,7 +175,10 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the siibra library, and make it a decorator
     TODO this hashes the authentication token as part of kwargs, which might not be desired
+    FIXME The error messages are specific to EBRAINS queries, but this method is not.
     """
+    logger.debug(f"Get from URL\n{url}")
+    logger.debug(f"kwargs: {kwargs}")
     url_hash = hashlib.sha256((url+json.dumps(kwargs)).encode('ascii')).hexdigest()
     cachefile_content = os.path.join(CACHEDIR,url_hash)+".content"
     cachefile_url = os.path.join(CACHEDIR,url_hash)+".url"

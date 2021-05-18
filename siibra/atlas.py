@@ -20,7 +20,7 @@ from . import parcellations, spaces, features, logger
 from .region import Region
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
-from .commons import create_key
+from .commons import create_key,MapType
 from .config import ConfigurationRegistry
 from .space import Space
 
@@ -342,7 +342,7 @@ class Atlas:
         thres_percent : float (default: 1)
             Regions with a probability below this threshold will not be returned.
         """
-        smap = self.selected_parcellation.get_map( space, regional=True, squeeze=False )
+        smap = self.selected_parcellation.get_map( space, maptype=MapType.CONTINUOUS, squeeze=False )
         return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
 
 

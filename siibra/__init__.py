@@ -21,8 +21,12 @@ ch = logging.StreamHandler()
 formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
-logger.setLevel("INFO")
 
+# convenience function, will be easier to discover
+def set_log_level(level):
+    logger.setLevel(level)
+
+set_log_level("INFO")
 logger.info(f"Version: {__version__}")
 
 # read in the package version from file
