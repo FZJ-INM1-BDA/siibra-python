@@ -23,6 +23,8 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 logger.setLevel("INFO")
 
+logger.info(f"Version: {__version__}")
+
 # read in the package version from file
 from os import path
 
@@ -32,4 +34,3 @@ from .atlas import REGISTRY as atlases
 from .retrieval import clear_cache
 from .features import modalities
 
-logger.info("Version: "+__version__)
