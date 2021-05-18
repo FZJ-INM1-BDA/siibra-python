@@ -21,6 +21,7 @@ def __init__():
     from .receptors import ReceptorQuery
     from .genes import AllenBrainAtlasQuery
     from .connectivity import ConnectivityProfileExtractor, ConnectivityMatrixExtractor
+    from .kg_regional_features import KgRegionalFeature, KgRegionalFeatureExtractor
     from .extractor import FeatureExtractorRegistry
     extractor_types = FeatureExtractorRegistry() 
     return [ extractor_types,
