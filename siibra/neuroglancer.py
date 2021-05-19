@@ -75,6 +75,7 @@ class NgVolume:
         ngsite: base url of neuroglancer http location
         transform_phys: transform to be applied after scaling voxels to nm
         """
+        logger.debug(f'Constructing NgVolume with physical transform:\n{transform_phys}')
         self.transform_phys = transform_phys
         #with requests.get(ngsite+'/transform.json') as r:
             #transform_phys_onsite = np.array(json.loads(r.content))

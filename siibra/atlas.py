@@ -102,7 +102,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info(f'{str(self)} | parcellation: "{format(self.selected_parcellation)}"')
+        logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
 
     def get_map(self, space=None, resolution=None):
         """
@@ -261,7 +261,7 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info('Selected region {}'.format(self.selected_region.name))
+            logger.info(f'{str(self)} | select "{self.selected_region.name}"')
         return self.selected_region
 
     def clear_selection(self):
