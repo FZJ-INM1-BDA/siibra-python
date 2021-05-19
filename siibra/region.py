@@ -217,6 +217,10 @@ class Region(anytree.NodeMixin):
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
 
+        NOTE: This is sensitive to the `continuous_map_threshold` attribute of
+        the parent parcellation. If set, thresholded continuous maps will be
+        preferred over labelled masks when a continuous regional map is available.
+
         Parameters
         ----------
         space : Space
@@ -234,16 +238,24 @@ class Region(anytree.NodeMixin):
 
         if self.labelindex is not None:
 
-            # see if a local mask is defined
-            if self.has_regional_map(space,MapType.LABELLED):
+            if all([
+                self.parcellation.continuous_map_threshold is not None,
+                self.has_regional_map(space,MapType.CONTINUOUS) ]):
+                # The parent parcellation prefers thresholded continuous maps
+                # for masking, and we have one available, so use it.
+                T = self.parcellation.continuous_map_threshold 
+                logger.info(f"{self.name}: Computing mask by thresholding continuous map at {T}.")
+                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch()
+                mask = (np.asanyarray(labelimg.dataobj)>T).astype('uint8')
+                affine = labelimg.affine
+
+            elif self.has_regional_map(space,MapType.LABELLED):
                 logger.info(f"{self.name}: Getting mask from regional volume src")
                 labelimg = self.volume_src[space,MapType.LABELLED].fetch()
                 mask = labelimg.dataobj
                 affine = labelimg.affine
 
             else:
-                if self.has_regional_map(space,MapType.CONTINUOUS):
-                    logger.debug(f"Could have generated a mask for '{self.name}' in '{space.name}' by tresholding the continuous map.")
                 logger.info(f"{self.name}: Need to get mask from parcellation volume")
                 smap = self.parcellation.get_map(space,resolution=resolution)
                 maskimg = smap.get_mask(self)

@@ -83,6 +83,15 @@ class Atlas:
         return self.selected_parcellation.regiontree.labels
 
 
+    def threshold_continuous_maps(self,threshold):
+        """
+        Inform the atlas that thresholded continuous maps should be preferred
+        over static labelled maps for building and using region masks.
+        This will, for example, influence spatial filtering of coordinate-based
+        features in the get_features() method.
+        """
+        self.selected_parcellation.continuous_map_threshold = threshold
+
     def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.

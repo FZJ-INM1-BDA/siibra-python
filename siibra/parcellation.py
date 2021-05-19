@@ -103,6 +103,11 @@ class Parcellation:
         self.modality = modality
         self.regiontree = Region(self.name,self)
 
+        # If set, thresholded continuous maps will be preferred
+        # over static labelled maps for building and using region masks.
+        # This will influence the shape of region masks used for filtering.
+        self.continuous_map_threshold = None
+
     def get_volume_src(self, space: Space):
         """
         Get volumes sources for the parcellation in the requested template space.
@@ -347,7 +352,7 @@ class ParcellationMap:
             } 
 
     # Which types of available volumes should be preferred if multiple choices are available?
-    PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed']
+    PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
 
     @staticmethod
     def _nifti_argmax_dim4(img,dim=-1):
@@ -421,15 +426,15 @@ class ParcellationMap:
                     self.maploaders.append(lambda res=self.resolution: source.fetch(res))
 
                 # load the map, make sure it is integer type
-                regionmap = self.maploaders[-1]()
-                assert(regionmap is not None)
-                if regionmap.dataobj.dtype.kind!='u':
-                    logger.warning(f'Labelled volumes expect unsigned integer type, but fetched image data is "{regionmap.dataobj.dtype}". Will convert to int.')
-                    regionmap = nib.Nifti1Image(np.asanyarray(regionmap.dataobj).astype('uint'),regionmap.affine)
+                m = self.maploaders[-1]()
+                assert(m is not None)
+                if m.dataobj.dtype.kind!='u':
+                    logger.warning(f'Labelled volumes expect unsigned integer type, but fetched image data is "{m.dataobj.dtype}". Will convert to int.')
+                    m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
                 
                 # map label indices to regions
                 unmatched_labels = []
-                for labelindex in np.unique(np.asarray(regionmap.dataobj)):
+                for labelindex in np.unique(np.asarray(m.dataobj)):
                     if labelindex==0:
                         continue # this is the background only
                     try:
@@ -440,6 +445,16 @@ class ParcellationMap:
                         unmatched_labels.append(labelindex)
                 if unmatched_labels:
                     logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
+
+                # apply postprocessing hook, if applicable
+                if self.parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
+                    hook = ParcellationMap._STATIC_MAP_HOOKS[self.parcellation.id]
+                    m = hook(m)
+
+                if m.dataobj.dtype.kind!='u':
+                    raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
+                        m.dataobj.dtype))
+
 
         elif maptype==MapType.CONTINUOUS:
             regions = [r for r in parcellation.regiontree 
@@ -471,72 +486,41 @@ class ParcellationMap:
     @cached
     def _collect_labelled_maps(self):
         """
-        Try to generate a 3D parcellation map by collecting regional labelled maps.
+        Build a 3D volume from the list of available regional maps.
 
         Return
         ------
-        map : Nifti1Image, or None
-            The found map, if any
+        Nifti1Image, or None if no maps are found.
         """
         m = None
-        if url=="collect":
 
-            # build a 3D volume from the list of all regional maps
-            if not quiet:
-                logger.debug("Collecting labelled volume maps")
+        # generate empty mask covering the template space
+        tpl = self.space.get_template(self.resolution)
+        m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
-            # generate empty mask covering the template space
-            tpl = self.space.get_template(self.resolution)
-            m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
+        # collect all available region maps
+        regions = [r for r in self.parcellation.regiontree 
+                if r.has_regional_map(self.space,MapType.LABELLED)]
 
-            # collect all available region maps
-            regions = [r for r in self.parcellation.regiontree 
-                    if r.has_regional_map(self.space,MapType.LABELLED)]
+        msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
+        logger.info(msg)
+        for region in tqdm(regions,total=len(regions)):
+            assert(region.labelindex)
 
-            msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
-            logger.info(msg)
-            for region in tqdm(regions,total=len(regions)):
-                assert(region.labelindex)
+            # load region mask
+            mask_ = self._load_regional_map(region,MapType.LABELLED,quiet=True)
+            if not mask_:
+                continue
+            if mask_.dataobj.dtype.kind!='u':
+                logger.warning(f'Parcellation maps expect unsigned integer type, but the fetched image data has type "{mask_.dataobj.dtype}". Will convert to int.')
+                mask_ = nib.Nifti1Image(np.asanyarray(mask_.dataobj).astype('uint'),m.affine)
 
-                # load region mask
-                mask_ = self._load_regional_map(region,MapType.LABELLED,quiet=True)
-                if not mask_:
-                    continue
-                if mask_.dataobj.dtype.kind!='u':
-                    if not quiet:
-                        logger.warning(f'Parcellation maps expect unsigned integer type, but the fetched image data has type "{mask_.dataobj.dtype}". Will convert to int.')
-                    mask_ = nib.Nifti1Image(np.asanyarray(mask_.dataobj).astype('uint'),m.affine)
-
-                # build up the aggregated mask with labelled indices
-                if mask_.shape!=m.shape:
-                    mask = image.resample_to_img(mask_,m,interpolation='nearest')
-                else:
-                    mask = mask_
-                m.dataobj[mask.dataobj>0] = region.labelindex
-
-        elif is_ngprecomputed(url):
-            m = load_ngprecomputed(url,self.resolution)
-
-        else:
-            filename = retrieval.download_file(url)
-            if filename is not None:
-                m = nib.load(filename)
-                if m.dataobj.dtype.kind!='u':
-                    if not quiet:
-                        logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(m.dataobj.dtype))
-                    m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
-
-        if not m:
-            return None
-
-        # apply postprocessing hook, if applicable
-        if self.parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
-            hook = ParcellationMap._STATIC_MAP_HOOKS[self.parcellation.id]
-            m = hook(m)
-
-        if m.dataobj.dtype.kind!='u':
-            raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
-                m.dataobj.dtype))
+            # build up the aggregated mask with labelled indices
+            if mask_.shape!=m.shape:
+                mask = image.resample_to_img(mask_,m,interpolation='nearest')
+            else:
+                mask = mask_
+            m.dataobj[mask.dataobj>0] = region.labelindex
 
         return m
 
