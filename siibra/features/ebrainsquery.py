@@ -109,15 +109,15 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
 
 
 def set_specs():
-  MODULE_DIR=os.path.dirname(os.path.abspath(__file__))
-  with open(os.path.join(MODULE_DIR,'ebrainsquery_specs.json'),'r') as f:
-    QUERYSPEC=json.load(f)
-  req = ebrains.upload_schema(
-    query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-    spec=QUERYSPEC['summary_spec'],
-    **kg_feature_summary_kwargs)
-  if not req.status_code < 400:
-    raise RuntimeError("Could not upload query")
+    MODULE_DIR=os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(MODULE_DIR,'ebrainsquery_specs.json'),'r') as f:
+        QUERYSPEC=json.load(f)
+    req = ebrains.upload_schema(
+        query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+        spec=QUERYSPEC['summary_spec'],
+        **kg_feature_summary_kwargs)
+    if not req.status_code < 400:
+        raise RuntimeError("Could not upload query")
 
 if __name__ == '__main__':
     pass
