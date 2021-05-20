@@ -55,4 +55,5 @@ def create_key(name):
 class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
-
+    DISCRETE = 3
+    MISC=4

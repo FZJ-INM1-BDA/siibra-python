@@ -434,7 +434,8 @@ class Region(anytree.NodeMixin):
         volume_src = {}
         key2maptype = {
                 'pmap' : MapType.CONTINUOUS,
-                'collect' : MapType.LABELLED
+                'collect' : MapType.LABELLED,
+                'mpm': MapType.DISCRETE,
                 }
         if 'volumeSrc' in jsonstr:
             for space_id,space_vsources in jsonstr['volumeSrc'].items():
@@ -448,9 +449,10 @@ class Region(anytree.NodeMixin):
                     raise ValueError(f"No valid volume source found!")
                 vsrc = VolumeSrc.from_json(vsrc_definitions[0])
                 key = vsrc_definitions[0]['key']
+                maptype=key2maptype[key] if key in key2maptype else MapType.MISC
                 if key not in key2maptype:
-                    raise NotImplementedError(f"'volumeSrc' field has unknown key '{key}', cannot determine MapType")
-                volume_src[space,key2maptype[key]] = vsrc
+                    logger.warning(f"'volumeSrc' with key {key}, will be in MISC map type")
+                volume_src[space,maptype] = vsrc
 
 
         r = Region( name, parcellation, labelindex, 
