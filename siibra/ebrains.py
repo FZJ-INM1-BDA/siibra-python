@@ -56,7 +56,7 @@ authentication = Authentication.instance()
 
 def upload_schema(org, domain, schema, version, query_id, file=None, spec=None):
     """
-    Upload a query schema to KG
+    Upload a query schema to the EBRAINS knowledge graph.
 
     Parameters
     ----------
@@ -104,17 +104,19 @@ def upload_schema_from_file(file, org, domain, schema, version, query_id):
         logger.error('Error while uploading EBRAINS Knowledge Graph query.')
 
 
-def execute_query_by_id(org, domain, schema, version, query_id, instance_id=None, params={}):
+def execute_query_by_id(org, domain, schema, version, query_id, instance_id=None, params={}, msg=None):
     """
     TODO needs documentation and cleanup
     """
     url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
         org, domain, schema, version, query_id, '/' + instance_id if instance_id is not None else '' )
+    if msg is None:
+        msg = "No cached data - querying the EBRAINS Knowledge graph..."
     r = cached_get( url, headers={
         'Content-Type':'application/json',
         'Authorization': 'Bearer {}'.format(authentication.get_token())
         }, 
-        msg_if_not_cached="No cached data. Will now run EBRAINS KG query. This may take a while...",
+        msg_if_not_cached=msg,
         params=params)
     return json.loads(r)
 

@@ -770,7 +770,7 @@ class ParcellationMap:
         probs = {i:[] for i in range(numpts)}
         for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
-            pmap = loadfnc(quiet=True)
+            pmap = loadfnc(q=True)
             assert(pmap.dataobj.dtype.kind=='f')
             if not pmap:
                 logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
