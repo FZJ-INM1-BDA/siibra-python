@@ -66,11 +66,22 @@ class VolumeSrc:
     def get_url(self):
         return self.url
 
-    def fetch(self,resolution=None):
+    def fetch(self,resolution_mm=None,voi=None):
         """
         Loads and returns a Nifti1Image object representing the volume source.
+
+        Parameters
+        ----------
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        voi: VolumeOfInterest, or None
         """
+        _voi = voi if voi else self.space.voi
         if self.volume_type=='nii':
+            if _voi:
+                raise NotImplementedError("Volumes of interest access to Nifti volumes not yet supported.")
             filename = download_file(self.url,ziptarget=self.zipped_file)
             if filename:
                 return nib.load(filename)
@@ -78,15 +89,15 @@ class VolumeSrc:
                 return None
 
         elif self.volume_type=='neuroglancer/precomputed':
-            transform = np.identity(4)
+            transform_nm = np.identity(4)
             vsrc_labelindex = None
             if 'neuroglancer/precomputed' in self.detail:
                 if 'transform' in self.detail['neuroglancer/precomputed']:
-                    transform = np.array(self.detail['neuroglancer/precomputed']['transform'])
+                    transform_nm = np.array(self.detail['neuroglancer/precomputed']['transform'])
                 if 'labelIndex' in self.detail['neuroglancer/precomputed']:
                     vsrc_labelindex = int(self.detail['neuroglancer/precomputed']['labelIndex'])
-            volume = NgVolume(self.url,transform_phys=transform)
-            img = volume.build_image(resolution)
+            volume = NgVolume(self.url,transform_nm=transform_nm)
+            img = volume.build_image(resolution_mm=resolution_mm,voi=_voi)
             if vsrc_labelindex is not None:
                 # this volume src has a local labelindex - we apply it
                 img.dataobj[img.dataobj!=vsrc_labelindex] = 0

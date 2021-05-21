@@ -113,16 +113,15 @@ class Atlas:
         self.selected_region = parcellation_obj.regiontree
         logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
 
-    def get_map(self, space=None, resolution=None):
+    def get_map(self, space=None, resolution_mm=None):
         """
         return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
         """
-        return self.selected_parcellation.get_map(space, resolution)
+        return self.selected_parcellation.get_map(space, resolution_mm)
 
-
-    def build_mask(self, space : Space, resolution=None ):
+    def build_mask(self, space : Space, resolution_mm=None ):
         """
         Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -135,14 +134,14 @@ class Atlas:
         ----------
         space : Space
             Template space 
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_region.build_mask( space, resolution=resolution )
+        return self.selected_region.build_mask( space, resolution_mm=resolution_mm )
 
-    def get_template(self, space=None, resolution=None ):
+    def get_template(self, space=None, resolution_mm=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -154,7 +153,7 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
@@ -176,7 +175,7 @@ class Atlas:
                 print(space.name,space.id)
             return None
 
-        return space.get_template(resolution)
+        return space.get_template(resolution_mm)
 
     def decode_region(self,regionspec,mapindex=0):
         """

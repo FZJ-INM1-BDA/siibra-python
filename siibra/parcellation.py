@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger, spaces, retrieval
+from . import logger, spaces
 from .space import Space
 from .region import Region
-from .neuroglancer import is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key,MapType
 import numbers
@@ -127,7 +126,7 @@ class Parcellation:
         return self.volume_src[space]
 
     @cached
-    def get_map(self, space: Space=None, resolution=None, maptype:MapType=MapType.LABELLED, squeeze=True ):
+    def get_map(self, space: Space=None, resolution_mm=None, maptype:MapType=MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. This might in general include multiple 
@@ -139,16 +138,13 @@ class Parcellation:
         ----------
         space : Space
             template space 
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         maptype : MapType (default: MapType.LABELLED)
             Type of map requested (e.g., continous or labelled, see commons.MapType)
             Use MapType.CONTINUOUS to request probability maps.
-        squeeze : Boolean (default: True)
-            If True, and if the fourth dimension of the resulting parcellation
-            map is only one, will return a 3D volume image.
 
         Yields
         ------
@@ -163,7 +159,7 @@ class Parcellation:
             raise ValueError('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
-        return ParcellationMap(self,space,resolution=resolution, maptype=maptype, squeeze=squeeze)
+        return ParcellationMap(self,space,resolution_mm=resolution_mm, maptype=maptype)
 
     @property
     def labels(self):
@@ -373,7 +369,7 @@ class ParcellationMap:
                 header = img.header,
                 affine = img.affine )
 
-    def __init__(self, parcellation: Parcellation, space: Space, maptype:MapType=MapType.LABELLED, resolution=None, squeeze=True):
+    def __init__(self, parcellation: Parcellation, space: Space, maptype:MapType=MapType.LABELLED, resolution_mm=None):
         """
         Construct a ParcellationMap for the given parcellation and space.
 
@@ -385,12 +381,9 @@ class ParcellationMap:
             The desired template space to build the map
         maptype : MapType
             The desired type of the map
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution if it is a
             neuroglancer high-resolution volume. 
-        squeeze : Boolean (default: True)
-            If True, and if the fourth dimension of the resulting parcellation
-            map is only one, will only create a 3D volume image.
         """
 
         if not parcellation.supports_space(space):
@@ -400,7 +393,7 @@ class ParcellationMap:
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
-        self.resolution = resolution
+        self.resolution_mm = resolution_mm
 
         # check for available maps per region
         self.maploaders = []
@@ -423,7 +416,7 @@ class ParcellationMap:
                 if source.volume_type=="detailed maps":
                     self.maploaders.append(self._collect_labelled_maps)
                 elif source.volume_type==space.type:
-                    self.maploaders.append(lambda res=self.resolution: source.fetch(res))
+                    self.maploaders.append(lambda res=self.resolution_mm: source.fetch(resolution_mm=res,voi=self.space.voi))
 
                 # load the map, make sure it is integer type
                 m = self.maploaders[-1]()
@@ -495,7 +488,7 @@ class ParcellationMap:
         m = None
 
         # generate empty mask covering the template space
-        tpl = self.space.get_template(self.resolution)
+        tpl = self.space.get_template(self.resolution_mm)
         m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
         # collect all available region maps
@@ -545,7 +538,7 @@ class ParcellationMap:
         """
         if not quiet:
             logger.info(f"Loading regional map for {region.name} in {self.space.name}")
-        return region.get_regional_map(self.space, maptype, quiet=quiet, resolution=self.resolution)
+        return region.get_regional_map(self.space, maptype, quiet=quiet, resolution_mm=self.resolution_mm)
 
     def __iter__(self):
         """
@@ -601,6 +594,7 @@ class ParcellationMap:
             raise RuntimeError(f"Invalid index '{spec}' for accessing this ParcellationMap.")
 
         return self.maploaders[sliceindex]()
+
 
     def decode_label(self,index:int,mapindex=None):
         """
