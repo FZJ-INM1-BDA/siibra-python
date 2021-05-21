@@ -66,7 +66,7 @@ class VolumeSrc:
     def get_url(self):
         return self.url
 
-    def fetch(self,resolution_mm=None,voi=None):
+    def fetch(self,resolution_mm=None):
         """
         Loads and returns a Nifti1Image object representing the volume source.
 
@@ -76,12 +76,8 @@ class VolumeSrc:
             Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
-        voi: VolumeOfInterest, or None
         """
-        _voi = voi if voi else self.space.voi
         if self.volume_type=='nii':
-            if _voi:
-                raise NotImplementedError("Volumes of interest access to Nifti volumes not yet supported.")
             filename = download_file(self.url,ziptarget=self.zipped_file)
             if filename:
                 return nib.load(filename)
@@ -97,7 +93,7 @@ class VolumeSrc:
                 if 'labelIndex' in self.detail['neuroglancer/precomputed']:
                     vsrc_labelindex = int(self.detail['neuroglancer/precomputed']['labelIndex'])
             volume = NgVolume(self.url,transform_nm=transform_nm)
-            img = volume.build_image(resolution_mm=resolution_mm,voi=_voi)
+            img = volume.build_image(resolution_mm=resolution_mm)
             if vsrc_labelindex is not None:
                 # this volume src has a local labelindex - we apply it
                 img.dataobj[img.dataobj!=vsrc_labelindex] = 0

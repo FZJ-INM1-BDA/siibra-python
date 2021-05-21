@@ -30,14 +30,13 @@ class Space:
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
         self.template = None
-        self.voi = None
         self._assign_volume_sources(volume_src)
 
     def _assign_volume_sources(self,volume_src):
         self.volume_src = copy.deepcopy(volume_src)
-        for vtype,volsrc in self.volume_src.items():
+        for volsrc in self.volume_src:
             volsrc.space = self
-            if vtype==self.type:
+            if volsrc.volume_type==self.type:
                 self.template = volsrc
 
     def _rename(self,newname):
@@ -64,7 +63,7 @@ class Space:
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
         if self.template:
-            return self.template.fetch(resolution_mm,voi=self.voi)
+            return self.template.fetch(resolution_mm)
         else:
             logger.error(f'Downloading template for reference space "{self.name}" not supported.')
             return None

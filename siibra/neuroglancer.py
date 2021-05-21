@@ -92,8 +92,12 @@ class NgVolume:
         resolution_mm : float, or None
             desired resolution in mm. If None, the full resolution is used.
         """
-
-        mip = 0 if resolution_mm is None else self.determine_mip(resolution_mm)
+        if resolution_mm is None:
+            mip = self.determine_mip(self.largest_feasible_resolution())
+        else:
+            mip = self.determine_mip(resolution_mm)
+        if mip is None:
+            raise ValueError(f"Invalid resolution of {resolution_mm} specified")
 
         # scaling from voxel to nm
         resolution_nm = self.info['scales'][mip]['resolution']
@@ -132,7 +136,10 @@ class NgVolume:
             threshold set in the gbytes_feasible member variable.
         """
 
-        mip = 0 if resolution_mm is None else self.determine_mip(resolution_mm)
+        if resolution_mm is None:
+            mip = self.determine_mip(self.largest_feasible_resolution())
+        else:
+            mip = self.determine_mip(resolution_mm)
         if mip is None:
             raise ValueError(f"Invalid resolution of {resolution_mm} specified")
 

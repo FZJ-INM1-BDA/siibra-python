@@ -416,7 +416,7 @@ class ParcellationMap:
                 if source.volume_type=="detailed maps":
                     self.maploaders.append(self._collect_labelled_maps)
                 elif source.volume_type==space.type:
-                    self.maploaders.append(lambda res=self.resolution_mm: source.fetch(resolution_mm=res,voi=self.space.voi))
+                    self.maploaders.append(lambda res=self.resolution_mm: source.fetch(resolution_mm=res))
 
                 # load the map, make sure it is integer type
                 m = self.maploaders[-1]()
