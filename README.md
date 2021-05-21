@@ -61,8 +61,12 @@ Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.
 As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra`.
 There are two ways to do so:
 
-1. Use siibra's package function `siibra.set_ebrains_token()`.
-2. Set an environment variable `HBP_AUTH_TOKEN` with the token before loading the `siibra` module. 
+1. Set an environment variable `HBP_AUTH_TOKEN` with the token before loading the `siibra` module. 
+2. Set the token explicitly as follows: 
+
+		from siibra.authentication import Authentication
+		auth = Authentication.instance()
+		auth.set_token(TOKEN)
 
 *Note that as of now, you need to get a new token approximately every day to
 perform EBRAINS data queries. However, `siibra` implements a local cache on
@@ -75,3 +79,4 @@ without refreshing the token.*
 This software code is funded from the European Union’s Horizon 2020 Framework
 Programme for Research and Innovation under the Specific Grant Agreement No.
 945539 (Human Brain Project SGA3).
+

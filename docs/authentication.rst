@@ -15,19 +15,20 @@ As a last step, you need to obtain an authentication token from the `authorizati
 
 Then you have to make the token known to ``siibra``.  There are two ways to do so:
 
-1. Using the dedicated package method
-
-   .. code:: python
-
-   import siibra
-   siibra.set_ebrains_token(token)
-
-2. By setting the environment variable `HBP_AUTH_TOKEN` with the token. The client will then use it automatically. 
+1. Set an environment variable `HBP_AUTH_TOKEN` with the token. The client will then use it automatically. 
 
    .. code:: python
 
     from os import environ
     environ['HBP_AUTH_TOKEN'] = token
+
+2. Set it programmatically by getting an instance of `Authentication` as follows: 
+
+   .. code:: python
+
+    from siibra.authentication import Authentication
+    auth = Authentication.instance()
+    auth.set_token(token)
 
 Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, data will become usable and accessible without refreshing the token.
 
