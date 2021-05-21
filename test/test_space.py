@@ -17,33 +17,18 @@ class TestSpaces(unittest.TestCase):
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
         'shortName': name,
-        'templateType': ttype,
-        "volumeSrc": [{
-            "@type": "fzj/tmp/volume_type/v0.0.1",
-            "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-            "name": "icbm152_2009c_nonlin_asym/nifti",
-            "volume_type": ttype,
-            "url": url,
-            "zipped_file": ziptarget,
-            }]
-        }
+        'templateUrl': url,
+        'templateFile': ziptarget,
+        'templateType': ttype
+    }
 
     json_space_without_zip = {
         '@id': 'space1/minds/core/referencespace/v1.0.0',
         'name': name,
         'shortName': name,
         'templateUrl': url,
-        'templateFile': ziptarget,
-        'templateType': ttype,
-        "volumeSrc": [{
-            "@type": "fzj/tmp/volume_type/v0.0.1",
-            "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-            "name": "icbm152_2009c_nonlin_asym/nifti",
-            "volume_type": "nii",
-            "url": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.nii",
-            }]
-        }
-
+        'templateType': ttype
+    }
 
     def test_space_init(self):
         space = Space(self.space_id, self.name, self.url, self.ziptarget)
@@ -55,10 +40,8 @@ class TestSpaces(unittest.TestCase):
             str(space),
             self.name
         )
-        self.assertEqual(len(space.volume_src),1)
-        vsrc = space.volume_src[0]     
         self.assertEqual(space.type,self.ttype)
-        self.assertEqual(vsrc.zipped_file,self.ziptarget)
+        self.assertIsNotNone(space.ziptarget)
 
     def test_space_from_json_without_zip(self):
         space = Space.from_json(self.json_space_without_zip)
@@ -66,9 +49,7 @@ class TestSpaces(unittest.TestCase):
             str(space),
             self.name
         )
-        self.assertEqual(len(space.volume_src),1)
-        vsrc = space.volume_src[0]     
-        self.assertIsNone(vsrc.zipped_file)
+        self.assertIsNone(space.ziptarget)
 
     def test_space_registry(self):
         spaces = REGISTRY.MULTILEVEL_HUMAN_ATLAS.spaces

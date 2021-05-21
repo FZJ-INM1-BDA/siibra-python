@@ -14,46 +14,35 @@
 
 from .commons import create_key
 from .config import ConfigurationRegistry
-from .volume_src import VolumeSrc
+from .retrieval import download_file
+from .bigbrain import BigBrainVolume
 from . import logger
-import copy
+from .volume_src import VolumeSrc
+import nibabel as nib
 
 class Space:
-    """
-    A particular brain reference space.
-    """
 
-    def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src={}):
+    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None, src_volume_type=None, volume_src=[]):
         self.id = identifier
-        self._rename(name)
+        self.name = name
+        self.key = create_key(name)
         self.type = template_type
+        self.url = template_url
+        self.ziptarget = ziptarget
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
-        self.template = None
-        self._assign_volume_sources(volume_src)
-
-    def _assign_volume_sources(self,volume_src):
-        self.volume_src = copy.deepcopy(volume_src)
-        for volsrc in self.volume_src:
-            volsrc.space = self
-            if volsrc.volume_type==self.type:
-                self.template = volsrc
-
-    def _rename(self,newname):
-        self.name = newname
-        self.key = create_key(self.name)
 
     def __str__(self):
         return self.name
 
-    def get_template(self, resolution_mm=None ):
+    def get_template(self, resolution=None ):
         """
         Get the volumetric reference template image for this space.
 
         Parameters
         ----------
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution in mm. If None,
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
 
@@ -62,30 +51,47 @@ class Space:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if self.template:
-            return self.template.fetch(resolution_mm)
-        else:
-            logger.error(f'Downloading template for reference space "{self.name}" not supported.')
-            return None
+        if self.type == 'nii':
+            logger.debug('Loading template image for space {}'.format(self.name))
+            filename = download_file( self.url, ziptarget=self.ziptarget )
+            if filename is not None:
+                return nib.load(filename)
+            else:
+                return None
+
+        if self.type == 'neuroglancer':
+            return BigBrainVolume(self.url).build_image(resolution)
+
+        logger.error('Downloading the template image for the requested reference space is not supported.')
+        logger.error('- Requested space: {}'.format(self.name))
+        return None
 
     @staticmethod
     def from_json(obj):
         """
-        Provides an object hook for the json library to construct a Space
+        Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        required_keys = ['@id','name','shortName','templateType']
+        required_keys = ['@id','name','shortName','templateUrl','templateType']
         if any([k not in obj for k in required_keys]):
-            return obj
-
-        if "minds/core/referencespace/v1.0.0" not in obj['@id']:
             return obj
 
         volume_src = [VolumeSrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
         
-        return Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
-                src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
-                volume_src = volume_src)
-
+        if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
+            if 'templateFile' in obj:
+                return Space(obj['@id'], obj['shortName'], 
+                        template_url = obj['templateUrl'], 
+                        template_type = obj['templateType'],
+                        ziptarget=obj['templateFile'],
+                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
+                        volume_src = volume_src)
+            else:
+                return Space(obj['@id'], obj['shortName'], 
+                        template_url = obj['templateUrl'], 
+                        template_type = obj['templateType'],
+                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
+                        volume_src = volume_src)
+        return obj
 
 REGISTRY = ConfigurationRegistry('spaces', Space)
