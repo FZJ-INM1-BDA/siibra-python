@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import re
+from enum import Enum
 
 class Glossary:
     """
@@ -50,4 +51,8 @@ def create_key(name):
             "".join([e if e.isalnum() else " " 
                 for e in name]).upper().strip() 
             )
+
+class MapType(Enum):
+    LABELLED = 1
+    CONTINUOUS = 2
 

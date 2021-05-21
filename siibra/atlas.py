@@ -20,7 +20,7 @@ from . import parcellations, spaces, features, logger
 from .region import Region
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
-from .commons import create_key
+from .commons import create_key,MapType
 from .config import ConfigurationRegistry
 from .space import Space
 
@@ -58,14 +58,18 @@ class Atlas:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
-            obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
+        if all([ 
+            '@id' in obj, 
+            'spaces' in obj, 
+            'parcellations' in obj ]):
             p = Atlas(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
-                assert(space_id in spaces)
+                if space_id not in spaces:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - space {space_id} not known")
                 p._add_space( spaces[space_id] )
             for parcellation_id in obj['parcellations']:
-                assert(parcellation_id in parcellations)
+                if parcellation_id not in parcellations:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
                 p._add_parcellation( parcellations[parcellation_id] )
             return p
         return obj
@@ -78,6 +82,15 @@ class Atlas:
     def regionlabels(self):
         return self.selected_parcellation.regiontree.labels
 
+
+    def threshold_continuous_maps(self,threshold):
+        """
+        Inform the atlas that thresholded continuous maps should be preferred
+        over static labelled maps for building and using region masks.
+        This will, for example, influence spatial filtering of coordinate-based
+        features in the get_features() method.
+        """
+        self.selected_parcellation.continuous_map_threshold = threshold
 
     def select_parcellation(self, parcellation):
         """
@@ -98,18 +111,17 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
+        logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
 
-    def get_map(self, space : Space, resolution=None):
+    def get_map(self, space=None, resolution_mm=None):
         """
         return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
         """
-        return self.selected_parcellation.get_map(space, resolution)
+        return self.selected_parcellation.get_map(space, resolution_mm)
 
-
-    def build_mask(self, space : Space, resolution=None ):
+    def build_mask(self, space : Space, resolution_mm=None ):
         """
         Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -122,14 +134,14 @@ class Atlas:
         ----------
         space : Space
             Template space 
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_region.build_mask( space, resolution=resolution )
+        return self.selected_region.build_mask( space, resolution_mm=resolution_mm )
 
-    def get_template(self, space, resolution=None ):
+    def get_template(self, space=None, resolution_mm=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -141,7 +153,7 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
@@ -151,12 +163,19 @@ class Atlas:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
+        if space is None:
+            space = self.spaces[0]
+            if len(self.spaces)>1:
+                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
+
         if space not in self.spaces:
-            logger.error('The selected atlas does not support the requested reference space.')
-            logger.error('- Atlas: {}'.format(self.name))
+            logger.error(f'Atlas "{self.name}" does not support reference space "{space.name}" (id {space.id}).')
+            print("Available spaces:")
+            for space in self.spaces:
+                print(space.name,space.id)
             return None
 
-        return space.get_template(resolution)
+        return space.get_template(resolution_mm)
 
     def decode_region(self,regionspec,mapindex=0):
         """
@@ -250,7 +269,7 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info('Selected region {}'.format(self.selected_region.name))
+            logger.info(f'{str(self)} | select "{self.selected_region.name}"')
         return self.selected_region
 
     def clear_selection(self):
@@ -303,13 +322,6 @@ class Atlas:
                     "for feature type {}.".format(modality))
             return hits
 
-        # make sure that a region is selected when expected
-        local_query = GlobalFeature not in feature_classes[modality].__bases__ 
-        if local_query and not self.selected_region:
-            logger.error("For non-global feature types "\
-                    "select a region using 'select_region' to query data.")
-            return hits
-
         for cls in features.extractor_types[modality]:
             if modality=='GeneExpression':
                 extractor = cls(self,kwargs['gene'])
@@ -338,7 +350,7 @@ class Atlas:
         thres_percent : float (default: 1)
             Regions with a probability below this threshold will not be returned.
         """
-        smap = self.selected_parcellation.get_map( space, regional=True, squeeze=False )
+        smap = self.selected_parcellation.get_map( space, maptype=MapType.CONTINUOUS, squeeze=False )
         return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
 
 
