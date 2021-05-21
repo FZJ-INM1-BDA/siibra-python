@@ -212,17 +212,21 @@ class Region(anytree.NodeMixin):
                         type(regionspec)))
 
     @cached
-    def build_mask(self,space : Space, resolution=None ):
+    def build_mask(self,space : Space, resolution_mm=None ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
+
+        NOTE: This is sensitive to the `continuous_map_threshold` attribute of
+        the parent parcellation. If set, thresholded continuous maps will be
+        preferred over labelled masks when a continuous regional map is available.
 
         Parameters
         ----------
         space : Space
             The desired template space.
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
@@ -234,18 +238,26 @@ class Region(anytree.NodeMixin):
 
         if self.labelindex is not None:
 
-            # see if a local mask is defined
-            if self.has_regional_map(space,MapType.LABELLED):
+            if all([
+                self.parcellation.continuous_map_threshold is not None,
+                self.has_regional_map(space,MapType.CONTINUOUS) ]):
+                # The parent parcellation prefers thresholded continuous maps
+                # for masking, and we have one available, so use it.
+                T = self.parcellation.continuous_map_threshold 
+                logger.info(f"{self.name}: Computing mask by thresholding continuous map at {T}.")
+                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch()
+                mask = (np.asanyarray(labelimg.dataobj)>T).astype('uint8')
+                affine = labelimg.affine
+
+            elif self.has_regional_map(space,MapType.LABELLED):
                 logger.info(f"{self.name}: Getting mask from regional volume src")
                 labelimg = self.volume_src[space,MapType.LABELLED].fetch()
                 mask = labelimg.dataobj
                 affine = labelimg.affine
 
             else:
-                if self.has_regional_map(space,MapType.CONTINUOUS):
-                    logger.debug(f"Could have generated a mask for '{self.name}' in '{space.name}' by tresholding the continuous map.")
                 logger.info(f"{self.name}: Need to get mask from parcellation volume")
-                smap = self.parcellation.get_map(space,resolution=resolution)
+                smap = self.parcellation.get_map(space,resolution_mm=resolution_mm)
                 maskimg = smap.get_mask(self)
                 if maskimg:
                     mask = maskimg.dataobj
@@ -255,7 +267,7 @@ class Region(anytree.NodeMixin):
             logger.debug("{} has no own mask, trying to build mask from children".format(
                 self.name))
             for child in self.children:
-                childmask = child.build_mask(space,resolution)
+                childmask = child.build_mask(space,resolution_mm)
                 if childmask is None: 
                     continue
                 if mask is None:
@@ -283,7 +295,7 @@ class Region(anytree.NodeMixin):
         """
         return (space,maptype) in self.volume_src
 
-    def get_regional_map(self,space:Space,maptype:MapType,quiet=False,resolution=None):
+    def get_regional_map(self,space:Space,maptype:MapType,quiet=False,resolution_mm=None):
         """
         Retrieves and returns a specific map of this region, if available
         (otherwise None). This is typically a probability or otherwise
@@ -296,7 +308,7 @@ class Region(anytree.NodeMixin):
             Template space 
         maptype : MapType
             Type of map (e.g. continuous, labelled - see commons.MapType)
-        resolution : int 
+        resolution_mm : int 
             Physical resolution, used to determine downsampling level for
             BigBrain volume maps
         """
@@ -305,7 +317,7 @@ class Region(anytree.NodeMixin):
                 logger.warning("No regional map known for {} in space {}.".format(
                     self,space))
             return None
-        return self.volume_src[space,maptype].fetch(resolution)
+        return self.volume_src[space,maptype].fetch(resolution_mm)
 
     def __getitem__(self, labelindex):
         """

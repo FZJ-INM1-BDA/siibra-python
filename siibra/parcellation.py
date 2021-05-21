@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger, spaces, retrieval
+from . import logger, spaces
 from .space import Space
 from .region import Region
-from .neuroglancer import is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key,MapType
 import numbers
@@ -84,7 +83,7 @@ class Parcellation:
 
         Parameters
         ----------
-        id : str
+        identifier : str
             Unique identifier of the parcellation
         name : str
             Human-readable name of the parcellation
@@ -102,6 +101,11 @@ class Parcellation:
         self.volume_src = {}
         self.modality = modality
         self.regiontree = Region(self.name,self)
+
+        # If set, thresholded continuous maps will be preferred
+        # over static labelled maps for building and using region masks.
+        # This will influence the shape of region masks used for filtering.
+        self.continuous_map_threshold = None
 
     def get_volume_src(self, space: Space):
         """
@@ -122,7 +126,7 @@ class Parcellation:
         return self.volume_src[space]
 
     @cached
-    def get_map(self, space: Space=None, resolution=None, maptype:MapType=MapType.LABELLED, squeeze=True ):
+    def get_map(self, space: Space=None, resolution_mm=None, maptype:MapType=MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. This might in general include multiple 
@@ -134,16 +138,13 @@ class Parcellation:
         ----------
         space : Space
             template space 
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         maptype : MapType (default: MapType.LABELLED)
             Type of map requested (e.g., continous or labelled, see commons.MapType)
             Use MapType.CONTINUOUS to request probability maps.
-        squeeze : Boolean (default: True)
-            If True, and if the fourth dimension of the resulting parcellation
-            map is only one, will return a 3D volume image.
 
         Yields
         ------
@@ -158,7 +159,7 @@ class Parcellation:
             raise ValueError('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
-        return ParcellationMap(self,space,resolution=resolution, maptype=maptype, squeeze=squeeze)
+        return ParcellationMap(self,space,resolution_mm=resolution_mm, maptype=maptype)
 
     @property
     def labels(self):
@@ -285,6 +286,7 @@ class Parcellation:
                     VolumeSrc.from_json(v_src) for v_src in v_srcs
                 ] for key, v_srcs in key_vsrcs.items()
             } for space_id, key_vsrcs in obj['volumeSrc'].items() }
+
         
         if '@version' in obj:
             p.version = ParcellationVersion.from_json(obj['@version'])
@@ -345,6 +347,9 @@ class ParcellationMap:
                 "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1" ]
             } 
 
+    # Which types of available volumes should be preferred if multiple choices are available?
+    PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
+
     @staticmethod
     def _nifti_argmax_dim4(img,dim=-1):
         """
@@ -364,7 +369,7 @@ class ParcellationMap:
                 header = img.header,
                 affine = img.affine )
 
-    def __init__(self, parcellation: Parcellation, space: Space, maptype:MapType=MapType.LABELLED, resolution=None, squeeze=True):
+    def __init__(self, parcellation: Parcellation, space: Space, maptype:MapType=MapType.LABELLED, resolution_mm=None):
         """
         Construct a ParcellationMap for the given parcellation and space.
 
@@ -376,12 +381,9 @@ class ParcellationMap:
             The desired template space to build the map
         maptype : MapType
             The desired type of the map
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution if it is a
             neuroglancer high-resolution volume. 
-        squeeze : Boolean (default: True)
-            If True, and if the fourth dimension of the resulting parcellation
-            map is only one, will only create a 3D volume image.
         """
 
         if not parcellation.supports_space(space):
@@ -391,36 +393,61 @@ class ParcellationMap:
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
-        self.resolution = resolution
+        self.resolution_mm = resolution_mm
 
         # check for available maps per region
         self.maploaders = []
         self.regions = {} # indexed by (labelindex,mapindex)
 
         if maptype==MapType.LABELLED:
+
             for mapindex,mapname in enumerate(self.parcellation.volume_src[self.space]):
-                for source in self.parcellation.volume_src[self.space][mapname]:
-                    url = None
-                    if source.volume_type=="detailed maps":
-                        # in this case, each region will be checked for a map
-                        url = "collect"
-                    elif source.volume_type==space.type:
-                        url = source.url
-                    if url:
-                        self.maploaders.append(lambda q=False,u=url: self._load_parcellation_map(u,quiet=q))
-                        regionmap = self.maploaders[-1]()
-                        unmatched_labels = []
-                        for labelindex in np.unique(np.asarray(regionmap.dataobj)):
-                            if labelindex==0:
-                                continue # this is the background only
-                            try:
-                                region = self.parcellation.decode_region(int(labelindex),mapindex)
-                                if labelindex>0:
-                                    self.regions[labelindex,mapindex] = region
-                            except ValueError:
-                                unmatched_labels.append(labelindex)
-                        if unmatched_labels:
-                            logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
+
+                # get a preference sorted list of the available volume sources for this map
+                volume_sources = sorted(
+                        self.parcellation.volume_src[self.space][mapname],
+                        key=lambda vsrc: self.PREFERRED_VOLUMETYPES.index(vsrc.volume_type))
+                if len(volume_sources)==0:
+                    logger.error(f'No suitable volume source for {self.parcellation.name} in {space.name}')
+                    continue
+                source = volume_sources[0]
+
+                # determine map loader function
+                if source.volume_type=="detailed maps":
+                    self.maploaders.append(self._collect_labelled_maps)
+                elif source.volume_type==space.type:
+                    self.maploaders.append(lambda res=self.resolution_mm: source.fetch(resolution_mm=res))
+
+                # load the map, make sure it is integer type
+                m = self.maploaders[-1]()
+                assert(m is not None)
+                if m.dataobj.dtype.kind!='u':
+                    logger.warning(f'Labelled volumes expect unsigned integer type, but fetched image data is "{m.dataobj.dtype}". Will convert to int.')
+                    m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
+                
+                # map label indices to regions
+                unmatched_labels = []
+                for labelindex in np.unique(np.asarray(m.dataobj)):
+                    if labelindex==0:
+                        continue # this is the background only
+                    try:
+                        region = self.parcellation.decode_region(int(labelindex),mapindex)
+                        if labelindex>0:
+                            self.regions[labelindex,mapindex] = region
+                    except ValueError:
+                        unmatched_labels.append(labelindex)
+                if unmatched_labels:
+                    logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
+
+                # apply postprocessing hook, if applicable
+                if self.parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
+                    hook = ParcellationMap._STATIC_MAP_HOOKS[self.parcellation.id]
+                    m = hook(m)
+
+                if m.dataobj.dtype.kind!='u':
+                    raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
+                        m.dataobj.dtype))
+
 
         elif maptype==MapType.CONTINUOUS:
             regions = [r for r in parcellation.regiontree 
@@ -430,7 +457,7 @@ class ParcellationMap:
                 if region in self.regions.values():
                     logger.debug(f"Region already seen in tree: {region.key}")
                     continue
-                self.maploaders.append(lambda q=False,r=region:self._load_regional_map(r,MapType.CONTINUOUS,quiet=q))
+                self.maploaders.append(lambda r=region:self._load_regional_map(r,MapType.CONTINUOUS,quiet=False))
                 mapindex = len(self.maploaders)-1
                 self.regions[labelindex,mapindex] = region
 
@@ -450,81 +477,43 @@ class ParcellationMap:
             return self.maploaders[0]()
 
     @cached
-    def _load_parcellation_map(self,url,quiet=False):
+    def _collect_labelled_maps(self):
         """
-        Try to generate a 3D parcellation map from given url.
-
-        Parameters
-        ----------
-        url : str
-            map url as provided by a siibra parcellation configuration file
-        quiet : Boolean (default: False)
-            suppress output messages
+        Build a 3D volume from the list of available regional maps.
 
         Return
         ------
-        map : Nifti1Image, or None
-            The found map, if any
+        Nifti1Image, or None if no maps are found.
         """
         m = None
-        if url=="collect":
 
-            # build a 3D volume from the list of all regional maps
-            if not quiet:
-                logger.debug("Collecting labelled volume maps")
+        # generate empty mask covering the template space
+        tpl = self.space.get_template(self.resolution_mm)
+        m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
-            # generate empty mask covering the template space
-            tpl = self.space.get_template(self.resolution)
-            m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
+        # collect all available region maps
+        regions = [r for r in self.parcellation.regiontree 
+                if r.has_regional_map(self.space,MapType.LABELLED)]
 
-            # collect all available region maps
-            regions = [r for r in self.parcellation.regiontree 
-                    if r.has_regional_map(self.space,MapType.LABELLED)]
+        msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
+        logger.info(msg)
+        for region in tqdm(regions,total=len(regions)):
+            assert(region.labelindex)
 
-            msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
-            logger.info(msg)
-            for region in tqdm(regions,total=len(regions)):
-                assert(region.labelindex)
+            # load region mask
+            mask_ = self._load_regional_map(region,MapType.LABELLED,quiet=True)
+            if not mask_:
+                continue
+            if mask_.dataobj.dtype.kind!='u':
+                logger.warning(f'Parcellation maps expect unsigned integer type, but the fetched image data has type "{mask_.dataobj.dtype}". Will convert to int.')
+                mask_ = nib.Nifti1Image(np.asanyarray(mask_.dataobj).astype('uint'),m.affine)
 
-                # load region mask
-                mask_ = self._load_regional_map(region,MapType.LABELLED,quiet=True)
-                if not mask_:
-                    continue
-                if mask_.dataobj.dtype.kind!='u':
-                    if not quiet:
-                        logger.warning(f'Parcellation maps expect unsigned integer type, but the fetched image data has type "{mask_.dataobj.dtype}". Will convert to int.')
-                    mask_ = nib.Nifti1Image(np.asanyarray(mask_.dataobj).astype('uint'),m.affine)
-
-                # build up the aggregated mask with labelled indices
-                if mask_.shape!=m.shape:
-                    mask = image.resample_to_img(mask_,m,interpolation='nearest')
-                else:
-                    mask = mask_
-                m.dataobj[mask.dataobj>0] = region.labelindex
-
-        elif is_ngprecomputed(url):
-            m = load_ngprecomputed(url,self.resolution)
-
-        else:
-            filename = retrieval.download_file(url)
-            if filename is not None:
-                m = nib.load(filename)
-                if m.dataobj.dtype.kind!='u':
-                    if not quiet:
-                        logger.warning('Parcellation maps expect unsigned integer type, but the fetched image data has type "{}". Will convert to int explicitly.'.format(m.dataobj.dtype))
-                    m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
-
-        if not m:
-            return None
-
-        # apply postprocessing hook, if applicable
-        if self.parcellation.id in ParcellationMap._STATIC_MAP_HOOKS.keys():
-            hook = ParcellationMap._STATIC_MAP_HOOKS[self.parcellation.id]
-            m = hook(m)
-
-        if m.dataobj.dtype.kind!='u':
-            raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
-                m.dataobj.dtype))
+            # build up the aggregated mask with labelled indices
+            if mask_.shape!=m.shape:
+                mask = image.resample_to_img(mask_,m,interpolation='nearest')
+            else:
+                mask = mask_
+            m.dataobj[mask.dataobj>0] = region.labelindex
 
         return m
 
@@ -549,7 +538,7 @@ class ParcellationMap:
         """
         if not quiet:
             logger.info(f"Loading regional map for {region.name} in {self.space.name}")
-        return region.get_regional_map(self.space, maptype, quiet=quiet, resolution=self.resolution)
+        return region.get_regional_map(self.space, maptype, quiet=quiet, resolution_mm=self.resolution_mm)
 
     def __iter__(self):
         """
@@ -605,6 +594,7 @@ class ParcellationMap:
             raise RuntimeError(f"Invalid index '{spec}' for accessing this ParcellationMap.")
 
         return self.maploaders[sliceindex]()
+
 
     def decode_label(self,index:int,mapindex=None):
         """
@@ -770,7 +760,7 @@ class ParcellationMap:
         probs = {i:[] for i in range(numpts)}
         for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
-            pmap = loadfnc(q=True)
+            pmap = loadfnc()
             assert(pmap.dataobj.dtype.kind=='f')
             if not pmap:
                 logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")

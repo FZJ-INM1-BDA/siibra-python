@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from cloudvolume.exceptions import OutOfBoundsError
 from . import logger
 from . import retrieval 
 import os
@@ -20,30 +21,13 @@ import requests
 import json
 import numpy as np
 from cloudvolume import CloudVolume,Bbox
-from memoization import cached
 import nibabel as nib
 
-@cached
-def is_ngprecomputed(url):
-    # Check if the given URL is likely a neuroglancer precomputed cloud store
-    try: 
-        r = requests.get(url+"/info")
-        info = json.loads(r.content)
-        return info['type'] in ['image','segmentation']
-    except Exception as _:
-        return False
-
-@cached
-def load_ngprecomputed(url,resolution):
-    """
-    Shortcut for loading data from a neuroglancer precomputed volume directly
-    into a spatial image object
-    """
-    V = NgVolume(url)
-    return V.build_image(resolution,clip=True)
-
 def bbox3d(A):
-    # https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    """
+    Bounding box of nonzero values in a 3D array.
+    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    """
     r = np.any(A, axis=(1, 2))
     c = np.any(A, axis=(0, 2))
     z = np.any(A, axis=(0, 1))
@@ -57,11 +41,8 @@ def bbox3d(A):
         [1,1]
     ])
 
-
 class NgVolume:
-    """
-    TODO use siibra requests cache
-    """
+
     # function to switch x/y coordinates on a vector or matrix.
     # Note that direction doesn't matter here since the inverse is the same.
     switch_xy = lambda X : np.dot(np.identity(4)[[1,0,2,3],:],X) 
@@ -70,83 +51,75 @@ class NgVolume:
     # neuroglancer volume data. This is used to avoid accidental huge downloads.
     gbyte_feasible = 0.5
     
-    def __init__(self,ngsite,transform_phys=np.identity(4),fill_missing=True):
+    def __init__(self,ngsite,transform_nm=np.identity(4),fill_missing=True):
         """
         ngsite: base url of neuroglancer http location
-        transform_phys: transform to be applied after scaling voxels to nm
+        transform_nm: optional transform to be applied after scaling voxels to nm
         """
-        self.transform_phys = transform_phys
-        #with requests.get(ngsite+'/transform.json') as r:
-            #transform_phys_onsite = np.array(json.loads(r.content))
+        logger.debug(f'Constructing NgVolume with physical transform:\n{transform_nm}')
+        self.transform_nm = transform_nm
         with requests.get(ngsite+'/info') as r:
             self.info = json.loads(r.content)
         self.volume = CloudVolume(ngsite,fill_missing=fill_missing,progress=False)
         self.ngsite = ngsite
         self.nbits = np.iinfo(self.volume.info['data_type']).bits
-        self.bbox_phys = self._bbox_phys()
+        self.mip_resolution_mm = { i:np.min(v['resolution'])/(1000**2)
+                for i,v in enumerate(self.volume.scales) }
         self.resolutions_available = {
-                np.min(v['resolution'])/1000 : {
+                np.min(v['resolution'])/(1000**2) : {
                     'mip':i,
                     'GBytes':np.prod(v['size'])*self.nbits/(8*1024**3)
                     }
                 for i,v in enumerate(self.volume.scales) }
-        self.helptext = "\n".join(["{:7.0f} micron {:10.4f} GByte".format(k,v['GBytes']) 
+        self.helptext = "\n".join(["{:7.4f} mm {:10.4f} GByte".format(k,v['GBytes']) 
             for k,v in self.resolutions_available.items()])
-        logger.debug(f"Available resolutions for volume:\n {self.helptext}")
+        logger.debug(f"Available resolutions for volume:\n{self.helptext}")
 
     def largest_feasible_resolution(self):
-        # returns the highest resolution in micrometer that is available and
+        # returns the highest resolution in millimeter that is available and
         # still below the threshold of downloadable volume sizes.
         return min([res
             for res,v in self.resolutions_available.items()
             if v['GBytes']<self.gbyte_feasible ])
         
-    def affine(self,mip,clip=False):
+    def build_affine(self,resolution_mm=None):
         """
         Builds the affine matrix that maps voxels 
-        at the given mip to physical space in mm.
+        at the given resolution to physical space.
+
         Parameters:
         -----------
-        clip : Boolean, or Bbox
-            If true, clip by computing the bounding box from nonempty pixels
-            if False, get the complete data of the selected mip
-            If Bbox, clip by this bounding box
+        resolution_mm : float, or None
+            desired resolution in mm. If None, the full resolution is used.
         """
+        if resolution_mm is None:
+            mip = self.determine_mip(self.largest_feasible_resolution())
+        else:
+            mip = self.determine_mip(resolution_mm)
+        if mip is None:
+            raise ValueError(f"Invalid resolution of {resolution_mm} specified")
 
-        # possible clipping offset in voxel space
-        voxelshift = np.identity(4)
-        if (type(clip)==bool) and clip is True:
-            voxelshift[:3,-1] = self._clipcoords(mip)[:3,0]
-        elif isinstance(clip,Bbox):
-            voxelshift[:3,-1] = clip.minpt
-
-        # the scaling matrix from voxel to nm
+        # scaling from voxel to nm
         resolution_nm = self.info['scales'][mip]['resolution']
         scaling = np.identity(4)
         for i in range(3):
             scaling[i,i] = resolution_nm[i]
 
-        affine = np.dot(self.transform_phys,scaling)
+        # optional transform in nanometer space
+        affine = np.dot(self.transform_nm,scaling)
             
         # warp from nm to mm   
         affine[:3,:]/=1000000.
+
+        # if a volume of interest is given, apply the offset
+        #shift_mm = np.identity(4)
+        #if voi:
+        #    shift_mm[:3,-1] = voi.bbox_mm.minpt
     
-        return np.dot(affine,voxelshift)
-        #return NgVolume.switch_xy(np.dot(affine,voxelshift))
+        #return np.dot(shift_mm,affine)
+        return affine
 
-    def _clipcoords(self,mip):
-        # compute clip coordinates in voxels for the given mip 
-        # from the pre-computed physical bounding box coordinates
-        
-        logger.debug("Computing bounding box coordinates at mip {}".format(mip))
-        phys2vox = np.linalg.inv(self.affine(mip))
-        clipcoords = np.dot(phys2vox,self.bbox_phys).astype('int')
-        # clip bounding box coordinates to actual shape of the mip
-        clipcoords[:,0] = np.maximum(clipcoords[:,0],0)
-        clipcoords[:,1] = np.minimum(clipcoords[:,1],self.volume.mip_shape(mip))
-        return clipcoords
-
-    def _load_data(self,mip,clip=False,force=False):
+    def _load_data(self,resolution_mm=None,force=False):
         """
         Actually load image data.
         TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
@@ -155,74 +128,84 @@ class NgVolume:
         
         Parameters:
         -----------
-        clip : Boolean, or Bbox
-            If true, clip by computing the bounding box from nonempty pixels
-            if False, get the complete data of the selected mip
-            If Bbox, clip by this bounding box
+        resolution_mm : float, or None
+            desired resolution in mm. If none, the full resolution is used.
+    
         force : Boolean (default: False)
             if true, will start downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable.
         """
-        if (type(clip)==bool) and clip is True:
-            clipcoords = self._clipcoords(mip)
-            bbox = Bbox(clipcoords[:3,0],clipcoords[:3,1])
-        elif isinstance(clip,Bbox):
-            # make sure the bounding box is integer, some are not
-            bbox = Bbox(
-                    np.array(clip.minpt).astype('int'),
-                    np.array(clip.maxpt).astype('int'))
+
+        if resolution_mm is None:
+            mip = self.determine_mip(self.largest_feasible_resolution())
         else:
-            bbox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
-        gbytes = bbox.volume()*self.nbits/(8*1024**3)
+            mip = self.determine_mip(resolution_mm)
+        if mip is None:
+            raise ValueError(f"Invalid resolution of {resolution_mm} specified")
+
+        # apply voi
+        #if voi:
+        #    mm2vox = np.linalg.inv(self.build_affine(resolution_mm))
+        #    bbox_vox = Bbox(
+        #            np.dot(mm2vox,np.r_[voi.bbox_mm.minpt,1])[:3].astype('int'),
+        #            np.dot(mm2vox,np.r_[voi.bbox_mm.maxpt,1])[:3].astype('int') )
+        #    print("Bounding box in voxels:",bbox_vox)
+        #else:
+        bbox_vox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
+
+        # estimate size and check feasibility
+        gbytes = bbox_vox.volume()*self.nbits/(8*1024**3)
         if not force and gbytes>NgVolume.gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
             logger.error("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(gbytes,self.gbyte_feasible))
             print(self.helptext)
             raise RuntimeError("The requested resolution is too high to provide a feasible download, but you can override this behavior with the 'force' parameter.")
+
+        # ok, retrieve data no now.
         cachefile = retrieval.cachefile("{}{}{}".format(
-            self.ngsite, bbox.serialize(), str(mip)).encode('utf8'),suffix='npy')
+            self.ngsite, bbox_vox.serialize(), str(mip)).encode('utf8'),suffix='npy')
         if os.path.exists(cachefile):
             return np.load(cachefile)
         else:
-            data = self.volume.download(bbox=bbox,mip=mip)
-            np.save(cachefile,np.array(data))
-            return np.array(data)
+            print(f"Downloading image data. mip={mip}, bbox={bbox_vox}")
+            try:
+                data = self.volume.download(bbox=bbox_vox,mip=mip)
+                np.save(cachefile,np.array(data))
+                return np.array(data)
+            except OutOfBoundsError as e:
+                logger.error('Bounding box does not match image.')
+                print(str(e))
+                return None
 
-    def determine_mip(self,resolution=None):
-        # given a resolution in micrometer, try to determine the mip that can
+    def determine_mip(self,resolution_mm=None):
+        # given a resolution in millimeter, try to determine the mip that can
         # be used to move on.
-        if resolution is None:
+        if resolution_mm is None:
             maxres = self.largest_feasible_resolution()
             mip = self.resolutions_available[maxres]['mip']
-            logger.info(f'Using largest feasible resolution of {maxres} micron (mip={mip})')
-        elif resolution in self.resolutions_available:
-            mip = self.resolutions_available[resolution]['mip']
+            logger.info(f'Using largest feasible resolution of {maxres} mm (mip={mip})')
+        elif resolution_mm in self.resolutions_available:
+            mip = self.resolutions_available[resolution_mm]['mip']
         else:
-            logger.error(f'Requested resolution of {resolution} micron not available.')
             print(self.helptext)
+            raise ValueError(f'Requested resolution of {resolution_mm} mm not available.')
             mip = None
         return mip
         
-    def build_image(self,resolution=None,clip=True,transform=lambda I: I, force=False):
+    def build_image(self,resolution_mm=None,transform=lambda I: I, force=False):
         """
         Compute and return a spatial image for the given mip.
         
         Parameters:
         -----------
-        clip : Boolean, or Bbox
-            If true, clip by computing the bounding box from nonempty pixels
-            if False, get the complete data of the selected mip
-            If Bbox, clip by this bounding box
+        resolution_mm : desired resolution in mm
         force : Boolean (default: False)
             If true, will start downloads even if they exceed the download
             threshold set in the gbytes_feasible member variable.
         """
-        mip = self.determine_mip(resolution)
-        if mip is None:
-            raise ValueError(f"Invalid image resolution '{resolution}' for this tile source.")
         return nib.Nifti1Image(
-            transform(self._load_data(mip,clip,force)),
-            affine=self.affine(mip,clip)
+            transform(self._load_data(resolution_mm,force)),
+            affine=self.build_affine(resolution_mm)
         )
     
     def _enclosing_chunkgrid(self, mip, bbox_phys):
@@ -239,7 +222,7 @@ class NgVolume:
         crange = lambda x0,x1,s: np.arange(cfloor(x0,s),cceil(x1,s),s)
         
         # project the bounding box to the voxel grid of the selected mip
-        bb = np.dot(np.linalg.inv(self.affine(mip)),bbox_phys)
+        bb = np.dot(np.linalg.inv(self.build_affine(self.mip_resolution_mm[mip])),bbox_phys)
         
         # compute the enclosing chunk grid
         chunksizes = self.volume.scales[mip]['chunk_sizes'][0]
@@ -247,18 +230,5 @@ class NgVolume:
                  for i in range(3)]
         xx,yy,zz = np.meshgrid(x,y,z)
         return np.vstack([xx.ravel(),yy.ravel(),zz.ravel(),zz.ravel()*0+1])
-
-    def _bbox_phys(self):
-        """
-        Estimates the bounding box of the nonzero values 
-        in the data volume, in physical coordinates. 
-        Estimation is done from the lowest resolution for 
-        efficiency, so it is not fully accurate.
-        """
-        volume = self._load_data(-1,clip=False)
-        affine = self.affine(-1,clip=False)
-        bbox_vox = bbox3d(volume)
-        return np.dot(affine,bbox_vox)
-
 
 

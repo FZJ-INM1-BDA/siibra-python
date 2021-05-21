@@ -83,6 +83,15 @@ class Atlas:
         return self.selected_parcellation.regiontree.labels
 
 
+    def threshold_continuous_maps(self,threshold):
+        """
+        Inform the atlas that thresholded continuous maps should be preferred
+        over static labelled maps for building and using region masks.
+        This will, for example, influence spatial filtering of coordinate-based
+        features in the get_features() method.
+        """
+        self.selected_parcellation.continuous_map_threshold = threshold
+
     def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.
@@ -102,18 +111,17 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info(f'{str(self)} | parcellation: "{format(self.selected_parcellation)}"')
+        logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
 
-    def get_map(self, space=None, resolution=None):
+    def get_map(self, space=None, resolution_mm=None):
         """
         return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
         """
-        return self.selected_parcellation.get_map(space, resolution)
+        return self.selected_parcellation.get_map(space, resolution_mm)
 
-
-    def build_mask(self, space : Space, resolution=None ):
+    def build_mask(self, space : Space, resolution_mm=None ):
         """
         Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -126,14 +134,14 @@ class Atlas:
         ----------
         space : Space
             Template space 
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_region.build_mask( space, resolution=resolution )
+        return self.selected_region.build_mask( space, resolution_mm=resolution_mm )
 
-    def get_template(self, space=None, resolution=None ):
+    def get_template(self, space=None, resolution_mm=None ):
         """
         Get the volumetric reference template image for the given space.
 
@@ -145,7 +153,7 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
@@ -167,7 +175,7 @@ class Atlas:
                 print(space.name,space.id)
             return None
 
-        return space.get_template(resolution)
+        return space.get_template(resolution_mm)
 
     def decode_region(self,regionspec,mapindex=0):
         """
@@ -261,7 +269,7 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info('Selected region {}'.format(self.selected_region.name))
+            logger.info(f'{str(self)} | select "{self.selected_region.name}"')
         return self.selected_region
 
     def clear_selection(self):

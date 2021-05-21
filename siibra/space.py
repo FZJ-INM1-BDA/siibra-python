@@ -16,33 +16,44 @@ from .commons import create_key
 from .config import ConfigurationRegistry
 from .volume_src import VolumeSrc
 from . import logger
+import copy
 
 class Space:
+    """
+    A particular brain reference space.
+    """
 
-    def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src=[]):
+    def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src={}):
         self.id = identifier
-        self.name = name
-        self.key = create_key(name)
+        self._rename(name)
         self.type = template_type
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
         self.template = None
-        for volsrc in volume_src:
+        self._assign_volume_sources(volume_src)
+
+    def _assign_volume_sources(self,volume_src):
+        self.volume_src = copy.deepcopy(volume_src)
+        for volsrc in self.volume_src:
             volsrc.space = self
             if volsrc.volume_type==self.type:
                 self.template = volsrc
 
+    def _rename(self,newname):
+        self.name = newname
+        self.key = create_key(self.name)
+
     def __str__(self):
         return self.name
 
-    def get_template(self, resolution=None ):
+    def get_template(self, resolution_mm=None ):
         """
         Get the volumetric reference template image for this space.
 
         Parameters
         ----------
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
 
@@ -52,7 +63,7 @@ class Space:
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
         if self.template:
-            return self.template.fetch(resolution)
+            return self.template.fetch(resolution_mm)
         else:
             logger.error(f'Downloading template for reference space "{self.name}" not supported.')
             return None
