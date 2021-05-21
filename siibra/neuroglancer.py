@@ -119,7 +119,7 @@ class NgVolume:
         #return np.dot(shift_mm,affine)
         return affine
 
-    def _load_data(self,resolution_mm=None,force=False):
+    def _load_data(self,resolution_mm=None):
         """
         Actually load image data.
         TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
@@ -130,10 +130,6 @@ class NgVolume:
         -----------
         resolution_mm : float, or None
             desired resolution in mm. If none, the full resolution is used.
-    
-        force : Boolean (default: False)
-            if true, will start downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable.
         """
 
         if resolution_mm is None:
@@ -155,11 +151,11 @@ class NgVolume:
 
         # estimate size and check feasibility
         gbytes = bbox_vox.volume()*self.nbits/(8*1024**3)
-        if not force and gbytes>NgVolume.gbyte_feasible:
+        if gbytes>NgVolume.gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
             logger.error("Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(gbytes,self.gbyte_feasible))
             print(self.helptext)
-            raise RuntimeError("The requested resolution is too high to provide a feasible download, but you can override this behavior with the 'force' parameter.")
+            raise NotImplementedError(f"Request of the whole full-resolution volume in one piece is prohibited as of now due to the estimated size of ~{gbytes:.0f} GByte.")
 
         # ok, retrieve data no now.
         cachefile = retrieval.cachefile("{}{}{}".format(
@@ -192,19 +188,16 @@ class NgVolume:
             mip = None
         return mip
         
-    def build_image(self,resolution_mm=None,transform=lambda I: I, force=False):
+    def build_image(self,resolution_mm=None,transform=lambda I: I):
         """
         Compute and return a spatial image for the given mip.
         
         Parameters:
         -----------
         resolution_mm : desired resolution in mm
-        force : Boolean (default: False)
-            If true, will start downloads even if they exceed the download
-            threshold set in the gbytes_feasible member variable.
         """
         return nib.Nifti1Image(
-            transform(self._load_data(resolution_mm,force)),
+            transform(self._load_data(resolution_mm)),
             affine=self.build_affine(resolution_mm)
         )
     
