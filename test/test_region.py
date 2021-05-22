@@ -109,12 +109,12 @@ class TestRegions(unittest.TestCase):
     def test_matches_with_wrong_region(self):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
-    @patch('siibra.volume_src.VolumeSrc.fetch')
+    @patch('siibra.volumesrc.VolumeSrc.fetch')
     def test_regional_map_none(self, download_mock):
         self.assertIsNone(self.parent_region.get_regional_map(spaces[0],MapType.LABELLED))
         download_mock.assert_not_called()
 
-    @patch('siibra.volume_src.VolumeSrc.fetch')
+    @patch('siibra.volumesrc.VolumeSrc.fetch')
     def test_get_regional_map_wrong_space(self, download_mock):
         self.child_region.attrs['maps'] = {
             'spaceId': 'map_url'
@@ -122,14 +122,14 @@ class TestRegions(unittest.TestCase):
         self.assertIsNone(self.child_region.get_regional_map(spaces[0],MapType.LABELLED))
         download_mock.assert_not_called()
 
-    @patch('siibra.volume_src.VolumeSrc.fetch')
+    @patch('siibra.volumesrc.VolumeSrc.fetch')
     def test_get_regional_map_no_filename(self, fetch_mock):
         fetch_mock.return_value = None
         #self.child_region.attrs['maps'] = {
             #spaces[0].id: spaces[0].id
         #}
-        self.assertIsNone(self.child_region.get_regional_map(spaces[0],MapType.CONTINUOUS))
-        fetch_mock.assert_called_with(None)
+        self.assertIsNone(self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS))
+        fetch_mock.assert_not_called()
 
 
 if __name__ == "__main__":

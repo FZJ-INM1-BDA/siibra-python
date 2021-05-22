@@ -111,7 +111,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
+        logger.info(f'Select "{self.selected_parcellation}"')
 
     def get_map(self, space=None, resolution_mm=None):
         """
@@ -119,7 +119,7 @@ class Atlas:
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
         """
-        return self.selected_parcellation.get_map(space, resolution_mm)
+        return self.selected_parcellation.get_map(space=space,resolution_mm=resolution_mm)
 
     def build_mask(self, space : Space, resolution_mm=None ):
         """
@@ -139,9 +139,9 @@ class Atlas:
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_region.build_mask( space, resolution_mm=resolution_mm )
+        return self.selected_region.build_mask(space,resolution_mm=resolution_mm)
 
-    def get_template(self, space=None, resolution_mm=None ):
+    def get_template(self,space=None):
         """
         Get the volumetric reference template image for the given space.
 
@@ -153,10 +153,6 @@ class Atlas:
         ----------
         space : str
             Template space definition, given as a dictionary with an '@id' key
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
 
         Yields
         ------
@@ -175,7 +171,7 @@ class Atlas:
                 print(space.name,space.id)
             return None
 
-        return space.get_template(resolution_mm)
+        return space.get_template()
 
     def decode_region(self,regionspec,mapindex=0):
         """
@@ -269,7 +265,7 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info(f'{str(self)} | select "{self.selected_region.name}"')
+            logger.info(f'Select "{self.selected_region.name}"')
         return self.selected_region
 
     def clear_selection(self):

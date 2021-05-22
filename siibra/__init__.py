@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from os import path, getenv
+
 # __version__ is parsed by setup.py
 __version__='0.1a2'
 
@@ -26,11 +28,10 @@ logger.addHandler(ch)
 def set_log_level(level):
     logger.setLevel(level)
 
-set_log_level("INFO")
-logger.info(f"Version: {__version__}")
+loglevel = getenv("SIIBRA_LOG_LEVEL","INFO")
+set_log_level(loglevel)
 
-# read in the package version from file
-from os import path
+logger.info(f"Version: {__version__}")
 
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations

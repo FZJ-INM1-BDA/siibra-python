@@ -73,13 +73,13 @@ class TestAtlas(unittest.TestCase):
 
     def test_select_parcellation(self):
         selected_parcellation = self.atlas.selected_parcellation
-        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.5')
+        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.7.3')
 
         new_parcellation = self.atlas.parcellations[2]
         self.atlas.select_parcellation(new_parcellation)
 
         self.assertEqual(self.atlas.selected_parcellation, new_parcellation)
-        self.assertNotEqual(self.atlas.selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.5')
+        self.assertNotEqual(self.atlas.selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.7.3')
 
     def test_get_map(self):
         # test downloading map
