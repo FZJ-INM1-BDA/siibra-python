@@ -99,11 +99,13 @@ class ConfigurationRegistry:
             return self.items[self.by_key[index]]
         elif index in self.by_id:
             return self.items[self.by_id[index]]
-        elif index in self.by_name:
-            return self.items[self.by_name[index]]
-        else:
-            raise IndexError("Cannot access this item in the {} Registry:".format(
-                self.cls),index)
+        elif isinstance(index,str):
+            matches = [i for i in self.items
+                        if all(w.lower() in i.name.lower() 
+                        for w in index.split())]
+            if len(matches)==1:
+                return matches[0]
+        raise IndexError(f"Cannot identify item '{index}' in {self.cls} registry")
 
     def __len__(self):
         return len(self.items)
