@@ -14,7 +14,7 @@
 
 from .commons import create_key
 from .config import ConfigurationRegistry
-from .volume_src import VolumeSrc
+from . import volumesrc
 from . import logger
 import copy
 
@@ -29,15 +29,16 @@ class Space:
         self.type = template_type
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
-        self.template = None
         self._assign_volume_sources(volume_src)
 
     def _assign_volume_sources(self,volume_src):
         self.volume_src = copy.deepcopy(volume_src)
         for volsrc in self.volume_src:
-            volsrc.space = self
-            if volsrc.volume_type==self.type:
-                self.template = volsrc
+            try:
+                volsrc.space = self
+            except AttributeError as e:
+                print(volsrc)
+                raise(e)
 
     def _rename(self,newname):
         self.name = newname
@@ -62,12 +63,11 @@ class Space:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if self.template:
-            return self.template.fetch(resolution_mm)
-        else:
-            logger.error(f'Downloading template for reference space "{self.name}" not supported.')
-            return None
-
+        candidates = [vsrc for vsrc in self.volume_src if vsrc.volume_type==self.type]
+        if not len(candidates)==1:
+            raise RuntimeError(f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src.")
+        return candidates[0]
+    
     @staticmethod
     def from_json(obj):
         """
@@ -81,10 +81,9 @@ class Space:
         if "minds/core/referencespace/v1.0.0" not in obj['@id']:
             return obj
 
-        volume_src = [VolumeSrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
-        
+        volume_src = [volumesrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
         return Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
-                src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
+                src_volume_type = obj.get('srcVolumeType'),
                 volume_src = volume_src)
 
 

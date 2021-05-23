@@ -92,6 +92,15 @@ class Atlas:
         """
         self.selected_parcellation.continuous_map_threshold = threshold
 
+    def select(self,parcellation=None, region=None):
+        """
+        Select a parcellation and/or region. See Atlas.select_parcellation, Atlas.select_region
+        """
+        if parcellation is not None:
+            self.select_parcellation(parcellation)
+        if region is not None:
+            self.select_region(region)
+            
     def select_parcellation(self, parcellation):
         """
         Select a different parcellation for the atlas.
@@ -111,125 +120,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info(f'{str(self)} | select "{self.selected_parcellation}"')
-
-    def get_map(self, space=None, resolution_mm=None):
-        """
-        return the map provided by the selected parcellation in the given space.
-        This just forwards to the selected parcellation object, see
-        Parcellation.get_map()
-        """
-        return self.selected_parcellation.get_map(space, resolution_mm)
-
-    def build_mask(self, space : Space, resolution_mm=None ):
-        """
-        Returns a binary mask in the given space, where nonzero values denote
-        voxels corresponding to the current region selection of the atlas. 
-
-        WARNING: Note that for selections of subtrees of the region hierarchy, this
-        might include holes if the leaf regions are not completly covering
-        their parent and the parent itself has no label index in the map.
-
-        Parameters
-        ----------
-        space : Space
-            Template space 
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
-        """
-        return self.selected_region.build_mask( space, resolution_mm=resolution_mm )
-
-    def get_template(self, space=None, resolution_mm=None ):
-        """
-        Get the volumetric reference template image for the given space.
-
-        See
-        ---
-        Space.get_template()
-
-        Parameters
-        ----------
-        space : str
-            Template space definition, given as a dictionary with an '@id' key
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
-
-        Yields
-        ------
-        A nibabel Nifti object representing the reference template, or None if not available.
-        TODO Returning None is not ideal, requires to implement a test on the other side. 
-        """
-        if space is None:
-            space = self.spaces[0]
-            if len(self.spaces)>1:
-                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
-
-        if space not in self.spaces:
-            logger.error(f'Atlas "{self.name}" does not support reference space "{space.name}" (id {space.id}).')
-            print("Available spaces:")
-            for space in self.spaces:
-                print(space.name,space.id)
-            return None
-
-        return space.get_template(resolution_mm)
-
-    def decode_region(self,regionspec,mapindex=0):
-        """
-        Given a unique specification, return the corresponding region from the selected parcellation.
-        The spec could be a label index, a (possibly incomplete) name, or a
-        region object.
-        This method is meant to definitely determine a valid region. Therefore, 
-        if no match is found, it raises a ValueError. If it finds multiple
-        matches, it tries to return only the common parent node. If there are
-        multiple remaining parent nodes, which is rare, a custom group region is constructed.
-
-        Parameters
-        ----------
-        regionspec : any of 
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
-            - an integer, which is interpreted as a labelindex,
-            - a region object
-        map_index : int (default=0)
-            Index of the fourth dimension of a labelled volume with more than
-            a single parcellation map.
-
-        Return
-        ------
-        Region object
-        """
-        return self.selected_parcellation.decode_region(regionspec,mapindex)
-
-    def find_regions(self,regionspec,all_parcellations=False):
-        """
-        Find regions with the given specification in the current or all
-        available parcellations of this atlas.
-
-        Parameters
-        ----------
-        regionspec : any of 
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
-            - an integer, which is interpreted as a labelindex
-            - a region object
-        all_parcellations : Boolean (default:False)
-            Do not only search the selected but instead all available parcellations.
-
-        Yield
-        -----
-        list of matching regions
-        """
-        if not all_parcellations:
-            return self.selected_parcellation.find_regions(regionspec)
-        result = []
-        for p in self.parcellations:
-            result.extend(p.find_regions(regionspec))
-        return result
-
+        logger.info(f'Select "{self.selected_parcellation}"')
 
     def select_region(self,region):
         """
@@ -269,8 +160,121 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info(f'{str(self)} | select "{self.selected_region.name}"')
+            logger.info(f'Select "{self.selected_region.name}"')
         return self.selected_region
+
+    def get_map(self, space=None):
+        """
+        return the map provided by the selected parcellation in the given space.
+        This just forwards to the selected parcellation object, see
+        Parcellation.get_map()
+        """
+        return self.selected_parcellation.get_map(space=space)
+
+    def build_mask(self, space : Space, resolution_mm=None ):
+        """
+        Returns a binary mask in the given space, where nonzero values denote
+        voxels corresponding to the current region selection of the atlas. 
+
+        WARNING: Note that for selections of subtrees of the region hierarchy, this
+        might include holes if the leaf regions are not completly covering
+        their parent and the parent itself has no label index in the map.
+
+        Parameters
+        ----------
+        space : Space
+            Template space 
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        """
+        return self.selected_region.build_mask(space,resolution_mm=resolution_mm)
+
+    def get_template(self,space=None):
+        """
+        Get the volumetric reference template image for the given space.
+
+        See
+        ---
+        Space.get_template()
+
+        Parameters
+        ----------
+        space : str
+            Template space definition, given as a dictionary with an '@id' key
+
+        Yields
+        ------
+        A nibabel Nifti object representing the reference template, or None if not available.
+        TODO Returning None is not ideal, requires to implement a test on the other side. 
+        """
+        if space is None:
+            space = self.spaces[0]
+            if len(self.spaces)>1:
+                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
+
+
+        try:
+            spaceobj = spaces[space]
+        except IndexError:
+            logger.error(f'Atlas "{self.name}" does not support reference space "{space}".')
+            print("Available spaces:")
+            for space in self.spaces:
+                print(space.name,space.id)
+            return None
+
+        return spaceobj.get_template()
+
+    def decode_region(self,regionspec):
+        """
+        Given a unique specification, return the corresponding region from the selected parcellation.
+        The spec could be a label index, a (possibly incomplete) name, or a
+        region object.
+        This method is meant to definitely determine a valid region. Therefore, 
+        if no match is found, it raises a ValueError. If it finds multiple
+        matches, it tries to return only the common parent node. If there are
+        multiple remaining parent nodes, which is rare, a custom group region is constructed.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+
+        Return
+        ------
+        Region object
+        """
+        return self.selected_parcellation.decode_region(regionspec)
+
+    def find_regions(self,regionspec,all_parcellations=False):
+        """
+        Find regions with the given specification in the current or all
+        available parcellations of this atlas.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex
+            - a region object
+        all_parcellations : Boolean (default:False)
+            Do not only search the selected but instead all available parcellations.
+
+        Yield
+        -----
+        list of matching regions
+        """
+        if not all_parcellations:
+            return self.selected_parcellation.find_regions(regionspec)
+        result = []
+        for p in self.parcellations:
+            result.extend(p.find_regions(regionspec))
+        return result
 
     def clear_selection(self):
         """

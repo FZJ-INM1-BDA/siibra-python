@@ -15,7 +15,7 @@
 from . import logger,spaces
 from .commons import create_key, Glossary, MapType
 from .space import Space
-from .volume_src import VolumeSrc
+from . import volumesrc
 import numpy as np
 from skimage import measure
 from nibabel.affines import apply_affine
@@ -244,27 +244,26 @@ class Region(anytree.NodeMixin):
                 # The parent parcellation prefers thresholded continuous maps
                 # for masking, and we have one available, so use it.
                 T = self.parcellation.continuous_map_threshold 
-                logger.info(f"{self.name}: Computing mask by thresholding continuous map at {T}.")
-                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch()
+                logger.info(f"Computing mask for {self.name} by thresholding the continuous regional map at {T}.")
+                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
                 mask = (np.asanyarray(labelimg.dataobj)>T).astype('uint8')
                 affine = labelimg.affine
 
             elif self.has_regional_map(space,MapType.LABELLED):
-                logger.info(f"{self.name}: Getting mask from regional volume src")
-                labelimg = self.volume_src[space,MapType.LABELLED].fetch()
+                logger.info(f"Extracting mask for {self.name} from regional map")
+                labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
                 mask = labelimg.dataobj
                 affine = labelimg.affine
 
             else:
-                logger.info(f"{self.name}: Need to get mask from parcellation volume")
-                smap = self.parcellation.get_map(space,resolution_mm=resolution_mm)
-                maskimg = smap.get_mask(self)
+                logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
+                maskimg = self.parcellation.get_map(space).extract_mask(self,resolution_mm=resolution_mm)
                 if maskimg:
                     mask = maskimg.dataobj
                     affine = maskimg.affine
 
         if mask is None:
-            logger.debug("{} has no own mask, trying to build mask from children".format(
+            logger.info("{} has no own mask, trying to build mask from children".format(
                 self.name))
             for child in self.children:
                 childmask = child.build_mask(space,resolution_mm)
@@ -295,7 +294,7 @@ class Region(anytree.NodeMixin):
         """
         return (space,maptype) in self.volume_src
 
-    def get_regional_map(self,space:Space,maptype:MapType,quiet=False,resolution_mm=None):
+    def get_regional_map(self,space,maptype:MapType):
         """
         Retrieves and returns a specific map of this region, if available
         (otherwise None). This is typically a probability or otherwise
@@ -304,20 +303,20 @@ class Region(anytree.NodeMixin):
 
         Parameters
         ----------
-        space : Space 
-            Template space 
+        space : Space, or str
+            Specifier for the template space 
         maptype : MapType
             Type of map (e.g. continuous, labelled - see commons.MapType)
-        resolution_mm : int 
-            Physical resolution, used to determine downsampling level for
-            BigBrain volume maps
         """
-        if not self.has_regional_map(space,maptype):
-            if not quiet:
-                logger.warning("No regional map known for {} in space {}.".format(
-                    self,space))
+        try:
+            spaceobj = spaces[space]
+        except IndexError:
+            logger.error(f"Cannot resolve space specification '{space}'.")
             return None
-        return self.volume_src[space,maptype].fetch(resolution_mm)
+        if not self.has_regional_map(spaceobj,maptype):
+            logger.warning(f"{self.parcellation.name} has no regional map for {self} in {spaceobj.name}.")
+            return None
+        return self.volume_src[spaceobj,maptype]
 
     def __getitem__(self, labelindex):
         """
@@ -458,7 +457,7 @@ class Region(anytree.NodeMixin):
                     raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
                 if len(vsrc_definitions)==0 or vsrc_definitions[0] is None:
                     raise ValueError(f"No valid volume source found!")
-                vsrc = VolumeSrc.from_json(vsrc_definitions[0])
+                vsrc = volumesrc.from_json(vsrc_definitions[0])
                 key = vsrc_definitions[0]['key']
                 if key not in key2maptype:
                     raise NotImplementedError(f"'volumeSrc' field has unknown key '{key}', cannot determine MapType")
@@ -495,6 +494,8 @@ class RegionProps():
         Construct region properties from a region selected in the given atlas,
         in the specified template space. 
 
+        TODO test this for  bigbrain regions
+
         Parameters
         ----------
         region : Region
@@ -513,7 +514,7 @@ class RegionProps():
         self.attrs['is_cortical'] = region.has_parent('cerebral cortex')
 
         # compute mask in the given space
-        tmpl = space.get_template()
+        tmpl = space.get_template().fetch()
         mask = region.build_mask(space)
         M = np.asanyarray(mask.dataobj) 
 

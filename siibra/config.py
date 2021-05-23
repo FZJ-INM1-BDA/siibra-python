@@ -16,6 +16,7 @@ import json
 from . import logger,__version__
 from .commons import create_key
 from gitlab import Gitlab
+from tqdm import tqdm
 import os
 
 # Until openminds is fully supported, 
@@ -67,7 +68,10 @@ class ConfigurationRegistry:
                     path=config_subfolder, ref=GITLAB_PROJECT_TAG, all=True)
                 if v['type']=='blob'
                 and v['name'].endswith('.json') ]
-        for configfile in config_files:
+        logger.info(f"Loading configurations of {len(config_files)} {config_subfolder}...")
+        loglevel = logger.getEffectiveLevel()
+        logger.setLevel("ERROR") # be quiet when initializing the object
+        for configfile in tqdm(config_files,total=len(config_files)):
             f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
             jsonstr = f.decode()
             obj = json.loads(jsonstr, object_hook=cls.from_json)
@@ -75,11 +79,12 @@ class ConfigurationRegistry:
                 raise RuntimeError(f'Could not generate object of type {cls} from configuration {configfile}')
             key = create_key(str(obj))
             identifier = obj.id
-            logger.debug("Defining object '{}' with key '{}'".format( obj,key))
             self.items.append(obj)
             self.by_key[key] = len(self.items)-1
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
+        logger.setLevel(loglevel)
+
         
     def __getitem__(self,index):
         """
@@ -94,11 +99,19 @@ class ConfigurationRegistry:
             return self.items[self.by_key[index]]
         elif index in self.by_id:
             return self.items[self.by_id[index]]
-        elif index in self.by_name:
-            return self.items[self.by_name[index]]
-        else:
-            raise IndexError("Cannot access this item in the {} Registry:".format(
-                self.cls),index)
+        elif isinstance(index,str):
+            # if a string is specified, we check if each word is matched in a space name
+            words = [w for w in index.split()]
+            squeezedname = lambda item: item.name.lower().replace(" ","")
+            matches = [i for i in self.items
+                        if all(w.lower() in squeezedname(i) for w in words)
+                        or index.replace(" ","") in squeezedname(i)]
+            if len(matches)==1:
+                return matches[0]
+            elif len(matches)>1:
+                namelist = ", ".join(m.name for m in matches)
+                logger.warning(f"Specification '{index}' matched {len(matches)} objects: {namelist}")
+        raise IndexError(f"Cannot identify item '{index}' in {self.cls.__name__} registry")
 
     def __len__(self):
         return len(self.items)
