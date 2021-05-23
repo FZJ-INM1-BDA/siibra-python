@@ -128,7 +128,7 @@ class TestRegions(unittest.TestCase):
         #self.child_region.attrs['maps'] = {
             #spaces[0].id: spaces[0].id
         #}
-        self.assertIsNone(self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS))
+        self.assertIsNone(self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS).fetch())
         fetch_mock.assert_not_called()
 
 
