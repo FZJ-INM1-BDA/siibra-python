@@ -354,7 +354,7 @@ class Atlas:
         thres_percent : float (default: 1)
             Regions with a probability below this threshold will not be returned.
         """
-        smap = self.selected_parcellation.get_map( space, maptype=MapType.CONTINUOUS, squeeze=False )
+        smap = self.selected_parcellation.get_map( space, maptype=MapType.CONTINUOUS )
         return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
 
 

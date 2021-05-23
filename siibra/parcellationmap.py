@@ -237,7 +237,7 @@ class ParcellationMap(ImageProvider):
         if mapindex<len(self):
             return self.maploaders[mapindex](res=resolution_mm,voi=voi)
         else:
-            raise ValueError(f"Only '{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
+            raise ValueError(f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
 
     @cached
     def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None):
