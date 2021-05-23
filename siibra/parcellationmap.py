@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from . import logger
-from .space import Space
-from .commons import MapType
+from .space import Space,SpaceVOI
+from .commons import MapType,ImageProvider
 from .region import Region
 
 import numpy as np
@@ -145,7 +145,7 @@ def create_map(parcellation, space:Space, maptype:MapType ):
     else:
         raise ValueError(f"Invalid maptype: '{maptype}'")
 
-class ParcellationMap(ABC):
+class ParcellationMap(ImageProvider):
     """
     Represents a brain map in a particular reference space, with
     explicit knowledge about the region information per labelindex or channel.
@@ -207,7 +207,7 @@ class ParcellationMap(ABC):
     def _define_maploaders(self):
         pass
 
-    def fetchall(self,resolution_mm=None):
+    def fetchall(self,resolution_mm=None,voi:SpaceVOI=None):
         """
         Returns an iterator to fetch all available maps sequentially:
 
@@ -219,9 +219,9 @@ class ParcellationMap(ABC):
             If -1, the largest feasible resolution will be chosen.        
         """
         logger.debug(f'Iterator for fetching {len(self)} parcellation maps')
-        return (fnc(resolution_mm) for fnc in self.maploaders)
+        return (fnc(res=resolution_mm,voi=voi) for fnc in self.maploaders)
 
-    def fetch(self,resolution_mm=None,mapindex=0):
+    def fetch(self,resolution_mm=None,mapindex=0, voi:SpaceVOI=None):
         """
         Fetches the actual image data
 
@@ -235,14 +235,14 @@ class ParcellationMap(ABC):
             The index of the available maps to be fetched.       
         """
         if mapindex<len(self):
-            return self.maploaders[mapindex](res=resolution_mm)
+            return self.maploaders[mapindex](res=resolution_mm,voi=voi)
         else:
             raise ValueError(f"Only '{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
 
     @cached
-    def _load_regional_map(self, region:Region, resolution_mm):
+    def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        return region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm)
+        return region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi)
 
     def __len__(self):
         """
@@ -351,9 +351,9 @@ class LabelledParcellationMap(ParcellationMap):
 
             # Choose map loader function
             if source.volume_type=="detailed maps":
-                self.maploaders.append(lambda res=None: self._collect_maps(resolution_mm=res))
+                self.maploaders.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
             elif source.volume_type==self.space.type:
-                self.maploaders.append(lambda res=None,s=source: self._load_maps(s,resolution_mm=res))
+                self.maploaders.append(lambda res=None,s=source,voi=None: self._load_maps(s,resolution_mm=res,voi=voi))
 
     def _link_regions(self):
 
@@ -389,8 +389,8 @@ class LabelledParcellationMap(ParcellationMap):
         else:
             return labelmap
             
-    def _load_maps(self,volume_src,resolution_mm):
-        m = self._ensure_integertype(volume_src.fetch(resolution_mm))
+    def _load_maps(self,volume_src,resolution_mm,voi):
+        m = self._ensure_integertype(volume_src.fetch(resolution_mm,voi=voi))
         # apply postprocessing hook, if applicable
         if self.parcellation.id in _STATIC_MAP_HOOKS.keys():
             m = _STATIC_MAP_HOOKS[self.parcellation.id](m)
@@ -401,7 +401,7 @@ class LabelledParcellationMap(ParcellationMap):
 
 
     @cached
-    def _collect_maps(self,resolution_mm):
+    def _collect_maps(self,resolution_mm,voi):
         """
         Build a 3D volume from the list of available regional maps.
 
@@ -413,7 +413,7 @@ class LabelledParcellationMap(ParcellationMap):
         m = None
 
         # generate empty mask covering the template space
-        tpl = self.space.get_template().fetch(resolution_mm)
+        tpl = self.space.get_template().fetch(resolution_mm,voi=voi)
         m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
         # collect all available region maps
@@ -425,7 +425,7 @@ class LabelledParcellationMap(ParcellationMap):
         for region in tqdm(regions,total=len(regions)):
             assert(region.labelindex)
             # load region mask
-            mask_ = self._ensure_integertype(self._load_regional_map(region,resolution_mm=resolution_mm))
+            mask_ = self._ensure_integertype(self._load_regional_map(region,resolution_mm=resolution_mm,voi=voi))
             if not mask_:
                 continue
             # build up the aggregated mask with labelled indices
@@ -530,7 +530,7 @@ class ContinuousParcellationMap(ParcellationMap):
                 if r.has_regional_map(self.space,MapType.CONTINUOUS)]
         for region in regions:
             self.maploaders.append(
-                lambda r=region,res=None:self._load_regional_map(r,resolution_mm=res))
+                lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
 
     def decode_label(self,index:int,mapindex=None):
         """

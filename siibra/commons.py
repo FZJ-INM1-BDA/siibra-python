@@ -15,6 +15,7 @@
 import re
 from enum import Enum
 import numpy as np
+from abc import ABC, abstractmethod
 
 class Glossary:
     """
@@ -56,6 +57,16 @@ def create_key(name):
 class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
+
+class ImageProvider(ABC):
+
+    @abstractmethod
+    def fetch(self,resolution_mm=None, voi=None):
+        """
+        Provide access to image data.
+        """
+        pass
+
 
 def bbox3d(A):
     """
