@@ -116,7 +116,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     continue
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
-                logger.warning(f'Only {len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
+                logger.warning(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
             for i,region in valid_regions.items():
                 regionname = column_names[i]
                 profile = data['data']['profiles'][regionname]

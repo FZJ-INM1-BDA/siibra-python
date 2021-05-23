@@ -14,6 +14,7 @@
 
 from . import logger
 from . import retrieval 
+from .commons import ImageProvider
 import numpy as np
 import nibabel as nib
 from cloudvolume.exceptions import OutOfBoundsError
@@ -65,6 +66,7 @@ def from_json(obj):
     
     return obj
 
+
 class VolumeSrc:
 
     def __init__(self, identifier, name, url, detail=None ):
@@ -109,18 +111,15 @@ class VolumeSrc:
     def get_url(self):
         return self.url
 
-    def fetch(self,resolution_mm=None):
-        raise NotImplementedError("Fetching image data is not available for pure VolumeSrc objects, choose a specific derived class like NiftiVolume instead.")
 
-
-class NiftiVolume(VolumeSrc):
+class NiftiVolume(VolumeSrc,ImageProvider):
 
     def __init__(self,identifier, name, url, detail=None, zipped_file=None):
         super().__init__(identifier, name, url, detail=detail)
         self.zipped_file = zipped_file
         self.volume_type = 'nii'
 
-    def fetch(self,resolution_mm=None):
+    def fetch(self,resolution_mm=None,voi=None):
         """
         Loads and returns a Nifti1Image object representing the volume source.
 
@@ -130,7 +129,11 @@ class NiftiVolume(VolumeSrc):
             Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for neuroglancer volumes.
+        voi : SpaceVOI
+            optional volume of interest
         """
+        if voi is not None:
+            raise NotImplementedError("NiftiImage objects do no yet support volumes of interest.")
         filename = retrieval.download_file(self.url,ziptarget=self.zipped_file)
         if filename:
             return nib.load(filename)
@@ -179,14 +182,21 @@ class NgVolume(VolumeSrc):
             self._cached_volume = CloudVolume(self.url,fill_missing=True,progress=False)
         return self._cached_volume
     
-    def largest_feasible_resolution(self):
+    def largest_feasible_resolution(self,voi=None):
         # returns the highest resolution in millimeter that is available and
         # still below the threshold of downloadable volume sizes.
-        return min([res
-            for res,v in self.resolutions_available.items()
-            if v['GBytes']<self.gbyte_feasible ])
+        if voi is None:
+            return min([res
+                for res,v in self.resolutions_available.items()
+                if v['GBytes']<self.gbyte_feasible ])
+        else:
+            gbytes = {res_mm:voi.transform_bbox(
+                        np.linalg.inv(self.build_affine(res_mm))).volume()*self.nbytes/(1024**3)
+                        for res_mm in self.resolutions_available.keys() }
+            return min([res for res,gb in gbytes.items()
+                    if gb<self.gbyte_feasible ])   
 
-    def _resolution_to_mip(self,resolution_mm):
+    def _resolution_to_mip(self,resolution_mm,voi):
         """
         Given a resolution in millimeter, try to determine the mip that can
         be applied.
@@ -202,7 +212,7 @@ class NgVolume(VolumeSrc):
         if resolution_mm is None:
             mip = self.num_scales-1
         elif resolution_mm==-1:
-            maxres = self.largest_feasible_resolution()
+            maxres = self.largest_feasible_resolution(voi=voi)
             mip = self.resolutions_available[maxres]['mip']
             logger.info(f'Using largest feasible resolution of {maxres} mm (mip={mip})')
         elif resolution_mm in self.resolutions_available:
@@ -211,7 +221,7 @@ class NgVolume(VolumeSrc):
             raise ValueError(f'Requested resolution of {resolution_mm} mm not available.\n{self.helptext}')
         return mip
             
-    def build_affine(self,resolution_mm=None):
+    def build_affine(self,resolution_mm=None,voi=None):
         """
         Builds the affine matrix that maps voxels 
         at the given resolution to physical space.
@@ -223,7 +233,20 @@ class NgVolume(VolumeSrc):
             If None, the smallest is used.
             If -1, the largest feasible is used.
         """
-        mip = self._resolution_to_mip(resolution_mm)
+        loglevel = logger.getEffectiveLevel()
+        logger.setLevel("ERROR")
+        mip = self._resolution_to_mip(resolution_mm,voi=voi)
+        effective_res_mm = self.mip_resolution_mm[mip]
+        logger.setLevel(loglevel)
+
+        # if a volume of interest is given, apply the offset
+        shift = np.identity(4)
+        if voi is not None:
+            minpt_vox =np.dot(
+                np.linalg.inv(self.build_affine(effective_res_mm)),
+                np.r_[voi.minpt,1])[:3]
+            logger.info(f"Affine matrix respects volume of interest shift {voi.minpt}")
+            shift[:3,-1] = minpt_vox
 
         # scaling from voxel to nm
         resolution_nm = self.info['scales'][mip]['resolution']
@@ -237,15 +260,11 @@ class NgVolume(VolumeSrc):
         # warp from nm to mm   
         affine[:3,:]/=1000000.
 
-        # if a volume of interest is given, apply the offset
-        #shift_mm = np.identity(4)
-        #if voi:
-        #    shift_mm[:3,-1] = voi.bbox_mm.minpt
     
-        #return np.dot(shift_mm,affine)
-        return affine
+        return np.dot(affine,shift)
+        #return affine
 
-    def _load_data(self,resolution_mm=None):
+    def _load_data(self,resolution_mm,voi:Bbox):
         """
         Actually load image data.
         TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
@@ -257,19 +276,15 @@ class NgVolume(VolumeSrc):
         resolution_mm : float, or None
             desired resolution in mm. If none, the full resolution is used.
         """
-        mip = self._resolution_to_mip(resolution_mm)
-        logger.debug(f"Loading neuroglancer data at a resolution of {resolution_mm} mm (mip={mip})")
+        mip = self._resolution_to_mip(resolution_mm,voi=voi)
+        effective_res_mm = self.mip_resolution_mm[mip]
+        logger.debug(f"Loading neuroglancer data at a resolution of {effective_res_mm} mm (mip={mip})")
 
-
-        # apply voi
-        #if voi:
-        #    mm2vox = np.linalg.inv(self.build_affine(resolution_mm))
-        #    bbox_vox = Bbox(
-        #            np.dot(mm2vox,np.r_[voi.bbox_mm.minpt,1])[:3].astype('int'),
-        #            np.dot(mm2vox,np.r_[voi.bbox_mm.maxpt,1])[:3].astype('int') )
-        #    print("Bounding box in voxels:",bbox_vox)
-        #else:
-        bbox_vox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
+        if voi is None:
+            bbox_vox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
+        else:
+            bbox_vox = voi.transform_bbox(
+                np.linalg.inv(self.build_affine(effective_res_mm)))
 
         # estimate size and check feasibility
         gbytes = bbox_vox.volume()*self.nbytes/(1024**3)
@@ -294,20 +309,22 @@ class NgVolume(VolumeSrc):
                 print(str(e))
                 return None
         
-    def fetch(self,resolution_mm=None):
+    def fetch(self,resolution_mm=None,voi=None):
         """
         Compute and return a spatial image for the given mip.
         
         Parameters:
         -----------
         resolution_mm : desired resolution in mm
+        voi : SpaceVOI
+            optional volume of interest
         """
         return nib.Nifti1Image(
-            self._load_data(resolution_mm),
-            affine=self.build_affine(resolution_mm)
+            self._load_data(resolution_mm=resolution_mm,voi=voi),
+            affine=self.build_affine(resolution_mm=resolution_mm,voi=voi)
         )
     
-    def _enclosing_chunkgrid(self, mip, bbox_phys):
+    def _enclosing_chunkgrid(self,mip, bbox_phys):
         """
         Produce grid points representing the chunks of the mip 
         which enclose a given bounding box. The bounding box is given in
