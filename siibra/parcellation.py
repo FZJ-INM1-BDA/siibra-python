@@ -138,7 +138,7 @@ class Parcellation:
         return self.volume_src[space]
 
     @cached
-    def get_map(self, space: Space=None, maptype:MapType=MapType.LABELLED, resolution_mm=None):
+    def get_map(self, space=None, maptype:MapType=MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. This might in general include multiple 
@@ -148,30 +148,27 @@ class Parcellation:
 
         Parameters
         ----------
-        space : Space
-            template space 
+        space : Space or str
+            template space specification 
         maptype : MapType (default: MapType.LABELLED)
             Type of map requested (e.g., continous or labelled, see commons.MapType)
             Use MapType.CONTINUOUS to request probability maps.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes. 
-            If None, the smallest possible resolution will be chosen. 
-            If -1, the largest feasible resolution will be chosen.
 
         Yields
         ------
         A ParcellationMap representing the volumetric map.
         """
         if space is None:
-            space = next(iter(self.volume_src.keys()))
+            spaceobj = next(iter(self.volume_src.keys()))
             if len(self.volume_src)>1:
                 logger.warning(f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified.\nUsing the first, "{str(space)}"')
+        else:
+            spaceobj = spaces[space]
 
-        if not self.supports_space(space):
-            raise ValueError('Parcellation "{}" does not provide a map for space "{}"'.format(
-                str(self), str(space) ))
+        if not self.supports_space(spaceobj):
+            raise ValueError(f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"')
 
-        return parcellationmap.create_map(self,space,maptype)
+        return parcellationmap.create_map(self,spaceobj,maptype)
 
     @property
     def labels(self):
@@ -221,6 +218,7 @@ class Parcellation:
         elif len(candidates)==1:
             return candidates[0]
         else:
+            logger.debug(f"The specification '{regionspec}' resulted more than one region. A group region is returned.")
             return Region._build_grouptree(candidates,self)
 
 

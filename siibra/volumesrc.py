@@ -258,6 +258,8 @@ class NgVolume(VolumeSrc):
             desired resolution in mm. If none, the full resolution is used.
         """
         mip = self._resolution_to_mip(resolution_mm)
+        logger.debug(f"Loading neuroglancer data at a resolution of {resolution_mm} mm (mip={mip})")
+
 
         # apply voi
         #if voi:

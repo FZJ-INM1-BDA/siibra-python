@@ -55,8 +55,8 @@ class TestAtlas(unittest.TestCase):
         json_atlas = atlas.Atlas.from_json(self.atlas_as_json)
         self.assertEqual(json_atlas.name, self.JSON_ATLAS_NAME)
         self.assertEqual(json_atlas.id, self.JSON_ATLAS_ID)
-        self.assertTrue(len(json_atlas.spaces) == 1)
-        self.assertTrue(len(json_atlas.parcellations) == 2)
+        self.assertTrue(len(json_atlas._spaces) == 1)
+        self.assertTrue(len(json_atlas._parcellations) == 2)
 
     def test_from_json_with_invalid_id(self):
         invalid_atlas_json = {

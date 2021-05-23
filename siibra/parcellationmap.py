@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-from scipy.ndimage.measurements import sum_labels
 from . import logger
 from .space import Space
 from .commons import MapType
 from .region import Region
+
+import numpy as np
+from scipy.ndimage.measurements import sum_labels
+
 import nibabel as nib
 from nilearn import image
 from memoization import cached
@@ -127,7 +129,7 @@ _STATIC_MAP_HOOKS = {
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
 
-def create_map(parcellation, space:Space, maptype:MapType, resolution_mm=None ):
+def create_map(parcellation, space:Space, maptype:MapType ):
     """
     Creates a new ParcellationMap object of the given type.
     """
@@ -136,7 +138,7 @@ def create_map(parcellation, space:Space, maptype:MapType, resolution_mm=None ):
         MapType.CONTINUOUS:ContinuousParcellationMap
     }
     if maptype in classes:
-        return classes[maptype](parcellation,space,resolution_mm)
+        return classes[maptype](parcellation,space)
     elif maptype is None:
         logger.warning('No maptype provided when requesting the parcellation map. Falling back to maptype LABELLED')
         return classes[MapType.LABELLED](parcellation,space)
@@ -164,7 +166,7 @@ class ParcellationMap(ABC):
     """
     _regions_cached = None
 
-    def __init__(self, parcellation, space: Space, maptype=MapType, resolution_mm=None ):
+    def __init__(self, parcellation, space: Space, maptype=MapType ):
         """
         Construct a ParcellationMap for the given parcellation and space.
 
@@ -176,12 +178,7 @@ class ParcellationMap(ABC):
             The desired template space to build the map
         maptype : MapType
             The desired type of the map
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes. 
-            If None, the smallest possible resolution will be chosen. 
-            If -1, the largest feasible resolution will be chosen.
         """
-
         if not parcellation.supports_space(space):
             raise ValueError( 'Parcellation "{}" does not provide a map for space "{}"'.format(
                 parcellation.name, space.name ))
@@ -189,7 +186,6 @@ class ParcellationMap(ABC):
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
-        self.resolution_mm = resolution_mm
         self.maploaders = []
         self._define_maploaders()
 
@@ -211,46 +207,42 @@ class ParcellationMap(ABC):
     def _define_maploaders(self):
         pass
 
-    def fetch(self,mapindex=None):
+    def fetchall(self,resolution_mm=None):
         """
-        Fetches the actual image data
-        """
-        if mapindex is not None:
-            if mapindex<len(self):
-                return self.maploaders[mapindex]()
-            else:
-                raise ValueError(f"Only '{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
-        elif len(self)>1:
-            logger.info(f'Returning an iterator for fetching {len(self)} parcellation maps...')
-            return (fnc() for fnc in self.maploaders)
-        else:
-            return self.maploaders[0]()
-
-    @cached
-    def _load_regional_map(self, region:Region):
-        """
-        Load a region-specific map
+        Returns an iterator to fetch all available maps sequentially:
 
         Parameters
         ----------
-        region : Region
-            the requested region
-
-
-        Return
-        ------
-        maps : Nifti1Image, or None
-            The found map, if any
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes. 
+            If None, the smallest possible resolution will be chosen. 
+            If -1, the largest feasible resolution will be chosen.        
         """
+        logger.debug(f'Iterator for fetching {len(self)} parcellation maps')
+        return (fnc(resolution_mm) for fnc in self.maploaders)
+
+    def fetch(self,resolution_mm=None,mapindex=0):
+        """
+        Fetches the actual image data
+
+        Parameters
+        ----------
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes. 
+            If None, the smallest possible resolution will be chosen. 
+            If -1, the largest feasible resolution will be chosen.  
+        mapindex : int
+            The index of the available maps to be fetched.       
+        """
+        if mapindex<len(self):
+            return self.maploaders[mapindex](res=resolution_mm)
+        else:
+            raise ValueError(f"Only '{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
+
+    @cached
+    def _load_regional_map(self, region:Region, resolution_mm):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        return region.get_regional_map(self.space, self.maptype, resolution_mm=self.resolution_mm)
-
-    def __iter__(self):
-        """
-        Get an iterator along the parcellation maps, returning 3D maps in
-        order.
-        """
-        return (loadfunc() for loadfunc in self.maploaders)
+        return region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm)
 
     def __len__(self):
         """
@@ -273,33 +265,6 @@ class ParcellationMap(ABC):
                     return True
         return False
 
-    def __getitem__(self,spec):
-        """
-        Get access to the different 3D maps included in this parcellation map.
-        For integer values, the corresponding slice along the fourth dimension
-        at the given index is returned.
-        Alternatively, a region object can be provided, and an attempt will be
-        made to recover the index for this region.
-        You might find the decode_region() function of Parcellation and Region
-        objects useful for the latter.
-        """
-        if not spec in self:
-            raise ValueError(f"Index '{spec}' is not valid for this ParcellationMap.")
-        
-        # Try to convert the given index into a valid slice index
-        # this should always be successful since we checked validity of the index above
-        sliceindex = None
-        if isinstance(spec,int):
-            sliceindex=spec
-        else:
-            for (_,mapindex),region in self.regions.items():
-                if region==spec:
-                    sliceindex = mapindex
-        if sliceindex is None:
-            raise RuntimeError(f"Invalid index '{spec}' for accessing this ParcellationMap.")
-
-        return self.maploaders[sliceindex]()
-
     @abstractmethod
     def decode_label(self,index:int,mapindex=None):
         """
@@ -319,7 +284,7 @@ class ParcellationMap(ABC):
         pass
 
     @abstractmethod
-    def extract_mask(self,region:Region):
+    def extract_mask(self,region:Region, resolution_mm=None):
         """
         Extract the mask for one particular region. For parcellation maps, this
         is a binary mask volume. For overlapping maps, this is the
@@ -329,6 +294,10 @@ class ParcellationMap(ABC):
         ----------
         region : Region
             The desired region.
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes. 
+            If None, the smallest possible resolution will be chosen. 
+            If -1, the largest feasible resolution will be chosen. 
 
         Return
         ------
@@ -351,7 +320,7 @@ class LabelledParcellationMap(ParcellationMap):
     number of nonzero image labels in the volume.
     """
 
-    def __init__(self, parcellation, space: Space, resolution_mm=None ):
+    def __init__(self, parcellation, space: Space ):
         """
         Construct a ParcellationMap for the given parcellation and space.
 
@@ -361,12 +330,8 @@ class LabelledParcellationMap(ParcellationMap):
             The parcellation object used to build the map
         space : Space
             The desired template space to build the map
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes. 
-            If None, the smallest possible resolution will be chosen. 
-            If -1, the largest feasible resolution will be chosen.
         """
-        super().__init__(parcellation, space,MapType.LABELLED, resolution_mm)
+        super().__init__(parcellation, space,MapType.LABELLED)
 
     def _define_maploaders(self):
 
@@ -386,9 +351,9 @@ class LabelledParcellationMap(ParcellationMap):
 
             # Choose map loader function
             if source.volume_type=="detailed maps":
-                self.maploaders.append(self._collect_maps)
+                self.maploaders.append(lambda res=None: self._collect_maps(resolution_mm=res))
             elif source.volume_type==self.space.type:
-                self.maploaders.append(lambda s=source: self._load_maps(s))
+                self.maploaders.append(lambda res=None,s=source: self._load_maps(s,resolution_mm=res))
 
     def _link_regions(self):
 
@@ -424,8 +389,8 @@ class LabelledParcellationMap(ParcellationMap):
         else:
             return labelmap
             
-    def _load_maps(self,volume_src):
-        m = self._ensure_integertype(volume_src.fetch(self.resolution_mm))
+    def _load_maps(self,volume_src,resolution_mm):
+        m = self._ensure_integertype(volume_src.fetch(resolution_mm))
         # apply postprocessing hook, if applicable
         if self.parcellation.id in _STATIC_MAP_HOOKS.keys():
             m = _STATIC_MAP_HOOKS[self.parcellation.id](m)
@@ -436,18 +401,19 @@ class LabelledParcellationMap(ParcellationMap):
 
 
     @cached
-    def _collect_maps(self):
+    def _collect_maps(self,resolution_mm):
         """
         Build a 3D volume from the list of available regional maps.
 
         Return
         ------
         Nifti1Image, or None if no maps are found.
+        
         """
         m = None
 
         # generate empty mask covering the template space
-        tpl = self.space.get_template().fetch(self.resolution_mm)
+        tpl = self.space.get_template().fetch(resolution_mm)
         m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
         # collect all available region maps
@@ -459,7 +425,7 @@ class LabelledParcellationMap(ParcellationMap):
         for region in tqdm(regions,total=len(regions)):
             assert(region.labelindex)
             # load region mask
-            mask_ = self._ensure_integertype(self._load_regional_map(region))
+            mask_ = self._ensure_integertype(self._load_regional_map(region,resolution_mm=resolution_mm))
             if not mask_:
                 continue
             # build up the aggregated mask with labelled indices
@@ -495,7 +461,7 @@ class LabelledParcellationMap(ParcellationMap):
             return self.regions[index,mapindex]
 
 
-    def extract_mask(self,region:Region):
+    def extract_mask(self,region:Region,resolution_mm=None):
         """
         Extract the binary mask for one particular region. 
 
@@ -503,6 +469,10 @@ class LabelledParcellationMap(ParcellationMap):
         ----------
         region : Region
             The desired region.
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes. 
+            If None, the smallest possible resolution will be chosen. 
+            If -1, the largest feasible resolution will be chosen. 
 
         Return
         ------
@@ -510,7 +480,7 @@ class LabelledParcellationMap(ParcellationMap):
         """
         if not region in self:
             return None
-        mapimg = self[region] 
+        mapimg = self.fetch(resolution_mm=resolution_mm,mapindex=region.mapindex)
         index = region.labelindex
         return nib.Nifti1Image(
                 dataobj=(np.asarray(mapimg.dataobj)==index).astype(int),
@@ -530,7 +500,7 @@ class ContinuousParcellationMap(ParcellationMap):
     regions correspond to the z dimension of the 4 object.
     """
 
-    def __init__(self, parcellation, space: Space, resolution_mm=None ):
+    def __init__(self, parcellation, space: Space ):
         """
         Construct a ParcellationMap for the given parcellation and space.
 
@@ -540,10 +510,6 @@ class ContinuousParcellationMap(ParcellationMap):
             The parcellation object used to build the map
         space : Space
             The desired template space to build the map
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes. 
-            If None, the smallest possible resolution will be chosen. 
-            If -1, the largest feasible resolution will be chosen.
         """
         super().__init__(parcellation, space, MapType.CONTINUOUS)
 
@@ -564,7 +530,7 @@ class ContinuousParcellationMap(ParcellationMap):
                 if r.has_regional_map(self.space,MapType.CONTINUOUS)]
         for region in regions:
             self.maploaders.append(
-                lambda r=region:self._load_regional_map(r))
+                lambda r=region,res=None:self._load_regional_map(r,resolution_mm=res))
 
     def decode_label(self,index:int,mapindex=None):
         """
@@ -581,7 +547,7 @@ class ContinuousParcellationMap(ParcellationMap):
         """
         return self.regions[-1,index]
 
-    def extract_mask(self,region:Region):
+    def extract_mask(self,region:Region,resolution_mm=None):
         """
         Extract the mask for one particular region. For parcellation maps, this
         is a binary mask volume. For overlapping maps, this is the
@@ -591,6 +557,10 @@ class ContinuousParcellationMap(ParcellationMap):
         ----------
         region : Region
             The desired region.
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes. 
+            If None, the smallest possible resolution will be chosen. 
+            If -1, the largest feasible resolution will be chosen. 
 
         Return
         ------
@@ -598,7 +568,7 @@ class ContinuousParcellationMap(ParcellationMap):
         """
         if not region in self:
             return None
-        return self[region]
+        return self.fetch(resolution_mm=resolution_mm, mapindex=region.mapindex)
 
     @cached
     def assign_regions(self,xyz_phys,sigma_phys=0,sigma_point=3,thres_percent=1,print_report=True):
@@ -651,7 +621,7 @@ class ContinuousParcellationMap(ParcellationMap):
         probs = {i:[] for i in range(numpts)}
         for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
-            pmap = loadfnc()
+            pmap = loadfnc(res=-1)
             assert(pmap.dataobj.dtype.kind=='f')
             if not pmap:
                 logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
@@ -713,3 +683,5 @@ class ContinuousParcellationMap(ParcellationMap):
                     print(layout.format(region.name,prob))
 
         return assignments
+
+
