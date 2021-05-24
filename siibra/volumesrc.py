@@ -14,11 +14,11 @@
 
 from . import logger
 from . import retrieval 
-from .commons import ImageProvider
 import numpy as np
 import nibabel as nib
 from cloudvolume.exceptions import OutOfBoundsError
 from cloudvolume import CloudVolume,Bbox
+from abc import ABC,abstractmethod
 import os
 import json
 
@@ -110,6 +110,16 @@ class VolumeSrc:
 
     def get_url(self):
         return self.url
+
+
+class ImageProvider(ABC):
+
+    @abstractmethod
+    def fetch(self,resolution_mm=None, voi=None):
+        """
+        Provide access to image data.
+        """
+        pass
 
 
 class NiftiVolume(VolumeSrc,ImageProvider):

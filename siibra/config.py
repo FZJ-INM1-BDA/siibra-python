@@ -18,6 +18,7 @@ from .commons import create_key
 from gitlab import Gitlab
 from tqdm import tqdm
 import os
+import re
 
 # Until openminds is fully supported, 
 # we store atlas configurations in a gitlab repo.
@@ -101,7 +102,7 @@ class ConfigurationRegistry:
             return self.items[self.by_id[index]]
         elif isinstance(index,str):
             # if a string is specified, we check if each word is matched in a space name
-            words = [w for w in index.split()]
+            words = [w for w in re.split('[ -]',index)]
             squeezedname = lambda item: item.name.lower().replace(" ","")
             matches = [i for i in self.items
                         if all(w.lower() in squeezedname(i) for w in words)

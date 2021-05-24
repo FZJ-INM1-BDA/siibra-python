@@ -14,7 +14,6 @@
 
 import re
 from enum import Enum
-import numpy as np
 from abc import ABC, abstractmethod
 
 class Glossary:
@@ -58,30 +57,4 @@ class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
 
-class ImageProvider(ABC):
 
-    @abstractmethod
-    def fetch(self,resolution_mm=None, voi=None):
-        """
-        Provide access to image data.
-        """
-        pass
-
-
-def bbox3d(A):
-    """
-    Bounding box of nonzero values in a 3D array.
-    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
-    """
-    r = np.any(A, axis=(1, 2))
-    c = np.any(A, axis=(0, 2))
-    z = np.any(A, axis=(0, 1))
-    rmin, rmax = np.where(r)[0][[0, -1]]
-    cmin, cmax = np.where(c)[0][[0, -1]]
-    zmin, zmax = np.where(z)[0][[0, -1]]
-    return np.array([
-        [rmin, rmax], 
-        [cmin, cmax], 
-        [zmin, zmax],
-        [1,1]
-    ])

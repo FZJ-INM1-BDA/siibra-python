@@ -12,104 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from numpy.core.fromnumeric import argmax
 from . import logger
 from .space import Space,SpaceVOI
-from .commons import MapType,ImageProvider
+from .commons import MapType
+from .volumesrc import ImageProvider
+from .arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4
 from .region import Region
 
 import numpy as np
-from scipy.ndimage.measurements import sum_labels
-
 import nibabel as nib
 from nilearn import image
 from memoization import cached
-from scipy.ndimage import gaussian_filter
-import numbers
 from tqdm import tqdm
-from abc import ABC, abstractmethod
-
-def _assert_homogeneous_3d(xyz):
-    if len(xyz)==4:
-        return xyz
-    else:
-        return np.r_[xyz,1]
-
-def _nifti_argmax_dim4(img,dim=-1):
-    """
-    Given a nifti image object with four dimensions, returns a modified object
-    with 3 dimensions that is obtained by taking the argmax along one of the
-    four dimensions (default: the last one). To distinguish the pure background
-    voxels from the foreground voxels of channel 0, the argmax indices are
-    incremented by 1 and label index 0 is kept to represent the background.
-    """
-    assert(len(img.shape)==4)
-    assert(dim>=-1 and dim<4)
-    newarr = np.asarray(img.dataobj).argmax(dim)+1
-    # reset the true background voxels to zero
-    newarr[np.asarray(img.dataobj).max(dim)==0]=0
-    return nib.Nifti1Image(
-            dataobj = newarr,
-            header = img.header,
-            affine = img.affine )
-
-
-def _roiimg(refimg,xyz_phys,sigma_phys=1,sigma_point=3,resample=True):
-    """
-    Compute a region of interest heatmap with a Gaussian kernel 
-    at the given position in physical coordinates corresponding 
-    to the given template image. The output is a 3D spatial image
-    with the same dimensions and affine as the template, including
-    the heatmap.
-    """
-    xyzh = _assert_homogeneous_3d(xyz_phys)
-
-    # position in voxel coordinates
-    phys2vox = np.linalg.inv(refimg.affine)
-    xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
-    
-    # to the parcellation map in voxel space, given the physical kernel width.
-    scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
-                        for i in range(3)]).mean()
-    sigma_vox = sigma_phys / scaling
-    r = int(sigma_point*sigma_vox)
-    k_size = 2*r + 1
-    impulse = np.zeros((k_size,k_size,k_size))
-    impulse[r,r,r] = 1
-    kernel = gaussian_filter(impulse, sigma_vox)
-    kernel /= kernel.sum()
-    
-    # compute the affine matrix for the kernel
-    r = int(kernel.shape[0]/2)
-    xs,ys,zs,_ = [v-r for v in xyz_vox]
-    shift = np.array([
-        [1,0,0,xs],
-        [0,1,0,ys],
-        [0,0,1,zs],
-        [0,0,0,1]
-    ])
-    affine = np.dot(refimg.affine,shift)
-    
-    # create the resampled output image
-    roiimg = nib.Nifti1Image(kernel,affine=affine)
-    return image.resample_to_img(roiimg,refimg) if resample else roiimg
-
-def _kernelimg(refimg,sigma_phys=1,sigma_point=3):
-    """
-    Compute a 3D Gaussian kernel for the voxel space of the given reference
-    image, matching its bandwidth provided in physical coordinates.
-    """
-    scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
-                        for i in range(3)]).mean()
-    sigma_vox = sigma_phys / scaling
-    r = int(sigma_point*sigma_vox)
-    k_size = 2*r + 1
-    impulse = np.zeros((k_size,k_size,k_size))
-    impulse[r,r,r] = 1
-    kernel = gaussian_filter(impulse, sigma_vox)
-    kernel /= kernel.sum()
-    
-    return kernel
-
+from abc import abstractmethod
 
 # Some parcellation maps require special handling to be expressed as a static
 # parcellation. This dictionary contains postprocessing functions for converting
@@ -117,7 +33,7 @@ def _kernelimg(refimg,sigma_phys=1,sigma_point=3):
 # in order to convert them to a 3D statis map. The dictionary is indexed by the
 # parcellation ids.
 _STATIC_MAP_HOOKS = { 
-        parcellation_id : lambda img : _nifti_argmax_dim4(img)
+        parcellation_id : lambda img : argmax_dim4(img)
         for  parcellation_id in [
             "minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721",
             "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8",
@@ -165,6 +81,7 @@ class ParcellationMap(ImageProvider):
     a feasible downsampled resolution is provided.
     """
     _regions_cached = None
+    _maploaders_cached = None
 
     def __init__(self, parcellation, space: Space, maptype=MapType ):
         """
@@ -186,8 +103,12 @@ class ParcellationMap(ImageProvider):
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
-        self.maploaders = []
-        self._define_maploaders()
+
+    @property
+    def maploaders(self):
+        if self._maploaders_cached is None:
+            self._define_maps_and_regions()
+        return self._maploaders_cached
 
     @property
     def regions(self):
@@ -196,15 +117,11 @@ class ParcellationMap(ImageProvider):
         Lazy implementation - self._link_regions() will be called when the regions are accessed for the first time.
         """
         if self._regions_cached is None:
-            self._link_regions()
+            self._define_maps_and_regions()
         return self._regions_cached
 
     @abstractmethod
-    def _link_regions():
-        pass
-
-    @abstractmethod
-    def _define_maploaders(self):
+    def _define_maps_and_regions(self):
         pass
 
     def fetchall(self,resolution_mm=None,voi:SpaceVOI=None):
@@ -306,8 +223,6 @@ class ParcellationMap(ImageProvider):
         pass
 
 
-    
-
 class LabelledParcellationMap(ParcellationMap):
     """
     Represents a brain map in a reference space, with
@@ -333,9 +248,10 @@ class LabelledParcellationMap(ParcellationMap):
         """
         super().__init__(parcellation, space,MapType.LABELLED)
 
-    def _define_maploaders(self):
+    def _define_maps_and_regions(self):
 
-        self.maploaders=[]
+        self._maploaders_cached=[]
+        self._regions_cached = {}
 
         # determine the map loader functions for each available map
         for mapname in self.parcellation.volume_src[self.space]:
@@ -351,17 +267,13 @@ class LabelledParcellationMap(ParcellationMap):
 
             # Choose map loader function
             if source.volume_type=="detailed maps":
-                self.maploaders.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
+                self._maploaders_cached.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
             elif source.volume_type==self.space.type:
-                self.maploaders.append(lambda res=None,s=source,voi=None: self._load_maps(s,resolution_mm=res,voi=voi))
-
-    def _link_regions(self):
-
-        self._regions_cached = {}
-        for mapindex,maploader in enumerate(self.maploaders):
+                self._maploaders_cached.append(lambda res=None,s=source,voi=None: self._load_maps(s,resolution_mm=res,voi=voi))
 
             # load map at lowest resolution
-            m = maploader()
+            mapindex = len(self._maploaders_cached)-1
+            m = self._maploaders_cached[mapindex](res=None)
             assert(m is not None)
             if m.dataobj.dtype.kind!='u':
                 logger.warning(f'Labelled volumes expect unsigned integer type, but fetched image data is "{m.dataobj.dtype}". Will convert to int.')
@@ -377,6 +289,7 @@ class LabelledParcellationMap(ParcellationMap):
                             self._regions_cached[labelindex,mapindex] = region
                     except ValueError:
                         unmatched_labels.append(labelindex)
+
             if unmatched_labels:
                 logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
 
@@ -487,7 +400,6 @@ class LabelledParcellationMap(ParcellationMap):
                 affine=mapimg.affine)
 
 
-
 class ContinuousParcellationMap(ParcellationMap):
     """
     Represents a brain map in a particular reference space, with
@@ -512,25 +424,21 @@ class ContinuousParcellationMap(ParcellationMap):
             The desired template space to build the map
         """
         super().__init__(parcellation, space, MapType.CONTINUOUS)
-
-    def _link_regions(self):
+    
+    def _define_maps_and_regions(self):
+        self._maploaders_cached=[]
         self._regions_cached={}
         regions = [r for r in self.parcellation.regiontree 
                 if r.has_regional_map(self.space,MapType.CONTINUOUS)]
+
         labelindex = -1
         for mapindex,region in enumerate(regions):
+            self._maploaders_cached.append(
+                lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
             if region in self.regions.values():
                 logger.debug(f"Region already seen in tree: {region.key}")
-                continue
             self._regions_cached[labelindex,mapindex] = region
-    
-    def _define_maploaders(self):
-        self.maploaders=[]
-        regions = [r for r in self.parcellation.regiontree 
-                if r.has_regional_map(self.space,MapType.CONTINUOUS)]
-        for region in regions:
-            self.maploaders.append(
-                lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
+
 
     def decode_label(self,index:int,mapindex=None):
         """
@@ -571,7 +479,7 @@ class ContinuousParcellationMap(ParcellationMap):
         return self.fetch(resolution_mm=resolution_mm, mapindex=region.mapindex)
 
     @cached
-    def assign_regions(self,xyz_phys,sigma_phys=0,sigma_point=3,thres_percent=1,print_report=True):
+    def assign_regions(self,xyz_phys,sigma_mm=0,sigma_truncation=3,thres_percent=1,print_report=True):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
@@ -582,37 +490,29 @@ class ContinuousParcellationMap(ParcellationMap):
         xyz_phys : 3D coordinate tuple, list of 3D tuples, or Nx3 array of coordinate tuples
             3D point(s) in physical coordinates of the template space of the
             ParcellationMap
-        sigma_phys : float (default: 0)
+        sigma_mm : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
-            physical units. If nonzero, A 3D Gaussian distribution with that
+            mm units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
-        sigma_point : float (default: 3)
+        sigma_truncation : float (default: 3)
             If sigma_phys is nonzero, this factor is used to determine where to
             truncate the Gaussian kernel in standard error units.
         thres_percent : float (default: 1)
-            Regions with a probability below this threshold will not be returned.
+            Matching regions with a value of the continous map below this threshold will not be returned.
         print_report : Boolean (default: True)
             Wether to print a short report to stdout
         """
 
         # Convert input to Nx4 list of homogenous coordinates
         assert(len(xyz_phys)>0)
-        if isinstance(xyz_phys[0],numbers.Number):
-            # only a single point provided
-            assert(len(xyz_phys) in [3,4])
-            XYZH = np.ones((1,4))
-            XYZH[0,:len(xyz_phys)] = xyz_phys
-        else:
-            XYZ = np.array(xyz_phys)
-            assert(XYZ.shape[1]==3)
-            XYZH = np.c_[XYZ,np.ones_like(XYZ[:,0])]
+        XYZH = create_homogeneous_array(xyz_phys)
         numpts = XYZH.shape[0]
 
-        if sigma_phys>0:
+        if sigma_mm>0:
             logger.info((
                 f"Performing assignment of {numpts} uncertain coordinates "
-                f"(stderr={sigma_phys}) to {len(self)} maps." ))
+                f"(stderr={sigma_mm}) to {len(self)} maps." ))
         else:
             logger.info((
                 f"Performing assignment of {numpts} deterministic coordinates "
@@ -631,11 +531,11 @@ class ContinuousParcellationMap(ParcellationMap):
             phys2vox = np.linalg.inv(pmap.affine)
             A = np.asanyarray(pmap.dataobj)
 
-            if sigma_phys>0:
+            if sigma_mm>0:
 
                 # multiply with a weight kernel representing the uncertain region
                 # of interest around the coordinate
-                kernel = _kernelimg(pmap,sigma_phys,sigma_point)
+                kernel = create_gaussian_kernel(pmap,sigma_mm,sigma_truncation)
                 r = int(kernel.shape[0]/2) # effective radius
 
                 for i,xyzh in enumerate(XYZH):
@@ -683,5 +583,3 @@ class ContinuousParcellationMap(ParcellationMap):
                     print(layout.format(region.name,prob))
 
         return assignments
-
-
