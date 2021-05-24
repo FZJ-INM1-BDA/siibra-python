@@ -486,11 +486,9 @@ class ContinuousParcellationMap(ParcellationMap):
         return self.fetch(resolution_mm=resolution_mm, mapindex=region.mapindex)
 
     @cached
-    def assign_regions(self,xyz_phys,sigma_mm=0,sigma_truncation=3):
+    def label_locations(self,xyz_phys,sigma_mm=0,sigma_truncation=3):
         """
         Assign regions to a physical coordinates with optional standard deviation.
-
-        TODO  allow to process multiple xyz coordinates at once
 
         Parameters
         ----------
@@ -505,10 +503,6 @@ class ContinuousParcellationMap(ParcellationMap):
         sigma_truncation : float (default: 3)
             If sigma_phys is nonzero, this factor is used to determine where to
             truncate the Gaussian kernel in standard error units.
-        thres_percent : float (default: 1)
-            Matching regions with a value of the continous map below this threshold will not be returned.
-        print_report : Boolean (default: True)
-            Wether to print a short report to stdout
         """
 
         # Convert input to Nx4 list of homogenous coordinates
@@ -571,4 +565,33 @@ class ContinuousParcellationMap(ParcellationMap):
             in sorted(M.items(),key=lambda item:item[1],reverse=True)]
             for M in matches ]
 
+        return assignments
+
+    def overlap(self,other):
+        """
+        Computer region overlaps.
+
+        TODO: checking and using bounding boxes before doing the full volume multiplication could make this faster. 
+        Parameters
+        ----------
+        other : continuous 3D map
+        """
+        resampled = None
+        values = {}
+        logger.info((f"Computing overlap with {len(self)} maps." ))
+        for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
+
+            pmap = loadfnc()
+            assert(pmap.dataobj.dtype.kind=='f')
+            if not pmap:
+                logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
+                continue
+            if resampled is None:
+                resampled = image.resample_to_img(other,pmap)
+            value =  np.sum(np.multiply(resampled.dataobj,pmap.dataobj))
+            if value>0:
+                values[mapindex] = value
+
+        assignments = [(index,self.decode_label(index),value) 
+                    for index,value in sorted(values.items(),key=lambda item:item[1],reverse=True)]
         return assignments
