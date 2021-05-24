@@ -27,21 +27,6 @@ from memoization import cached
 from tqdm import tqdm
 from abc import abstractmethod
 
-# Some parcellation maps require special handling to be expressed as a static
-# parcellation. This dictionary contains postprocessing functions for converting
-# the image objects returned when loading the map of a specific parcellations,
-# in order to convert them to a 3D statis map. The dictionary is indexed by the
-# parcellation ids.
-_STATIC_MAP_HOOKS = { 
-        parcellation_id : lambda img : argmax_dim4(img)
-        for  parcellation_id in [
-            "minds/core/parcellationatlas/v1.0.0/d80fbab2-ce7f-4901-a3a2-3c8ef8a3b721",
-            "minds/core/parcellationatlas/v1.0.0/73f41e04-b7ee-4301-a828-4b298ad05ab8",
-            "minds/core/parcellationatlas/v1.0.0/141d510f-0342-4f94-ace7-c97d5f160235",
-            "minds/core/parcellationatlas/v1.0.0/63b5794f-79a4-4464-8dc1-b32e170f3d16",
-            "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1" ]
-        } 
-
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
 
@@ -221,7 +206,12 @@ class ParcellationMap(ImageProvider):
         Nifti1Image, if found, otherwise None
         """
         pass
+    
+    def get_shape(self,resolution_mm=None):
+        return list(self.space.get_template().get_shape()) + [len(self)]
 
+    def is_float(self):
+        return self.maptype==MapType.CONTINUOUS
 
 class LabelledParcellationMap(ParcellationMap):
     """
@@ -269,15 +259,12 @@ class LabelledParcellationMap(ParcellationMap):
             if source.volume_type=="detailed maps":
                 self._maploaders_cached.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
             elif source.volume_type==self.space.type:
-                self._maploaders_cached.append(lambda res=None,s=source,voi=None: self._load_maps(s,resolution_mm=res,voi=voi))
+                self._maploaders_cached.append(lambda res=None,s=source,voi=None: self._load_map(s,resolution_mm=res,voi=voi))
 
             # load map at lowest resolution
             mapindex = len(self._maploaders_cached)-1
             m = self._maploaders_cached[mapindex](res=None)
             assert(m is not None)
-            if m.dataobj.dtype.kind!='u':
-                logger.warning(f'Labelled volumes expect unsigned integer type, but fetched image data is "{m.dataobj.dtype}". Will convert to int.')
-                m = nib.Nifti1Image(np.asanyarray(m.dataobj).astype('uint'),m.affine)
             
             # map label indices to regions
             unmatched_labels = []
@@ -292,26 +279,16 @@ class LabelledParcellationMap(ParcellationMap):
 
             if unmatched_labels:
                 logger.warning(f"{len(unmatched_labels)} labels in labelled volume couldn't be matched to region definitions in {self.parcellation.name}: {unmatched_labels}")
-
-    def _ensure_integertype(self,labelmap):
-        if labelmap is None:
-            return None
-        elif labelmap.dataobj.dtype.kind!='u':
-            logger.warning(f'Parcellation maps expect unsigned integer type, but the fetched image data has type "{labelmap.dataobj.dtype}". Will convert to int.')
-            return nib.Nifti1Image(np.asanyarray(labelmap.dataobj).astype('uint'),labelmap.affine)
-        else:
-            return labelmap
             
-    def _load_maps(self,volume_src,resolution_mm,voi):
-        m = self._ensure_integertype(volume_src.fetch(resolution_mm,voi=voi))
-        # apply postprocessing hook, if applicable
-        if self.parcellation.id in _STATIC_MAP_HOOKS.keys():
-            m = _STATIC_MAP_HOOKS[self.parcellation.id](m)
-        if m.dataobj.dtype.kind!='u':
-            raise RuntimeError("When loading a labelled volume, unsigned integer types are expected. However, this image data has type '{}'".format(
-                m.dataobj.dtype))
+    @cached
+    def _load_map(self,volume_src,resolution_mm,voi):
+        m = volume_src.fetch(resolution_mm,voi=voi)
+        if len(m.dataobj.shape)==4 and m.dataobj.shape[3]>1:
+            logger.info(f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. ")
+            m = argmax_dim4(m)
+        if m.dataobj.dtype.kind=='f':
+            raise RuntimeError("Floating point image type encountered when building a labelled volume for {self.parcellation.name}.")
         return m
-
 
     @cached
     def _collect_maps(self,resolution_mm,voi):
@@ -338,7 +315,7 @@ class LabelledParcellationMap(ParcellationMap):
         for region in tqdm(regions,total=len(regions)):
             assert(region.labelindex)
             # load region mask
-            mask_ = self._ensure_integertype(self._load_regional_map(region,resolution_mm=resolution_mm,voi=voi))
+            mask_ = self._load_regional_map(region,resolution_mm=resolution_mm,voi=voi)
             if not mask_:
                 continue
             # build up the aggregated mask with labelled indices
@@ -349,7 +326,6 @@ class LabelledParcellationMap(ParcellationMap):
             m.dataobj[mask.dataobj>0] = region.labelindex
 
         return m
-
 
     def decode_label(self,index:int,mapindex=None):
         """
@@ -424,21 +400,52 @@ class ContinuousParcellationMap(ParcellationMap):
             The desired template space to build the map
         """
         super().__init__(parcellation, space, MapType.CONTINUOUS)
-    
+
     def _define_maps_and_regions(self):
         self._maploaders_cached=[]
         self._regions_cached={}
+
+        # check for maps associated to the parcellations
+        for mapname in self.parcellation.volume_src[self.space]:
+
+            # Multiple volume sources could be given - find the preferred one
+            volume_sources = sorted(
+                    self.parcellation.volume_src[self.space][mapname],
+                    key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type))
+            if len(volume_sources)==0:
+                logger.error(f'No suitable volume source for "{mapname}"' +
+                             f'of {self.parcellation.name} in {self.space.name}')
+                continue
+            source = volume_sources[0]
+            
+            if not all([source.is_float(),source.is_4D()]):
+                continue
+            if source.get_shape()[3]<2:
+                continue
+
+            #  The source is 4D float! We assume the fourth dimension contains the regional continuous maps.
+            nmaps = source.get_shape()[3]
+            logger.info(f'{nmaps} continuous maps will be extracted from 4D volume for {self.parcellation}.')
+            for i in range(nmaps):
+                self._maploaders_cached.append(
+                    lambda res=None,voi=None,mi=i: source.fetch(resolution_mm=res,voi=voi,mapindex=mi))
+                region = self.parcellation.decode_region(i+1)
+                self._regions_cached[-1,i] = region
+
+            # we are finished, no need to look for regional map.
+            return
+                
+        # otherwise we look for continuous maps associated to individual regions
         regions = [r for r in self.parcellation.regiontree 
                 if r.has_regional_map(self.space,MapType.CONTINUOUS)]
-
+        logger.info(f'{len(regions)} regional continuous maps found for {self.parcellation}.')
         labelindex = -1
         for mapindex,region in enumerate(regions):
             self._maploaders_cached.append(
                 lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
             if region in self.regions.values():
                 logger.debug(f"Region already seen in tree: {region.key}")
-            self._regions_cached[labelindex,mapindex] = region
-
+            self._regions_cached[-1,mapindex] = region
 
     def decode_label(self,index:int,mapindex=None):
         """
@@ -479,7 +486,7 @@ class ContinuousParcellationMap(ParcellationMap):
         return self.fetch(resolution_mm=resolution_mm, mapindex=region.mapindex)
 
     @cached
-    def assign_regions(self,xyz_phys,sigma_mm=0,sigma_truncation=3,thres_percent=1,print_report=True):
+    def assign_regions(self,xyz_phys,sigma_mm=0,sigma_truncation=3):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
@@ -510,23 +517,19 @@ class ContinuousParcellationMap(ParcellationMap):
         numpts = XYZH.shape[0]
 
         if sigma_mm>0:
-            logger.info((
-                f"Performing assignment of {numpts} uncertain coordinates "
-                f"(stderr={sigma_mm}) to {len(self)} maps." ))
+            logger.info((f"Assigning {numpts} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps." ))
         else:
-            logger.info((
-                f"Performing assignment of {numpts} deterministic coordinates "
-                f"to {len(self)} maps."))
+            logger.info((f"Assigning {numpts} deterministic coordinates to {len(self)} maps."))
 
-        probs = {i:[] for i in range(numpts)}
+        values = {i:[] for i in range(numpts)}
         for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self)):
 
-            pmap = loadfnc(res=-1)
+            pmap = loadfnc()
             assert(pmap.dataobj.dtype.kind=='f')
             if not pmap:
                 logger.warning(f"Could not load regional map for {self.regions[-1,mapindex].name}")
                 for i in range(numpts):
-                    probs[i].append(-1)
+                    values[i].append(-1)
                 continue
             phys2vox = np.linalg.inv(pmap.affine)
             A = np.asanyarray(pmap.dataobj)
@@ -550,36 +553,22 @@ class ContinuousParcellationMap(ParcellationMap):
                     weights = kernel[xs:xs+xd,ys:ys+yd,zs:zs+zd]
                     assert(np.all(weights.shape==mapdata.shape))
                     prob = np.sum(np.multiply(weights,mapdata))
-                    probs[i].append(prob)
+                    values[i].append(prob)
 
             else:
                 # just read out the coordinate
                 for i,xyzh in enumerate(XYZH):
                     xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
                     x,y,z,_ = xyz_vox
-                    probs[i].append(A[x,y,z])
+                    values[i].append(A[x,y,z])
 
 
-        matches = [
-                {self.decode_label(index):round(prob*100,2)
-                    for index,prob in enumerate(P) 
-                    if prob>0 }
-                for P in probs.values() ]
+        matches = [{index:value for index,value in enumerate(P) if value>0} 
+                    for P in values.values() ]
 
         assignments = [
-                [(region,prob_percent) for region,prob_percent
-                    in sorted(M.items(),key=lambda item:item[1],reverse=True)
-                    if prob_percent>=thres_percent]
-                for M in matches ]
-
-        if print_report:
-            layout = "{:50.50} {:>12.12}"
-            for i,assignment in enumerate(assignments):
-                print()
-                print(f"Assignment of location {XYZH[i,:3]} in {self.space.name}")
-                print(layout.format("Brain region name","map value"))
-                print(layout.format("-----------------","-----------"))
-                for region,prob in assignment:
-                    print(layout.format(region.name,prob))
+            [(index,self.decode_label(index),value) for index,value
+            in sorted(M.items(),key=lambda item:item[1],reverse=True)]
+            for M in matches ]
 
         return assignments

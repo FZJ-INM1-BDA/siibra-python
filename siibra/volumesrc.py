@@ -115,21 +115,52 @@ class VolumeSrc:
 class ImageProvider(ABC):
 
     @abstractmethod
-    def fetch(self,resolution_mm=None, voi=None):
+    def fetch(self,resolution_mm=None, voi=None, mapindex=None):
         """
         Provide access to image data.
         """
         pass
 
+    @abstractmethod
+    def get_shape(self,resolution_mm=None):
+        """
+        Return the shape of the image volume.
+        """
+        pass
+    
+    @abstractmethod
+    def is_float(self):
+        """
+        Return True if the data type of the volume is a float type.
+        """
+        pass
+
+    def is_4D(self):
+        return len(self.get_shape())==4
+
 
 class NiftiVolume(VolumeSrc,ImageProvider):
+
+    _image_cached=None
 
     def __init__(self,identifier, name, url, detail=None, zipped_file=None):
         super().__init__(identifier, name, url, detail=detail)
         self.zipped_file = zipped_file
         self.volume_type = 'nii'
 
-    def fetch(self,resolution_mm=None,voi=None):
+    @property
+    def image(self):
+        """
+        We download the nifti file only once it is needed.
+        """
+        if self._image_cached is None:
+            filename = retrieval.download_file(self.url,ziptarget=self.zipped_file)
+            if filename is None:
+                raise RuntimeError(f"Error retrieving Nifti file from {self.url}")
+            self._image_cached=nib.Nifti1Image.from_filename(filename)
+        return self._image_cached
+
+    def fetch(self,resolution_mm=None,voi=None,mapindex=None):
         """
         Loads and returns a Nifti1Image object representing the volume source.
 
@@ -142,13 +173,27 @@ class NiftiVolume(VolumeSrc,ImageProvider):
         voi : SpaceVOI
             optional volume of interest
         """
+        shape = self.get_shape()
+        if resolution_mm is not None:
+            raise NotImplementedError(f"NiftiVolume does not support to specify image resolutions (but {resolution_mm} was given)")
         if voi is not None:
-            raise NotImplementedError("NiftiImage objects do no yet support volumes of interest.")
-        filename = retrieval.download_file(self.url,ziptarget=self.zipped_file)
-        if filename:
-            return nib.load(filename)
+            raise NotImplementedError(f"NiftiVolume does not support to specify volumes of interest (but {voi} was given).")
+        if mapindex is None:
+            return self.image
+        elif len(shape)!=4 or mapindex>=shape[3]:
+            raise IndexError(f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}.")
         else:
-            return None
+            return nib.Nifti1Image(
+                dataobj=self.image.dataobj[:,:,:,mapindex],
+                affine=self.image.affine)
+
+    def get_shape(self,resolution_mm=None):
+        if resolution_mm is not None:
+            raise NotImplementedError("NiftiVolume does not support to specify different image resolutions")
+        return self.image.shape
+
+    def is_float(self):
+        return self.image.dataobj.dtype.kind=='f'
 
 
 class NgVolume(VolumeSrc):
@@ -319,7 +364,7 @@ class NgVolume(VolumeSrc):
                 print(str(e))
                 return None
         
-    def fetch(self,resolution_mm=None,voi=None):
+    def fetch(self,resolution_mm=None,voi=None,mapindex=None):
         """
         Compute and return a spatial image for the given mip.
         
@@ -329,10 +374,19 @@ class NgVolume(VolumeSrc):
         voi : SpaceVOI
             optional volume of interest
         """
+        if mapindex is not None:
+            raise NotImplementedError(f"NgVolume does not support access by a specific map index (but {mapindex} was given)")
         return nib.Nifti1Image(
             self._load_data(resolution_mm=resolution_mm,voi=voi),
             affine=self.build_affine(resolution_mm=resolution_mm,voi=voi)
         )
+
+    def get_shape(self,resolution_mm=None):
+        mip = self._resolution_to_mip(resolution_mm)
+        return self.info['scales'][mip]['size']
+
+    def is_float(self):
+        return np.dtype(self.info['data_type']).kind=='f'
     
     def _enclosing_chunkgrid(self,mip, bbox_phys):
         """

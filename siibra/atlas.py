@@ -163,13 +163,13 @@ class Atlas:
             logger.info(f'Select "{self.selected_region.name}"')
         return self.selected_region
 
-    def get_map(self, space=None):
+    def get_map(self, space=None, maptype=MapType.LABELLED):
         """
         return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
         """
-        return self.selected_parcellation.get_map(space=space)
+        return self.selected_parcellation.get_map(space=space,maptype=maptype)
 
     def build_mask(self, space : Space, resolution_mm=None ):
         """
@@ -335,7 +335,7 @@ class Atlas:
 
         return hits
 
-    def assign_regions(self,space:Space,xyz_phys,sigma_phys=0,thres_percent=1):
+    def assign_regions(self,space:Space,xyz_phys,sigma_phys=0):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
@@ -351,11 +351,10 @@ class Atlas:
             physical units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
-        thres_percent : float (default: 1)
-            Regions with a probability below this threshold will not be returned.
         """
-        smap = self.selected_parcellation.get_map( space, maptype=MapType.CONTINUOUS )
-        return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
+        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        assignments = smap.assign_regions(xyz_phys, sigma_phys)
+        return [{region:value for _,region,value in A} for A in assignments]
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)

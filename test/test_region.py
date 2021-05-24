@@ -125,10 +125,8 @@ class TestRegions(unittest.TestCase):
     @patch('siibra.parcellationmap.ParcellationMap.fetch')
     def test_get_regional_map_no_filename(self, fetch_mock):
         fetch_mock.return_value = None
-        #self.child_region.attrs['maps'] = {
-            #spaces[0].id: spaces[0].id
-        #}
-        self.assertIsNone(self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS).fetch())
+        with self.assertRaises(RuntimeError):
+            self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS).fetch()
         fetch_mock.assert_not_called()
 
 
