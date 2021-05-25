@@ -17,6 +17,7 @@ from .space import Space
 from .region import Region
 from .config import ConfigurationRegistry
 from .commons import create_key,MapType
+from typing import Union
 import numpy as np
 import nibabel as nib
 from nilearn import image
@@ -138,7 +139,7 @@ class Parcellation:
         return self.volume_src[space]
 
     @cached
-    def get_map(self, space=None, maptype:MapType=MapType.LABELLED):
+    def get_map(self, space=None, maptype:Union[str,MapType]=MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
         template space. This might in general include multiple 
@@ -158,6 +159,8 @@ class Parcellation:
         ------
         A ParcellationMap representing the volumetric map.
         """
+        if isinstance(maptype,str):
+            maptype = MapType[maptype.upper()]
         if space is None:
             spaceobj = next(iter(self.volume_src.keys()))
             if len(self.volume_src)>1:
