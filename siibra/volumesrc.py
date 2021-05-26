@@ -191,18 +191,18 @@ class NiftiVolume(VolumeSrc,ImageProvider):
                 affine=self.image.affine)
         assert(img is not None)
         if voi is not None:
-            bbox_vox = voi.transform_bbox(np.linalg.inv(img.affine))
-            (x0,y0,z0),(x1,y1,z1) = bbox_vox.minpt,bbox_vox.maxpt
+            bb_vox = voi.transform_bbox(np.linalg.inv(img.affine))
+            (x0,y0,z0),(x1,y1,z1) = bb_vox.minpt,bb_vox.maxpt
             shift = np.identity(4)
-            shift[:3,-1] = bbox_vox.minpt
+            shift[:3,-1] = bb_vox.minpt
             img = nib.Nifti1Image(
                 dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
                 affine = np.dot(img.affine,shift))
         elif clip:
             bb_vox = arrays.bbox3d(img.dataobj)
-            (x0,y0,z0),(x1,y1,z1) = bbox_vox.minpt,bbox_vox.maxpt
+            (x0,y0,z0),(x1,y1,z1) = bb_vox.minpt,bb_vox.maxpt
             shift = np.identity(4)
-            shift[:3,-1] = bbox_vox.minpt
+            shift[:3,-1] = bb_vox.minpt
             img = nib.Nifti1Image(
                 dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
                 affine = np.dot(img.affine,shift))
