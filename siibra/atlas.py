@@ -24,6 +24,8 @@ from .commons import create_key,MapType
 from .config import ConfigurationRegistry
 from .space import Space
 
+VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
+
 class Atlas:
 
     def __init__(self,identifier,name):
@@ -47,6 +49,7 @@ class Atlas:
     def _add_parcellation(self, parcellation, select=False):
         self.parcellations.append(parcellation)
         if self.selected_parcellation is None or select:
+
             self.select_parcellation(parcellation)
 
     def __str__(self):
@@ -92,16 +95,16 @@ class Atlas:
         """
         self.selected_parcellation.continuous_map_threshold = threshold
 
-    def select(self,parcellation=None, region=None):
+    def select(self,parcellation=None, region=None, force=False):
         """
         Select a parcellation and/or region. See Atlas.select_parcellation, Atlas.select_region
         """
         if parcellation is not None:
-            self.select_parcellation(parcellation)
+            self.select_parcellation(parcellation,force)
         if region is not None:
             self.select_region(region)
             
-    def select_parcellation(self, parcellation):
+    def select_parcellation(self, parcellation,force=False):
         """
         Select a different parcellation for the atlas.
 
@@ -112,6 +115,11 @@ class Atlas:
             The new parcellation to be selected
         """
         parcellation_obj = parcellations[parcellation]
+        if parcellation_obj.version is not None:
+            versionname = parcellation_obj.version.name
+            if any(w in versionname for w in VERSION_BLACKLIST_WORDS) and not force:
+                logger.warning(f"Will not select experimental version {versionname} of {parcellation_obj.name} unless forced.")
+                return
         if parcellation_obj not in self.parcellations:
             logger.error('The requested parcellation is not supported by the selected atlas.')
             logger.error('    Parcellation:  '+parcellation_obj.name)

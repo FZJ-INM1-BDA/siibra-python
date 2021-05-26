@@ -184,7 +184,7 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
                     continue
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
-                logger.warning(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset point to valid regions.')
+                logger.info(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset point to valid regions.')
 
             for i,region in valid_regions.items():
                 regionname = column_names[i]

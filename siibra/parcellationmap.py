@@ -316,8 +316,11 @@ class LabelledParcellationMap(ParcellationMap):
 
             # load map at lowest resolution
             mapindex = len(self._maploaders_cached)-1
+            loglevel = logger.getEffectiveLevel()
+            logger.setLevel("ERROR")
             m = self._maploaders_cached[mapindex](res=None)
             assert(m is not None)
+            logger.setLevel(loglevel)
             
             # map label indices to regions
             unmatched = []
@@ -367,7 +370,7 @@ class LabelledParcellationMap(ParcellationMap):
 
         msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
         logger.info(msg)
-        for region in tqdm(regions,total=len(regions)):
+        for region in regions:
             assert(region.index.label)
             # load region mask
             mask_ = self._load_regional_map(region,resolution_mm=resolution_mm,voi=voi)
