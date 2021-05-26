@@ -345,27 +345,27 @@ class Atlas:
 
         return hits
 
-    def assign_coordinates(self,space:Space,xyz_phys,sigma_phys=3):
+    def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
         """
         Assign physical coordinates with optional standard deviation to atlas regions.
+        See also: ContinuousParcellationMap.assign_coordinates()
 
         Parameters
         ----------
         space : Space
             reference template space for computing the assignemnt
-        xyz_phys : coordinate tuple 
+        xyz_mm : coordinate tuple 
             3D point in physical coordinates of the template space of the
             ParcellationMap. Also accepts a string of the format "15.453mm, 4.828mm, 69.122mm" 
             as copied from siibra-explorer.
-        sigma_phys : float (default: 0)
+        sigma_mm : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
             physical units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
         """
         smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
-        assignments = smap.assign_coordinates(xyz_phys, sigma_phys)
-        return [{region:value for _,region,value in A} for A in assignments]
+        return smap.assign_coordinates(xyz_mm, sigma_mm)
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)

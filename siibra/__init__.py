@@ -29,22 +29,20 @@ class LoggingContext:
         self.level = level
 
     def __enter__(self):
-        print("setting loglevel",self.level)
         self.old_level = logger.level
         logger.setLevel(self.level)
 
     def __exit__(self, et, ev, tb):
-        print("restoring loglevel",self.old_level)
         logger.setLevel(self.old_level)
 
-logger.context = LoggingContext
+QUIET = LoggingContext("ERROR")
+VERBOSE = LoggingContext("DEBUG")
 
 # convenience function, will be easier to discover
 def set_log_level(level):
     logger.setLevel(level)
 
-loglevel = getenv("SIIBRA_LOG_LEVEL","INFO")
-set_log_level(loglevel)
+set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
 
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk. Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")

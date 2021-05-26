@@ -157,7 +157,8 @@ class ParcellationMap(ImageProvider):
 
     def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        return region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi)
+        rmap = region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi)
+        return rmap
 
     def __len__(self):
         """
@@ -249,6 +250,7 @@ class ParcellationMap(ImageProvider):
                     dataobj=(np.asarray(mapimg.dataobj)==index.label).astype(np.uint8),
                     affine=mapimg.affine)
             mapimgs.append(mapimg)
+
         if len(mapimgs)==1:
             return mapimgs[0]
         elif self.maptype==MapType.LABELLED:
@@ -505,7 +507,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     x,y,z = (np.dot(p2v,xyzh)+.5).astype('int')[:3]
                     value = A[x,y,z]
                     if value>0:
-                        assignments[i].append((pindex,region,value))
+                        assignments[i].append((region,pmap,value))
         else:
             logger.info((f"Assigning {numpts} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps." ))
             kernel = create_gaussian_kernel(sigma_vox,sigma_truncation)
@@ -523,6 +525,7 @@ class ContinuousParcellationMap(ParcellationMap):
     def assign(self,other:nib.Nifti1Image,msg=None):
         
         values = {}
+        pmaps = {}
         if msg is None:
             msg=f"Assigning structure to {len(self)} maps"
 
@@ -552,8 +555,9 @@ class ContinuousParcellationMap(ParcellationMap):
             value =  np.sum(np.multiply(resampled.dataobj,this_cropped.dataobj))
             if value>0:
                 values[mapindex] = value
+                pmaps[mapindex] = loadfnc()
 
         pindex = lambda i: ParcellationIndex(map=i,label=None)
-        assignments = [(pindex(i),self.decode_label(mapindex=i),value) 
+        assignments = [(self.decode_label(mapindex=i),pmaps[i],value) 
                     for i,value in sorted(values.items(),key=lambda item:item[1],reverse=True)]
         return assignments

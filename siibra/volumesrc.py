@@ -181,6 +181,7 @@ class NiftiVolume(VolumeSrc,ImageProvider):
         img = None
         if resolution_mm is not None:
             raise NotImplementedError(f"NiftiVolume does not support to specify image resolutions (but {resolution_mm} was given)")
+
         if mapindex is None:
             img = self.image
         elif len(shape)!=4 or mapindex>=shape[3]:
@@ -190,6 +191,7 @@ class NiftiVolume(VolumeSrc,ImageProvider):
                 dataobj=self.image.dataobj[:,:,:,mapindex],
                 affine=self.image.affine)
         assert(img is not None)
+
         if voi is not None:
             bb_vox = voi.transform_bbox(np.linalg.inv(img.affine))
             (x0,y0,z0),(x1,y1,z1) = bb_vox.minpt,bb_vox.maxpt
@@ -206,6 +208,7 @@ class NiftiVolume(VolumeSrc,ImageProvider):
             img = nib.Nifti1Image(
                 dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
                 affine = np.dot(img.affine,shift))
+
         return img
 
     def get_shape(self,resolution_mm=None):

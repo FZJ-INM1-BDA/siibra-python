@@ -174,7 +174,8 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
             if parcellation!=self.parcellation:
                 continue
 
-            # determine the valid brain regions defined in the file
+            # determine the valid brain regions defined in the file,
+            # as well as their indices
             column_names = data['data']['field names']
             valid_regions = {}
             for i,name in enumerate(column_names):
