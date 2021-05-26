@@ -8,7 +8,7 @@ from siibra.commons import MapType
 
 class TestRegions(unittest.TestCase):
 
-    region_name = 'Interposed Nucleus (Cerebellum) - left hemisphere'
+    region_name = 'Interposed Nucleus (Cerebellum) left'
     kg_id = '658a7f71-1b94-4f4a-8f15-726043bbb52a'
     parentname = 'region_parent'
 
@@ -67,13 +67,13 @@ class TestRegions(unittest.TestCase):
         cls.child_region.parent=cls.parent_region
 
     def test_regions_init(self):
-        self.assertEqual(str(self.child_region), self.region_name)
+        self.assertEqual(self.child_region.name, self.region_name)
 
     def test_has_no_parent(self):
-        self.assertFalse(self.parent_region.has_parent(self.parentname))
+        self.assertFalse(self.parent_region.has_parent(self.parent_region))
 
     def test_has_parent(self):
-        self.assertTrue(self.child_region.has_parent(self.parentname))
+        self.assertTrue(self.child_region.has_parent(self.parent_region))
 
     def test_includes_region_true(self):
         self.parent_region.children = [self.child_region]

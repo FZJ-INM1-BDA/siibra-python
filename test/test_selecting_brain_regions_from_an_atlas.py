@@ -15,7 +15,7 @@ class TestSelectionBrainRegions(unittest.TestCase):
         # we can just give a string and see if the system can disambiguiate it
         atlas.select_region('v1')
         print("Selected region from 'v1' is", atlas.selected_region)
-        self.assertEqual(str(atlas.selected_region), 'Area hOc1 (V1, 17, CalcS)')
+        self.assertEqual(atlas.selected_region.name, 'Area hOc1 (V1, 17, CalcS)')
         self.assertTrue(len(atlas.selected_region.children) == 2)
 
         print('v1 includes the left and right hemisphere!')
@@ -24,13 +24,13 @@ class TestSelectionBrainRegions(unittest.TestCase):
         # we can be more specific easily
         atlas.select_region('v1 left')
         print("Selected region from 'v1 left' is", atlas.selected_region)
-        self.assertEqual(str(atlas.selected_region), 'Area hOc1 (V1, 17, CalcS) - left hemisphere')
+        self.assertEqual(atlas.selected_region.name, 'Area hOc1 (V1, 17, CalcS) left')
         self.assertTrue(len(atlas.selected_region.children) == 0)
 
         # we can also auto-complete on the 'regionnames' attribute of the atlas
         # - this immediately leads to a unique selection
         atlas.select_region(atlas.regionnames.AREA_HOC1_V1_17_CALCS_LEFT_HEMISPHERE)
-        self.assertEqual(str(atlas.selected_region), 'Area hOc1 (V1, 17, CalcS) - left hemisphere')
+        self.assertEqual(atlas.selected_region.name, 'Area hOc1 (V1, 17, CalcS) left')
         self.assertTrue(len(atlas.selected_region.children) == 0)
 
 
