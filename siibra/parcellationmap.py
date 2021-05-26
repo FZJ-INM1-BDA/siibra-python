@@ -465,9 +465,10 @@ class ContinuousParcellationMap(ParcellationMap):
 
         Parameters
         ----------
-        xyz_phys : 3D coordinate tuple, list of 3D tuples, or Nx3 array of coordinate tuples
-            3D point(s) in physical coordinates of the template space of the
-            ParcellationMap
+        xyz_phys : 3D point(s) in physical coordinates of the template space of the ParcellationMap
+            Can be one 3D coordinate tuple, list of 3D tuples, Nx3 or Nx4 array of coordinate tuples, 
+            str of the form "3.1mm, -3.1mm, 80978mm", or list of such strings.
+            See arrays.create_homogeneous_array
         sigma_mm : float (default: 1)
             standard deviation /expected localization accuracy of the point, in
             mm units. A 3D Gaussian distribution with that
@@ -483,25 +484,43 @@ class ContinuousParcellationMap(ParcellationMap):
         XYZH = create_homogeneous_array(xyz_phys)
         numpts = XYZH.shape[0]
 
-        logger.info((f"Assigning {numpts} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps." ))
+        # convert sigma to voxel coordinates
         tpl = self.space.get_template().fetch()
         phys2vox = np.linalg.inv(tpl.affine)
         scaling = np.array([np.linalg.norm(tpl.affine[:,i]) for i in range(3)]).mean()
-        kernel = create_gaussian_kernel(sigma_mm/scaling,sigma_truncation)
-        r = int(kernel.shape[0]/2) # effective radius
+        sigma_vox = sigma_mm/scaling
 
         assignments = []
-        for i,xyzh in enumerate(XYZH):
-            xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
-            shift = np.identity(4)
-            shift[:3,-1] = xyz_vox[:3]-r
-            W = nib.Nifti1Image(dataobj=kernel,affine=np.dot(tpl.affine,shift))
-            assignments.append(self.assign(W,msg=", ".join([f"{v:.1f}" for v in xyzh[:3]])))
+        if sigma_vox<3:
+            N = len(self)
+            msg = f"Assigning {numpts} coordinates to {N} maps"
+            assignments = [[] for n in range(numpts)]
+            for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self),desc=msg,unit=" maps"):
+                pmap = loadfnc()
+                p2v = np.linalg.inv(tpl.affine)
+                A = np.asanyarray(pmap.dataobj)
+                pindex = ParcellationIndex(map=mapindex,label=None)
+                region = self.decode_label(mapindex=mapindex)
+                for i,xyzh in enumerate(XYZH):
+                    x,y,z = (np.dot(p2v,xyzh)+.5).astype('int')[:3]
+                    value = A[x,y,z]
+                    if value>0:
+                        assignments[i].append((pindex,region,value))
+        else:
+            logger.info((f"Assigning {numpts} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps." ))
+            kernel = create_gaussian_kernel(sigma_vox,sigma_truncation)
+            r = int(kernel.shape[0]/2) # effective radius
+            for i,xyzh in enumerate(XYZH):
+                xyz_vox = (np.dot(phys2vox,xyzh)+.5).astype('int')
+                shift = np.identity(4)
+                shift[:3,-1] = xyz_vox[:3]-r
+                W = nib.Nifti1Image(dataobj=kernel,affine=np.dot(tpl.affine,shift))
+                assignments.append(self.assign(W,msg=", ".join([f"{v:.1f}" for v in xyzh[:3]])))
 
         return assignments
 
     
-    def assign(self,other,msg=None):
+    def assign(self,other:nib.Nifti1Image,msg=None):
         
         values = {}
         if msg is None:
