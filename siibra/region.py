@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from . import logger,spaces
-from .commons import create_key, Glossary, MapType
+from .commons import create_key, Glossary, MapType, ParcellationIndex
 from .space import Space
 from . import volumesrc
 import numpy as np
@@ -23,13 +23,21 @@ import nibabel as nib
 from memoization import cached
 import re
 import anytree
+from typing import Union
+
+REMOVE_FROM_NAME=['hemisphere','-']
+
+def _clear_name(name):
+    for word in REMOVE_FROM_NAME:
+        name = re.sub(r' *'+word,'',name)
+    return name
 
 class Region(anytree.NodeMixin):
     """
     Representation of a region with name and more optional attributes
     """
 
-    def __init__(self, name, parcellation, labelindex=None, attrs={}, mapindex=None, parent=None, children=None, volume_src={}):
+    def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None, volume_src={}):
         """
         Constructs a new region object.
 
@@ -39,9 +47,9 @@ class Region(anytree.NodeMixin):
             Human-readable name of the rgion
         parcellation : Parcellation
             the parcellation object that this region belongs to
-        labelindex : int
+        parcellaton : int
             the integer label index used to mark the region in a labelled brain volume
-        mapindex : int, or None
+        index : ParcellationIndex
             the integer label index used to specify one of muliple available maps, if any (otherwise None)
         attrs : dict
             A dictionary of arbitrary additional information
@@ -50,11 +58,10 @@ class Region(anytree.NodeMixin):
         volume_src : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
-        self.name = name
+        self.name = _clear_name(name)
         self.key = create_key(name)
         self.parcellation = parcellation
-        self.labelindex = labelindex
-        self.mapindex = mapindex
+        self.index = index
         self.attrs = attrs
         self.parent = parent
         self.volume_src = volume_src
@@ -64,11 +71,11 @@ class Region(anytree.NodeMixin):
             for c in self.children:
                 c.parent = self
                 c.parcellation = self.parcellation
-                if c.mapindex is not None:
+                if c.index.map is not None:
                     child_has_mapindex=True
 
-        if (self.mapindex is None) and (not child_has_mapindex):
-            self.mapindex=0
+        if (self.index.map is None) and (not child_has_mapindex):
+            self.index.map=0
 
     @staticmethod
     def copy(other):
@@ -77,7 +84,7 @@ class Region(anytree.NodeMixin):
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
-        region = Region(other.name, other.parcellation, other.labelindex, other.attrs)
+        region = Region(other.name, other.parcellation, other.index, other.attrs)
 
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
@@ -88,7 +95,7 @@ class Region(anytree.NodeMixin):
 
     @property
     def labels(self):
-        return {r.labelindex for r in self if r.labelindex is not None}
+        return {r.index.label for r in self if r.index.label is not None}
 
     @property
     def names(self):
@@ -103,8 +110,8 @@ class Region(anytree.NodeMixin):
         """
         return hash(self.parcellation.key+self.key)
 
-    def has_parent(self,parentname):
-        return parentname in [a.name for a in self.ancestors]
+    def has_parent(self,parent):
+        return parent in [a for a in self.ancestors]
 
     def __getattr__(self,name):
         if name in self.attrs.keys():
@@ -118,7 +125,7 @@ class Region(anytree.NodeMixin):
         """
         return region==self or region in self.descendants
 
-    def find(self,regionspec,select_uppermost=False,mapindex=None):
+    def find(self,regionspec,select_uppermost=False):
         """
         Find regions that match the given region specification in the subtree
         headed by this region. 
@@ -129,22 +136,21 @@ class Region(anytree.NodeMixin):
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex,
+            - a full ParcellationIndex
             - a region object
         select_uppermost : Boolean
             If true, only the uppermost matches in the region hierarchy are
             returned (otherwise all siblings as well if they match the name)
-        mapindex : integer, or None (optional)
-            Some parcellation maps are defined over multiple 3D parcellation
-            volumes with overlapping labelindices (e.g. splitting the
-            hemispheres). For those, the optional mapindex can be used to 
-            further restrict the matching regions.
 
         Yield
         -----
         list of matching regions
         """
+        if isinstance(regionspec,str) and regionspec in self.names:
+            # key is given, this gives us an exact region
+            return [anytree.search.find_by_attr(self,regionspec,name="key")]
         result = anytree.search.findall(self,
-                lambda node: node.matches(regionspec,mapindex))
+                lambda node: node.matches(regionspec))
         if len(result)>1 and select_uppermost:
             all_results = result
             mindepth = min([r.depth for r in result])
@@ -161,7 +167,7 @@ class Region(anytree.NodeMixin):
             return list(result)
 
     @cached
-    def matches(self,regionspec,mapindex=None):
+    def matches(self,regionspec):
         """ 
         Checks wether this region matches the given region specification. 
 
@@ -172,12 +178,8 @@ class Region(anytree.NodeMixin):
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex,
+            - a full ParcellationIndex
             - a region object
-        mapindex : integer, or None (optional)
-            Some parcellation maps are defined over multiple 3D parcellation
-            volumes with overlapping labelindices (e.g. splitting the
-            hemispheres). For those, the optional mapindex can be used to 
-            further restrict the matching regions.
 
         Yield
         -----
@@ -189,10 +191,9 @@ class Region(anytree.NodeMixin):
             return self==regionspec
         elif isinstance(regionspec,int):
             # argument is int - a labelindex is expected
-            if mapindex is None:
-                return self.labelindex==regionspec
-            else:
-                return all([self.labelindex==regionspec,self.mapindex==mapindex])
+            return self.index.label==regionspec
+        elif isinstance(regionspec,ParcellationIndex):
+            return self.index==regionspec          
         elif isinstance(regionspec,str):
             # string is given, perform some lazy string matching
             words = splitstr(self.name.lower())
@@ -200,16 +201,11 @@ class Region(anytree.NodeMixin):
                     regionspec==self.key,
                     regionspec==self.name,
                     all([w.lower() in words 
-                        for w in splitstr(regionspec)])
+                        for w in splitstr(_clear_name(regionspec))])
                     ]) 
-            if mapindex is None:
-                return name_matches
-            else:
-                return name_matches and self.mapindex==mapindex
+            return name_matches
         else:
-            raise TypeError(
-                    "Cannot interpret region specification of type '{}'".format(
-                        type(regionspec)))
+            raise TypeError(f"Cannot interpret region specification of type '{type(regionspec)}'")
 
     @cached
     def build_mask(self,space : Space, resolution_mm=None ):
@@ -236,7 +232,7 @@ class Region(anytree.NodeMixin):
 
         mask = affine = None 
 
-        if self.labelindex is not None:
+        if self.index.label is not None:
 
             if all([
                 self.parcellation.continuous_map_threshold is not None,
@@ -257,7 +253,7 @@ class Region(anytree.NodeMixin):
 
             else:
                 logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
-                maskimg = self.parcellation.get_map(space).extract_mask(self,resolution_mm=resolution_mm)
+                maskimg = self.parcellation.get_map(space).extract_regionmap(self,resolution_mm=resolution_mm)
                 if maskimg:
                     mask = maskimg.dataobj
                     affine = maskimg.affine
@@ -294,7 +290,8 @@ class Region(anytree.NodeMixin):
         """
         return (space,maptype) in self.volume_src
 
-    def get_regional_map(self,space,maptype:MapType):
+    @cached
+    def get_regional_map(self,space:Space,maptype:Union[str,MapType]):
         """
         Retrieves and returns a specific map of this region, if available
         (otherwise None). This is typically a probability or otherwise
@@ -308,6 +305,8 @@ class Region(anytree.NodeMixin):
         maptype : MapType
             Type of map (e.g. continuous, labelled - see commons.MapType)
         """
+        if isinstance(maptype,str):
+            maptype = MapType[maptype.upper()]
         try:
             spaceobj = spaces[space]
         except IndexError:
@@ -339,7 +338,7 @@ class Region(anytree.NodeMixin):
             raise TypeError("Index access into the regiontree excepts label indices of integer type")
 
         # first test this head node
-        if self.labelindex==labelindex:
+        if self.index.label==labelindex:
             return self 
 
         # Consider children, and return the one with smallest depth
@@ -353,7 +352,7 @@ class Region(anytree.NodeMixin):
                 # create an articicial parent region from the multiple matches
                 custom_parent = Region._build_grouptree(
                         parentmatches,self.parcellation)
-                assert(custom_parent.labelindex==labelindex)
+                assert(custom_parent.index.label==labelindex)
                 logger.warn("Label index {} resolves to multiple regions. A customized region subtree is returned: {}".format(
                     labelindex, custom_parent.name))
                 return custom_parent
@@ -368,19 +367,19 @@ class Region(anytree.NodeMixin):
         # determine appropriate labelindex
         indices = []
         for tree in regions:
-            indices.extend([r.labelindex for r in tree])
+            indices.extend([r.index for r in tree])
         unique = set(indices)
-        labelindex = next(iter(unique)) if len(unique)==1 else None
+        index = next(iter(unique)) if len(unique)==1 else ParcellationIndex(None,None)
 
         group = Region(
                 "Group: "+",".join([r.name for r in regions]),
-                parcellation, labelindex, 
+                parcellation, index, 
                 children=[Region.copy(r) for r in regions])
         return group
 
 
     def __str__(self):
-        return self.name
+        return f"{self.parcellation.name}: {self.name}"
 
     def __repr__(self):
         return  "\n".join("%s%s" % (pre, node.name)
@@ -436,8 +435,9 @@ class Region(anytree.NodeMixin):
         # Then setup the parent object
         assert('name' in jsonstr)
         name = jsonstr['name'] 
-        labelindex = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None
-        mapindex = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else None
+        pindex = ParcellationIndex(
+            label = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None,
+            map = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else None)
 
         # Parse the volume sources in this region definition, if any
         # TODO the json structure should be simplified, the usage type clarified. 
@@ -463,16 +463,15 @@ class Region(anytree.NodeMixin):
                     raise NotImplementedError(f"'volumeSrc' field has unknown key '{key}', cannot determine MapType")
                 volume_src[space,key2maptype[key]] = vsrc
 
-
-        r = Region( name, parcellation, labelindex, 
-                attrs=jsonstr, mapindex=mapindex, children=children, 
+        r = Region( name, parcellation, pindex, 
+                attrs=jsonstr, children=children, 
                 volume_src=volume_src )
 
         # inherit labelindex from children, if they agree
-        if labelindex is None and r.children: 
-            L = [c.labelindex for c in r.children]
+        if pindex.label is None and r.children: 
+            L = [c.index.label for c in r.children]
             if (len(L)>0) and (L.count(L[0])==len(L)):
-                r.labelindex = L[0]
+                r.index.label = L[0]
 
         return r
 

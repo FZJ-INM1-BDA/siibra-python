@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ctypes import ArgumentError
 from . import logger
-from . import retrieval 
+from . import retrieval
+from . import arrays
 import numpy as np
 import nibabel as nib
 from cloudvolume.exceptions import OutOfBoundsError
@@ -160,7 +162,7 @@ class NiftiVolume(VolumeSrc,ImageProvider):
             self._image_cached=nib.Nifti1Image.from_filename(filename)
         return self._image_cached
 
-    def fetch(self,resolution_mm=None,voi=None,mapindex=None):
+    def fetch(self,resolution_mm=None,voi=None,mapindex=None,clip=False):
         """
         Loads and returns a Nifti1Image object representing the volume source.
 
@@ -173,19 +175,38 @@ class NiftiVolume(VolumeSrc,ImageProvider):
         voi : SpaceVOI
             optional volume of interest
         """
+        if clip and voi:
+            raise ArgumentError("voi and clip cannot only be requested independently")
         shape = self.get_shape()
+        img = None
         if resolution_mm is not None:
             raise NotImplementedError(f"NiftiVolume does not support to specify image resolutions (but {resolution_mm} was given)")
-        if voi is not None:
-            raise NotImplementedError(f"NiftiVolume does not support to specify volumes of interest (but {voi} was given).")
         if mapindex is None:
-            return self.image
+            img = self.image
         elif len(shape)!=4 or mapindex>=shape[3]:
             raise IndexError(f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}.")
         else:
-            return nib.Nifti1Image(
+            img = nib.Nifti1Image(
                 dataobj=self.image.dataobj[:,:,:,mapindex],
                 affine=self.image.affine)
+        assert(img is not None)
+        if voi is not None:
+            bbox_vox = voi.transform_bbox(np.linalg.inv(img.affine))
+            (x0,y0,z0),(x1,y1,z1) = bbox_vox.minpt,bbox_vox.maxpt
+            shift = np.identity(4)
+            shift[:3,-1] = bbox_vox.minpt
+            img = nib.Nifti1Image(
+                dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
+                affine = np.dot(img.affine,shift))
+        elif clip:
+            bb_vox = arrays.bbox3d(img.dataobj)
+            (x0,y0,z0),(x1,y1,z1) = bbox_vox.minpt,bbox_vox.maxpt
+            shift = np.identity(4)
+            shift[:3,-1] = bbox_vox.minpt
+            img = nib.Nifti1Image(
+                dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
+                affine = np.dot(img.affine,shift))
+        return img
 
     def get_shape(self,resolution_mm=None):
         if resolution_mm is not None:
@@ -196,7 +217,7 @@ class NiftiVolume(VolumeSrc,ImageProvider):
         return self.image.dataobj.dtype.kind=='f'
 
 
-class NgVolume(VolumeSrc):
+class NgVolume(VolumeSrc,ImageProvider):
 
     # Gigabyte size that is considered feasible for ad-hoc downloads of
     # neuroglancer volume data. This is used to avoid accidental huge downloads.
@@ -290,7 +311,7 @@ class NgVolume(VolumeSrc):
         """
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR")
-        mip = self._resolution_to_mip(resolution_mm,voi=voi)
+        mip = self._resolution_to_mip(resolution_mm=resolution_mm,voi=voi)
         effective_res_mm = self.mip_resolution_mm[mip]
         logger.setLevel(loglevel)
 
@@ -300,7 +321,7 @@ class NgVolume(VolumeSrc):
             minpt_vox =np.dot(
                 np.linalg.inv(self.build_affine(effective_res_mm)),
                 np.r_[voi.minpt,1])[:3]
-            logger.info(f"Affine matrix respects volume of interest shift {voi.minpt}")
+            logger.debug(f"Affine matrix respects volume of interest shift {voi.minpt}")
             shift[:3,-1] = minpt_vox
 
         # scaling from voxel to nm
@@ -315,7 +336,6 @@ class NgVolume(VolumeSrc):
         # warp from nm to mm   
         affine[:3,:]/=1000000.
 
-    
         return np.dot(affine,shift)
         #return affine
 
@@ -353,9 +373,11 @@ class NgVolume(VolumeSrc):
         cachefile = retrieval.cachefile("{}{}{}".format(
             self.url, bbox_vox.serialize(), str(mip)).encode('utf8'),suffix='npy')
         if os.path.exists(cachefile):
+            logger.debug("NgVolume loads from cache file {cachefile}")
             return np.load(cachefile)
         else:
             try:
+                logger.debug(f"NgVolume downloads (mip={mip}, bbox={bbox_vox}")
                 data = self.volume.download(bbox=bbox_vox,mip=mip)
                 np.save(cachefile,np.array(data))
                 return np.array(data)
@@ -375,18 +397,21 @@ class NgVolume(VolumeSrc):
             optional volume of interest
         """
         if mapindex is not None:
-            raise NotImplementedError(f"NgVolume does not support access by a specific map index (but {mapindex} was given)")
+            raise NotImplementedError(f"NgVolume does not support access by map index (but {mapindex} was given)")
         return nib.Nifti1Image(
             self._load_data(resolution_mm=resolution_mm,voi=voi),
             affine=self.build_affine(resolution_mm=resolution_mm,voi=voi)
         )
 
     def get_shape(self,resolution_mm=None):
-        mip = self._resolution_to_mip(resolution_mm)
+        mip = self._resolution_to_mip(resolution_mm,voi=None)
         return self.info['scales'][mip]['size']
 
     def is_float(self):
         return np.dtype(self.info['data_type']).kind=='f'
+
+    def __hash__(self):
+        return hash(self.url)+hash(self.transform_nm)
     
     def _enclosing_chunkgrid(self,mip, bbox_phys):
         """

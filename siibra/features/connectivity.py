@@ -18,6 +18,7 @@ import warnings
 from gitlab import Gitlab
 
 from .. import logger
+from ..commons import ParcellationIndex
 from ..region import Region
 from .feature import RegionalFeature,GlobalFeature
 from .extractor import FeatureExtractor
@@ -74,7 +75,7 @@ class ConnectivityProfile(RegionalFeature):
             except ValueError as e:
                 logger.warning(f'Region name "{regionname}" cannot be decoded by parcellation {parcellation.key}, returning dummy region.')
                 if force:
-                    return Region(regionname, parcellation)
+                    return Region(regionname, parcellation, ParcellationIndex(None,None))
                 raise e
 
         decoded = ( (strength,decoderegion(parcellation,regionname,force))
@@ -183,7 +184,7 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
                     continue
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
-                logger.warning(f'Only {len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
+                logger.warning(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset point to valid regions.')
 
             for i,region in valid_regions.items():
                 regionname = column_names[i]

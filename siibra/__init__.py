@@ -32,6 +32,7 @@ loglevel = getenv("SIIBRA_LOG_LEVEL","INFO")
 set_log_level(loglevel)
 
 logger.info(f"Version: {__version__}")
+logger.warning("This is a development release. Use at your own risk. Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
@@ -39,4 +40,4 @@ from .atlas import REGISTRY as atlases
 from .retrieval import clear_cache
 from .features import modalities
 from .ebrains import set_token as set_ebrains_token
-from .commons import MapType
+from .commons import MapType,ParcellationIndex

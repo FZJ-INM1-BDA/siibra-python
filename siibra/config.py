@@ -69,10 +69,10 @@ class ConfigurationRegistry:
                     path=config_subfolder, ref=GITLAB_PROJECT_TAG, all=True)
                 if v['type']=='blob'
                 and v['name'].endswith('.json') ]
-        logger.info(f"Loading configurations of {len(config_files)} {config_subfolder}...")
+        msg=f"Configuring {config_subfolder:15.15}"
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
-        for configfile in tqdm(config_files,total=len(config_files)):
+        for configfile in tqdm(config_files,total=len(config_files),desc=msg,unit=" files"):
             f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
             jsonstr = f.decode()
             obj = json.loads(jsonstr, object_hook=cls.from_json)

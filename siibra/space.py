@@ -50,6 +50,9 @@ class Space:
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return str(self)
+
     def get_template(self, resolution_mm=None ):
         """
         Get the volumetric reference template image for this space.

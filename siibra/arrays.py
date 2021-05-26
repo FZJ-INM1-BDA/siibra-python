@@ -17,10 +17,12 @@ import numbers
 from scipy.ndimage import gaussian_filter
 import nibabel as nib
 
-def bbox3d(A):
+def bbox3d(A,affine=None):
     """
     Bounding box of nonzero values in a 3D array.
     https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+
+    If affine not None, the affine is applied to the bounding box.
     """
     r = np.any(A, axis=(1, 2))
     c = np.any(A, axis=(0, 2))
@@ -28,12 +30,15 @@ def bbox3d(A):
     rmin, rmax = np.where(r)[0][[0, -1]]
     cmin, cmax = np.where(c)[0][[0, -1]]
     zmin, zmax = np.where(z)[0][[0, -1]]
-    return np.array([
+    bbox = np.array([
         [rmin, rmax], 
         [cmin, cmax], 
         [zmin, zmax],
         [1,1]
     ])
+
+    return bbox if affine is None else np.dot(affine,bbox)
+
 
 def create_homogeneous_array(xyz):
     """
@@ -63,22 +68,17 @@ def assert_homogeneous_3d(xyz):
     else:
         return np.r_[xyz,1]
 
-def create_gaussian_kernel(refimg,sigma_phys=1,sigma_point=3):
+def create_gaussian_kernel(sigma=1,sigma_point=3):
     """
-    Compute a 3D Gaussian kernel for the voxel space of the given reference
-    image, matching its bandwidth provided in physical coordinates.
+    Compute a 3D Gaussian kernel of the given bandwidth.
     """
-    scaling = np.array([np.linalg.norm(refimg.affine[:,i]) 
-                        for i in range(3)]).mean()
-    sigma_vox = sigma_phys / scaling
-    r = int(sigma_point*sigma_vox)
+    r = int(sigma_point*sigma)
     k_size = 2*r + 1
     impulse = np.zeros((k_size,k_size,k_size))
     impulse[r,r,r] = 1
-    kernel = gaussian_filter(impulse, sigma_vox)
+    kernel = gaussian_filter(impulse, sigma)
     kernel /= kernel.sum()
     return kernel
-
 
 def argmax_dim4(img,dim=-1):
     """

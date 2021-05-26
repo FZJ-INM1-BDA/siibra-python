@@ -16,7 +16,7 @@ from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
 from .config import ConfigurationRegistry
-from .commons import create_key,MapType
+from .commons import create_key,MapType,ParcellationIndex
 from typing import Union
 import numpy as np
 import nibabel as nib
@@ -110,7 +110,7 @@ class Parcellation:
     @property
     def regiontree(self):
         if self._regiontree_cached is None:
-            self._regiontree_cached = Region(self.name,self)
+            self._regiontree_cached = Region(self.name,self,ParcellationIndex(None,None))
             try:
                     self._regiontree_cached.children = tuple( 
                         Region.from_json(regiondef,self) 
@@ -187,7 +187,7 @@ class Parcellation:
         """
         return space in self.volume_src.keys()
 
-    def decode_region(self,regionspec,mapindex=None):
+    def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -204,17 +204,13 @@ class Parcellation:
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex,
             - a region object
-        mapindex : integer, or None (optional)
-            Some parcellation maps are defined over multiple 3D parcellation
-            volumes with overlapping labelindices (e.g. splitting the
-            hemispheres). For those, the optional mapindex can be used to 
-            further restrict the matching regions.
+            - a full ParcellationIndex
 
         Return
         ------
         Region object
         """
-        candidates = self.regiontree.find(regionspec,select_uppermost=True,mapindex=mapindex)
+        candidates = self.regiontree.find(regionspec,select_uppermost=True)
         if not candidates:
             raise ValueError("Regionspec {} could not be decoded under '{}'".format(
                 regionspec,self.name))
@@ -270,6 +266,12 @@ class Parcellation:
         Returns an iterator that goes through all regions in this parcellation
         """
         return self.regiontree.__iter__()
+
+    def __getitem__(self,regionspec:Union[str,int]):
+        """
+        Retrieve a region object from the parcellation by labelindex or partial name.
+        """
+        return self.decode_region(regionspec)
 
     @staticmethod
     def from_json(obj):

@@ -76,7 +76,7 @@ class Atlas:
 
     @property
     def regionnames(self):
-        return self.selected_parcellation.regiontree.names
+        return self.selected_parcellation.names
 
     @property
     def regionlabels(self):
@@ -306,13 +306,15 @@ class Atlas:
         """
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
-        mask = self.build_mask(space)
-        voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
-        if np.any(voxel>=mask.dataobj.shape):
-            return False
-        if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
-            return False
-        return True
+        def check(mask):
+            voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
+            if np.any(voxel>=mask.dataobj.shape):
+                return False
+            if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
+                return False
+            return True
+        M = self.build_mask(space)
+        return any(check(M.slicer[:,:,:,i]) for i in range(M.shape[3])) if M.ndim==4 else check(M)
 
     def get_features(self,modality,**kwargs):
         """
@@ -335,9 +337,9 @@ class Atlas:
 
         return hits
 
-    def assign_regions(self,space:Space,xyz_phys,sigma_phys=0):
+    def assign_coordinates(self,space:Space,xyz_phys,sigma_phys=0):
         """
-        Assign regions to a physical coordinates with optional standard deviation.
+        Assign physical coordinates with optional standard deviation to atlas regions.
 
         Parameters
         ----------
@@ -353,7 +355,7 @@ class Atlas:
             deterministic coordinate.
         """
         smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
-        assignments = smap.assign_regions(xyz_phys, sigma_phys)
+        assignments = smap.assign_coordinates(xyz_phys, sigma_phys)
         return [{region:value for _,region,value in A} for A in assignments]
 
 
