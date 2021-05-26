@@ -24,6 +24,21 @@ formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
+class LoggingContext:
+    def __init__(self, level ):
+        self.level = level
+
+    def __enter__(self):
+        print("setting loglevel",self.level)
+        self.old_level = logger.level
+        logger.setLevel(self.level)
+
+    def __exit__(self, et, ev, tb):
+        print("restoring loglevel",self.old_level)
+        logger.setLevel(self.old_level)
+
+logger.context = LoggingContext
+
 # convenience function, will be easier to discover
 def set_log_level(level):
     logger.setLevel(level)
