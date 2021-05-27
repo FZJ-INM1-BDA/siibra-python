@@ -22,14 +22,14 @@ from cloudvolume import Bbox
 from typing import Tuple
 
 class Space:
+    """
+    A particular brain reference space.
+    """
 
-    def __init__(self, identifier, name, template_type=None, template_url=None, ziptarget=None, src_volume_type=None, volume_src=[]):
+    def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src={}):
         self.id = identifier
-        self.name = name
-        self.key = create_key(name)
+        self._rename(name)
         self.type = template_type
-        self.url = template_url
-        self.ziptarget = ziptarget
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
         self._assign_volume_sources(volume_src)
@@ -59,8 +59,8 @@ class Space:
 
         Parameters
         ----------
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
 
@@ -107,10 +107,10 @@ class Space:
     @staticmethod
     def from_json(obj):
         """
-        Provides an object hook for the json library to construct an Atlas
+        Provides an object hook for the json library to construct a Space
         object from a json stream.
         """
-        required_keys = ['@id','name','shortName','templateUrl','templateType']
+        required_keys = ['@id','name','shortName','templateType']
         if any([k not in obj for k in required_keys]):
             return obj
 

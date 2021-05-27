@@ -20,7 +20,7 @@ from . import parcellations, spaces, features, logger
 from .region import Region
 from .features.feature import GlobalFeature
 from .features import classes as feature_classes
-from .commons import create_key
+from .commons import create_key,MapType
 from .config import ConfigurationRegistry
 from .space import Space
 
@@ -61,14 +61,18 @@ class Atlas:
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        if all([ '@id' in obj, 'spaces' in obj, 'parcellations' in obj,
-            obj['@id'].startswith("juelich/iav/atlas/v1.0.0") ]):
+        if all([ 
+            '@id' in obj, 
+            'spaces' in obj, 
+            'parcellations' in obj ]):
             p = Atlas(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
-                assert(space_id in spaces)
+                if space_id not in spaces:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - space {space_id} not known")
                 p._add_space( spaces[space_id] )
             for parcellation_id in obj['parcellations']:
-                assert(parcellation_id in parcellations)
+                if parcellation_id not in parcellations:
+                    raise ValueError(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
                 p._add_parcellation( parcellations[parcellation_id] )
             return p
         return obj
@@ -175,7 +179,7 @@ class Atlas:
         """
         return self.selected_parcellation.get_map(space=space,maptype=maptype)
 
-    def build_mask(self, space : Space, resolution=None ):
+    def build_mask(self, space : Space, resolution_mm=None ):
         """
         Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -188,7 +192,7 @@ class Atlas:
         ----------
         space : Space
             Template space 
-        resolution : float or None (Default: None)
+        resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
@@ -330,13 +334,6 @@ class Atlas:
         if modality not in features.extractor_types.modalities:
             logger.error("Cannot query features - no feature extractor known "\
                     "for feature type {}.".format(modality))
-            return hits
-
-        # make sure that a region is selected when expected
-        local_query = GlobalFeature not in feature_classes[modality].__bases__ 
-        if local_query and not self.selected_region:
-            logger.error("For non-global feature types "\
-                    "select a region using 'select_region' to query data.")
             return hits
 
         for cls in features.extractor_types[modality]:

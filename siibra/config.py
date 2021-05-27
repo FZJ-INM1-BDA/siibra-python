@@ -27,8 +27,7 @@ GITLAB_SERVER = 'https://jugit.fz-juelich.de'
 GITLAB_PROJECT_ID=3484
 GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
 
-if "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ:
-    logger.warning(f"environ SIIBRA_CONFIG_GITLAB_PROJECT_TAG set, using {GITLAB_PROJECT_TAG} as GITLAB_PROJECT_TAG")
+logger.info(f"Configuration: {GITLAB_PROJECT_TAG}")
 
 class ConfigurationRegistry:
     """
@@ -67,7 +66,7 @@ class ConfigurationRegistry:
         self.cls = cls
         config_files = [ v['name'] 
                 for v in project.repository_tree(
-                    path=config_subfolder, ref=GITLAB_PROJECT_TAG)
+                    path=config_subfolder, ref=GITLAB_PROJECT_TAG, all=True)
                 if v['type']=='blob'
                 and v['name'].endswith('.json') ]
         msg=f"Configuring {config_subfolder:15.15}"
@@ -77,6 +76,8 @@ class ConfigurationRegistry:
             f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
             jsonstr = f.decode()
             obj = json.loads(jsonstr, object_hook=cls.from_json)
+            if not isinstance(obj,cls):
+                raise RuntimeError(f'Could not generate object of type {cls} from configuration {configfile}')
             key = create_key(str(obj))
             identifier = obj.id
             self.items.append(obj)

@@ -15,16 +15,63 @@
 from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
-from .bigbrain import BigBrainVolume,is_ngprecomputed,load_ngprecomputed
 from .config import ConfigurationRegistry
 from .commons import create_key,MapType,ParcellationIndex
 from typing import Union
 import numpy as np
 import nibabel as nib
 from nilearn import image
-from enum import Enum
 from tqdm import tqdm
 from memoization import cached
+
+class ParcellationVersion:
+    def __init__(self, name=None, prev_id=None, next_id=None):
+        self.name=name
+        self.next_id=next_id
+        self.prev_id=prev_id
+    
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return  self.name
+
+    def __iter__(self):
+        yield 'name', self.name
+        yield 'prev', self.prev.id if self.prev is not None else None
+        yield 'next', self.next.id if self.next is not None else None
+
+    @property
+    def next(self):
+        if self.next_id is None:
+            return None
+        try:
+            return REGISTRY[self.next_id]
+        except IndexError:
+            return None
+        except NameError:
+            logger.warning('Accessing REGISTRY before its declaration!')
+    
+    @property
+    def prev(self):
+        if self.prev_id is None:
+            return None
+        try:
+            return REGISTRY[self.prev_id]
+        except IndexError:
+            return None
+        except NameError:
+            logger.warning('Accessing REGISTRY before its declaration!')
+
+    @staticmethod
+    def from_json(obj):
+        """
+        Provides an object hook for the json library to construct a
+        ParcellationVersion object from a json string.
+        """
+        if obj is None:
+            return None
+        return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
 
 class Parcellation:
 
@@ -51,7 +98,6 @@ class Parcellation:
         self.version = version
         self.publications = []
         self.description = ""
-        self.maps = {}
         self.volume_src = {}
         self.modality = modality
         self._regiondefs = regiondefs
@@ -87,7 +133,7 @@ class Parcellation:
         ------
         A list of volume sources
         """
-        if space not in self.volume_src:
+        if not self.supports_space(space):
             raise ValueError('Parcellation "{}" does not provide volume sources for space "{}"'.format(
                 str(self), str(space) ))
         return self.volume_src[space]
@@ -135,11 +181,11 @@ class Parcellation:
     def names(self):
         return self.regiontree.names
 
-    def supports_space(self,space):
+    def supports_space(self,space : Space):
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return space in self.maps.keys()
+        return space in self.volume_src.keys()
 
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
         """
@@ -231,9 +277,9 @@ class Parcellation:
     def from_json(obj):
         """
         Provides an object hook for the json library to construct a Parcellation
-        object from a json stream.
+        object from a json string.
         """
-        required_keys = ['@id','name','shortName','maps','regions']
+        required_keys = ['@id','name','shortName','volumeSrc','regions']
         if any([k not in obj for k in required_keys]):
             return obj
 
@@ -257,6 +303,7 @@ class Parcellation:
             p.description = obj['description']
         if 'publications' in obj:
             p.publications = obj['publications']
+        logger.debug(f'Adding parcellation "{str(p)}"')
         return p
 
 REGISTRY = ConfigurationRegistry('parcellations', Parcellation)

@@ -34,7 +34,7 @@ setup(
         "Operating System :: OS Independent",
         'Intended Audience :: Developers',
     ],
-    python_requires='>=3.7',
-    install_requires=['numpy>=1.20', 'anytree','statsmodels','nibabel','click','appdirs','scikit-image','scipy','statsmodels','requests','python-gitlab','memoization','cloud-volume','nilearn'],
+    python_requires='>=3.6',
+    install_requires=['anytree','statsmodels','nibabel','click','appdirs','scikit-image','scipy','statsmodels','requests','python-gitlab','memoization','cloud-volume','nilearn'],
 )
 

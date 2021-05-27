@@ -55,14 +55,16 @@ class Region(anytree.NodeMixin):
             A dictionary of arbitrary additional information
         parent : Region
             Parent of this region, if any
+        volume_src : Dict of VolumeSrc
+            VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
         self.name = _clear_name(name)
         self.key = create_key(name)
-        # usually set explicitely after constructing an option
         self.parcellation = parcellation
         self.index = index
         self.attrs = attrs
         self.parent = parent
+        self.volume_src = volume_src
         child_has_mapindex = False
         if children:
             self.children = children
@@ -98,28 +100,6 @@ class Region(anytree.NodeMixin):
     @property
     def names(self):
         return Glossary([r.key for r in self])
-
-    def _related_ebrains_files(self):
-        """
-        Returns a list of downloadable files from EBRAINS that could be found
-        for this region, if any.
-        FIXME: parameter is not used!
-        """
-        files = []
-        if 'originDatasets' not in self.attrs.keys():
-            return files
-        if len(self.attrs['originDatasets'])==0:
-            return files
-        if 'kgId' not in self.attrs['originDatasets'][0].keys():
-            return files
-        dataset = self.attrs['originDatasets'][0]['kgId']
-        res = ebrains.execute_query_by_id(
-                'minds','core','dataset','v1.0.0',
-                'brainscapes_files_in_dataset',
-                params={'dataset':dataset} )
-        for dataset in res['results']:
-            files.extend(dataset['files'])
-        return files
 
     def __eq__(self,other):
         return self.__hash__() == other.__hash__()
@@ -228,21 +208,25 @@ class Region(anytree.NodeMixin):
             raise TypeError(f"Cannot interpret region specification of type '{type(regionspec)}'")
 
     @cached
-    def build_mask(self,space : Space, resolution=None ):
+    def build_mask(self,space : Space, resolution_mm=None ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
+
+        NOTE: This is sensitive to the `continuous_map_threshold` attribute of
+        the parent parcellation. If set, thresholded continuous maps will be
+        preferred over labelled masks when a continuous regional map is available.
 
         Parameters
         ----------
         space : Space
             The desired template space.
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        if space not in self.parcellation.maps:
+        if not self.parcellation.supports_space(space):
             logger.error('Parcellation "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
@@ -278,7 +262,7 @@ class Region(anytree.NodeMixin):
             logger.info("{} has no own mask, trying to build mask from children".format(
                 self.name))
             for child in self.children:
-                childmask = child.build_mask(space,resolution)
+                childmask = child.build_mask(space,resolution_mm)
                 if childmask is None: 
                     continue
                 if mask is None:
@@ -293,7 +277,7 @@ class Region(anytree.NodeMixin):
 
         return nib.Nifti1Image(dataobj=mask,affine=affine)
 
-    def has_regional_map(self,space):
+    def has_regional_map(self,space,maptype : MapType):
         """
         Tests wether a specific map is available for this region.
 
@@ -301,11 +285,10 @@ class Region(anytree.NodeMixin):
         ----------
         space : Space 
             Template space 
+        maptype : MapType
+            Type of map (e.g. continuous, labelled - see commons.MapType)
         """
-        if "maps" in self.attrs.keys():
-            if space.id in self.attrs["maps"].keys():
-                return True
-        return False
+        return (space,maptype) in self.volume_src
 
     @cached
     def get_regional_map(self,space:Space,maptype:Union[str,MapType]):
@@ -440,13 +423,16 @@ class Region(anytree.NodeMixin):
         object from a json definition.
         """
 
-        # first collect any children 
+        # first construct any child objects
+        # This is important due to the bottom-up way the tree gets
+        # constructed # in the Region constructor.
         children = []
         if "children" in jsonstr:
-            for regiondef in jsonstr["children"]:
-                children.append(Region.from_json(regiondef,parcellation))
+            if jsonstr["children"] is not None:
+                for regiondef in jsonstr["children"]:
+                    children.append(Region.from_json(regiondef,parcellation))
 
-        # Then setup the new region object
+        # Then setup the parent object
         assert('name' in jsonstr)
         name = jsonstr['name'] 
         pindex = ParcellationIndex(
@@ -516,7 +502,8 @@ class RegionProps():
         space : Space
             A template space 
         """
-        assert(region.parcellation.supports_space(space))
+        if not region.parcellation.supports_space(space):
+            logger.error(f'Region "{region.name}" does not support for space "{space.name}"')
 
         self.region = region
         self.attrs = {}

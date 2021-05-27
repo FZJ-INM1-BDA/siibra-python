@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from siibra import parcellations, ebrains, spaces, retrieval
 from siibra.region import Region
+from siibra.commons import MapType
 
 
 class TestRegions(unittest.TestCase):
@@ -22,7 +23,20 @@ class TestRegions(unittest.TestCase):
             'kgId': kg_id,
             'kgSchema': 'minds/core/dataset/v1.0.0',
             'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
-        }]
+        }],
+        "volumeSrc": {
+            spaces[0].id : {
+                "pmap": [
+                    {
+                        "@type": "fzj/tmp/volume_type/v0.0.1",
+                        "@id": "fzj/tmp/volume_type/v0.0.1/pmap",
+                        'name': 'Probabilistic map '+region_name,
+                        "volume_type": "nii",
+                        "url": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas-Area-Ch-4_pub/4.2/Ch-4_l_N10_nlin2Stdcolin27_4.2_publicP_b92bf6270f6426059d719a6ff4d46aa7.nii.gz"
+                    }
+                ]
+            },
+        }
     }
 
     parent_definition = {
@@ -36,7 +50,8 @@ class TestRegions(unittest.TestCase):
             'kgId': kg_id,
             'kgSchema': 'minds/core/dataset/v1.0.0',
             'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
-        }]
+        }],
+        'volumeSrc' : {}
     }
     parent_region = None
     child_region = None
@@ -53,58 +68,6 @@ class TestRegions(unittest.TestCase):
 
     def test_regions_init(self):
         self.assertEqual(self.child_region.name, self.region_name)
-
-    def test_related_ebrains_files(self):
-        ebrains.execute_query_by_id = MagicMock()
-        ebrains.execute_query_by_id.return_value = {
-            'results': [
-                {
-                    'files': ['file1', 'file2']
-                }
-            ]
-        }
-        files = self.child_region._related_ebrains_files()
-        ebrains.execute_query_by_id.assert_called_with(
-            'minds',
-            'core',
-            'dataset',
-            'v1.0.0',
-            'brainscapes_files_in_dataset',
-            params={'dataset': self.kg_id})
-
-        self.assertTrue(len(files) == 2)
-
-    def test_related_ebrains_files_with_no_origin_datasets(self):
-        ebrains.execute_query_by_id = MagicMock()
-        definition = {
-            'name': self.region_name,
-            'rgb': [170, 29, 10],
-            'labelIndex': 251,
-            'ngId': 'jubrain mni152 v18 left',
-            'children': [],
-            'position': [-9205882, -57128342, -32224599],
-        }
-        region = Region(definition, parcellations[0])
-        files = region._related_ebrains_files()
-        ebrains.execute_query_by_id.assert_not_called()
-        self.assertTrue(len(files) == 0)
-
-    def test_related_ebrains_files_with_no_kg_id(self):
-        ebrains.execute_query_by_id = MagicMock()
-        self.child_region.attrs['originDatasets'] = [{
-            'kgSchema': 'minds/core/dataset/v1.0.0',
-            'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
-        }]
-        files = self.child_region._related_ebrains_files()
-        ebrains.execute_query_by_id.assert_not_called()
-        self.assertTrue(len(files) == 0)
-
-    def test_related_ebrains_files_with_empty_origin_datasets(self):
-        ebrains.execute_query_by_id = MagicMock()
-        self.child_region.attrs['originDatasets'] = []
-        files = self.child_region._related_ebrains_files()
-        ebrains.execute_query_by_id.assert_not_called()
-        self.assertTrue(len(files) == 0)
 
     def test_has_no_parent(self):
         self.assertFalse(self.parent_region.has_parent(self.parent_region))
@@ -148,7 +111,7 @@ class TestRegions(unittest.TestCase):
 
     @patch('siibra.parcellationmap.ParcellationMap.fetch')
     def test_regional_map_none(self, download_mock):
-        self.assertIsNone(self.parent_region.get_regional_map(spaces[0]))
+        self.assertIsNone(self.parent_region.get_regional_map(spaces[0],MapType.LABELLED))
         download_mock.assert_not_called()
 
     @patch('siibra.parcellationmap.ParcellationMap.fetch')
@@ -156,7 +119,7 @@ class TestRegions(unittest.TestCase):
         self.child_region.attrs['maps'] = {
             'spaceId': 'map_url'
         }
-        self.assertIsNone(self.child_region.get_regional_map(spaces[0]))
+        self.assertIsNone(self.child_region.get_regional_map(spaces[0],MapType.LABELLED))
         download_mock.assert_not_called()
 
     @patch('siibra.parcellationmap.ParcellationMap.fetch')
