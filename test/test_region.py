@@ -7,7 +7,7 @@ from siibra.region import Region
 
 class TestRegions(unittest.TestCase):
 
-    region_name = 'Interposed Nucleus (Cerebellum) - left hemisphere'
+    region_name = 'Interposed Nucleus (Cerebellum) left'
     kg_id = '658a7f71-1b94-4f4a-8f15-726043bbb52a'
     parentname = 'region_parent'
 
@@ -52,7 +52,7 @@ class TestRegions(unittest.TestCase):
         cls.child_region.parent=cls.parent_region
 
     def test_regions_init(self):
-        self.assertEqual(str(self.child_region), self.region_name)
+        self.assertEqual(self.child_region.name, self.region_name)
 
     def test_related_ebrains_files(self):
         ebrains.execute_query_by_id = MagicMock()
@@ -107,10 +107,10 @@ class TestRegions(unittest.TestCase):
         self.assertTrue(len(files) == 0)
 
     def test_has_no_parent(self):
-        self.assertFalse(self.parent_region.has_parent(self.parentname))
+        self.assertFalse(self.parent_region.has_parent(self.parent_region))
 
     def test_has_parent(self):
-        self.assertTrue(self.child_region.has_parent(self.parentname))
+        self.assertTrue(self.child_region.has_parent(self.parent_region))
 
     def test_includes_region_true(self):
         self.parent_region.children = [self.child_region]
@@ -146,12 +146,12 @@ class TestRegions(unittest.TestCase):
     def test_matches_with_wrong_region(self):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
-    @patch('siibra.region.download_file')
+    @patch('siibra.parcellationmap.ParcellationMap.fetch')
     def test_regional_map_none(self, download_mock):
         self.assertIsNone(self.parent_region.get_regional_map(spaces[0]))
         download_mock.assert_not_called()
 
-    @patch('siibra.region.download_file')
+    @patch('siibra.parcellationmap.ParcellationMap.fetch')
     def test_get_regional_map_wrong_space(self, download_mock):
         self.child_region.attrs['maps'] = {
             'spaceId': 'map_url'
@@ -159,14 +159,12 @@ class TestRegions(unittest.TestCase):
         self.assertIsNone(self.child_region.get_regional_map(spaces[0]))
         download_mock.assert_not_called()
 
-    @patch('siibra.region.download_file')
-    def test_get_regional_map_no_filename(self, download_mock):
-        download_mock.return_value = None
-        self.child_region.attrs['maps'] = {
-            spaces[0].id: spaces[0].id
-        }
-        self.assertIsNone(self.child_region.get_regional_map(spaces[0]))
-        download_mock.assert_called_with(spaces[0].id)
+    @patch('siibra.parcellationmap.ParcellationMap.fetch')
+    def test_get_regional_map_no_filename(self, fetch_mock):
+        fetch_mock.return_value = None
+        with self.assertRaises(RuntimeError):
+            self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS).fetch()
+        fetch_mock.assert_not_called()
 
 
 if __name__ == "__main__":

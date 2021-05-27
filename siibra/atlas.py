@@ -24,6 +24,8 @@ from .commons import create_key
 from .config import ConfigurationRegistry
 from .space import Space
 
+VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
+
 class Atlas:
 
     def __init__(self,identifier,name):
@@ -47,6 +49,7 @@ class Atlas:
     def _add_parcellation(self, parcellation, select=False):
         self.parcellations.append(parcellation)
         if self.selected_parcellation is None or select:
+
             self.select_parcellation(parcellation)
 
     def __str__(self):
@@ -72,14 +75,32 @@ class Atlas:
 
     @property
     def regionnames(self):
-        return self.selected_parcellation.regiontree.names
+        return self.selected_parcellation.names
 
     @property
     def regionlabels(self):
         return self.selected_parcellation.regiontree.labels
 
 
-    def select_parcellation(self, parcellation):
+    def threshold_continuous_maps(self,threshold):
+        """
+        Inform the atlas that thresholded continuous maps should be preferred
+        over static labelled maps for building and using region masks.
+        This will, for example, influence spatial filtering of coordinate-based
+        features in the get_features() method.
+        """
+        self.selected_parcellation.continuous_map_threshold = threshold
+
+    def select(self,parcellation=None, region=None, force=False):
+        """
+        Select a parcellation and/or region. See Atlas.select_parcellation, Atlas.select_region
+        """
+        if parcellation is not None:
+            self.select_parcellation(parcellation,force)
+        if region is not None:
+            self.select_region(region)
+            
+    def select_parcellation(self, parcellation,force=False):
         """
         Select a different parcellation for the atlas.
 
@@ -90,6 +111,11 @@ class Atlas:
             The new parcellation to be selected
         """
         parcellation_obj = parcellations[parcellation]
+        if parcellation_obj.version is not None:
+            versionname = parcellation_obj.version.name
+            if any(w in versionname for w in VERSION_BLACKLIST_WORDS) and not force:
+                logger.warning(f"Will not select experimental version {versionname} of {parcellation_obj.name} unless forced.")
+                return
         if parcellation_obj not in self.parcellations:
             logger.error('The requested parcellation is not supported by the selected atlas.')
             logger.error('    Parcellation:  '+parcellation_obj.name)
@@ -98,119 +124,7 @@ class Atlas:
             raise Exception('Invalid Parcellation')
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
-        logger.info('Selected parcellation "{}"'.format(self.selected_parcellation))
-
-    def get_map(self, space : Space, resolution=None):
-        """
-        return the map provided by the selected parcellation in the given space.
-        This just forwards to the selected parcellation object, see
-        Parcellation.get_map()
-        """
-        return self.selected_parcellation.get_map(space, resolution)
-
-
-    def build_mask(self, space : Space, resolution=None ):
-        """
-        Returns a binary mask in the given space, where nonzero values denote
-        voxels corresponding to the current region selection of the atlas. 
-
-        WARNING: Note that for selections of subtrees of the region hierarchy, this
-        might include holes if the leaf regions are not completly covering
-        their parent and the parent itself has no label index in the map.
-
-        Parameters
-        ----------
-        space : Space
-            Template space 
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
-        """
-        return self.selected_region.build_mask( space, resolution=resolution )
-
-    def get_template(self, space, resolution=None ):
-        """
-        Get the volumetric reference template image for the given space.
-
-        See
-        ---
-        Space.get_template()
-
-        Parameters
-        ----------
-        space : str
-            Template space definition, given as a dictionary with an '@id' key
-        resolution : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
-
-        Yields
-        ------
-        A nibabel Nifti object representing the reference template, or None if not available.
-        TODO Returning None is not ideal, requires to implement a test on the other side. 
-        """
-        if space not in self.spaces:
-            logger.error('The selected atlas does not support the requested reference space.')
-            logger.error('- Atlas: {}'.format(self.name))
-            return None
-
-        return space.get_template(resolution)
-
-    def decode_region(self,regionspec,mapindex=0):
-        """
-        Given a unique specification, return the corresponding region from the selected parcellation.
-        The spec could be a label index, a (possibly incomplete) name, or a
-        region object.
-        This method is meant to definitely determine a valid region. Therefore, 
-        if no match is found, it raises a ValueError. If it finds multiple
-        matches, it tries to return only the common parent node. If there are
-        multiple remaining parent nodes, which is rare, a custom group region is constructed.
-
-        Parameters
-        ----------
-        regionspec : any of 
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
-            - an integer, which is interpreted as a labelindex,
-            - a region object
-        map_index : int (default=0)
-            Index of the fourth dimension of a labelled volume with more than
-            a single parcellation map.
-
-        Return
-        ------
-        Region object
-        """
-        return self.selected_parcellation.decode_region(regionspec,mapindex)
-
-    def find_regions(self,regionspec,all_parcellations=False):
-        """
-        Find regions with the given specification in the current or all
-        available parcellations of this atlas.
-
-        Parameters
-        ----------
-        regionspec : any of 
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
-            - an integer, which is interpreted as a labelindex
-            - a region object
-        all_parcellations : Boolean (default:False)
-            Do not only search the selected but instead all available parcellations.
-
-        Yield
-        -----
-        list of matching regions
-        """
-        if not all_parcellations:
-            return self.selected_parcellation.find_regions(regionspec)
-        result = []
-        for p in self.parcellations:
-            result.extend(p.find_regions(regionspec))
-        return result
-
+        logger.info(f'Select "{self.selected_parcellation}"')
 
     def select_region(self,region):
         """
@@ -250,8 +164,121 @@ class Atlas:
                 logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
-            logger.info('Selected region {}'.format(self.selected_region.name))
+            logger.info(f'Select "{self.selected_region.name}"')
         return self.selected_region
+
+    def get_map(self, space=None, maptype=MapType.LABELLED):
+        """
+        return the map provided by the selected parcellation in the given space.
+        This just forwards to the selected parcellation object, see
+        Parcellation.get_map()
+        """
+        return self.selected_parcellation.get_map(space=space,maptype=maptype)
+
+    def build_mask(self, space : Space, resolution=None ):
+        """
+        Returns a binary mask in the given space, where nonzero values denote
+        voxels corresponding to the current region selection of the atlas. 
+
+        WARNING: Note that for selections of subtrees of the region hierarchy, this
+        might include holes if the leaf regions are not completly covering
+        their parent and the parent itself has no label index in the map.
+
+        Parameters
+        ----------
+        space : Space
+            Template space 
+        resolution : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
+        """
+        return self.selected_region.build_mask(space,resolution_mm=resolution_mm)
+
+    def get_template(self,space=None):
+        """
+        Get the volumetric reference template image for the given space.
+
+        See
+        ---
+        Space.get_template()
+
+        Parameters
+        ----------
+        space : str
+            Template space definition, given as a dictionary with an '@id' key
+
+        Yields
+        ------
+        A nibabel Nifti object representing the reference template, or None if not available.
+        TODO Returning None is not ideal, requires to implement a test on the other side. 
+        """
+        if space is None:
+            space = self.spaces[0]
+            if len(self.spaces)>1:
+                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
+
+
+        try:
+            spaceobj = spaces[space]
+        except IndexError:
+            logger.error(f'Atlas "{self.name}" does not support reference space "{space}".')
+            print("Available spaces:")
+            for space in self.spaces:
+                print(space.name,space.id)
+            return None
+
+        return spaceobj.get_template()
+
+    def decode_region(self,regionspec):
+        """
+        Given a unique specification, return the corresponding region from the selected parcellation.
+        The spec could be a label index, a (possibly incomplete) name, or a
+        region object.
+        This method is meant to definitely determine a valid region. Therefore, 
+        if no match is found, it raises a ValueError. If it finds multiple
+        matches, it tries to return only the common parent node. If there are
+        multiple remaining parent nodes, which is rare, a custom group region is constructed.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+
+        Return
+        ------
+        Region object
+        """
+        return self.selected_parcellation.decode_region(regionspec)
+
+    def find_regions(self,regionspec,all_parcellations=False):
+        """
+        Find regions with the given specification in the current or all
+        available parcellations of this atlas.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex
+            - a region object
+        all_parcellations : Boolean (default:False)
+            Do not only search the selected but instead all available parcellations.
+
+        Yield
+        -----
+        list of matching regions
+        """
+        if not all_parcellations:
+            return self.selected_parcellation.find_regions(regionspec)
+        result = []
+        for p in self.parcellations:
+            result.extend(p.find_regions(regionspec))
+        return result
 
     def clear_selection(self):
         """
@@ -283,13 +310,15 @@ class Atlas:
         """
         assert(space in self.spaces)
         # transform physical coordinates to voxel coordinates for the query
-        mask = self.build_mask(space)
-        voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
-        if np.any(voxel>=mask.dataobj.shape):
-            return False
-        if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
-            return False
-        return True
+        def check(mask):
+            voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
+            if np.any(voxel>=mask.dataobj.shape):
+                return False
+            if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
+                return False
+            return True
+        M = self.build_mask(space)
+        return any(check(M.slicer[:,:,:,i]) for i in range(M.shape[3])) if M.ndim==4 else check(M)
 
     def get_features(self,modality,**kwargs):
         """
@@ -319,27 +348,27 @@ class Atlas:
 
         return hits
 
-    def assign_regions(self,space:Space,xyz_phys,sigma_phys=0,thres_percent=1):
+    def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
         """
-        Assign regions to a physical coordinates with optional standard deviation.
+        Assign physical coordinates with optional standard deviation to atlas regions.
+        See also: ContinuousParcellationMap.assign_coordinates()
 
         Parameters
         ----------
         space : Space
             reference template space for computing the assignemnt
-        xyz_phys : coordinate tuple 
+        xyz_mm : coordinate tuple 
             3D point in physical coordinates of the template space of the
-            ParcellationMap
-        sigma_phys : float (default: 0)
+            ParcellationMap. Also accepts a string of the format "15.453mm, 4.828mm, 69.122mm" 
+            as copied from siibra-explorer.
+        sigma_mm : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
             physical units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
-        thres_percent : float (default: 1)
-            Regions with a probability below this threshold will not be returned.
         """
-        smap = self.selected_parcellation.get_map( space, regional=True, squeeze=False )
-        return smap.assign_regions(xyz_phys, sigma_phys, thres_percent, print_report=True)
+        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        return smap.assign_coordinates(xyz_mm, sigma_mm)
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)

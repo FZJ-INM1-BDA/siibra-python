@@ -14,11 +14,12 @@
 
 from .commons import create_key
 from .config import ConfigurationRegistry
-from .retrieval import download_file
-from .bigbrain import BigBrainVolume
+import numpy as np
+from . import volumesrc
 from . import logger
-from .volume_src import VolumeSrc
-import nibabel as nib
+import copy
+from cloudvolume import Bbox
+from typing import Tuple
 
 class Space:
 
@@ -31,11 +32,28 @@ class Space:
         self.ziptarget = ziptarget
         self.src_volume_type = src_volume_type
         self.volume_src = volume_src
+        self._assign_volume_sources(volume_src)
+
+    def _assign_volume_sources(self,volume_src):
+        self.volume_src = copy.deepcopy(volume_src)
+        for volsrc in self.volume_src:
+            try:
+                volsrc.space = self
+            except AttributeError as e:
+                print(volsrc)
+                raise(e)
+
+    def _rename(self,newname):
+        self.name = newname
+        self.key = create_key(self.name)
 
     def __str__(self):
         return self.name
 
-    def get_template(self, resolution=None ):
+    def __repr__(self):
+        return str(self)
+
+    def get_template(self, resolution_mm=None ):
         """
         Get the volumetric reference template image for this space.
 
@@ -51,20 +69,40 @@ class Space:
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side. 
         """
-        if self.type == 'nii':
-            logger.debug('Loading template image for space {}'.format(self.name))
-            filename = download_file( self.url, ziptarget=self.ziptarget )
-            if filename is not None:
-                return nib.load(filename)
-            else:
-                return None
+        candidates = [vsrc for vsrc in self.volume_src if vsrc.volume_type==self.type]
+        if not len(candidates)==1:
+            raise RuntimeError(f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src.")
+        return candidates[0]
 
-        if self.type == 'neuroglancer':
-            return BigBrainVolume(self.url).build_image(resolution)
+    def __getitem__(self,slices:Tuple[slice,slice,slice]):
+        """
+        Get a volume of interest specification from this space.
 
-        logger.error('Downloading the template image for the requested reference space is not supported.')
-        logger.error('- Requested space: {}'.format(self.name))
-        return None
+        Arguments
+        ---------
+        slices: triple of slice
+            defines the x, y and z range
+        """
+        if len(slices)!=3:
+            raise TypeError("Slice access to spaces needs to define x,y and z ranges (e.g. Space[10:30,0:10,200:300])")
+        return SpaceVOI(self,[s.start for s in slices],[s.stop for s in slices])
+
+    def get_voi(self,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
+        """
+        Get a rectangular volume of interest specification for this space.
+
+        Arguments
+        ---------
+
+        minpt: 3-tuple
+            smaller 3D point defining the VOI
+        maxpt: 3-tuple
+            larger 3D point defining the VOI
+        """
+        return self[
+            minpt[0]:maxpt[0],
+            minpt[1]:maxpt[1],
+            minpt[2]:maxpt[2]]
 
     @staticmethod
     def from_json(obj):
@@ -76,22 +114,25 @@ class Space:
         if any([k not in obj for k in required_keys]):
             return obj
 
-        volume_src = [VolumeSrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
-        
-        if '@id' in obj and "minds/core/referencespace/v1.0.0" in obj['@id']:
-            if 'templateFile' in obj:
-                return Space(obj['@id'], obj['shortName'], 
-                        template_url = obj['templateUrl'], 
-                        template_type = obj['templateType'],
-                        ziptarget=obj['templateFile'],
-                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
-                        volume_src = volume_src)
-            else:
-                return Space(obj['@id'], obj['shortName'], 
-                        template_url = obj['templateUrl'], 
-                        template_type = obj['templateType'],
-                        src_volume_type = obj['srcVolumeType'] if 'srcVolumeType' in obj else None,
-                        volume_src = volume_src)
-        return obj
+        if "minds/core/referencespace/v1.0.0" not in obj['@id']:
+            return obj
+
+        volume_src = [volumesrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
+        return Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
+                src_volume_type = obj.get('srcVolumeType'),
+                volume_src = volume_src)
+
+
+class SpaceVOI(Bbox):
+
+    def __init__(self,space:Space,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
+        super().__init__(minpt,maxpt)
+        self.space = space
+
+    def transform_bbox(self,transform):
+        assert(transform.shape==(4,4))
+        return Bbox(
+            np.dot(transform,np.r_[self.minpt,1])[:3].astype('int'),
+            np.dot(transform,np.r_[self.maxpt,1])[:3].astype('int') )
 
 REGISTRY = ConfigurationRegistry('spaces', Space)

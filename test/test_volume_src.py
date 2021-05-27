@@ -1,6 +1,6 @@
 import unittest
 
-from siibra.volume_src import VolumeSrc
+from siibra import volumesrc
 
 class TestVolumeSrc(unittest.TestCase):
 
@@ -9,7 +9,7 @@ class TestVolumeSrc(unittest.TestCase):
         name='test_name'
         v_type='ng_precomputed'
         url='http://localhost/test'
-        volume_src = VolumeSrc(id, name, v_type, url)
+        volume_src = volumesrc.VolumeSrc(id, name, url)
         self.assertIsNotNone(volume_src)
         self.assertEqual(volume_src.get_url(), url)
 
@@ -18,11 +18,11 @@ class TestVolumeSrc(unittest.TestCase):
             '@id': 'json_id',
             '@type': 'fzj/tmp/volume_type/v0.0.1',
             'name': 'json_name',
-            'volume_type': 'json_volume_type',
+            'volume_type': 'nii',
             'url':'http://localhost/test'
         }
-        output = VolumeSrc.from_json(v_json)
-        self.assertIsInstance(output, VolumeSrc)
+        output = volumesrc.from_json(v_json)
+        self.assertIsInstance(output, volumesrc.VolumeSrc)
 
     def test_volume_from_invalid_json(self):
         v_invalid_json = {
@@ -32,8 +32,8 @@ class TestVolumeSrc(unittest.TestCase):
             'volume_type': 'json_volume_type',
             'url':'http://localhost/test'
         }
-        output = VolumeSrc.from_json(v_invalid_json)
-        self.assertTrue(type(output) is not VolumeSrc)
+        with self.assertRaises(NotImplementedError):
+            output = volumesrc.from_json(v_invalid_json)
 
 if __name__ == "__main__":
     unittest.main()

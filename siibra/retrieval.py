@@ -204,7 +204,7 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
             logger.error('Query with this id not found')
         else:
             logger.error('Problem with "get" protocol on url: %s ' % url )
-        raise Exception('Could not retrieve data.')
+        raise RuntimeError('Could not retrieve data.')
 
 def clear_cache():
     import shutil
