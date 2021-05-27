@@ -232,50 +232,39 @@ class Region(anytree.NodeMixin):
 
         mask = affine = None 
 
-        if self.index.label is not None:
+        if self.parcellation.continuous_map_threshold is not None:
 
-            if all([
-                self.parcellation.continuous_map_threshold is not None,
-                self.has_regional_map(space,MapType.CONTINUOUS) ]):
-                # The parent parcellation prefers thresholded continuous maps
-                # for masking, and we have one available, so use it.
-                T = self.parcellation.continuous_map_threshold 
+            T = self.parcellation.continuous_map_threshold 
+            if self.has_regional_map(space,MapType.CONTINUOUS):
                 logger.info(f"Computing mask for {self.name} by thresholding the continuous regional map at {T}.")
-                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
-                mask = (np.asanyarray(labelimg.dataobj)>T).astype('uint8')
-                affine = labelimg.affine
-
-            elif self.has_regional_map(space,MapType.LABELLED):
-                logger.info(f"Extracting mask for {self.name} from regional map")
-                labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
-                mask = labelimg.dataobj
-                affine = labelimg.affine
-
+                pmap = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
             else:
-                logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
-                maskimg = self.parcellation.get_map(space).extract_regionmap(self,resolution_mm=resolution_mm)
-                if maskimg:
-                    mask = maskimg.dataobj
-                    affine = maskimg.affine
+                logger.info(f"Extracting mask for {self.name} from continuous map volume of {self.parcellation.name}.")
+                pmap = self.parcellation.get_map(space,maptype=MapType.CONTINUOUS).extract_regionmap(self,resolution_mm=resolution_mm)
+            if pmap is not None:
+                mask = (np.asanyarray(pmap.dataobj)>T).astype('uint8')
+                affine = pmap.affine
 
-        if mask is None:
-            logger.info("{} has no own mask, trying to build mask from children".format(
-                self.name))
-            for child in self.children:
-                childmask = child.build_mask(space,resolution_mm)
-                if childmask is None: 
-                    continue
+        elif self.has_regional_map(space,MapType.LABELLED):
+            logger.info(f"Extracting mask for {self.name} from regional labelmap.")
+            labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
+            mask = labelimg.dataobj
+            affine = labelimg.affine
+        
+        else:
+            logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
+            labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
+            for img in labelmap:
                 if mask is None:
-                    mask = childmask.dataobj
-                    affine = childmask.affine
-                else:
-                    mask = (mask | childmask.dataobj).astype('int')
+                    mask = np.zeros(img.dataobj.shape,dtype='uint8')
+                    affine = img.affine
+                # Note: self.labels holds all labelindices of a region and its descendants
+                mask[np.isin(img.dataobj,list(self.labels))]=1
 
         if mask is None:
-            logger.warning(f"No mask could be computed for {self.name}")
-            return None
-
-        return nib.Nifti1Image(dataobj=mask,affine=affine)
+            raise RuntimeError(f"Could not compute mask for {self.region.name} in {space.name}.")
+        else:
+            return nib.Nifti1Image(dataobj=mask,affine=affine)
 
     def has_regional_map(self,space,maptype : MapType):
         """
