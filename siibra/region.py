@@ -149,8 +149,8 @@ class Region(anytree.NodeMixin):
         if isinstance(regionspec,str) and regionspec in self.names:
             # key is given, this gives us an exact region
             return [anytree.search.find_by_attr(self,regionspec,name="key")]
-        result = anytree.search.findall(self,
-                lambda node: node.matches(regionspec))
+        result = list(set(anytree.search.findall(self,
+                lambda node: node.matches(regionspec))))
         if len(result)>1 and select_uppermost:
             all_results = result
             mindepth = min([r.depth for r in result])
