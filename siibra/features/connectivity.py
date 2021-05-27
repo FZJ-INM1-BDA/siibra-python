@@ -86,10 +86,17 @@ class ConnectivityProfile(RegionalFeature):
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
+    __profiles = None
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
+        if self.__class__.__profiles is None:
+            self.__load_profiles()
+        for profile in self.__class__.__profiles :
+            self.register(profile)
+
+    def __load_profiles(self):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
@@ -97,8 +104,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
 
+        
         minval = maxval = 0
-        new_profiles = []
+        self.__class__.__profiles  = []
         for jsonfile in jsonfiles: 
             f = project.files.get(file_path=jsonfile, ref='master')
             data = json.loads(f.decode())
@@ -125,15 +133,14 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     maxval = max(profile)
                 if min(profile)>minval:
                     minval = min(profile)
-                new_profiles.append( ConnectivityProfile(
+                self.__class__.__profiles .append( ConnectivityProfile(
                     region, profile, 
                     [r.name for r in valid_regions.values()],
                     src_name, src_info, src_file,
                     parcellation ) )
 
-        for profile in new_profiles:
+        for profile in self.__class__.__profiles :
             profile.globalrange = (minval,maxval)
-            self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):

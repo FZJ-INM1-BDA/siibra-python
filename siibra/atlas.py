@@ -43,6 +43,12 @@ class Atlas:
         self.selected_region = None
         self.selected_parcellation = None 
 
+    def __hash__(self):
+        """
+        Used for caching functions taking atlas object as an input, like FeatureExtractor.pick_selection()
+        """
+        hash(self.id)+hash(self.selected_parcellation.id)+hash(self.selected_region)
+
     def _add_space(self, space):
         self.spaces.append(space)
 

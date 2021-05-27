@@ -505,18 +505,27 @@ class ReceptorDistribution(RegionalFeature):
 class ReceptorQuery(FeatureExtractor):
 
     _FEATURETYPE = ReceptorDistribution
+    __features = None
 
     def __init__(self,atlas):
+        # TODO this could probably be a general pattern of the FeatureExtractor Class.
 
         FeatureExtractor.__init__(self,atlas)
+        if self.__class__.__features is None:
+            self._load_features()
+        for feature in self.__class__.__features:
+            self.register(feature)
+
+    def _load_features(self):
         kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
+        self.__class__.__features = []
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
                 try:
                     region = self.parcellation.decode_region(region_name)
                     feature = ReceptorDistribution(region,kg_result)
-                    self.register(feature)
+                    self.__class__.__features.append(feature)
                 except ValueError as e:
                     # if the region name cannot be decoded, we skip this feature
                     continue

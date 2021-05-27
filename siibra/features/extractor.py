@@ -15,6 +15,7 @@
 from collections import defaultdict
 from abc import ABC
 from .feature import Feature
+from memoization import cached
 
 class FeatureExtractor(ABC):
     """
@@ -29,6 +30,7 @@ class FeatureExtractor(ABC):
         self.parcellation = atlas.selected_parcellation
         self.region = atlas.selected_region
 
+    @cached
     def pick_selection(self,atlas):
         """
         Returns the list of features from this extractor that are associated with
