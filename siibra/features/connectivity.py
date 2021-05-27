@@ -161,16 +161,24 @@ class ConnectivityMatrix(GlobalFeature):
 class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
+    __features = None
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
+        if self.__class__.__features is None:
+            self._load_features()
+        for feature in self.__class__.__features:
+            self.register(feature)        
+
+    def _load_features(self):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
                 for f in project.repository_tree() 
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
+        self.__class__.__features = []
         for jsonfile in jsonfiles: 
             f = project.files.get(file_path=jsonfile, ref='master')
             profiles = []
@@ -201,8 +209,9 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
                 profiles.append(profile)
             matrix = np.array(profiles)
             assert(all(N==len(valid_regions) for N in matrix.shape))
-            self.register( ConnectivityMatrix(
-                parcellation, matrix, column_names, src_name, src_info ))
+            self.__class__.__features.append(
+                ConnectivityMatrix(
+                    parcellation, matrix, column_names, src_name, src_info ))
 
 if __name__ == '__main__':
 
