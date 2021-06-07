@@ -27,6 +27,7 @@ from memoization import cached
 from tqdm import tqdm
 from abc import abstractmethod
 from typing import Union
+from concurrent import futures
 
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
@@ -522,11 +523,11 @@ class ContinuousParcellationMap(ParcellationMap):
         return assignments
 
     
-    def assign(self,other:nib.Nifti1Image,msg=None):
+    def assign(self,other:nib.Nifti1Image,msg=None,quiet=False,normalize=True):
         
         values = {}
         pmaps = {}
-        if msg is None:
+        if msg is None and not quiet:
             msg=f"Assigning structure to {len(self)} maps"
 
         # crop the input and define its voi in reference space
@@ -536,22 +537,31 @@ class ContinuousParcellationMap(ParcellationMap):
         shift = np.eye(4)
         shift[:3,-1] = minpt.ravel()[:3]
         bb_mm = np.dot(other.affine,bb_vox)
+        dobj = other.dataobj[x0:x1,y0:y1,z0:z1].astype('float')
+
+        # create the normalized crop, so that its voxels can be intepreted as a weighting of the maps
+        dobj /= dobj.sum()
         other_cropped = nib.Nifti1Image(
-            dataobj = other.dataobj[x0:x1,y0:y1,z0:z1],
+            dataobj = dobj,
             affine = np.dot(other.affine,shift) )
 
         minpt,maxpt = np.hsplit(bb_mm,2)
         voi = self.space.get_voi(minpt,maxpt)
+        interp = 'continuous' if other.dataobj.dtype.kind=='f' else 'nearest'
 
         resampled = None
-        for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self),desc=msg,unit=" maps"):
+        if quiet:
+            progress = lambda f: f
+        else: 
+            progress = lambda f: tqdm(f,total=len(self),desc=msg,unit="maps")
+        for mapindex,loadfnc in progress(enumerate(self.maploaders)):
 
             this_cropped = loadfnc(voi=voi)
             if not this_cropped:
                 logger.warning(f"Could not load regional map for {self.regions[mapindex].name}")
                 continue
             if resampled is None:
-                resampled = image.resample_to_img(other_cropped,this_cropped)
+                resampled = image.resample_to_img(other_cropped,this_cropped,interpolation=interp)
             value =  np.sum(np.multiply(resampled.dataobj,this_cropped.dataobj))
             if value>0:
                 values[mapindex] = value
