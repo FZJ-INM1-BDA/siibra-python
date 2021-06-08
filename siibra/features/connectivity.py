@@ -29,7 +29,7 @@ class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation):
+    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation, kgschema, kgid):
         RegionalFeature.__init__(self,region)
         self.profile = profile
         self.src_name = src_name
@@ -37,6 +37,8 @@ class ConnectivityProfile(RegionalFeature):
         self.src_file = src_file
         self.column_names = column_names
         self.parcellation = parcellation
+        self.kgschema = kgschema
+        self.kgid = kgid
         self.globalrange = None
 
     def __str__(self):
@@ -112,6 +114,8 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             data = json.loads(f.decode())
             src_name = data['name']
             src_info  = data['description']
+            kgschema = data['kgschema'] if 'kgschema' in data.keys() else ''
+            kgid = data['kgId'] if 'kgId' in data.keys() else ''
             src_file = jsonfile
             parcellation = parcellations[data['parcellation id']]
             if parcellation!=self.parcellation:
@@ -137,7 +141,8 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     region, profile, 
                     [r.name for r in valid_regions.values()],
                     src_name, src_info, src_file,
-                    parcellation ) )
+                    parcellation,
+                    kgschema, kgid ) )
 
         for profile in self.__class__.__profiles :
             profile.globalrange = (minval,maxval)
