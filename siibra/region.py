@@ -254,7 +254,10 @@ class Region(anytree.NodeMixin):
         else:
             logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
             labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
-            for img in labelmap:
+            for mapindex,img in enumerate(labelmap):
+                if self.index.map is not None:
+                    if self.index.map!=mapindex:
+                        continue
                 if mask is None:
                     mask = np.zeros(img.dataobj.shape,dtype='uint8')
                     affine = img.affine
