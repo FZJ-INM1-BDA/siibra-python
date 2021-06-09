@@ -61,13 +61,12 @@ def from_json(obj):
         vsrc.volume_type=volume_type
         return vsrc
 
-    if volume_type=='neuroglancer/precompmesh':
-        return VolumeSrc( obj['@id'], obj['name'],url=url,
-                detail=detail)
+    # arbitrary volume type
 
-    
-    return obj
-
+    vsrc = VolumeSrc( obj['@id'], obj['name'],url=url,
+            detail=detail)
+    vsrc.volume_type = volume_type
+    return vsrc
 
 class VolumeSrc:
 
