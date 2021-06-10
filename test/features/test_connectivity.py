@@ -17,8 +17,8 @@ class TestConnectivity(unittest.TestCase):
         for conn_pr in self.got_features:
             if conn_pr.src_name == data_name:
                 self.assertEqual(conn_pr.src_file, 'Averaged_SC_JuBrain_184Regions_HCP_10M_length_MEAN.json')
-                self.assertEqual(conn_pr.kgschema, 'minds/core/dataset/v1.0.0')
-                self.assertEqual(conn_pr.kgid, '50c215bc-4c65-4f11-a4cd-98cc92750977')
+                self.assertEqual(conn_pr.kg_schema, 'minds/core/dataset/v1.0.0')
+                self.assertEqual(conn_pr.kg_id, '50c215bc-4c65-4f11-a4cd-98cc92750977')
                 assertion_check = True
 
         self.assertTrue(assertion_check, msg=f'ConnectivityProfile for {data_name} not found')
