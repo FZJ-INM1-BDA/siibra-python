@@ -135,4 +135,11 @@ class SpaceVOI(Bbox):
             np.dot(transform,np.r_[self.minpt,1])[:3].astype('int'),
             np.dot(transform,np.r_[self.maxpt,1])[:3].astype('int') )
 
+    def __str__(self):
+        return f"Bounding box {self.minpt}mm -> {self.maxpt}mm defined in {self.space.name}"
+
+    def __repr__(self):
+        return str(self)
+
+
 REGISTRY = ConfigurationRegistry('spaces', Space)
