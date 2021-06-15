@@ -32,9 +32,9 @@ def bbox3d(A,affine=None):
     cmin, cmax = np.where(c)[0][[0, -1]]
     zmin, zmax = np.where(z)[0][[0, -1]]
     bbox = np.array([
-        [rmin, rmax], 
-        [cmin, cmax], 
-        [zmin, zmax],
+        [rmin, rmax+1], 
+        [cmin, cmax+1], 
+        [zmin, zmax+1],
         [1,1]
     ])
 
@@ -118,3 +118,44 @@ def argmax_dim4(img,dim=-1):
             dataobj = newarr,
             header = img.header,
             affine = img.affine )
+
+
+def MI(arr1,arr2,nbins=100,normalized=True):
+    """
+    Compute the mutual information between two 3D arrays, which need to have the same shape.
+
+    Parameters:
+    arr1 : First 3D array
+    arr2 : Second 3D array
+    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized : Boolean, default:True
+        if True, the normalized MI of arrays X and Y will be returned, 
+        leading to a range of values between 0 and 1. Normalization is 
+        achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
+    """
+
+    assert(all(len(arr.shape)==3 for arr in [arr1,arr2]))
+
+    # compute the normalized joint 2D histogram as an 
+    # empirical measure of the joint probabily of arr1 and arr2
+    pxy, _, _ = np.histogram2d(arr1.ravel(),arr2.ravel(),bins=nbins)
+    pxy /= pxy.sum()
+    
+    # extract the empirical propabilities of intensities 
+    # from the joint histogram
+    px = np.sum(pxy, axis=1) # marginal for x over y
+    py = np.sum(pxy, axis=0) # marginal for y over x
+    
+    # compute the mutual information
+    px_py = px[:, None] * py[None, :] 
+    nzs = pxy > 0 # nonzero value indices
+    I = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    if not normalized:
+        return I
+    
+    # normalize, using the sum of their individual entropies H
+    def entropy(p):
+        nz = p>0
+        return -np.sum(p[nz]*np.log(p[nz]))
+    Hx,Hy = [entropy(p) for p in [px,py]]
+    return 2*I / (Hx+Hy)

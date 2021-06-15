@@ -373,6 +373,20 @@ class Atlas:
         smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
         return smap.assign_coordinates(xyz_mm, sigma_mm)
 
+    def assign_maps(self,space:Space,mapimg):
+        """
+        Assign physical coordinates with optional standard deviation to atlas regions.
+        See also: ContinuousParcellationMap.assign_coordinates()
+
+        Parameters
+        ----------
+        space : Space
+            reference template space for computing the assignemnt
+        mapimg : 3D volume as nibabel spatial image
+        """
+        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        return smap.assign(mapimg)
+
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)
 

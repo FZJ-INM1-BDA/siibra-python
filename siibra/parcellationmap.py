@@ -17,7 +17,7 @@ from . import logger,arrays
 from .space import Space,SpaceVOI
 from .commons import MapType,ParcellationIndex
 from .volumesrc import ImageProvider,VolumeSrc
-from .arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4
+from .arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4,MI
 from .region import Region
 
 import numpy as np
@@ -27,7 +27,6 @@ from memoization import cached
 from tqdm import tqdm
 from abc import abstractmethod
 from typing import Union
-from concurrent import futures
 
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
@@ -523,51 +522,92 @@ class ContinuousParcellationMap(ParcellationMap):
         return assignments
 
     
-    def assign(self,other:nib.Nifti1Image,msg=None,quiet=False,normalize=True):
-        
-        values = {}
-        pmaps = {}
+    def assign(self,img:nib.Nifti1Image,msg=None,quiet=False,metric:str='dotprod'):
+        """
+        Assign the region of interest represented by a given volumetric image to continuous brain regions in this map.
+
+        Parameters:
+        -----------
+        img : Nifti1Image
+            The input region of interest, typically a binary mask or statistical map.
+        msg : str, default:None
+            Message to display with the progress bar
+        quiet: Boolen, default:False
+            If true, no progess indicator will be displayed
+        metric: str, default: 'dotprod'
+            Specification of the metric to be used. Possible values are:
+            - 'dotprod' : The elementwise product of two arrays, where each array is normalized by its sum.
+
+        """
+
         if msg is None and not quiet:
             msg=f"Assigning structure to {len(self)} maps"
 
-        # crop the input and define its voi in reference space
-        bb_vox = arrays.bbox3d(other.dataobj)
-        minpt,maxpt = [v.ravel()[:3] for v in np.hsplit(bb_vox,2)]
-        (x0,y0,z0),(x1,y1,z1) =  minpt,maxpt
-        shift = np.eye(4)
-        shift[:3,-1] = minpt.ravel()[:3]
-        bb_mm = np.dot(other.affine,bb_vox)
-        dobj = other.dataobj[x0:x1,y0:y1,z0:z1].astype('float')
+        metricfnc = {
+            'dotprod' : lambda X,Y : np.sum(np.multiply(X,Y)),
+            'nmi' :     lambda X,Y : MI(X,Y,normalized=True),
+            'iou' :     lambda X,Y : np.minimum(X,Y).sum() / np.maximum(X,Y).sum()
+        } 
+        threshold = {'dotprod':0, 'nmi':0.1, 'iou':0}
+        if metric not in threshold.keys():
+            raise ValueError(f'Metric not supported for region assignment: {metric}')
 
-        # create the normalized crop, so that its voxels can be intepreted as a weighting of the maps
-        dobj /= dobj.sum()
-        other_cropped = nib.Nifti1Image(
-            dataobj = dobj,
-            affine = np.dot(other.affine,shift) )
+        use_voi = metric in ['dotprod']
+        normalize = metric in ['dotprod','iou']
 
-        minpt,maxpt = np.hsplit(bb_mm,2)
-        voi = self.space.get_voi(minpt,maxpt)
-        interp = 'continuous' if other.dataobj.dtype.kind=='f' else 'nearest'
+        if not use_voi:
+            dobj = img.dataobj
+            affine = img.affine
+            voi = None 
 
-        resampled = None
-        if quiet:
-            progress = lambda f: f
-        else: 
+        else:
+            # use bounding box of input in voxels to extract the cropped data
+            bb_vox = arrays.bbox3d(img.dataobj)
+            minpt,maxpt = [v.ravel()[:3] for v in np.hsplit(bb_vox,2)]
+            (x0,y0,z0),(x1,y1,z1) =  minpt,maxpt
+            dobj = img.dataobj[x0:x1,y0:y1,z0:z1].astype('float')
+
+            # update the affine matrix to account for bounding box shift
+            shift = np.eye(4)
+            shift[:3,-1] = minpt.ravel()[:3]
+            affine = np.dot(img.affine,shift)
+
+            # specify corresponding volume of interest in physical coordinates
+            bb_mm = np.dot(img.affine,bb_vox)
+            minpt,maxpt = np.hsplit(bb_mm,2)
+            voi = self.space.get_voi(minpt,maxpt)
+
+        if normalize:
+            dobj /= np.asanyarray(dobj).sum()
+
+        # How to visualize progress from the iterator?
+        progress = lambda f: f
+        if not quiet: 
             progress = lambda f: tqdm(f,total=len(self),desc=msg,unit="maps")
-        for mapindex,loadfnc in progress(enumerate(self.maploaders)):
 
-            this_cropped = loadfnc(voi=voi)
-            if not this_cropped:
+        # setup assignment loop
+        other = nib.Nifti1Image(dataobj=dobj,affine=affine)
+        interp = 'continuous' if other.dataobj.dtype.kind=='f' else 'nearest'
+        otherarray = None
+        values = {}
+        pmaps = {}
+
+        for mapindex,loadfnc in progress(enumerate(self.maploaders)):
+            this = loadfnc(voi=voi)
+            if not this:
                 logger.warning(f"Could not load regional map for {self.regions[mapindex].name}")
                 continue
-            if resampled is None:
-                resampled = image.resample_to_img(other_cropped,this_cropped,interpolation=interp)
-            value =  np.sum(np.multiply(resampled.dataobj,this_cropped.dataobj))
-            if value>0:
+            thisarray = np.asanyarray(this.dataobj)
+            if otherarray is None:
+                otherarray = np.asanyarray(
+                    image.resample_to_img(other,this,interpolation=interp).dataobj)
+            value = metricfnc[metric](otherarray,thisarray)
+            if value>threshold[metric]:
                 values[mapindex] = value
                 pmaps[mapindex] = loadfnc()
 
-        pindex = lambda i: ParcellationIndex(map=i,label=None)
         assignments = [(self.decode_label(mapindex=i),pmaps[i],value) 
                     for i,value in sorted(values.items(),key=lambda item:item[1],reverse=True)]
         return assignments
+
+
