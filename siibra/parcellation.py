@@ -185,7 +185,8 @@ class Parcellation:
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return space in self.volume_src.keys()
+        spaceobj = spaces[space]
+        return spaceobj in self.volume_src.keys()
 
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
         """
