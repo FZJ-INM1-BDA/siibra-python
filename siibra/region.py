@@ -227,7 +227,7 @@ class Region(anytree.NodeMixin):
             Currently, this only works for the BigBrain volume.
         """
         if not self.parcellation.supports_space(space):
-            logger.error('Parcellation "{}" does not provide a map for space "{}"'.format(
+            logger.error('Region "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
         mask = affine = None 
