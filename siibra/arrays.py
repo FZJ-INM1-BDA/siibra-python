@@ -17,28 +17,33 @@ import numbers
 from scipy.ndimage import gaussian_filter
 import nibabel as nib
 import re
+from memoization import cached
 
-def bbox3d(A,affine=None):
+def bbox3d(A,affine=np.identity(4)):
     """
     Bounding box of nonzero values in a 3D array.
     https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
 
     If affine not None, the affine is applied to the bounding box.
     """
-    r = np.any(A, axis=(1, 2))
-    c = np.any(A, axis=(0, 2))
+    x = np.any(A, axis=(1, 2))
+    y = np.any(A, axis=(0, 2))
     z = np.any(A, axis=(0, 1))
-    rmin, rmax = np.where(r)[0][[0, -1]]
-    cmin, cmax = np.where(c)[0][[0, -1]]
-    zmin, zmax = np.where(z)[0][[0, -1]]
-    bbox = np.array([
-        [rmin, rmax+1], 
-        [cmin, cmax+1], 
+    nzx,nzy,nzz = [np.where(v) for v in (x,y,z)]
+    if any(len(nz[0])==0 for nz in [nzx,nzy,nzz]):
+        # empty array
+        return None
+    xmin, xmax = nzx[0][[0, -1]]
+    ymin, ymax = nzy[0][[0, -1]]
+    zmin, zmax = nzz[0][[0, -1]]
+    bbox = np.dot(affine,np.array([
+        [xmin, xmax+1], 
+        [ymin, ymax+1], 
         [zmin, zmax+1],
         [1,1]
-    ])
+    ]))
 
-    return bbox if affine is None else np.dot(affine,bbox)
+    return np.sort(bbox.astype('int'))
 
 def parse_coordinate_str(cstr:str,unit='mm'):
     pat=r'([-\d\.]*)'+unit
@@ -135,6 +140,7 @@ def MI(arr1,arr2,nbins=100,normalized=True):
     """
 
     assert(all(len(arr.shape)==3 for arr in [arr1,arr2]))
+    assert(all(arr.size>0) for arr in [arr1,arr2])
 
     # compute the normalized joint 2D histogram as an 
     # empirical measure of the joint probabily of arr1 and arr2
@@ -156,6 +162,9 @@ def MI(arr1,arr2,nbins=100,normalized=True):
     # normalize, using the sum of their individual entropies H
     def entropy(p):
         nz = p>0
+        assert(np.count_nonzero(nz)>0)
         return -np.sum(p[nz]*np.log(p[nz]))
     Hx,Hy = [entropy(p) for p in [px,py]]
-    return 2*I / (Hx+Hy)
+    assert((Hx+Hy)>0)
+    NMI = 2*I / (Hx+Hy)
+    return NMI
