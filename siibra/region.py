@@ -24,6 +24,7 @@ from memoization import cached
 import re
 import anytree
 from typing import Union
+from scipy.spatial.qhull import QhullError
 
 REMOVE_FROM_NAME=['hemisphere','-']
 
@@ -327,7 +328,7 @@ class Region(anytree.NodeMixin):
         Region object
         """
         if not isinstance(labelindex,int):
-            raise TypeError("Index access into the regiontree excepts label indices of integer type")
+            raise TypeError("Index access into the regiontree expects label indices of integer type")
 
         # first test this head node
         if self.index.label==labelindex:
@@ -535,15 +536,23 @@ class RegionProps():
         for prop in rprops[0]:
             try:
                 self.attrs[prop] = rprops[0][prop]
-            except NotImplementedError:
+            except QhullError:
+                logger.error(f"Qhull Error when computing region props for {region.name}")
+            except NotImplementedError as e:
+                # this will occur for many attributes which can only be computed for 2D data        
                 pass
 
         # Transfer some properties into physical coordinates
         self.attrs['centroid_mm'] = grid2mm(self.attrs['centroid'])
         self.attrs['volume_mm'] = self.attrs['area'] * pixel_spacing**3
         # TODO test if the surface estimate makes really sense
-        verts,faces,_,_ = measure.marching_cubes_lewiner(M)
-        self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
+        try:
+            verts,faces,_,_ = measure.marching_cubes_lewiner(M)
+            self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
+        except Exception as e:
+            logger.error(f"Could not estimate surface of {self.name}")
+            print(str(e))
+            self.attrs['surface_mm'] = None
 
 
     def __dir__(self):
