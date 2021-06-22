@@ -18,8 +18,14 @@ from scipy.ndimage import gaussian_filter
 import nibabel as nib
 import re
 from memoization import cached
+from hashlib import sha1
 
-def bbox3d(A,affine=np.identity(4)):
+def hash_array(A):
+    x = A if A.flags['C_CONTIGUOUS'] else np.ascontiguousarray(A)
+    return sha1(x).hexdigest()
+
+@cached(custom_key_maker=hash_array)
+def __bbox(A):
     """
     Bounding box of nonzero values in a 3D array.
     https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
@@ -36,13 +42,14 @@ def bbox3d(A,affine=np.identity(4)):
     xmin, xmax = nzx[0][[0, -1]]
     ymin, ymax = nzy[0][[0, -1]]
     zmin, zmax = nzz[0][[0, -1]]
-    bbox = np.dot(affine,np.array([
+    return np.array([
         [xmin, xmax+1], 
         [ymin, ymax+1], 
         [zmin, zmax+1],
-        [1,1]
-    ]))
+        [1,1] ])
 
+def bbox3d(A,affine=np.identity(4)):
+    bbox = np.dot(affine,__bbox(A))
     return np.sort(bbox.astype('int'))
 
 def parse_coordinate_str(cstr:str,unit='mm'):
