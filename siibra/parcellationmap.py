@@ -411,7 +411,6 @@ class ContinuousParcellationMap(ParcellationMap):
             The desired template space to build the map
         """
         super().__init__(parcellation, space, MapType.CONTINUOUS)
-        self.__bounding_boxes = {}
 
     def _define_maps_and_regions(self):
         self._maploaders_cached=[]
