@@ -116,7 +116,7 @@ class VolumeSrc:
 class ImageProvider(ABC):
 
     @abstractmethod
-    def fetch(self,resolution_mm=None, voi=None, mapindex=None):
+    def fetch(self,resolution_mm=None, voi=None, mapindex=None, clip=False):
         """
         Provide access to image data.
         """
@@ -159,6 +159,8 @@ class NiftiVolume(VolumeSrc,ImageProvider):
             if filename is None:
                 raise RuntimeError(f"Error retrieving Nifti file from {self.url}")
             self._image_cached=nib.Nifti1Image.from_filename(filename)
+            if np.min(self._image_cached.dataobj)<0:
+                logger.warn(f'Negative values in {filename} ({str(self)})')
         return self._image_cached
 
     def fetch(self,resolution_mm=None,voi=None,mapindex=None,clip=False):
@@ -173,6 +175,8 @@ class NiftiVolume(VolumeSrc,ImageProvider):
             Currently, this only works for neuroglancer volumes.
         voi : SpaceVOI
             optional volume of interest
+        clip : Boolean, default: False
+            if True, generates an object where the image data array is cropped to its bounding box (with properly adjusted affine matrix)
         """
         if clip and voi:
             raise ArgumentError("voi and clip cannot only be requested independently")
@@ -191,16 +195,15 @@ class NiftiVolume(VolumeSrc,ImageProvider):
                 affine=self.image.affine)
         assert(img is not None)
 
+        bb_vox = None
         if voi is not None:
             bb_vox = voi.transform_bbox(np.linalg.inv(img.affine))
-            (x0,y0,z0),(x1,y1,z1) = bb_vox.minpt,bb_vox.maxpt
-            shift = np.identity(4)
-            shift[:3,-1] = bb_vox.minpt
-            img = nib.Nifti1Image(
-                dataobj = img.dataobj[x0:x1,y0:y1,z0:z1],
-                affine = np.dot(img.affine,shift))
         elif clip:
-            bb_vox = arrays.bbox3d(img.dataobj)
+            # determine bounding box by cropping the nonzero values
+            bb = arrays.bbox3d(img.dataobj)
+            bb_vox = Bbox(bb[:3,0],bb[:3,1])
+        
+        if bb_vox is not None:
             (x0,y0,z0),(x1,y1,z1) = bb_vox.minpt,bb_vox.maxpt
             shift = np.identity(4)
             shift[:3,-1] = bb_vox.minpt
@@ -356,12 +359,12 @@ class NgVolume(VolumeSrc,ImageProvider):
         mip = self._resolution_to_mip(resolution_mm,voi=voi)
         effective_res_mm = self.mip_resolution_mm[mip]
         logger.debug(f"Loading neuroglancer data at a resolution of {effective_res_mm} mm (mip={mip})")
-
-        if voi is None:
-            bbox_vox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
-        else:
+        
+        if voi is not None:
             bbox_vox = voi.transform_bbox(
                 np.linalg.inv(self.build_affine(effective_res_mm)))
+        else:
+            bbox_vox = Bbox([0, 0, 0],self.volume.mip_shape(mip))
 
         # estimate size and check feasibility
         gbytes = bbox_vox.volume()*self.nbytes/(1024**3)
@@ -388,7 +391,7 @@ class NgVolume(VolumeSrc,ImageProvider):
                 print(str(e))
                 return None
         
-    def fetch(self,resolution_mm=None,voi=None,mapindex=None):
+    def fetch(self,resolution_mm=None,voi=None,mapindex=None,clip=False):
         """
         Compute and return a spatial image for the given mip.
         
@@ -398,6 +401,8 @@ class NgVolume(VolumeSrc,ImageProvider):
         voi : SpaceVOI
             optional volume of interest
         """
+        if clip:
+            raise NotImplementedError("Automatic clipping is not yet implemented for neuroglancer volume sources.")
         if mapindex is not None:
             raise NotImplementedError(f"NgVolume does not support access by map index (but {mapindex} was given)")
         return nib.Nifti1Image(
