@@ -20,11 +20,6 @@ import re
 from memoization import cached
 from hashlib import sha1
 
-def hash_array(A):
-    x = A if A.flags['C_CONTIGUOUS'] else np.ascontiguousarray(A)
-    return sha1(x).hexdigest()
-
-@cached(custom_key_maker=hash_array)
 def __bbox(A):
     """
     Bounding box of nonzero values in a 3D array.
@@ -51,6 +46,11 @@ def __bbox(A):
 def bbox3d(A,affine=np.identity(4)):
     bbox = np.dot(affine,__bbox(A))
     return np.sort(bbox.astype('int'))
+
+def bbox_intersection(bb1,bb2):
+    lower = [max(bb1[i,0],bb2[i,0]) for i in range(3)]
+    upper = np.maximum(lower,[min(bb1[i,1],bb2[i,1]) for i in range(3)])
+    return np.prod(upper-lower)
 
 def parse_coordinate_str(cstr:str,unit='mm'):
     pat=r'([-\d\.]*)'+unit
