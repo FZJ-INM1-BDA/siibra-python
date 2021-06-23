@@ -19,6 +19,7 @@ import re
 import os
 from .. import ebrains
 from .. import logger
+from .. import retrieval
 
 IGNORE_PROJECTS = [
   'Julich-Brain: cytoarchitectonic probabilistic maps of the human brain'
@@ -46,6 +47,8 @@ kg_feature_full_kwargs={
 
 KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
 KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
+_SUMMARY_CACHE_FILENAME='ebrainsquery_summary_cache_name'
+
 class EbrainsRegionalDataset(RegionalFeature):
     def __init__(self, region, id, name, embargo_status):
         self.region = region
@@ -53,6 +56,22 @@ class EbrainsRegionalDataset(RegionalFeature):
         self.name = name
         self.embargo_status = embargo_status
         self._detail = None
+
+    @staticmethod
+    def get_cache():
+        json_resp=ebrains.execute_query_by_id(
+            query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+            msg='Fetching summary data from ebrains. This will take some time.',
+            **kg_feature_query_kwargs,
+            **kg_feature_summary_kwargs)
+        
+        retrieval.save_cache(
+            _SUMMARY_CACHE_FILENAME.encode('utf-8'),
+            bytes(json.dumps(json_resp).encode()))
+
+    @staticmethod
+    def retrieve_cache():
+        return retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
 
     @property
     def detail(self):
@@ -82,14 +101,25 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
     _FEATURETYPE=EbrainsRegionalDataset
     def __init__(self, atlas):
         FeatureExtractor.__init__(self,atlas)
-        
-        # potentially, using ebrains_id is a lot quicker
-        # but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
-        # even if they were cached...
-        # ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
 
-        result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-            **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
+        try:
+            cache=retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
+            result=json.loads(cache)
+            logger.debug(f"Retrieved cached ebrains results.")
+        except FileNotFoundError:
+        
+            # potentially, using ebrains_id is a lot quicker
+            # but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
+            # even if they were cached...
+            # ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
+
+            result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+                **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
+            
+            retrieval.save_cache(
+                _SUMMARY_CACHE_FILENAME.encode('utf-8'),
+                bytes(json.dumps(result).encode()))
+            logger.debug(f"Retrieved ebrain results via HTTP")
 
         for r in result.get('results', []):
             for dataset in r.get('datasets', []):

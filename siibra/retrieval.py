@@ -214,3 +214,19 @@ def clear_cache():
     logger.info("Clearing siibra cache.")
     shutil.rmtree(CACHEDIR)
     __compile_cachedir()
+
+def save_cache(key: str, content: bytes, force=False):
+    cache_filename=cachefile(key)
+    if os.path.exists(cache_filename) and force != True:
+        raise Exception('save_cache exception: file already exists')
+    with open(cache_filename, 'wb') as fp:
+        fp.write(content)
+    
+
+def get_cache(key: str):
+    cache_filename=cachefile(key)
+    if not os.path.exists(cache_filename):
+        raise FileNotFoundError('save_cache exception: file does not exists')
+    with open(cache_filename, 'rb') as fp:
+        return fp.read()
+    
