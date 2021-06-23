@@ -17,9 +17,11 @@ from .config import ConfigurationRegistry
 import numpy as np
 from . import volumesrc
 from . import logger
+from . import arrays
 import copy
 from cloudvolume import Bbox
 from typing import Tuple
+import nibabel as nib
 
 class Space:
     """
@@ -128,6 +130,12 @@ class SpaceVOI(Bbox):
     def __init__(self,space:Space,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
         super().__init__(minpt,maxpt)
         self.space = space
+
+    @staticmethod
+    def from_map(space:Space,roi:nib.Nifti1Image):
+        # construct from a roi mask or map
+        bbox = arrays.bbox3d(roi.dataobj,affine=roi.affine)
+        return SpaceVOI(space,bbox[:3,0],bbox[:3,1])
 
     def transform_bbox(self,transform):
         assert(transform.shape==(4,4))
