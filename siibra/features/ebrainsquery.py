@@ -96,13 +96,13 @@ class EbrainsRegionalDataset(RegionalFeature):
     def __str__(self):
         return self.name
 
-def dataset_to_feature(dataset, parcellation):
+def dataset_to_feature(reg, dataset, parcellation):
     ds_id = dataset.get('@id')
     ds_name = dataset.get('name')
     if not "dataset" in ds_id:
         logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
         return None
-    regionname = r.get('name', None)
+    regionname = reg.get('name', None)
     try:
         region = parcellation.decode_region(regionname)
     except ValueError as e:
@@ -138,7 +138,7 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
             logger.debug(f"Retrieved ebrain results via HTTP")
 
         results = result.get('results', []) 
-        features=[dataset_to_feature(r, parcellation=self.parcellation) for r in results]
+        features=[dataset_to_feature(r, ds, parcellation=self.parcellation) for r in results for ds in r.get('datasets', [])]
         filtered_features=[f for f in features if f is not None]
         self.register_many(filtered_features)
 
