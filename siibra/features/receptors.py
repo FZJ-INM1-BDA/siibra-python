@@ -507,10 +507,12 @@ class ReceptorQuery(FeatureExtractor):
     _FEATURETYPE = ReceptorDistribution
     __features = None
 
-    def __init__(self,atlas):
-        # TODO this could probably be a general pattern of the FeatureExtractor Class.
+    def __init__(self,**kwargs):
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureExtractor.__init__(self,**kwargs)
+
+        if self.parcellation is None:
+            raise ValueError('Parcellation positional argument is required for ReceptorQury')
         if self.__class__.__features is None:
             self._load_features()
         for feature in self.__class__.__features:

@@ -25,10 +25,10 @@ class FeatureExtractor(ABC):
 
     _FEATURETYPE = Feature
 
-    def __init__(self,atlas):
+    def __init__(self,**kwargs):
         self.features = []
-        self.parcellation = atlas.selected_parcellation
-        self.region = atlas.selected_region
+        self.parcellation = kwargs.get('parcellation')
+        self.region = kwargs.get('region')
 
     @cached
     def pick_selection(self,atlas):
@@ -48,6 +48,11 @@ class FeatureExtractor(ABC):
     def register(self,feature):
         assert(isinstance(feature,self._FEATURETYPE))
         self.features.append(feature)
+    
+    def register_many(self, features):
+        assert(isinstance(features,list))
+        assert(all([isinstance(f, self._FEATURETYPE) for f in features ]))
+        self.features.extend(features)
 
 
 class FeatureExtractorRegistry:

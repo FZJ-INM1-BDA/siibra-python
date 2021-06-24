@@ -88,9 +88,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
     _FEATURETYPE = ConnectivityProfile
     __profiles = None
 
-    def __init__(self,atlas):
+    def __init__(self,**kwargs):
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureExtractor.__init__(self,**kwargs)
         if self.__class__.__profiles is None:
             self.__load_profiles()
         for profile in self.__class__.__profiles :
@@ -163,9 +163,9 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
     _FEATURETYPE = ConnectivityMatrix
     __features = None
 
-    def __init__(self,atlas):
+    def __init__(self,**kwargs):
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureExtractor.__init__(self,**kwargs)
         if self.__class__.__features is None:
             self._load_features()
         for feature in self.__class__.__features:

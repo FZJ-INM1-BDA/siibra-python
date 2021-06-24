@@ -123,14 +123,15 @@ https://alleninstitute.org/legal/terms-use/."""
     with open(genename_file,'r') as f:
         GENE_NAMES = json.load(f)
 
-    def __init__(self,atlas,gene):
+    def __init__(self,**kwargs):
         """
         Retrieves probes IDs for the given gene, then collects the
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureExtractor.__init__(self,**kwargs)
+        gene=kwargs.get('gene')
         self.gene = gene
 
         if not self.__class__._notification_shown:
@@ -223,4 +224,4 @@ https://alleninstitute.org/legal/terms-use/."""
 
 if __name__ == "__main__":
 
-    featureextractor = AllenBrainAtlasQuery('GABARAPL2')
+    featureextractor = AllenBrainAtlasQuery(gene='GABARAPL2')

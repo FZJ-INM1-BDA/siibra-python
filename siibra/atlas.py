@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from siibra import parcellation
 from memoization import cached
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
@@ -26,6 +27,16 @@ from .config import ConfigurationRegistry
 from .space import Space
 
 VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
+
+@cached
+def get_extractors(modality, **kwargs):
+    
+    if modality not in features.extractor_types.modalities:
+        logger.error("Cannot query features - no feature extractor known "\
+                "for feature type {}.".format(modality))
+        return None
+
+    return [cls(**kwargs) for cls in features.extractor_types[modality]]
 
 class Atlas:
 
@@ -331,36 +342,17 @@ class Atlas:
         M = self.build_mask(space)
         return any(check(M.slicer[:,:,:,i]) for i in range(M.shape[3])) if M.ndim==4 else check(M)
 
-    @cached
-    def __get_extractor(self, modality, **kwargs):
-        if modality not in features.extractor_types.modalities:
-            logger.error("Cannot query features - no feature extractor known "\
-                    "for feature type {}.".format(modality))
-            return None
-
-        # TODO update extractors __init__ function to accept kwargs, so this step can be drastically simplified
-        extractors = []
-        for cls in features.extractor_types[modality]:
-            if modality=='GeneExpression':
-                extractor = cls(self,kwargs['gene'])
-                extractors.append(extractor)
-            else:
-                extractor = cls(self)
-                extractors.append(extractor)
-        return extractors
-
     def get_features(self,modality,**kwargs):
         """
         Retrieve data features linked to the selected atlas configuration, by modality. 
         See siibra.features.modalities for available modalities.
         """
         hits = []
-
-        extractors = self.__get_extractor(modality, **kwargs)
-
+        extractors = get_extractors(modality,
+            parcellation=kwargs.get('parcellation', self.selected_parcellation),
+            **kwargs)
         for extractor in extractors:
             hits.extend(extractor.pick_selection(self))
-
         return hits
 
     def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):

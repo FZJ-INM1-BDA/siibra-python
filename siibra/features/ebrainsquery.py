@@ -96,11 +96,27 @@ class EbrainsRegionalDataset(RegionalFeature):
     def __str__(self):
         return self.name
 
+def dataset_to_feature(dataset, parcellation):
+    ds_id = dataset.get('@id')
+    ds_name = dataset.get('name')
+    if not "dataset" in ds_id:
+        logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
+        return None
+    regionname = r.get('name', None)
+    try:
+        region = parcellation.decode_region(regionname)
+    except ValueError as e:
+        return None
+    return EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
+        embargo_status=dataset.get('embargo_status'))
 
 class EbrainsRegionalFeatureExtractor(FeatureExtractor):
     _FEATURETYPE=EbrainsRegionalDataset
-    def __init__(self, atlas):
-        FeatureExtractor.__init__(self,atlas)
+    def __init__(self, **kwargs):
+        FeatureExtractor.__init__(self,**kwargs)
+
+        if self.parcellation is None:
+            raise ValueError('EbrainsRegionalFeatureExtractor requires parcellation as positional argument')
 
         try:
             cache=retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
@@ -121,21 +137,10 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
                 bytes(json.dumps(result).encode()))
             logger.debug(f"Retrieved ebrain results via HTTP")
 
-        for r in result.get('results', []):
-            for dataset in r.get('datasets', []):
-                ds_id = dataset.get('@id')
-                ds_name = dataset.get('name')
-                if not "dataset" in ds_id:
-                    logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
-                    continue
-                regionname = r.get('name', None)
-                try:
-                    region = atlas.selected_parcellation.decode_region(regionname)
-                except ValueError as e:
-                    continue
-                feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
-                    embargo_status=dataset.get('embargo_status'))
-                self.register(feature)
+        results = result.get('results', []) 
+        features=[dataset_to_feature(r, parcellation=self.parcellation) for r in results]
+        filtered_features=[f for f in features if f is not None]
+        self.register_many(filtered_features)
 
 
 def set_specs():
