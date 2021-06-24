@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from memoization import cached
 import json
 from .feature import RegionalFeature
 from .extractor import FeatureExtractor
@@ -19,7 +20,6 @@ import re
 import os
 from .. import ebrains
 from .. import logger
-from .. import retrieval
 
 IGNORE_PROJECTS = [
   'Julich-Brain: cytoarchitectonic probabilistic maps of the human brain'
@@ -58,21 +58,17 @@ class EbrainsRegionalDataset(RegionalFeature):
         self._detail = None
 
     @staticmethod
-    def get_cache():
-        json_resp=ebrains.execute_query_by_id(
-            query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-            msg='Fetching summary data from ebrains. This will take some time.',
-            **kg_feature_query_kwargs,
-            **kg_feature_summary_kwargs)
-        
-        retrieval.save_cache(
-            _SUMMARY_CACHE_FILENAME.encode('utf-8'),
-            bytes(json.dumps(json_resp).encode()))
+    def preheat(parc_id: str = None):
+        json_resp=get_dataset()
+        from .. import parcellations
 
-    @staticmethod
-    def retrieve_cache():
-        return retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
-
+        results = json_resp.get('results', []) 
+        if parc_id is not None:
+            p=parcellations[parc_id]
+            if p is not None:
+                _ = [datasets_to_features(r, r.get('datasets', []), parcellation=p) for r in results]
+        else:
+            _ = [datasets_to_features(r, r.get('datasets', []), parcellation=p) for p in parcellations for r in results ]
     @property
     def detail(self):
         if not self._detail:
@@ -96,6 +92,11 @@ class EbrainsRegionalDataset(RegionalFeature):
     def __str__(self):
         return self.name
 
+@cached
+def datasets_to_features(reg, datasets, parcellation):
+    out = [dataset_to_feature(reg, ds, parcellation) for ds in datasets]
+    return [f for f in out if f is not None ]
+
 def dataset_to_feature(reg, dataset, parcellation):
     ds_id = dataset.get('@id')
     ds_name = dataset.get('name')
@@ -105,10 +106,39 @@ def dataset_to_feature(reg, dataset, parcellation):
     regionname = reg.get('name', None)
     try:
         region = parcellation.decode_region(regionname)
-    except ValueError as e:
+    except ValueError:
         return None
     return EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
         embargo_status=dataset.get('embargo_status'))
+
+_cached_dataset = None
+def get_dataset():
+    global _cached_dataset
+    if _cached_dataset is not None:
+        return _cached_dataset
+    try:
+        from .. import retrieval
+        cache=retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
+        result=json.loads(cache)
+        logger.debug(f"Retrieved cached ebrains results.")
+        _cached_dataset=result
+        return result
+    except FileNotFoundError:
+    
+        # potentially, using ebrains_id is a lot quicker
+        # but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
+        # even if they were cached...
+        # ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
+
+        result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+            **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
+        
+        retrieval.save_cache(
+            _SUMMARY_CACHE_FILENAME.encode('utf-8'),
+            bytes(json.dumps(result).encode()))
+        logger.debug(f"Retrieved ebrain results via HTTP")
+        _cached_dataset=result
+        return result
 
 class EbrainsRegionalFeatureExtractor(FeatureExtractor):
     _FEATURETYPE=EbrainsRegionalDataset
@@ -118,29 +148,14 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
         if self.parcellation is None:
             raise ValueError('EbrainsRegionalFeatureExtractor requires parcellation as positional argument')
 
-        try:
-            cache=retrieval.get_cache(_SUMMARY_CACHE_FILENAME.encode('utf-8'))
-            result=json.loads(cache)
-            logger.debug(f"Retrieved cached ebrains results.")
-        except FileNotFoundError:
-        
-            # potentially, using ebrains_id is a lot quicker
-            # but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
-            # even if they were cached...
-            # ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
-
-            result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-                **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
-            
-            retrieval.save_cache(
-                _SUMMARY_CACHE_FILENAME.encode('utf-8'),
-                bytes(json.dumps(result).encode()))
-            logger.debug(f"Retrieved ebrain results via HTTP")
+        result=get_dataset()
 
         results = result.get('results', []) 
-        features=[dataset_to_feature(r, ds, parcellation=self.parcellation) for r in results for ds in r.get('datasets', [])]
-        filtered_features=[f for f in features if f is not None]
-        self.register_many(filtered_features)
+        features=[]
+        list_features=[datasets_to_features(r, r.get('datasets', []), parcellation=self.parcellation) for r in results]
+        for f in list_features:
+            features.extend(f)
+        self.register_many(features)
 
 
 def set_specs():
