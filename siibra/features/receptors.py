@@ -512,7 +512,7 @@ class ReceptorQuery(FeatureExtractor):
         FeatureExtractor.__init__(self,**kwargs)
 
         if self.parcellation is None:
-            raise ValueError('Parcellation positional argument is required for ReceptorQury')
+            raise ValueError('Parcellation positional argument is required for ReceptorQuery')
         if self.__class__.__features is None:
             self._load_features()
         for feature in self.__class__.__features:

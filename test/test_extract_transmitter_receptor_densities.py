@@ -21,7 +21,7 @@ class TestExtractTransmitterReceptorDensities(unittest.TestCase):
         self.assertEqual(features[0].name, 'Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]')
 
         regions = ['hOc1', 'hOc2', 'IFG']
-        query = sb.features.receptors.ReceptorQuery(atlas)
+        query = sb.features.receptors.ReceptorQuery(parcellation=atlas.selected_parcellation)
         self.assertTrue(len(query.features) >= 42)
         for q in regions:
             matched_features = [f for f in query.features if f.region.matches(q)]
