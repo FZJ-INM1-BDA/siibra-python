@@ -187,6 +187,7 @@ class Parcellation:
         """
         return space in self.volume_src.keys()
 
+    @cached
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
         """
         Given a unique specification, return the corresponding region.
