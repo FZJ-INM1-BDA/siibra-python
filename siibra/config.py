@@ -68,13 +68,13 @@ class ConfigurationRegistry:
                 logger.debug(f'Attempting to connect to {GITLAB_SERVER}')
                 project=Gitlab(gitlab_config['SERVER']).projects.get(GITLAB_PROJECT_ID)
                 break
-            except gitlab_exceptions.GitlabGetError:
+            except gitlab_exceptions.GitlabError:
                 # Gitlab server down. Try the next one.
                 logger.info(f'Gitlab server at {GITLAB_SERVER} is unreachable. Trying another mirror...')
-                pass
             except ValueError:
-                logger.warn('Gitlab configuration mal entered')
+                logger.warn('Gitlab configuration malformed')
         else:
+            # will not be reached if the for loop is broken
             raise ValueError('No Gitlab server can be reached')
             
         subfolders = [node['name'] 
