@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from . import logger,spaces
-from .commons import create_key, Glossary, MapType, ParcellationIndex
+from .commons import OriginDataInfo, create_key, Glossary, MapType, ParcellationIndex,HasOriginDataInfo
 from .space import Space
 from . import volumesrc
 import numpy as np
@@ -33,7 +33,7 @@ def _clear_name(name):
         name = re.sub(r' *'+word,'',name)
     return name
 
-class Region(anytree.NodeMixin):
+class Region(anytree.NodeMixin, HasOriginDataInfo):
     """
     Representation of a region with name and more optional attributes
     """
@@ -59,6 +59,7 @@ class Region(anytree.NodeMixin):
         volume_src : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
+        HasOriginDataInfo.__init__(self)
         self.name = _clear_name(name)
         self.key = create_key(name)
         self.parcellation = parcellation
@@ -86,6 +87,7 @@ class Region(anytree.NodeMixin):
         """
         # create an isolated object, detached from the other's tree
         region = Region(other.name, other.parcellation, other.index, other.attrs)
+        region.origin_datainfos=other.origin_datainfos
 
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
@@ -459,6 +461,10 @@ class Region(anytree.NodeMixin):
         r = Region( name, parcellation, pindex, 
                 attrs=jsonstr, children=children, 
                 volume_src=volume_src )
+
+        if 'originDatasets' in jsonstr:
+            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in jsonstr.get('originDatasets', [])]
+            r.origin_datainfos=[f for f in origin_datainfos if f is not None]
 
         # inherit labelindex from children, if they agree
         if pindex.label is None and r.children: 
