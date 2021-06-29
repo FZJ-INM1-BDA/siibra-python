@@ -117,6 +117,12 @@ class TestAtlas(unittest.TestCase):
         # GeneExpression
         pass
 
+    def test_get_features_ebrains_features(self):
+
+        self.atlas.select_region('hoc1 left')
+        features=self.atlas.get_features(modalities.EbrainsRegionalDataset)
+        assert(len(features) > 0)
+
     def test_get_features_connectivity_profile_filter_by_sel_parc(self):
         
         expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25'

@@ -100,6 +100,9 @@ class EbrainsDatasetOriginDataInfo(EbrainsDataset, OriginDataInfo):
     def __init__(self, id):
         EbrainsDataset.__init__(self, id=id, name=None, embargo_status=None)
 
+    def __str__(self):
+        super(EbrainsDataset, self)
+
 class Authentication(object):
     """
     Implements the authentication to EBRAINS API with an authentication token. Uses a Singleton pattern.
