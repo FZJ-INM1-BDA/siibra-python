@@ -15,6 +15,7 @@
 import re
 from enum import Enum
 from abc import ABC, abstractmethod
+from . import logger
 
 class Glossary:
     """
@@ -78,3 +79,25 @@ class ParcellationIndex:
     def __hash__(self):
         return hash((self.map,self.label))
 
+class OriginDataInfo:
+    def __init__(self, name=None, description=None, urls=[]):
+        self.name=name
+        self.description=description
+        self.urls=urls
+
+    @staticmethod
+    def from_json(jsonstr):
+        json_type=jsonstr.get('@type')
+        if json_type == 'fzj/tmp/simpleOriginInfo/v0.0.1':
+            return OriginDataInfo(name=jsonstr.get('name'),
+                        description=jsonstr.get('description'),
+                        urls=jsonstr.get('url', []))
+        if json_type == 'minds/core/dataset/v1.0.0':
+            from .ebrains import EbrainsDatasetOriginDataInfo
+            return EbrainsDatasetOriginDataInfo(id=jsonstr.get('kgId'))
+        logger.debug(f'Cannot parse {jsonstr}')
+        return None
+
+class HasOriginDataInfo:
+    def __init__(self):
+        self.origin_datainfos = []
