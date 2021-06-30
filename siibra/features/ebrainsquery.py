@@ -46,7 +46,37 @@ kg_feature_full_kwargs={
 
 KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
 KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
+
+def get_dataset(parcellation=None):
+    if parcellation is None:
+        raise ValueError('parcellation is required to find_regions')
+
+    result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+        **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
+
+    return_list=[]
+    for r in result.get('results', []):
+        for dataset in r.get('datasets', []):
+            ds_id = dataset.get('@id')
+            ds_name = dataset.get('name')
+            ds_embargo_status=dataset.get('embargo_status')
+            if not "dataset" in ds_id:
+                logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
+                continue
+            regionname = r.get('name', None)
+            regions = parcellation.find_regions(regionname)
+            for region in regions:
+                return_list.append((region, ds_id, ds_name, ds_embargo_status))
+    return return_list
+
 class EbrainsRegionalDataset(RegionalFeature):
+
+    @staticmethod
+    def preheat():
+        from .. import parcellations
+        for p in parcellations:
+            get_dataset(p)
+
     def __init__(self, region, id, name, embargo_status):
         self.region = region
         self.id = id
@@ -87,23 +117,10 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
         # but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
         # even if they were cached...
         # ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
-
-        result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-            **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
-
-        for r in result.get('results', []):
-            for dataset in r.get('datasets', []):
-                ds_id = dataset.get('@id')
-                ds_name = dataset.get('name')
-                if not "dataset" in ds_id:
-                    logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
-                    continue
-                regionname = r.get('name', None)
-                regions = atlas.selected_parcellation.find_regions(regionname)
-                for region in regions:
-                    feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
-                        embargo_status=dataset.get('embargo_status'))
-                    self.register(feature)
+        for region, ds_id, ds_name, ds_embargo_status in get_dataset(atlas.selected_parcellation):
+            feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
+                embargo_status=ds_embargo_status)
+            self.register(feature)
 
 
 def set_specs():
