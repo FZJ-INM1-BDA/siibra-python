@@ -24,23 +24,10 @@ IGNORE_PROJECTS = [
   'Julich-Brain: cytoarchitectonic probabilistic maps of the human brain'
 ]
 
-kg_feature_query_kwargs={
-    'params': {
-        'vocab': 'https://schema.hbp.eu/myQuery/'
-    }
-}
-
 kg_feature_summary_kwargs={
     'org': 'minds',
     'domain': 'core',
     'schema': 'parcellationregion',
-    'version': 'v1.0.0'
-}
-
-kg_feature_full_kwargs={
-    'org': 'minds',
-    'domain': 'core',
-    'schema': 'dataset',
     'version': 'v1.0.0'
 }
 
@@ -52,7 +39,7 @@ def get_dataset(parcellation=None):
         raise ValueError('parcellation is required to find_regions')
 
     result=ebrains.execute_query_by_id(query_id=KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-        **kg_feature_query_kwargs,**kg_feature_summary_kwargs)
+        **ebrains.kg_feature_query_kwargs,**kg_feature_summary_kwargs)
 
     return_list=[]
     for r in result.get('results', []):
@@ -69,7 +56,7 @@ def get_dataset(parcellation=None):
                 return_list.append((region, ds_id, ds_name, ds_embargo_status))
     return return_list
 
-class EbrainsRegionalDataset(RegionalFeature):
+class EbrainsRegionalDataset(RegionalFeature, ebrains.EbrainsDataset):
 
     @staticmethod
     def preheat():
@@ -78,35 +65,11 @@ class EbrainsRegionalDataset(RegionalFeature):
             get_dataset(p)
 
     def __init__(self, region, id, name, embargo_status):
-        self.region = region
-        self.id = id
-        self.name = name
-        self.embargo_status = embargo_status
-        self._detail = None
-
-    @property
-    def detail(self):
-        if not self._detail:
-            self._load()
-        return self._detail
-
-    def _load(self):
-        if self.id is None:
-            raise Exception('id is required')
-        match=re.search(r"\/([a-f0-9-]+)$", self.id)
-        if not match:
-            raise Exception('id cannot be parsed properly')
-        instance_id=match.group(1)
-        result=ebrains.execute_query_by_id(
-            query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
-            instance_id=instance_id,
-            msg=f"Retrieving details for '{self.name}' from EBRAINS...",
-            **kg_feature_query_kwargs,**kg_feature_full_kwargs)
-        self._detail = result
+        RegionalFeature.__init__(self, region)
+        ebrains.EbrainsDataset.__init__(self, id, name, embargo_status)
 
     def __str__(self):
-        return self.name
-
+        super(ebrains.EbrainsDataset, self)
 
 class EbrainsRegionalFeatureExtractor(FeatureExtractor):
     _FEATURETYPE=EbrainsRegionalDataset

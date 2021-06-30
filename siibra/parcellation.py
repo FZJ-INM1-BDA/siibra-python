@@ -16,7 +16,7 @@ from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
 from .config import ConfigurationRegistry
-from .commons import create_key,MapType,ParcellationIndex
+from .commons import create_key,MapType,ParcellationIndex,HasOriginDataInfo,OriginDataInfo
 from typing import Union
 import numpy as np
 import nibabel as nib
@@ -73,7 +73,7 @@ class ParcellationVersion:
             return None
         return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
 
-class Parcellation:
+class Parcellation(HasOriginDataInfo):
 
     _regiontree_cached = None
 
@@ -92,12 +92,16 @@ class Parcellation:
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
+        HasOriginDataInfo.__init__(self)
         self.id = identifier
         self.name = name
         self.key = create_key(name)
         self.version = version
+
+        # TODO replace by instanced methods in HasOriginDataInfo
         self.publications = []
         self.description = ""
+
         self.volume_src = {}
         self.modality = modality
         self._regiondefs = regiondefs
@@ -305,6 +309,11 @@ class Parcellation:
             p.description = obj['description']
         if 'publications' in obj:
             p.publications = obj['publications']
+
+        if 'originDatasets' in obj:
+            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in obj.get('originDatasets', [])]
+            p.origin_datainfos=[f for f in origin_datainfos if f is not None]
+
         logger.debug(f'Adding parcellation "{str(p)}"')
         return p
 
