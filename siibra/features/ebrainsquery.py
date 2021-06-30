@@ -58,10 +58,13 @@ def get_dataset(parcellation=None):
 class EbrainsRegionalDataset(RegionalFeature, ebrains.EbrainsDataset):
 
     @staticmethod
-    def preheat():
+    def preheat(id=None):
         from .. import parcellations
-        for p in parcellations:
-            get_dataset(p)
+        if id is not None and parcellations[id] is not None:
+            get_dataset(parcellations[id])
+        else:
+            for p in parcellations:
+                get_dataset(p)
 
     def __init__(self, region, id, name, embargo_status):
         RegionalFeature.__init__(self, region)
