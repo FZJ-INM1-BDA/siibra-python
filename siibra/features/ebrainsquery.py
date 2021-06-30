@@ -99,13 +99,11 @@ class EbrainsRegionalFeatureExtractor(FeatureExtractor):
                     logger.debug(f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})")
                     continue
                 regionname = r.get('name', None)
-                try:
-                    region = atlas.selected_parcellation.decode_region(regionname)
-                except ValueError as e:
-                    continue
-                feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
-                    embargo_status=dataset.get('embargo_status'))
-                self.register(feature)
+                regions = atlas.selected_parcellation.find_regions(regionname)
+                for region in regions:
+                    feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
+                        embargo_status=dataset.get('embargo_status'))
+                    self.register(feature)
 
 
 def set_specs():
