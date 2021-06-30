@@ -32,7 +32,6 @@ kg_feature_summary_kwargs={
 }
 
 KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
-KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
 
 def get_dataset(parcellation=None):
     if parcellation is None:
