@@ -36,6 +36,9 @@ class Feature(ABC):
         """
         return 
 
+    def __hash__(self):
+        return hash(str(self))
+
 class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.

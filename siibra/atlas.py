@@ -349,7 +349,7 @@ class Atlas:
                 extractor = cls(self)
             hits.extend(extractor.pick_selection(self))
 
-        return hits
+        return list(set(hits))
 
     def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
         """

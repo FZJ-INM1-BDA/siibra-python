@@ -71,7 +71,10 @@ class EbrainsRegionalDataset(RegionalFeature, ebrains.EbrainsDataset):
         ebrains.EbrainsDataset.__init__(self, id, name, embargo_status)
 
     def __str__(self):
-        super(ebrains.EbrainsDataset, self)
+        return ebrains.EbrainsDataset.__str__(self)
+
+    def __hash__(self):
+        return ebrains.EbrainsDataset.__hash__(self)
 
 class EbrainsRegionalFeatureExtractor(FeatureExtractor):
     _FEATURETYPE=EbrainsRegionalDataset
