@@ -58,7 +58,7 @@ class ConnectivityProfile(RegionalFeature):
             vrange = self.globalrange
         calib = termplot.calibrate(vrange, self.column_names)
         return "\n".join([style.BOLD+'Connectivity profile of "{}"'.format(self.region)+style.END] 
-                + [ termplot.format_row(self.column_names[i],profile[i],calib)
+                + [ termplot.format_row(self.column_names[i] if i in self.column_names else 'Undecoded region',profile[i],calib)
                     for i in np.argsort(profile)
                     if self.profile[i]>0
                     ])
@@ -81,7 +81,7 @@ class ConnectivityProfile(RegionalFeature):
                 raise e
 
         decoded = ( (strength,decoderegion(parcellation,regionname,force))
-                for strength,regionname in zip(self.profile,self.column_names)
+                for strength,regionname in zip(self.profile,self.column_names.values())
                 if strength>minstrength)
         return sorted(decoded,key=lambda q:q[0],reverse=True)
 
@@ -126,6 +126,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                 try:
                     region = parcellation.decode_region(name)
                 except ValueError:
+                    logger.debug(f'Cannot decode {name} at index {i}')
                     continue
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
@@ -137,9 +138,9 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     maxval = max(profile)
                 if min(profile)>minval:
                     minval = min(profile)
-                self.__class__.__profiles .append( ConnectivityProfile(
+                self.__class__.__profiles.append( ConnectivityProfile(
                     region, profile, 
-                    [r.name for r in valid_regions.values()],
+                    {i: r.name for i,r in valid_regions.items()},
                     src_name, src_info, src_file,
                     parcellation,
                     kg_schema, kg_id ) )
