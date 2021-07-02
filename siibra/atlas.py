@@ -119,6 +119,13 @@ class Atlas:
 
         parcellation : Parcellation
             The new parcellation to be selected
+        force : boolean
+            If a parcellation is labelled "beta","rc" or "alpha", it cannot be selected unless force=True is provided as a positional
+            argument.
+
+        Yields
+        ------
+        Selected parcellation
         """
         parcellation_obj = parcellations[parcellation]
         if parcellation_obj.version is not None:
@@ -135,6 +142,7 @@ class Atlas:
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
         logger.info(f'Select "{self.selected_parcellation}"')
+        return self.selected_parcellation
 
     def select_region(self,region):
         """
@@ -153,7 +161,7 @@ class Atlas:
 
         Yields
         ------
-        True, if selection was successful, otherwise False.
+        Selected region
         """
         previous_selection = self.selected_region
         if isinstance(region,Region):
