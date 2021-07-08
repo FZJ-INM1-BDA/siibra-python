@@ -65,6 +65,15 @@ class EbrainsDataset:
     def __str__(self):
         return self.name
 
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, o: object) -> bool:
+        # Check type
+        if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
+            return False
+        # Check id
+        return self.id == o.id
 
 class EbrainsDatasetOriginDataInfo(EbrainsDataset, OriginDataInfo):
 
@@ -100,8 +109,11 @@ class EbrainsDatasetOriginDataInfo(EbrainsDataset, OriginDataInfo):
     def __init__(self, id):
         EbrainsDataset.__init__(self, id=id, name=None, embargo_status=None)
 
+    def __hash__(self):
+        return super(EbrainsDataset, self)
+
     def __str__(self):
-        super(EbrainsDataset, self)
+        return super(EbrainsDataset, self)
 
 class Authentication(object):
     """

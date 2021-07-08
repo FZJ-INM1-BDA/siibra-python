@@ -117,8 +117,14 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             kg_schema = data['kgschema'] if 'kgschema' in data.keys() else ''
             kg_id = data['kgId'] if 'kgId' in data.keys() else ''
             src_file = jsonfile
-            parcellation = parcellations[data['parcellation id']]
-            if parcellation!=self.parcellation:
+            try:
+                parcellation = parcellations[data['parcellation id']]
+                if parcellation!=self.parcellation:
+                    continue
+            except IndexError as e:
+                # cannot find parcellation from parcellation id
+                # Log and continue
+                logger.warning(f'{e}, ignoring {jsonfile} ')
                 continue
             column_names = data['data']['field names']
             valid_regions = {}

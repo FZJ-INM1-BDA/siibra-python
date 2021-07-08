@@ -66,7 +66,8 @@ class ConfigurationRegistry:
                 if GITLAB_SERVER is None or GITLAB_PROJECT_ID is None:
                     raise ValueError('Both SERVER and PROJECT_ID are required')
                 logger.debug(f'Attempting to connect to {GITLAB_SERVER}')
-                project=Gitlab(gitlab_config['SERVER']).projects.get(GITLAB_PROJECT_ID)
+                # 10 second timeout
+                project=Gitlab(gitlab_config['SERVER'], timeout=10).projects.get(GITLAB_PROJECT_ID)
                 break
             except gitlab_exceptions.GitlabError:
                 # Gitlab server down. Try the next one.

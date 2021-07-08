@@ -226,6 +226,7 @@ class Parcellation(HasOriginDataInfo):
             return Region._build_grouptree(candidates,self)
 
 
+    @cached
     def find_regions(self,regionspec):
         """
         Find regions with the given specification in this parcellation.
