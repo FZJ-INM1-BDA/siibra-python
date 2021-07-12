@@ -15,7 +15,7 @@
 from os import path, getenv
 
 # __version__ is parsed by setup.py
-__version__='0.1a4'
+__version__='0.1a5'
 
 import logging
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ VERBOSE = LoggingContext("DEBUG")
 
 # convenience function, will be easier to discover
 def set_log_level(level):
-    logger.setLevel(level)
+    logger.setLe^vel(level)
 
 set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
 
