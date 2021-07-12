@@ -19,7 +19,7 @@ class TestAtlas(unittest.TestCase):
             "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
         ],
         "parcellations": [
-            "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25",
+            "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290",
             "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
         ]
     }
@@ -45,7 +45,7 @@ class TestAtlas(unittest.TestCase):
 
     def test_spaces(self):
         spaces = self.atlas.spaces
-        self.assertTrue(len(spaces) == 3)
+        self.assertTrue(len(spaces) == 4)
 
     def test_to_string(self):
         atlas_str = str(self.atlas)
@@ -73,7 +73,7 @@ class TestAtlas(unittest.TestCase):
 
     def test_select_parcellation(self):
         selected_parcellation = self.atlas.selected_parcellation
-        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.5')
+        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
 
         new_parcellation = self.atlas.parcellations[2]
         self.atlas.select_parcellation(new_parcellation)
@@ -125,10 +125,11 @@ class TestAtlas(unittest.TestCase):
 
     def test_get_features_connectivity_profile_filter_by_sel_parc(self):
         
-        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25'
+        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
         self.atlas.select_parcellation(parcellations[expected_p_id])
         self.atlas.select_region('hoc1 left')
         conns=self.atlas.get_features(modalities.ConnectivityProfile)
+        assert(len(conns)>0)
         assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
 
     def test_regionsprops(self):

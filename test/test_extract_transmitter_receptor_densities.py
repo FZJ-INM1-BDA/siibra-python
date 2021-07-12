@@ -13,7 +13,7 @@ class TestExtractTransmitterReceptorDensities(unittest.TestCase):
 
     def test_extract_densities(self):
         atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
-        atlas.select_parcellation(sb.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_5)
+        #atlas.select_parcellation(sb.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9)
         atlas.select_region(atlas.regionnames.AREA_HOC1_V1_17_CALCS_LEFT_HEMISPHERE)
         features = atlas.get_features(modalities.ReceptorDistribution)
         print(features)
