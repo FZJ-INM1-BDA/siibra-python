@@ -40,7 +40,7 @@ VERBOSE = LoggingContext("DEBUG")
 
 # convenience function, will be easier to discover
 def set_log_level(level):
-    logger.setLe^vel(level)
+    logger.setLevel(level)
 
 set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
 
