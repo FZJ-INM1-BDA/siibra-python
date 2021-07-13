@@ -9,7 +9,7 @@ jobs:
       JUGEX_CLIENT_ID: ${{ secrets.JUGEX_CLIENT_ID }}
       JUGEX_CLIENT_SECRET: ${{ secrets.JUGEX_CLIENT_SECRET }}
       HBP_OIDC_ENDPOINT: ${{ secrets.HBP_OIDC_ENDPOINT }}
-      CI_PIPELINE: ${{ secrets.CI_PIPELINE }}
+      CI_PIPELINE: '1'
     strategy:
       fail-fast: false
       matrix:
