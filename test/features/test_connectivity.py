@@ -2,6 +2,22 @@ import unittest
 from siibra import atlases, parcellations
 from siibra.features.connectivity import ConnectivityProfile
 
+class TestSwitchParc(unittest.TestCase):
+    
+    def test_check_switch_parc(self):
+        atlas = atlases["human"]
+        atlas.select_parcellation('2.9')
+        atlas.select_region("v1")
+        v29_v1_feats=atlas.get_features('ConnectivityProfile')
+        # TODO enable once v29 conn data is integrated
+        # self.assertTrue(len(v29_v1_feats) > 0)
+        self.assertTrue(all([f.parcellation.id == atlas.selected_parcellation.id for f in v29_v1_feats]))
+
+        atlas.select_parcellation('1.18')
+        atlas.select_region("hoc1 left")
+        v118_hoc1_left_features=atlas.get_features('ConnectivityProfile')
+        self.assertTrue(len(v118_hoc1_left_features) > 0)
+        self.assertTrue(all([f.parcellation.id == atlas.selected_parcellation.id for f in v118_hoc1_left_features]))
 
 class TestConnectivity(unittest.TestCase):
 

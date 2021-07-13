@@ -1,8 +1,7 @@
 import unittest
 
+import siibra as sb
 from siibra.space import Space
-from siibra.atlas import REGISTRY
-
 
 class TestSpaces(unittest.TestCase):
 
@@ -71,8 +70,8 @@ class TestSpaces(unittest.TestCase):
         self.assertIsNone(vsrc.zipped_file)
 
     def test_space_registry(self):
-        spaces = REGISTRY.MULTILEVEL_HUMAN_ATLAS.spaces
-        self.assertEqual(len(spaces), 3)
+        spaces = sb.atlases['human'].spaces
+        self.assertEqual(len(spaces), 4)
 
 
 if __name__ == "__main__":
