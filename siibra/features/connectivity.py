@@ -106,7 +106,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
-                for f in project.repository_tree() 
+                for f in project.repository_tree(all=True)
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
         self.__class__.__jsons=[]
