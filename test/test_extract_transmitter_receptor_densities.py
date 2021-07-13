@@ -12,11 +12,10 @@ os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):
 
     def test_extract_densities(self):
-        atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
-        #atlas.select_parcellation(sb.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9)
-        atlas.select_region(atlas.regionnames.AREA_HOC1_V1_17_CALCS_LEFT_HEMISPHERE)
+        atlas = sb.atlases['human']
+        atlas.select_parcellation('2.9')
+        atlas.select_region('hoc1 left')
         features = atlas.get_features(modalities.ReceptorDistribution)
-        print(features)
         self.assertTrue(len(features) == 1)
         self.assertEqual(features[0].name, 'Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]')
 

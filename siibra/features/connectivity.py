@@ -88,30 +88,44 @@ class ConnectivityProfile(RegionalFeature):
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
-    __profiles = None
+    __jsons = None
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
-        if self.__class__.__profiles is None:
-            self.__load_profiles()
-        for profile in self.__class__.__profiles :
+        self.profiles = []        
+        if self.__class__.__jsons is None:
+            self.__load_jsons()
+        
+        self.load_profiles()
+
+        for profile in self.profiles:
             self.register(profile)
 
-    def __load_profiles(self):
+    def __load_jsons(self):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
-                for f in project.repository_tree() 
+                for f in project.repository_tree(all=True)
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
-
-        
-        minval = maxval = 0
-        self.__class__.__profiles  = []
-        for jsonfile in jsonfiles: 
+        self.__class__.__jsons=[]
+        for jsonfile in jsonfiles:
             f = project.files.get(file_path=jsonfile, ref='master')
             data = json.loads(f.decode())
+            self.__class__.__jsons.append({
+                'data':data,
+                'jsonfile': jsonfile})
+        
+    def load_profiles(self):
+        if self.__class__.__jsons is None:
+            raise RuntimeError('must call __load_jsons before calling load_profiles !')   
+
+        minval = maxval = 0
+        for obj in self.__class__.__jsons: 
+            data=obj['data']
+            jsonfile=obj['jsonfile']
+
             src_name = data['name']
             src_info = data['description']
             kg_schema = data['kgschema'] if 'kgschema' in data.keys() else ''
@@ -120,6 +134,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             try:
                 parcellation = parcellations[data['parcellation id']]
                 if parcellation!=self.parcellation:
+                    logger.debug(f'parcellation with id {parcellation.id} does not match selected parcellation with id {self.parcellation.id}, ignoring {jsonfile}')
                     continue
             except IndexError as e:
                 # cannot find parcellation from parcellation id
@@ -144,14 +159,14 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     maxval = max(profile)
                 if min(profile)>minval:
                     minval = min(profile)
-                self.__class__.__profiles.append( ConnectivityProfile(
+                self.profiles.append( ConnectivityProfile(
                     region, profile, 
                     {i: r.name for i,r in valid_regions.items()},
                     src_name, src_info, src_file,
                     parcellation,
                     kg_schema, kg_id ) )
 
-        for profile in self.__class__.__profiles :
+        for profile in self.profiles :
             profile.globalrange = (minval,maxval)
 
 
