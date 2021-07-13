@@ -30,7 +30,6 @@ class FeatureExtractor(ABC):
         self.parcellation = atlas.selected_parcellation
         self.region = atlas.selected_region
 
-    @cached
     def pick_selection(self,atlas):
         """
         Returns the list of features from this extractor that are associated with

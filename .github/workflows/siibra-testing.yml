@@ -10,7 +10,7 @@ jobs:
       JUGEX_CLIENT_SECRET: ${{ secrets.JUGEX_CLIENT_SECRET }}
       HBP_OIDC_ENDPOINT: ${{ secrets.HBP_OIDC_ENDPOINT }}
       CI_PIPELINE: '1'
-      SIIBRA_LOG_LEVEL: DEBUG
+      # SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
       matrix:
