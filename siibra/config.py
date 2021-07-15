@@ -135,8 +135,15 @@ class ConfigurationRegistry:
             if len(matches)==1:
                 return matches[0]
             elif len(matches)>1:
+                # see if the matches are from the same collection - then we disambiguate to the newest version
+                try:
+                    collections = {m.version.collection for m in matches}
+                    if len(collections)==1:
+                        return sorted(matches,key=lambda m:m.version,reverse=True)[0]
+                except Exception as e:
+                    pass
                 namelist = ", ".join(m.name for m in matches)
-                logger.warning(f"Specification '{index}' matched {len(matches)} objects: {namelist}")
+                logger.warning(f"Specification '{index}' yielded {len(matches)} different matches: {namelist}")
         raise IndexError(f"Cannot identify item '{index}' in {self.cls.__name__} registry")
 
     def __len__(self):

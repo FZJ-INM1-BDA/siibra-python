@@ -25,10 +25,17 @@ from tqdm import tqdm
 from memoization import cached
 
 class ParcellationVersion:
-    def __init__(self, name=None, prev_id=None, next_id=None):
+    def __init__(self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False):
         self.name=name
+        self.collection=collection
         self.next_id=next_id
         self.prev_id=prev_id
+        self.deprecated=deprecated
+
+    def __eq__(self,other):
+        return all([
+            self.name==other.name,
+            self.collection==other.collection])
     
     def __str__(self):
         return self.name
@@ -40,6 +47,15 @@ class ParcellationVersion:
         yield 'name', self.name
         yield 'prev', self.prev.id if self.prev is not None else None
         yield 'next', self.next.id if self.next is not None else None
+
+    def __lt__(self,other):
+        """ < operator, useful for sorting by version"""
+        successor = self.next
+        while successor is not None:
+            if successor.version==other:
+                return True
+            successor = successor.version.next
+        return False
 
     @property
     def next(self):
@@ -71,7 +87,12 @@ class ParcellationVersion:
         """
         if obj is None:
             return None
-        return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
+        return ParcellationVersion(
+            obj.get('name', None), 
+            obj.get('collectionName',None),
+            prev_id=obj.get('@prev', None), 
+            next_id=obj.get('@next', None),
+            deprecated=obj.get('@next', False))
 
 class Parcellation(HasOriginDataInfo):
 
@@ -244,7 +265,6 @@ class Parcellation(HasOriginDataInfo):
         list of matching regions
         """
         return self.regiontree.find(regionspec)
-
 
     def __str__(self):
         return self.name
