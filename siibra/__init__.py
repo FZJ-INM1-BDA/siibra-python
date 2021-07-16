@@ -15,7 +15,7 @@
 from os import path, getenv
 
 # __version__ is parsed by setup.py
-__version__='0.1a5'
+__version__='0.1a6'
 
 import logging
 logger = logging.getLogger(__name__)
