@@ -393,7 +393,7 @@ class ReceptorDistribution(RegionalFeature):
         for url in self.files:
 
             # Receive cortical profiles, if any
-            if '_pr_' in url:
+            if re.match(r".*_pr[._]",url):
                 suffix = path.splitext(url)[-1]
                 if suffix == '.tsv':
                     rtype, basename = url.split("/")[-2:]
@@ -410,14 +410,14 @@ class ReceptorDistribution(RegionalFeature):
                         self.__profiles[rtype] = densities
 
             # Receive autoradiographs, if any
-            if '_ar_' in url:
+            if re.match(r".*_ar[._]",url):
                 rtype, basename = url.split("/")[-2:]
                 if rtype in basename:
                     rtype = self._check_rtype(rtype)
                     self.__autoradiographs[rtype] = url
 
             # receive fingerprint, if any
-            if '_fp_' in url:
+            if re.match(r".*_fp[._]",url):
                 data = decode_tsv(url) 
                 self.__fingerprint = DensityFingerprint(data) 
 
@@ -451,6 +451,9 @@ class ReceptorDistribution(RegionalFeature):
         self._load()
         #if len(self.profiles)+len(self.autoradiographs)==0:
                 #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
+        if self.fingerprint is None:
+            print(self.profiles)
+            print(self.autoradiographs)
         return "\n"+"\n".join(
                 [style.BOLD+"Receptor densities for area {}".format(self.region.name)+style.END] +
                 [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
