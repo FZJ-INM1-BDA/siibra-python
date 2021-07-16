@@ -134,7 +134,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
             try:
                 parcellation = parcellations[data['parcellation id']]
                 if parcellation!=self.parcellation:
-                    logger.info(f'parcellation with id {parcellation.id} does not match selected parcellation with id {self.parcellation.id}, ignoring {jsonfile}')
+                    logger.debug(f'parcellation with id {parcellation.id} does not match selected parcellation with id {self.parcellation.id}, ignoring {jsonfile}')
                     continue
             except IndexError as e:
                 # cannot find parcellation from parcellation id
