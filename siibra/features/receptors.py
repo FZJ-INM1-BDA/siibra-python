@@ -451,9 +451,6 @@ class ReceptorDistribution(RegionalFeature):
         self._load()
         #if len(self.profiles)+len(self.autoradiographs)==0:
                 #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
-        if self.fingerprint is None:
-            print(self.profiles)
-            print(self.autoradiographs)
         return "\n"+"\n".join(
                 [style.BOLD+"Receptor densities for area {}".format(self.region.name)+style.END] +
                 [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
