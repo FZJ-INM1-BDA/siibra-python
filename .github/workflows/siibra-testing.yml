@@ -9,7 +9,8 @@ jobs:
       JUGEX_CLIENT_ID: ${{ secrets.JUGEX_CLIENT_ID }}
       JUGEX_CLIENT_SECRET: ${{ secrets.JUGEX_CLIENT_SECRET }}
       HBP_OIDC_ENDPOINT: ${{ secrets.HBP_OIDC_ENDPOINT }}
-      CI_PIPELINE: ${{ secrets.CI_PIPELINE }}
+      CI_PIPELINE: '1'
+      # SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
       matrix:
@@ -32,8 +33,15 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Test with pytest
+    - name: Install test dependencies
+      run:  pip install pytest pytest-cov coverage
+    - name: Test with unittest
       run: |
-        pip install pytest
-        pip install pytest-cov
-        pytest --doctest-modules --junitxml=junit/test-results.xml --cov=siibra-python . --cov-report=xml --cov-report=html
+        coverage run -m unittest
+        coverage report
+        coverage html
+    - name: Archive code coverage html report
+      uses: actions/upload-artifact@v2
+      with:
+        name: siibra-python-code-coverage-report
+        path: htmlcov

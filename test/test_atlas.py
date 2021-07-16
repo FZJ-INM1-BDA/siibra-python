@@ -19,10 +19,14 @@ class TestAtlas(unittest.TestCase):
             "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
         ],
         "parcellations": [
-            "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25",
+            "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290",
             "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
         ]
     }
+    @classmethod
+    def tearDownClass(cls):
+        cls.atlas.select_parcellation('2.9')
+        cls.atlas.clear_selection()
 
     @classmethod
     def setUpClass(cls):
@@ -34,6 +38,11 @@ class TestAtlas(unittest.TestCase):
         self.assertEqual(a.name, self.ATLAS_NAME)
         self.assertEqual(a.key, 'MULTILEVEL_HUMAN_ATLAS')
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
+        
+        # on init, parcellations and spaces are empty lists
+        self.assertTrue(len(a.parcellations) == 0)
+        self.assertTrue(len(a.spaces) == 0)
+        
         self.assertIsNone(a.selected_region)
         self.assertIsNone(a.selected_parcellation)
 
@@ -45,7 +54,7 @@ class TestAtlas(unittest.TestCase):
 
     def test_spaces(self):
         spaces = self.atlas.spaces
-        self.assertTrue(len(spaces) == 3)
+        self.assertTrue(len(spaces) == 4)
 
     def test_to_string(self):
         atlas_str = str(self.atlas)
@@ -53,6 +62,9 @@ class TestAtlas(unittest.TestCase):
 
     def test_from_json(self):
         json_atlas = atlas.Atlas.from_json(self.atlas_as_json)
+        
+        self.assertTrue(type(json_atlas) is atlas.Atlas)
+
         self.assertEqual(json_atlas.name, self.JSON_ATLAS_NAME)
         self.assertEqual(json_atlas.id, self.JSON_ATLAS_ID)
         self.assertTrue(len(json_atlas.spaces) == 1)
@@ -65,6 +77,7 @@ class TestAtlas(unittest.TestCase):
             "order": 1,
         }
         json_atlas = atlas.Atlas.from_json(invalid_atlas_json)
+        self.assertTrue(type(json_atlas) is not atlas.Atlas)
         self.assertEqual(json_atlas, invalid_atlas_json)
 
     def test_from_json_with_invalid_json(self):
@@ -73,13 +86,13 @@ class TestAtlas(unittest.TestCase):
 
     def test_select_parcellation(self):
         selected_parcellation = self.atlas.selected_parcellation
-        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.5')
+        self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
 
         new_parcellation = self.atlas.parcellations[2]
         self.atlas.select_parcellation(new_parcellation)
 
         self.assertEqual(self.atlas.selected_parcellation, new_parcellation)
-        self.assertNotEqual(self.atlas.selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.5')
+        self.assertNotEqual(self.atlas.selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
 
     def test_get_map(self):
         # test downloading map
@@ -117,13 +130,21 @@ class TestAtlas(unittest.TestCase):
         # GeneExpression
         pass
 
+    def test_get_features_ebrains_features(self):
+
+        self.atlas.select_region('hoc1 left')
+        features=self.atlas.get_features(modalities.EbrainsRegionalDataset)
+        assert(len(features) > 0)
+
     def test_get_features_connectivity_profile_filter_by_sel_parc(self):
         
-        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-25'
+        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
         self.atlas.select_parcellation(parcellations[expected_p_id])
         self.atlas.select_region('hoc1 left')
         conns=self.atlas.get_features(modalities.ConnectivityProfile)
-        assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
+        # TODO enable once conn data for 2.9 is added
+        # assert(len(conns)>0)
+        # assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
 
     def test_regionsprops(self):
         pass

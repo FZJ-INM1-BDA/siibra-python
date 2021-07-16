@@ -15,7 +15,7 @@
 import json
 from . import logger,__version__
 from .commons import create_key
-from gitlab import Gitlab
+from gitlab import Gitlab, exceptions as gitlab_exceptions
 from tqdm import tqdm
 import os
 import re
@@ -23,8 +23,6 @@ import re
 # Until openminds is fully supported, 
 # we store atlas configurations in a gitlab repo.
 # We tag the configuration with each release
-GITLAB_SERVER = 'https://jugit.fz-juelich.de'
-GITLAB_PROJECT_ID=3484
 GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
 
 logger.info(f"Configuration: {GITLAB_PROJECT_TAG}")
@@ -42,6 +40,14 @@ class ConfigurationRegistry:
     TODO Cache configuration files
     """
 
+    GITLAB_CONFIGS=[{
+        'SERVER': 'https://jugit.fz-juelich.de',
+        'PROJECT_ID': 3484,
+    }, {
+        'SERVER': 'https://gitlab.ebrains.eu',
+        'PROJECT_ID': 93,
+    }]
+
 
     def __init__(self,config_subfolder,cls):
         """
@@ -52,7 +58,26 @@ class ConfigurationRegistry:
             cls,config_subfolder))
 
         # open gitlab repository with atlas configurations
-        project = Gitlab(GITLAB_SERVER).projects.get(GITLAB_PROJECT_ID)
+        
+        for gitlab_config in self.GITLAB_CONFIGS:
+            try:
+                GITLAB_SERVER=gitlab_config.get('SERVER')
+                GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
+                if GITLAB_SERVER is None or GITLAB_PROJECT_ID is None:
+                    raise ValueError('Both SERVER and PROJECT_ID are required')
+                logger.debug(f'Attempting to connect to {GITLAB_SERVER}')
+                # 10 second timeout
+                project=Gitlab(gitlab_config['SERVER'], timeout=10).projects.get(GITLAB_PROJECT_ID)
+                break
+            except gitlab_exceptions.GitlabError:
+                # Gitlab server down. Try the next one.
+                logger.info(f'Gitlab server at {GITLAB_SERVER} is unreachable. Trying another mirror...')
+            except ValueError:
+                logger.warn('Gitlab configuration malformed')
+        else:
+            # will not be reached if the for loop is broken
+            raise ValueError('No Gitlab server can be reached')
+            
         subfolders = [node['name'] 
                 for node in project.repository_tree(ref=GITLAB_PROJECT_TAG) 
                 if node['type']=='tree']
@@ -110,8 +135,15 @@ class ConfigurationRegistry:
             if len(matches)==1:
                 return matches[0]
             elif len(matches)>1:
+                # see if the matches are from the same collection - then we disambiguate to the newest version
+                try:
+                    collections = {m.version.collection for m in matches}
+                    if len(collections)==1:
+                        return sorted(matches,key=lambda m:m.version,reverse=True)[0]
+                except Exception as e:
+                    pass
                 namelist = ", ".join(m.name for m in matches)
-                logger.warning(f"Specification '{index}' matched {len(matches)} objects: {namelist}")
+                logger.warning(f"Specification '{index}' yielded {len(matches)} different matches: {namelist}")
         raise IndexError(f"Cannot identify item '{index}' in {self.cls.__name__} registry")
 
     def __len__(self):

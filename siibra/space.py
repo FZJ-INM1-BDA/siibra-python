@@ -12,21 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import create_key
+from .commons import create_key,HasOriginDataInfo,OriginDataInfo
 from .config import ConfigurationRegistry
 import numpy as np
 from . import volumesrc
 from . import logger
+from . import arrays
 import copy
 from cloudvolume import Bbox
 from typing import Tuple
+import nibabel as nib
 
-class Space:
+class Space(HasOriginDataInfo):
     """
     A particular brain reference space.
     """
 
     def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src={}):
+        HasOriginDataInfo.__init__(self)
         self.id = identifier
         self._rename(name)
         self.type = template_type
@@ -118,9 +121,12 @@ class Space:
             return obj
 
         volume_src = [volumesrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
-        return Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
+        s=Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
                 src_volume_type = obj.get('srcVolumeType'),
                 volume_src = volume_src)
+        origin_datainfos=[OriginDataInfo.from_json(f) for f in obj.get('originDatasets', [])]
+        s.origin_datainfos=[f for f in origin_datainfos if f is not None]
+        return s
 
 
 class SpaceVOI(Bbox):
@@ -129,10 +135,23 @@ class SpaceVOI(Bbox):
         super().__init__(minpt,maxpt)
         self.space = space
 
+    @staticmethod
+    def from_map(space:Space,roi:nib.Nifti1Image):
+        # construct from a roi mask or map
+        bbox = arrays.bbox3d(roi.dataobj,affine=roi.affine)
+        return SpaceVOI(space,bbox[:3,0],bbox[:3,1])
+
     def transform_bbox(self,transform):
         assert(transform.shape==(4,4))
         return Bbox(
             np.dot(transform,np.r_[self.minpt,1])[:3].astype('int'),
             np.dot(transform,np.r_[self.maxpt,1])[:3].astype('int') )
+
+    def __str__(self):
+        return f"Bounding box {self.minpt}mm -> {self.maxpt}mm defined in {self.space.name}"
+
+    def __repr__(self):
+        return str(self)
+
 
 REGISTRY = ConfigurationRegistry('spaces', Space)

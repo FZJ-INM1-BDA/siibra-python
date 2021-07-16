@@ -43,6 +43,12 @@ class Atlas:
         self.selected_region = None
         self.selected_parcellation = None 
 
+    def __hash__(self):
+        """
+        Used for caching functions taking atlas object as an input, like FeatureExtractor.pick_selection()
+        """
+        hash(self.id)+hash(self.selected_parcellation.id)+hash(self.selected_region)
+
     def _add_space(self, space):
         self.spaces.append(space)
 
@@ -113,6 +119,13 @@ class Atlas:
 
         parcellation : Parcellation
             The new parcellation to be selected
+        force : boolean
+            If a parcellation is labelled "beta","rc" or "alpha", it cannot be selected unless force=True is provided as a positional
+            argument.
+
+        Yields
+        ------
+        Selected parcellation
         """
         parcellation_obj = parcellations[parcellation]
         if parcellation_obj.version is not None:
@@ -129,6 +142,7 @@ class Atlas:
         self.selected_parcellation = parcellation_obj
         self.selected_region = parcellation_obj.regiontree
         logger.info(f'Select "{self.selected_parcellation}"')
+        return self.selected_parcellation
 
     def select_region(self,region):
         """
@@ -147,7 +161,7 @@ class Atlas:
 
         Yields
         ------
-        True, if selection was successful, otherwise False.
+        Selected region
         """
         previous_selection = self.selected_region
         if isinstance(region,Region):
@@ -343,7 +357,7 @@ class Atlas:
                 extractor = cls(self)
             hits.extend(extractor.pick_selection(self))
 
-        return hits
+        return list(set(hits))
 
     def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
         """
@@ -366,6 +380,20 @@ class Atlas:
         """
         smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
         return smap.assign_coordinates(xyz_mm, sigma_mm)
+
+    def assign_maps(self,space:Space,mapimg):
+        """
+        Assign physical coordinates with optional standard deviation to atlas regions.
+        See also: ContinuousParcellationMap.assign_coordinates()
+
+        Parameters
+        ----------
+        space : Space
+            reference template space for computing the assignemnt
+        mapimg : 3D volume as nibabel spatial image
+        """
+        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        return smap.assign(mapimg)
 
 
 REGISTRY = ConfigurationRegistry('atlases', Atlas)

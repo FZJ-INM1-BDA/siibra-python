@@ -12,11 +12,108 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .commons import OriginDataInfo
 from . import logger
 from .retrieval import cached_get
 import requests
 import json
 from os import environ
+import re
+
+kg_feature_full_kwargs={
+    'org': 'minds',
+    'domain': 'core',
+    'schema': 'dataset',
+    'version': 'v1.0.0'
+}
+
+kg_feature_query_kwargs={
+    'params': {
+        'vocab': 'https://schema.hbp.eu/myQuery/'
+    }
+}
+KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
+
+class EbrainsDataset:
+    def __init__(self, id, name, embargo_status):
+        
+        self.id = id
+        self.name = name
+        self.embargo_status = embargo_status
+        self._detail = None
+
+    @property
+    def detail(self):
+        if not self._detail:
+            self._load()
+        return self._detail
+
+    def _load(self):
+        if self.id is None:
+            raise Exception('id is required')
+        match=re.search(r"([a-f0-9-]+)$", self.id)
+        if not match:
+            raise Exception('id cannot be parsed properly')
+        instance_id=match.group(1)
+        result=execute_query_by_id(
+            query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
+            instance_id=instance_id,
+            msg=f"Retrieving details for '{self.name or self.id}' from EBRAINS...",
+            **kg_feature_query_kwargs,**kg_feature_full_kwargs)
+        self._detail = result
+
+    def __str__(self):
+        return self.name
+
+    def __hash__(self):
+        return hash(self.id)
+
+    def __eq__(self, o: object) -> bool:
+        # Check type
+        if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
+            return False
+        # Check id
+        return self.id == o.id
+
+class EbrainsDatasetOriginDataInfo(EbrainsDataset, OriginDataInfo):
+
+    @property
+    def urls(self):
+        return [{
+            'doi': f,
+        }for f in self.detail.get('kgReference', [])]
+
+    @urls.setter
+    def urls(self, val):
+        pass
+
+    @property
+    def description(self):
+        return self.detail.get('description')
+    
+    @description.setter
+    def description(self, val):
+        pass
+
+    @property
+    def name(self):
+        # to prevent inf loop, if _detail is undefined, return id
+        if self._detail is None:
+            return None
+        return self.detail.get('name')
+
+    @name.setter
+    def name(self, value):
+        pass
+
+    def __init__(self, id):
+        EbrainsDataset.__init__(self, id=id, name=None, embargo_status=None)
+
+    def __hash__(self):
+        return super(EbrainsDataset, self)
+
+    def __str__(self):
+        return super(EbrainsDataset, self)
 
 class Authentication(object):
     """

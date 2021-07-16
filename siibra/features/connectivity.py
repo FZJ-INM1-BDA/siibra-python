@@ -29,7 +29,7 @@ class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation):
+    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation, kg_schema, kg_id):
         RegionalFeature.__init__(self,region)
         self.profile = profile
         self.src_name = src_name
@@ -37,6 +37,8 @@ class ConnectivityProfile(RegionalFeature):
         self.src_file = src_file
         self.column_names = column_names
         self.parcellation = parcellation
+        self.kg_schema = kg_schema
+        self.kg_id = kg_id
         self.globalrange = None
 
     def __str__(self):
@@ -56,7 +58,7 @@ class ConnectivityProfile(RegionalFeature):
             vrange = self.globalrange
         calib = termplot.calibrate(vrange, self.column_names)
         return "\n".join([style.BOLD+'Connectivity profile of "{}"'.format(self.region)+style.END] 
-                + [ termplot.format_row(self.column_names[i],profile[i],calib)
+                + [ termplot.format_row(self.column_names[i] if i in self.column_names else 'Undecoded region',profile[i],calib)
                     for i in np.argsort(profile)
                     if self.profile[i]>0
                     ])
@@ -79,34 +81,65 @@ class ConnectivityProfile(RegionalFeature):
                 raise e
 
         decoded = ( (strength,decoderegion(parcellation,regionname,force))
-                for strength,regionname in zip(self.profile,self.column_names)
+                for strength,regionname in zip(self.profile,self.column_names.values())
                 if strength>minstrength)
         return sorted(decoded,key=lambda q:q[0],reverse=True)
 
 class ConnectivityProfileExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityProfile
+    __jsons = None
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
+        self.profiles = []        
+        if self.__class__.__jsons is None:
+            self.__load_jsons()
+        
+        self.load_profiles()
+
+        for profile in self.profiles:
+            self.register(profile)
+
+    def __load_jsons(self):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
-                for f in project.repository_tree() 
+                for f in project.repository_tree(all=True)
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
-
-        minval = maxval = 0
-        new_profiles = []
-        for jsonfile in jsonfiles: 
+        self.__class__.__jsons=[]
+        for jsonfile in jsonfiles:
             f = project.files.get(file_path=jsonfile, ref='master')
             data = json.loads(f.decode())
+            self.__class__.__jsons.append({
+                'data':data,
+                'jsonfile': jsonfile})
+        
+    def load_profiles(self):
+        if self.__class__.__jsons is None:
+            raise RuntimeError('must call __load_jsons before calling load_profiles !')   
+
+        minval = maxval = 0
+        for obj in self.__class__.__jsons: 
+            data=obj['data']
+            jsonfile=obj['jsonfile']
+
             src_name = data['name']
-            src_info  = data['description']
+            src_info = data['description']
+            kg_schema = data['kgschema'] if 'kgschema' in data.keys() else ''
+            kg_id = data['kgId'] if 'kgId' in data.keys() else ''
             src_file = jsonfile
-            parcellation = parcellations[data['parcellation id']]
-            if parcellation!=self.parcellation:
+            try:
+                parcellation = parcellations[data['parcellation id']]
+                if parcellation!=self.parcellation:
+                    logger.debug(f'parcellation with id {parcellation.id} does not match selected parcellation with id {self.parcellation.id}, ignoring {jsonfile}')
+                    continue
+            except IndexError as e:
+                # cannot find parcellation from parcellation id
+                # Log and continue
+                logger.warning(f'{e}, ignoring {jsonfile} ')
                 continue
             column_names = data['data']['field names']
             valid_regions = {}
@@ -114,6 +147,7 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                 try:
                     region = parcellation.decode_region(name)
                 except ValueError:
+                    logger.debug(f'Cannot decode {name} at index {i}')
                     continue
                 valid_regions[i] = region
             if len(valid_regions)<len(column_names):
@@ -125,15 +159,15 @@ class ConnectivityProfileExtractor(FeatureExtractor):
                     maxval = max(profile)
                 if min(profile)>minval:
                     minval = min(profile)
-                new_profiles.append( ConnectivityProfile(
+                self.profiles.append( ConnectivityProfile(
                     region, profile, 
-                    [r.name for r in valid_regions.values()],
+                    {i: r.name for i,r in valid_regions.items()},
                     src_name, src_info, src_file,
-                    parcellation ) )
+                    parcellation,
+                    kg_schema, kg_id ) )
 
-        for profile in new_profiles:
+        for profile in self.profiles :
             profile.globalrange = (minval,maxval)
-            self.register(profile)
 
 
 class ConnectivityMatrix(GlobalFeature):
@@ -154,16 +188,24 @@ class ConnectivityMatrix(GlobalFeature):
 class ConnectivityMatrixExtractor(FeatureExtractor):
 
     _FEATURETYPE = ConnectivityMatrix
+    __features = None
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
+        if self.__class__.__features is None:
+            self._load_features()
+        for feature in self.__class__.__features:
+            self.register(feature)        
+
+    def _load_features(self):
 
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
         jsonfiles = [f['name'] 
                 for f in project.repository_tree() 
                 if f['type']=='blob' 
                 and f['name'].endswith('json')]
+        self.__class__.__features = []
         for jsonfile in jsonfiles: 
             f = project.files.get(file_path=jsonfile, ref='master')
             profiles = []
@@ -194,8 +236,9 @@ class ConnectivityMatrixExtractor(FeatureExtractor):
                 profiles.append(profile)
             matrix = np.array(profiles)
             assert(all(N==len(valid_regions) for N in matrix.shape))
-            self.register( ConnectivityMatrix(
-                parcellation, matrix, column_names, src_name, src_info ))
+            self.__class__.__features.append(
+                ConnectivityMatrix(
+                    parcellation, matrix, column_names, src_name, src_info ))
 
 if __name__ == '__main__':
 

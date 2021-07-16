@@ -16,7 +16,7 @@ from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
 from .config import ConfigurationRegistry
-from .commons import create_key,MapType,ParcellationIndex
+from .commons import create_key,MapType,ParcellationIndex,HasOriginDataInfo,OriginDataInfo
 from typing import Union
 import numpy as np
 import nibabel as nib
@@ -25,10 +25,17 @@ from tqdm import tqdm
 from memoization import cached
 
 class ParcellationVersion:
-    def __init__(self, name=None, prev_id=None, next_id=None):
+    def __init__(self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False):
         self.name=name
+        self.collection=collection
         self.next_id=next_id
         self.prev_id=prev_id
+        self.deprecated=deprecated
+
+    def __eq__(self,other):
+        return all([
+            self.name==other.name,
+            self.collection==other.collection])
     
     def __str__(self):
         return self.name
@@ -40,6 +47,15 @@ class ParcellationVersion:
         yield 'name', self.name
         yield 'prev', self.prev.id if self.prev is not None else None
         yield 'next', self.next.id if self.next is not None else None
+
+    def __lt__(self,other):
+        """ < operator, useful for sorting by version"""
+        successor = self.next
+        while successor is not None:
+            if successor.version==other:
+                return True
+            successor = successor.version.next
+        return False
 
     @property
     def next(self):
@@ -71,9 +87,14 @@ class ParcellationVersion:
         """
         if obj is None:
             return None
-        return ParcellationVersion(obj.get('name', None), prev_id=obj.get('@prev', None), next_id=obj.get('@next', None))
+        return ParcellationVersion(
+            obj.get('name', None), 
+            obj.get('collectionName',None),
+            prev_id=obj.get('@prev', None), 
+            next_id=obj.get('@next', None),
+            deprecated=obj.get('@next', False))
 
-class Parcellation:
+class Parcellation(HasOriginDataInfo):
 
     _regiontree_cached = None
 
@@ -92,12 +113,16 @@ class Parcellation:
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
+        HasOriginDataInfo.__init__(self)
         self.id = identifier
         self.name = name
         self.key = create_key(name)
         self.version = version
+
+        # TODO replace by instanced methods in HasOriginDataInfo
         self.publications = []
         self.description = ""
+
         self.volume_src = {}
         self.modality = modality
         self._regiondefs = regiondefs
@@ -185,7 +210,8 @@ class Parcellation:
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return space in self.volume_src.keys()
+        spaceobj = spaces[space]
+        return spaceobj in self.volume_src.keys()
 
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
         """
@@ -221,6 +247,7 @@ class Parcellation:
             return Region._build_grouptree(candidates,self)
 
 
+    @cached
     def find_regions(self,regionspec):
         """
         Find regions with the given specification in this parcellation.
@@ -238,7 +265,6 @@ class Parcellation:
         list of matching regions
         """
         return self.regiontree.find(regionspec)
-
 
     def __str__(self):
         return self.name
@@ -303,6 +329,11 @@ class Parcellation:
             p.description = obj['description']
         if 'publications' in obj:
             p.publications = obj['publications']
+
+        if 'originDatasets' in obj:
+            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in obj.get('originDatasets', [])]
+            p.origin_datainfos=[f for f in origin_datainfos if f is not None]
+
         logger.debug(f'Adding parcellation "{str(p)}"')
         return p
 

@@ -15,6 +15,7 @@
 from collections import defaultdict
 from abc import ABC
 from .feature import Feature
+from memoization import cached
 
 class FeatureExtractor(ABC):
     """

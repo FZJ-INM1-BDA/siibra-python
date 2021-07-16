@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from numpy.core.fromnumeric import argmax
 from . import logger,arrays
 from .space import Space,SpaceVOI
 from .commons import MapType,ParcellationIndex
@@ -155,9 +154,9 @@ class ParcellationMap(ImageProvider):
         else:
             raise ValueError(f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
 
-    def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None):
+    def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None, clip:bool=False):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        rmap = region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi)
+        rmap = region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi,clip=clip)
         return rmap
 
     def __len__(self):
@@ -247,7 +246,7 @@ class ParcellationMap(ImageProvider):
             mapimg = self.fetch(resolution_mm=resolution_mm, mapindex=index.map,voi=voi)
             if index.label is not None:
                 mapimg = nib.Nifti1Image(
-                    dataobj=(np.asarray(mapimg.dataobj)==index.label).astype(np.uint8),
+                    dataobj=(mapimg.get_fdata()==index.label).astype(np.uint8),
                     affine=mapimg.affine)
             mapimgs.append(mapimg)
 
@@ -326,7 +325,7 @@ class LabelledParcellationMap(ParcellationMap):
             
             # map label indices to regions
             unmatched = []
-            for labelindex in np.unique(np.asarray(m.dataobj)):
+            for labelindex in np.unique(m.get_fdata()):
                 if labelindex!=0:
                     pindex = ParcellationIndex(map=mapindex,label=labelindex)
                     try:
@@ -435,7 +434,8 @@ class ContinuousParcellationMap(ParcellationMap):
             if source.get_shape()[3]<2:
                 continue
 
-            #  The source is 4D float! We assume the fourth dimension contains the regional continuous maps.
+            # The source is 4D float, that's what we are looking for. 
+            # We assume the fourth dimension contains the regional continuous maps.
             nmaps = source.get_shape()[3]
             logger.info(f'{nmaps} continuous maps will be extracted from 4D volume for {self.parcellation}.')
             for i in range(nmaps):
@@ -500,7 +500,7 @@ class ContinuousParcellationMap(ParcellationMap):
             for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self),desc=msg,unit=" maps"):
                 pmap = loadfnc()
                 p2v = np.linalg.inv(tpl.affine)
-                A = np.asanyarray(pmap.dataobj)
+                A = pmap.get_fdata()
                 pindex = ParcellationIndex(map=mapindex,label=None)
                 region = self.decode_label(mapindex=mapindex)
                 for i,xyzh in enumerate(XYZH):
@@ -520,44 +520,130 @@ class ContinuousParcellationMap(ParcellationMap):
                 assignments.append(self.assign(W,msg=", ".join([f"{v:.1f}" for v in xyzh[:3]])))
 
         return assignments
-
     
-    def assign(self,other:nib.Nifti1Image,msg=None):
-        
-        values = {}
-        pmaps = {}
-        if msg is None:
+    def assign(self,img:nib.Nifti1Image,msg=None,quiet=False):
+        """
+        Assign the region of interest represented by a given volumetric image to continuous brain regions in this map.
+
+        Parameters:
+        -----------
+        img : Nifti1Image
+            The input region of interest, typically a binary mask or statistical map.
+        msg : str, default:None
+            Message to display with the progress bar
+        quiet: Boolen, default:False
+            If true, no progess indicator will be displayed
+        """
+
+        if msg is None and not quiet:
             msg=f"Assigning structure to {len(self)} maps"
 
-        # crop the input and define its voi in reference space
-        bb_vox = arrays.bbox3d(other.dataobj)
-        minpt,maxpt = [v.ravel()[:3] for v in np.hsplit(bb_vox,2)]
-        (x0,y0,z0),(x1,y1,z1) =  minpt,maxpt
-        shift = np.eye(4)
-        shift[:3,-1] = minpt.ravel()[:3]
-        bb_mm = np.dot(other.affine,bb_vox)
-        other_cropped = nib.Nifti1Image(
-            dataobj = other.dataobj[x0:x1,y0:y1,z0:z1],
-            affine = np.dot(other.affine,shift) )
+        # How to visualize progress from the iterator?
+        progress = lambda f: f
+        if not quiet: 
+            progress = lambda f: tqdm(f,total=len(self),desc=msg,unit="maps")
 
-        minpt,maxpt = np.hsplit(bb_mm,2)
-        voi = self.space.get_voi(minpt,maxpt)
+        # setup assignment loop
+        values = {}
+        pmaps = {}
 
-        resampled = None
-        for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self),desc=msg,unit=" maps"):
+        for mapindex,loadfnc in progress(enumerate(self.maploaders)):
 
-            this_cropped = loadfnc(voi=voi)
-            if not this_cropped:
+            # load the regional map
+            this = loadfnc()
+            if not this:
                 logger.warning(f"Could not load regional map for {self.regions[mapindex].name}")
                 continue
-            if resampled is None:
-                resampled = image.resample_to_img(other_cropped,this_cropped)
-            value =  np.sum(np.multiply(resampled.dataobj,this_cropped.dataobj))
-            if value>0:
-                values[mapindex] = value
-                pmaps[mapindex] = loadfnc()
 
-        pindex = lambda i: ParcellationIndex(map=i,label=None)
+            scores = compare_maps(img,this)
+            if scores['overlap']>0:
+                pmaps[mapindex] = this
+                values[mapindex] = scores
+
         assignments = [(self.decode_label(mapindex=i),pmaps[i],value) 
-                    for i,value in sorted(values.items(),key=lambda item:item[1],reverse=True)]
+                    for i,value in sorted(
+                        values.items(),
+                        key=lambda item:abs(item[1]['correlation']),reverse=True)]
         return assignments
+
+
+# getting nonzero pixels of pmaps is one of the most time consuming tasks when computing metrics, 
+# so we cache the nonzero coordinates of array objects at runtime.
+NZCACHE = {}
+def nonzero_coordinates(arr):
+    obj_id = id(arr)
+    if obj_id not in NZCACHE:
+        NZCACHE[obj_id] = np.c_[np.nonzero(arr>0)]
+    return NZCACHE[obj_id]
+
+def compare_maps(map1:nib.Nifti1Image,map2:nib.Nifti1Image):
+    """
+    Compare two maps, given as Nifti1Image objects.
+    This function exploits that nibabel's get_fdata() caches the numerical arrays, 
+    so we can use the object id to cache extraction of the nonzero coordinates.
+    Repeated calls involving the same map will therefore be much faster as they 
+    will only access the image array if overlapping pixels are detected.
+
+    It is recommended to install the indexed-gzip package, 
+    which will further speed this up.
+    """
+    
+    a1,a2 = [m.get_fdata().squeeze() for m in (map1,map2)]
+    
+    homog = lambda XYZ : np.c_[XYZ,np.ones(XYZ.shape[0])]
+    colsplit = lambda XYZ: np.split(XYZ,3,axis=1)
+
+    # Compute the nonzero voxels in map2 and their correspondences in map1
+    XYZnz2 = nonzero_coordinates(a2)
+    N2 = XYZnz2.shape[0]
+    warp2on1 = np.dot(np.linalg.inv(map1.affine),map2.affine)
+    XYZnz2on1 = (np.dot(warp2on1,homog(XYZnz2).T).T[:,:3]+.5).astype('int')
+
+    # valid voxel pairs
+    valid = np.all(
+        np.logical_and.reduce([
+            XYZnz2on1>=0, XYZnz2on1<map1.shape[:3],
+            XYZnz2>=0, XYZnz2<map2.shape[:3]]), 1)
+    X1,Y1,Z1 = colsplit(XYZnz2on1[valid,:])
+    X2,Y2,Z2 = colsplit(XYZnz2[valid,:])
+
+    # intersection
+    v1,v2 = a1[X1,Y1,Z1].squeeze(),a2[X2,Y2,Z2].squeeze()
+    m1,m2 = ((_>0).astype('uint8') for _ in [v1,v2])
+    intersection = np.minimum(m1,m2).sum()
+    if intersection==0:
+            return {'overlap':0,'contained':0,'contains':0,'correlation':0}
+    
+    # Compute the nonzero voxels in map1 with their correspondences in map2
+    XYZnz1 = nonzero_coordinates(a1)
+    N1 = XYZnz1.shape[0]
+    warp1on2 = np.dot(np.linalg.inv(map2.affine),map1.affine)
+    
+    # Voxels referring to the union of the nonzero pixels in both maps
+    XYZa1 = np.unique(np.concatenate((XYZnz1,XYZnz2on1)),axis=0)    
+    XYZa2 = (np.dot(warp1on2,homog(XYZa1).T).T[:,:3]+.5).astype('int')
+    valid = np.all(
+        np.logical_and.reduce([
+            XYZa1>=0, XYZa1<map1.shape[:3],
+            XYZa2>=0, XYZa2<map2.shape[:3]]), 1)
+    Xa1,Ya1,Za1 = colsplit(XYZa1[valid,:])
+    Xa2,Ya2,Za2 = colsplit(XYZa2[valid,:])
+    
+    # pearson's r wrt to full size image
+    x = a1[Xa1,Ya1,Za1].squeeze()
+    y = a2[Xa2,Ya2,Za2].squeeze()
+    mu_x = x.sum()/a1.size
+    mu_y = y.sum()/a2.size
+    x0 = x-mu_x
+    y0 = y-mu_y
+    r = np.sum(np.multiply(x0,y0)) / np.sqrt(np.sum(x0**2)*np.sum(y0**2))
+    
+    bx = (x>0).astype('uint8')
+    by = (y>0).astype('uint8')
+
+    return {
+        'overlap':      intersection/np.maximum(bx,by).sum(),
+        'contained':    intersection/N1,
+        'contains':     intersection/N2,
+        'correlation':  r
+    }

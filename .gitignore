@@ -17,3 +17,4 @@ venv
 .vim
 _autosummary
 __Tag_List__
+*.code-workspace

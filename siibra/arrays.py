@@ -17,28 +17,40 @@ import numbers
 from scipy.ndimage import gaussian_filter
 import nibabel as nib
 import re
+from memoization import cached
+from hashlib import sha1
 
-def bbox3d(A,affine=None):
+def __bbox(A):
     """
     Bounding box of nonzero values in a 3D array.
     https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
 
     If affine not None, the affine is applied to the bounding box.
     """
-    r = np.any(A, axis=(1, 2))
-    c = np.any(A, axis=(0, 2))
+    x = np.any(A, axis=(1, 2))
+    y = np.any(A, axis=(0, 2))
     z = np.any(A, axis=(0, 1))
-    rmin, rmax = np.where(r)[0][[0, -1]]
-    cmin, cmax = np.where(c)[0][[0, -1]]
-    zmin, zmax = np.where(z)[0][[0, -1]]
-    bbox = np.array([
-        [rmin, rmax], 
-        [cmin, cmax], 
-        [zmin, zmax],
-        [1,1]
-    ])
+    nzx,nzy,nzz = [np.where(v) for v in (x,y,z)]
+    if any(len(nz[0])==0 for nz in [nzx,nzy,nzz]):
+        # empty array
+        return None
+    xmin, xmax = nzx[0][[0, -1]]
+    ymin, ymax = nzy[0][[0, -1]]
+    zmin, zmax = nzz[0][[0, -1]]
+    return np.array([
+        [xmin, xmax+1], 
+        [ymin, ymax+1], 
+        [zmin, zmax+1],
+        [1,1] ])
 
-    return bbox if affine is None else np.dot(affine,bbox)
+def bbox3d(A,affine=np.identity(4)):
+    bbox = np.dot(affine,__bbox(A))
+    return np.sort(bbox.astype('int'))
+
+def bbox_intersection(bb1,bb2):
+    lower = [max(bb1[i,0],bb2[i,0]) for i in range(3)]
+    upper = np.maximum(lower,[min(bb1[i,1],bb2[i,1]) for i in range(3)])
+    return np.prod(upper-lower)
 
 def parse_coordinate_str(cstr:str,unit='mm'):
     pat=r'([-\d\.]*)'+unit
@@ -118,3 +130,48 @@ def argmax_dim4(img,dim=-1):
             dataobj = newarr,
             header = img.header,
             affine = img.affine )
+
+
+def MI(arr1,arr2,nbins=100,normalized=True):
+    """
+    Compute the mutual information between two 3D arrays, which need to have the same shape.
+
+    Parameters:
+    arr1 : First 3D array
+    arr2 : Second 3D array
+    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized : Boolean, default:True
+        if True, the normalized MI of arrays X and Y will be returned, 
+        leading to a range of values between 0 and 1. Normalization is 
+        achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
+    """
+
+    assert(all(len(arr.shape)==3 for arr in [arr1,arr2]))
+    assert(all(arr.size>0) for arr in [arr1,arr2])
+
+    # compute the normalized joint 2D histogram as an 
+    # empirical measure of the joint probabily of arr1 and arr2
+    pxy, _, _ = np.histogram2d(arr1.ravel(),arr2.ravel(),bins=nbins)
+    pxy /= pxy.sum()
+    
+    # extract the empirical propabilities of intensities 
+    # from the joint histogram
+    px = np.sum(pxy, axis=1) # marginal for x over y
+    py = np.sum(pxy, axis=0) # marginal for y over x
+    
+    # compute the mutual information
+    px_py = px[:, None] * py[None, :] 
+    nzs = pxy > 0 # nonzero value indices
+    I = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    if not normalized:
+        return I
+    
+    # normalize, using the sum of their individual entropies H
+    def entropy(p):
+        nz = p>0
+        assert(np.count_nonzero(nz)>0)
+        return -np.sum(p[nz]*np.log(p[nz]))
+    Hx,Hy = [entropy(p) for p in [px,py]]
+    assert((Hx+Hy)>0)
+    NMI = 2*I / (Hx+Hy)
+    return NMI

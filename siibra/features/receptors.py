@@ -393,7 +393,7 @@ class ReceptorDistribution(RegionalFeature):
         for url in self.files:
 
             # Receive cortical profiles, if any
-            if '_pr_' in url:
+            if re.match(r".*_pr[._]",url):
                 suffix = path.splitext(url)[-1]
                 if suffix == '.tsv':
                     rtype, basename = url.split("/")[-2:]
@@ -410,14 +410,14 @@ class ReceptorDistribution(RegionalFeature):
                         self.__profiles[rtype] = densities
 
             # Receive autoradiographs, if any
-            if '_ar_' in url:
+            if re.match(r".*_ar[._]",url):
                 rtype, basename = url.split("/")[-2:]
                 if rtype in basename:
                     rtype = self._check_rtype(rtype)
                     self.__autoradiographs[rtype] = url
 
             # receive fingerprint, if any
-            if '_fp_' in url:
+            if re.match(r".*_fp[._]",url):
                 data = decode_tsv(url) 
                 self.__fingerprint = DensityFingerprint(data) 
 
@@ -505,18 +505,27 @@ class ReceptorDistribution(RegionalFeature):
 class ReceptorQuery(FeatureExtractor):
 
     _FEATURETYPE = ReceptorDistribution
+    __features = None
 
     def __init__(self,atlas):
+        # TODO this could probably be a general pattern of the FeatureExtractor Class.
 
         FeatureExtractor.__init__(self,atlas)
+        if self.__class__.__features is None:
+            self._load_features()
+        for feature in self.__class__.__features:
+            self.register(feature)
+
+    def _load_features(self):
         kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
+        self.__class__.__features = []
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
                 try:
                     region = self.parcellation.decode_region(region_name)
                     feature = ReceptorDistribution(region,kg_result)
-                    self.register(feature)
+                    self.__class__.__features.append(feature)
                 except ValueError as e:
                     # if the region name cannot be decoded, we skip this feature
                     continue

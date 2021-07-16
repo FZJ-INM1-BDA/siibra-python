@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from . import logger,spaces
-from .commons import create_key, Glossary, MapType, ParcellationIndex
+from .commons import OriginDataInfo, create_key, Glossary, MapType, ParcellationIndex,HasOriginDataInfo
 from .space import Space
 from . import volumesrc
 import numpy as np
@@ -24,15 +24,19 @@ from memoization import cached
 import re
 import anytree
 from typing import Union
+from scipy.spatial.qhull import QhullError
 
-REMOVE_FROM_NAME=['hemisphere','-']
+REMOVE_FROM_NAME=['hemisphere','-',
+    # region string used in receptor features sometimes contains both/Both keywords
+    # when they are present, the regions cannot be parsed properly
+    'both', 'Both']
 
 def _clear_name(name):
     for word in REMOVE_FROM_NAME:
         name = re.sub(r' *'+word,'',name)
     return name
 
-class Region(anytree.NodeMixin):
+class Region(anytree.NodeMixin, HasOriginDataInfo):
     """
     Representation of a region with name and more optional attributes
     """
@@ -58,6 +62,7 @@ class Region(anytree.NodeMixin):
         volume_src : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
+        HasOriginDataInfo.__init__(self)
         self.name = _clear_name(name)
         self.key = create_key(name)
         self.parcellation = parcellation
@@ -85,6 +90,7 @@ class Region(anytree.NodeMixin):
         """
         # create an isolated object, detached from the other's tree
         region = Region(other.name, other.parcellation, other.index, other.attrs)
+        region.origin_datainfos=other.origin_datainfos
 
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
@@ -149,8 +155,8 @@ class Region(anytree.NodeMixin):
         if isinstance(regionspec,str) and regionspec in self.names:
             # key is given, this gives us an exact region
             return [anytree.search.find_by_attr(self,regionspec,name="key")]
-        result = anytree.search.findall(self,
-                lambda node: node.matches(regionspec))
+        result = list(set(anytree.search.findall(self,
+                lambda node: node.matches(regionspec))))
         if len(result)>1 and select_uppermost:
             all_results = result
             mindepth = min([r.depth for r in result])
@@ -227,55 +233,47 @@ class Region(anytree.NodeMixin):
             Currently, this only works for the BigBrain volume.
         """
         if not self.parcellation.supports_space(space):
-            logger.error('Parcellation "{}" does not provide a map for space "{}"'.format(
+            logger.error('Region "{}" does not provide a map for space "{}"'.format(
                 str(self), str(space) ))
 
         mask = affine = None 
 
-        if self.index.label is not None:
+        if self.parcellation.continuous_map_threshold is not None:
 
-            if all([
-                self.parcellation.continuous_map_threshold is not None,
-                self.has_regional_map(space,MapType.CONTINUOUS) ]):
-                # The parent parcellation prefers thresholded continuous maps
-                # for masking, and we have one available, so use it.
-                T = self.parcellation.continuous_map_threshold 
+            T = self.parcellation.continuous_map_threshold 
+            if self.has_regional_map(space,MapType.CONTINUOUS):
                 logger.info(f"Computing mask for {self.name} by thresholding the continuous regional map at {T}.")
-                labelimg = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
-                mask = (np.asanyarray(labelimg.dataobj)>T).astype('uint8')
-                affine = labelimg.affine
-
-            elif self.has_regional_map(space,MapType.LABELLED):
-                logger.info(f"Extracting mask for {self.name} from regional map")
-                labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
-                mask = labelimg.dataobj
-                affine = labelimg.affine
-
+                pmap = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
             else:
-                logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
-                maskimg = self.parcellation.get_map(space).extract_regionmap(self,resolution_mm=resolution_mm)
-                if maskimg:
-                    mask = maskimg.dataobj
-                    affine = maskimg.affine
+                logger.info(f"Extracting mask for {self.name} from continuous map volume of {self.parcellation.name}.")
+                pmap = self.parcellation.get_map(space,maptype=MapType.CONTINUOUS).extract_regionmap(self,resolution_mm=resolution_mm)
+            if pmap is not None:
+                mask = (np.asanyarray(pmap.dataobj)>T).astype('uint8')
+                affine = pmap.affine
 
-        if mask is None:
-            logger.info("{} has no own mask, trying to build mask from children".format(
-                self.name))
-            for child in self.children:
-                childmask = child.build_mask(space,resolution_mm)
-                if childmask is None: 
-                    continue
+        elif self.has_regional_map(space,MapType.LABELLED):
+            logger.info(f"Extracting mask for {self.name} from regional labelmap.")
+            labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
+            mask = labelimg.dataobj
+            affine = labelimg.affine
+        
+        else:
+            logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
+            labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
+            for mapindex,img in enumerate(labelmap):
+                if self.index.map is not None:
+                    if self.index.map!=mapindex:
+                        continue
                 if mask is None:
-                    mask = childmask.dataobj
-                    affine = childmask.affine
-                else:
-                    mask = (mask | childmask.dataobj).astype('int')
+                    mask = np.zeros(img.dataobj.shape,dtype='uint8')
+                    affine = img.affine
+                # Note: self.labels holds all labelindices of a region and its descendants
+                mask[np.isin(img.dataobj,list(self.labels))]=1
 
         if mask is None:
-            logger.warning(f"No mask could be computed for {self.name}")
-            return None
-
-        return nib.Nifti1Image(dataobj=mask,affine=affine)
+            raise RuntimeError(f"Could not compute mask for {self.region.name} in {space.name}.")
+        else:
+            return nib.Nifti1Image(dataobj=mask,affine=affine)
 
     def has_regional_map(self,space,maptype : MapType):
         """
@@ -335,7 +333,7 @@ class Region(anytree.NodeMixin):
         Region object
         """
         if not isinstance(labelindex,int):
-            raise TypeError("Index access into the regiontree excepts label indices of integer type")
+            raise TypeError("Index access into the regiontree expects label indices of integer type")
 
         # first test this head node
         if self.index.label==labelindex:
@@ -467,6 +465,10 @@ class Region(anytree.NodeMixin):
                 attrs=jsonstr, children=children, 
                 volume_src=volume_src )
 
+        if 'originDatasets' in jsonstr:
+            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in jsonstr.get('originDatasets', [])]
+            r.origin_datainfos=[f for f in origin_datainfos if f is not None]
+
         # inherit labelindex from children, if they agree
         if pindex.label is None and r.children: 
             L = [c.index.label for c in r.children]
@@ -543,15 +545,23 @@ class RegionProps():
         for prop in rprops[0]:
             try:
                 self.attrs[prop] = rprops[0][prop]
-            except NotImplementedError:
+            except QhullError:
+                logger.error(f"Qhull Error when computing region props for {region.name}")
+            except NotImplementedError as e:
+                # this will occur for many attributes which can only be computed for 2D data        
                 pass
 
         # Transfer some properties into physical coordinates
         self.attrs['centroid_mm'] = grid2mm(self.attrs['centroid'])
         self.attrs['volume_mm'] = self.attrs['area'] * pixel_spacing**3
         # TODO test if the surface estimate makes really sense
-        verts,faces,_,_ = measure.marching_cubes_lewiner(M)
-        self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
+        try:
+            verts,faces,_,_ = measure.marching_cubes_lewiner(M)
+            self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
+        except Exception as e:
+            logger.error(f"Could not estimate surface of {self.name}")
+            print(str(e))
+            self.attrs['surface_mm'] = None
 
 
     def __dir__(self):
