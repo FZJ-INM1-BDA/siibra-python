@@ -411,7 +411,7 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         try:
             D = json.loads(cached_get(propfile))
         except Exception as e:
-            raise RuntimeError(f"Cannot load and parse spatial property data for {region.parcellation.name} in {space.name} (requested data URL was {propfile})")
+            raise RuntimeError(f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name} (requested data URL was {propfile})")
         return [c for p in D['spatialprops'] for c in p['components'] if p['region']['name']==self.name]
 
     def print_tree(self):
