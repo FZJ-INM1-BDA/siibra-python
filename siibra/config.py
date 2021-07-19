@@ -128,11 +128,11 @@ class ConfigurationRegistry:
         self.cls = cls
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
-        for _,cachefile in config_cachefiles.items():
+        for fname,cachefile in config_cachefiles.items():
             with open(cachefile,'r') as f:
                 obj = json.load(f, object_hook=cls.from_json)
             if not isinstance(obj,cls):
-                raise RuntimeError(f'Could not generate object of type {cls} from configuration {configfile}')
+                raise RuntimeError(f'Could not generate object of type {cls} from configuration {fname}')
             key = create_key(str(obj))
             identifier = obj.id
             self.items.append(obj)
