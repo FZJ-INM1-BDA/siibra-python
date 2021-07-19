@@ -15,6 +15,7 @@
 from . import logger,spaces
 from .commons import OriginDataInfo, create_key, Glossary, MapType, ParcellationIndex,HasOriginDataInfo
 from .space import Space
+from .retrieval import cached_get
 from . import volumesrc
 import numpy as np
 from skimage import measure
@@ -25,6 +26,7 @@ import re
 import anytree
 from typing import Union
 from scipy.spatial.qhull import QhullError
+import json
 
 REMOVE_FROM_NAME=['hemisphere','-',
     # region string used in receptor features sometimes contains both/Both keywords
@@ -35,6 +37,10 @@ def _clear_name(name):
     for word in REMOVE_FROM_NAME:
         name = re.sub(r' *'+word,'',name)
     return name
+
+RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
+RPROPS_BRANCH = "master"
+RPROPS_URL_SCHEME = f"{RPROPS_REPO}/-/raw/{RPROPS_BRANCH}/spatialprops/{{parckey}}-{{spacekey}}-spatialprops.json"
 
 class Region(anytree.NodeMixin, HasOriginDataInfo):
     """
@@ -386,7 +392,7 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
     @cached
     def spatialprops(self,space,force=False):
         """
-        Computes spatial region properties for this region.
+        Returns spatial region properties for connected components of this region found by analyzing the parcellation volume in the given space.
 
         Parameters
         ----------
@@ -395,11 +401,18 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         force : Boolean (Default: False)
             spatialprops will only be computed for leave regions (without
             children), except this is set to True.
+        
+        Return
+        ------
+        List of RegionProps objects, one per connected component found in the corresponding labelled parcellation map.
         """
-        if not force and len(self.children)>0:
-            logger.warning('Computation of spatial properties for a group region requested. This is prevented by default. Use "force=True" to do that.')
-            return None
-        return RegionProps(self,space)
+        propfile = RPROPS_URL_SCHEME.format(parckey=self.parcellation.key,spacekey=space.key)
+        logger.debug(f'Trying to load spatial region props from {propfile}')
+        try:
+            D = json.loads(cached_get(propfile))
+        except Exception as e:
+            raise RuntimeError(f"Cannot load and parse spatial property data for {region.parcellation.name} in {space.name} (requested data URL was {propfile})")
+        return [c for p in D['spatialprops'] for c in p['components'] if p['region']['name']==self.name]
 
     def print_tree(self):
         """
@@ -476,114 +489,6 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
                 r.index.label = L[0]
 
         return r
-
-
-class RegionProps():
-    """
-    Computes and represents spatial attributes of a region in an atlas.
-    """
-
-    # properties used when printing this feature
-    main_props = [
-            'centroid_mm',
-            'volume_mm',
-            'surface_mm',
-            'is_cortical']
-
-    def __init__(self,region,space):
-        """
-        Construct region properties from a region selected in the given atlas,
-        in the specified template space. 
-
-        TODO test this for  bigbrain regions
-
-        Parameters
-        ----------
-        region : Region
-            An region object
-        space : Space
-            A template space 
-        """
-        if not region.parcellation.supports_space(space):
-            logger.error(f'Region "{region.name}" does not support for space "{space.name}"')
-
-        self.region = region
-        self.attrs = {}
-    
-        # derive non-spatial properties
-        assert(region.parcellation.regiontree.find('cerebral cortex'))
-        self.attrs['is_cortical'] = region.has_parent('cerebral cortex')
-
-        # compute mask in the given space
-        tmpl = space.get_template().fetch()
-        mask = region.build_mask(space)
-        M = np.asanyarray(mask.dataobj) 
-
-        # Setup coordinate units 
-        # for now we expect isotropic physical coordinates given in mm for the
-        # template volume
-        # TODO be more flexible here
-        pixel_unit = tmpl.header.get_xyzt_units()[0]
-        assert(pixel_unit == 'mm')
-        pixel_spacings = np.unique(tmpl.header.get_zooms()[:3])
-        assert(len(pixel_spacings)==1)
-        pixel_spacing = pixel_spacings[0]
-        grid2mm = lambda pts : apply_affine(tmpl.affine,pts)
-        
-        # Extract properties of each connected component, recompute some
-        # spatial props in physical coordinates, and return connected componente
-        # as a list 
-        rprops = measure.regionprops(M)
-        if len(rprops)==0:
-            logger.warning('Region "{}" has zero size - {}'.format(
-                self.region.name, "constructing an empty region property object"))
-            self.attrs['centroid_mm'] = 0.
-            self.attrs['volume_mm'] = 0.
-            self.attrs['surface_mm'] = 0.
-            return 
-        assert(len(rprops)==1)
-        for prop in rprops[0]:
-            try:
-                self.attrs[prop] = rprops[0][prop]
-            except QhullError:
-                logger.error(f"Qhull Error when computing region props for {region.name}")
-            except NotImplementedError as e:
-                # this will occur for many attributes which can only be computed for 2D data        
-                pass
-
-        # Transfer some properties into physical coordinates
-        self.attrs['centroid_mm'] = grid2mm(self.attrs['centroid'])
-        self.attrs['volume_mm'] = self.attrs['area'] * pixel_spacing**3
-        # TODO test if the surface estimate makes really sense
-        try:
-            verts,faces,_,_ = measure.marching_cubes_lewiner(M)
-            self.attrs['surface_mm'] = measure.mesh_surface_area(grid2mm(verts),faces)
-        except Exception as e:
-            logger.error(f"Could not estimate surface of {self.name}")
-            print(str(e))
-            self.attrs['surface_mm'] = None
-
-
-    def __dir__(self):
-        return list(self.attrs.keys())
-
-    def __str__(self):
-        """
-        Formats the main attributes as a multiline string.
-        """
-        printobj = lambda o: "Array {} {}".format(o.dtype,o.shape) if isinstance(o,np.ndarray) else o
-        return "\n".join(['Region properties of "{}"'.format(self.region)] 
-                +["{:>20.20} {}".format(label,printobj(self.attrs[label]))
-            for label in self.attrs.keys()])
-
-    def __contains__(self,index):
-        return index in self.__dir__()
-
-    def __getattr__(self,name):
-        if name in self.attrs.keys():
-            return self.attrs[name]
-        else:
-            raise AttributeError("No such attribute: {}".format(name))
 
 
 if __name__ == '__main__':

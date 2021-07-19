@@ -76,7 +76,7 @@ class ConfigurationRegistry:
                 logger.warn('Gitlab configuration malformed')
         else:
             # will not be reached if the for loop is broken
-            raise ValueError('No Gitlab server can be reached')
+            raise ValueError('No Gitlab server with siibra configurations can be reached')
             
         subfolders = [node['name'] 
                 for node in project.repository_tree(ref=GITLAB_PROJECT_TAG) 
