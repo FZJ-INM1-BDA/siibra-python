@@ -15,9 +15,11 @@
 import json
 from . import logger,__version__
 from .commons import create_key
+from .retrieval import CACHEDIR
 from gitlab import Gitlab, exceptions as gitlab_exceptions
 from tqdm import tqdm
 import os
+from collections import defaultdict
 import re
 
 # Until openminds is fully supported, 
@@ -25,7 +27,8 @@ import re
 # We tag the configuration with each release
 GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
 
-logger.info(f"Configuration: {GITLAB_PROJECT_TAG}")
+logger.info(f"Loading configuration: {GITLAB_PROJECT_TAG}")
+
 
 class ConfigurationRegistry:
     """
@@ -37,7 +40,6 @@ class ConfigurationRegistry:
     This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
 
     TODO provide documentation and mechanisms to keep this fixed to a certain release.
-    TODO Cache configuration files
     """
 
     GITLAB_CONFIGS=[{
@@ -48,17 +50,21 @@ class ConfigurationRegistry:
         'PROJECT_ID': 93,
     }]
 
-
-    def __init__(self,config_subfolder,cls):
+    def __load_config(self):
         """
-        Populate a new registry from the json files in the package path, using
-        the "from_json" function of the provided class as hook function.
+        Determine, load and cache config files.
         """
-        logger.debug("Initializing registry of type {} for {}".format(
-            cls,config_subfolder))
+        sfmt = lambda s: re.sub('_+','_',re.sub('[:/.-]','_',s))
+        for gitlab_config in self.GITLAB_CONFIGS:
+            GITLAB_SERVER=gitlab_config.get('SERVER')
+            GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
+            cachefile = os.path.join(CACHEDIR,f"{sfmt(GITLAB_SERVER)}_{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_files.json")
+            if os.path.isfile(cachefile):
+                # we do have a cache! read and return
+                with open(cachefile,'r') as f:
+                    return json.load(f)
 
-        # open gitlab repository with atlas configurations
-        
+        # No cached config folders. Parse gitlab repositories with atlas configurations
         for gitlab_config in self.GITLAB_CONFIGS:
             try:
                 GITLAB_SERVER=gitlab_config.get('SERVER')
@@ -78,29 +84,53 @@ class ConfigurationRegistry:
             # will not be reached if the for loop is broken
             raise ValueError('No Gitlab server with siibra configurations can be reached')
             
-        subfolders = [node['name'] 
-                for node in project.repository_tree(ref=GITLAB_PROJECT_TAG) 
-                if node['type']=='tree']
+        config = defaultdict(dict)
+        for node in project.repository_tree(ref=GITLAB_PROJECT_TAG):
+            if node['type']!='tree' or node['name'].startswith('_'):
+                continue
+            folder = node['name']
+            files = list(filter(
+                lambda v: v['type']=='blob' and v['name'].endswith('.json'),
+                project.repository_tree(path=folder,ref=GITLAB_PROJECT_TAG,all=True) ))
+            msg=f"Initializing configuration of {folder:15.15}"
+            for configfile in tqdm(files,total=len(files),desc=msg,unit=" files"):
+                fname = configfile['name']
+                # cache the individual config file; store cachefile name in dict
+                cachefile = os.path.join(CACHEDIR,f"{sfmt(GITLAB_SERVER)}_{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_{folder}_{fname}")
+                config[folder][fname] = cachefile
+                p = project.files.get(file_path=folder+"/"+fname, ref=GITLAB_PROJECT_TAG)
+                with open(cachefile,'wb') as f:
+                    f.write(p.decode())
 
-        # parse the selected subfolder
-        assert(config_subfolder in subfolders)
+        # store dict of config cachefiles
+        cachefile = os.path.join(CACHEDIR,f"{sfmt(GITLAB_SERVER)}_{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_files.json")
+        with open(cachefile,'w') as f:
+            json.dump(config,f,indent='\t')
+
+        return config
+
+    def __init__(self,config_subfolder,cls):
+        """
+        Populate a new registry from the json files in the package path, using
+        the "from_json" function of the provided class as hook function.
+        """
+        logger.debug("Initializing registry of type {} for {}".format(
+            cls,config_subfolder))
+
+        config = self.__load_config()
+        assert(config_subfolder in config.keys())
+        
+        config_cachefiles = config[config_subfolder] 
         self.items = []
         self.by_key = {}
         self.by_id = {}
         self.by_name = {}
         self.cls = cls
-        config_files = [ v['name'] 
-                for v in project.repository_tree(
-                    path=config_subfolder, ref=GITLAB_PROJECT_TAG, all=True)
-                if v['type']=='blob'
-                and v['name'].endswith('.json') ]
-        msg=f"Configuring {config_subfolder:15.15}"
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
-        for configfile in tqdm(config_files,total=len(config_files),desc=msg,unit=" files"):
-            f = project.files.get(file_path=config_subfolder+"/"+configfile, ref=GITLAB_PROJECT_TAG)
-            jsonstr = f.decode()
-            obj = json.loads(jsonstr, object_hook=cls.from_json)
+        for _,cachefile in config_cachefiles.items():
+            with open(cachefile,'r') as f:
+                obj = json.load(f, object_hook=cls.from_json)
             if not isinstance(obj,cls):
                 raise RuntimeError(f'Could not generate object of type {cls} from configuration {configfile}')
             key = create_key(str(obj))
