@@ -17,6 +17,7 @@ from . import logger,__version__
 from .commons import create_key
 from .retrieval import CACHEDIR
 from gitlab import Gitlab, exceptions as gitlab_exceptions
+from tempfile import mkstemp
 from tqdm import tqdm
 import os
 from collections import defaultdict
@@ -27,19 +28,15 @@ import re
 # We tag the configuration with each release
 GITLAB_PROJECT_TAG=os.getenv("SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__))
 
-logger.info(f"Loading configuration: {GITLAB_PROJECT_TAG}")
-
-
 class ConfigurationRegistry:
     """
-    Registers atlas configurations from json files managed in EBRAINS, by
-    converting them to a specific object class based on the object construction
-    function provided as constructor parameter. Used for atlas, space, and parcellation
-    configurations. 
-
-    This will be migrated to atlas ontology and openMINDS elememts from the KG in the future.
-
-    TODO provide documentation and mechanisms to keep this fixed to a certain release.
+    Registers atlas configurations from siibra configuration files 
+    managed in a separately maintained gitlab configuration repository.
+    Each json file is converted to a specific object class based on the object construction
+    function provided as constructor parameter.  
+    
+    The target class is determined from the folder of the configuration 
+    repository (atlases, parcellations, spaces).    
     """
 
     GITLAB_CONFIGS=[{
@@ -49,22 +46,27 @@ class ConfigurationRegistry:
         'SERVER': 'https://gitlab.ebrains.eu',
         'PROJECT_ID': 93,
     }]
+    
+    logger.info(f"Configuration: {GITLAB_PROJECT_TAG}")
 
     def __load_config(self,config_folder):
         """
-        Determine, load and cache config files.
+        Find, load and cache siibra configuration files from the separately maintained gitlab configuration repository.
         """
 
         for gitlab_config in self.GITLAB_CONFIGS:
             GITLAB_SERVER=gitlab_config.get('SERVER')
             GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
-            cachefile = os.path.join(CACHEDIR,f"{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_{config_folder}_cache.json")
+            cachefile = os.path.join(CACHEDIR,f"config_{GITLAB_PROJECT_TAG}_{config_folder}.json")
             if os.path.isfile(cachefile):
                 # we do have a cache! read and return
+                logger.debug(f"Loading cached configuration '{GITLAB_PROJECT_TAG}' for {config_folder}")
                 with open(cachefile,'r') as f:
                     return json.load(f)
 
-        # No cached config folders. Parse gitlab repositories with atlas configurations
+        # No cached configuration found. 
+        # Parse the gitlab repositories for atlas configurations.
+        # Cache a configuration only if GITLAB_PROJECT_TAG is really a fixed tag.
         activate_caching = False
         for gitlab_config in self.GITLAB_CONFIGS:
             try:
@@ -76,8 +78,6 @@ class ConfigurationRegistry:
                 # 10 second timeout
                 project=Gitlab(gitlab_config['SERVER'], timeout=10).projects.get(GITLAB_PROJECT_ID)
                 if GITLAB_PROJECT_TAG in map(lambda t:t.name,project.tags.list()):
-                    # We only activate caching if the project tag is a real (deterministic) tag.
-                    # If it is e.g. a branch, we cannot rely that it represents a particular version.
                     activate_caching = True
                 break
             except gitlab_exceptions.GitlabError:
@@ -96,21 +96,26 @@ class ConfigurationRegistry:
             files = list(filter(
                 lambda v: v['type']=='blob' and v['name'].endswith('.json'),
                 project.repository_tree(path=config_folder,ref=GITLAB_PROJECT_TAG,all=True) ))
-            msg=f"Initializing configuration of {config_folder:15.15}"
+            msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_folder:15.15}"
             for configfile in tqdm(files,total=len(files),desc=msg,unit=" files"):
                 fname = configfile['name']
-                # cache the individual config file; store cachefile name in dict
-                cachefile = os.path.join(CACHEDIR,f"{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_{config_folder}_{fname}")
-                config[fname] = cachefile
+                # retrieve the config file contents and store to temporary or cache file.
+                if activate_caching:
+                    localfile = os.path.join(CACHEDIR,f"config_{GITLAB_PROJECT_TAG}_{config_folder}_{fname}")
+                    f = open(localfile,'wb')
+                else:
+                    handle,localfile = mkstemp()
+                    f = os.fdopen(handle, "wb")
+                config[fname] = localfile
                 p = project.files.get(file_path=config_folder+"/"+fname, ref=GITLAB_PROJECT_TAG)
-                with open(cachefile,'wb') as f:
-                    f.write(p.decode())
+                f.write(p.decode())
+                f.close()
 
         # activate cache only if the gitlab project tag was a protected tag. 
         # For other tags (e.g. if the project tag is a branch), 
         # the cache will be updated each time siibra is loaded.
         if activate_caching:
-            cachefile = os.path.join(CACHEDIR,f"{GITLAB_PROJECT_ID}_{GITLAB_PROJECT_TAG}_{config_folder}_cache.json")
+            cachefile = os.path.join(CACHEDIR,f"config_{GITLAB_PROJECT_TAG}_{config_folder}.json")
             with open(cachefile,'w') as f:
                 json.dump(config,f,indent='\t')
 
