@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger,arrays
+from . import logger,arrays, QUIET
 from .space import Space,SpaceVOI
 from .commons import MapType,ParcellationIndex
 from .volumesrc import ImageProvider,VolumeSrc
@@ -309,34 +309,33 @@ class LabelledParcellationMap(ParcellationMap):
                 continue
             source = volume_sources[0]
 
-            # Choose map loader function
+            # Choose map loader function and populate label-to-region maps
             if source.volume_type=="detailed maps":
                 self._maploaders_cached.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
+                # collect all available region maps to maps label indices to regions
+                regions = [r for r in self.parcellation.regiontree 
+                        if r.has_regional_map(self.space,MapType.LABELLED)]
+                for region in regions:
+                    assert(region.index.label)
+                    self._regions_cached[ParcellationIndex(map=0,label=region.index.label)] = region
             elif source.volume_type==self.space.type:
                 self._maploaders_cached.append(lambda res=None,s=source,voi=None: self._load_map(s,resolution_mm=res,voi=voi))
-
-            # load map at lowest resolution
-            mapindex = len(self._maploaders_cached)-1
-            loglevel = logger.getEffectiveLevel()
-            logger.setLevel("ERROR")
-            m = self._maploaders_cached[mapindex](res=None)
-            assert(m is not None)
-            logger.setLevel(loglevel)
-            
-            # map label indices to regions
-            unmatched = []
-            for labelindex in np.unique(m.get_fdata()):
-                if labelindex!=0:
-                    pindex = ParcellationIndex(map=mapindex,label=labelindex)
-                    try:
-                        region = self.parcellation.decode_region(pindex)
-                        if labelindex>0:
-                            self._regions_cached[pindex] = region
-                    except ValueError:
-                        unmatched.append(pindex)
-
-            if unmatched:
-                logger.warning(f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}")
+                # load map at lowest resolution to map label indices to regions
+                mapindex = len(self._maploaders_cached)-1
+                with QUIET:
+                    m = self._maploaders_cached[mapindex](res=None)
+                unmatched = []
+                for labelindex in np.unique(m.get_fdata()):
+                    if labelindex!=0:
+                        pindex = ParcellationIndex(map=mapindex,label=labelindex)
+                        try:
+                            region = self.parcellation.decode_region(pindex)
+                            if labelindex>0:
+                                self._regions_cached[pindex] = region
+                        except ValueError:
+                            unmatched.append(pindex)
+                if unmatched:
+                    logger.warning(f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}")
             
     @cached
     def _load_map(self,volume_src:VolumeSrc,resolution_mm:float,voi:SpaceVOI):
@@ -383,6 +382,7 @@ class LabelledParcellationMap(ParcellationMap):
             else:
                 mask = mask_
             m.dataobj[mask.dataobj>0] = region.index.label
+            self._regions_cached[ParcellationIndex(map=0,label=region.index.label)] = region
 
         return m
 
