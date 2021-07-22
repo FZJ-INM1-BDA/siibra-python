@@ -12,18 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-from siibra.features.ebrainsquery import EbrainsRegionalFeatureExtractor
-import numpy as np
 from gitlab import Gitlab
 import os
 import re
-from tqdm import tqdm
 
-from .. import logger,spaces,parcellations
-from ..commons import ParcellationIndex
-from ..region import Region
-from .feature import RegionalFeature,SpatialFeature
+from .. import logger,spaces
+from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
 class IEEG_Electrode:
