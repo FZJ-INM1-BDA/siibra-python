@@ -22,6 +22,7 @@ def __init__():
     from .genes import AllenBrainAtlasQuery
     from .connectivity import ConnectivityProfileExtractor, ConnectivityMatrixExtractor
     from .ebrainsquery import EbrainsRegionalFeatureExtractor
+    from .ieeg import IEEG_ContactPointExtractor
     from .extractor import FeatureExtractorRegistry
     extractor_types = FeatureExtractorRegistry() 
     return [ extractor_types,
