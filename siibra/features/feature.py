@@ -44,16 +44,42 @@ class SpatialFeature(Feature):
     Base class for coordinate-anchored data features.
     """
 
-    def __init__(self,space,location):
+    def __init__(self,space,location=None):
+        """
+        Initialize a new spatial feature.
+        
+        Parameters
+        ----------
+        space : Space
+            The space in which the locations are defined
+        location : 3D tuple, or list of 3D tuples
+            The 3D physical coordinates in the given space
+            Note that the default "None" is  meant to indicate that the feature is not yet full initialized. 
+            This is used for multi-point features, where the locations are added manually later on.
+        """
         self.space = space
         self.location = location
- 
+
+    @property
+    def is_multi_point(self):
+        """
+        Determines wether this feature is localized by a single point, or list of points.
+        """
+        return self.location is not None and hasattr(self.location[0],"__iter__")
+
     def matches(self,atlas):
         """
         Returns true if the location of this feature is inside the selected
         region of the atlas, according to the mask in the reference space.
         """
-        return atlas.coordinate_selected(self.space,self.location)
+        if self.location is None:
+            return False
+        elif self.is_multi_point:
+            # location is an iterable over locations
+            return any([atlas.coordinate_selected(self.space,l) for l in self.location])
+        else:
+            # location is a single location
+            return atlas.coordinate_selected(self.space,self.location)
 
     def __str__(self):
         return "Features in '{space}' at {loc[0]}/{loc[1]}/{loc[2]}".format(

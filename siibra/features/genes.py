@@ -48,7 +48,7 @@ class GeneExpression(SpatialFeature):
         mri_coord : tuple  (optional)
             coordinates in original mri space
         """
-        SpatialFeature.__init__(self,location,space)
+        SpatialFeature.__init__(self,space,location)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.donor_info = donor_info
