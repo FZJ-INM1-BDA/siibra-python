@@ -374,11 +374,12 @@ class NgVolume(VolumeSrc,ImageProvider):
             print(self.helptext)
             raise NotImplementedError(f"Request of the whole full-resolution volume in one piece is prohibited as of now due to the estimated size of ~{gbytes:.0f} GByte.")
 
-        # ok, retrieve data no now.
+        # ok, retrieve data now.
+        ndigits = lambda x:len(bin(x)[2:])
         cachefile = retrieval.cachefile("{}{}{}".format(
             self.url, bbox_vox.serialize(), str(mip)).encode('utf8'),suffix='npy')
         if os.path.exists(cachefile):
-            logger.debug("NgVolume loads from cache file {cachefile}")
+            logger.debug(f"NgVolume loads from cache file {cachefile}")
             return np.load(cachefile)
         else:
             try:
@@ -406,7 +407,7 @@ class NgVolume(VolumeSrc,ImageProvider):
         if mapindex is not None:
             raise NotImplementedError(f"NgVolume does not support access by map index (but {mapindex} was given)")
         return nib.Nifti1Image(
-            self._load_data(resolution_mm=resolution_mm,voi=voi),
+            self._load_data(resolution_mm=resolution_mm,voi=voi).squeeze(),
             affine=self.build_affine(resolution_mm=resolution_mm,voi=voi)
         )
 

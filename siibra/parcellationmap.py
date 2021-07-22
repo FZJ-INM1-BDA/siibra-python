@@ -362,7 +362,7 @@ class LabelledParcellationMap(ParcellationMap):
 
         # generate empty mask covering the template space
         tpl = self.space.get_template().fetch(resolution_mm,voi=voi)
-        m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
+        m = None #nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
 
         # collect all available region maps
         regions = [r for r in self.parcellation.regiontree 
@@ -377,10 +377,13 @@ class LabelledParcellationMap(ParcellationMap):
             if not mask_:
                 continue
             # build up the aggregated mask with labelled indices
-            if mask_.shape!=m.shape:
-                mask = image.resample_to_img(mask_,m,interpolation='nearest')
+            if mask_.shape!=tpl.shape:
+                mask = image.resample_to_img(mask_,tpl,interpolation='nearest')
             else:
                 mask = mask_
+
+            if m is None:
+                m = nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype=mask.dataobj.dtype),tpl.affine)
             m.dataobj[mask.dataobj>0] = region.index.label
             self._regions_cached[ParcellationIndex(map=0,label=region.index.label)] = region
 
