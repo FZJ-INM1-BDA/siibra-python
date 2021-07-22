@@ -32,6 +32,8 @@ class GeneExpression(SpatialFeature):
 
         Parameters:
         -----------
+        gene : str
+            Name of gene
         space : str       
             Name of 3D reference template space in which this feature is defined
         location : tuple of float    
@@ -212,8 +214,8 @@ https://alleninstitute.org/legal/terms-use/."""
             # Create the spatial feature
             self.register( GeneExpression( 
                 self.gene,
-                icbm_coord, 
                 spaces.MNI152_2009C_NONL_ASYM,
+                icbm_coord, 
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],
                 probe_ids = [p['id'] for p in probes],
