@@ -17,6 +17,8 @@ from os import path, getenv
 # __version__ is parsed by setup.py
 __version__='0.1a7'
 
+
+# controlling the log level
 import logging
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler()
@@ -27,21 +29,17 @@ logger.addHandler(ch)
 class LoggingContext:
     def __init__(self, level ):
         self.level = level
-
     def __enter__(self):
         self.old_level = logger.level
         logger.setLevel(self.level)
-
     def __exit__(self, et, ev, tb):
         logger.setLevel(self.old_level)
 
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
-# convenience function, will be easier to discover
 def set_log_level(level):
     logger.setLevel(level)
-
 set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
 
 logger.info(f"Version: {__version__}")
