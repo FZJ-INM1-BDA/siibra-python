@@ -176,10 +176,10 @@ class Atlas:
                 self.selected_region = next(iter(selected))
             elif len(selected)==0:
                 # no match found
-                logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
+                raise ValueError('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
                 # multiple matches found. We do not allow this for now.
-                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                raise ValueError('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
             logger.info(f'Select "{self.selected_region.name}"')
