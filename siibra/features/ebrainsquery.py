@@ -72,8 +72,15 @@ class EbrainsRegionalDataset(RegionalFeature, ebrains.EbrainsDataset):
         RegionalFeature.__init__(self, region)
         ebrains.EbrainsDataset.__init__(self, id, name, embargo_status)
 
+    @property
+    def url(self):
+        return f"https://search.kg.ebrains.eu/instances/Dataset/{self.id.split('/')[-1]}"
+
     def __str__(self):
-        return ebrains.EbrainsDataset.__str__(self)
+        return "\n".join([
+            f"Name:   {self.name}",
+            f"URL:    {self.url}"
+            ])
 
     def __hash__(self):
         return ebrains.EbrainsDataset.__hash__(self)

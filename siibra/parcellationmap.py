@@ -362,7 +362,7 @@ class LabelledParcellationMap(ParcellationMap):
 
         # generate empty mask covering the template space
         tpl = self.space.get_template().fetch(resolution_mm,voi=voi)
-        m = None #nib.Nifti1Image(np.zeros_like(tpl.dataobj,dtype='uint'),tpl.affine)
+        m = None
 
         # collect all available region maps
         regions = [r for r in self.parcellation.regiontree 
