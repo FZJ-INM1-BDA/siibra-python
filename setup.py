@@ -36,7 +36,7 @@ setup(
     ],
     entry_points = '''
         [console_scripts]
-        siibra=cli:siibra
+        siibra=cli.cli:siibra
     ''',
     python_requires='>=3.6',
     install_requires=['anytree','statsmodels','nibabel','click','appdirs','scikit-image','scipy','statsmodels','requests','python-gitlab','memoization','cloud-volume','nilearn'],
