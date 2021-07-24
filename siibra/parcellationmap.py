@@ -159,6 +159,28 @@ class ParcellationMap(ImageProvider):
         rmap = region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi,clip=clip)
         return rmap
 
+    @abstractmethod
+    def assign_coordinates(self,xyz_phys,sigma_mm=1,sigma_truncation=3):
+        """
+        Implemented by derived classes. 
+        Assign regions to a physical coordinates with optional standard deviation.
+
+        Parameters
+        ----------
+        xyz_phys : 3D point(s) in physical coordinates of the template space of the ParcellationMap
+            Can be one 3D coordinate tuple, list of 3D tuples, Nx3 or Nx4 array of coordinate tuples, 
+            str of the form "3.1mm, -3.1mm, 80978mm", or list of such strings.
+            See arrays.create_homogeneous_array
+        sigma_mm : float (default: 1), applies only to continuous maps
+            standard deviation /expected localization accuracy of the point, in
+            mm units. For continuous maps, a 3D Gaussian distribution with that
+            bandwidth will be used for representing the location.
+        sigma_truncation : float (default: 3), applies only to continuous maps
+            If sigma_phys is nonzero, this factor is used to determine where to
+            truncate the Gaussian kernel in standard error units.
+        """
+        pass
+
     def __len__(self):
         """
         Returns the number of maps available in this parcellation.
@@ -389,6 +411,45 @@ class LabelledParcellationMap(ParcellationMap):
 
         return m
 
+    @cached
+    def assign_coordinates(self,xyz_phys,sigma_mm=None,sigma_truncation=None):
+        """
+        Assign regions to a physical coordinates with optional standard deviation.
+
+        Parameters
+        ----------
+        xyz_phys : 3D point(s) in physical coordinates of the template space of the ParcellationMap
+            Can be one 3D coordinate tuple, list of 3D tuples, Nx3 or Nx4 array of coordinate tuples, 
+            str of the form "3.1mm, -3.1mm, 80978mm", or list of such strings.
+            See arrays.create_homogeneous_array
+        sigma_mm : Not needed for labelled parcellation maps
+        sigma_truncation : Not needed for labelled parcellation maps
+        """
+
+        # Convert input to Nx4 list of homogenous coordinates
+        assert(len(xyz_phys)>0)
+        XYZH = create_homogeneous_array(xyz_phys)
+        numpts = XYZH.shape[0]
+
+        tpl = self.space.get_template().fetch()
+        assignments = []
+        N = len(self)
+        msg = f"Assigning {numpts} coordinates to {N} maps"
+        assignments = [[] for n in range(numpts)]
+        for mapindex,loadfnc in tqdm(enumerate(self.maploaders),total=len(self),desc=msg,unit=" maps"):
+            lmap = loadfnc()
+            p2v = np.linalg.inv(tpl.affine)
+            A = lmap.get_fdata()
+            for i,xyzh in enumerate(XYZH):
+                x,y,z = (np.dot(p2v,xyzh)+.5).astype('int')[:3]
+                label = A[x,y,z]
+                if label>0:
+                    region = self.decode_label(mapindex=mapindex,labelindex=label)
+                    assignments[i].append((region,lmap,None))
+
+        return assignments
+
+
 
 class ContinuousParcellationMap(ParcellationMap):
     """
@@ -504,7 +565,6 @@ class ContinuousParcellationMap(ParcellationMap):
                 pmap = loadfnc()
                 p2v = np.linalg.inv(tpl.affine)
                 A = pmap.get_fdata()
-                pindex = ParcellationIndex(map=mapindex,label=None)
                 region = self.decode_label(mapindex=mapindex)
                 for i,xyzh in enumerate(XYZH):
                     x,y,z = (np.dot(p2v,xyzh)+.5).astype('int')[:3]
@@ -563,8 +623,8 @@ class ContinuousParcellationMap(ParcellationMap):
                 pmaps[mapindex] = this
                 values[mapindex] = scores
 
-        assignments = [(self.decode_label(mapindex=i),pmaps[i],value) 
-                    for i,value in sorted(
+        assignments = [(self.decode_label(mapindex=i),pmaps[i],scores) 
+                    for i,scores in sorted(
                         values.items(),
                         key=lambda item:abs(item[1]['correlation']),reverse=True)]
         return assignments

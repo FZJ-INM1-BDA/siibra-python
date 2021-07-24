@@ -158,7 +158,7 @@ def region(ctx,region,all,parcellation):
 @click.option('-m','--match',type=click.STRING, default=None, help="Filter dataset names by matching them to the given string sequence")
 @click.pass_context
 def features(ctx,region,parcellation,match):
-    """Find brain regions by name"""
+    """Find data features associated to a brain region"""
 
     # init siibra
     os.environ["SIIBRA_LOG_LEVEL"]="WARN"
@@ -213,15 +213,29 @@ def assign(ctx):
 @click.argument('coordinate', type=click.FLOAT, nargs=3)
 @click.argument('space',type=click.STRING, autocompletion=complete_spaces)
 @click.option('-p','--parcellation',type=click.STRING, default=None, autocompletion=complete_parcellations)
+@click.option('--labelled/--probabilistic',is_flag=True, default=True,
+    help="Wether to use labelled maps or continuous (e.g. probabilistic) maps to perform the assignment (default:labelled)")
 @click.option('-s','--sigma-mm',type=click.FLOAT, default=1.0)
 @click.pass_context
-def coordinate(ctx,coordinate,space,parcellation,sigma_mm):
-    """Assign a 3D coordinate to brain regions"""
+def coordinate(ctx,coordinate,space,parcellation,labelled,sigma_mm):
+    """Assign a 3D coordinate to brain regions.
+    
+    Note: To provide negative numbers, add "--" as the first argument after all options, ie. `siibra assign coordinate -- -3.2 4.6 -12.12`
+    """
     import siibra as sb
     atlas = sb.atlases['human']
     spaceobj = sb.spaces[space]
-    print("coordinate:",coordinate)
-    assignments = atlas.assign_coordinates(spaceobj,coordinate,sigma_mm=sigma_mm)
-    print(assignments)
+    maptype = sb.MapType.LABELLED if labelled else sb.MapType.CONTINUOUS
+    print("Using {maptype} type maps.")
+    assignments = atlas.assign_coordinates(spaceobj,coordinate,maptype=maptype,sigma_mm=sigma_mm)
+    for i,(region,_,scores) in enumerate(assignments[0]):
+        if isinstance(scores,dict):
+            if i==0:
+                headers = "".join(f"{k:>12.12}" for k in scores.keys())
+                print(f"{'Scores':40.40} {headers}")
+            values = "".join(f"{v:12.2f}" for v in scores.values())
+            print(f"{region.name:40.40} {values}")
+        else:
+            print(region.name)
 
 
