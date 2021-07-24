@@ -359,7 +359,7 @@ class Atlas:
 
         return list(set(hits))
 
-    def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
+    def assign_coordinates(self,space:Space,xyz_mm,maptype=MapType.CONTINUOUS,sigma_mm=1):
         """
         Assign physical coordinates with optional standard deviation to atlas regions.
         See also: ContinuousParcellationMap.assign_coordinates()
@@ -372,13 +372,15 @@ class Atlas:
             3D point in physical coordinates of the template space of the
             ParcellationMap. Also accepts a string of the format "15.453mm, 4.828mm, 69.122mm" 
             as copied from siibra-explorer.
+        maptype : MapType
+            wether to perform the assignment using continuous or labelled parcellation maps.
         sigma_mm : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
             physical units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
         """
-        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        smap = self.selected_parcellation.get_map(space,maptype=maptype)
         return smap.assign_coordinates(xyz_mm, sigma_mm)
 
     def assign_maps(self,space:Space,mapimg):
