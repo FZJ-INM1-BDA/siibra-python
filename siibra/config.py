@@ -12,20 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 from . import logger,__version__
 from .commons import create_key
-from .retrieval import CACHEDIR
-from gitlab import Gitlab
-from gitlab.exceptions import GitlabError
-from requests.exceptions import ConnectionError
-from tempfile import mkstemp
+from .retrieval import cached_gitlab_query
 from tqdm import tqdm
 import os
-from collections import defaultdict
 import re
-from datetime import datetime
-from glob import glob
+import json
 
 # Until openminds is fully supported, 
 # we store atlas configurations in a gitlab repo.
@@ -57,89 +50,34 @@ class ConfigurationRegistry:
         """
         Find, load and cache siibra configuration files from the separately maintained gitlab configuration repository.
         """
-
-        # try to connect to a configuration server
-        want_branch_commit = None
+        skip_branchtest = not "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ
+        query = lambda folder,name:cached_gitlab_query(
+            GITLAB_SERVER,GITLAB_PROJECT_ID,GITLAB_PROJECT_TAG,
+            folder,name,
+            skip_branchtest=skip_branchtest)
         for gitlab_config in self.GITLAB_CONFIGURATION_REPOSITORIES:
+            GITLAB_SERVER=gitlab_config.get('SERVER')
+            GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
             try:
-                GITLAB_SERVER=gitlab_config.get('SERVER')
-                GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
-                if GITLAB_SERVER is None or GITLAB_PROJECT_ID is None:
-                    raise ValueError('Both SERVER and PROJECT_ID are required to determine a siibra configuration repository')
-                logger.debug(f'Attempting to connect to {GITLAB_SERVER}')
-                project = Gitlab(gitlab_config['SERVER'], timeout=10).projects.get(GITLAB_PROJECT_ID)
-                matched_branches = list(filter(lambda b:b.name==GITLAB_PROJECT_TAG,project.branches.list()))
-                if len(matched_branches)>0:
-                    want_branch_commit = matched_branches[0].commit
-                repository_reached = True
+                tree = json.loads(query("",None))
                 break
-            except (ConnectionError,GitlabError):
-                # Gitlab server down. Try the next one.
-                logger.debug(f'Gitlab server at {GITLAB_SERVER} unreachable. Trying next mirror.')
-            except ValueError:
-                logger.warn('Gitlab configuration malformed')
+            except RuntimeError:
+                logger.error(f"Cannot connect to configuratino server {GITLAB_SERVER}, trying a mirror")
         else:
-            # will not be reached if the for loop is broken.
-            repository_reached = False
-            logger.debug(f'No access to any repository with configurations for {config_folder}.')
+            # we get here only if the loop is not broken
+            raise RuntimeError(f"Cannot initialize atlases: No cached configuration data for '{GITLAB_PROJECT_TAG}', and no access to any of the configuration repositories either.")
 
-        # Decide wether to access a possibly cached configuration
-        cachefile = None
-        basename = f"{config_folder}_{GITLAB_PROJECT_TAG}"
-        if want_branch_commit is not None:
-            sid = want_branch_commit['short_id']
-            tstamp = datetime.fromisoformat(want_branch_commit['created_at']).strftime('%Y%m%d%H%M%S')
-            basename += f"_commit{sid}_{tstamp}"
-        if repository_reached:
-            # we did connect to a configuration repository above, 
-            # so we can rely on our information on the project tag.
-            cachefile = os.path.join(CACHEDIR,f"config_{basename}.json")
-        else:
-            # We seem to be offline, so we take the best we can get from the local cache.
-            cachefiles_available = glob(os.path.join(CACHEDIR,f"config_{basename}*.json"))
-            if len(cachefiles_available)>0:
-                logger.debug(f"Cannot connect to repository. Looking for most recently cached configuration '{GITLAB_PROJECT_TAG}' for {config_folder}.")
-                if len(cachefiles_available)==1:
-                    # this is either the unique cached version of a configuration tag, 
-                    # or the single cached version of a branch.
-                    cachefile = cachefiles_available[0]
-                else:
-                    # We have multiple commits cached from the same branch.
-                    # Choose the one with newest timestamp.
-                    get_tstamp = lambda fn: fn.replace('.json','').split('_')[-1]
-                    sorted_cachefiles = sorted(cachefiles_available,key=get_tstamp)
-                    cachefile = sorted_cachefiles[-1]
-
-        if cachefile is not None and os.path.isfile(cachefile):
-            # we do have a cache! read and return
-            logger.info(f"Loading cached configuration '{GITLAB_PROJECT_TAG}' for {config_folder}")
-            with open(cachefile,'r') as f:
-                return json.load(f)
-
-        # No cached configuration found. 
-        if not repository_reached:
-            raise RuntimeError(f"Cannot initialize atlases: No cached configuration data for '{GITLAB_PROJECT_TAG}'', and no access to any of the configuration repositories either.")
-
-        # Load configuration from  repository.
+        # Load configuration from repository.
         config = {}
-        for node in project.repository_tree(ref=GITLAB_PROJECT_TAG):
+        for node in tree:
             if node['type']!='tree' or node['name']!=config_folder:
                 continue
-            files = list(filter(
-                lambda v: v['type']=='blob' and v['name'].endswith('.json'),
-                project.repository_tree(path=config_folder,ref=GITLAB_PROJECT_TAG,all=True) ))
+            configfiles = [
+                v['name'] for v in json.loads(query(config_folder,None))
+                if v['type']=='blob' and v['name'].endswith('.json') ]
             msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_folder:15.15}"
-            for configfile in tqdm(files,total=len(files),desc=msg,unit=" files"):
-                # retrieve the config file contents and store in cache.
-                fname = configfile['name']
-                config[fname] = os.path.join(CACHEDIR,f"{basename}_{fname}")
-                p = project.files.get(file_path=config_folder+"/"+fname, ref=GITLAB_PROJECT_TAG)
-                with open(config[fname],'wb') as f:
-                    f.write(p.decode())
-
-        logger.debug("Creating cachefile",cachefile)
-        with open(cachefile,'w') as f:
-            json.dump(config,f,indent='\t')
+            for configfile in tqdm(configfiles,total=len(configfiles),desc=msg,unit=" files"):
+                config[configfile] = json.loads(query(config_folder,configfile))
 
         return config
 
@@ -160,9 +98,12 @@ class ConfigurationRegistry:
         self.cls = cls
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
-        for fname,cachefile in config.items():
-            with open(cachefile,'r') as f:
-                obj = json.load(f, object_hook=cls.from_json)
+        for fname,spec in config.items():
+            try:
+                obj = cls.from_json(spec)
+            except TypeError as e:
+                print(str(e))
+                raise Exception("stop")
             if not isinstance(obj,cls):
                 raise RuntimeError(f'Could not generate object of type {cls} from configuration {fname}')
             key = create_key(str(obj))

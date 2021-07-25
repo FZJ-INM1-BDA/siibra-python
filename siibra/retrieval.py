@@ -17,8 +17,12 @@ from zipfile import ZipFile
 import requests
 import hashlib
 import os
-#from os import os.path
+from gitlab import Gitlab
+from gitlab.exceptions import GitlabError
 from . import logger
+from datetime import datetime
+from glob import glob
+import re
 
 # TODO unify download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
@@ -214,3 +218,122 @@ def clear_cache():
     logger.info("Clearing siibra cache.")
     shutil.rmtree(CACHEDIR)
     __compile_cachedir()
+
+
+def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,return_hidden_files=False,skip_branchtest=False):
+    """
+    Cached retrieval of folder list or file content from a public gitlab repositoriy.
+
+    Arguments
+    ---------
+    server : string
+        Gitlab server main url
+    project_id : int
+        Id of the requested project (you can find this in the project settings of the gitlab repository)
+    ref_tag : string
+        Reference tag, e.g. name of a branch, tag, or checksum.
+        NOTE branches are not cached, since the branch name 
+        does not determine the version of the repository.
+    folder : string or None
+        Optional name of repository subfolder to use
+    filename : string or None
+        Optional name of file requested. 
+        If None, folder contents are returned as a dictionary, 
+        otherwise the bytestream of the file contents.
+    skip_branchtest: bool, default: False
+        If true, the ref_tag is assumed not to be a branch, so that
+        it will point to a unique version. This will prevent an initial
+        test to classify the tag into branch or not, which requires an
+        additional query to the server.
+    """
+
+    def connect(server,project_id):
+        project = None
+        try:
+            logger.debug(f'Attempting to connect to {server}')
+            project = Gitlab(server, timeout=10).projects.get(project_id)
+        except (ConnectionError,GitlabError):
+            # Gitlab server down.
+            logger.warn(f'Gitlab server at {server} unreachable.')
+        except ValueError as e:
+            print(str(e))
+            logger.warn('Gitlab configuration malformed')
+        return project
+
+    # try to connect to the server and classify the ref_tag (is it a branch?)
+    want_branch_commit = None
+    project = None
+    connection_failed = False
+    if not skip_branchtest:
+        project = connect(server,project_id)
+        if project is None:
+            connection_failed = True
+        else:
+            matched_branches = list(filter(lambda b:b.name==ref_tag,project.branches.list()))
+            if len(matched_branches)>0:
+                want_branch_commit = matched_branches[0].commit
+
+    # construct base of cache file names
+    pathspec = ""
+    if folder is not None:
+        pathspec += f"-{folder}"
+    if filename is not None:
+        pathspec += f"-{filename}"
+    basename = re.sub( "_+","_",
+        re.sub("[/:.]","_",
+        f"{server}-{project_id}{pathspec}-{ref_tag}"))
+    if want_branch_commit is not None:
+        sid = want_branch_commit['short_id']
+        tstamp = datetime.fromisoformat(want_branch_commit['created_at']).strftime('%Y%m%d%H%M%S')
+        basename += f"_commit{sid}_{tstamp}"
+
+    # Determine desired cachefile
+    cachefile = None
+    if connection_failed:
+        # No connection to server, so look for existing cache content.
+        cachefiles_available = glob(os.path.join(CACHEDIR,f"{basename}*"))
+        if len(cachefiles_available)>0:
+            logger.debug(f"Cannot connect to repository. Looking for most recently cached content for '{ref_tag}'.")
+            if len(cachefiles_available)==1:
+                # this is either the unique cached version of a configuration tag, 
+                # or the single cached version of a branch.
+                cachefile = cachefiles_available[0]
+            else:
+                # We have multiple commits cached from the same branch.
+                # Choose the one with newest timestamp.
+                get_tstamp = lambda fn: fn.split('_')[-1]
+                sorted_cachefiles = sorted(cachefiles_available,key=get_tstamp)
+                cachefile = sorted_cachefiles[-1]
+    else:
+        cachefile = os.path.join(CACHEDIR,f"{basename}")
+
+    # If cached data is available, read and return
+    if cachefile is not None and os.path.isfile(cachefile):
+        with open(cachefile,'r') as f:
+            return f.read()
+
+    # No cached data found, so we need to get the data from the server.
+    if skip_branchtest:
+        project = connect(server,project_id)
+    if project is None:
+        raise RuntimeError(f"No connection or cached data for '{server}' project '{project_id}' under reftag '{ref_tag}'.")
+    relpath = "" if folder is None else f"{folder}/"
+    if filename is not None:
+        # A particular file was requested. 
+        # This is a bytestream which could be any type of file.
+        result = project.files.get(file_path=relpath+filename, ref=ref_tag).decode()
+    else:
+        # list of folder contents was requested. This is a list of dictionaries, 
+        # which we serialize to a json string and then encode to bytes.
+        entries = project.repository_tree(path=relpath,ref=ref_tag,all=True)
+        if not return_hidden_files:
+            entries = list(filter(lambda e:not e['name'].startswith('.'),entries))
+        result = json.dumps(entries).encode('utf8')
+        
+
+    logger.debug(f"Caching gitlab content to {cachefile}")
+    assert(isinstance(result,bytes))
+    with open(cachefile,'wb') as f:
+        f.write(result)
+
+    return result.decode()
