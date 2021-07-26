@@ -44,7 +44,17 @@ class ConnectivityMatrix(GlobalFeature):
         
     @property
     def matrix(self):
+        """
+        Returns the structured array with region names as row and column field headers.
+        """
         return self._matrix_loader.data
+
+    @property
+    def array(self):
+        """
+        Returns the pure data array with connectivity information
+        """
+        return np.array([self.matrix[f] for f in self.matrix.dtype.names[1:]])
 
     @property
     def regionnames(self):
