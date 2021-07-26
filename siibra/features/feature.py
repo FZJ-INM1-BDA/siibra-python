@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from abc import ABC,abstractmethod
-from .. import logger
+from .. import parcellations
 from ..region import Region
+from typing import Tuple
 
 class Feature(ABC):
     """ 
@@ -92,19 +93,18 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self,region : Region):
-        assert(isinstance(region,Region))
-        self.region = region
+    def __init__(self,regionspec : Tuple[str,Region]):
+        assert(any(map(lambda c:isinstance(regionspec,c),[Region,str])))
+        self.regionspec = regionspec
  
     def matches(self,atlas):
         """
         Returns true if this feature is linked to the currently selected region
         in the atlas.
         """
-        for r in self.region:
-            matching_regions = atlas.selected_region.find(r)
-            if len(matching_regions)>0:
-                return True
+        matching_regions = atlas.selected_region.find(self.regionspec)
+        if len(matching_regions)>0:
+            return True
 
 class GlobalFeature(Feature):
     """
@@ -113,13 +113,14 @@ class GlobalFeature(Feature):
     connectivity matrix, which applies to all regions in the atlas.
     """
 
-    def __init__(self,parcellation):
-        self.parcellation = parcellation
+    def __init__(self,parcellationspec):
+        self.spec = parcellationspec
+        self.parcellations = parcellations.find(parcellationspec)
  
     def matches(self,atlas):
         """
         Returns true if this global feature is related to the given atlas.
         """
-        if self.parcellation == atlas.selected_parcellation:
+        if atlas.selected_parcellation in self.parcellations:
             return True
 

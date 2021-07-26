@@ -31,10 +31,6 @@ class TestReceptors(unittest.TestCase):
             receptors.unify_stringlist(['a', 'b', 1])
         self.assertTrue('Assertion error is expected')
 
-    def test_edits1(self):
-        self.assertEqual(len(receptors.edits1('ok')), 130)
-        self.assertEqual(len(receptors.edits1('atlas')), 286)
-
     @patch('siibra.features.receptors.get_bytestream_from_file')
     def test_decode_tsv(self, get_bytestream_mock):
         bytestream = MagicMock()

@@ -18,7 +18,7 @@ import json
 import siibra
 from siibra import retrieval,spaces,logger
 from .feature import SpatialFeature
-from .extractor import FeatureExtractor
+from .query import FeatureQuery
 from os import path
 
 class GeneExpression(SpatialFeature):
@@ -66,7 +66,7 @@ class GeneExpression(SpatialFeature):
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
 
-class AllenBrainAtlasQuery(FeatureExtractor):
+class AllenBrainAtlasQuery(FeatureQuery):
     """
     Interface to Allen Human Brain Atlas microarray data.
     
@@ -125,14 +125,14 @@ https://alleninstitute.org/legal/terms-use/."""
     with open(genename_file,'r') as f:
         GENE_NAMES = json.load(f)
 
-    def __init__(self,atlas,gene):
+    def __init__(self,gene):
         """
         Retrieves probes IDs for the given gene, then collects the
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureQuery.__init__(self)
         self.gene = gene
 
         if not self.__class__._notification_shown:

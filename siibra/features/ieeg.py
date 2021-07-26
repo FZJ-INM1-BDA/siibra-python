@@ -18,7 +18,7 @@ import re
 
 from .. import logger,spaces
 from .feature import SpatialFeature
-from .extractor import FeatureExtractor
+from .query import FeatureQuery
 
 class IEEG_Electrode(SpatialFeature):
     def __init__(self,id,kg_id,subject_id,space):
@@ -114,14 +114,14 @@ def load_ptsfile(data):
     return result
 
 
-class IEEG_ContactPointExtractor(FeatureExtractor):
+class IEEG_ContactPointExtractor(FeatureQuery):
 
     _FEATURETYPE = IEEG_ContactPoint
     __files = None
 
-    def __init__(self,atlas):
+    def __init__(self):
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureQuery.__init__(self)
         self.load_contactpoints()
 
     def __load_files(self,subfolder,suffix):
@@ -161,14 +161,14 @@ class IEEG_ContactPointExtractor(FeatureExtractor):
                     self.register( IEEG_ContactPoint(
                         electrode=electrode,id=contact_point_id,coord=coord ))
 
-class IEEG_ElectrodeExtractor(FeatureExtractor):
+class IEEG_ElectrodeExtractor(FeatureQuery):
 
     _FEATURETYPE = IEEG_Electrode
     __files = None
 
-    def __init__(self,atlas):
+    def __init__(self):
 
-        FeatureExtractor.__init__(self,atlas)
+        FeatureQuery.__init__(self)
         self.load_contactpoints()
 
     def __load_files(self,subfolder,suffix):

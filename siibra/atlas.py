@@ -19,7 +19,6 @@ import numpy as np
 from . import parcellations, spaces, features, logger
 from .region import Region
 from .features.feature import GlobalFeature
-from .features import classes as feature_classes
 from .commons import create_key,MapType
 from .config import ConfigurationRegistry
 from .space import Space
@@ -345,17 +344,13 @@ class Atlas:
         """
         hits = []
 
-        if modality not in features.extractor_types.modalities:
+        if modality not in features.modalities:
             logger.error("Cannot query features - no feature extractor known "\
                     "for feature type {}.".format(modality))
             return hits
 
-        for cls in features.extractor_types[modality]:
-            if modality=='GeneExpression':
-                extractor = cls(self,kwargs['gene'])
-            else:
-                extractor = cls(self)
-            hits.extend(extractor.pick_selection(self))
+        for query in features.registry.queries(modality,**kwargs):
+            hits.extend(query.execute(self))
 
         return list(set(hits))
 

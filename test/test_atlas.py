@@ -143,8 +143,8 @@ class TestAtlas(unittest.TestCase):
         self.atlas.select_region('hoc1 left')
         conns=self.atlas.get_features(modalities.ConnectivityProfile)
         # TODO enable once conn data for 2.9 is added
-        # assert(len(conns)>0)
-        # assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
+        assert(len(conns)>0)
+        assert(all([conn.parcellation.id == expected_p_id for conn in conns]))
 
     def test_regionsprops(self):
         pass

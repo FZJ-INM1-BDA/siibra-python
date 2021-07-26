@@ -93,8 +93,8 @@ class OriginDataInfo:
                         description=jsonstr.get('description'),
                         urls=jsonstr.get('url', []))
         if json_type == 'minds/core/dataset/v1.0.0':
-            from .ebrains import EbrainsDatasetOriginDataInfo
-            return EbrainsDatasetOriginDataInfo(id=jsonstr.get('kgId'))
+            from .ebrains import EbrainsOriginDataInfo
+            return EbrainsOriginDataInfo(id=jsonstr.get('kgId'))
         logger.debug(f'Cannot parse {jsonstr}')
         return None
 

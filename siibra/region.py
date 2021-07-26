@@ -28,7 +28,7 @@ from typing import Union
 from scipy.spatial.qhull import QhullError
 import json
 
-REMOVE_FROM_NAME=['hemisphere','-',
+REMOVE_FROM_NAME=['hemisphere',' -',
     # region string used in receptor features sometimes contains both/Both keywords
     # when they are present, the regions cannot be parsed properly
     'both', 'Both']
@@ -197,7 +197,7 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         -----
         True or False
         """
-        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.]', s) 
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.\-]', s) 
                 if len(w)>0]
         if isinstance(regionspec,Region):
             return self==regionspec

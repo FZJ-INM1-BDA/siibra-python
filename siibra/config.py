@@ -130,11 +130,7 @@ class ConfigurationRegistry:
             return self.items[self.by_id[index]]
         elif isinstance(index,str):
             # if a string is specified, we check if each word is matched in a space name
-            words = [w for w in re.split('[ -]',index)]
-            squeezedname = lambda item: item.name.lower().replace(" ","")
-            matches = [i for i in self.items
-                        if all(w.lower() in squeezedname(i) for w in words)
-                        or index.replace(" ","") in squeezedname(i)]
+            matches = self.find(index)
             if len(matches)==1:
                 return matches[0]
             elif len(matches)>1:
@@ -149,6 +145,17 @@ class ConfigurationRegistry:
                 logger.warning(f"Specification '{index}' yielded {len(matches)} different matches: {namelist}")
         raise IndexError(f"Cannot identify item '{index}' in {self.cls.__name__} registry")
 
+    def find(self,spec:str):
+        """
+        Find items in the registry by matching words in the name or id.
+        """
+        words = [w for w in re.split('[ -]',spec)]
+        squeezedname = lambda item: item.name.lower().replace(" ","")
+        return [i for i in self.items if any([
+            all(w.lower() in squeezedname(i) for w in words),
+            spec.replace(" ","") in squeezedname(i),
+            spec==i.id]) ]
+    
     def __len__(self):
         return len(self.items)
 

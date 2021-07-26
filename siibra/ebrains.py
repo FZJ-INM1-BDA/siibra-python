@@ -14,7 +14,7 @@
 
 from .commons import OriginDataInfo
 from . import logger
-from .retrieval import cached_get
+from .retrieval import cached_get,LazyLoader
 import requests
 import json
 from os import environ
@@ -33,6 +33,7 @@ kg_feature_query_kwargs={
     }
 }
 KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
+KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
 
 class EbrainsDataset:
     def __init__(self, id, name, embargo_status):
@@ -41,26 +42,25 @@ class EbrainsDataset:
         self.name = name
         self.embargo_status = embargo_status
         self._detail = None
+        if id is None:
+            raise TypeError('Dataset id is required')
+        match=re.search(r"([a-f0-9-]+)$",id)        
+        if not match:
+            raise ValueError('id cannot be parsed properly')
+        self._detail_loader = LazyLoader(
+            url=None,
+            func=lambda:self._load_details(match.group(1)))
+
+    @staticmethod
+    def _load_details(instance_id):
+        return ebrains.execute_query_by_id(
+            query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
+            instance_id=instance_id,
+            **kg_feature_query_kwargs,**kg_feature_full_kwargs)
 
     @property
     def detail(self):
-        if not self._detail:
-            self._load()
-        return self._detail
-
-    def _load(self):
-        if self.id is None:
-            raise Exception('id is required')
-        match=re.search(r"([a-f0-9-]+)$", self.id)
-        if not match:
-            raise Exception('id cannot be parsed properly')
-        instance_id=match.group(1)
-        result=execute_query_by_id(
-            query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
-            instance_id=instance_id,
-            msg=f"Retrieving details for '{self.name or self.id}' from EBRAINS...",
-            **kg_feature_query_kwargs,**kg_feature_full_kwargs)
-        self._detail = result
+        return self._detail_loader.data
 
     def __str__(self):
         return self.name
@@ -75,7 +75,7 @@ class EbrainsDataset:
         # Check id
         return self.id == o.id
 
-class EbrainsDatasetOriginDataInfo(EbrainsDataset, OriginDataInfo):
+class EbrainsOriginDataInfo(EbrainsDataset, OriginDataInfo):
 
     @property
     def urls(self):

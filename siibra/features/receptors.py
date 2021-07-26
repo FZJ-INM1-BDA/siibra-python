@@ -12,17 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 import PIL.Image as Image
+import numpy as np
+from io import BytesIO
 from os import path
 from collections import namedtuple
 import re
 
 from .feature import RegionalFeature
-from .extractor import FeatureExtractor
+from .query import FeatureQuery
 from ..ebrains import Authentication
 from ..termplot import FontStyles as style
-from .. import ebrains, retrieval, logger
+from .. import ebrains, logger
+from ..retrieval import LazyLoader
 
 try:
     import matplotlib.pyplot as plt
@@ -241,11 +243,6 @@ RECEPTOR_SYMBOLS = {
                 }
         }
 
-def get_bytestream_from_file(url):
-    fname = retrieval.download_file(url)
-    with open(fname, 'rb') as f:
-        return io.BytesIO(f.read())
-
 def unify_stringlist(L: list):
     """ Adds asterisks to strings that appear multiple times, so the resulting
     list has only unique strings but still the same length, order, and meaning. 
@@ -255,22 +252,8 @@ def unify_stringlist(L: list):
     assert(all([isinstance(l,str) for l in L]))
     return [L[i]+"*"*L[:i].count(L[i]) for i in range(len(L))]
 
-def edits1(word):
-    """
-    Produces a list of  all possible edits of a given word that can be produced
-    by applying a single character modification.
-    From Peter Norvig, see http://norvig.com/spell-correct.html.
-    """
-    letters    = 'abcdefghijklmnopqrstuvwxyz'
-    splits     = [(word[:i], word[i:])    for i in range(len(word) + 1)]
-    deletes    = [L + R[1:]               for L, R in splits if R]
-    transposes = [L + R[1] + R[0] + R[2:] for L, R in splits if len(R)>1]
-    replaces   = [L + c + R[1:]           for L, R in splits if R for c in letters]
-    inserts    = [L + c + R               for L, R in splits for c in letters]
-    return set(deletes + transposes + replaces + inserts)
-
-def decode_tsv(url):
-    bytestream = get_bytestream_from_file(url)
+def decode_tsv(bytearray):
+    bytestream = BytesIO(bytearray)
     header = bytestream.readline()
     lines = [l.strip() 
             for l in bytestream.readlines() 
@@ -280,14 +263,28 @@ def decode_tsv(url):
         n.decode('utf8').replace('"','').replace("'","").strip() 
         for n in header.split(sep)])
     if any(k.endswith('*') for k in keys):
-        logger.debug('Redundant headers: {} in file {}'.format(
-            "/".join(keys), url))
+        logger.warn('Redundant headers in receptor file')
     assert(len(keys)==len(set(keys)))
     return  { l.split(sep)[0].decode('utf8') : dict(
         zip(keys, [re.sub(r"\\+",r"\\",v.decode('utf8').strip()) for v in l.split(sep)])) 
         for l in lines }
 
 
+
+class DensityProfile():
+
+    def __init__(self,data):
+        units = {list(v.values())[3] for v in data.values()}
+        assert(len(units)==1)
+        self.unit=next(iter(units))
+        self.densities = {int(k):float(list(v.values())[2]) 
+                for k,v in data.items()
+                if k.isnumeric()}
+
+    def __iter__(self):
+        return self.densities.values()
+
+      
 Density = namedtuple('Density','name, mean, std, unit')
 
 class DensityFingerprint():
@@ -351,108 +348,69 @@ class ReceptorDistribution(RegionalFeature):
     def __init__(self, region, kg_result):
 
         RegionalFeature.__init__(self,region)
-        self.active = False
         self.name = kg_result["name"]
-        self.files = kg_result["files"]
         self.info = kg_result['description']
         self.identifier = kg_result['identifier']
         self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.identifier)
         self.modality = kg_result['modality']
-        self.__profiles = {}
-        self.__autoradiographs = {}
-        self.__fingerprint = None
-        self.__profile_unit = None
 
-    @property
-    def autoradiographs(self):
-        self._load()
-        return self.__autoradiographs
+        urls = kg_result["files"]
+        urls_matching = lambda regex:filter(lambda u:re.match(regex,u),urls)
+
+        # add fingerprint if a url is found
+        self._fingerprint_loader = None
+        for url in urls_matching(".*_fp[._]"):
+            if self._fingerprint_loader is not None:
+                logger.warn(f"More than one fingerprint found for {self}")
+            self._fingerprint_loader = LazyLoader(url,lambda u:DensityFingerprint(decode_tsv(u)))
+
+        # add any cortical profiles
+        self._profile_loaders = {}
+        for url in urls_matching(".*_pr[._].*\.tsv"):
+            rtype, basename = url.split("/")[-2:]
+            if rtype not in basename:
+                continue
+            if rtype in self._profile_loaders:
+                logger.warn(f"More than one profile for '{rtype}' in {self.url}")
+            self._profile_loaders[rtype] = LazyLoader(url,lambda u:DensityProfile(decode_tsv(u)))
+
+        # add autoradiograph
+        self._autoradiograph_loaders = {}
+        img_from_bytes = lambda b:np.array(Image.open(BytesIO(b)))
+        for url in urls_matching(".*_ar[._]"):
+            rtype, basename = url.split("/")[-2:]
+            if rtype not in basename:
+                continue
+            if rtype in self._autoradiograph_loaders:
+                logger.warn(f"More than one autoradiograph for '{rtype}' in {self.url}")
+            self._autoradiograph_loaders[rtype] = LazyLoader(url,img_from_bytes)
 
     @property
     def fingerprint(self):
-        self._load()
-        return self.__fingerprint
-
-    @property
-    def profile_unit(self):
-        self._load()
-        return self.__profile_unit
+        if self._fingerprint_loader is None:
+            return None
+        else:
+            return self._fingerprint_loader.data
 
     @property
     def profiles(self):
-        self._load()
-        return self.__profiles
-
-    def _load(self):
-
-        if self.active:
-            return
-
-        logger.debug('Loading receptor data for'+self.region.name)
-
-        for url in self.files:
-
-            # Receive cortical profiles, if any
-            if re.match(r".*_pr[._]",url):
-                suffix = path.splitext(url)[-1]
-                if suffix == '.tsv':
-                    rtype, basename = url.split("/")[-2:]
-                    if rtype in basename:
-                        data = decode_tsv(url)
-                        units = {list(v.values())[3] for v in data.values()}
-                        assert(len(units)==1)
-                        self.__profile_unit=next(iter(units))
-                        # column headers are sometimes messed up, so we fix the 2nd value
-                        densities = {int(k):float(list(v.values())[2]) 
-                                for k,v in data.items()
-                                if k.isnumeric()}
-                        rtype = self._check_rtype(rtype)
-                        self.__profiles[rtype] = densities
-
-            # Receive autoradiographs, if any
-            if re.match(r".*_ar[._]",url):
-                rtype, basename = url.split("/")[-2:]
-                if rtype in basename:
-                    rtype = self._check_rtype(rtype)
-                    self.__autoradiographs[rtype] = url
-
-            # receive fingerprint, if any
-            if re.match(r".*_fp[._]",url):
-                data = decode_tsv(url) 
-                self.__fingerprint = DensityFingerprint(data) 
-
-        self.active = True
-
-    def _check_rtype(self,rtype):
-        """ 
-        Verify that the receptor type name matches the symbol table. 
-        Return if ok, fix if a close match is found, raise Excpetion otherwise.
-        """
-        if rtype in RECEPTOR_SYMBOLS.keys():
-            return rtype
-        # fix if only different by 1 letter from a close match in the symbol table
-        close_matches = list(edits1(rtype).intersection(RECEPTOR_SYMBOLS.keys()))
-        if len(close_matches)==1:
-            prev,new = rtype, close_matches[0]
-            logger.debug("Receptor type identifier '{}' replaced by '{}' for {}".format(
-                prev,new, self.region.name))
-            return new
-        else:
-            logger.warning("Receptor type identifier '{}' is not listed in the corresponding symbol table of region {}. Please verify.".format(
-                        rtype, self.region.name))
-            return rtype
-
-    def __repr__(self):
-        self._load()
-        return self.__str__()
+        return { rtype:l.data for rtype,l 
+            in self._profile_loaders.items()}    
+        
+    @property
+    def autoradiographs(self):
+        return { rtype:l.data for rtype,l 
+            in self._autoradiograph_loaders.items()}  
 
     def __str__(self):
+        return f"Receptor densites for area{self.regionspec}"
+
+    def table(self):
         """ Outputs a small table of available profiles and autoradiographs. """
-        self._load()
         #if len(self.profiles)+len(self.autoradiographs)==0:
                 #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
         return "\n"+"\n".join(
-                [style.BOLD+"Receptor densities for area {}".format(self.region.name)+style.END] +
+                [style.BOLD+str(self)+style.END] +
                 [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
                     'Type','profile','autoradiograph','fingerprint')+style.END] +
                 ["{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
@@ -469,17 +427,15 @@ class ReceptorDistribution(RegionalFeature):
             logger.warning('matplotlib.pyplot not available to siibra. plotting disabled.')
             return None
 
-        self._load()
-        import numpy as np
         from collections import deque
 
         # plot profiles and fingerprint
         fig = plt.figure(figsize=(8,3))
         plt.subplot(121)
         for _,profile in self.profiles.items():
-            plt.plot(list(profile.keys()),np.fromiter(profile.values(),dtype='d'))
+            plt.plot(list(profile.densities.keys()),np.fromiter(profile.densities.values(),dtype='d'))
         plt.xlabel('Cortical depth (%)')
-        plt.ylabel("Receptor density\n({})".format(self.profile_unit))
+        plt.ylabel("Receptor density")  
         plt.grid(True)
         if title is not None:
             plt.title(title)
@@ -502,37 +458,19 @@ class ReceptorDistribution(RegionalFeature):
         return fig
 
 
-class ReceptorQuery(FeatureExtractor):
+class ReceptorQuery(FeatureQuery):
 
     _FEATURETYPE = ReceptorDistribution
-    __features = None
 
-    def __init__(self,atlas):
-        # TODO this could probably be a general pattern of the FeatureExtractor Class.
-
-        FeatureExtractor.__init__(self,atlas)
-        if self.__class__.__features is None:
-            self._load_features()
-        for feature in self.__class__.__features:
-            self.register(feature)
-
-    def _load_features(self):
+    def __init__(self):
+        FeatureQuery.__init__(self)
         kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
-        self.__class__.__features = []
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
-                try:
-                    region = self.parcellation.decode_region(region_name)
-                    feature = ReceptorDistribution(region,kg_result)
-                    self.__class__.__features.append(feature)
-                except ValueError as e:
-                    # if the region name cannot be decoded, we skip this feature
-                    continue
-
+                self.register(ReceptorDistribution(region_name,kg_result))
 
 if __name__ == '__main__':
-
     auth = Authentication.instance()
     auth.set_token('eyJhbGci....')
     extractor = ReceptorQuery()

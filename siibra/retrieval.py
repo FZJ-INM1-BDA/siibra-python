@@ -179,7 +179,6 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
     This leaves the interpretation of the returned content to the caller.
     TODO we might extend this as a general tool for the siibra library, and make it a decorator
     TODO this hashes the authentication token as part of kwargs, which might not be desired
-    FIXME The error messages are specific to EBRAINS queries, but this method is not.
     """
     logger.debug(f"Get from URL\n{url}")
     logger.debug(f"kwargs: {kwargs}")
@@ -203,15 +202,14 @@ def cached_get(url,msg_if_not_cached=None,**kwargs):
             with open(cachefile_url,'w') as f:
                 f.write(url)
             return r.content
-        elif r.status_code == 401:
-            logger.error('The provided authentication token is not valid')
-        elif r.status_code == 403:
-            logger.error('No permission to access the given query')
-        elif r.status_code == 404:
-            logger.error('Query with this id not found')
-        else:
-            logger.error('Problem with "get" protocol on url: %s ' % url )
-        raise RuntimeError('Could not retrieve data.')
+        elif any(d in url for d in ["ebrains","humanbrainproject"]):
+            if r.status_code == 401:
+                raise RuntimeError('The provided EBRAINS authentication token is not valid')
+            elif r.status_code == 403:
+                raise RuntimeError('No permission to access the given query')
+            elif r.status_code == 404:
+                raise RuntimeError('Query with this id not found')
+        raise RuntimeError(f'Could not retrieve data.\nhttp status code: {r.status_code}\nURL: {url}')
 
 def clear_cache():
     import shutil
@@ -330,10 +328,46 @@ def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,retu
             entries = list(filter(lambda e:not e['name'].startswith('.'),entries))
         result = json.dumps(entries).encode('utf8')
         
-
     logger.debug(f"Caching gitlab content to {cachefile}")
     assert(isinstance(result,bytes))
     with open(cachefile,'wb') as f:
         f.write(result)
 
     return result.decode()
+
+
+class LazyLoader:
+    def __init__(self,url=None,func=None):
+        """
+        Initialize a lazy data loader. It stores a URL and optional function, 
+        and will retrieve and decode the actual data only when its 'data' property 
+        is accessed the first time.
+
+        Parameters
+        ----------
+        url : string, or None
+            URL for loading raw data, which is then fed into `func` 
+            for creating the output. 
+            If None, `func` will be called without arguments.
+        func : function pointer
+            Function for constructing the output data 
+            (called on the data retrieved from `url`, if supplied)
+        """
+        if (url is None) and (func is None):
+            logger.warn("Request to build a LazyLoader with an identity function - this makes no sense.")
+        self.url = url
+        self._data_cached = None
+        if func is None:
+            self._func = lambda x:x
+        else:
+            self._func = func
+
+    @property
+    def data(self):
+        if self._data_cached is None:
+            if self.url is None:
+                self._data_cached = self._func()
+            else:
+                raw = cached_get(self.url)
+                self._data_cached = self._func(raw)
+        return self._data_cached

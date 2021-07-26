@@ -20,15 +20,15 @@ def __init__():
     """
     from .receptors import ReceptorQuery
     from .genes import AllenBrainAtlasQuery
-    from .connectivity import ConnectivityProfileExtractor, ConnectivityMatrixExtractor
-    from .ebrainsquery import EbrainsRegionalFeatureExtractor
+    from .connectivity import ConnectivityProfileQuery, ConnectivityMatrixQuery
+    from .ebrainsquery import EbrainsRegionalFeatureQuery
+    from .cells import RegionalCellDensityExtractor
     from .ieeg import IEEG_ContactPointExtractor, IEEG_ElectrodeExtractor
-    from .extractor import FeatureExtractorRegistry
-    extractor_types = FeatureExtractorRegistry() 
-    return [ extractor_types,
+    from .query import FeatureQueryRegistry
+    registry = FeatureQueryRegistry() 
+    return [ registry,
             Glossary(AllenBrainAtlasQuery.GENE_NAMES.keys()),
-            Glossary(extractor_types.modalities.keys()) ]
+            Glossary(registry.modalities.keys()) ]
 
-extractor_types,gene_names,modalities = __init__()
-classes = { name:extractor_types._extractors[name][0]._FEATURETYPE 
-        for name in extractor_types._extractors.keys()}
+registry,gene_names,modalities = __init__()
+

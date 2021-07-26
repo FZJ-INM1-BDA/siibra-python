@@ -16,24 +16,23 @@ from collections import defaultdict
 from abc import ABC
 from .feature import Feature
 from memoization import cached
+from .. import logger
 
-class FeatureExtractor(ABC):
+class FeatureQuery(ABC):
     """
-    An abstract class for data features extractors of a particular type,
-    related to an atlas.
+    An abstract class for data features extractors, implementing a singleton pattern.
     """
 
     _FEATURETYPE = Feature
 
-    def __init__(self,atlas):
+    def __init__(self):
+        logger.info(f"Initializing query for {self._FEATURETYPE.__name__} features")
         self.features = []
-        self.parcellation = atlas.selected_parcellation
-        self.region = atlas.selected_region
 
-    def pick_selection(self,atlas):
+    def execute(self,atlas):
         """
-        Returns the list of features from this extractor that are associated with
-        the selected region of the given atlas object.
+        Executes a query for features associated with atlas object, 
+        taking into account its selection of parcellation and region.
         """
         selection = []
         for feature in self.features:
@@ -48,32 +47,30 @@ class FeatureExtractor(ABC):
         assert(isinstance(feature,self._FEATURETYPE))
         self.features.append(feature)
 
-
-class FeatureExtractorRegistry:
+class FeatureQueryRegistry:
+    """
+    Provides centralized access to objects from all feature query classes.
+    """
 
     def __init__(self):
-        self._extractors = defaultdict(list)
+        self._classes = defaultdict(list)
+        self._instances = {}
         self.modalities = {}
-        for cls in FeatureExtractor.__subclasses__():
+        for cls in FeatureQuery.__subclasses__():
             modality = str(cls._FEATURETYPE).split("'")[1].split('.')[-1]
-            self._extractors[modality].append(cls)
+            self._classes[modality].append(cls)
             self.modalities[modality] = cls._FEATURETYPE
 
-    def __dir__(self):
-        return list(self._extractors.keys())
-
-    def __contains__(self,index):
-        return index in self.__dir__()
-
-    def __getattr__(self,name):
-        if name in self._extractors.keys():
-            return self._extractors[name]
-        else:
-            raise AttributeError("No such attribute: {}".format(name))
     
-    def __getitem__(self,index):
-        if index in self._extractors.keys():
-            return self._extractors[index]
-
-    def __str__(self):
-        return str(self._extractors)
+    def queries(self,modality,**kwargs):
+        """
+        return query objects for the given modality
+        """
+        instances = []
+        args_hash = hash(tuple(sorted(kwargs.items())))
+        for cls in self._classes[modality]:
+            if (cls,args_hash) not in self._instances:
+                logger.debug(f"Building new query {cls} with args {kwargs}")
+                self._instances[cls,args_hash] = cls(**kwargs)
+            instances.append(self._instances[cls,args_hash]) 
+        return instances

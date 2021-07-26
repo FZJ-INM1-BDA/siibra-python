@@ -18,34 +18,11 @@ import gzip
 import nibabel as nib
 import json
 
-from .feature import RegionalFeature
-from .extractor import FeatureExtractor
+from .feature import RegionalFeature,SpatialFeature
+from .query import FeatureQuery
 from .. import logger
-from ..retrieval import cached_gitlab_query,cached_get
+from ..retrieval import cached_gitlab_query,cached_get,LazyLoader
 
-class LazyLoader:
-    def __init__(self,url,decfnc=lambda x:x):
-        """
-        Initialize a lazy data loader. It gets a URL and decding function, 
-        and will only retrieve the data when its data property is accessed.
-
-        Parameters
-        ----------
-        url : string
-            URL for loading the data
-        decfnc : function pointer
-            function to be applied for decoding the retrieved data
-        """
-        self.url = url
-        self._data_cached = None
-        self._decfnc = decfnc
-
-    @property
-    def data(self):
-        if self._data_cached is None:
-            self._data_cached = self._decfnc(
-                cached_get(self.url))
-        return self._data_cached
 
 class CorticalCellDistribution(RegionalFeature):
     """
@@ -63,6 +40,7 @@ class CorticalCellDistribution(RegionalFeature):
             with formatting field 'file' for downloading individual files for this datasets
         """
         RegionalFeature.__init__(self,region)
+        self._urlscheme = urlscheme
 
         # construct lazy data loaders
         self._info_loader = LazyLoader(
@@ -70,13 +48,43 @@ class CorticalCellDistribution(RegionalFeature):
             lambda b:dict(l.split(' ') for l in b.decode('utf8').strip().split("\n")) )
         self._segments_loader = LazyLoader(
             urlscheme.format(file="segments.txt"),
-            lambda b:np.loadtxt(b,skiprows=1) )
+            lambda b:np.array([
+                [float(w) for w in l.strip().split(' ')]
+                for l in b.decode().strip().split('\n')[1:]]) )
         self._image_loader = LazyLoader(
             urlscheme.format(file="image.nii.gz"),
             lambda b:nib.Nifti1Image.from_bytes(gzip.decompress(b)) )
         self._layerinfo_loader = LazyLoader(
             urlscheme.format(file="layerinfo.txt"),
-            lambda b:np.loadtxt(b,skiprows=1) )
+            lambda b:np.array([
+                tuple(l.split(' ')[1:])
+                for l in b.decode().strip().split('\n')[1:]],
+                dtype=[
+                    ('layer','U10'),
+                    ('area (micron^2)','f'),
+                    ('avg. thickness (micron)','f')
+                ]) )
+        self._segmentation_loaders = [
+            LazyLoader(
+                urlscheme.format(file="image.nii.gz"),
+                lambda b:nib.Nifti1Image.from_bytes(gzip.decompress(b)) )
+        ]
+
+    def load_segmentations(self):
+        from PIL import Image
+        from io import BytesIO
+        index = 0
+        result = []
+        logger.info(f'Loading cell instance segmentation masks for {self}...')
+        while True:
+            try:
+                target = f'segments_cpn_{index:02d}.tif'
+                bytestream = cached_get(self._urlscheme.format(file=target))
+                result.append(np.array(Image.open(BytesIO(bytestream))))
+                index+=1
+            except RuntimeError:
+                break
+        return result
 
     @property
     def info(self):
@@ -106,11 +114,19 @@ class CorticalCellDistribution(RegionalFeature):
         """
         return self._image_loader.data
 
+    @property
+    def coordinate(self):
+        """
+        Coordinate of this image patch in MNI 152 space in mm.
+        """
+        A = self.image.affine
+        return np.dot(A,[0,0,0,1])[:3]
+
     def __str__(self):
-        return ",".join(f"{k}:{v}" for (k,v) in self.info.items())
+        return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
 
    
-class RegionalCellDensityExtractor(FeatureExtractor):
+class RegionalCellDensityExtractor(FeatureQuery):
 
     _FEATURETYPE = CorticalCellDistribution
     URLSCHEME="https://{server}/s/{share}/download?path=%2F{area}%2F{section}%2F{patch}&files={file}"
@@ -118,7 +134,7 @@ class RegionalCellDensityExtractor(FeatureExtractor):
     SHARE="yDZfhxlXj6YW7KO"
 
     def __init__(self):
-        FeatureExtractor.__init__(self)
+        FeatureQuery.__init__(self)
         server = "https://jugit.fz-juelich.de"
         projectid = 4790
         reftag = 'v1.0a1'
@@ -127,16 +143,16 @@ class RegionalCellDensityExtractor(FeatureExtractor):
 
         # determine available region subfolders in the dataset
         #project = Gitlab(gitlab_server).projects.get(4790)
-        tree = json.loads(query(None,None))
-        region_folders = [ e['name'] for e in tree
+        region_folders = [ e['name'] for e in json.loads(query(None,None))
                         if e['type']=="tree" 
                         and not e['name'].startswith('.') ]
 
         for region_folder in region_folders:
             regionspec = " ".join(region_folder.split('_')[1:])
             logger.debug(f"Found cell density data for region spec {regionspec}.")
-            tree = json.loads(query(region_folder,None))
-            section_ids = [e['name'] for e in tree if e['type']=="tree"]
+            section_ids = [
+                e['name'] for e in json.loads(query(region_folder,None)) 
+                if e['type']=="tree"]
             for section_id in section_ids:
                 section_folder = f"{region_folder}/{section_id}"
                 tree = json.loads(query(section_folder,None))

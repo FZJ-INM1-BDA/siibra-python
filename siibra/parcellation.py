@@ -214,7 +214,7 @@ class Parcellation(HasOriginDataInfo):
         spaceobj = spaces[space]
         return spaceobj in self.volume_src.keys()
 
-    def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region]):
+    def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region],build_group=True):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -244,8 +244,11 @@ class Parcellation(HasOriginDataInfo):
         elif len(candidates)==1:
             return candidates[0]
         else:
-            logger.debug(f"The specification '{regionspec}' resulted more than one region. A group region is returned.")
-            return Region._build_grouptree(candidates,self)
+            if build_group:
+                logger.debug(f"The specification '{regionspec}' resulted more than one region. A group region is returned.")
+                return Region._build_grouptree(candidates,self)
+            else:
+                raise RuntimeError(f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}.")
 
 
     @cached
