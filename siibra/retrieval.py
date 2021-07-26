@@ -218,7 +218,7 @@ def clear_cache():
     __compile_cachedir()
 
 
-def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,return_hidden_files=False,skip_branchtest=False):
+def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recursive=False,return_hidden_files=False,skip_branchtest=False):
     """
     Cached retrieval of folder list or file content from a public gitlab repositoriy.
 
@@ -277,6 +277,8 @@ def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,retu
         pathspec += f"-{folder}"
     if filename is not None:
         pathspec += f"-{filename}"
+    if recursive:
+        pathspec += "-recursive"
     basename = re.sub( "_+","_",
         re.sub("[/:.]","_",
         f"{server}-{project_id}{pathspec}-{ref_tag}"))
@@ -323,7 +325,7 @@ def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,retu
     else:
         # list of folder contents was requested. This is a list of dictionaries, 
         # which we serialize to a json string and then encode to bytes.
-        entries = project.repository_tree(path=relpath,ref=ref_tag,all=True)
+        entries = project.repository_tree(path=relpath,ref=ref_tag,all=True,recursive=recursive)
         if not return_hidden_files:
             entries = list(filter(lambda e:not e['name'].startswith('.'),entries))
         result = json.dumps(entries).encode('utf8')

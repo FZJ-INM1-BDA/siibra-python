@@ -138,31 +138,21 @@ class RegionalCellDensityExtractor(FeatureQuery):
         server = "https://jugit.fz-juelich.de"
         projectid = 4790
         reftag = 'v1.0a1'
-        query=lambda folder,fname:cached_gitlab_query(
-            server,projectid,reftag,folder,fname,skip_branchtest=True)
 
         # determine available region subfolders in the dataset
-        #project = Gitlab(gitlab_server).projects.get(4790)
-        region_folders = [ e['name'] for e in json.loads(query(None,None))
-                        if e['type']=="tree" 
-                        and not e['name'].startswith('.') ]
+        fulltree = json.loads(cached_gitlab_query(
+            server,projectid,reftag,None,None,skip_branchtest=True,recursive=True))
+        cellfiles = [ e['path'] for e in fulltree
+                        if e['type']=="blob" 
+                        and e['name']=='segments.txt' ]
 
-        for region_folder in region_folders:
+        for cellfile in cellfiles:
+            region_folder,section_id,patch_id,_ = cellfile.split("/")
             regionspec = " ".join(region_folder.split('_')[1:])
-            logger.debug(f"Found cell density data for region spec {regionspec}.")
-            section_ids = [
-                e['name'] for e in json.loads(query(region_folder,None)) 
-                if e['type']=="tree"]
-            for section_id in section_ids:
-                section_folder = f"{region_folder}/{section_id}"
-                tree = json.loads(query(section_folder,None))
-                patch_ids = [e['name'] for e in tree if e['type']=="tree"]
-                for patch_id in patch_ids:
-                    urlscheme = self.URLSCHEME.format(
-                        server=self.SERVER, share=self.SHARE,
-                        area=region_folder, section=section_id, patch=patch_id, file="{file}")
-                    self.register(CorticalCellDistribution(regionspec,urlscheme))
-
+            urlscheme = self.URLSCHEME.format(
+                server=self.SERVER, share=self.SHARE,
+                area=region_folder, section=section_id, patch=patch_id, file="{file}")
+            self.register(CorticalCellDistribution(regionspec,urlscheme))
 
 if __name__ == '__main__':
 
