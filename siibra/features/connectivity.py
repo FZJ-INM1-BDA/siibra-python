@@ -34,6 +34,8 @@ QUERY=lambda folder,fname:cached_gitlab_query(
 class ConnectivityMatrix(GlobalFeature):
 
     def __init__(self,jsonfile):
+        self.src_file = jsonfile
+    
         self._info_loader = LazyLoader(
             func=lambda:json.loads(QUERY(None,jsonfile)))
         self._matrix_loader = LazyLoader(
@@ -55,6 +57,14 @@ class ConnectivityMatrix(GlobalFeature):
     @property
     def src_name(self):
         return self._info_loader.data['name']
+
+    @property
+    def kg_schema(self):
+        return self._info_loader.data['kgschema']
+
+    @property
+    def kg_id(self):
+        return self._info_loader.data['kgId']
 
     @property
     def globalrange(self):
@@ -106,13 +116,14 @@ class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, regionname:str, connectivitymatrix:ConnectivityMatrix,):
-        RegionalFeature.__init__(self,regionname)
+    def __init__(self, regionspec:str, connectivitymatrix:ConnectivityMatrix, index):
+        RegionalFeature.__init__(self,regionspec)
+        self._cm_index = index
         self._cm = connectivitymatrix
 
     @property
     def profile(self):
-        return self._cm.matrix[self.regionspec]
+        return self._cm.matrix[self._cm_index]
     
     @property
     def src_info(self):
@@ -152,21 +163,10 @@ class ConnectivityProfile(RegionalFeature):
         If a column name for the profile cannot be decoded, a dummy region is
         returned if force==True, otherwise we fail.
         """
-        def decoderegion(parcellation,regionname,force):
-            try:
-                return parcellation.decode_region(regionname)
-            except ValueError as e:
-                logger.warning(f'Region name "{regionname}" cannot be decoded by parcellation {parcellation.key}, returning dummy region.')
-                if force:
-                    return Region(regionname, parcellation, ParcellationIndex(None,None))
-                raise e
-
-        decoded = ( (strength,decoderegion(parcellation,regionname,force))
-                for strength,regionname in zip(self.profile,self.column_names.values())
+        decoded = ( (strength,parcellation.decode_region(regionname,build_group=not force))
+                for strength,regionname in zip(self.profile,self.regionnames)
                 if strength>minstrength)
         return sorted(decoded,key=lambda q:q[0],reverse=True)
-
-
 
 class ConnectivityProfileQuery(FeatureQuery):
 
@@ -179,8 +179,10 @@ class ConnectivityProfileQuery(FeatureQuery):
             if e['type']=='blob' and e['name'].endswith('json')]
         for jsonfile in jsonfiles:
             cm = ConnectivityMatrix(jsonfile)
-            for regionname in cm.regionnames:
-                self.register(ConnectivityProfile(regionname,cm))
+            for parcellation in cm.parcellations:
+                for regionname in cm.regionnames:
+                    region = parcellation.decode_region(regionname,build_group=False)
+                    self.register(ConnectivityProfile(region,cm,regionname))
 
 class ConnectivityMatrixQuery(FeatureQuery):
 

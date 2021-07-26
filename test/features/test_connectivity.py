@@ -11,13 +11,13 @@ class TestSwitchParc(unittest.TestCase):
         v29_v1_feats=atlas.get_features('ConnectivityProfile')
         # TODO enable once v29 conn data is integrated
         # self.assertTrue(len(v29_v1_feats) > 0)
-        self.assertTrue(all([f.parcellation.id == atlas.selected_parcellation.id for f in v29_v1_feats]))
+        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selected_parcellation.id for f in v29_v1_feats]))
 
         atlas.select_parcellation('1.18')
         atlas.select_region("hoc1 left")
         v118_hoc1_left_features=atlas.get_features('ConnectivityProfile')
         self.assertTrue(len(v118_hoc1_left_features) > 0)
-        self.assertTrue(all([f.parcellation.id == atlas.selected_parcellation.id for f in v118_hoc1_left_features]))
+        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selected_parcellation.id for f in v118_hoc1_left_features]))
 
 class TestConnectivity(unittest.TestCase):
 
@@ -54,9 +54,9 @@ class TestConnectivity(unittest.TestCase):
         ConnectivityProfile.show_as_log = False
         specific_feats=[feat for feat in self.got_features
             if feat.src_name == 'Averaged_FC_JuBrain_184Regions_HCP_REST_FIX_AVER_MEAN'
-            and feat.parcellation == self.parc
+            and self.parc in feat._cm.parcellations 
             # use left hemisphere
-            and 'left' in str(feat.region)]
+            and 'left' in str(feat.regionspec)]
         
         # from https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures/-/blob/c88ed1f39f22592f499045d842060fc9e1f9685f/Averaged_FC_JuBrain_184Regions_HCP_REST_FIX_AVER_MEAN.json
         json_field_names=["Area 4p (PreCG) - left hemisphere","Area PGa (IPL) - left hemisphere","Area hIP2 (IPS) - left hemisphere","Area s24 (sACC) - left hemisphere","Area hOc6 (POS) - left hemisphere","Area OP3 (POperc) - left hemisphere","Area 5L (SPL) - left hemisphere","CA (Hippocampus) - left hemisphere","Area hOc4v (LingG) - left hemisphere","Interposed Nucleus (Cerebellum) - left hemisphere","Area 6d2 (PreCG) - left hemisphere","Area FG2 (FusG) - left hemisphere","Area 25 (sACC) - left hemisphere","Area hIP5 (IPS) - left hemisphere","Area TE 1.0 (HESCHL) - left hemisphere","Area PFt (IPL) - left hemisphere","Area hOc4d (Cuneus) - left hemisphere","Area 33 (ACC) - left hemisphere","Area p24ab (pACC) - left hemisphere","Area 7M (SPL) - left hemisphere","Area OP4 (POperc) - left hemisphere","Area PFm (IPL) - left hemisphere","Area 6d3 (SFS) - left hemisphere","Area hOc2 (V2, 18) - left hemisphere","Area hIP1 (IPS) - left hemisphere","Ventral Dentate Nucleus (Cerebellum) - left hemisphere","Ch 4 (Basal Forebrain) - left hemisphere","Area 7P (SPL) - left hemisphere","Area hOc4la (LOC) - left hemisphere","Area hOc5 (LOC) - left hemisphere","CM (Amygdala) - left hemisphere","Area 1 (PostCG) - left hemisphere","Area Id7 (Insula) - left hemisphere","Area hOc3v (LingG) - left hemisphere","Area Id1 (Insula) - left hemisphere","Area OP9 (Frontal Operculum) - left hemisphere","Area Ig1 (Insula) - left hemisphere","Area 7A (SPL) - left hemisphere","Area OP1 (POperc) - right hemisphere","Area 5Ci (SPL) - left hemisphere","Area PFop (IPL) - left hemisphere","Area 2 (PostCS) - left hemisphere","Dorsal Dentate Nucleus (Cerebellum) - left hemisphere","VTM (Amygdala) - left hemisphere","Area OP2 (POperc) - left hemisphere","Area 3a (PostCG) - left hemisphere","Area Ig2 (Insula) - left hemisphere","Area 6mp (SMA, mesial SFG) - left hemisphere","Area TE 1.1 (HESCHL) - left hemisphere","MF (Amygdala) - left hemisphere","Area PFcm (IPL) - left hemisphere","Area 5M (SPL) - left hemisphere","SF (Amygdala) - left hemisphere","IF (Amygdala) - left hemisphere","Area hIP7 (IPS) - right hemisphere","Area Fo2 (OFC) - left hemisphere","Area hOc1 (V1, 17, CalcS) - right hemisphere","Area 44 (IFG) - left hemisphere","Area p32 (pACC) - left hemisphere","Area hOc3d (Cuneus) - left hemisphere","Area p24c (pACC) - left hemisphere","Area hIP3 (IPS) - left hemisphere","Area 45 (IFG) - left hemisphere","Area 4a (PreCG) - left hemisphere","Area OP8 (Frontal Operculum) - left hemisphere","Area 6ma (preSMA, mesial SFG) - left hemisphere","LB (Amygdala) - left hemisphere","Area hIP8 (IPS) - left hemisphere","Area Fp1 (FPole) - left hemisphere","Area FG4 (FusG) - left hemisphere","Area Fp2 (FPole) - left hemisphere","Area FG3 (FusG) - left hemisphere","Area 3b (PostCG) - left hemisphere","Area PF (IPL) - left hemisphere","Area 6d1 (PreCG) - left hemisphere","Area Fo1 (OFC) - left hemisphere","Area TE 1.2 (HESCHL) - left hemisphere","Area Fo3 (OFC) - left hemisphere","Subiculum (Hippocampus) - left hemisphere","DG (Hippocampus) - left hemisphere","Area TE 3 (STG) - left hemisphere","Area hOc4lp (LOC) - left hemisphere","Area hIP4 (IPS) - left hemisphere","Area 7PC (SPL) - left hemisphere","Area FG1 (FusG) - left hemisphere","Area s32 (sACC) - left hemisphere","Entorhinal Cortex - left hemisphere","Area PGp (IPL) - left hemisphere","HATA (Hippocampus) - left hemisphere","Area hIP6 (IPS) - left hemisphere","Area hPO1 (POS) - left hemisphere","Area 4p (PreCG) - right hemisphere","Area PGa (IPL) - right hemisphere","Area hIP2 (IPS) - right hemisphere","Area s24 (sACC) - right hemisphere","Area hOc6 (POS) - right hemisphere","Area OP3 (POperc) - right hemisphere","Area 5L (SPL) - right hemisphere","CA (Hippocampus) - right hemisphere","Area hOc4v (LingG) - right hemisphere","Interposed Nucleus (Cerebellum) - right hemisphere","Area 6d2 (PreCG) - right hemisphere","Area FG2 (FusG) - right hemisphere","Area 25 (sACC) - right hemisphere","Area hIP5 (IPS) - right hemisphere","Area TE 1.0 (HESCHL) - right hemisphere","Area PFt (IPL) - right hemisphere","Area hOc4d (Cuneus) - right hemisphere","Area 33 (ACC) - right hemisphere","Area p24ab (pACC) - right hemisphere","Area 7M (SPL) - right hemisphere","Area OP4 (POperc) - right hemisphere","Area PFm (IPL) - right hemisphere","Area 6d3 (SFS) - right hemisphere","Area hOc2 (V2, 18) - right hemisphere","Area hIP1 (IPS) - right hemisphere","Ventral Dentate Nucleus (Cerebellum) - right hemispher","Ch 4 (Basal Forebrain) - right hemisphere","Area 7P (SPL) - right hemisphere","Area hOc4la (LOC) - right hemisphere","Area hOc5 (LOC) - right hemisphere","Ch 123 (Basal Forebrain) - both hemispheres","CM (Amygdala) - right hemisphere","Area 1 (PostCG) - right hemisphere","Area Id7 (Insula) - right hemisphere","Area hOc3v (LingG) - right hemisphere","Area Id1 (Insula) - right hemisphere","Area OP9 (Frontal Operculum) - right hemisphere","Area Ig1 (Insula) - left hemisphere","Area 7A (SPL) - right hemisphere","Area OP1 (POperc) - right hemisphere","Area 5Ci (SPL) - right hemisphere","Area PFop (IPL) - right hemisphere","Area 2 (PostCS) - right hemisphere","Dorsal Dentate Nucleus (Cerebellum) - right hemisphere","VTM (Amygdala) - right hemisphere","Area OP2 (POperc) - right hemisphere","Area 3a (PostCG) - right hemisphere","Area Ig2 (Insula) - right hemisphere","Area 6mp (SMA, mesial SFG) - right hemisphere","Area TE 1.1 (HESCHL) - right hemisphere","MF (Amygdala) - right hemisphere","Area PFcm (IPL) - right hemisphere","Area 5M (SPL) - right hemisphere","SF (Amygdala) - right hemisphere","IF (Amygdala) - right hemisphere","Area hIP7 (IPS) - left hemisphere","Area Fo2 (OFC) - right hemisphere","Area hOc1 (V1, 17, CalcS) - left hemisphere","Area 44 (IFG) - right hemisphere","Area p32 (pACC) - right hemisphere","Area hOc3d (Cuneus) - right hemisphere","Area p24c (pACC) - right hemisphere","Area hIP3 (IPS) - right hemisphere","Area 45 (IFG) - right hemisphere","Area 4a (PreCG) - right hemisphere","Area OP8 (Frontal Operculum) - right hemisphere","Area 6ma (preSMA, mesial SFG) - right hemisphere","LB (Amygdala) - right hemisphere","Area hIP8 (IPS) - right hemisphere","Area Fp1 (FPole) - right hemisphere","Area FG4 (FusG) - right hemisphere","Area Fp2 (FPole) - right hemisphere","Area FG3 (FusG) - right hemisphere","Area 3b (PostCG) - right hemisphere","Area PF (IPL) - right hemisphere","Area 6d1 (PreCG) - right hemisphere","Area Fo1 (OFC) - right hemisphere","Area TE 1.2 (HESCHL) - right hemisphere","Area Fo3 (OFC) - right hemisphere","Subiculum (Hippocampus) - right hemisphere","DG (Hippocampus) - right hemisphere","Area TE 3 (STG) - right hemisphere","Area hOc4lp (LOC) - right hemisphere","Area hIP4 (IPS) - right hemisphere","Area 7PC (SPL) - right hemisphere","Area FG1 (FusG) - right hemisphere","Area s32 (sACC) - right hemisphere","Entorhinal Cortex - right hemisphere","Area PGp (IPL) - right hemisphere","Fastigial Nucleus (Cerebellum) - both hemispheres","HATA (Hippocampus) - right hemisphere","Area hIP6 (IPS) - right hemisphere","Area hPO1 (POS) - right hemisphere"]
@@ -70,35 +70,26 @@ class TestConnectivity(unittest.TestCase):
         
         # index accessor to last profile should have corresponding column name
         index=len(specific_feat.profile) - 1
-        self.assertTrue(index in specific_feat.column_names)
+        self.assertTrue(index <= len(specific_feat.regionnames))
         
         # last accessor points to last element in json column names
-        regionname=specific_feat.column_names[index]
-        decoded_regname=self.parc.decode_region(json_field_names[-1])
-        self.assertTrue(decoded_regname.name==regionname)
-
-    def test_str_result_barplot(self):
-        ConnectivityProfile.show_as_log = True
-        feature = self.got_features[1]
-        # No assertion because of an index out of range error
+        regionname=specific_feat.regionnames[index]
+        decoded_region=self.parc.decode_region(json_field_names[-1])
+        self.assertTrue(decoded_region.matches(regionname))
 
     def test_decode_result_are_tuple(self):
-        decoded_features = [feature.decode(parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18)[0] for feature in self.got_features]
+        decoded_features = [feature.decode(parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18,force=True)[0] for feature in self.got_features]
         self.assertTrue(all([type(decoded_feature) == tuple for decoded_feature in decoded_features]))
 
-    def test_column_names_dict(self):
-        self.assertTrue(all([type(feature.column_names) == dict for feature in self.got_features]))
+    def test_regionnames_dict(self):
+        self.assertTrue(all([type(feature.regionnames) == tuple for feature in self.got_features]))
 
     def test_feat_can_be_str(self):
         self.assertTrue(all([type(str(feature)) == str for feature in self.got_features]))
-
-    def test_column_names_key_integer(self):
-        feature = self.got_features[0]
-        self.assertTrue(all([type(key) == int for key in feature.column_names.keys()]))
         
-    def test_column_names_value_str(self):
+    def test_regionnames_str(self):
         feature = self.got_features[0]
-        self.assertTrue(all([type(value) == str for value in feature.column_names.values()]))
+        self.assertTrue(all([type(value) == str for value in feature.regionnames]))
         
 if __name__ == '__main__':
     unittest.main()
