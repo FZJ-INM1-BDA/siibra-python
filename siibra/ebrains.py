@@ -53,7 +53,7 @@ class EbrainsDataset:
 
     @staticmethod
     def _load_details(instance_id):
-        return ebrains.execute_query_by_id(
+        return execute_query_by_id(
             query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
             instance_id=instance_id,
             **kg_feature_query_kwargs,**kg_feature_full_kwargs)

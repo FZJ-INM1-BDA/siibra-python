@@ -16,7 +16,7 @@
 
 from .feature import RegionalFeature
 from .query import FeatureQuery
-import re
+import json
 import os
 from .. import ebrains
 from ..ebrains import EbrainsDataset
