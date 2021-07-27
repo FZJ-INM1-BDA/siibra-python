@@ -20,7 +20,7 @@ import json
 
 from .feature import RegionalFeature,SpatialFeature
 from .query import FeatureQuery
-from .. import logger
+from .. import logger,spaces
 from ..retrieval import cached_gitlab_query,cached_get,LazyLoader
 
 
@@ -117,10 +117,10 @@ class CorticalCellDistribution(RegionalFeature):
     @property
     def coordinate(self):
         """
-        Coordinate of this image patch in MNI 152 space in mm.
+        Coordinate of this image patch in BigBrain histological space in mm.
         """
         A = self.image.affine
-        return np.dot(A,[0,0,0,1])[:3]
+        return spaces.BIG_BRAIN,np.dot(A,[0,0,0,1])[:3]
 
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
