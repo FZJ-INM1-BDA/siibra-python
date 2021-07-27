@@ -23,7 +23,7 @@ class TestSelectionBrainRegions(unittest.TestCase):
 
         # we can be more specific easily
         atlas.select_region('v1 left')
-        print("Selected region from 'v1 left' is", atlas.selected_region)
+        print("Selected region from 'v1 left' is", atlas.selected_region.name)
         self.assertEqual(atlas.selected_region.name, 'Area hOc1 (V1, 17, CalcS) left')
         self.assertTrue(len(atlas.selected_region.children) == 0)
 

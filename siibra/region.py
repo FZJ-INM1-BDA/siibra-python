@@ -37,8 +37,7 @@ def _clear_name(name):
     result = name
     for word in REMOVE_FROM_NAME:
         result = result.replace(word,'')
-        #name = re.sub(r' *'+word,'',name)
-    return result
+    return " ".join(w for w in result.split(' ') if len(w))
 
 RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
 RPROPS_BRANCH = "master"

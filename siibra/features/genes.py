@@ -96,8 +96,6 @@ to be in accordance with their terms of use, as specified at
 https://alleninstitute.org/legal/terms-use/."""
     _notification_shown=False
 
-
-
     _QUERY = {
         "probe" : BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
         "specimen" : BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
