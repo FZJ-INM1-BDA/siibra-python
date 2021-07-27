@@ -20,46 +20,80 @@ from .. import logger,spaces
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
-class IEEG_Electrode(SpatialFeature):
-    def __init__(self,id,kg_id,subject_id,space):
-        SpatialFeature.__init__(self,space)
-        self.electrode_id = id
-        self.subject_id = subject_id
+
+class IEEG_Dataset(SpatialFeature):
+
+    def __init__(self,kg_id,space):
+        super().__init__(space)
         self.kg_id = kg_id
-        self.contact_points = {}
-        self.n = 0
+        self.electrodes = {} # key: subject_id
 
     def __str__(self):
-        return f"Electrode {self.electrode_id} of {self.subject_id} with {len(self.contact_points)} contact points (dataset:{self.kg_id})"
+        return f"{self.__class__.__name__} {self.kg_id}"
 
-    def __repr__(self):
-        return self.__str__()
+    def new_electrode(self,electrode_id,subject_id):
+        return IEEG_Electrode(self,electrode_id,subject_id) # will call register_electrode on construction!
 
-    def add_contact_point(self,id,coord):
-        IEEG_ContactPoint(self,id,coord) # will call register_contact_point on construction!
+    def register_electrode(self,e):
+        if e.subject_id not in self.electrodes:
+            self.electrodes[e.subject_id] = {}
+        if e.electrode_id in self.electrodes[e.subject_id]:
+            logger.warn("Electrode {e.electrode_id} of {e.subject_id} alread registered!")
+        self.electrodes[e.subject_id][e.electrode_id] = e
+        self._update_location()
+
+    def __iter__(self):
+        """
+        Iterate over electrodes
+        """
+        return (self.electrodes[s_id][e_id]
+                for s_id in self.electrodes
+                for e_id in self.electrodes[s_id])
+
+    def _update_location(self):
+        self.location = []
+        for e in self:
+            if e.location is not None:
+                self.location.extend(e.location)
+
+class IEEG_Electrode(SpatialFeature):
+
+    def __init__(self,dataset:IEEG_Dataset,electrode_id,subject_id):
+        space = dataset.space
+        SpatialFeature.__init__(self,space)
+        self.dataset = dataset
+        self.electrode_id = electrode_id
+        self.subject_id = subject_id
+        self.contact_points = {}
+        self.n = 0
+        dataset.register_electrode(self)
+
+    @property
+    def kg_id(self):
+        return self.dataset.kg_id
+
+    def __str__(self):
+        return f"Electrode {self.electrode_id} of {self.subject_id} with {len(self.contact_points)} contact points ({str(self.dataset)})"
+
+    def new_contact_point(self,id,coord):
+        return IEEG_ContactPoint(self,id,coord) # will call register_contact_point on construction!
     
     def register_contact_point(self,contactpoint):
         if contactpoint.id in self.contact_points:
            raise ValueError(f"Contact point with id {contactpoint.id} already registered to {self}") 
         self.contact_points[contactpoint.id] = contactpoint
-        if self.location is None:
-            self.location = []
-        self.location.append(contactpoint.location)
+        self._update_location()
 
     def __iter__(self):
         """
-        Iterate over the contact points.
+        Iterate over contact points
         """
-        self.n = 0
-        return self
+        return iter(self.contact_points.values())
 
-    def __next__(self):
-        if self.n<len(self.contact_points):
-            result = list(self.contact_points.values())[self.n]
-            self.n += 1
-            return result
-        else:
-            raise StopIteration
+    def _update_location(self):
+        self.location = [cp.location for cp in self]
+        self.dataset._update_location()
+
 
 class IEEG_ContactPoint(SpatialFeature):
     """
@@ -169,7 +203,7 @@ class IEEG_ElectrodeExtractor(FeatureExtractor):
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
-        self.load_contactpoints()
+        self.load_electrodes()
 
     def __load_files(self,subfolder,suffix):
         project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
@@ -185,7 +219,7 @@ class IEEG_ElectrodeExtractor(FeatureExtractor):
                 'data':data,
                 'fname': fname})
         
-    def load_contactpoints(self):
+    def load_electrodes(self):
         """
         Load contact point list and create features.
         """
@@ -199,7 +233,7 @@ class IEEG_ElectrodeExtractor(FeatureExtractor):
             for electrode_id,contact_points in obj['data']['electrodes'].items():
                 if electrode_id not in electrodes[subject_id]:
                     electrodes[subject_id][electrode_id] = IEEG_Electrode(
-                        id=electrode_id,
+                        electrode_id=electrode_id,
                         kg_id="ca952092-3013-4151-abcc-99a156fe7c83",
                         subject_id=subject_id, 
                         space=spaces["mni152"])
@@ -210,6 +244,53 @@ class IEEG_ElectrodeExtractor(FeatureExtractor):
         for subject_id,subject_electrodes in electrodes.items():
             for electrode in subject_electrodes.values():
                 self.register(electrode)
+
+
+class IEEG_DatasetExtractor(FeatureExtractor):
+
+    _FEATURETYPE = IEEG_Dataset
+    __pts_files = {}
+    DATASETS = {'ca952092-3013-4151-abcc-99a156fe7c83':
+        {'server':'https://jugit.fz-juelich.de','project':3009,'folder':'ieeg_contact_points'}
+    }
+
+    def __init__(self,atlas):
+
+        FeatureExtractor.__init__(self,atlas)
+        self.load_datasets()
+
+    def __load_files(self,server,project,subfolder,suffix):
+        project = Gitlab(server).projects.get(project)
+        files = [f['name'] 
+                for f in project.repository_tree(path=subfolder,ref='master',all=True)
+                if f['type']=='blob' 
+                and f['name'].endswith(suffix)]
+        result = []
+        for fname in files:
+            f = project.files.get(file_path=os.path.join(subfolder,fname), ref='master')
+            data = load_ptsfile(f)
+            result.append({
+                'data':data,
+                'fname': fname})
+        return result
+        
+    def load_datasets(self):
+        """
+        Load contact point list and create features.
+        """
+        for kg_id,spec in self.DATASETS.items():
+            dset = IEEG_Dataset(kg_id,spaces['mni152'])
+            if kg_id not in self.__class__.__pts_files:
+                self.__class__.__pts_files[kg_id] = self.__load_files(
+                    spec['server'],spec['project'],spec['folder'],'pts')
+            for obj in self.__class__.__pts_files[kg_id]: 
+                subject_id=obj['data']['subject_id']
+                for electrode_id,contact_points in obj['data']['electrodes'].items():
+                    e = dset.new_electrode(electrode_id,subject_id)
+                    for contact_point_id,coord in contact_points.items():
+                        e.new_contact_point(contact_point_id,coord)
+                
+            self.register(dset)
 
 
 if __name__ == '__main__':
