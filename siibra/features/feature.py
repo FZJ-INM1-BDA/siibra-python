@@ -12,40 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABC,abstractmethod
 from .. import parcellations
 from ..region import Region
 from typing import Tuple
 
-class Feature(ABC):
+class Feature:
     """ 
     Abstract base class for all data features.
     """
 
-    @abstractmethod
+    def __init__(self,dataset_id):
+        self.dataset_id = dataset_id
+
     def matches(self,atlas):
         """
         Returns True if this feature should be considered part of the current
         selection of the atlas object, otherwise else.
         """
-        pass
-
-    @abstractmethod
-    def __str__(self):
-        """
-        Print a reasonable name of this feature.
-        """
-        return 
-
-    def __hash__(self):
-        return hash(str(self))
+        raise RuntimeError(f"matches(atlas) needs to be implemented by derived classes of {self.__class__.__name__}")
 
 class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.
     """
 
-    def __init__(self,space,location=None):
+    def __init__(self,space,dataset_id,location=None):
         """
         Initialize a new spatial feature.
         
@@ -53,11 +44,14 @@ class SpatialFeature(Feature):
         ----------
         space : Space
             The space in which the locations are defined
+        dataset_id : str
+            Any identifier for the underlying dataset
         location : 3D tuple, or list of 3D tuples
             The 3D physical coordinates in the given space
             Note that the default "None" is  meant to indicate that the feature is not yet full initialized. 
             This is used for multi-point features, where the locations are added manually later on.
         """
+        Feature.__init__(self,dataset_id)
         self.space = space
         self.location = location
 
@@ -93,8 +87,17 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self,regionspec : Tuple[str,Region]):
+    def __init__(self,regionspec : Tuple[str,Region],dataset_id:str):
+        """
+        Parameters
+        ----------
+        regionspec : string or Region
+            Specifier for the brain region, will be matched at test time
+        dataset_id : str
+            Any identifier for the underlying dataset
+        """
         assert(any(map(lambda c:isinstance(regionspec,c),[Region,str])))
+        Feature.__init__(self,dataset_id)
         self.regionspec = regionspec
  
     def matches(self,atlas):
@@ -113,7 +116,16 @@ class GlobalFeature(Feature):
     connectivity matrix, which applies to all regions in the atlas.
     """
 
-    def __init__(self,parcellationspec):
+    def __init__(self,parcellationspec,dataset_id):
+        """
+        Parameters
+        ----------
+        parcellationspec : str or Parcellation object
+            Identifies the underlying parcellation
+        dataset_id : str
+            Any identifier for the underlying dataset
+        """
+        Feature.__init__(self,dataset_id)
         self.spec = parcellationspec
         self.parcellations = parcellations.find(parcellationspec)
  

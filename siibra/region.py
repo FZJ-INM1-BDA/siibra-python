@@ -34,9 +34,11 @@ REMOVE_FROM_NAME=['hemisphere',' -',
     'both', 'Both']
 
 def _clear_name(name):
+    result = name
     for word in REMOVE_FROM_NAME:
-        name = re.sub(r' *'+word,'',name)
-    return name
+        result = result.replace(word,'')
+        #name = re.sub(r' *'+word,'',name)
+    return result
 
 RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
 RPROPS_BRANCH = "master"
@@ -137,6 +139,7 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         """
         return region==self or region in self.descendants
 
+    @cached
     def find(self,regionspec,select_uppermost=False):
         """
         Find regions that match the given region specification in the subtree
@@ -208,14 +211,15 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
             return self.index==regionspec          
         elif isinstance(regionspec,str):
             # string is given, perform some lazy string matching
-            words = splitstr(self.name.lower())
-            name_matches = any([
-                    regionspec==self.key,
-                    regionspec==self.name,
-                    all([w.lower() in words 
-                        for w in splitstr(_clear_name(regionspec))])
-                    ]) 
-            return name_matches
+            q = regionspec.lower().strip()
+            if q==self.key.lower().strip():
+                return True
+            elif q==self.name.lower().strip():
+                return True
+            else:
+                words = splitstr(self.name.lower())
+                return all([w.lower() in words 
+                            for w in splitstr(_clear_name(regionspec))]) 
         else:
             raise TypeError(f"Cannot interpret region specification of type '{type(regionspec)}'")
 

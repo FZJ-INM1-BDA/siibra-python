@@ -20,6 +20,7 @@ import json
 
 from .feature import RegionalFeature,SpatialFeature
 from .query import FeatureQuery
+from ..commons import HAVE_PYPLOT,HAVE_PLOTTING
 from .. import logger,spaces
 from ..retrieval import cached_gitlab_query,cached_get,LazyLoader
 
@@ -30,7 +31,7 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data. 
     """
 
-    def __init__(self, region, urlscheme):
+    def __init__(self, region, urlscheme,dataset_id):
         """
         Parameters
         ----------
@@ -39,7 +40,7 @@ class CorticalCellDistribution(RegionalFeature):
         urlscheme : format string 
             with formatting field 'file' for downloading individual files for this datasets
         """
-        RegionalFeature.__init__(self,region)
+        RegionalFeature.__init__(self,region,dataset_id)
         self._urlscheme = urlscheme
 
         # construct lazy data loaders
@@ -125,6 +126,38 @@ class CorticalCellDistribution(RegionalFeature):
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
 
+
+    def plot(self,title=None):
+        """
+        Create & return a matplotlib figure illustrating the patch, 
+        detected cells, and location in BigBrain space.
+        """
+        if not HAVE_PYPLOT:
+            logger.warning('matplotlib.pyplot not available. Plotting disabled.')
+            return None
+        if not HAVE_PYPLOT:
+            logger.warning('nilearn.plotting not available. Plotting disabled.')
+            return None
+
+        from ..commons import pyplot,plotting
+
+        patch = self.image.get_fdata()
+        space,xyz = self.coordinate
+        tpl = space.get_template().fetch()
+        X,Y,A,L = [self.cells[:,i] for i in [0,1,2,3]]
+        fig = pyplot.figure(figsize=(12,6))
+        pyplot.suptitle(str(self))
+        ax1 = pyplot.subplot2grid((1, 4), (0, 0))
+        ax2 = pyplot.subplot2grid((1, 4), (0, 1), sharex=ax1,sharey=ax1)
+        ax3 = pyplot.subplot2grid((1, 4), (0, 2), colspan=2)
+        ax1.imshow(patch,cmap='gray'); ax2.axis('off')
+        ax2.imshow(patch,cmap='gray'); 
+        ax2.scatter(X,Y,s=np.sqrt(A),c=L); ax2.axis('off')
+        view = plotting.plot_img(tpl,cut_coords=xyz,cmap='gray',axes=ax3,display_mode='tiled')
+        view.add_markers([xyz])
+        return fig
+
+
    
 class RegionalCellDensityExtractor(FeatureQuery):
 
@@ -139,6 +172,8 @@ class RegionalCellDensityExtractor(FeatureQuery):
         projectid = 4790
         reftag = 'v1.0a1'
 
+        logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
+
         # determine available region subfolders in the dataset
         fulltree = json.loads(cached_gitlab_query(
             server,projectid,reftag,None,None,skip_branchtest=True,recursive=True))
@@ -152,7 +187,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
             urlscheme = self.URLSCHEME.format(
                 server=self.SERVER, share=self.SHARE,
                 area=region_folder, section=section_id, patch=patch_id, file="{file}")
-            self.register(CorticalCellDistribution(regionspec,urlscheme))
+            self.register(CorticalCellDistribution(regionspec,urlscheme,self.SHARE))
 
 if __name__ == '__main__':
 

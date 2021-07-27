@@ -36,11 +36,12 @@ class ConnectivityMatrix(GlobalFeature):
     def __init__(self,jsonfile):
         self.src_file = jsonfile
     
-        self._info_loader = LazyLoader(
-            func=lambda:json.loads(QUERY(None,jsonfile)))
+        self._info = json.loads(QUERY(None,jsonfile))
         self._matrix_loader = LazyLoader(
             func=lambda:self.decode_matrix(jsonfile))
-        GlobalFeature.__init__(self,self._info_loader.data['parcellation id'])
+        GlobalFeature.__init__(self,
+            self._info['parcellation id'],
+            self._info.get('@kgId','jsonfile'))
         
     @property
     def matrix(self):
@@ -62,19 +63,15 @@ class ConnectivityMatrix(GlobalFeature):
 
     @property
     def src_info(self):
-        return self._info_loader.data['description']
+        return self._info['description']
 
     @property
     def src_name(self):
-        return self._info_loader.data['name']
+        return self._info['name']
 
     @property
     def kg_schema(self):
-        return self._info_loader.data['kgschema']
-
-    @property
-    def kg_id(self):
-        return self._info_loader.data['kgId']
+        return self._info['kgschema']
 
     @property
     def globalrange(self):
@@ -127,7 +124,7 @@ class ConnectivityProfile(RegionalFeature):
     show_as_log = True
 
     def __init__(self, regionspec:str, connectivitymatrix:ConnectivityMatrix, index):
-        RegionalFeature.__init__(self,regionspec)
+        RegionalFeature.__init__(self,regionspec,connectivitymatrix.dataset_id)
         self._cm_index = index
         self._cm = connectivitymatrix
 

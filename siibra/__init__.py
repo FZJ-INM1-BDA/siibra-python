@@ -17,6 +17,8 @@ from os import path, getenv
 # __version__ is parsed by setup.py
 __version__='0.1a7'
 
+
+
 import logging
 logger = logging.getLogger(__name__)
 ch = logging.StreamHandler()
@@ -54,3 +56,4 @@ from .retrieval import clear_cache
 from .features import modalities
 from .ebrains import set_token as set_ebrains_token
 from .commons import MapType,ParcellationIndex
+

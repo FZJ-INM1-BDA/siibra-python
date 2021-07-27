@@ -37,7 +37,7 @@ kg_feature_summary_kwargs={
 class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
 
     def __init__(self, regionspec, id, name, embargo_status):
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec,dataset_id=id)
         EbrainsDataset.__init__(self, id, name, embargo_status)
 
     def __str__(self):
@@ -48,6 +48,10 @@ class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
 
     def __eq__(self, o: object) -> bool:
         return EbrainsDataset.__eq__(self,o)
+
+    @property
+    def url(self):
+        return f"https://search.kg.ebrains.eu/instances/Dataset/{self.dataset_id.split('/')[-1]}"
 
 
 class EbrainsRegionalFeatureQuery(FeatureQuery):

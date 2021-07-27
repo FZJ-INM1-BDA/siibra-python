@@ -15,6 +15,7 @@
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
+from collections import defaultdict
 
 from . import parcellations, spaces, features, logger
 from .region import Region
@@ -337,22 +338,41 @@ class Atlas:
         M = self.build_mask(space)
         return any(check(M.slicer[:,:,:,i]) for i in range(M.shape[3])) if M.ndim==4 else check(M)
 
-    def get_features(self,modality,**kwargs):
+    def get_features(self,modality=None,group_by_dataset=False,**kwargs):
         """
         Retrieve data features linked to the selected atlas configuration, by modality. 
-        See siibra.features.modalities for available modalities.
+        See siibra.features.modalities for available modalities. 
         """
         hits = []
+        modalities = []
 
-        if modality not in features.modalities:
-            logger.error("Cannot query features - no feature extractor known "\
-                    "for feature type {}.".format(modality))
-            return hits
+        if modality is None:
+            modalities = features.modalities
+        else:
+            if modality not in features.modalities:
+                logger.error("Cannot query features - no feature extractor known "\
+                        "for feature type {}.".format(modality))
+                return hits
+            modalities = [modality]
 
-        for query in features.registry.queries(modality,**kwargs):
-            hits.extend(query.execute(self))
-
-        return list(set(hits))
+        result = {}
+        for m in modalities:
+            for query in features.registry.queries(m,**kwargs):
+                hits.extend(query.execute(self))
+            matches = list(set(hits))
+            if group_by_dataset:
+                grouped = defaultdict(list)
+                for m in matches:
+                    grouped[m.dataset_id].append(matches)
+                result[m]=grouped
+            else:
+                result[m]=matches
+        
+        # If only one modality was requested, simplify the dictionary
+        if len(result)==1:
+            return next(iter(result.values()))
+        else:
+            return result
 
     def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
         """

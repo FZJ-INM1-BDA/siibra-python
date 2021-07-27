@@ -373,3 +373,28 @@ class LazyLoader:
                 raw = cached_get(self.url)
                 self._data_cached = self._func(raw)
         return self._data_cached
+
+class GitlabQueryBuilder():
+
+    def __init__(self,server:str,project:int,reftag:str):
+        assert(server.startswith("http"))
+        self.server = server
+        self.project = project
+        self.reftag = reftag
+
+    @property
+    def baseurl(self):
+        return "{s}/api/v4/projects/{p}/repository".format(
+            s=self.server,p=self.project)
+
+    @staticmethod
+    def _fpath(p):
+        return p.replace("/","%2F")
+
+    def tree(self,folder=None):
+        fspec = "" if folder is None else f"&path={self._fpath(folder)}"
+        return f"{self.baseurl}/tree?ref={self.reftag}{fspec}"
+
+    def blob(self,filepath:str):
+        f=self._fpath(filepath)
+        return f"{self.baseurl}/files/{f}?ref={self.reftag}"

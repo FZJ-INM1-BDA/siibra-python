@@ -21,6 +21,8 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 from os import path
 
+BASE_URL = "http://api.brain-map.org/api/v2/data"
+
 class GeneExpression(SpatialFeature):
     """
     A spatial feature type for gene expressions.
@@ -50,7 +52,7 @@ class GeneExpression(SpatialFeature):
         mri_coord : tuple  (optional)
             coordinates in original mri space
         """
-        SpatialFeature.__init__(self,space,location)
+        SpatialFeature.__init__(self,space,dataset_id=BASE_URL,location=location)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.donor_info = donor_info
@@ -95,13 +97,13 @@ https://alleninstitute.org/legal/terms-use/."""
     _notification_shown=False
 
 
-    _BASE_URL = "http://api.brain-map.org/api/v2/data"
+
     _QUERY = {
-        "probe" : _BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
-        "specimen" : _BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
-        "microarray" : _BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
-        "gene" : _BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
-        "factors" : _BASE_URL+"/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]"
+        "probe" : BASE_URL+"/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        "specimen" : BASE_URL+"/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
+        "microarray" : BASE_URL+"/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
+        "gene" : BASE_URL+"/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
+        "factors" : BASE_URL+"/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]"
         }
 
     # there is a 1:1 mapping between donors and specimen for the 6 adult human brains

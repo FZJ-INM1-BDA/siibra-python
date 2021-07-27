@@ -24,14 +24,8 @@ from .query import FeatureQuery
 from ..ebrains import Authentication
 from ..termplot import FontStyles as style
 from .. import ebrains, logger
+from ..commons import HAVE_PYPLOT
 from ..retrieval import LazyLoader
-
-try:
-    import matplotlib.pyplot as plt
-    HAVE_PLT=True
-except Exception as e:
-    HAVE_PLT=False
-
 
 RECEPTOR_SYMBOLS = {
         "5-HT1A": { 
@@ -347,7 +341,7 @@ class ReceptorDistribution(RegionalFeature):
 
     def __init__(self, region, kg_result):
 
-        RegionalFeature.__init__(self,region)
+        RegionalFeature.__init__(self,region,kg_result['identifier'])
         self.name = kg_result["name"]
         self.info = kg_result['description']
         self.identifier = kg_result['identifier']
@@ -423,33 +417,34 @@ class ReceptorDistribution(RegionalFeature):
                         or rtype in self.autoradiographs)] )
 
     def plot(self,title=None):
-        if not HAVE_PLT:
+        if not HAVE_PYPLOT:
             logger.warning('matplotlib.pyplot not available to siibra. plotting disabled.')
             return None
 
+        from ..commons import pyplot
         from collections import deque
 
         # plot profiles and fingerprint
-        fig = plt.figure(figsize=(8,3))
-        plt.subplot(121)
+        fig = pyplot.figure(figsize=(8,3))
+        pyplot.subplot(121)
         for _,profile in self.profiles.items():
-            plt.plot(list(profile.densities.keys()),np.fromiter(profile.densities.values(),dtype='d'))
-        plt.xlabel('Cortical depth (%)')
-        plt.ylabel("Receptor density")  
-        plt.grid(True)
+            pyplot.plot(list(profile.densities.keys()),np.fromiter(profile.densities.values(),dtype='d'))
+        pyplot.xlabel('Cortical depth (%)')
+        pyplot.ylabel("Receptor density")  
+        pyplot.grid(True)
         if title is not None:
-            plt.title(title)
-        plt.legend(labels=[l for l in self.profiles],
+            pyplot.title(title)
+        pyplot.legend(labels=[l for l in self.profiles],
                    loc="center right", prop={'size': 5})
 
-        ax = plt.subplot(122,projection='polar')
+        ax = pyplot.subplot(122,projection='polar')
         angles = deque(np.linspace(0, 2*np.pi,  len(self.fingerprint.labels)+1)[:-1][::-1])
         angles.rotate(5)
         angles = list(angles)
         means = [d.mean for d in self.fingerprint]
         stds = [d.mean+d.std for d in self.fingerprint]
-        plt.plot(angles+[angles[0]],means+[means[0]],'k-',lw=3)
-        plt.plot(angles+[angles[0]],stds+[stds[0]],'k',lw=1)
+        pyplot.plot(angles+[angles[0]],means+[means[0]],'k-',lw=3)
+        pyplot.plot(angles+[angles[0]],stds+[stds[0]],'k',lw=1)
         ax.set_xticks(angles)
         ax.set_xticklabels([l for l in self.fingerprint.labels])
         #ax.set_yticklabels([])

@@ -23,7 +23,7 @@ def __init__():
     from .connectivity import ConnectivityProfileQuery, ConnectivityMatrixQuery
     from .ebrainsquery import EbrainsRegionalFeatureQuery
     from .cells import RegionalCellDensityExtractor
-    from .ieeg import IEEG_ContactPointExtractor, IEEG_ElectrodeExtractor
+    from .ieeg import IEEG_ElectrodeExtractor
     from .query import FeatureQueryRegistry
     registry = FeatureQueryRegistry() 
     return [ registry,

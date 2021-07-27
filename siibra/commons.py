@@ -17,6 +17,18 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from . import logger
 
+try:
+    from matplotlib import pyplot 
+    HAVE_PYPLOT=True
+except Exception as e:
+    HAVE_PYPLOT=False
+
+try:
+    from nilearn import plotting
+    HAVE_PLOTTING=True
+except Exception as e:
+    HAVE_PLOTTING=False
+
 class Glossary:
     """
     A very simple class that provides enum-like simple autocompletion for an
@@ -101,3 +113,4 @@ class OriginDataInfo:
 class HasOriginDataInfo:
     def __init__(self):
         self.origin_datainfos = []
+

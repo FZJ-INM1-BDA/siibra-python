@@ -61,7 +61,6 @@ class FeatureQueryRegistry:
             self._classes[modality].append(cls)
             self.modalities[modality] = cls._FEATURETYPE
 
-    
     def queries(self,modality,**kwargs):
         """
         return query objects for the given modality
@@ -71,6 +70,10 @@ class FeatureQueryRegistry:
         for cls in self._classes[modality]:
             if (cls,args_hash) not in self._instances:
                 logger.debug(f"Building new query {cls} with args {kwargs}")
-                self._instances[cls,args_hash] = cls(**kwargs)
+                try:
+                    self._instances[cls,args_hash] = cls(**kwargs)
+                except TypeError as e:
+                    logger.error(f"Cannot initialize {cls._FEATURETYPE.__name__} query: {str(e)}")
+                    continue
             instances.append(self._instances[cls,args_hash]) 
         return instances
