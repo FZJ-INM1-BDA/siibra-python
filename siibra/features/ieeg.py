@@ -20,6 +20,9 @@ from .. import logger,spaces
 from .feature import SpatialFeature
 from .extractor import FeatureExtractor
 
+DATASETS = {'ca952092-3013-4151-abcc-99a156fe7c83':
+    {'server':'https://jugit.fz-juelich.de','project':3009,'folder':'ieeg_contact_points'}
+}
 
 class IEEG_Dataset(SpatialFeature):
 
@@ -147,141 +150,94 @@ def load_ptsfile(data):
         result['electrodes'][electrode_id][contact_point_id] = list(map(float,fields[1:4]))
     return result
 
+def _load_files(server,project,subfolder,suffix):
+    project = Gitlab(server).projects.get(project)
+    files = [f['name'] 
+            for f in project.repository_tree(path=subfolder,ref='master',all=True)
+            if f['type']=='blob' 
+            and f['name'].endswith(suffix)]
+    result = []
+    for fname in files:
+        f = project.files.get(file_path=os.path.join(subfolder,fname), ref='master')
+        data = load_ptsfile(f)
+        result.append({
+            'data':data,
+            'fname': fname})
+    return result
+    
+class IEEG_ElectrodeExtractor(FeatureExtractor):
+
+    _FEATURETYPE = IEEG_Electrode
+    __pts_files = {}
+
+    def __init__(self,atlas):
+        FeatureExtractor.__init__(self,atlas)
+        self.load_datasets()
+        
+    def load_datasets(self):
+        """
+        Load contact point list and create features.
+        """
+        for kg_id,spec in DATASETS.items():
+            dset = IEEG_Dataset(kg_id,spaces['mni152'])
+            if kg_id not in self.__class__.__pts_files:
+                self.__class__.__pts_files[kg_id] = _load_files(
+                    spec['server'],spec['project'],spec['folder'],'pts')
+            for obj in self.__class__.__pts_files[kg_id]: 
+                subject_id=obj['data']['subject_id']
+                for electrode_id,contact_points in obj['data']['electrodes'].items():
+                    e = dset.new_electrode(electrode_id,subject_id)
+                    for contact_point_id,coord in contact_points.items():
+                        e.new_contact_point(contact_point_id,coord)
+                    self.register(e)
 
 class IEEG_ContactPointExtractor(FeatureExtractor):
 
     _FEATURETYPE = IEEG_ContactPoint
-    __files = None
+    __pts_files = {}
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
-        self.load_contactpoints()
-
-    def __load_files(self,subfolder,suffix):
-        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
-        files = [f['name'] 
-                for f in project.repository_tree(path=subfolder,ref='master',all=True)
-                if f['type']=='blob' 
-                and f['name'].endswith(suffix)]
-        self.__class__.__files=[]
-        for fname in files:
-            f = project.files.get(file_path=os.path.join(subfolder,fname), ref='master')
-            data = load_ptsfile(f)
-            self.__class__.__files.append({
-                'data':data,
-                'fname': fname})
+        self.load_datasets()
         
-    def load_contactpoints(self):
+    def load_datasets(self):
         """
         Load contact point list and create features.
         """
-        if self.__class__.__files is None:
-            self.__load_files('ieeg_contact_points','pts')
-        electrodes = {}
-        for obj in self.__class__.__files: 
-            subject_id=obj['data']['subject_id']
-            if subject_id not in electrodes:
-                electrodes[subject_id] = {}
-            for electrode_id,contact_points in obj['data']['electrodes'].items():
-                if electrode_id not in electrodes[subject_id]:
-                    electrodes[subject_id][electrode_id] = IEEG_Electrode(
-                        id=electrode_id,
-                        kg_id="ca952092-3013-4151-abcc-99a156fe7c83",
-                        subject_id=subject_id, 
-                        space=spaces["mni152"])
-                electrode = electrodes[subject_id][electrode_id]
-                for contact_point_id,coord in contact_points.items():
-                    self.register( IEEG_ContactPoint(
-                        electrode=electrode,id=contact_point_id,coord=coord ))
-
-class IEEG_ElectrodeExtractor(FeatureExtractor):
-
-    _FEATURETYPE = IEEG_Electrode
-    __files = None
-
-    def __init__(self,atlas):
-
-        FeatureExtractor.__init__(self,atlas)
-        self.load_electrodes()
-
-    def __load_files(self,subfolder,suffix):
-        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
-        files = [f['name'] 
-                for f in project.repository_tree(path=subfolder,ref='master',all=True)
-                if f['type']=='blob' 
-                and f['name'].endswith(suffix)]
-        self.__class__.__files=[]
-        for fname in files:
-            f = project.files.get(file_path=os.path.join(subfolder,fname), ref='master')
-            data = load_ptsfile(f)
-            self.__class__.__files.append({
-                'data':data,
-                'fname': fname})
-        
-    def load_electrodes(self):
-        """
-        Load contact point list and create features.
-        """
-        if self.__class__.__files is None:
-            self.__load_files('ieeg_contact_points','pts')
-        electrodes = {}
-        for obj in self.__class__.__files: 
-            subject_id=obj['data']['subject_id']
-            if subject_id not in electrodes:
-                electrodes[subject_id] = {}
-            for electrode_id,contact_points in obj['data']['electrodes'].items():
-                if electrode_id not in electrodes[subject_id]:
-                    electrodes[subject_id][electrode_id] = IEEG_Electrode(
-                        electrode_id=electrode_id,
-                        kg_id="ca952092-3013-4151-abcc-99a156fe7c83",
-                        subject_id=subject_id, 
-                        space=spaces["mni152"])
-                electrode = electrodes[subject_id][electrode_id]
-                for contact_point_id,coord in contact_points.items():
-                    electrode.add_contact_point(contact_point_id,coord)
-
-        for subject_id,subject_electrodes in electrodes.items():
-            for electrode in subject_electrodes.values():
-                self.register(electrode)
+        for kg_id,spec in DATASETS.items():
+            dset = IEEG_Dataset(kg_id,spaces['mni152'])
+            if kg_id not in self.__class__.__pts_files:
+                self.__class__.__pts_files[kg_id] = _load_files(
+                    spec['server'],spec['project'],spec['folder'],'pts')
+            for obj in self.__class__.__pts_files[kg_id]: 
+                subject_id=obj['data']['subject_id']
+                for electrode_id,contact_points in obj['data']['electrodes'].items():
+                    e = dset.new_electrode(electrode_id,subject_id)
+                    for contact_point_id,coord in contact_points.items():
+                        cp = e.new_contact_point(contact_point_id,coord)
+                        self.register(cp)
 
 
 class IEEG_DatasetExtractor(FeatureExtractor):
 
     _FEATURETYPE = IEEG_Dataset
     __pts_files = {}
-    DATASETS = {'ca952092-3013-4151-abcc-99a156fe7c83':
-        {'server':'https://jugit.fz-juelich.de','project':3009,'folder':'ieeg_contact_points'}
-    }
+
 
     def __init__(self,atlas):
 
         FeatureExtractor.__init__(self,atlas)
         self.load_datasets()
-
-    def __load_files(self,server,project,subfolder,suffix):
-        project = Gitlab(server).projects.get(project)
-        files = [f['name'] 
-                for f in project.repository_tree(path=subfolder,ref='master',all=True)
-                if f['type']=='blob' 
-                and f['name'].endswith(suffix)]
-        result = []
-        for fname in files:
-            f = project.files.get(file_path=os.path.join(subfolder,fname), ref='master')
-            data = load_ptsfile(f)
-            result.append({
-                'data':data,
-                'fname': fname})
-        return result
         
     def load_datasets(self):
         """
         Load contact point list and create features.
         """
-        for kg_id,spec in self.DATASETS.items():
+        for kg_id,spec in DATASETS.items():
             dset = IEEG_Dataset(kg_id,spaces['mni152'])
             if kg_id not in self.__class__.__pts_files:
-                self.__class__.__pts_files[kg_id] = self.__load_files(
+                self.__class__.__pts_files[kg_id] = _load_files(
                     spec['server'],spec['project'],spec['folder'],'pts')
             for obj in self.__class__.__pts_files[kg_id]: 
                 subject_id=obj['data']['subject_id']
