@@ -1,3 +1,6 @@
+[![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
+
+
 <img align="right" src="images/siibra-python.jpeg" width="400">
 
 # siibra - Python interface for interacting with brain atlases 
