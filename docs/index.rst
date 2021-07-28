@@ -4,8 +4,8 @@
    contain the root `toctree` directive.
 
 .. image:: ../images/siibra-python.jpeg
-  :width: 450
-  :class: center
+  :figwidth: 20%
+  :align: right  
   :alt: siibra-python logo
 
 ======================================================

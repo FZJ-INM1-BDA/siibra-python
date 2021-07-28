@@ -47,6 +47,7 @@ class ParcellationVersion:
         yield 'name', self.name
         yield 'prev', self.prev.id if self.prev is not None else None
         yield 'next', self.next.id if self.next is not None else None
+        yield 'deprecated', self.deprecated
 
     def __lt__(self,other):
         """ < operator, useful for sorting by version"""
@@ -92,7 +93,7 @@ class ParcellationVersion:
             obj.get('collectionName',None),
             prev_id=obj.get('@prev', None), 
             next_id=obj.get('@next', None),
-            deprecated=obj.get('@next', False))
+            deprecated=obj.get('deprecated', False))
 
 class Parcellation(HasOriginDataInfo):
 
