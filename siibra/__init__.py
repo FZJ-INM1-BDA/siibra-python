@@ -15,7 +15,7 @@
 from os import path, getenv
 
 # __version__ is parsed by setup.py
-__version__='0.1a7'
+__version__='0.1a8'
 
 
 # controlling the log level
