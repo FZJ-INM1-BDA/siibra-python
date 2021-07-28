@@ -2,7 +2,7 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://badge.fury.io/py/siibra.svg)](https://pypi.org/project/siibra/)
 
-<img align="right" src="images/siibra-python.jpeg" width="400">
+<img align="right" src="images/siibra-python.jpeg" width="300">
 
 # siibra - Python interface for interacting with brain atlases 
 
