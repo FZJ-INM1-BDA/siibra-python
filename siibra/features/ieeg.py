@@ -38,9 +38,6 @@ class IEEG_Dataset(SpatialFeature):
         SpatialFeature.__init__(self,space,kg_id)
         self.sessions = {}
 
-    def __str__(self):
-        return f"{self.__class__.__name__} {self.kg_id}"
-
     def new_session(self,subject_id):
         return IEEG_Session(self,subject_id) # will call register_session on construction!
 
@@ -70,9 +67,6 @@ class IEEG_Session(SpatialFeature):
         self.sub_id = subject_id
         self.dataset = dataset
         self.electrodes = {} # key: subject_id
-
-    def __str__(self):
-        return f"Session {self.sub_id} of ({str(self.dataset)})"
 
     def new_electrode(self,electrode_id):
         return IEEG_Electrode(self,electrode_id) # will call register_electrode on construction!
@@ -105,9 +99,6 @@ class IEEG_Electrode(SpatialFeature):
         self.electrode_id = electrode_id
         self.contact_points = {}
         session.register_electrode(self)
-
-    def __str__(self):
-        return f"Electrode {self.electrode_id} of {len(self.contact_points)} contact points from {str(self.session)})"
 
     def new_contact_point(self,id,coord):
         return IEEG_ContactPoint(self,id,coord) # will call register_contact_point on construction!

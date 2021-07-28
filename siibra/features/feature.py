@@ -77,8 +77,12 @@ class SpatialFeature(Feature):
             return atlas.coordinate_selected(self.space,self.location)
 
     def __str__(self):
-        return "Features in '{space}' at {loc[0]}/{loc[1]}/{loc[2]}".format(
-                space=self.space, loc=self.location)
+        xyz2str = lambda c:f"({','.join(map(str,c))})"
+        if self.is_multi_point: 
+            locstr = f"multiple locations:\n{', '.join(xyz2str(l) for l in self.location)}"
+        else:
+            locstr = xyz2str(self.location)
+        return f"{self.__class__.__name__} in {self.space} space at {locstr}"
 
 class RegionalFeature(Feature):
     """
@@ -108,6 +112,9 @@ class RegionalFeature(Feature):
         matching_regions = atlas.selected_region.find(self.regionspec)
         if len(matching_regions)>0:
             return True
+
+    def __str__(self):
+        return f"{self.__class__.__name__} for {self.regionspec}"
 
 class GlobalFeature(Feature):
     """
