@@ -1,4 +1,5 @@
 [![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/FZJ-INM1-BDA/siibra-python/main?filepath=examples%2FWalkthrough.ipynb)
 
 
 <img align="right" src="images/siibra-python.jpeg" width="400">
