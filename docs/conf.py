@@ -58,3 +58,5 @@ html_static_path = ['_static']
 # overriding some styles in a custom CSS
 html_css_files = [ 'siibra.css' ]
 
+html_logo = '../images/siibra-python.jpeg'
+
