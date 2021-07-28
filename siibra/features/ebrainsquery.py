@@ -40,6 +40,10 @@ class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
         RegionalFeature.__init__(self, regionspec,dataset_id=id)
         EbrainsDataset.__init__(self, id, name, embargo_status)
 
+    @property
+    def url(self):
+        return f"https://search.kg.ebrains.eu/instances/Dataset/{self.id.split('/')[-1]}"
+
     def __str__(self):
         return EbrainsDataset.__str__(self)
 

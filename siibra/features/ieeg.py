@@ -16,7 +16,6 @@ from gitlab import Gitlab
 import os
 import re
 import json
-from io import BytesIO
 import base64
 
 from .. import logger,spaces
@@ -173,7 +172,6 @@ def _decode_ptsfile(b):
         result['electrodes'][electrode_id][contact_point_id] = list(map(float,fields[1:4]))
     return result
 
-
 class IEEG_ElectrodeExtractor(FeatureQuery):
     _FEATURETYPE = IEEG_Session
 
@@ -194,7 +192,6 @@ class IEEG_ElectrodeExtractor(FeatureQuery):
                 for contact_point_id,coord in contact_points.items():
                     electrode.new_contact_point(contact_point_id,coord)
             self.register(session)
-
 
 if __name__ == '__main__':
     extractor = IEEG_ElectrodeExtractor()

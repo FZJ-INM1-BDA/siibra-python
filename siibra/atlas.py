@@ -176,10 +176,10 @@ class Atlas:
                 self.selected_region = next(iter(selected))
             elif len(selected)==0:
                 # no match found
-                logger.error('Cannot select region. The spec "{}" does not match any known region.'.format(region))
+                raise ValueError('Cannot select region. The spec "{}" does not match any known region.'.format(region))
             else:
                 # multiple matches found. We do not allow this for now.
-                logger.error('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                raise ValueError('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
                     region,", ".join([s.name for s in selected])))
         if not self.selected_region == previous_selection:
             logger.info(f'Select "{self.selected_region.name}"')
@@ -374,7 +374,7 @@ class Atlas:
         else:
             return result
 
-    def assign_coordinates(self,space:Space,xyz_mm,sigma_mm=3):
+    def assign_coordinates(self,space:Space,xyz_mm,maptype=MapType.CONTINUOUS,sigma_mm=1):
         """
         Assign physical coordinates with optional standard deviation to atlas regions.
         See also: ContinuousParcellationMap.assign_coordinates()
@@ -387,13 +387,15 @@ class Atlas:
             3D point in physical coordinates of the template space of the
             ParcellationMap. Also accepts a string of the format "15.453mm, 4.828mm, 69.122mm" 
             as copied from siibra-explorer.
+        maptype : MapType
+            wether to perform the assignment using continuous or labelled parcellation maps.
         sigma_mm : float (default: 0)
             standard deviation /expected localization accuracy of the point, in
             physical units. If nonzero, A 3D Gaussian distribution with that
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
         """
-        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        smap = self.selected_parcellation.get_map(space,maptype=maptype)
         return smap.assign_coordinates(xyz_mm, sigma_mm)
 
     def assign_maps(self,space:Space,mapimg):
