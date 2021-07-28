@@ -15,6 +15,7 @@
 from gitlab import Gitlab
 import os
 import re
+import json
 
 from .. import logger,spaces
 from .feature import SpatialFeature
@@ -26,9 +27,13 @@ DATASETS = {'ca952092-3013-4151-abcc-99a156fe7c83':
 
 class IEEG_Dataset(SpatialFeature):
 
-    def __init__(self,kg_id,space):
+    def __init__(self,info):
+        space = spaces[info['space id']]
+        print("space:",space)
         super().__init__(space)
-        self.kg_id = kg_id
+        self.kg_id = info['kgId']
+        self.name = info['name']
+        self.description = info['description']
         self.electrodes = {} # key: subject_id
 
     def __str__(self):
@@ -150,6 +155,11 @@ def load_ptsfile(data):
         result['electrodes'][electrode_id][contact_point_id] = list(map(float,fields[1:4]))
     return result
 
+def _load_info(server,project,subfolder):
+    project = Gitlab(server).projects.get(project)
+    f = project.files.get(file_path=os.path.join(subfolder,"info.json"), ref='master')
+    return json.loads(f.decode().decode('utf8'))
+
 def _load_files(server,project,subfolder,suffix):
     project = Gitlab(server).projects.get(project)
     files = [f['name'] 
@@ -223,6 +233,7 @@ class IEEG_DatasetExtractor(FeatureExtractor):
 
     _FEATURETYPE = IEEG_Dataset
     __pts_files = {}
+    __info = {}
 
 
     def __init__(self,atlas):
@@ -235,10 +246,13 @@ class IEEG_DatasetExtractor(FeatureExtractor):
         Load contact point list and create features.
         """
         for kg_id,spec in DATASETS.items():
-            dset = IEEG_Dataset(kg_id,spaces['mni152'])
             if kg_id not in self.__class__.__pts_files:
                 self.__class__.__pts_files[kg_id] = _load_files(
                     spec['server'],spec['project'],spec['folder'],'pts')
+                self.__class__.__info[kg_id] = _load_info(
+                    spec['server'],spec['project'],spec['folder'])
+            info = self.__class__.__info[kg_id]
+            dset = IEEG_Dataset(info)
             for obj in self.__class__.__pts_files[kg_id]: 
                 subject_id=obj['data']['subject_id']
                 for electrode_id,contact_points in obj['data']['electrodes'].items():
