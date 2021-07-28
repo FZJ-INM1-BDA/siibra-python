@@ -396,9 +396,6 @@ class ReceptorDistribution(RegionalFeature):
         return { rtype:l.data for rtype,l 
             in self._autoradiograph_loaders.items()}  
 
-    def __str__(self):
-        return f"Receptor densites for area{self.regionspec}"
-
     def table(self):
         """ Outputs a small table of available profiles and autoradiographs. """
         #if len(self.profiles)+len(self.autoradiographs)==0:
@@ -425,17 +422,17 @@ class ReceptorDistribution(RegionalFeature):
         from collections import deque
 
         # plot profiles and fingerprint
-        fig = pyplot.figure(figsize=(8,3))
+        fig = pyplot.figure(figsize=(12,4))
         pyplot.subplot(121)
         for _,profile in self.profiles.items():
             pyplot.plot(list(profile.densities.keys()),np.fromiter(profile.densities.values(),dtype='d'))
         pyplot.xlabel('Cortical depth (%)')
         pyplot.ylabel("Receptor density")  
         pyplot.grid(True)
-        if title is not None:
-            pyplot.title(title)
+        pyplot.suptitle(str(self) if title is None else title)
         pyplot.legend(labels=[l for l in self.profiles],
-                   loc="center right", prop={'size': 5})
+                loc='upper center', bbox_to_anchor=(0.5, 1.05),ncol=4,
+                prop={'size': 8})
 
         ax = pyplot.subplot(122,projection='polar')
         angles = deque(np.linspace(0, 2*np.pi,  len(self.fingerprint.labels)+1)[:-1][::-1])
@@ -447,9 +444,8 @@ class ReceptorDistribution(RegionalFeature):
         pyplot.plot(angles+[angles[0]],stds+[stds[0]],'k',lw=1)
         ax.set_xticks(angles)
         ax.set_xticklabels([l for l in self.fingerprint.labels])
-        #ax.set_yticklabels([])
-        ax.tick_params(pad=9,labelsize=9)
-        ax.tick_params(axis='y',labelsize=6)
+        ax.tick_params(pad=9,labelsize=10)
+        ax.tick_params(axis='y',labelsize=8)
         return fig
 
 
