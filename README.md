@@ -1,4 +1,4 @@
-<img align="right" src="images/siibra-python.jpeg" width="300">
+<img align="right" src="images/siibra-python.jpeg" width="200">
 
 [![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
