@@ -1,6 +1,7 @@
-<p align="center">
-    <img src="images/siibra-python.jpeg" width="600">
-</p>
+[![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/FZJ-INM1-BDA/siibra-python/main?filepath=examples%2FWalkthrough.ipynb)
+<img align="right" src="images/siibra-python.jpeg" width="400">
 
 # siibra - Python interface for interacting with brain atlases 
 
