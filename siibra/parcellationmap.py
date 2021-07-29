@@ -233,15 +233,21 @@ class ParcellationMap(ImageProvider):
         list of MapIndex objects
         """
         region = self.parcellation.decode_region(regionspec) if isinstance(regionspec,str) else regionspec
-        result = []
+        subregions = []
         for idx,r in self.regions.items():
             if r==region:
                 return [idx] 
             elif r.has_parent(region):
-                result.append(idx)
-        if len(result)==0:
+                subregions.append((idx,r))
+        if len(subregions)==0:
             raise IndexError(f"Could not decode region specified by {regionspec} in {self.parcellation.name}")
-        return result
+
+        # if we found maps of child regions, we want the mapped leaves to be identical to the leaves of the requested region.
+        children_found = {c for _,r in subregions for c in r.leaves}
+        children_requested = set(region.leaves)
+        if children_found!=children_requested:
+            raise IndexError(f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there.")
+        return [idx for idx,_ in subregions]
 
     def extract_regionmap(self,regionspec:Union[str,int,Region],resolution_mm=None,voi:SpaceVOI=None):
         """
