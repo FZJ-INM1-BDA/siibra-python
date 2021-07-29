@@ -19,7 +19,7 @@ class TestExtractTransmitterReceptorDensities(unittest.TestCase):
         self.assertTrue(len(features) == 1)
         self.assertEqual(features[0].name, 'Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]')
 
-        regions = ['hOc1', 'hOc2', 'IFG']
+        regions = ['hOc1', 'hOc2', '44']
         query = sb.features.receptors.ReceptorQuery()
         self.assertTrue(len(query.features) >= 42)
         for q in regions:
