@@ -23,6 +23,7 @@ from . import logger
 from datetime import datetime
 from glob import glob
 import re
+import base64
 
 # TODO unify download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
@@ -398,3 +399,10 @@ class GitlabQueryBuilder():
     def blob(self,filepath:str):
         f=self._fpath(filepath)
         return f"{self.baseurl}/files/{f}?ref={self.reftag}"
+
+    def data(self,filepath:str):
+        bloburl = self.blob(filepath)
+        response = cached_get(bloburl) # raw request response
+        response_json = json.loads(response.decode()) # gitlab response as json
+        content = base64.b64decode(response_json['content'].encode('ascii'))
+        return content.decode()
