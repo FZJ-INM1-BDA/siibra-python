@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from gitlab import Gitlab
-import os
 import re
 import json
 import base64
 
 from .. import logger,spaces
-from ..retrieval import cached_get,LazyLoader,GitlabQueryBuilder
+from ..retrieval import cached_get,GitlabQueryBuilder
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -156,23 +154,20 @@ class IEEG_ContactPoint(SpatialFeature):
         else:
             return None
 
-def _decode_ptsfile(b):
-    data = json.loads(b.decode())
-    result = {}        
-    s = base64.b64decode(data['content'].encode('ascii')).decode()
-    lines = s.split("\n")
+def _decode_ptsfile(spec):
+    lines = spec.split("\n")
     N = int(lines[2].strip())
-    result['electrodes'] = {}
+    result= {}
     for i in range(N):
         fields = re.split('\t',lines[i+3].strip())
         electrode_id,contact_point_id = re.split('(\d+)',fields[0])[:-1]
-        if electrode_id not in result['electrodes']:
-            result['electrodes'][electrode_id] = {}
-        assert(contact_point_id not in result['electrodes'][electrode_id])
-        result['electrodes'][electrode_id][contact_point_id] = list(map(float,fields[1:4]))
+        if electrode_id not in result:
+            result[electrode_id] = {}
+        assert(contact_point_id not in result[electrode_id])
+        result[electrode_id][contact_point_id] = list(map(float,fields[1:4]))
     return result
 
-class IEEG_ElectrodeExtractor(FeatureQuery):
+class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
 
     def __init__(self):
@@ -183,16 +178,16 @@ class IEEG_ElectrodeExtractor(FeatureQuery):
         for e in tree:
             if e['type']!="blob" or not e['name'].endswith('.pts'):
                 continue
-            bloburl = QUERIES.blob(e['path'])
-            obj = _decode_ptsfile(cached_get(bloburl))
+            spec = QUERIES.data(e['path'])
+            obj = _decode_ptsfile(spec)
             subject_id=e['name'].split('_')[0]
             session = dset.new_session(subject_id)
-            for electrode_id,contact_points in obj['electrodes'].items():
+            for electrode_id,contact_points in obj.items():
                 electrode = session.new_electrode(electrode_id)
                 for contact_point_id,coord in contact_points.items():
                     electrode.new_contact_point(contact_point_id,coord)
             self.register(session)
 
 if __name__ == '__main__':
-    extractor = IEEG_ElectrodeExtractor()
+    extractor = IEEG_SessionQuery()
 
