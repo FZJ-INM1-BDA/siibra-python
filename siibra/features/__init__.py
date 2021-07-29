@@ -24,7 +24,7 @@ def __init__():
     from .ebrainsquery import EbrainsRegionalFeatureQuery
     from .cells import RegionalCellDensityExtractor
     from .ieeg import IEEG_SessionQuery
-    #from .voi import VolumeOfInterestQuery
+    from .voi import VolumeOfInterestQuery
     from .query import FeatureQueryRegistry
     registry = FeatureQueryRegistry() 
     return [ registry,
