@@ -362,8 +362,8 @@ class Atlas:
             matches = list(set(hits))
             if group_by_dataset:
                 grouped = defaultdict(list)
-                for m in matches:
-                    grouped[m.dataset_id].extend(matches)
+                for match in matches:
+                    grouped[match.dataset_id].append(match)
                 result[m]=grouped
             else:
                 result[m]=matches
