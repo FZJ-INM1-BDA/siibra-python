@@ -343,7 +343,6 @@ class Atlas:
         Retrieve data features linked to the selected atlas configuration, by modality. 
         See siibra.features.modalities for available modalities. 
         """
-        hits = []
         modalities = []
 
         if modality is None:
@@ -357,6 +356,7 @@ class Atlas:
 
         result = {}
         for m in modalities:
+            hits = []
             for query in features.registry.queries(m,**kwargs):
                 hits.extend(query.execute(self))
             matches = list(set(hits))
