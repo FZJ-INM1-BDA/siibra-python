@@ -22,6 +22,9 @@ import copy
 from cloudvolume import Bbox
 from typing import Tuple
 import nibabel as nib
+from urllib.parse import quote
+from .retrieval import cached_get
+import json
 
 class Space(HasOriginDataInfo):
     """
@@ -132,6 +135,7 @@ class Space(HasOriginDataInfo):
 class SpaceVOI(Bbox):
 
     def __init__(self,space:Space,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
+        assert(len(minpt)==3 and len(maxpt)==3)
         super().__init__(minpt,maxpt)
         self.space = space
 
@@ -140,6 +144,21 @@ class SpaceVOI(Bbox):
         # construct from a roi mask or map
         bbox = arrays.bbox3d(roi.dataobj,affine=roi.affine)
         return SpaceVOI(space,bbox[:3,0],bbox[:3,1])
+
+    def overlaps(self,img):
+        """
+        Determines wether the given image overlaps with this volume of interest, 
+        that is, wheter at least one nonzero voxel is inside the voi.
+        """
+        # nonzero voxel coordinates
+        X,Y,Z = np.where(img.get_fdata()>0)
+        h = np.ones(len(X))
+        # array of homogenous physcial coordinates
+        coords = np.dot(img.affine,np.vstack((X,Y,Z,h)))[:3,:].T
+        minpt = [min(self.minpt[i],self.maxpt[i]) for i in range(3)]
+        maxpt = [max(self.minpt[i],self.maxpt[i]) for i in range(3)]
+        inside = np.logical_and.reduce([coords>minpt,coords<=maxpt]).min(1)
+        return any(inside)        
 
     def transform_bbox(self,transform):
         assert(transform.shape==(4,4))
@@ -153,5 +172,25 @@ class SpaceVOI(Bbox):
     def __repr__(self):
         return str(self)
 
-
 REGISTRY = ConfigurationRegistry('spaces', Space)
+
+class SpaceWarper():
+    SPACE_IDS = {
+        REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
+        REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
+        REGISTRY.BIG_BRAIN : "Big Brain (Histology)"
+    }
+
+    SERVER="https://hbp-spatial-backend.apps.hbp.eu/v1"
+
+    @staticmethod
+    def convert(from_space,to_space,coord):
+        if any (s not in SpaceWarper.SPACE_IDS for s in [from_space,to_space]):
+            raise ValueError(f"Cannot convert coordinates between {from_space} and {to_space}")
+        url='{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}'.format(
+            server=SpaceWarper.SERVER,
+            src=quote(SpaceWarper.SPACE_IDS[REGISTRY[from_space]]),
+            tgt=quote(SpaceWarper.SPACE_IDS[REGISTRY[to_space]]),
+            x=coord[0], y=coord[1], z=coord[2] )
+        response = json.loads(cached_get(url).decode())
+        return tuple(response["target_point"])
