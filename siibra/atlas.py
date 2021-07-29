@@ -351,7 +351,7 @@ class Atlas:
             if modality not in features.modalities:
                 logger.error(f"Cannot query features - no feature extractor known "\
                         "for feature type {modality}.")
-                return hits
+                return []
             modalities = [modality]
 
         result = {}
@@ -363,7 +363,7 @@ class Atlas:
             if group_by_dataset:
                 grouped = defaultdict(list)
                 for m in matches:
-                    grouped[m.dataset_id].append(matches)
+                    grouped[m.dataset_id].extend(matches)
                 result[m]=grouped
             else:
                 result[m]=matches
