@@ -35,7 +35,7 @@ class ConnectivityMatrix(GlobalFeature):
 
     def __init__(self,jsonfile):
         self.src_file = jsonfile
-        self._info = json.loads(QUERY(None,jsonfile))
+        self._info = json.loads(QUERY(jsonfile))
         self._matrix_loader = LazyLoader(
             func=lambda:self.decode_matrix(jsonfile))
         GlobalFeature.__init__(self,
