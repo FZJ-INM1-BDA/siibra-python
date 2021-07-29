@@ -18,14 +18,11 @@ from .space import Space
 from .retrieval import cached_get
 from . import volumesrc
 import numpy as np
-from skimage import measure
-from nibabel.affines import apply_affine
 import nibabel as nib
 from memoization import cached
 import re
 import anytree
 from typing import Union
-from scipy.spatial.qhull import QhullError
 import json
 
 REMOVE_FROM_NAME=['hemisphere',' -',
@@ -270,19 +267,29 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
             logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
             labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
             for mapindex,img in enumerate(labelmap):
-                if self.index.map is not None:
-                    if self.index.map!=mapindex:
-                        continue
                 if mask is None:
                     mask = np.zeros(img.dataobj.shape,dtype='uint8')
-                    affine = img.affine
-                # Note: self.labels holds all labelindices of a region and its descendants
-                mask[np.isin(img.dataobj,list(self.labels))]=1
+                    affine = img.affine                
+                for r in self: # consider all children
+                    if (r.index.map is None) or (r.index.map==mapindex):
+                        mask[img.get_fdata()==r.index.label]=1
 
         if mask is None:
             raise RuntimeError(f"Could not compute mask for {self.region.name} in {space.name}.")
         else:
             return nib.Nifti1Image(dataobj=mask,affine=affine)
+
+    def defined_in_space(self,space):
+        """
+        Verifies wether this region is defined by a labelled map in the given space.
+        TODO handle the case of continuous maps
+        """
+        try:
+            M = self.parcellation.get_map(space,maptype='labelled')
+            M.decode_region(self)
+            return True
+        except (ValueError,IndexError):
+            return False
 
     def has_regional_map(self,space,maptype : MapType):
         """
