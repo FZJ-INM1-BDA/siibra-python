@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import parcellations
+from .. import parcellations,logger
 from ..region import Region
+from ..space import SpaceVOI,SpaceWarper
 from typing import Tuple
 
 class Feature:
@@ -56,22 +57,51 @@ class SpatialFeature(Feature):
         self.location = location
 
     @property
+    def is_volume_of_interest(self):
+        return isinstance(self.location,SpaceVOI)
+
+    @property
     def is_multi_point(self):
         """
-        Determines wether this feature is localized by a single point, or list of points.
+        Determines wether this feature is localized by a list of points.
         """
-        return self.location is not None and hasattr(self.location[0],"__iter__")
+        if self.is_volume_of_interest:
+            return False
+        elif self.location is None:
+            return False
+        else:
+            return hasattr(self.location[0],"__iter__")
 
     def matches(self,atlas):
         """
-        Returns true if the location of this feature is inside the selected
+        Returns true if the location information of this feature overlaps with the selected
         region of the atlas, according to the mask in the reference space.
         """
         if self.location is None:
             return False
+
         elif self.is_multi_point:
             # location is an iterable over locations
             return any([atlas.coordinate_selected(self.space,l) for l in self.location])
+
+        elif self.is_volume_of_interest:
+            # If the requested space does not define the selected region, 
+            # we try to test in another space.
+            for tspace in [self.space]+atlas.spaces:
+                if atlas.selected_region.defined_in_space(tspace):
+                    M = atlas.build_mask(tspace)
+                    if tspace==self.space:
+                        return self.location.overlaps(M)
+                    else:
+                        logger.warn(f"Volume of interest cannot be tested for {atlas.selected_region.name} in {self.space}, testing in {tspace} instead.")
+                        minpt = SpaceWarper.convert(self.space,tspace,self.location.minpt)
+                        maxpt = SpaceWarper.convert(self.space,tspace,self.location.maxpt)
+                        return tspace.get_voi(minpt,maxpt).overlaps(M)
+
+            else:
+                logger.warn(f"Cannot test overlap of {self.location} with {atlas.selected_region}")
+                return False
+
         else:
             # location is a single location
             return atlas.coordinate_selected(self.space,self.location)
