@@ -22,7 +22,7 @@ from .region import Region
 from .features.feature import GlobalFeature
 from .commons import create_key,MapType
 from .config import ConfigurationRegistry
-from .space import Space
+from .space import Space,SpaceWarper
 
 VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
 
@@ -327,17 +327,33 @@ class Atlas:
         NOTE: since get_mask is lru-cached, this is not necessary slow
         """
         assert(space in self.spaces)
+
         # transform physical coordinates to voxel coordinates for the query
-        def check(mask):
+        def check(mask,coordinate):
             voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
             if np.any(voxel>=mask.dataobj.shape):
                 return False
             if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
                 return False
             return True
-        M = self.build_mask(space)
-        return any(check(M.slicer[:,:,:,i]) for i in range(M.shape[3])) if M.ndim==4 else check(M)
 
+        # If the requested space does not define the selected region, 
+        # we try to test in another space.
+        for tspace in [space]+self.spaces:
+            if self.selected_region.defined_in_space(tspace):
+                if tspace!=space:
+                    logger.warn(f"Coordinate cannot be tested for {self.selected_region.name} in {space}, testing in {tspace} instead.")
+                    coordinate = SpaceWarper.convert(space,tspace,coordinate)
+                M = self.build_mask(tspace)
+                if M.ndim==4:
+                    return any(check(M.slicer[:,:,:,i],coordinate) for i in range(M.shape[3]))
+                else: 
+                    check(M,coordinate)
+        else:
+            logger.warn(f"Cannot test if coordinate is selected for {self.selected_region}")
+            return False
+
+        
     def get_features(self,modality=None,group_by_dataset=False,**kwargs):
         """
         Retrieve data features linked to the selected atlas configuration, by modality. 
