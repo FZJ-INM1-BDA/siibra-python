@@ -350,8 +350,8 @@ class Atlas:
             modalities = features.modalities
         else:
             if modality not in features.modalities:
-                logger.error("Cannot query features - no feature extractor known "\
-                        "for feature type {}.".format(modality))
+                logger.error(f"Cannot query features - no feature extractor known "\
+                        "for feature type {modality}.")
                 return hits
             modalities = [modality]
 
