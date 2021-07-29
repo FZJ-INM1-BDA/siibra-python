@@ -22,8 +22,6 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 # anonymized minimal information of this dataset is on gitlab for now
-kg_id = "ca952092-3013-4151-abcc-99a156fe7c83"
-space = spaces['mni152']
 QUERIES = GitlabQueryBuilder(
     server="https://jugit.fz-juelich.de",
     project=3009,
@@ -31,8 +29,11 @@ QUERIES = GitlabQueryBuilder(
 
 class IEEG_Dataset(SpatialFeature):
 
-    def __init__(self,kg_id,space):
-        SpatialFeature.__init__(self,space,kg_id)
+    def __init__(self,info):
+        SpatialFeature.__init__(self,spaces[info['space id']],info['kgId'])
+        self._info = info
+        self.name = info['name']
+        self.description = info['description']
         self.sessions = {}
 
     def new_session(self,subject_id):
@@ -172,7 +173,8 @@ class IEEG_SessionQuery(FeatureQuery):
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        dset = IEEG_Dataset(kg_id,spaces['mni152'])
+        info = json.loads(QUERIES.data('ieeg_contact_points/info.json'))
+        dset = IEEG_Dataset(info)
         url = QUERIES.tree("ieeg_contact_points")
         tree = json.loads(cached_get(url).decode())
         for e in tree:
