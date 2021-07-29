@@ -29,19 +29,19 @@ QUERIES = GitlabQueryBuilder(
 
 class VolumeOfInterest(SpatialFeature):
 
-    def __init__(self,space,dataset_id,location):
+    def __init__(self,space,dataset_id,location,name):
         SpatialFeature.__init__(
             self,
             space=space,
             dataset_id=dataset_id,
             location=location)
+        self.name = name
         self.volumes = []
     
     @staticmethod
     def from_json(definition):
         if definition["@type"]=="minds/core/dataset/v1.0.0":
             space = spaces[definition['space id']]
-            kgid = definition['kgId']
             vsrcs = []
             minpts = []
             maxpts = []            
@@ -58,7 +58,9 @@ class VolumeOfInterest(SpatialFeature):
             minpt=np.array(minpts).min(0)
             maxpt=np.array(maxpts).max(0)
             result = VolumeOfInterest(
-                space, kgid,
+                space, 
+                dataset_id = definition['kgId'],
+                name = definition['name'],
                 location=SpaceVOI(space,minpt,maxpt))
             list(map(result.volumes.append,vsrcs))
             return result
