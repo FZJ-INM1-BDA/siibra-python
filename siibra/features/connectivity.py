@@ -26,9 +26,9 @@ from collections import defaultdict
 
 GITLAB_SERVER='https://jugit.fz-juelich.de'
 GITLAB_PROJECT_ID=3009
-QUERY=lambda folder,fname:cached_gitlab_query(
-            server=GITLAB_SERVER,project_id=GITLAB_PROJECT_ID,ref_tag="master",
-            folder=folder,filename=fname)
+QUERY=lambda fname:cached_gitlab_query(
+            server=GITLAB_SERVER,project_id=GITLAB_PROJECT_ID,ref_tag="develop",
+            folder="connectivity",filename=fname)
 
 
 class ConnectivityMatrix(GlobalFeature):
@@ -83,7 +83,7 @@ class ConnectivityMatrix(GlobalFeature):
         """
         Build a connectivity matrix from json file.
         """
-        data = json.loads(QUERY(None,jsonfile))
+        data = json.loads(QUERY(jsonfile))
         parcellation = parcellations[data['parcellation id']]
 
         # determine the valid brain regions defined in the file,
@@ -177,7 +177,7 @@ class ConnectivityProfileQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         jsonfiles = [
-            e['name']  for e in json.loads(QUERY(None,None))
+            e['name']  for e in json.loads(QUERY(None))
             if e['type']=='blob' and e['name'].endswith('json')]
         for jsonfile in jsonfiles:
             cm = ConnectivityMatrix(jsonfile)
@@ -193,7 +193,7 @@ class ConnectivityMatrixQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         jsonfiles = [
-            e['name']  for e in json.loads(QUERY(None,None))
+            e['name']  for e in json.loads(QUERY(None))
             if e['type']=='blob' and e['name'].endswith('.json')]
         for jsonfile in jsonfiles:
             self.register(ConnectivityMatrix(jsonfile))
