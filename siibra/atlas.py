@@ -310,7 +310,7 @@ class Atlas:
         """
         return self.selected_region.includes(region)
 
-    def coordinate_selected(self,space,coordinate):
+    def coordinate_selected(self,space,coordinate,check_other_spaces=True):
         """
         Verifies wether a position in the given space is part of the current
         selection.
@@ -342,13 +342,15 @@ class Atlas:
         for tspace in [space]+self.spaces:
             if self.selected_region.defined_in_space(tspace):
                 if tspace!=space:
+                    if not check_other_spaces:
+                        continue
                     logger.warn(f"Coordinate cannot be tested for {self.selected_region.name} in {space}, testing in {tspace} instead.")
                     coordinate = SpaceWarper.convert(space,tspace,coordinate)
                 M = self.build_mask(tspace)
                 if M.ndim==4:
                     return any(check(M.slicer[:,:,:,i],coordinate) for i in range(M.shape[3]))
                 else: 
-                    check(M,coordinate)
+                    return check(M,coordinate)
         else:
             logger.warn(f"Cannot test if coordinate is selected for {self.selected_region}")
             return False
