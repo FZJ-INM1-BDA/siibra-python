@@ -50,11 +50,7 @@ def from_json(obj):
                 vsrc_labelindex = int(detail['neuroglancer/precomputed']['labelIndex'])
         return NgVolume( obj['@id'], obj['name'],url=url,
                 detail=detail, transform_nm=transform_nm)
-        #img = volume.build_image(resolution_mm=resolution_mm)
-        #if vsrc_labelindex is not None:
-        #    # this volume src has a local labelindex - we apply it
-        #    img.dataobj[img.dataobj!=vsrc_labelindex] = 0
-        #return img
+
 
     if volume_type=='detailed maps':
         vsrc = VolumeSrc(obj['@id'], obj['name'],url=None,detail=detail)
@@ -342,7 +338,6 @@ class NgVolume(VolumeSrc,ImageProvider):
         affine[:3,:]/=1000000.
 
         return np.dot(affine,shift)
-        #return affine
 
     def _load_data(self,resolution_mm,voi:Bbox):
         """
