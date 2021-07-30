@@ -14,26 +14,18 @@
 
 import re
 import json
-import base64
 
 from .. import logger,spaces
-from ..retrieval import cached_get,GitlabQueryBuilder
+from ..retrieval import GitlabQuery
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
-# anonymized minimal information of this dataset is on gitlab for now
-QUERIES = GitlabQueryBuilder(
-    server="https://jugit.fz-juelich.de",
-    project=3009,
-    reftag="master")
-
 class IEEG_Dataset(SpatialFeature):
 
-    def __init__(self,info):
-        SpatialFeature.__init__(self,spaces[info['space id']],info['kgId'])
-        self._info = info
-        self.name = info['name']
-        self.description = info['description']
+    def __init__(self,dataset_id,name,description,space):
+        SpatialFeature.__init__(self,space,dataset_id)
+        self.name = name
+        self.description = description
         self.sessions = {}
 
     def new_session(self,subject_id):
@@ -57,6 +49,14 @@ class IEEG_Dataset(SpatialFeature):
             if s.location is not None:
                 coords.extend(s.location)
         self.location = coords if len(coords)>0 else None
+
+    @staticmethod
+    def from_json(spec):
+        return IEEG_Dataset(
+            dataset_id = spec['kgId'], 
+            name = spec['name'], 
+            description = spec['description'],
+            space = spaces[spec['space id']] )
 
 class IEEG_Session(SpatialFeature):
 
@@ -155,7 +155,7 @@ class IEEG_ContactPoint(SpatialFeature):
         else:
             return None
 
-def _decode_ptsfile(spec):
+def parse_ptsfile(spec):
     lines = spec.split("\n")
     N = int(lines[2].strip())
     result= {}
@@ -170,19 +170,16 @@ def _decode_ptsfile(spec):
 
 class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
+    _QUERY = GitlabQuery("https://jugit.fz-juelich.de",3009,"master")
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        info = json.loads(QUERIES.data('ieeg_contact_points/info.json'))
-        dset = IEEG_Dataset(info)
-        url = QUERIES.tree("ieeg_contact_points")
-        tree = json.loads(cached_get(url).decode())
-        for e in tree:
-            if e['type']!="blob" or not e['name'].endswith('.pts'):
-                continue
-            spec = QUERIES.data(e['path'])
-            obj = _decode_ptsfile(spec)
-            subject_id=e['name'].split('_')[0]
+        dset = IEEG_Dataset.from_json(
+            json.loads(self._QUERY.get_file('ieeg_contact_points/info.json'))
+                )
+        for fname,data in self._QUERY.iterate_files('ieeg_contact_points','.pts'):
+            obj = parse_ptsfile(data)
+            subject_id=fname.split('_')[0]
             session = dset.new_session(subject_id)
             for electrode_id,contact_points in obj.items():
                 electrode = session.new_electrode(electrode_id)

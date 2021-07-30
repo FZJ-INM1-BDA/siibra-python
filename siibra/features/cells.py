@@ -17,12 +17,13 @@ from gitlab import Gitlab
 import gzip
 import nibabel as nib
 import json
+import os
 
 from .feature import RegionalFeature,SpatialFeature
 from .query import FeatureQuery
 from ..commons import HAVE_PYPLOT,HAVE_PLOTTING
 from .. import logger,spaces
-from ..retrieval import cached_gitlab_query,cached_get,LazyLoader
+from ..retrieval import GitlabQuery,OwncloudQuery #cached_gitlab_query,cached_get,LazyLoader
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -31,32 +32,22 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data. 
     """
 
-    def __init__(self, region, urlscheme,dataset_id):
-        """
-        Parameters
-        ----------
-        region : string
-            specification of brain region
-        urlscheme : format string 
-            with formatting field 'file' for downloading individual files for this datasets
-        """
-        RegionalFeature.__init__(self,region,dataset_id)
-        self._urlscheme = urlscheme
+    def __init__(self, regionspec, cells, query, folder):
+
+        _,section_id,patch_id = folder.split("/")
+        RegionalFeature.__init__(self,regionspec,f"{query.server}-{query.share}")
+        self.cells = cells
+        self._query = query
 
         # construct lazy data loaders
-        self._info_loader = LazyLoader(
-            urlscheme.format(file="info.txt"),
+        self._info_loader = query.build_lazyloader(
+            "info.txt",folder,
             lambda b:dict(l.split(' ') for l in b.decode('utf8').strip().split("\n")) )
-        self._segments_loader = LazyLoader(
-            urlscheme.format(file="segments.txt"),
-            lambda b:np.array([
-                [float(w) for w in l.strip().split(' ')]
-                for l in b.decode().strip().split('\n')[1:]]) )
-        self._image_loader = LazyLoader(
-            urlscheme.format(file="image.nii.gz"),
+        self._image_loader = query.build_lazyloader(
+            "image.nii.gz",folder,
             lambda b:nib.Nifti1Image.from_bytes(gzip.decompress(b)) )
-        self._layerinfo_loader = LazyLoader(
-            urlscheme.format(file="layerinfo.txt"),
+        self._layerinfo_loader = query.build_lazyloader(
+            "layerinfo.txt",folder,
             lambda b:np.array([
                 tuple(l.split(' ')[1:])
                 for l in b.decode().strip().split('\n')[1:]],
@@ -65,11 +56,6 @@ class CorticalCellDistribution(RegionalFeature):
                     ('area (micron^2)','f'),
                     ('avg. thickness (micron)','f')
                 ]) )
-        self._segmentation_loaders = [
-            LazyLoader(
-                urlscheme.format(file="image.nii.gz"),
-                lambda b:nib.Nifti1Image.from_bytes(gzip.decompress(b)) )
-        ]
 
     def load_segmentations(self):
         from PIL import Image
@@ -80,7 +66,7 @@ class CorticalCellDistribution(RegionalFeature):
         while True:
             try:
                 target = f'segments_cpn_{index:02d}.tif'
-                bytestream = cached_get(self._urlscheme.format(file=target))
+                bytestream = self._query.load_file(target,self.folder)
                 result.append(np.array(Image.open(BytesIO(bytestream))))
                 index+=1
             except RuntimeError:
@@ -90,14 +76,6 @@ class CorticalCellDistribution(RegionalFeature):
     @property
     def info(self):
         return self._info_loader.data
-
-    @property
-    def cells(self):
-        """
-        Nx5 array with attributes of segmented cells:
-            x  y area(micron^2)  layer instance_label
-        """
-        return self._segments_loader.data
     
     @property 
     def layers(self):
@@ -160,33 +138,18 @@ class CorticalCellDistribution(RegionalFeature):
 class RegionalCellDensityExtractor(FeatureQuery):
 
     _FEATURETYPE = CorticalCellDistribution
-    URLSCHEME="https://{server}/s/{share}/download?path=%2F{area}%2F{section}%2F{patch}&files={file}"
-    SERVER="fz-juelich.sciebo.de"
-    SHARE="yDZfhxlXj6YW7KO"
+    _JUGIT = GitlabQuery("https://jugit.fz-juelich.de",4790,"v1.0a1")
+    _SCIEBO = OwncloudQuery("https://fz-juelich.sciebo.de","yDZfhxlXj6YW7KO")
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        server = "https://jugit.fz-juelich.de"
-        projectid = 4790
-        reftag = 'v1.0a1'
-
         logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
 
-        # determine available region subfolders in the dataset
-        fulltree = json.loads(cached_gitlab_query(
-            server,projectid,reftag,None,None,skip_branchtest=True,recursive=True))
-        cellfiles = [ e['path'] for e in fulltree
-                        if e['type']=="blob" 
-                        and e['name']=='segments.txt' ]
-
-        for cellfile in cellfiles:
-            region_folder,section_id,patch_id,_ = cellfile.split("/")
+        for cellfile,data in self._JUGIT.find_files("","segments.txt"):
+            print("found cellfile",cellfile)
+            region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split('_')[1:])
-            urlscheme = self.URLSCHEME.format(
-                server=self.SERVER, share=self.SHARE,
-                area=region_folder, section=section_id, patch=patch_id, file="{file}")
-            self.register(CorticalCellDistribution(regionspec,urlscheme,self.SHARE))
-
-if __name__ == '__main__':
-
-    pass
+            cells = np.array([
+                [float(w) for w in l.strip().split(' ')]
+                for l in data.strip().split('\n')[1:]])
+            self.register(CorticalCellDistribution(regionspec,cells,self._SCIEBO,region_folder))

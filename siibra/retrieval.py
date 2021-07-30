@@ -14,6 +14,7 @@
 
 import json
 from zipfile import ZipFile
+from urllib.parse import quote
 import requests
 import hashlib
 import os
@@ -218,7 +219,7 @@ def clear_cache():
     __compile_cachedir()
 
 
-def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recursive=False,return_hidden_files=False,skip_branchtest=False):
+def _cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recursive=False,return_hidden_files=False,skip_branchtest=False):
     """
     Cached retrieval of folder list or file content from a public gitlab repositoriy.
 
@@ -341,7 +342,7 @@ def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recu
 
 
 class LazyLoader:
-    def __init__(self,url=None,func=None):
+    def __init__(self,url,func=None):
         """
         Initialize a lazy data loader. It stores a URL and optional function, 
         and will retrieve and decode the actual data only when its 'data' property 
@@ -357,8 +358,8 @@ class LazyLoader:
             Function for constructing the output data 
             (called on the data retrieved from `url`, if supplied)
         """
-        if (url is None) and (func is None):
-            logger.warn("Request to build a LazyLoader with an identity function - this makes no sense.")
+        if url is None:
+            logger.warn("No url provided to lazyloader")
         self.url = url
         self._data_cached = None
         if func is None:
@@ -376,34 +377,90 @@ class LazyLoader:
                 self._data_cached = self._func(raw)
         return self._data_cached
 
-class GitlabQueryBuilder():
 
-    def __init__(self,server:str,project:int,reftag:str):
+class GitlabQuery():
+
+    def __init__(self,server:str,project:int,reftag:str,skip_branchtest=False):
+        # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert(server.startswith("http"))
         self.server = server
         self.project = project
         self.reftag = reftag
+        self._base_url = "{s}/api/v4/projects/{p}/repository".format(s=server,p=project)
+        self.want_commit = None
+        if not skip_branchtest:
+            try:
+                matched_branches = list(filter(lambda b:b['name']==self.reftag,self.branches))
+                if len(matched_branches)>0:
+                    self.want_commit = matched_branches[0]['commit']
+                    print(f"{reftag} is a branch! Want last commit {self.want_commit['short_id']} from {self.want_commit['created_at']}")
+            except Exception as e:
+                print(str(e))
+                print("Could not connect to gitlab server!")
 
     @property
-    def baseurl(self):
-        return "{s}/api/v4/projects/{p}/repository".format(
-            s=self.server,p=self.project)
+    def branches(self):
+        url = f"{self._base_url}/branches"
+        return json.loads(cached_get(url).decode())
 
-    @staticmethod
-    def _fpath(p):
-        return p.replace("/","%2F")
+    def _build_url(self,folder="",filename=None):
+        ref = self.reftag if self.want_commit is None else self.want_commit['short_id']
+        if filename is None:
+            pathstr = "" if len(folder)==0 else f"&path={quote(folder)}"
+            return f"{self._base_url}/tree?ref={ref}{pathstr}"
+        else:
+            pathstr = filename if folder=="" else f"{folder}/{filename}"
+            filepath = quote(pathstr,safe="")
+            return f"{self._base_url}/files/{filepath}?ref={ref}"
 
-    def tree(self,folder=None):
-        fspec = "" if folder is None else f"&path={self._fpath(folder)}"
-        return f"{self.baseurl}/tree?ref={self.reftag}{fspec}"
-
-    def blob(self,filepath:str):
-        f=self._fpath(filepath)
-        return f"{self.baseurl}/files/{f}?ref={self.reftag}"
-
-    def data(self,filepath:str):
-        bloburl = self.blob(filepath)
-        response = cached_get(bloburl) # raw request response
+    def get_file(self,filename,folder=""):
+        url = self._build_url(folder,filename)
+        response = cached_get(url) # raw request response
         response_json = json.loads(response.decode()) # gitlab response as json
         content = base64.b64decode(response_json['content'].encode('ascii'))
         return content.decode()
+
+    def iterate_files(self,folder="",suffix=None):
+        """
+        Returclns an iterator over files in a given folder. 
+        In each iteration, a tuple (filename,file content) is returned.
+        """
+        url = self._build_url(folder)
+        tree = json.loads(cached_get(url).decode())
+        end = "" if suffix is None else suffix
+        return (
+            (e['name'],self.get_file(e['path'])) 
+            for e in tree
+            if e['type']=='blob' and e['name'].endswith(end) )
+
+
+class OwncloudQuery():
+
+    def __init__(self,server:str,share:int):
+        assert(server.startswith("http"))
+        self.server = server
+        self.share = share
+        self._base_url = "{server}/s/{share}"
+
+    def _build_query(self,filename,folder=""):
+        fpath = "" if folder=="" else f"path={quote(folder)}&"
+        fpath += f"files={quote(filename)}"
+        return f"{self._base_url}/download/?path={fpath}"
+
+    def load_file(self,filename,folder=""):
+        url = self._build_query(filename,folder)
+        return cached_get(url)
+
+    def build_lazyloader(self,filename,folder,func=None):
+        return LazyLoader(self._build_query(filename,folder),func)
+
+
+
+
+    
+
+
+
+    
+
+

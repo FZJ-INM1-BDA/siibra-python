@@ -16,32 +16,19 @@ import json
 import numpy as np
 
 from .. import logger,parcellations
-from ..commons import ParcellationIndex
-from ..region import Region
 from .feature import RegionalFeature,GlobalFeature
 from .query import FeatureQuery
-from ..retrieval import cached_gitlab_query,LazyLoader
+from ..retrieval import GitlabQuery #cached_gitlab_query,LazyLoader
 from collections import defaultdict
-
-
-GITLAB_SERVER='https://jugit.fz-juelich.de'
-GITLAB_PROJECT_ID=3009
-QUERY=lambda fname:cached_gitlab_query(
-            server=GITLAB_SERVER,project_id=GITLAB_PROJECT_ID,ref_tag="develop",
-            folder="connectivity",filename=fname)
 
 
 class ConnectivityMatrix(GlobalFeature):
 
-    def __init__(self,jsonfile):
-        self.src_file = jsonfile
-        self._info = json.loads(QUERY(jsonfile))
-        self._matrix_loader = LazyLoader(
-            func=lambda:self.decode_matrix(jsonfile))
-        GlobalFeature.__init__(self,
-            self._info['parcellation id'],
-            self._info.get('kgId',jsonfile))
-        
+
+    def __init__(self,dataset_id,parcellation_id,matrix):
+        GlobalFeature.__init__(self,parcellation_id,dataset_id)
+        self.matrix = matrix
+
     @property
     def matrix(self):
         """
@@ -79,11 +66,10 @@ class ConnectivityMatrix(GlobalFeature):
                 for fnc in [min,max] ]
 
     @staticmethod
-    def decode_matrix(jsonfile):
+    def from_json(data):
         """
-        Build a connectivity matrix from json file.
+        Build a connectivity matrix from json object
         """
-        data = json.loads(QUERY(jsonfile))
         parcellation = parcellations[data['parcellation id']]
 
         # determine the valid brain regions defined in the file,
@@ -111,11 +97,8 @@ class ConnectivityMatrix(GlobalFeature):
         fields = [('sourceregion','U64')]+[(v.name,'f') for v in valid_regions.values()]
         matrix = np.array(profiles,dtype=fields)
         assert(all(N==len(valid_regions) for N in matrix.shape))
-        return matrix
 
-    def __str__(self):
-        return "Connectivity matrix for {}".format(self.spec)
-
+        return ConnectivityMatrix(data['kgId'], data['parcellation id'],matrix)
 
 
 class ConnectivityProfile(RegionalFeature):
@@ -173,14 +156,12 @@ class ConnectivityProfile(RegionalFeature):
 class ConnectivityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityProfile
+    _QUERY=GitlabQuery('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        jsonfiles = [
-            e['name']  for e in json.loads(QUERY(None))
-            if e['type']=='blob' and e['name'].endswith('json')]
-        for jsonfile in jsonfiles:
-            cm = ConnectivityMatrix(jsonfile)
+        for _,data in self._QUERY.iterate_files("connectivity",".json"):
+            cm = ConnectivityMatrix(json.loads(data))
             for parcellation in cm.parcellations:
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname,build_group=False)
@@ -189,13 +170,12 @@ class ConnectivityProfileQuery(FeatureQuery):
 class ConnectivityMatrixQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityMatrix
+    _QUERY=GitlabQuery('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        jsonfiles = [
-            e['name']  for e in json.loads(QUERY(None))
-            if e['type']=='blob' and e['name'].endswith('.json')]
-        for jsonfile in jsonfiles:
-            self.register(ConnectivityMatrix(jsonfile))
+        for _,data in self._QUERY.iterate_files("connectivity",".json"):
+            matrix = ConnectivityMatrix.from_json(json.loads(data))
+            self.register(matrix)
 
 

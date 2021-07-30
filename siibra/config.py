@@ -14,7 +14,7 @@
 
 from . import logger,__version__
 from .commons import create_key
-from .retrieval import cached_gitlab_query
+from .retrieval import GitlabQuery #cached_gitlab_query
 from tqdm import tqdm
 import os
 import re
@@ -36,48 +36,35 @@ class ConfigurationRegistry:
     repository (atlases, parcellations, spaces).    
     """
 
-    GITLAB_CONFIGURATION_REPOSITORIES=[{
-        'SERVER': 'https://jugit.fz-juelich.de',
-        'PROJECT_ID': 3484,
-    }, {
-        'SERVER': 'https://gitlab.ebrains.eu',
-        'PROJECT_ID': 93,
-    }]
-    
     logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
-
+    uses_default_tag = not "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ
+    _QUERIES = ( 
+        # we use an iterator we we only instantiate the one[s] used
+        GitlabQuery(
+            'https://jugit.fz-juelich.de',3484,
+            GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
+        GitlabQuery(
+            'https://gitlab.ebrains.eu',93,
+            GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
+    )
+    
     def __load_config(self,config_folder):
         """
         Find, load and cache siibra configuration files from the separately maintained gitlab configuration repository.
         """
-        skip_branchtest = not "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ
-        query = lambda folder,name:cached_gitlab_query(
-            GITLAB_SERVER,GITLAB_PROJECT_ID,GITLAB_PROJECT_TAG,
-            folder,name,
-            skip_branchtest=skip_branchtest)
-        for gitlab_config in self.GITLAB_CONFIGURATION_REPOSITORIES:
-            GITLAB_SERVER=gitlab_config.get('SERVER')
-            GITLAB_PROJECT_ID=gitlab_config.get('PROJECT_ID')
+        msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_folder:15.15}"
+        for query in self._QUERIES:
             try:
-                tree = json.loads(query("",None))
-                break
-            except RuntimeError:
-                logger.error(f"Cannot connect to configuratino server {GITLAB_SERVER}, trying a mirror")
+                config = {}
+                for configfile,data in tqdm(query.iterate_files(config_folder,'.json'),desc=msg):
+                    config[configfile] = json.loads(data)
+                break                
+            except Exception as e:
+                print(str(e))
+                logger.error(f"Cannot connect to configuration server {query.server}, trying a different mirror")
         else:
             # we get here only if the loop is not broken
-            raise RuntimeError(f"Cannot initialize atlases: No cached configuration data for '{GITLAB_PROJECT_TAG}', and no access to any of the configuration repositories either.")
-
-        # Load configuration from repository.
-        config = {}
-        for node in tree:
-            if node['type']!='tree' or node['name']!=config_folder:
-                continue
-            configfiles = [
-                v['name'] for v in json.loads(query(config_folder,None))
-                if v['type']=='blob' and v['name'].endswith('.json') ]
-            msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_folder:15.15}"
-            for configfile in tqdm(configfiles,total=len(configfiles),desc=msg,unit=" files"):
-                config[configfile] = json.loads(query(config_folder,configfile))
+            raise RuntimeError(f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'.")
 
         return config
 
@@ -99,11 +86,7 @@ class ConfigurationRegistry:
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
         for fname,spec in config.items():
-            try:
-                obj = cls.from_json(spec)
-            except TypeError as e:
-                print(str(e))
-                raise Exception("stop")
+            obj = cls.from_json(spec)
             if not isinstance(obj,cls):
                 raise RuntimeError(f'Could not generate object of type {cls} from configuration {fname}')
             key = create_key(str(obj))

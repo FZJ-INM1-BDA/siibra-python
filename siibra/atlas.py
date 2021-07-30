@@ -78,8 +78,9 @@ class Atlas:
                 p._add_space( spaces[space_id] )
             for parcellation_id in obj['parcellations']:
                 if parcellation_id not in parcellations:
-                    raise ValueError(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
-                p._add_parcellation( parcellations[parcellation_id] )
+                    print(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
+                    continue
+                p._add_parcellation(parcellations[parcellation_id] )
             return p
         return obj
 

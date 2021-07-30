@@ -19,13 +19,8 @@ from .. import spaces,volumesrc,QUIET
 from ..space import SpaceVOI
 from .feature import SpatialFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabQueryBuilder,cached_get
+from ..retrieval import GitlabQuery
 
-# TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
-QUERIES = GitlabQueryBuilder(
-    server="https://jugit.fz-juelich.de",
-    project=3009,
-    reftag="develop")
 
 class VolumeOfInterest(SpatialFeature):
 
@@ -68,12 +63,10 @@ class VolumeOfInterest(SpatialFeature):
     
 class VolumeOfInterestQuery(FeatureQuery):
     _FEATURETYPE = VolumeOfInterest
+    _QUERY = GitlabQuery("https://jugit.fz-juelich.de",3009,"develop")
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        url = QUERIES.tree("vois")
-        tree = json.loads(cached_get(url).decode())
-        for e in tree:
-            if e['type']=="blob" and e['name'].endswith('.json'):
-                voi = VolumeOfInterest.from_json(json.loads(QUERIES.data(e['path'])))
-                self.register(voi)
+        for _,data in self._QUERY.iterate_files(folder="vois",suffix=".json"):
+            voi = VolumeOfInterest.from_json(json.loads(data))
+            self.register(voi)
