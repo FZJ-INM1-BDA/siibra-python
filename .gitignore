@@ -18,3 +18,4 @@ venv
 _autosummary
 __Tag_List__
 *.code-workspace
+.vscode
