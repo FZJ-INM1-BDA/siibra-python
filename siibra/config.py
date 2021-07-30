@@ -56,7 +56,7 @@ class ConfigurationRegistry:
         for query in self._QUERIES:
             try:
                 config = {}
-                for configfile,data in tqdm(query.iterate_files(config_folder,'.json'),desc=msg):
+                for configfile,data in query.iterate_files(config_folder,'.json',progress=msg):
                     config[configfile] = json.loads(data)
                 break                
             except Exception as e:
@@ -96,6 +96,7 @@ class ConfigurationRegistry:
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
         logger.setLevel(loglevel)
+
 
         
     def __getitem__(self,index):

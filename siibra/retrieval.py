@@ -24,6 +24,7 @@ from . import logger
 from glob import glob
 import re
 import base64
+from tqdm import tqdm
 
 # TODO unify download_file and cached_get
 # TODO manage the cache: limit total memory used, remove old zips,...
@@ -218,129 +219,6 @@ def clear_cache():
     shutil.rmtree(CACHEDIR)
     __compile_cachedir()
 
-
-def _cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recursive=False,return_hidden_files=False,skip_branchtest=False):
-    """
-    Cached retrieval of folder list or file content from a public gitlab repositoriy.
-
-    Arguments
-    ---------
-    server : string
-        Gitlab server main url
-    project_id : int
-        Id of the requested project (you can find this in the project settings of the gitlab repository)
-    ref_tag : string
-        Reference tag, e.g. name of a branch, tag, or checksum.
-        NOTE branches are not cached, since the branch name 
-        does not determine the version of the repository.
-    folder : string or None
-        Optional name of repository subfolder to use
-    filename : string or None
-        Optional name of file requested. 
-        If None, folder contents are returned as a dictionary, 
-        otherwise the bytestream of the file contents.
-    skip_branchtest: bool, default: False
-        If true, the ref_tag is assumed not to be a branch, so that
-        it will point to a unique version. This will prevent an initial
-        test to classify the tag into branch or not, which requires an
-        additional query to the server.
-    """
-
-    def connect(server,project_id):
-        project = None
-        try:
-            logger.debug(f'Attempting to connect to {server}')
-            project = Gitlab(server, timeout=10).projects.get(project_id)
-        except (ConnectionError,GitlabError):
-            # Gitlab server down.
-            logger.warn(f'Gitlab server at {server} unreachable.')
-        except ValueError as e:
-            print(str(e))
-            logger.warn('Gitlab configuration malformed')
-        return project
-
-    # try to connect to the server and classify the ref_tag (is it a branch?)
-    want_branch_commit = None
-    project = None
-    connection_failed = False
-    if not skip_branchtest:
-        project = connect(server,project_id)
-        if project is None:
-            connection_failed = True
-        else:
-            matched_branches = list(filter(lambda b:b.name==ref_tag,project.branches.list()))
-            if len(matched_branches)>0:
-                want_branch_commit = matched_branches[0].commit
-
-    # construct base of cache file names
-    pathspec = ""
-    if folder is not None:
-        pathspec += f"-{folder}"
-    if filename is not None:
-        pathspec += f"-{filename}"
-    if recursive:
-        pathspec += "-recursive"
-    basename = re.sub( "_+","_",
-        re.sub("[/:.]","_",
-        f"{server}-{project_id}{pathspec}-{ref_tag}"))
-    if want_branch_commit is not None:
-        sid = want_branch_commit['short_id']
-        datestr = want_branch_commit['created_at']
-        y,m,d,H,M,S = [int(f) for f in re.split(r'[-T:.]',datestr)[:6]]
-        tstamp = f"{y:04}{m:02}{d:02}{H:02}{M:02}{S:02}"
-        basename += f"_commit{sid}_{tstamp}"
-
-    # Determine desired cachefile
-    cachefile = None
-    if connection_failed:
-        # No connection to server, so look for existing cache content.
-        cachefiles_available = glob(os.path.join(CACHEDIR,f"{basename}*"))
-        if len(cachefiles_available)>0:
-            logger.debug(f"Cannot connect to repository. Looking for most recently cached content for '{ref_tag}'.")
-            if len(cachefiles_available)==1:
-                # this is either the unique cached version of a configuration tag, 
-                # or the single cached version of a branch.
-                cachefile = cachefiles_available[0]
-            else:
-                # We have multiple commits cached from the same branch.
-                # Choose the one with newest timestamp.
-                get_tstamp = lambda fn: fn.split('_')[-1]
-                sorted_cachefiles = sorted(cachefiles_available,key=get_tstamp)
-                cachefile = sorted_cachefiles[-1]
-    else:
-        cachefile = os.path.join(CACHEDIR,f"{basename}")
-
-    # If cached data is available, read and return
-    if cachefile is not None and os.path.isfile(cachefile):
-        with open(cachefile,'r') as f:
-            return f.read()
-
-    # No cached data found, so we need to get the data from the server.
-    if skip_branchtest:
-        project = connect(server,project_id)
-    if project is None:
-        raise RuntimeError(f"No connection or cached data for '{server}' project '{project_id}' under reftag '{ref_tag}'.")
-    relpath = "" if folder is None else f"{folder}/"
-    if filename is not None:
-        # A particular file was requested. 
-        # This is a bytestream which could be any type of file.
-        result = project.files.get(file_path=relpath+filename, ref=ref_tag).decode()
-    else:
-        # list of folder contents was requested. This is a list of dictionaries, 
-        # which we serialize to a json string and then encode to bytes.
-        entries = project.repository_tree(path=relpath,ref=ref_tag,all=True,recursive=recursive)
-        if not return_hidden_files:
-            entries = list(filter(lambda e:not e['name'].startswith('.'),entries))
-        result = json.dumps(entries).encode('utf8')
-        
-    logger.debug(f"Caching gitlab content to {cachefile}")
-    assert(isinstance(result,bytes))
-    with open(cachefile,'wb') as f:
-        f.write(result)
-
-    return result.decode()
-
-
 class LazyLoader:
     def __init__(self,url,func=None):
         """
@@ -386,28 +264,36 @@ class GitlabQuery():
         self.server = server
         self.project = project
         self.reftag = reftag
+        self.per_page = 200
         self._base_url = "{s}/api/v4/projects/{p}/repository".format(s=server,p=project)
-        self.want_commit = None
-        if not skip_branchtest:
+        self._tag_checked = True if skip_branchtest else False
+        self._want_commit_cached = None
+
+
+    @property
+    def want_commit(self):
+        if not self._tag_checked:
             try:
                 matched_branches = list(filter(lambda b:b['name']==self.reftag,self.branches))
                 if len(matched_branches)>0:
-                    self.want_commit = matched_branches[0]['commit']
-                    print(f"{reftag} is a branch! Want last commit {self.want_commit['short_id']} from {self.want_commit['created_at']}")
+                    self._want_commit_cached = matched_branches[0]['commit']
+                    print(f"{self.reftag} is a branch of {self.server}/{self.project}! Want last commit {self._want_commit_cached['short_id']} from {self._want_commit_cached['created_at']}")
+                self._tag_checked = True
             except Exception as e:
                 print(str(e))
                 print("Could not connect to gitlab server!")
+        return self._want_commit_cached
 
     @property
     def branches(self):
         url = f"{self._base_url}/branches"
         return json.loads(cached_get(url).decode())
 
-    def _build_url(self,folder="",filename=None):
+    def _build_url(self,folder="",filename=None,recursive=False):
         ref = self.reftag if self.want_commit is None else self.want_commit['short_id']
         if filename is None:
             pathstr = "" if len(folder)==0 else f"&path={quote(folder)}"
-            return f"{self._base_url}/tree?ref={ref}{pathstr}"
+            return f"{self._base_url}/tree?ref={ref}{pathstr}&per_page={self.per_page}&recursive={recursive}"
         else:
             pathstr = filename if folder=="" else f"{folder}/{filename}"
             filepath = quote(pathstr,safe="")
@@ -420,7 +306,7 @@ class GitlabQuery():
         content = base64.b64decode(response_json['content'].encode('ascii'))
         return content.decode()
 
-    def iterate_files(self,folder="",suffix=None):
+    def iterate_files(self,folder="",suffix=None,progress=None):
         """
         Returclns an iterator over files in a given folder. 
         In each iteration, a tuple (filename,file content) is returned.
@@ -428,10 +314,13 @@ class GitlabQuery():
         url = self._build_url(folder)
         tree = json.loads(cached_get(url).decode())
         end = "" if suffix is None else suffix
-        return (
-            (e['name'],self.get_file(e['path'])) 
-            for e in tree
-            if e['type']=='blob' and e['name'].endswith(end) )
+        elements = [ e for e in tree
+                    if e['type']=='blob' and e['name'].endswith(end) ]
+        it = ( (e['name'],self.get_file(e['path'])) for e in elements) 
+        if progress is None:
+            return it
+        else:
+            return tqdm(it,total=len(elements),desc=progress)
 
 
 class OwncloudQuery():
