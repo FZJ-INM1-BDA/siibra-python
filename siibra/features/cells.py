@@ -156,8 +156,6 @@ class CorticalCellDistribution(RegionalFeature):
         view = plotting.plot_img(tpl,cut_coords=xyz,cmap='gray',axes=ax3,display_mode='tiled')
         view.add_markers([xyz])
         return fig
-
-
    
 class RegionalCellDensityExtractor(FeatureQuery):
 

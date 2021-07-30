@@ -20,7 +20,6 @@ import os
 from gitlab import Gitlab
 from gitlab.exceptions import GitlabError
 from . import logger
-from datetime import datetime
 from glob import glob
 import re
 import base64
@@ -285,7 +284,9 @@ def cached_gitlab_query(server,project_id,ref_tag,folder=None,filename=None,recu
         f"{server}-{project_id}{pathspec}-{ref_tag}"))
     if want_branch_commit is not None:
         sid = want_branch_commit['short_id']
-        tstamp = datetime.fromisoformat(want_branch_commit['created_at']).strftime('%Y%m%d%H%M%S')
+        datestr = want_branch_commit['created_at']
+        y,m,d,H,M,S = [int(f) for f in re.split(r'[-T:.]',datestr)[:6]]
+        tstamp = f"{y:04}{m:02}{d:02}{H:02}{M:02}{S:02}"
         basename += f"_commit{sid}_{tstamp}"
 
     # Determine desired cachefile
