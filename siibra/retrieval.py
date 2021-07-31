@@ -336,7 +336,7 @@ class OwncloudQuery():
         assert(server.startswith("http"))
         self.server = server
         self.share = share
-        self._base_url = "{server}/s/{share}"
+        self._base_url = f"{server}/s/{share}"
 
     def _build_query(self,filename,folder=""):
         fpath = "" if folder=="" else f"path={quote(folder)}&"
