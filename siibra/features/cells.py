@@ -38,6 +38,8 @@ class CorticalCellDistribution(RegionalFeature):
         RegionalFeature.__init__(self,regionspec,f"{query.server}-{query.share}")
         self.cells = cells
         self._query = query
+        self.section = section_id
+        self.patch = patch_id
 
         # construct lazy data loaders
         self._info_loader = query.build_lazyloader(
@@ -145,10 +147,10 @@ class RegionalCellDensityExtractor(FeatureQuery):
         FeatureQuery.__init__(self)
         logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
 
-        for cellfile,data in self._JUGIT.find_files("","segments.txt"):
-            print("found cellfile",cellfile)
+        for cellfile,data in self._JUGIT.iterate_files(suffix="segments.txt",recursive=True):
+            print("cellfile:",cellfile)
             region_folder = os.path.dirname(cellfile)
-            regionspec = " ".join(region_folder.split('_')[1:])
+            regionspec = " ".join(region_folder.split(os.path.sep)[0].split('_')[1:])
             cells = np.array([
                 [float(w) for w in l.strip().split(' ')]
                 for l in data.strip().split('\n')[1:]])
