@@ -251,6 +251,7 @@ class LazyLoader:
             if self.url is None:
                 self._data_cached = self._func()
             else:
+                print(self.url)
                 raw = cached_get(self.url)
                 self._data_cached = self._func(raw)
         return self._data_cached
@@ -291,11 +292,11 @@ class GitlabQuery():
     def _build_url(self,folder="",filename=None,recursive=False,page=1):
         ref = self.reftag if self.want_commit is None else self.want_commit['short_id']
         if filename is None:
-            pathstr = "" if len(folder)==0 else f"&path={quote(folder)}"
+            pathstr = "" if len(folder)==0 else f"&path={quote(folder,safe='')}"
             return f"{self._base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
         else:
             pathstr = filename if folder=="" else f"{folder}/{filename}"
-            filepath = quote(pathstr,safe="")
+            filepath = quote(pathstr,safe='')
             return f"{self._base_url}/files/{filepath}?ref={ref}"
 
     def get_file(self,filename,folder=""):
@@ -339,9 +340,10 @@ class OwncloudQuery():
         self._base_url = f"{server}/s/{share}"
 
     def _build_query(self,filename,folder=""):
-        fpath = "" if folder=="" else f"path={quote(folder)}&"
+        fpath = "" if folder=="" else f"path={quote(folder,safe='')}&"
         fpath += f"files={quote(filename)}"
-        return f"{self._base_url}/download/?path={fpath}"
+        url= f"{self._base_url}/download?{fpath}"
+        return url
 
     def load_file(self,filename,folder=""):
         url = self._build_query(filename,folder)
