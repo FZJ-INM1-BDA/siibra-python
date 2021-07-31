@@ -264,11 +264,10 @@ class GitlabQuery():
         self.server = server
         self.project = project
         self.reftag = reftag
-        self.per_page = 200
+        self._per_page = 100
         self._base_url = "{s}/api/v4/projects/{p}/repository".format(s=server,p=project)
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
-
 
     @property
     def want_commit(self):
@@ -289,11 +288,11 @@ class GitlabQuery():
         url = f"{self._base_url}/branches"
         return json.loads(cached_get(url).decode())
 
-    def _build_url(self,folder="",filename=None,recursive=False):
+    def _build_url(self,folder="",filename=None,recursive=False,page=1):
         ref = self.reftag if self.want_commit is None else self.want_commit['short_id']
         if filename is None:
             pathstr = "" if len(folder)==0 else f"&path={quote(folder)}"
-            return f"{self._base_url}/tree?ref={ref}{pathstr}&per_page={self.per_page}&recursive={recursive}"
+            return f"{self._base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
         else:
             pathstr = filename if folder=="" else f"{folder}/{filename}"
             filepath = quote(pathstr,safe="")
@@ -306,17 +305,25 @@ class GitlabQuery():
         content = base64.b64decode(response_json['content'].encode('ascii'))
         return content.decode()
 
-    def iterate_files(self,folder="",suffix=None,progress=None):
+    def iterate_files(self,folder="",suffix=None,progress=None,recursive=False):
         """
-        Returclns an iterator over files in a given folder. 
+        Returns an iterator over files in a given folder. 
         In each iteration, a tuple (filename,file content) is returned.
         """
-        url = self._build_url(folder)
-        tree = json.loads(cached_get(url).decode())
+        page = 1
+        results = []
+        while True:
+            url = self._build_url(folder,recursive=recursive,page=page)
+            result = json.loads(cached_get(url).decode())
+            results.extend(result)
+            if len(result)<self._per_page:
+                # no more pages
+                break
+            page+=1
         end = "" if suffix is None else suffix
-        elements = [ e for e in tree
+        elements = [ e for e in results
                     if e['type']=='blob' and e['name'].endswith(end) ]
-        it = ( (e['name'],self.get_file(e['path'])) for e in elements) 
+        it = ( (e['path'],self.get_file(e['path'])) for e in elements) 
         if progress is None:
             return it
         else:
@@ -342,14 +349,3 @@ class OwncloudQuery():
 
     def build_lazyloader(self,filename,folder,func=None):
         return LazyLoader(self._build_query(filename,folder),func)
-
-
-
-
-    
-
-
-
-    
-
-
