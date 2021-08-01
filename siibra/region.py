@@ -15,7 +15,7 @@
 from . import logger,spaces
 from .commons import OriginDataInfo, create_key, Glossary, MapType, ParcellationIndex,HasOriginDataInfo
 from .space import Space
-from .retrieval import cached_get
+from .retrieval import GitlabLoader
 from . import volumesrc
 import numpy as np
 import nibabel as nib
@@ -36,14 +36,16 @@ def _clear_name(name):
         result = result.replace(word,'')
     return " ".join(w for w in result.split(' ') if len(w))
 
-RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
-RPROPS_BRANCH = "master"
-RPROPS_URL_SCHEME = f"{RPROPS_REPO}/-/raw/{RPROPS_BRANCH}/spatialprops/{{parckey}}-{{spacekey}}-spatialprops.json"
+#RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
+#RPROPS_BRANCH = "master"
+#RPROPS_URL_SCHEME = f"{RPROPS_REPO}/-/raw/{RPROPS_BRANCH}/spatialprops/{{parckey}}-{{spacekey}}-spatialprops.json"
 
 class Region(anytree.NodeMixin, HasOriginDataInfo):
     """
     Representation of a region with name and more optional attributes
     """
+
+    LOADER = GitlabLoader(server='https://jugit.fz-juelich.de',project=3009,reftag='master')
 
     def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None, volume_src={}):
         """
@@ -416,12 +418,13 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         ------
         List of RegionProps objects, one per connected component found in the corresponding labelled parcellation map.
         """
-        propfile = RPROPS_URL_SCHEME.format(parckey=self.parcellation.key,spacekey=space.key)
-        logger.debug(f'Trying to load spatial region props from {propfile}')
+        filename = f"{self.parcellation.key}-{space.key}-spatialprops.json"
+        logger.debug(f'Trying to load spatial region props from {filename}')
         try:
-            D = json.loads(cached_get(propfile))
+            data = self.LOADER.get_file(filename,folder="spatialprops")
+            D = json.loads(data)
         except Exception as e:
-            raise RuntimeError(f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name} (requested data URL was {propfile})")
+            raise RuntimeError(f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name}")
         return [c for p in D['spatialprops'] for c in p['components'] if p['region']['name']==self.name]
 
     def print_tree(self):

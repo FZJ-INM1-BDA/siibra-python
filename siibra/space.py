@@ -16,14 +16,13 @@ from .commons import create_key,HasOriginDataInfo,OriginDataInfo
 from .config import ConfigurationRegistry
 import numpy as np
 from . import volumesrc
-from . import logger
 from . import arrays
 import copy
 from cloudvolume import Bbox
 from typing import Tuple
 import nibabel as nib
 from urllib.parse import quote
-from .retrieval import cached_get
+from .retrieval import HttpLoader
 import json
 
 class Space(HasOriginDataInfo):
@@ -192,5 +191,5 @@ class SpaceWarper():
             src=quote(SpaceWarper.SPACE_IDS[REGISTRY[from_space]]),
             tgt=quote(SpaceWarper.SPACE_IDS[REGISTRY[to_space]]),
             x=coord[0], y=coord[1], z=coord[2] )
-        response = json.loads(cached_get(url).decode())
+        response = HttpLoader(url,lambda b:json.loads(b.decode()))
         return tuple(response["target_point"])

@@ -14,7 +14,7 @@
 
 from ctypes import ArgumentError
 from . import logger
-from . import retrieval
+from .retrieval import LazyHttpLoader,HttpLoader,ZipLoader,Cache
 from . import arrays
 import numpy as np
 import nibabel as nib
@@ -141,23 +141,16 @@ class NiftiVolume(VolumeSrc,ImageProvider):
     _image_cached=None
 
     def __init__(self,identifier, name, url, detail=None, zipped_file=None):
-        super().__init__(identifier, name, url, detail=detail)
-        self.zipped_file = zipped_file
+        VolumeSrc.__init__(self,identifier, name, url, detail=detail)
+        if zipped_file is None:
+            self._image_loader = LazyHttpLoader(url)
+        else:
+            self._image_loader = ZipLoader(url,zipped_file)
         self.volume_type = 'nii'
 
     @property
     def image(self):
-        """
-        We download the nifti file only once it is needed.
-        """
-        if self._image_cached is None:
-            filename = retrieval.download_file(self.url,ziptarget=self.zipped_file)
-            if filename is None:
-                raise RuntimeError(f"Error retrieving Nifti file from {self.url}")
-            self._image_cached=nib.Nifti1Image.from_filename(filename)
-            if np.min(self._image_cached.dataobj)<0:
-                logger.warn(f'Negative values in {filename} ({str(self)})')
-        return self._image_cached
+        return self._image_loader.data
 
     def fetch(self,resolution_mm=None,voi=None,mapindex=None,clip=False):
         """
@@ -234,8 +227,7 @@ class NgVolume(VolumeSrc,ImageProvider):
         logger.debug(f'Constructing NgVolume "{name}"')
         self.volume_type = "neuroglancer/precomputed"
         self.transform_nm = transform_nm
-        r = retrieval.cached_get(url+'/info')
-        self.info = json.loads(r.decode())
+        self.info = HttpLoader(url+'/info',lambda b:json.loads(b.decode())).get()
         self.url = url
         self.nbytes = np.dtype(self.info['data_type']).itemsize
         self.num_scales = len(self.info['scales'])
@@ -370,8 +362,8 @@ class NgVolume(VolumeSrc,ImageProvider):
             raise NotImplementedError(f"Request of the whole full-resolution volume in one piece is prohibited as of now due to the estimated size of ~{gbytes:.0f} GByte.")
 
         # ok, retrieve data now.
-        cachefile = retrieval.cachefile("{}{}{}".format(
-            self.url, bbox_vox.serialize(), str(mip)).encode('utf8'),suffix='npy')
+        cache = Cache.instance()
+        cachefile = cache.build_filename(f"{self.url}{bbox_vox.serialize()}{str(mip)}".encode('utf8'),suffix='npy')
         if os.path.exists(cachefile):
             logger.debug(f"NgVolume loads from cache file {cachefile}")
             return np.load(cachefile)

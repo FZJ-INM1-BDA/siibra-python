@@ -14,7 +14,7 @@
 
 from . import logger,__version__
 from .commons import create_key
-from .retrieval import GitlabQuery #cached_gitlab_query
+from .retrieval import GitlabLoader
 from tqdm import tqdm
 import os
 import re
@@ -40,10 +40,10 @@ class ConfigurationRegistry:
     uses_default_tag = not "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ
     _QUERIES = ( 
         # we use an iterator we we only instantiate the one[s] used
-        GitlabQuery(
+        GitlabLoader(
             'https://jugit.fz-juelich.de',3484,
             GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
-        GitlabQuery(
+        GitlabLoader(
             'https://gitlab.ebrains.eu',93,
             GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
     )
@@ -96,7 +96,6 @@ class ConfigurationRegistry:
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
         logger.setLevel(loglevel)
-
 
         
     def __getitem__(self,index):

@@ -16,7 +16,7 @@ import re
 import json
 
 from .. import logger,spaces
-from ..retrieval import GitlabQuery
+from ..retrieval import GitlabLoader
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -170,7 +170,7 @@ def parse_ptsfile(spec):
 
 class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
-    _QUERY = GitlabQuery("https://jugit.fz-juelich.de",3009,"master")
+    _QUERY = GitlabLoader("https://jugit.fz-juelich.de",3009,"master")
 
     def __init__(self):
         FeatureQuery.__init__(self)

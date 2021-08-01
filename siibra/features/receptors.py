@@ -21,11 +21,11 @@ import re
 
 from .feature import RegionalFeature
 from .query import FeatureQuery
-from ..ebrains import Authentication
+from ..ebrains import EbrainsLoader
 from ..termplot import FontStyles as style
-from .. import ebrains, logger
+from .. import logger
 from ..commons import HAVE_PYPLOT
-from ..retrieval import LazyLoader
+from ..retrieval import LazyHttpLoader
 
 RECEPTOR_SYMBOLS = {
         "5-HT1A": { 
@@ -356,7 +356,7 @@ class ReceptorDistribution(RegionalFeature):
         for url in urls_matching(".*_fp[._]"):
             if self._fingerprint_loader is not None:
                 logger.warn(f"More than one fingerprint found for {self}")
-            self._fingerprint_loader = LazyLoader(url,lambda u:DensityFingerprint(decode_tsv(u)))
+            self._fingerprint_loader = LazyHttpLoader(url,lambda u:DensityFingerprint(decode_tsv(u)))
 
         # add any cortical profiles
         self._profile_loaders = {}
@@ -366,7 +366,7 @@ class ReceptorDistribution(RegionalFeature):
                 continue
             if rtype in self._profile_loaders:
                 logger.warn(f"More than one profile for '{rtype}' in {self.url}")
-            self._profile_loaders[rtype] = LazyLoader(url,lambda u:DensityProfile(decode_tsv(u)))
+            self._profile_loaders[rtype] = LazyHttpLoader(url,lambda u:DensityProfile(decode_tsv(u)))
 
         # add autoradiograph
         self._autoradiograph_loaders = {}
@@ -377,7 +377,7 @@ class ReceptorDistribution(RegionalFeature):
                 continue
             if rtype in self._autoradiograph_loaders:
                 logger.warn(f"More than one autoradiograph for '{rtype}' in {self.url}")
-            self._autoradiograph_loaders[rtype] = LazyLoader(url,img_from_bytes)
+            self._autoradiograph_loaders[rtype] = LazyHttpLoader(url,img_from_bytes)
 
     @property
     def fingerprint(self):
@@ -455,14 +455,16 @@ class ReceptorQuery(FeatureQuery):
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', 'siibra_receptor_densities')
+        kg_query = EbrainsLoader(query_id='siibra_receptor_densities').get()
+        #kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]
             for region_name in region_names:
                 self.register(ReceptorDistribution(region_name,kg_result))
 
+
 if __name__ == '__main__':
-    auth = Authentication.instance()
-    auth.set_token('eyJhbGci....')
+    from siibra.ebrains import authentication
+    authentication.set_token('eyJhbGci....')
     extractor = ReceptorQuery()
     print(extractor)

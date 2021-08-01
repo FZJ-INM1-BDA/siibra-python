@@ -14,7 +14,7 @@
 
 from .commons import OriginDataInfo
 from . import logger
-from .retrieval import cached_get,LazyLoader
+from .retrieval import LazyHttpLoader,DECODERS
 import requests
 import json
 from os import environ
@@ -47,16 +47,10 @@ class EbrainsDataset:
         match=re.search(r"([a-f0-9-]+)$",id)        
         if not match:
             raise ValueError('id cannot be parsed properly')
-        self._detail_loader = LazyLoader(
-            url=None,
-            func=lambda:self._load_details(match.group(1)))
-
-    @staticmethod
-    def _load_details(instance_id):
-        return execute_query_by_id(
-            query_id=KG_REGIONAL_FEATURE_FULL_QUERY_NAME, 
-            instance_id=instance_id,
-            **kg_feature_query_kwargs,**kg_feature_full_kwargs)
+        self._detail_loader = EbrainsLoader(
+            query_id = KG_REGIONAL_FEATURE_FULL_QUERY_NAME,
+            instance_id = match.group(1),
+            **kg_feature_query_kwargs )
 
     @property
     def detail(self):
@@ -144,7 +138,7 @@ class Authentication(object):
         self._authentication_token = token
 
 
-# convenience function that is importet at the package level
+# convenience function that is imported at the package level
 def set_token(token):
     auth = Authentication.instance()
     auth.set_token(token)
@@ -201,19 +195,47 @@ def upload_schema_from_file(file, org, domain, schema, version, query_id):
         logger.error('Error while uploading EBRAINS Knowledge Graph query.')
 
 
-def execute_query_by_id(org, domain, schema, version, query_id, instance_id=None, params={}, msg=None):
-    """
-    TODO needs documentation and cleanup
-    """
-    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-        org, domain, schema, version, query_id, '/' + instance_id if instance_id is not None else '' )
-    if msg is None:
-        msg = "No cached data - querying the EBRAINS Knowledge graph..."
-    r = cached_get( url, headers={
-        'Content-Type':'application/json',
-        'Authorization': 'Bearer {}'.format(authentication.get_token())
-        }, 
-        msg_if_not_cached=msg,
-        params=params)
-    return json.loads(r)
+#def execute_query_by_id(org, domain, schema, version, query_id, instance_id=None, params={}, msg=None):
+#    """
+#    TODO needs documentation and cleanup
+#    """
+#    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
+#        org, domain, schema, version, query_id, '/' + instance_id if instance_id is not None else '' )
+#    if msg is None:
+#        msg = "No cached data - querying the EBRAINS Knowledge graph..."
+#    headers = {
+#            'Content-Type':'application/json',
+#            'Authorization': 'Bearer {}'.format(authentication.get_token())
+#        }
+#    loader = HttpLoader( url, func=DECODERS['.json'],
+#        status_code_messages=EBRAINS_KG_SC_MESSAGES, 
+#        headers=headers, params=params)
+#    return loader.get()
 
+
+class EbrainsLoader(LazyHttpLoader):
+
+    SC_MESSAGES = {
+        401 : 'The provided EBRAINS authentication token is not valid',
+        403 : 'No permission to access the given query',
+        404 : 'Query with this id not found'
+    }
+
+    server = "https://kg.humanbrainproject.eu"
+    org = 'minds'
+    domain = 'core'
+    schema = 'dataset'
+    version = 'v1.0.0'
+
+    def __init__(self,query_id,instance_id=None,params={}):
+        itail = '/' + instance_id if instance_id is not None else ''
+        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
+            self.server, self.org, self.domain, self.schema, self.version, 
+            query_id, itail )
+        headers = {
+                'Content-Type':'application/json',
+                'Authorization': 'Bearer {}'.format(authentication.get_token())
+            }
+        LazyHttpLoader.__init__(
+            self, url, DECODERS['.json'], self.SC_MESSAGES, 
+            headers=headers, params=params )

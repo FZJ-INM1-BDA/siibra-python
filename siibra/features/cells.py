@@ -13,17 +13,14 @@
 # limitations under the License.
 
 import numpy as np
-from gitlab import Gitlab
-import gzip
 import nibabel as nib
-import json
 import os
 
-from .feature import RegionalFeature,SpatialFeature
+from .feature import RegionalFeature
 from .query import FeatureQuery
-from ..commons import HAVE_PYPLOT,HAVE_PLOTTING
+from ..commons import HAVE_PYPLOT
 from .. import logger,spaces
-from ..retrieval import GitlabQuery,OwncloudQuery #cached_gitlab_query,cached_get,LazyLoader
+from ..retrieval import GitlabLoader,OwncloudLoader
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -32,32 +29,35 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data. 
     """
 
-    def __init__(self, regionspec, cells, query, folder):
+    def __init__(self, regionspec, cells, loader, folder):
 
         _,section_id,patch_id = folder.split("/")
-        RegionalFeature.__init__(self,regionspec,f"{query.server}-{query.share}")
+        RegionalFeature.__init__(self,regionspec,f"{loader.server}-{loader.share}")
         self.cells = cells
-        self._query = query
         self.section = section_id
         self.patch = patch_id
 
         # construct lazy data loaders
-        self._info_loader = query.build_lazyloader(
-            "info.txt",folder,
-            lambda b:dict(l.split(' ') for l in b.decode('utf8').strip().split("\n")) )
-        self._image_loader = query.build_lazyloader(
-            "image.nii.gz",folder,
-            lambda b:nib.Nifti1Image.from_bytes(gzip.decompress(b)) )
-        self._layerinfo_loader = query.build_lazyloader(
-            "layerinfo.txt",folder,
-            lambda b:np.array([
+        self._info_loader = loader.build_lazyloader("info.txt",folder,
+             CorticalCellDistribution.decode_infotxt)
+        self._image_loader = loader.build_lazyloader("image.nii.gz",folder)
+        self._layerinfo_loader = loader.build_lazyloader("layerinfo.txt",folder,
+            CorticalCellDistribution.decode_layerinfo)
+    
+    @staticmethod
+    def decode_infotxt(b):
+        return dict(l.split(' ') for l in b.decode('utf8').strip().split("\n"))
+
+    @staticmethod
+    def decode_layerinfo(b):
+        return np.array([
                 tuple(l.split(' ')[1:])
                 for l in b.decode().strip().split('\n')[1:]],
                 dtype=[
                     ('layer','U10'),
                     ('area (micron^2)','f'),
                     ('avg. thickness (micron)','f')
-                ]) )
+                ])
 
     def load_segmentations(self):
         from PIL import Image
@@ -68,7 +68,7 @@ class CorticalCellDistribution(RegionalFeature):
         while True:
             try:
                 target = f'segments_cpn_{index:02d}.tif'
-                bytestream = self._query.load_file(target,self.folder)
+                bytestream = self._loader.load_file(target,self.folder)
                 result.append(np.array(Image.open(BytesIO(bytestream))))
                 index+=1
             except RuntimeError:
@@ -140,15 +140,14 @@ class CorticalCellDistribution(RegionalFeature):
 class RegionalCellDensityExtractor(FeatureQuery):
 
     _FEATURETYPE = CorticalCellDistribution
-    _JUGIT = GitlabQuery("https://jugit.fz-juelich.de",4790,"v1.0a1")
-    _SCIEBO = OwncloudQuery("https://fz-juelich.sciebo.de","yDZfhxlXj6YW7KO")
+    _JUGIT = GitlabLoader("https://jugit.fz-juelich.de",4790,"v1.0a1")
+    _SCIEBO = OwncloudLoader("https://fz-juelich.sciebo.de","yDZfhxlXj6YW7KO")
 
     def __init__(self):
         FeatureQuery.__init__(self)
         logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
 
         for cellfile,data in self._JUGIT.iterate_files(suffix="segments.txt",recursive=True):
-            print("cellfile:",cellfile)
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split('_')[1:])
             cells = np.array([

@@ -18,23 +18,15 @@ import numpy as np
 from .. import logger,parcellations
 from .feature import RegionalFeature,GlobalFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabQuery #cached_gitlab_query,LazyLoader
+from ..retrieval import GitlabLoader #cached_gitlab_query,LazyLoader
 from collections import defaultdict
 
 
 class ConnectivityMatrix(GlobalFeature):
 
-
     def __init__(self,dataset_id,parcellation_id,matrix):
         GlobalFeature.__init__(self,parcellation_id,dataset_id)
         self.matrix = matrix
-
-    @property
-    def matrix(self):
-        """
-        Returns the structured array with region names as row and column field headers.
-        """
-        return self._matrix_loader.data
 
     @property
     def array(self):
@@ -98,7 +90,8 @@ class ConnectivityMatrix(GlobalFeature):
         matrix = np.array(profiles,dtype=fields)
         assert(all(N==len(valid_regions) for N in matrix.shape))
 
-        return ConnectivityMatrix(data['kgId'], data['parcellation id'],matrix)
+        dataset_id = data.get('kgId',data['@id'])
+        return ConnectivityMatrix(dataset_id, data['parcellation id'],matrix)
 
 
 class ConnectivityProfile(RegionalFeature):
@@ -156,7 +149,7 @@ class ConnectivityProfile(RegionalFeature):
 class ConnectivityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityProfile
-    _QUERY=GitlabQuery('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
+    _QUERY=GitlabLoader('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
 
     def __init__(self):
         FeatureQuery.__init__(self)
@@ -170,7 +163,7 @@ class ConnectivityProfileQuery(FeatureQuery):
 class ConnectivityMatrixQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityMatrix
-    _QUERY=GitlabQuery('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
+    _QUERY=GitlabLoader('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
 
     def __init__(self):
         FeatureQuery.__init__(self)

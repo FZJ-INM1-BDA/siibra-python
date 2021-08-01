@@ -17,7 +17,6 @@ from os import path, getenv
 # __version__ is parsed by setup.py
 __version__='0.1a8'
 
-
 # controlling the log level
 import logging
 logger = logging.getLogger(__name__)
@@ -48,8 +47,9 @@ logger.warning("This is a development release. Use at your own risk. Please file
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
-from .retrieval import clear_cache
 from .features import modalities
 from .ebrains import set_token as set_ebrains_token
 from .commons import MapType,ParcellationIndex
 
+from .retrieval import Cache
+CACHE = Cache.instance()

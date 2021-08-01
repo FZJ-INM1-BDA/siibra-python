@@ -19,7 +19,7 @@ from .. import spaces,volumesrc,QUIET
 from ..space import SpaceVOI
 from .feature import SpatialFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabQuery
+from ..retrieval import GitlabLoader
 
 
 class VolumeOfInterest(SpatialFeature):
@@ -63,7 +63,7 @@ class VolumeOfInterest(SpatialFeature):
     
 class VolumeOfInterestQuery(FeatureQuery):
     _FEATURETYPE = VolumeOfInterest
-    _QUERY = GitlabQuery("https://jugit.fz-juelich.de",3009,"develop")
+    _QUERY = GitlabLoader("https://jugit.fz-juelich.de",3009,"develop")
 
     def __init__(self):
         FeatureQuery.__init__(self)
