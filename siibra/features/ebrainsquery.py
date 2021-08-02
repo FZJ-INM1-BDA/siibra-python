@@ -12,27 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# TODO this file lacks documentation
-
 from .feature import RegionalFeature
 from .query import FeatureQuery
-import json
-import os
-from .. import ebrains
 from ..ebrains import EbrainsDataset,EbrainsLoader
 from .. import logger
 
-
-IGNORE_PROJECTS = [
-  'Julich-Brain: cytoarchitectonic probabilistic maps of the human brain'
-]
-
-kg_feature_summary_kwargs={
-    'org': 'minds',
-    'domain': 'core',
-    'schema': 'parcellationregion',
-    'version': 'v1.0.0'
-}
 
 class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
 
@@ -64,9 +48,9 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         loader = EbrainsLoader(
-            query_id=ebrains.KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
+            query_id='siibra-kg-feature-summary-0.0.1',
             schema='parcellationregion',
-            **ebrains.kg_feature_query_kwargs)
+            params={'vocab': 'https://schema.hbp.eu/myQuery/'})
         for r in loader.data.get('results',[]):
             for dataset in r.get('datasets', []):
                 ds_id = dataset.get('@id')
@@ -78,26 +62,11 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 regionname = r.get('name', None)
                 self.register(EbrainsRegionalDataset(regionname,ds_id,ds_name,ds_embargo_status))
         
-        ## potentially, using ebrains_id is a lot quicker
-        ## but if user selects region with higher level of hierarchy, this benefit may be offset by numerous http calls
-        ## even if they were cached...
-        ## ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
-        #for region, ds_id, ds_name, ds_embargo_status in get_dataset(atlas.selected_parcellation):
-        #    feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
-        #        embargo_status=ds_embargo_status)
-        #    self.register(feature)
-
-
-def set_specs():
-    MODULE_DIR=os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(MODULE_DIR,'ebrainsquery_specs.json'),'r') as f:
-        QUERYSPEC=json.load(f)
-    req = ebrains.upload_schema(
-        query_id=ebrains.KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-        spec=QUERYSPEC['summary_spec'],
-        **kg_feature_summary_kwargs)
-    if not req.status_code < 400:
-        raise RuntimeError("Could not upload query")
-
-if __name__ == '__main__':
-    pass
+        # NOTE:
+        # Potentially, using ebrains_id is a lot quicker, but if user selects region with higher level of hierarchy, 
+        # this benefit may be offset by numerous http calls even if they were cached.
+        #       ebrains_id=atlas.selected_region.attrs.get('fullId', {}).get('kg', {}).get('kgId', None)
+        #       for region, ds_id, ds_name, ds_embargo_status in get_dataset(atlas.selected_parcellation):
+        #           feature = EbrainsRegionalDataset(region=region, id=ds_id, name=ds_name,
+        #               embargo_status=ds_embargo_status)
+        #       self.register(feature)

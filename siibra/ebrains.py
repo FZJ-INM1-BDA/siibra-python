@@ -15,24 +15,8 @@
 from .commons import OriginDataInfo
 from . import logger
 from .retrieval import LazyHttpLoader,DECODERS
-import requests
 from os import environ
 import re
-
-kg_feature_full_kwargs={
-    'org': 'minds',
-    'domain': 'core',
-    'schema': 'dataset',
-    'version': 'v1.0.0'
-}
-
-kg_feature_query_kwargs={
-    'params': {
-        'vocab': 'https://schema.hbp.eu/myQuery/'
-    }
-}
-KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
-KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
 
 class EbrainsDataset:
 
@@ -47,9 +31,9 @@ class EbrainsDataset:
         if not match:
             raise ValueError('id cannot be parsed properly')
         self._detail_loader = EbrainsLoader(
-            query_id = KG_REGIONAL_FEATURE_FULL_QUERY_NAME,
+            query_id = 'interactiveViewerKgQuery-v1_0',
             instance_id = match.group(1),
-            **kg_feature_query_kwargs )
+            params = {'vocab': 'https://schema.hbp.eu/myQuery/'})
 
     @property
     def detail(self):
@@ -138,56 +122,10 @@ class KgToken:
 
 KG_TOKEN = KgToken.instance()
 
-def upload_schema(org, domain, schema, version, query_id, file=None, spec=None):
-    """
-    Upload a query schema to the EBRAINS knowledge graph.
-
-    Parameters
-    ----------
-    org : str
-        organisation
-    domain : str
-        domain
-    schema : str
-        schema
-    version : str
-        version
-    query_id : str
-        query_id - Used to execute query without specifiying the spec.
-    file : str
-        path to file of json to be uploaded (overrides spec, if both present)
-    spec : dict
-        spec to be uploaded (overriden by file, if both present)
-
-    Yields
-    ------
-    requests.put object
-    """
-    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}".format(
-    org, domain, schema, version, query_id)
-    headers={
-        'Content-Type':'application/json',
-        'Authorization': f'Bearer {KG_TOKEN.get()}'
-    }
-    if file is not None:
-        return requests.put( url, data=open(file, 'r'),
-                headers=headers )
-    if spec is not None:
-        return requests.put( url, json=spec,
-                headers=headers )
-    raise ValueError('Either file: str or spec: dict is needed for upload_schema method')
-
-def upload_schema_from_file(file, org, domain, schema, version, query_id):
-    """
-    TODO needs documentation and cleanup
-    """
-    r = upload_schema(org, domain, schema, version, query_id, file=file)
-    if r.status_code == 401:
-        logger.error('Invalid authentication in EBRAINS')
-    if r.status_code != 200:
-        logger.error('Error while uploading EBRAINS Knowledge Graph query.')
-
 class EbrainsLoader(LazyHttpLoader):
+    """
+    Implements lazy loading of HTTP Knowledge graph queries.
+    """
 
     SC_MESSAGES = {
         401 : 'The provided EBRAINS authentication token is not valid',

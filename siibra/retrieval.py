@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import json
-from zipfile import LargeZipFile, ZipFile
+from zipfile import ZipFile
 from urllib.parse import quote
 import requests
 import hashlib
@@ -167,7 +167,6 @@ class LazyHttpLoader(HttpLoader):
         if self._data_cached is None:
             self._data_cached = self.get()
         return self._data_cached        
-
 
 class ZipLoader(LazyHttpLoader):
     
