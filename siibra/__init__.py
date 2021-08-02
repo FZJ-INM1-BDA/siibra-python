@@ -12,42 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import path, getenv
-
-# __version__ is parsed by setup.py
-__version__='0.1a8'
-
-# controlling the log level
-import logging
-logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-class LoggingContext:
-    def __init__(self, level ):
-        self.level = level
-    def __enter__(self):
-        self.old_level = logger.level
-        logger.setLevel(self.level)
-    def __exit__(self, et, ev, tb):
-        logger.setLevel(self.old_level)
-
+from .logging import logger,LoggingContext,set_log_level
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
-def set_log_level(level):
-    logger.setLevel(level)
-set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
-
+# __version__ is parsed by setup.py
+__version__='0.1a8'
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk. Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
 from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
-from .features import modalities
+from .features import modalities,gene_names
 from .ebrains import set_token as set_ebrains_token
 from .commons import MapType,ParcellationIndex
 
