@@ -25,8 +25,8 @@ from .space import REGISTRY as spaces
 from .parcellation import REGISTRY as parcellations
 from .atlas import REGISTRY as atlases
 from .features import modalities,gene_names
-from .ebrains import set_token as set_ebrains_token
+from .ebrains import KG_TOKEN as EBRAINS_KG_TOKEN
 from .commons import MapType,ParcellationIndex
-
 from .retrieval import Cache
 CACHE = Cache.instance()
+

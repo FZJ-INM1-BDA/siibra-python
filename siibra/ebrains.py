@@ -16,7 +16,6 @@ from .commons import OriginDataInfo
 from . import logger
 from .retrieval import LazyHttpLoader,DECODERS
 import requests
-import json
 from os import environ
 import re
 
@@ -36,8 +35,8 @@ KG_REGIONAL_FEATURE_FULL_QUERY_NAME='interactiveViewerKgQuery-v1_0'
 KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME = 'siibra-kg-feature-summary-0.0.1'
 
 class EbrainsDataset:
+
     def __init__(self, id, name, embargo_status):
-        
         self.id = id
         self.name = name
         self.embargo_status = embargo_status
@@ -109,12 +108,12 @@ class EbrainsOriginDataInfo(EbrainsDataset, OriginDataInfo):
     def __str__(self):
         return super(EbrainsDataset, self)
 
-class Authentication(object):
+class KgToken:
     """
-    Implements the authentication to EBRAINS API with an authentication token. Uses a Singleton pattern.
+    Simple handler for EBRAINS knowledge graph token.
     """
     _instance = None
-    _authentication_token = ''
+    _value = ''
 
     def __init__(self):
         raise RuntimeError('Call instance() instead')
@@ -125,25 +124,19 @@ class Authentication(object):
             cls._instance = cls.__new__(cls)
         return cls._instance
 
-    def get_token(self):
-        if self._authentication_token == '':
+    def get(self):
+        if self._value == '':
             try:
-                self._authentication_token = environ['HBP_AUTH_TOKEN']
+                self._value = environ['HBP_AUTH_TOKEN']
             except KeyError:
-                logger.warning('An authentication token must be set as an environment variable: HBP_AUTH_TOKEN')
-        return self._authentication_token
+                logger.warning('No token defined for EBRAINS knowledge graph. Please set $HBP_AUTH_TOKEN')
+        return self._value
 
-    def set_token(self, token):
+    def set(self, token):
         logger.info('Updating EBRAINS authentication token.')
-        self._authentication_token = token
+        self._value = token
 
-
-# convenience function that is imported at the package level
-def set_token(token):
-    auth = Authentication.instance()
-    auth.set_token(token)
-
-authentication = Authentication.instance()
+KG_TOKEN = KgToken.instance()
 
 def upload_schema(org, domain, schema, version, query_id, file=None, spec=None):
     """
@@ -174,7 +167,7 @@ def upload_schema(org, domain, schema, version, query_id, file=None, spec=None):
     org, domain, schema, version, query_id)
     headers={
         'Content-Type':'application/json',
-        'Authorization': 'Bearer {}'.format(authentication.get_token())
+        'Authorization': f'Bearer {KG_TOKEN.get()}'
     }
     if file is not None:
         return requests.put( url, data=open(file, 'r'),
@@ -194,25 +187,6 @@ def upload_schema_from_file(file, org, domain, schema, version, query_id):
     if r.status_code != 200:
         logger.error('Error while uploading EBRAINS Knowledge Graph query.')
 
-
-#def execute_query_by_id(org, domain, schema, version, query_id, instance_id=None, params={}, msg=None):
-#    """
-#    TODO needs documentation and cleanup
-#    """
-#    url = "https://kg.humanbrainproject.eu/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-#        org, domain, schema, version, query_id, '/' + instance_id if instance_id is not None else '' )
-#    if msg is None:
-#        msg = "No cached data - querying the EBRAINS Knowledge graph..."
-#    headers = {
-#            'Content-Type':'application/json',
-#            'Authorization': 'Bearer {}'.format(authentication.get_token())
-#        }
-#    loader = HttpLoader( url, func=DECODERS['.json'],
-#        status_code_messages=EBRAINS_KG_SC_MESSAGES, 
-#        headers=headers, params=params)
-#    return loader.get()
-
-
 class EbrainsLoader(LazyHttpLoader):
 
     SC_MESSAGES = {
@@ -224,17 +198,17 @@ class EbrainsLoader(LazyHttpLoader):
     server = "https://kg.humanbrainproject.eu"
     org = 'minds'
     domain = 'core'
-    schema = 'dataset'
     version = 'v1.0.0'
 
-    def __init__(self,query_id,instance_id=None,params={}):
-        itail = '/' + instance_id if instance_id is not None else ''
+    def __init__(self,query_id,instance_id=None,schema='dataset',params={}):
+        inst_tail = '/' + instance_id if instance_id is not None else ''
+        self.schema = schema
         url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
             self.server, self.org, self.domain, self.schema, self.version, 
-            query_id, itail )
+            query_id, inst_tail )
         headers = {
                 'Content-Type':'application/json',
-                'Authorization': 'Bearer {}'.format(authentication.get_token())
+                'Authorization': f'Bearer {KG_TOKEN.get()}'
             }
         LazyHttpLoader.__init__(
             self, url, DECODERS['.json'], self.SC_MESSAGES, 
