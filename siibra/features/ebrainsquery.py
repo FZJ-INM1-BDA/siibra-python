@@ -19,7 +19,7 @@ from .query import FeatureQuery
 import json
 import os
 from .. import ebrains
-from ..ebrains import EbrainsDataset
+from ..ebrains import EbrainsDataset,EbrainsLoader
 from .. import logger
 
 
@@ -63,10 +63,11 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
     def __init__(self):
         FeatureQuery.__init__(self)
-
-        for r in ebrains.execute_query_by_id(
+        loader = EbrainsLoader(
             query_id=ebrains.KG_REGIONAL_FEATURE_SUMMARY_QUERY_NAME,
-            **ebrains.kg_feature_query_kwargs, **kg_feature_summary_kwargs).get('results', []):
+            schema='parcellationregion',
+            **ebrains.kg_feature_query_kwargs)
+        for r in loader.data.get('results',[]):
             for dataset in r.get('datasets', []):
                 ds_id = dataset.get('@id')
                 ds_name = dataset.get('name')
