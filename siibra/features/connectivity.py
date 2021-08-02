@@ -24,8 +24,10 @@ from collections import defaultdict
 
 class ConnectivityMatrix(GlobalFeature):
 
-    def __init__(self,dataset_id,parcellation_id,matrix):
+    def __init__(self,dataset_id,parcellation_id,matrix,src_info,src_name):
         GlobalFeature.__init__(self,parcellation_id,dataset_id)
+        self.src_info = src_info
+        self.src_name = src_name
         self.matrix = matrix
 
     @property
@@ -37,19 +39,7 @@ class ConnectivityMatrix(GlobalFeature):
 
     @property
     def regionnames(self):
-        return self._matrix_loader.data.dtype.names[1:]
-
-    @property
-    def src_info(self):
-        return self._info['description']
-
-    @property
-    def src_name(self):
-        return self._info['name']
-
-    @property
-    def kg_schema(self):
-        return self._info['kgschema']
+        return self.matrix.dtype.names[1:]
 
     @property
     def globalrange(self):
@@ -91,7 +81,8 @@ class ConnectivityMatrix(GlobalFeature):
         assert(all(N==len(valid_regions) for N in matrix.shape))
 
         dataset_id = data.get('kgId',data['@id'])
-        return ConnectivityMatrix(dataset_id, data['parcellation id'],matrix)
+        return ConnectivityMatrix(dataset_id, data['parcellation id'],matrix,
+                src_info=data['description'],src_name=data['name'])
 
 
 class ConnectivityProfile(RegionalFeature):
@@ -154,7 +145,7 @@ class ConnectivityProfileQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         for _,data in self._QUERY.iterate_files("connectivity",".json"):
-            cm = ConnectivityMatrix(json.loads(data))
+            cm = ConnectivityMatrix.from_json(json.loads(data))
             for parcellation in cm.parcellations:
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname,build_group=False)
