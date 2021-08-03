@@ -20,7 +20,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 from ..commons import HAVE_PYPLOT
 from .. import logger,spaces
-from ..retrieval import GitlabLoader,OwncloudLoader
+from ..retrieval import GitlabConnector,OwncloudConnector
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -29,20 +29,21 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data. 
     """
 
-    def __init__(self, regionspec, cells, loader, folder):
+    def __init__(self, regionspec, cells, connector, folder):
 
         _,section_id,patch_id = folder.split("/")
-        RegionalFeature.__init__(self,regionspec,f"{loader.server}-{loader.share}")
+        RegionalFeature.__init__(self,regionspec,f"{connector.base_url}")
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
 
         # construct lazy data loaders
-        self._info_loader = loader.build_lazyloader("info.txt",folder,
+        self._info_loader = connector.get_loader("info.txt",folder,
              CorticalCellDistribution.decode_infotxt)
-        self._image_loader = loader.build_lazyloader("image.nii.gz",folder)
-        self._layerinfo_loader = loader.build_lazyloader("layerinfo.txt",folder,
+        self._image_loader = connector.get_loader("image.nii.gz",folder)
+        self._layerinfo_loader = connector.get_loader("layerinfo.txt",folder,
             CorticalCellDistribution.decode_layerinfo)
+        self._connector = connector
     
     @staticmethod
     def decode_infotxt(b):
@@ -68,8 +69,9 @@ class CorticalCellDistribution(RegionalFeature):
         while True:
             try:
                 target = f'segments_cpn_{index:02d}.tif'
-                bytestream = self._loader.load_file(target,self.folder)
-                result.append(np.array(Image.open(BytesIO(bytestream))))
+                imgdecoder = lambda b: np.array(Image.open(BytesIO(b)))
+                loader = self._connector.get_loader(target,self.folder,imgdecoder)
+                result.append(loader.data)
                 index+=1
             except RuntimeError:
                 break
@@ -140,17 +142,17 @@ class CorticalCellDistribution(RegionalFeature):
 class RegionalCellDensityExtractor(FeatureQuery):
 
     _FEATURETYPE = CorticalCellDistribution
-    _JUGIT = GitlabLoader("https://jugit.fz-juelich.de",4790,"v1.0a1")
-    _SCIEBO = OwncloudLoader("https://fz-juelich.sciebo.de","yDZfhxlXj6YW7KO")
+    _JUGIT = GitlabConnector("https://jugit.fz-juelich.de",4790,"v1.0a1")
+    _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de","yDZfhxlXj6YW7KO")
 
     def __init__(self):
         FeatureQuery.__init__(self)
         logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
 
-        for cellfile,data in self._JUGIT.iterate_files(suffix="segments.txt",recursive=True):
+        for cellfile,loader in self._JUGIT.get_loaders(suffix="segments.txt",recursive=True):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split('_')[1:])
             cells = np.array([
                 [float(w) for w in l.strip().split(' ')]
-                for l in data.strip().split('\n')[1:]])
+                for l in loader.data.strip().split('\n')[1:]])
             self.register(CorticalCellDistribution(regionspec,cells,self._SCIEBO,region_folder))

@@ -24,6 +24,7 @@ from tqdm import tqdm
 from appdirs import user_cache_dir
 from nibabel import Nifti1Image
 import gzip
+from abc import ABC, abstractmethod
 
 # TODO manage the cache: limit total memory used, remove old zips,...
 
@@ -69,8 +70,10 @@ class Cache:
 DECODERS = {
     ".nii.gz" : lambda b:Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii" : lambda b:Nifti1Image.from_bytes(gzip.decompress(b)),
-    ".json" : lambda b:json.loads(b.decode())
+    ".json" : lambda b:json.loads(b.decode()),
+    ".txt" : lambda b:b.decode()
 }
+
 
 class HttpLoader:
 
@@ -134,6 +137,7 @@ class HttpLoader:
                 data = f.read() 
         return data if self.func is None else self.func(data)
 
+
 class LazyHttpLoader(HttpLoader):
 
     def __init__(self,url,func=None,status_code_messages={},**kwargs):    
@@ -161,6 +165,12 @@ class LazyHttpLoader(HttpLoader):
         """
         HttpLoader.__init__(self,url,func,status_code_messages,**kwargs)
         self._data_cached = None
+        suitable_decoders = [dec for sfx,dec in DECODERS.items() if url.endswith(sfx)]
+        if (func is None) and (len(suitable_decoders)>0):
+            assert(len(suitable_decoders)==1)
+            self.func = suitable_decoders[0]
+        else:
+            self.func = func
 
     @property
     def data(self):
@@ -171,7 +181,7 @@ class LazyHttpLoader(HttpLoader):
 class ZipLoader(LazyHttpLoader):
     
     def __init__(self,url,filename,func=None):
-        LazyHttpLoader.__init__(self,url)
+        LazyHttpLoader.__init__(self,url,func)
         self.filename = filename
         suitable_decoders = [dec for sfx,dec in DECODERS.items() if filename.endswith(sfx)]
         if (func is None) and (len(suitable_decoders)>0):
@@ -194,18 +204,64 @@ class ZipLoader(LazyHttpLoader):
         return self._data_cached
 
 
-class GitlabLoader():
+class RepositoryConnector(ABC):
+    """
+    Base class for repository connectors.
+    """
+    def __init__(self,base_url):
+        self.base_url = base_url
+
+    @abstractmethod
+    def search_files(folder:str,suffix:str,recursive:bool=False):
+        pass
+
+    @abstractmethod
+    def _build_url(self,folder:str,filename:str):
+        pass
+
+    def _decode_response(self,response,filename):
+        # see if we find a default encoder
+        suitable_decoders = [dec for sfx,dec in DECODERS.items() if filename.endswith(sfx)]
+        if len(suitable_decoders)>0:
+            assert(len(suitable_decoders)==1)
+            return suitable_decoders[0](response)
+        else:
+            return response
+
+    def get_loader(self,filename,folder="",decode_func=None):
+        if decode_func is None:
+            return LazyHttpLoader(
+                self._build_url(folder,filename),
+                lambda b:self._decode_response(b,filename))
+        else:
+            return LazyHttpLoader(
+                self._build_url(folder,filename),
+                decode_func )
+            
+
+    def get_loaders(self,folder="",suffix=None,progress=None,recursive=False,decode_func=None):
+        """
+        Returns an iterator with lazy loaders for the files in a given folder. 
+        In each iteration, a tuple (filename,file content) is returned.
+        """
+        fnames = self.search_files(folder,suffix,recursive)
+        it = ( (fname,self.get_loader(fname,decode_func=decode_func)) for fname in fnames ) 
+        if progress is None:
+            return it
+        else:
+            return tqdm(it,total=len(fnames),desc=progress)
+
+
+class GitlabConnector(RepositoryConnector):
 
     def __init__(self,server:str,project:int,reftag:str,skip_branchtest=False):
         # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert(server.startswith("http"))
-        self.server = server
-        self.project = project
+        RepositoryConnector.__init__(self,base_url=f"{server}/api/v4/projects/{project}/repository")
         self.reftag = reftag
         self._per_page = 100
-        self._base_url = "{s}/api/v4/projects/{p}/repository".format(s=server,p=project)
         self._branchloader = LazyHttpLoader(
-            f"{self._base_url}/branches",DECODERS['.json'])
+            f"{self.base_url}/branches",DECODERS['.json'])
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
 
@@ -216,7 +272,7 @@ class GitlabLoader():
                 matched_branches = list(filter(lambda b:b['name']==self.reftag,self.branches))
                 if len(matched_branches)>0:
                     self._want_commit_cached = matched_branches[0]['commit']
-                    print(f"{self.reftag} is a branch of {self.server}/{self.project}! Want last commit {self._want_commit_cached['short_id']} from {self._want_commit_cached['created_at']}")
+                    print(f"{self.reftag} is a branch of {self.base_url}! Want last commit {self._want_commit_cached['short_id']} from {self._want_commit_cached['created_at']}")
                 self._tag_checked = True
             except Exception as e:
                 print(str(e))
@@ -231,23 +287,18 @@ class GitlabLoader():
         ref = self.reftag if self.want_commit is None else self.want_commit['short_id']
         if filename is None:
             pathstr = "" if len(folder)==0 else f"&path={quote(folder,safe='')}"
-            return f"{self._base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
+            return f"{self.base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
         else:
             pathstr = filename if folder=="" else f"{folder}/{filename}"
             filepath = quote(pathstr,safe='')
-            return f"{self._base_url}/files/{filepath}?ref={ref}"
+            return f"{self.base_url}/files/{filepath}?ref={ref}"
 
-    def get_file(self,filename,folder=""):
-        loader = LazyHttpLoader(
-            self._build_url(folder,filename),DECODERS['.json'])
-        content = base64.b64decode(loader.data['content'].encode('ascii'))
-        return content.decode()
+    def _decode_response(self,response,filename):
+        json_response = json.loads(response.decode())
+        content = base64.b64decode(json_response['content'].encode('ascii'))
+        return RepositoryConnector._decode_response(self,content,filename)
 
-    def iterate_files(self,folder="",suffix=None,progress=None,recursive=False):
-        """
-        Returns an iterator over files in a given folder. 
-        In each iteration, a tuple (filename,file content) is returned.
-        """
+    def search_files(self,folder="",suffix=None,recursive=False):
         page = 1
         results = []
         while True:
@@ -260,35 +311,21 @@ class GitlabLoader():
                 break
             page+=1
         end = "" if suffix is None else suffix
-        elements = [ e for e in results
-                    if e['type']=='blob' and e['name'].endswith(end) ]
-        it = ( (e['path'],self.get_file(e['path'])) for e in elements) 
-        if progress is None:
-            return it
-        else:
-            return tqdm(it,total=len(elements),desc=progress)
+        return [
+            e['path'] for e in results
+            if e['type']=='blob' and e['name'].endswith(end) ]
 
 
-class OwncloudLoader():
+class OwncloudConnector(RepositoryConnector):
 
     def __init__(self,server:str,share:int):
-        assert(server.startswith("http"))
-        self.server = server
-        self.share = share
-        self._base_url = f"{server}/s/{share}"
+        RepositoryConnector.__init__(self,base_url=f"{server}/s/{share}")
 
-    def _build_query(self,filename,folder=""):
+    def search_files(self,folder="",suffix=None,recursive=False):
+        raise NotImplementedError(f"File search in folders not implemented for {self.__class__.__name__}.")
+
+    def _build_url(self,folder,filename):
         fpath = "" if folder=="" else f"path={quote(folder,safe='')}&"
         fpath += f"files={quote(filename)}"
-        url= f"{self._base_url}/download?{fpath}"
+        url= f"{self.base_url}/download?{fpath}"
         return url
-
-    def load_file(self,filename,folder=""):
-        return LazyHttpLoader(self._build_query(filename,folder)).data
-
-    def build_lazyloader(self,filename,folder,func=None):
-        suitable_decoders = [dec for sfx,dec in DECODERS.items() if filename.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders)>0):
-            assert(len(suitable_decoders)==1)
-            func = suitable_decoders[0]
-        return LazyHttpLoader(self._build_query(filename,folder),func)

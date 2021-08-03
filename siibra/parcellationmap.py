@@ -326,16 +326,18 @@ class LabelledParcellationMap(ParcellationMap):
         self._regions_cached = {}
 
         # determine the map loader functions for each available map
-        for mapname in self.parcellation.volume_src[self.space]:
-
-            # Determine the preferred volume source for loading the parcellation map
-            volume_sources = sorted(
-                    self.parcellation.volume_src[self.space][mapname],
-                    key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type))
-            if len(volume_sources)==0:
-                logger.error(f'No suitable volume source for {self.parcellation.name} in {self.space.name}')
-                continue
-            source = volume_sources[0]
+        for volumetype in PREFERRED_VOLUMETYPES:
+            sources = []
+            for vsrc in self.parcellation.volume_src:
+                if (vsrc.space_id==self.space.id) and (vsrc.volume_type==volumetype):
+                    sources.append(vsrc)
+            if len(sources)>0:
+                break
+        else:
+            # reached only if for loop was not interrupted by 'break'
+            raise RuntimeError(f'No suitable volume source for {self.parcellation.name} in {self.space.name}')
+                
+        for source in sources:
 
             # Choose map loader function and populate label-to-region maps
             if source.volume_type=="detailed maps":

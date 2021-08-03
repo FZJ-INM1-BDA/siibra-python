@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import numpy as np
 
 from .. import logger,parcellations
 from .feature import RegionalFeature,GlobalFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabLoader #cached_gitlab_query,LazyLoader
+from ..retrieval import GitlabConnector
 from collections import defaultdict
 
 
@@ -26,8 +25,8 @@ class ConnectivityMatrix(GlobalFeature):
 
     def __init__(self,dataset_id,parcellation_id,matrix,src_info,src_name):
         GlobalFeature.__init__(self,parcellation_id,dataset_id)
-        self.src_info = src_info
-        self.src_name = src_name
+        self.description = src_info
+        self.name = src_name
         self.matrix = matrix
 
     @property
@@ -99,12 +98,12 @@ class ConnectivityProfile(RegionalFeature):
         return self._cm.matrix[self._cm_index]
     
     @property
-    def src_info(self):
-        return self._cm.src_info
+    def description(self):
+        return self._cm.description
 
     @property
-    def src_name(self):
-        return self._cm.src_name
+    def name(self):
+        return self._cm.name
 
     @property
     def src_file(self):
@@ -140,12 +139,12 @@ class ConnectivityProfile(RegionalFeature):
 class ConnectivityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityProfile
-    _QUERY=GitlabLoader('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
+    _QUERY=GitlabConnector('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        for _,data in self._QUERY.iterate_files("connectivity",".json"):
-            cm = ConnectivityMatrix.from_json(json.loads(data))
+        for _,loader in self._QUERY.get_loaders("connectivity",".json"):
+            cm = ConnectivityMatrix.from_json(loader.data)#json.loads(loader))
             for parcellation in cm.parcellations:
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname,build_group=False)
@@ -154,12 +153,11 @@ class ConnectivityProfileQuery(FeatureQuery):
 class ConnectivityMatrixQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityMatrix
-    _QUERY=GitlabLoader('https://jugit.fz-juelich.de',3009,'develop')#folder="connectivity"
+    _CONNECTOR=GitlabConnector('https://jugit.fz-juelich.de',3009,'develop')
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        for _,data in self._QUERY.iterate_files("connectivity",".json"):
-            matrix = ConnectivityMatrix.from_json(json.loads(data))
+        for _,loader in self._CONNECTOR.get_loaders("connectivity",".json"):
+            matrix = ConnectivityMatrix.from_json(loader.data)
             self.register(matrix)
-
 

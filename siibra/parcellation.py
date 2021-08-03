@@ -16,12 +16,10 @@ from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
 from .config import ConfigurationRegistry
-from .commons import create_key,MapType,ParcellationIndex,HasOriginDataInfo,OriginDataInfo
+from .commons import create_key,MapType,ParcellationIndex
+from .dataset import Dataset
+from .volumesrc import HasVolumeSrc
 from typing import Union
-import numpy as np
-import nibabel as nib
-from nilearn import image
-from tqdm import tqdm
 from memoization import cached
 
 class ParcellationVersion:
@@ -95,7 +93,7 @@ class ParcellationVersion:
             next_id=obj.get('@next', None),
             deprecated=obj.get('deprecated', False))
 
-class Parcellation(HasOriginDataInfo):
+class Parcellation(Dataset,HasVolumeSrc):
 
     _regiontree_cached = None
 
@@ -114,17 +112,12 @@ class Parcellation(HasOriginDataInfo):
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
-        HasOriginDataInfo.__init__(self)
-        self.id = identifier
-        self.name = name
+        Dataset.__init__(self,identifier,name)
+        HasVolumeSrc.__init__(self)
         self.key = create_key(name)
         self.version = version
-
-        # TODO replace by instanced methods in HasOriginDataInfo
         self.publications = []
         self.description = ""
-
-        self.volume_src = {}
         self.modality = modality
         self._regiondefs = regiondefs
 
@@ -212,7 +205,8 @@ class Parcellation(HasOriginDataInfo):
         Return true if this parcellation supports the given space, else False.
         """
         spaceobj = spaces[space]
-        return spaceobj in self.volume_src.keys()
+        return any(vsrc.space_id==spaceobj.id for vsrc in self.volume_src)
+        #return spaceobj in self.volume_src.keys()
 
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region],build_group=True):
         """
@@ -314,31 +308,26 @@ class Parcellation(HasOriginDataInfo):
             return obj
 
         # create the parcellation, it will create a parent region node for the regiontree.
-        p = Parcellation(obj['@id'], obj['shortName'], regiondefs=obj['regions'])
+        result = Parcellation(obj['@id'], obj['shortName'], regiondefs=obj['regions'])
         
-        if 'volumeSrc' in obj:
-            p.volume_src = { spaces[space_id] : {
-                key : [
-                    volumesrc.from_json(v_src) for v_src in v_srcs
-                ] for key, v_srcs in key_vsrcs.items()
-            } for space_id, key_vsrcs in obj['volumeSrc'].items() }
+        for spec in obj.get('volumeSrc',[]):
+            result._add_volumeSrc(spec)
+
+        for spec in obj.get('originDataset',[]):
+            result._add_originDatainfo(spec)
         
         if '@version' in obj:
-            p.version = ParcellationVersion.from_json(obj['@version'])
+            result.version = ParcellationVersion.from_json(obj['@version'])
 
         if 'modality' in obj:
-            p.modality = obj['modality']
+            result.modality = obj['modality']
 
         if 'description' in obj:
-            p.description = obj['description']
+            result.description = obj['description']
+
         if 'publications' in obj:
-            p.publications = obj['publications']
+            result.publications = obj['publications']
 
-        if 'originDatasets' in obj:
-            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in obj.get('originDatasets', [])]
-            p.origin_datainfos=[f for f in origin_datainfos if f is not None]
-
-        logger.debug(f'Adding parcellation "{str(p)}"')
-        return p
+        return result
 
 REGISTRY = ConfigurationRegistry('parcellations', Parcellation)

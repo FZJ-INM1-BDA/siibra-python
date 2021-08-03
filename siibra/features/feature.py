@@ -32,6 +32,9 @@ class Feature:
         """
         raise RuntimeError(f"matches(atlas) needs to be implemented by derived classes of {self.__class__.__name__}")
 
+    def __str__(self):
+        return f"{self.__class__.__name} feature (id:{self.dataset_id})"
+
 class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.

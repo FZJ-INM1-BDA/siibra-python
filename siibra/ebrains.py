@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import OriginDataInfo
+from .dataset import Dataset,OriginDataInfo
 from . import logger
 from .retrieval import LazyHttpLoader,DECODERS
 from os import environ
 import re
 
-class EbrainsDataset:
+class EbrainsDataset(Dataset):
 
-    def __init__(self, id, name, embargo_status):
-        self.id = id
-        self.name = name
+    def __init__(self, id, name, embargo_status=None):
+        Dataset.__init__(self,id,name=name) # Name will be lazy-loaded on access
         self.embargo_status = embargo_status
         self._detail = None
         if id is None:
             raise TypeError('Dataset id is required')
+        
         match=re.search(r"([a-f0-9-]+)$",id)        
         if not match:
-            raise ValueError('id cannot be parsed properly')
+            raise ValueError(f'{self.__class__.__name__} initialized with invalid id: {self.id}')
         self._detail_loader = EbrainsLoader(
             query_id = 'interactiveViewerKgQuery-v1_0',
             instance_id = match.group(1),
@@ -39,6 +39,14 @@ class EbrainsDataset:
     def detail(self):
         return self._detail_loader.data
 
+    @property
+    def urls(self):
+        return [{'doi': f,} for f in self.detail.get('kgReference',[])]
+
+    @property
+    def description(self):
+        return self.detail.get('description')
+
     def __str__(self):
         return self.name
 
@@ -46,53 +54,19 @@ class EbrainsDataset:
         return hash(self.id)
 
     def __eq__(self, o: object) -> bool:
-        # Check type
         if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
             return False
-        # Check id
         return self.id == o.id
 
-class EbrainsOriginDataInfo(EbrainsDataset, OriginDataInfo):
 
-    @property
-    def urls(self):
-        return [{
-            'doi': f,
-        }for f in self.detail.get('kgReference', [])]
+class EbrainsOriginDataInfo(EbrainsDataset,OriginDataInfo):
 
-    @urls.setter
-    def urls(self, val):
-        pass
+    def __init__(self, id, name):
+        EbrainsDataset.__init__(self, id=id, name=name )
+        OriginDataInfo.__init__(self, name=name )
 
-    @property
-    def description(self):
-        return self.detail.get('description')
-    
-    @description.setter
-    def description(self, val):
-        pass
 
-    @property
-    def name(self):
-        # to prevent inf loop, if _detail is undefined, return id
-        if self._detail is None:
-            return None
-        return self.detail.get('name')
-
-    @name.setter
-    def name(self, value):
-        pass
-
-    def __init__(self, id):
-        EbrainsDataset.__init__(self, id=id, name=None, embargo_status=None)
-
-    def __hash__(self):
-        return super(EbrainsDataset, self)
-
-    def __str__(self):
-        return super(EbrainsDataset, self)
-
-class KgToken:
+class EbrainsKgToken:
     """
     Simple handler for EBRAINS knowledge graph token.
     """
@@ -120,7 +94,8 @@ class KgToken:
         logger.info('Updating EBRAINS authentication token.')
         self._value = token
 
-KG_TOKEN = KgToken.instance()
+KG_TOKEN = EbrainsKgToken.instance()
+
 
 class EbrainsLoader(LazyHttpLoader):
     """
@@ -148,6 +123,7 @@ class EbrainsLoader(LazyHttpLoader):
                 'Content-Type':'application/json',
                 'Authorization': f'Bearer {KG_TOKEN.get()}'
             }
+        logger.debug(f"Initializing EBRAINS query '{query_id}'")
         LazyHttpLoader.__init__(
             self, url, DECODERS['.json'], self.SC_MESSAGES, 
             headers=headers, params=params )

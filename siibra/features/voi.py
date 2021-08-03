@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
 import numpy as np
 
-from .. import spaces,volumesrc,QUIET
+from .. import spaces,QUIET
+from ..volumesrc import VolumeSrc
 from ..space import SpaceVOI
 from .feature import SpatialFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabLoader
+from ..retrieval import GitlabConnector
 
 
 class VolumeOfInterest(SpatialFeature):
@@ -41,7 +41,7 @@ class VolumeOfInterest(SpatialFeature):
             minpts = []
             maxpts = []            
             for vsrc_def in definition["volumeSrc"]:
-                vsrc = volumesrc.from_json(vsrc_def)
+                vsrc = VolumeSrc.from_json(vsrc_def)
                 vsrc.space = space
                 with QUIET:
                     D = vsrc.fetch().get_fdata().squeeze()
@@ -63,10 +63,10 @@ class VolumeOfInterest(SpatialFeature):
     
 class VolumeOfInterestQuery(FeatureQuery):
     _FEATURETYPE = VolumeOfInterest
-    _QUERY = GitlabLoader("https://jugit.fz-juelich.de",3009,"develop")
+    _QUERY = GitlabConnector("https://jugit.fz-juelich.de",3009,"develop")
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        for _,data in self._QUERY.iterate_files(folder="vois",suffix=".json"):
-            voi = VolumeOfInterest.from_json(json.loads(data))
+        for _,loader in self._QUERY.get_loaders(folder="vois",suffix=".json"):
+            voi = VolumeOfInterest.from_json(loader.data)#json.loads(data))
             self.register(voi)

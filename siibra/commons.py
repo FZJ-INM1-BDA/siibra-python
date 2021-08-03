@@ -14,8 +14,6 @@
 
 import re
 from enum import Enum
-from abc import ABC, abstractmethod
-from . import logger
 
 try:
     from matplotlib import pyplot 
@@ -70,7 +68,6 @@ class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
 
-
 class ParcellationIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
@@ -90,28 +87,4 @@ class ParcellationIndex:
 
     def __hash__(self):
         return hash((self.map,self.label))
-
-class OriginDataInfo:
-    def __init__(self, name=None, description=None, urls=[]):
-        self.name=name
-        self.description=description
-        self.urls=urls
-
-    @staticmethod
-    def from_json(jsonstr):
-        json_type=jsonstr.get('@type')
-        if json_type == 'fzj/tmp/simpleOriginInfo/v0.0.1':
-            return OriginDataInfo(name=jsonstr.get('name'),
-                        description=jsonstr.get('description'),
-                        urls=jsonstr.get('url', []))
-        elif json_type == 'minds/core/dataset/v1.0.0':
-            from .ebrains import EbrainsOriginDataInfo
-            return EbrainsOriginDataInfo(id=jsonstr.get('kgId'))
-        logger.debug(f'Cannot parse {jsonstr}')
-        return None
-
-class HasOriginDataInfo:
-    def __init__(self):
-        self.origin_datainfos = []
-
 

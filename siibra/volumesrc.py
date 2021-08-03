@@ -15,6 +15,7 @@
 from ctypes import ArgumentError
 from . import logger
 from .retrieval import LazyHttpLoader,HttpLoader,ZipLoader,Cache
+from .dataset import Dataset
 from . import arrays
 import numpy as np
 import nibabel as nib
@@ -24,49 +25,10 @@ from abc import ABC,abstractmethod
 import os
 import json
 
-def from_json(obj):
-    """
-    Provides an object hook for the json library to construct a VolumeSrc
-    object from a json stream.
-    """
-    if obj.get('@type')!="fzj/tmp/volume_type/v0.0.1":
-        raise NotImplementedError(f"Cannot build VolumeSrc from this json spec: {obj}")
 
-    volume_type=obj.get('volume_type')
-    detail = obj.get('detail')
-    url = obj.get('url')
+class VolumeSrc(Dataset):
 
-    if volume_type=='nii':
-        return NiftiVolume( obj['@id'], obj['name'],url=url,
-                detail=detail,zipped_file=obj.get('zipped_file') )
-
-    if volume_type=='neuroglancer/precomputed':
-        transform_nm = np.identity(4)
-        vsrc_labelindex = None
-        if detail is not None and 'neuroglancer/precomputed' in detail:
-            if 'transform' in detail['neuroglancer/precomputed']:
-                transform_nm = np.array(detail['neuroglancer/precomputed']['transform'])
-            if 'labelIndex' in detail['neuroglancer/precomputed']:
-                vsrc_labelindex = int(detail['neuroglancer/precomputed']['labelIndex'])
-        return NgVolume( obj['@id'], obj['name'],url=url,
-                detail=detail, transform_nm=transform_nm)
-
-
-    if volume_type=='detailed maps':
-        vsrc = VolumeSrc(obj['@id'], obj['name'],url=None,detail=detail)
-        vsrc.volume_type=volume_type
-        return vsrc
-
-    # arbitrary volume type
-
-    vsrc = VolumeSrc( obj['@id'], obj['name'],url=url,
-            detail=detail)
-    vsrc.volume_type = volume_type
-    return vsrc
-
-class VolumeSrc:
-
-    def __init__(self, identifier, name, url, detail=None ):
+    def __init__(self, identifier, name, volume_type, url, space_id, detail=None ):
         """
         Construct a new volume source.
 
@@ -78,9 +40,10 @@ class VolumeSrc:
             A human-readable name
         volume_type : str
             Type of volume source, clarifying the data format. Typical names: "nii", "neuroglancer/precomputed".
-            TODO create a fixed list (enum?) of supported types, or better: derive types from VolumeSrc object
         url : str
             The URL to the volume src, typically a url to the corresponding image or tilesource.
+        space_id : str
+            Id of the reference space in which this volume is defined
         detail : dict
             Detailed information. Currently only used to store a transformation matrix  for neuroglancer tilesources.
         zipped_file : str
@@ -89,8 +52,7 @@ class VolumeSrc:
             extreact niftis from zip archives, as for example in case of the
             MNI reference templates.
         """
-        self.id = identifier
-        self.name = name
+        Dataset.__init__(self,identifier=identifier,name=name)
         self.url = url
         if 'SIIBRA_URL_MODS' in os.environ and url:
             mods = json.loads(os.environ['SIIBRA_URL_MODS'])
@@ -98,15 +60,62 @@ class VolumeSrc:
                 self.url = self.url.replace(old,new)
             if self.url!=url:
                 logger.warning(f'Applied URL modification\nfrom {url}\nto   {self.url}') 
-        self.volume_type = None
+        self.volume_type = volume_type
         self.detail = {} if detail is None else detail
-        self.space = None
+        self.space_id = space_id
 
     def __str__(self):
         return f'{self.volume_type} {self.url}'
 
     def get_url(self):
         return self.url
+
+    @staticmethod
+    def from_json(obj):
+        """
+        Provides an object hook for the json library to construct a VolumeSrc
+        object from a json stream.
+        """
+        if obj.get('@type')!="fzj/tmp/volume_type/v0.0.1":
+            raise NotImplementedError(f"Cannot build VolumeSrc from this json spec: {obj}")
+
+        volume_type=obj.get('volume_type')
+        detail = obj.get('detail')
+        url = obj.get('url')
+        space_id = obj.get('space_id')
+
+        if volume_type=='nii':
+            return NiftiVolume( obj['@id'], obj['name'],url=url,space_id=space_id,
+                    detail=detail,zipped_file=obj.get('zipped_file') )
+
+        if volume_type=='neuroglancer/precomputed':
+            transform_nm = np.identity(4)
+            #vsrc_labelindex = None
+            if detail is not None and 'neuroglancer/precomputed' in detail:
+                if 'transform' in detail['neuroglancer/precomputed']:
+                    transform_nm = np.array(detail['neuroglancer/precomputed']['transform'])
+                #if 'labelIndex' in detail['neuroglancer/precomputed']:
+                #    vsrc_labelindex = int(detail['neuroglancer/precomputed']['labelIndex'])
+            return NgVolume( obj['@id'], obj['name'],url=url,space_id=space_id,
+                    detail=detail, transform_nm=transform_nm)
+
+        if volume_type=='detailed maps':
+            assert(url is None)
+
+        return VolumeSrc(
+            identifier=obj['@id'], name=obj['name'], volume_type=volume_type, 
+            url=url, space_id=space_id, detail=detail)
+
+class HasVolumeSrc():
+
+    def __init__(self,src_volume_type=None):
+        self.volume_src = []
+        self.src_volume_type = src_volume_type
+
+    def _add_volumeSrc(self,spec):
+        obj = VolumeSrc.from_json(spec)
+        if obj is not None:
+            self.volume_src.append(obj)
 
 
 class ImageProvider(ABC):
@@ -140,13 +149,12 @@ class NiftiVolume(VolumeSrc,ImageProvider):
 
     _image_cached=None
 
-    def __init__(self,identifier, name, url, detail=None, zipped_file=None):
-        VolumeSrc.__init__(self,identifier, name, url, detail=detail)
+    def __init__(self,identifier, name, url, space_id, detail=None, zipped_file=None):
+        VolumeSrc.__init__(self,identifier, name, 'nii', url, space_id, detail=detail)
         if zipped_file is None:
             self._image_loader = LazyHttpLoader(url)
         else:
             self._image_loader = ZipLoader(url,zipped_file)
-        self.volume_type = 'nii'
 
     @property
     def image(self):
@@ -218,17 +226,15 @@ class NgVolume(VolumeSrc,ImageProvider):
     gbyte_feasible = 0.5
     _cached_volume = None
     
-    def __init__(self,identifier,name,url,detail=None,transform_nm=np.identity(4)):
+    def __init__(self,identifier,name,url,space_id,detail=None,transform_nm=np.identity(4)):
         """
         ngsite: base url of neuroglancer http location
         transform_nm: optional transform to be applied after scaling voxels to nm
         """
-        super().__init__(identifier,name,url,detail)
+        super().__init__(identifier,name,"neuroglancer/precomputed",url,space_id,detail)
         logger.debug(f'Constructing NgVolume "{name}"')
-        self.volume_type = "neuroglancer/precomputed"
         self.transform_nm = transform_nm
         self.info = HttpLoader(url+'/info',lambda b:json.loads(b.decode())).get()
-        self.url = url
         self.nbytes = np.dtype(self.info['data_type']).itemsize
         self.num_scales = len(self.info['scales'])
         self.mip_resolution_mm = { i:np.min(v['resolution'])/(1000**2)
@@ -363,7 +369,7 @@ class NgVolume(VolumeSrc,ImageProvider):
 
         # ok, retrieve data now.
         cache = Cache.instance()
-        cachefile = cache.build_filename(f"{self.url}{bbox_vox.serialize()}{str(mip)}".encode('utf8'),suffix='npy')
+        cachefile = cache.build_filename(f"{self.url}{bbox_vox.serialize()}{str(mip)}",suffix='npy')
         if os.path.exists(cachefile):
             logger.debug(f"NgVolume loads from cache file {cachefile}")
             return np.load(cachefile)

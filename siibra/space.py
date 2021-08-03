@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import create_key,HasOriginDataInfo,OriginDataInfo
+from .commons import create_key
+from .dataset import Dataset
 from .config import ConfigurationRegistry
 import numpy as np
-from . import volumesrc
+from .volumesrc import HasVolumeSrc
 from . import arrays
 import copy
 from cloudvolume import Bbox
@@ -25,32 +26,17 @@ from urllib.parse import quote
 from .retrieval import HttpLoader
 import json
 
-class Space(HasOriginDataInfo):
+
+class Space(Dataset,HasVolumeSrc):
     """
     A particular brain reference space.
     """
 
-    def __init__(self, identifier, name, template_type=None, src_volume_type=None, volume_src={}):
-        HasOriginDataInfo.__init__(self)
-        self.id = identifier
-        self._rename(name)
-        self.type = template_type
-        self.src_volume_type = src_volume_type
-        self.volume_src = volume_src
-        self._assign_volume_sources(volume_src)
-
-    def _assign_volume_sources(self,volume_src):
-        self.volume_src = copy.deepcopy(volume_src)
-        for volsrc in self.volume_src:
-            try:
-                volsrc.space = self
-            except AttributeError as e:
-                print(volsrc)
-                raise(e)
-
-    def _rename(self,newname):
-        self.name = newname
+    def __init__(self, identifier, name, template_type=None, src_volume_type=None):
+        Dataset.__init__(self,identifier,name)
+        HasVolumeSrc.__init__(self,src_volume_type=src_volume_type)
         self.key = create_key(self.name)
+        self.type = template_type
 
     def __str__(self):
         return self.name
@@ -118,17 +104,20 @@ class Space(HasOriginDataInfo):
         required_keys = ['@id','name','shortName','templateType']
         if any([k not in obj for k in required_keys]):
             return obj
-
         if "minds/core/referencespace/v1.0.0" not in obj['@id']:
             return obj
 
-        volume_src = [volumesrc.from_json(v) for v in obj['volumeSrc']] if 'volumeSrc' in obj else []
-        s=Space(obj['@id'], obj['shortName'], template_type = obj['templateType'],
-                src_volume_type = obj.get('srcVolumeType'),
-                volume_src = volume_src)
-        origin_datainfos=[OriginDataInfo.from_json(f) for f in obj.get('originDatasets', [])]
-        s.origin_datainfos=[f for f in origin_datainfos if f is not None]
-        return s
+        result = Space(
+            identifier = obj['@id'], 
+            name = obj['shortName'], 
+            template_type = obj['templateType'],
+            src_volume_type = obj.get('srcVolumeType') )
+
+        for spec in obj.get('volumeSrc',[]):
+            result._add_volumeSrc(spec)
+        for spec in obj.get('originDataset',[]):
+            result._add_originDatainfo(spec)
+        return result
 
 
 class SpaceVOI(Bbox):
@@ -165,6 +154,12 @@ class SpaceVOI(Bbox):
             np.dot(transform,np.r_[self.minpt,1])[:3].astype('int'),
             np.dot(transform,np.r_[self.maxpt,1])[:3].astype('int') )
 
+    def __iter__(self):
+        """
+        Iterator over the min- and maxpt of the volume of interest.
+        """
+        return (p for p in [self.minpt,self.maxpt])
+
     def __str__(self):
         return f"Bounding box {self.minpt}mm -> {self.maxpt}mm defined in {self.space.name}"
 
@@ -174,6 +169,7 @@ class SpaceVOI(Bbox):
 REGISTRY = ConfigurationRegistry('spaces', Space)
 
 class SpaceWarper():
+    
     SPACE_IDS = {
         REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
         REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
@@ -191,5 +187,5 @@ class SpaceWarper():
             src=quote(SpaceWarper.SPACE_IDS[REGISTRY[from_space]]),
             tgt=quote(SpaceWarper.SPACE_IDS[REGISTRY[to_space]]),
             x=coord[0], y=coord[1], z=coord[2] )
-        response = HttpLoader(url,lambda b:json.loads(b.decode()))
+        response = HttpLoader(url,lambda b:json.loads(b.decode())).get()
         return tuple(response["target_point"])

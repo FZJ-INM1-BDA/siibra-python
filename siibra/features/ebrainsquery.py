@@ -46,11 +46,14 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     _FEATURETYPE=EbrainsRegionalDataset
 
     def __init__(self):
+
         FeatureQuery.__init__(self)
+        
         loader = EbrainsLoader(
             query_id='siibra-kg-feature-summary-0.0.1',
             schema='parcellationregion',
             params={'vocab': 'https://schema.hbp.eu/myQuery/'})
+
         for r in loader.data.get('results',[]):
             for dataset in r.get('datasets', []):
                 ds_id = dataset.get('@id')

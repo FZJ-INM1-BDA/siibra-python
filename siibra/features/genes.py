@@ -16,7 +16,8 @@ from xml.etree import ElementTree
 import numpy as np
 import json
 import siibra
-from siibra import retrieval,spaces,logger
+from .. import spaces,logger
+from ..retrieval import HttpLoader
 from .feature import SpatialFeature
 from .query import FeatureQuery
 from os import path
@@ -60,13 +61,14 @@ class GeneExpression(SpatialFeature):
         self.probe_ids = probe_ids
         self.mri_coord = mri_coord
 
-    def __str__(self):
+    def __repr__(self):
         return " ".join([
             "At ("+",".join("{:4.0f}".format(v) for v in self.location)+")",
             " ".join(["{:>7.7}:{:7.7}".format(k,str(v)) for k,v in self.donor_info.items()]),
             "Expression: ["+",".join(["%4.1f"%v for v in self.expression_levels])+"]",
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
+
 
 class AllenBrainAtlasQuery(FeatureQuery):
     """
@@ -140,7 +142,7 @@ https://alleninstitute.org/legal/terms-use/."""
             self.__class__._notification_shown=True
         logger.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
-        response = retrieval.cached_get(url)
+        response = HttpLoader(url).get()
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
         probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
@@ -149,7 +151,7 @@ https://alleninstitute.org/legal/terms-use/."""
         self._specimen = {
                 spcid:self._retrieve_specimen(spcid) 
                 for spcid in self._SPECIMEN_IDS}
-        response = json.loads(retrieval.cached_get(self._QUERY['factors']))
+        response = json.loads(HttpLoader(self._QUERY['factors']).get())
         self.factors = {
                 item['id']: {
                     'race' : item['race_only'],
@@ -168,9 +170,7 @@ https://alleninstitute.org/legal/terms-use/."""
         Retrieves information about a human specimen. 
         """
         url = self._QUERY['specimen'].format(specimen_id=specimen_id)
-        response = json.loads(retrieval.cached_get(
-            url,msg_if_not_cached="Retrieving specimen information for id {}".format(
-                specimen_id)))
+        response = json.loads(HttpLoader(url).get())#,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
         if not response['success']:
             raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
         # we ask for 1 specimen, so list should have length 1
@@ -194,7 +194,8 @@ https://alleninstitute.org/legal/terms-use/."""
         url = self._QUERY['microarray'].format(
                 probe_ids=','.join([str(id) for id in probe_ids]),
                 donor_id=donor_id)
-        response = json.loads(retrieval.cached_get(url))
+        response = HttpLoader(url,json.loads).get()
+        #response = json.loads(retrieval.cached_get(url))
         if not response['success']:
             raise Exception('Invalid response when retrieving microarray data: {}'.format( url))
 

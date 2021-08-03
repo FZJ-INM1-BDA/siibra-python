@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from unittest import loader
 from . import logger,spaces
-from .commons import OriginDataInfo, create_key, Glossary, MapType, ParcellationIndex,HasOriginDataInfo
+from .commons import create_key, Glossary, MapType, ParcellationIndex
+from .volumesrc import HasVolumeSrc
 from .space import Space
-from .retrieval import GitlabLoader
-from . import volumesrc
+from .retrieval import GitlabConnector
 import numpy as np
 import nibabel as nib
 from memoization import cached
@@ -36,18 +37,14 @@ def _clear_name(name):
         result = result.replace(word,'')
     return " ".join(w for w in result.split(' ') if len(w))
 
-#RPROPS_REPO = "https://jugit.fz-juelich.de/t.dickscheid/brainscapes-datafeatures"
-#RPROPS_BRANCH = "master"
-#RPROPS_URL_SCHEME = f"{RPROPS_REPO}/-/raw/{RPROPS_BRANCH}/spatialprops/{{parckey}}-{{spacekey}}-spatialprops.json"
-
-class Region(anytree.NodeMixin, HasOriginDataInfo):
+class Region(anytree.NodeMixin,HasVolumeSrc):
     """
     Representation of a region with name and more optional attributes
     """
 
-    LOADER = GitlabLoader(server='https://jugit.fz-juelich.de',project=3009,reftag='master')
+    CONNECTOR = GitlabConnector(server='https://jugit.fz-juelich.de',project=3009,reftag='master')
 
-    def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None, volume_src={}):
+    def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None):
         """
         Constructs a new region object.
 
@@ -68,14 +65,13 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         volume_src : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
-        HasOriginDataInfo.__init__(self)
-        self.name = _clear_name(name)
+        HasVolumeSrc.__init__(self)
         self.key = create_key(name)
+        self.name= _clear_name(name)
         self.parcellation = parcellation
         self.index = index
         self.attrs = attrs
         self.parent = parent
-        self.volume_src = volume_src
         child_has_mapindex = False
         if children:
             self.children = children
@@ -91,12 +87,11 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
     @staticmethod
     def copy(other):
         """
-        copy contructor must detach the parent in to avoid problems with
+        copy contructor must detach the parent to avoid problems with
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
         region = Region(other.name, other.parcellation, other.index, other.attrs)
-        region.origin_datainfos=other.origin_datainfos
 
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
@@ -421,8 +416,8 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
         filename = f"{self.parcellation.key}-{space.key}-spatialprops.json"
         logger.debug(f'Trying to load spatial region props from {filename}')
         try:
-            data = self.LOADER.get_file(filename,folder="spatialprops")
-            D = json.loads(data)
+            loader = self.CONNECTOR.get_loader(filename,folder="spatialprops")
+            D = json.loads(loader.data)
         except Exception as e:
             raise RuntimeError(f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name}")
         return [c for p in D['spatialprops'] for c in p['components'] if p['region']['name']==self.name]
@@ -456,52 +451,31 @@ class Region(anytree.NodeMixin, HasOriginDataInfo):
                 for regiondef in jsonstr["children"]:
                     children.append(Region.from_json(regiondef,parcellation))
 
-        # Then setup the parent object
-        assert('name' in jsonstr)
-        name = jsonstr['name'] 
-        pindex = ParcellationIndex(
-            label = jsonstr['labelIndex'] if 'labelIndex' in jsonstr else None,
-            map = jsonstr['mapIndex'] if 'mapIndex' in jsonstr else None)
+        # determine labelindex
+        labelindex = jsonstr.get('labelIndex',None)
+        if labelindex is None and len(children)>0:
+            L = [c.index.label for c in children]
+            if (len(L)>0) and (L.count(L[0])==len(L)):
+                labelindex = L[0]
 
-        # Parse the volume sources in this region definition, if any
-        # TODO the json structure should be simplified, the usage type clarified. 
-        # @see https://github.com/FZJ-INM1-BDA/siibra-python/issues/42 
-        volume_src = {}
+        # Setup the region object
+        pindex = ParcellationIndex(label=labelindex,map=jsonstr.get('mapIndex',None))
+        result = Region( 
+            name=jsonstr['name'], parcellation=parcellation, index=pindex, 
+            attrs=jsonstr, children=children )
+
+        # update volume sources and origin datasets
+        for spec in jsonstr.get('volumeSrc',[]):
+            result._add_volumeSrc(spec)
+        for spec in jsonstr.get('originDataset',[]):
+            result._add_originDatainfo(spec)
+
         key2maptype = {
                 'pmap' : MapType.CONTINUOUS,
                 'collect' : MapType.LABELLED
                 }
-        if 'volumeSrc' in jsonstr:
-            for space_id,space_vsources in jsonstr['volumeSrc'].items():
-                space = spaces[space_id]
-                vsrc_definitions = [{**vsrc,**{'key':key}}
-                        for key,vsources in space_vsources.items()
-                        for vsrc in vsources ]
-                if len(vsrc_definitions)>1:
-                    raise NotImplementedError(f"Multiple volume sources defined for region {name} and space {space_id}. This is not yet supported by siibra.")
-                if len(vsrc_definitions)==0 or vsrc_definitions[0] is None:
-                    raise ValueError(f"No valid volume source found!")
-                vsrc = volumesrc.from_json(vsrc_definitions[0])
-                key = vsrc_definitions[0]['key']
-                if key not in key2maptype:
-                    raise NotImplementedError(f"'volumeSrc' field has unknown key '{key}', cannot determine MapType")
-                volume_src[space,key2maptype[key]] = vsrc
 
-        r = Region( name, parcellation, pindex, 
-                attrs=jsonstr, children=children, 
-                volume_src=volume_src )
-
-        if 'originDatasets' in jsonstr:
-            origin_datainfos=[OriginDataInfo.from_json(ds) for ds in jsonstr.get('originDatasets', [])]
-            r.origin_datainfos=[f for f in origin_datainfos if f is not None]
-
-        # inherit labelindex from children, if they agree
-        if pindex.label is None and r.children: 
-            L = [c.index.label for c in r.children]
-            if (len(L)>0) and (L.count(L[0])==len(L)):
-                r.index.label = L[0]
-
-        return r
+        return result
 
 
 if __name__ == '__main__':

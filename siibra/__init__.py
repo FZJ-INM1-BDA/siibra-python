@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .logging import logger,LoggingContext,set_log_level
+from .logging import LoggingContext,logger
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 

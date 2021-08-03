@@ -16,7 +16,7 @@ import re
 import json
 
 from .. import logger,spaces
-from ..retrieval import GitlabLoader
+from ..retrieval import GitlabConnector
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -170,15 +170,18 @@ def parse_ptsfile(spec):
 
 class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
-    _QUERY = GitlabLoader("https://jugit.fz-juelich.de",3009,"master")
+    _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de",3009,"master")
 
     def __init__(self):
+
         FeatureQuery.__init__(self)
         dset = IEEG_Dataset.from_json(
-            json.loads(self._QUERY.get_file('ieeg_contact_points/info.json'))
-                )
-        for fname,data in self._QUERY.iterate_files('ieeg_contact_points','.pts'):
-            obj = parse_ptsfile(data)
+            self._CONNECTOR.get_loader('ieeg_contact_points/info.json').data)
+
+        for fname,loader in self._CONNECTOR.get_loaders(
+            'ieeg_contact_points','.pts'):
+
+            obj = parse_ptsfile(loader.data.decode())
             subject_id=fname.split('_')[0]
             session = dset.new_session(subject_id)
             for electrode_id,contact_points in obj.items():

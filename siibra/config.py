@@ -14,7 +14,7 @@
 
 from . import logger,__version__
 from .commons import create_key
-from .retrieval import GitlabLoader
+from .retrieval import GitlabConnector
 from tqdm import tqdm
 import os
 import re
@@ -38,35 +38,16 @@ class ConfigurationRegistry:
 
     logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
     uses_default_tag = not "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" in os.environ
-    _QUERIES = ( 
+    _CONNECTORS = ( 
         # we use an iterator we we only instantiate the one[s] used
-        GitlabLoader(
+        GitlabConnector(
             'https://jugit.fz-juelich.de',3484,
             GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
-        GitlabLoader(
+        GitlabConnector(
             'https://gitlab.ebrains.eu',93,
             GITLAB_PROJECT_TAG,skip_branchtest=uses_default_tag),
     )
-    
-    def __load_config(self,config_folder):
-        """
-        Find, load and cache siibra configuration files from the separately maintained gitlab configuration repository.
-        """
-        msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_folder:15.15}"
-        for query in self._QUERIES:
-            try:
-                config = {}
-                for configfile,data in query.iterate_files(config_folder,'.json',progress=msg):
-                    config[configfile] = json.loads(data)
-                break                
-            except Exception as e:
-                print(str(e))
-                logger.error(f"Cannot connect to configuration server {query.server}, trying a different mirror")
-        else:
-            # we get here only if the loop is not broken
-            raise RuntimeError(f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'.")
 
-        return config
 
     def __init__(self,config_subfolder,cls):
         """
@@ -76,7 +57,18 @@ class ConfigurationRegistry:
         logger.debug("Initializing registry of type {} for {}".format(
             cls,config_subfolder))
 
-        config = self.__load_config(config_subfolder)
+        msg=f"Retrieving configuration '{GITLAB_PROJECT_TAG}' for {config_subfolder:15.15}"
+        for connector in self._CONNECTORS:
+            try:
+                loaders = connector.get_loaders(config_subfolder,'.json',progress=msg)
+                break                
+            except Exception as e:
+                raise(e)
+                print(str(e))
+                logger.error(f"Cannot connect to configuration server {connector.base_url}, trying a different mirror")
+        else:
+            # we get here only if the loop is not broken
+            raise RuntimeError(f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'.")
         
         self.items = []
         self.by_key = {}
@@ -85,8 +77,9 @@ class ConfigurationRegistry:
         self.cls = cls
         loglevel = logger.getEffectiveLevel()
         logger.setLevel("ERROR") # be quiet when initializing the object
-        for fname,spec in config.items():
-            obj = cls.from_json(spec)
+
+        for fname,loader in loaders:
+            obj = cls.from_json(loader.data)
             if not isinstance(obj,cls):
                 raise RuntimeError(f'Could not generate object of type {cls} from configuration {fname}')
             key = create_key(str(obj))
@@ -95,6 +88,7 @@ class ConfigurationRegistry:
             self.by_key[key] = len(self.items)-1
             self.by_id[identifier] = len(self.items)-1
             self.by_name[obj.name] = len(self.items)-1
+
         logger.setLevel(loglevel)
 
         
