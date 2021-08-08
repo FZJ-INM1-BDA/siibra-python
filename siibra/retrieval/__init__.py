@@ -12,20 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import Registry
-
-# Want to include these queries with their features into the pre-populated lists
-from .receptors import ReceptorQuery
-from .genes import AllenBrainAtlasQuery
-from .connectivity import ConnectivityProfileQuery, ConnectivityMatrixQuery
-from .ebrains import EbrainsRegionalFeatureQuery
-from .cells import RegionalCellDensityExtractor
-from .ieeg import IEEG_SessionQuery
-from .voi import VolumeOfInterestQuery
-
-from .query import FeatureQuery
-
-__all__ = []
-from .genes import GENE_NAMES as gene_names
-modalities = FeatureQuery.REGISTRY
-__all__ += ['gene_names','modalities']
+from .repositories import GitlabConnector,GitlabConnector,OwncloudConnector
+from .requests import HttpRequest,LazyHttpRequest,ZipfileRequest,EbrainsRequest
+from .cache import CACHE

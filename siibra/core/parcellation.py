@@ -12,15 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger, spaces, volumesrc, parcellationmap
 from .space import Space
 from .region import Region
-from .config import ConfigurationRegistry
-from .commons import create_key,MapType,ParcellationIndex
-from .dataset import Dataset
-from .volumesrc import HasVolumeSrc
+from .core import SemanticConcept
+
+from ..commons import logger,MapType,ParcellationIndex
+from ..volumes import parcellationmap
+
 from typing import Union
 from memoization import cached
+
+# NOTE : such code could be used to automatically resolve 
+# multiple matching parcellations for a short spec to the newset version:
+#               try:
+#                    collections = {m.version.collection for m in matches}
+#                    if len(collections)==1:
+#                        return sorted(matches,key=lambda m:m.version,reverse=True)[0]
+#                except Exception as e:
+#                    pass
 
 class ParcellationVersion:
     def __init__(self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False):
@@ -61,7 +70,7 @@ class ParcellationVersion:
         if self.next_id is None:
             return None
         try:
-            return REGISTRY[self.next_id]
+            return Parcellation.REGISTRY[self.next_id]
         except IndexError:
             return None
         except NameError:
@@ -72,32 +81,34 @@ class ParcellationVersion:
         if self.prev_id is None:
             return None
         try:
-            return REGISTRY[self.prev_id]
+            return Parcellation.REGISTRY[self.prev_id]
         except IndexError:
             return None
         except NameError:
             logger.warning('Accessing REGISTRY before its declaration!')
 
-    @staticmethod
-    def from_json(obj):
+    @classmethod
+    def from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a
         ParcellationVersion object from a json string.
         """
         if obj is None:
             return None
-        return ParcellationVersion(
+        return cls(
             obj.get('name', None), 
             obj.get('collectionName',None),
             prev_id=obj.get('@prev', None), 
             next_id=obj.get('@next', None),
             deprecated=obj.get('deprecated', False))
+        
 
-class Parcellation(Dataset,HasVolumeSrc):
+@SemanticConcept.provide_registry
+class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='minds/core/parcellationatlas/v1.0.0'):
 
     _regiontree_cached = None
 
-    def __init__(self, identifier : str, name : str, version=None, modality=None, regiondefs=[]):
+    def __init__(self, identifier : str, name : str, version=None, modality=None, regiondefs=[], dataset_specs=[]):
         """
         Constructs a new parcellation object.
 
@@ -112,9 +123,7 @@ class Parcellation(Dataset,HasVolumeSrc):
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
-        Dataset.__init__(self,identifier,name)
-        HasVolumeSrc.__init__(self)
-        self.key = create_key(name)
+        SemanticConcept.__init__(self,identifier,name,dataset_specs)
         self.version = version
         self.publications = []
         self.description = ""
@@ -138,24 +147,6 @@ class Parcellation(Dataset,HasVolumeSrc):
                 logger.error(f"Could not generate child regions for {self.name}")
                 raise(e)
         return self._regiontree_cached
-
-    def get_volume_src(self, space: Space):
-        """
-        Get volumes sources for the parcellation in the requested template space.
-
-        Parameters
-        ----------
-        space : Space
-            template space
-
-        Yields
-        ------
-        A list of volume sources
-        """
-        if not self.supports_space(space):
-            raise ValueError('Parcellation "{}" does not provide volume sources for space "{}"'.format(
-                str(self), str(space) ))
-        return self.volume_src[space]
 
     @cached
     def get_map(self, space=None, maptype:Union[str,MapType]=MapType.LABELLED):
@@ -181,14 +172,17 @@ class Parcellation(Dataset,HasVolumeSrc):
         if isinstance(maptype,str):
             maptype = MapType[maptype.upper()]
         if space is None:
-            spaceobj = next(iter(self.volume_src.keys()))
-            if len(self.volume_src)>1:
-                logger.warning(f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified.\nUsing the first, "{str(space)}"')
+            spaces = {v.space for v in self.volume_src}
+            if len(spaces)==0:
+                raise RuntimeError(f'Parcellation "{str(self)}" provides no maps.')
+            elif len(spaces)==1:
+                spaceobj = next(iter(spaces))
+            else:
+                raise ValueError(f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified ({",".join(s.name for s in spaces)})')
         else:
-            spaceobj = spaces[space]
-
-        if not self.supports_space(spaceobj):
-            raise ValueError(f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"')
+            spaceobj = Space.REGISTRY[space]
+            if not self.supports_space(spaceobj):
+                raise ValueError(f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"')
 
         return parcellationmap.create_map(self,spaceobj,maptype)
 
@@ -204,9 +198,8 @@ class Parcellation(Dataset,HasVolumeSrc):
         """
         Return true if this parcellation supports the given space, else False.
         """
-        spaceobj = spaces[space]
-        return any(vsrc.space_id==spaceobj.id for vsrc in self.volume_src)
-        #return spaceobj in self.volume_src.keys()
+        return len(self.get_volume_src(space))>0
+
 
     def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region],build_group=True):
         """
@@ -297,25 +290,27 @@ class Parcellation(Dataset,HasVolumeSrc):
         """
         return self.decode_region(regionspec)
 
-    @staticmethod
-    def from_json(obj):
+    def __lt__(self,other):
+        """
+        We sort parcellations by their version
+        """
+        if (self.version is None) or (other.version is None):
+            raise RuntimeError("Attempted to sort non-versioned instances of {self.__class__}.")
+        return self.version.__lt__(other.version)
+
+    @classmethod
+    def from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a Parcellation
         object from a json string.
         """
-        required_keys = ['@id','name','shortName','volumeSrc','regions']
-        if any([k not in obj for k in required_keys]):
-            return obj
+        assert(obj.get('@type',None)=='minds/core/parcellationatlas/v1.0.0')
 
         # create the parcellation, it will create a parent region node for the regiontree.
-        result = Parcellation(obj['@id'], obj['shortName'], regiondefs=obj['regions'])
-        
-        for spec in obj.get('volumeSrc',[]):
-            result._add_volumeSrc(spec)
+        result = cls(
+            obj['@id'], obj['shortName'], regiondefs=obj['regions'], 
+            dataset_specs=obj.get('datasets',[]))
 
-        for spec in obj.get('originDataset',[]):
-            result._add_originDatainfo(spec)
-        
         if '@version' in obj:
             result.version = ParcellationVersion.from_json(obj['@version'])
 
@@ -329,5 +324,3 @@ class Parcellation(Dataset,HasVolumeSrc):
             result.publications = obj['publications']
 
         return result
-
-REGISTRY = ConfigurationRegistry('parcellations', Parcellation)

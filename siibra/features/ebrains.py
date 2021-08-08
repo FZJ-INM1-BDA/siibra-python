@@ -14,15 +14,17 @@
 
 from .feature import RegionalFeature
 from .query import FeatureQuery
-from ..ebrains import EbrainsDataset,EbrainsLoader
+
 from .. import logger
+from ..core.datasets import EbrainsDataset
+from ..retrieval.requests import EbrainsRequest
 
 
 class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
 
-    def __init__(self, regionspec, id, name, embargo_status):
-        RegionalFeature.__init__(self, regionspec,dataset_id=id)
-        EbrainsDataset.__init__(self, id, name, embargo_status)
+    def __init__(self, regionspec, kg_id, name, embargo_status):
+        RegionalFeature.__init__(self, regionspec)
+        EbrainsDataset.__init__(self, kg_id, name, embargo_status)
 
     @property
     def url(self):
@@ -39,7 +41,7 @@ class EbrainsRegionalDataset(RegionalFeature,EbrainsDataset):
 
     @property
     def url(self):
-        return f"https://search.kg.ebrains.eu/instances/Dataset/{self.dataset_id.split('/')[-1]}"
+        return f"https://search.kg.ebrains.eu/instances/Dataset/{self.id.split('/')[-1]}"
 
 
 class EbrainsRegionalFeatureQuery(FeatureQuery):
@@ -49,7 +51,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
         FeatureQuery.__init__(self)
         
-        loader = EbrainsLoader(
+        loader = EbrainsRequest(
             query_id='siibra-kg-feature-summary-0.0.1',
             schema='parcellationregion',
             params={'vocab': 'https://schema.hbp.eu/myQuery/'})

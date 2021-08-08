@@ -12,20 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
-import json
-
-from .. import logger,spaces
-from ..retrieval import GitlabConnector
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
-class IEEG_Dataset(SpatialFeature):
+from .. import logger
+from ..core.datasets import EbrainsDataset
+from ..core.space import Space
+from ..retrieval.repositories import GitlabConnector
 
-    def __init__(self,dataset_id,name,description,space):
-        SpatialFeature.__init__(self,space,dataset_id)
-        self.name = name
-        self.description = description
+import re
+
+
+class IEEG_Dataset(SpatialFeature,EbrainsDataset):
+
+    def __init__(self,dataset_id,name,space):
+        SpatialFeature.__init__(self,space)
+        EbrainsDataset.__init__(self,dataset_id,name)
         self.sessions = {}
 
     def new_session(self,subject_id):
@@ -50,18 +52,17 @@ class IEEG_Dataset(SpatialFeature):
                 coords.extend(s.location)
         self.location = coords if len(coords)>0 else None
 
-    @staticmethod
-    def from_json(spec):
-        return IEEG_Dataset(
+    @classmethod
+    def from_json(cls,spec):
+        return cls(
             dataset_id = spec['kgId'], 
             name = spec['name'], 
-            description = spec['description'],
-            space = spaces[spec['space id']] )
+            space = Space.REGISTRY[spec['space id']] )
 
 class IEEG_Session(SpatialFeature):
 
     def __init__(self,dataset:IEEG_Dataset,subject_id):
-        SpatialFeature.__init__(self,dataset.space,dataset.dataset_id)
+        SpatialFeature.__init__(self,dataset.space)
         self.sub_id = subject_id
         self.dataset = dataset
         self.electrodes = {} # key: subject_id
@@ -92,7 +93,7 @@ class IEEG_Session(SpatialFeature):
 class IEEG_Electrode(SpatialFeature):
 
     def __init__(self,session:IEEG_Session,electrode_id):
-        SpatialFeature.__init__(self,session.space,session.dataset_id)
+        SpatialFeature.__init__(self,session.space)
         self.session = session
         self.electrode_id = electrode_id
         self.contact_points = {}
@@ -124,7 +125,7 @@ class IEEG_ContactPoint(SpatialFeature):
     Basic regional feature for iEEG contact points.
     """
     def __init__(self, electrode, id, coord ):
-        SpatialFeature.__init__(self,electrode.space,electrode.dataset_id,location=coord)
+        SpatialFeature.__init__(self,electrode.space,location=coord)
         self.electrode = electrode
         self.id = id
         electrode.register_contact_point(self)
@@ -180,6 +181,8 @@ class IEEG_SessionQuery(FeatureQuery):
 
         for fname,loader in self._CONNECTOR.get_loaders(
             'ieeg_contact_points','.pts'):
+
+            logger.info(f"Retrieving from {fname}")
 
             obj = parse_ptsfile(loader.data.decode())
             subject_id=fname.split('_')[0]

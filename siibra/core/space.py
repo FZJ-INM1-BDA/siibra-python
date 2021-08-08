@@ -12,37 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import create_key
-from .dataset import Dataset
-from .config import ConfigurationRegistry
+from .core import SemanticConcept
+
+from ..retrieval import HttpRequest
+from ..arrays import bbox3d
+
 import numpy as np
-from .volumesrc import HasVolumeSrc
-from . import arrays
-import copy
 from cloudvolume import Bbox
 from typing import Tuple
 import nibabel as nib
 from urllib.parse import quote
-from .retrieval import HttpLoader
 import json
 
-
-class Space(Dataset,HasVolumeSrc):
+@SemanticConcept.provide_registry
+class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/referencespace/v1.0.0"):
     """
     A particular brain reference space.
     """
 
-    def __init__(self, identifier, name, template_type=None, src_volume_type=None):
-        Dataset.__init__(self,identifier,name)
-        HasVolumeSrc.__init__(self,src_volume_type=src_volume_type)
-        self.key = create_key(self.name)
+    def __init__(self, identifier, name, template_type=None, src_volume_type=None, dataset_specs=[]):
+        SemanticConcept.__init__(self,identifier,name,dataset_specs)
+        self.src_volume_type=src_volume_type
         self.type = template_type
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return str(self)
 
     def get_template(self, resolution_mm=None ):
         """
@@ -95,8 +86,8 @@ class Space(Dataset,HasVolumeSrc):
             minpt[1]:maxpt[1],
             minpt[2]:maxpt[2]]
 
-    @staticmethod
-    def from_json(obj):
+    @classmethod
+    def from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a Space
         object from a json stream.
@@ -107,16 +98,13 @@ class Space(Dataset,HasVolumeSrc):
         if "minds/core/referencespace/v1.0.0" not in obj['@id']:
             return obj
 
-        result = Space(
+        result = cls(
             identifier = obj['@id'], 
             name = obj['shortName'], 
             template_type = obj['templateType'],
-            src_volume_type = obj.get('srcVolumeType') )
+            src_volume_type = obj.get('srcVolumeType'),
+            dataset_specs=obj.get('datasets',[]) )
 
-        for spec in obj.get('volumeSrc',[]):
-            result._add_volumeSrc(spec)
-        for spec in obj.get('originDataset',[]):
-            result._add_originDatainfo(spec)
         return result
 
 
@@ -130,7 +118,7 @@ class SpaceVOI(Bbox):
     @staticmethod
     def from_map(space:Space,roi:nib.Nifti1Image):
         # construct from a roi mask or map
-        bbox = arrays.bbox3d(roi.dataobj,affine=roi.affine)
+        bbox = bbox3d(roi.dataobj,affine=roi.affine)
         return SpaceVOI(space,bbox[:3,0],bbox[:3,1])
 
     def overlaps(self,img):
@@ -166,14 +154,13 @@ class SpaceVOI(Bbox):
     def __repr__(self):
         return str(self)
 
-REGISTRY = ConfigurationRegistry('spaces', Space)
 
 class SpaceWarper():
     
     SPACE_IDS = {
-        REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
-        REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
-        REGISTRY.BIG_BRAIN : "Big Brain (Histology)"
+        Space.REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
+        Space.REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
+        Space.REGISTRY.BIG_BRAIN : "Big Brain (Histology)"
     }
 
     SERVER="https://hbp-spatial-backend.apps.hbp.eu/v1"
@@ -184,8 +171,8 @@ class SpaceWarper():
             raise ValueError(f"Cannot convert coordinates between {from_space} and {to_space}")
         url='{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}'.format(
             server=SpaceWarper.SERVER,
-            src=quote(SpaceWarper.SPACE_IDS[REGISTRY[from_space]]),
-            tgt=quote(SpaceWarper.SPACE_IDS[REGISTRY[to_space]]),
+            src=quote(SpaceWarper.SPACE_IDS[Space.REGISTRY[from_space]]),
+            tgt=quote(SpaceWarper.SPACE_IDS[Space.REGISTRY[to_space]]),
             x=coord[0], y=coord[1], z=coord[2] )
-        response = HttpLoader(url,lambda b:json.loads(b.decode())).get()
+        response = HttpRequest(url,lambda b:json.loads(b.decode())).get()
         return tuple(response["target_point"])

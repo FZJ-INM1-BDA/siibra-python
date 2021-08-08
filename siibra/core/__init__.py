@@ -12,24 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-import os
-logger = logging.getLogger(__name__.split(os.path.extsep)[0])
-ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
+from .atlas import Atlas
+from .space import Space,SpaceVOI,SpaceWarper
+from .region import Region
+from .parcellation import Parcellation
+from .datasets import Dataset,OriginDescription,EbrainsDataset
 
-class LoggingContext:
-    def __init__(self, level ):
-        self.level = level
-    def __enter__(self):
-        self.old_level = logger.level
-        logger.setLevel(self.level)
-    def __exit__(self, et, ev, tb):
-        logger.setLevel(self.old_level)
-
-def set_log_level(level):
-    logger.setLevel(level)
-
-set_log_level(os.getenv("SIIBRA_LOG_LEVEL","INFO"))
+# initialize the core concepts and their bootstrapped registries
+spaces = Space.REGISTRY
+parcellations = Parcellation.REGISTRY
+atlases = Atlas.REGISTRY

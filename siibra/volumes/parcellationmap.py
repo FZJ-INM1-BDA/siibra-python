@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import logger,arrays, QUIET
-from .space import Space,SpaceVOI
-from .commons import MapType,ParcellationIndex
-from .volumesrc import ImageProvider,VolumeSrc
-from .arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4
-from .region import Region
+from .volume import VolumeSrc,ImageProvider
+
+from .. import logger, QUIET
+from ..commons import ParcellationIndex,MapType
+from ..arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4
+from ..core.space import Space,SpaceVOI
+from ..core.region import Region
 
 import numpy as np
 import nibabel as nib
@@ -29,6 +30,7 @@ from typing import Union
 
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ['nii','neuroglancer/precomputed','detailed maps']
+
 
 def create_map(parcellation, space:Space, maptype:MapType ):
     """
@@ -92,6 +94,7 @@ class ParcellationMap(ImageProvider):
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
+
 
     @property
     def maploaders(self):
@@ -328,8 +331,8 @@ class LabelledParcellationMap(ParcellationMap):
         # determine the map loader functions for each available map
         for volumetype in PREFERRED_VOLUMETYPES:
             sources = []
-            for vsrc in self.parcellation.volume_src:
-                if (vsrc.space_id==self.space.id) and (vsrc.volume_type==volumetype):
+            for vsrc in self.parcellation.get_volume_src(self.space.id):
+                if vsrc.__class__.volume_type==volumetype:
                     sources.append(vsrc)
             if len(sources)>0:
                 break
@@ -343,11 +346,11 @@ class LabelledParcellationMap(ParcellationMap):
             if source.volume_type=="detailed maps":
                 self._maploaders_cached.append(lambda res=None,voi=None: self._collect_maps(resolution_mm=res,voi=voi))
                 # collect all available region maps to maps label indices to regions
-                regions = [r for r in self.parcellation.regiontree 
-                        if r.has_regional_map(self.space,MapType.LABELLED)]
-                for region in regions:
-                    assert(region.index.label)
-                    self._regions_cached[ParcellationIndex(map=0,label=region.index.label)] = region
+                for region in self.parcellation.regiontree:               
+                    regionmap = region.get_regional_map(self.space,MapType.LABELLED)
+                    if regionmap is not None:
+                        assert(region.index.label)
+                        self._regions_cached[ParcellationIndex(map=0,label=region.index.label)] = region
             elif source.volume_type==self.space.type:
                 self._maploaders_cached.append(lambda res=None,s=source,voi=None: self._load_map(s,resolution_mm=res,voi=voi))
                 # load map at lowest resolution to map label indices to regions
@@ -395,12 +398,17 @@ class LabelledParcellationMap(ParcellationMap):
         m = None
 
         # collect all available region maps
-        regions = [r for r in self.parcellation.regiontree 
-                if r.has_regional_map(self.space,MapType.LABELLED)]
+        regions = []
+        for r in self.parcellation.regiontree:
+            regionmap = r.get_regional_map(self.space,MapType.LABELLED)
+            if regionmap is not None:
+                regions.append(r)
 
-        msg =f"Loading {len(regions)} regional maps for space '{self.space.name}'..."
-        logger.info(msg)
-        for region in regions:
+        if len(regions)==0:
+            raise RuntimeError(f"No regional maps could be collected for {self.parcellation.name} in space {self.space.name}")
+
+        msg = f"Collecting {len(regions)} regional maps for '{self.space.name}'"
+        for region in tqdm(regions,total=len(regions),desc=msg,unit="maps"):
             assert(region.index.label)
             # load region mask
             mask_ = self._load_regional_map(region,resolution_mm=resolution_mm,voi=voi)
@@ -488,49 +496,43 @@ class ContinuousParcellationMap(ParcellationMap):
         self._maploaders_cached=[]
         self._regions_cached={}
 
-        # check for maps associated to the parcellations
-        for mapname in self.parcellation.volume_src[self.space]:
+        # Multiple volume sources could be given - find the preferred one
+        volume_sources = sorted(
+            self.parcellation.get_volume_src(self.space.id),
+            key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type) )
 
-            # Multiple volume sources could be given - find the preferred one
-            volume_sources = sorted(
-                    self.parcellation.volume_src[self.space][mapname],
-                    key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type))
-            if len(volume_sources)==0:
-                logger.error(f'No suitable volume source for "{mapname}"' +
-                             f'of {self.parcellation.name} in {self.space.name}')
-                continue
-            source = volume_sources[0]
-            
-            if not all([source.is_float(),source.is_4D()]):
-                continue
-            if source.get_shape()[3]<2:
-                continue
+        for source in volume_sources:
 
-            # The source is 4D float, that's what we are looking for. 
-            # We assume the fourth dimension contains the regional continuous maps.
-            nmaps = source.get_shape()[3]
-            logger.info(f'{nmaps} continuous maps will be extracted from 4D volume for {self.parcellation}.')
-            for i in range(nmaps):
+            if source.is_float() and source.is_4D() and source.get_shape()[3]>1:
+
+                # The source is 4D float, that's what we are looking for. 
+                # We assume the fourth dimension contains the regional continuous maps.
+                nmaps = source.get_shape()[3]
+                logger.info(f'{nmaps} continuous maps will be extracted from 4D volume for {self.parcellation}.')
+                for i in range(nmaps):
+                    self._maploaders_cached.append(
+                        lambda res=None,voi=None,mi=i: source.fetch(resolution_mm=res,voi=voi,mapindex=mi))
+                    region = self.parcellation.decode_region(i+1)
+                    pindex = ParcellationIndex(map=i,label=None)
+                    self._regions_cached[pindex] = region
+
+                # we are finished, no need to look for regional map.
+                return
+
+                    
+        # otherwise we look for continuous maps associated to individual regions
+        i = 0
+        for region in self.parcellation.regiontree:
+            regionmap = region.get_regional_map(self.space,MapType.CONTINUOUS)
+            if regionmap is not None:
                 self._maploaders_cached.append(
-                    lambda res=None,voi=None,mi=i: source.fetch(resolution_mm=res,voi=voi,mapindex=mi))
-                region = self.parcellation.decode_region(i+1)
+                    lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
+                if region in self.regions.values():
+                    logger.debug(f"Region already seen in tree: {region.key}")
                 pindex = ParcellationIndex(map=i,label=None)
                 self._regions_cached[pindex] = region
-
-            # we are finished, no need to look for regional map.
-            return
-                
-        # otherwise we look for continuous maps associated to individual regions
-        regions = [r for r in self.parcellation.regiontree 
-                if r.has_regional_map(self.space,MapType.CONTINUOUS)]
-        logger.info(f'{len(regions)} regional continuous maps found for {self.parcellation}.')
-        for i,region in enumerate(regions):
-            self._maploaders_cached.append(
-                lambda r=region,res=None,voi=None:self._load_regional_map(r,resolution_mm=res,voi=voi))
-            if region in self.regions.values():
-                logger.debug(f"Region already seen in tree: {region.key}")
-            pindex = ParcellationIndex(map=i,label=None)
-            self._regions_cached[pindex] = region
+                i+=1
+        logger.info(f'{i} regional continuous maps found for {self.parcellation}.')
 
     @cached
     def assign_coordinates(self,xyz_phys,sigma_mm=1,sigma_truncation=3):

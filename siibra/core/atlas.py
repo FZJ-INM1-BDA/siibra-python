@@ -12,28 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .core import SemanticConcept
+from .space import Space,SpaceWarper
+from .parcellation import Parcellation
+from .region import Region
+
+from ..commons import MapType,logger
+from ..features.query import FeatureQuery
+from ..features.feature import Feature
+
 from nibabel.affines import apply_affine
 from numpy import linalg as npl
 import numpy as np
 from collections import defaultdict
 
-from . import parcellations, spaces, features, logger
-from .region import Region
-from .features.feature import GlobalFeature
-from .commons import create_key,MapType
-from .config import ConfigurationRegistry
-from .space import Space,SpaceWarper
 
 VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
 
-class Atlas:
+@SemanticConcept.provide_registry
+class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atlas/v1.0.0"):
 
     def __init__(self,identifier,name):
-        # Setup an empty. Use _add_space and _add_parcellation to complete
-        # the setup.
-        self.name = name
-        self.id = identifier
-        self.key = create_key(name)
+
+        SemanticConcept.__init__(self,identifier,name,dataset_specs=[])
 
         # no parcellation initialized at construction
         self.parcellations = [] # add with _add_parcellation
@@ -61,26 +62,24 @@ class Atlas:
     def __str__(self):
         return self.name
 
-    @staticmethod
-    def from_json(obj):
+    @classmethod
+    def from_json(cls,obj):
         """
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.
         """
-        if all([ 
-            '@id' in obj, 
-            'spaces' in obj, 
-            'parcellations' in obj ]):
-            p = Atlas(obj['@id'], obj['name'])
+        assert(obj.get('@type',None)=="juelich/iav/atlas/v1.0.0")
+        if all(['@id' in obj,'spaces' in obj,'parcellations' in obj]):
+            atlas = cls(obj['@id'], obj['name'])
             for space_id in obj['spaces']:
-                if space_id not in spaces:
-                    raise ValueError(f"Invalid atlas configuration for {str(p)} - space {space_id} not known")
-                p._add_space( spaces[space_id] )
+                if not Space.REGISTRY.provides(space_id):
+                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known")
+                atlas._add_space( Space.REGISTRY[space_id] )
             for parcellation_id in obj['parcellations']:
-                if parcellation_id not in parcellations:
-                    raise ValueError(f"Invalid atlas configuration for {str(p)} - parcellation {parcellation_id} not known")
-                p._add_parcellation( parcellations[parcellation_id] )
-            return p
+                if not Parcellation.REGISTRY.provides(parcellation_id):
+                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known")
+                atlas._add_parcellation( Parcellation.REGISTRY[parcellation_id] )
+            return atlas
         return obj
 
     @property
@@ -127,7 +126,7 @@ class Atlas:
         ------
         Selected parcellation
         """
-        parcellation_obj = parcellations[parcellation]
+        parcellation_obj = Parcellation.REGISTRY[parcellation]
         if parcellation_obj.version is not None:
             versionname = parcellation_obj.version.name
             if any(w in versionname for w in VERSION_BLACKLIST_WORDS) and not force:
@@ -236,9 +235,8 @@ class Atlas:
             if len(self.spaces)>1:
                 logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
 
-
         try:
-            spaceobj = spaces[space]
+            spaceobj = Space.REGISTRY[space]
         except IndexError:
             logger.error(f'Atlas "{self.name}" does not support reference space "{space}".')
             print("Available spaces:")
@@ -361,30 +359,27 @@ class Atlas:
         Retrieve data features linked to the selected atlas configuration, by modality. 
         See siibra.features.modalities for available modalities. 
         """
-        modalities = []
 
         if modality is None:
-            modalities = features.modalities
+            querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
         else:
-            if modality not in features.modalities:
-                logger.error(f"Cannot query features - no feature extractor known "\
-                        "for feature type {modality}.")
-                return []
-            modalities = [modality]
+            if not FeatureQuery.REGISTRY.provides(modality):
+                raise RuntimeError(f"Cannot query features - no feature extractor known for feature type {modality}.")
+            querytypes = [FeatureQuery.REGISTRY[modality]]
 
         result = {}
-        for m in modalities:
+        for  querytype in querytypes:
             hits = []
-            for query in features.registry.queries(m,**kwargs):
+            for query in FeatureQuery.queries(querytype.modality(),**kwargs):
                 hits.extend(query.execute(self))
             matches = list(set(hits))
             if group_by_dataset:
                 grouped = defaultdict(list)
                 for match in matches:
                     grouped[match.dataset_id].append(match)
-                result[m]=grouped
+                result[querytype.modality()]=grouped
             else:
-                result[m]=matches
+                result[querytype.modality()]=matches
         
         # If only one modality was requested, simplify the dictionary
         if len(result)==1:
@@ -429,11 +424,3 @@ class Atlas:
         """
         smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
         return smap.assign(mapimg)
-
-
-REGISTRY = ConfigurationRegistry('atlases', Atlas)
-
-if __name__ == '__main__':
-
-    atlas = REGISTRY.MULTILEVEL_HUMAN_ATLAS
-

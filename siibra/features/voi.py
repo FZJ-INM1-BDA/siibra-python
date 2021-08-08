@@ -12,31 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-
-from .. import spaces,QUIET
-from ..volumesrc import VolumeSrc
-from ..space import SpaceVOI
 from .feature import SpatialFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabConnector
+
+from .. import QUIET
+from ..volumes.volume import VolumeSrc
+from ..core.space import Space,SpaceVOI
+from ..core.datasets import EbrainsDataset
+from ..retrieval.repositories import GitlabConnector
+
+import numpy as np
 
 
-class VolumeOfInterest(SpatialFeature):
+class VolumeOfInterest(SpatialFeature,EbrainsDataset):
 
     def __init__(self,space,dataset_id,location,name):
-        SpatialFeature.__init__(
-            self,
-            space=space,
-            dataset_id=dataset_id,
-            location=location)
-        self.name = name
+        SpatialFeature.__init__(self,space=space,location=location)
+        EbrainsDataset.__init__(self,dataset_id,name)
         self.volumes = []
     
-    @staticmethod
-    def from_json(definition):
+    @classmethod
+    def from_json(cls,definition):
         if definition["@type"]=="minds/core/dataset/v1.0.0":
-            space = spaces[definition['space id']]
+            space = Space.REGISTRY[definition['space id']]
             vsrcs = []
             minpts = []
             maxpts = []            
@@ -52,7 +50,7 @@ class VolumeOfInterest(SpatialFeature):
                 vsrcs.append(vsrc)
             minpt=np.array(minpts).min(0)
             maxpt=np.array(maxpts).max(0)
-            result = VolumeOfInterest(
+            result = cls(
                 space, 
                 dataset_id = definition['kgId'],
                 name = definition['name'],

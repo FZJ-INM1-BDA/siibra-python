@@ -12,15 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-import nibabel as nib
-import os
 
 from .feature import RegionalFeature
 from .query import FeatureQuery
-from ..commons import HAVE_PYPLOT
-from .. import logger,spaces
-from ..retrieval import GitlabConnector,OwncloudConnector
+
+from .. import HAVE_PYPLOT
+from ..commons import logger
+from ..core.space import Space
+from ..retrieval.repositories import GitlabConnector,OwncloudConnector
+
+import numpy as np
+import os
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -32,7 +34,7 @@ class CorticalCellDistribution(RegionalFeature):
     def __init__(self, regionspec, cells, connector, folder):
 
         _,section_id,patch_id = folder.split("/")
-        RegionalFeature.__init__(self,regionspec,f"{connector.base_url}")
+        RegionalFeature.__init__(self,regionspec)
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
@@ -103,7 +105,7 @@ class CorticalCellDistribution(RegionalFeature):
         Coordinate of this image patch in BigBrain histological space in mm.
         """
         A = self.image.affine
-        return spaces.BIG_BRAIN,np.dot(A,[0,0,0,1])[:3]
+        return Space.REGISTRY.BIG_BRAIN,np.dot(A,[0,0,0,1])[:3]
 
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
@@ -121,7 +123,7 @@ class CorticalCellDistribution(RegionalFeature):
             logger.warning('nilearn.plotting not available. Plotting disabled.')
             return None
 
-        from ..commons import pyplot,plotting
+        from .. import pyplot,plotting
 
         patch = self.image.get_fdata()
         space,xyz = self.coordinate

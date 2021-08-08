@@ -12,20 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .feature import RegionalFeature
+from .query import FeatureQuery
+
+from .. import HAVE_PYPLOT
+from ..commons import logger
+from ..retrieval.requests import EbrainsRequest,LazyHttpRequest
+from ..core.datasets import EbrainsDataset
+
 import PIL.Image as Image
 import numpy as np
 from io import BytesIO
-from os import path
 from collections import namedtuple
 import re
 
-from .feature import RegionalFeature
-from .query import FeatureQuery
-from ..ebrains import EbrainsLoader
-from ..termplot import FontStyles as style
-from .. import logger
-from ..commons import HAVE_PYPLOT
-from ..retrieval import LazyHttpLoader
 
 RECEPTOR_SYMBOLS = {
         "5-HT1A": { 
@@ -264,7 +264,6 @@ def decode_tsv(bytearray):
         for l in lines }
 
 
-
 class DensityProfile():
 
     def __init__(self,data):
@@ -332,7 +331,7 @@ class DensityFingerprint():
                 for d in iter(self))
 
 
-class ReceptorDistribution(RegionalFeature):
+class ReceptorDistribution(RegionalFeature,EbrainsDataset):
     """
     Reprecent a receptor distribution dataset with fingerprint, profiles and
     autoradiograph samples. This implements a lazy loading scheme.
@@ -341,11 +340,11 @@ class ReceptorDistribution(RegionalFeature):
 
     def __init__(self, region, kg_result):
 
-        RegionalFeature.__init__(self,region,kg_result['identifier'])
-        self.name = kg_result["name"]
+        RegionalFeature.__init__(self,region)
+        EbrainsDataset.__init__(self,kg_result['identifier'],kg_result['name'])
+
         self.info = kg_result['description']
-        self.identifier = kg_result['identifier']
-        self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.identifier)
+        self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
         self.modality = kg_result['modality']
 
         urls = kg_result["files"]
@@ -356,7 +355,7 @@ class ReceptorDistribution(RegionalFeature):
         for url in urls_matching(".*_fp[._]"):
             if self._fingerprint_loader is not None:
                 logger.warn(f"More than one fingerprint found for {self}")
-            self._fingerprint_loader = LazyHttpLoader(url,lambda u:DensityFingerprint(decode_tsv(u)))
+            self._fingerprint_loader = LazyHttpRequest(url,lambda u:DensityFingerprint(decode_tsv(u)))
 
         # add any cortical profiles
         self._profile_loaders = {}
@@ -366,7 +365,7 @@ class ReceptorDistribution(RegionalFeature):
                 continue
             if rtype in self._profile_loaders:
                 logger.warn(f"More than one profile for '{rtype}' in {self.url}")
-            self._profile_loaders[rtype] = LazyHttpLoader(url,lambda u:DensityProfile(decode_tsv(u)))
+            self._profile_loaders[rtype] = LazyHttpRequest(url,lambda u:DensityProfile(decode_tsv(u)))
 
         # add autoradiograph
         self._autoradiograph_loaders = {}
@@ -377,7 +376,7 @@ class ReceptorDistribution(RegionalFeature):
                 continue
             if rtype in self._autoradiograph_loaders:
                 logger.warn(f"More than one autoradiograph for '{rtype}' in {self.url}")
-            self._autoradiograph_loaders[rtype] = LazyHttpLoader(url,img_from_bytes)
+            self._autoradiograph_loaders[rtype] = LazyHttpRequest(url,img_from_bytes)
 
     @property
     def fingerprint(self):
@@ -396,29 +395,12 @@ class ReceptorDistribution(RegionalFeature):
         return { rtype:l.data for rtype,l 
             in self._autoradiograph_loaders.items()}  
 
-    def table(self):
-        """ Outputs a small table of available profiles and autoradiographs. """
-        #if len(self.profiles)+len(self.autoradiographs)==0:
-                #return style.BOLD+"Receptor density for area {}".format(self.region)+style.END
-        return "\n"+"\n".join(
-                [style.BOLD+str(self)+style.END] +
-                [style.ITALIC+"{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
-                    'Type','profile','autoradiograph','fingerprint')+style.END] +
-                ["{!s:20} {!s:>8} {!s:>15} {!s:>11}".format(
-                    rtype,
-                    'x'*(rtype in self.profiles),
-                    'x'*(rtype in self.autoradiographs),
-                    'x'*(rtype in self.fingerprint))
-                    for rtype in RECEPTOR_SYMBOLS.keys()
-                    if (rtype in self.profiles 
-                        or rtype in self.autoradiographs)] )
-
     def plot(self,title=None):
         if not HAVE_PYPLOT:
             logger.warning('matplotlib.pyplot not available to siibra. plotting disabled.')
             return None
 
-        from ..commons import pyplot
+        from .. import pyplot
         from collections import deque
 
         # plot profiles and fingerprint
@@ -455,7 +437,7 @@ class ReceptorQuery(FeatureQuery):
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        kg_query = EbrainsLoader(query_id='siibra_receptor_densities').get()
+        kg_query = EbrainsRequest(query_id='siibra_receptor_densities').get()
         #kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )
         for kg_result in kg_query['results']:
             region_names = [e['name'] for e in kg_result['region']]

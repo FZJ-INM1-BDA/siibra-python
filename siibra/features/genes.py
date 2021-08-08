@@ -12,15 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .feature import SpatialFeature
+from .query import FeatureQuery
+
+from ..commons import logger,Registry
+from ..core.space import Space
+from ..retrieval import HttpRequest
+
+from os import path
 from xml.etree import ElementTree
 import numpy as np
 import json
 import siibra
-from .. import spaces,logger
-from ..retrieval import HttpLoader
-from .feature import SpatialFeature
-from .query import FeatureQuery
-from os import path
+
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
@@ -53,7 +57,7 @@ class GeneExpression(SpatialFeature):
         mri_coord : tuple  (optional)
             coordinates in original mri space
         """
-        SpatialFeature.__init__(self,space,dataset_id=BASE_URL,location=location)
+        SpatialFeature.__init__(self,space,location=location)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.donor_info = donor_info
@@ -69,6 +73,12 @@ class GeneExpression(SpatialFeature):
             "Z-score: ["+",".join(["%4.1f"%v for v in self.z_scores])+"]"
             ])
 
+# provide a registry of gene names
+genename_file = path.join(path.dirname(siibra.__file__),'features','gene_names.json')
+with open(genename_file,'r') as f:
+    _genes = json.load(f)
+GENE_NAMES=Registry()
+list(map(lambda k:GENE_NAMES.add(k,k),_genes.keys()))
 
 class AllenBrainAtlasQuery(FeatureQuery):
     """
@@ -90,12 +100,13 @@ class AllenBrainAtlasQuery(FeatureQuery):
     """
     _FEATURETYPE = GeneExpression
 
-    ALLEN_ATLAS_NOTIFICATION=\
-"""For retrieving microarray data, siibra connects to the web API of
-the Allen Brain Atlas (© 2015 Allen Institute for Brain Science), available
-from https://brain-map.org/api/index.html. Any use of the microarray data needs
-to be in accordance with their terms of use, as specified at
-https://alleninstitute.org/legal/terms-use/."""
+    ALLEN_ATLAS_NOTIFICATION="""
+    For retrieving microarray data, siibra connects to the web API of
+    the Allen Brain Atlas (© 2015 Allen Institute for Brain Science), 
+    available from https://brain-map.org/api/index.html. Any use of the 
+    microarray data needs to be in accordance with their terms of use, 
+    as specified at https://alleninstitute.org/legal/terms-use/.
+    """
     _notification_shown=False
 
     _QUERY = {
@@ -122,11 +133,6 @@ https://alleninstitute.org/legal/terms-use/."""
             'H0351.1009', 
             'H0351.2002']
 
-    # load gene names
-    genename_file = path.join(path.dirname(siibra.__file__),'features','gene_names.json')
-    with open(genename_file,'r') as f:
-        GENE_NAMES = json.load(f)
-
     def __init__(self,gene):
         """
         Retrieves probes IDs for the given gene, then collects the
@@ -142,7 +148,7 @@ https://alleninstitute.org/legal/terms-use/."""
             self.__class__._notification_shown=True
         logger.info("Retrieving probe ids for gene {}".format(gene))
         url = self._QUERY['probe'].format(gene=gene)
-        response = HttpLoader(url).get()
+        response = HttpRequest(url).get()
         root = ElementTree.fromstring(response)
         num_probes = int(root.attrib['total_rows'])
         probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
@@ -151,7 +157,7 @@ https://alleninstitute.org/legal/terms-use/."""
         self._specimen = {
                 spcid:self._retrieve_specimen(spcid) 
                 for spcid in self._SPECIMEN_IDS}
-        response = json.loads(HttpLoader(self._QUERY['factors']).get())
+        response = json.loads(HttpRequest(self._QUERY['factors']).get())
         self.factors = {
                 item['id']: {
                     'race' : item['race_only'],
@@ -170,7 +176,7 @@ https://alleninstitute.org/legal/terms-use/."""
         Retrieves information about a human specimen. 
         """
         url = self._QUERY['specimen'].format(specimen_id=specimen_id)
-        response = json.loads(HttpLoader(url).get())#,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
+        response = json.loads(HttpRequest(url).get())#,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
         if not response['success']:
             raise Exception('Invalid response when retrieving specimen information: {}'.format( url))
         # we ask for 1 specimen, so list should have length 1
@@ -194,7 +200,7 @@ https://alleninstitute.org/legal/terms-use/."""
         url = self._QUERY['microarray'].format(
                 probe_ids=','.join([str(id) for id in probe_ids]),
                 donor_id=donor_id)
-        response = HttpLoader(url,json.loads).get()
+        response = HttpRequest(url,json.loads).get()
         #response = json.loads(retrieval.cached_get(url))
         if not response['success']:
             raise Exception('Invalid response when retrieving microarray data: {}'.format( url))
@@ -215,7 +221,7 @@ https://alleninstitute.org/legal/terms-use/."""
             # Create the spatial feature
             self.register( GeneExpression( 
                 self.gene,
-                spaces.MNI152_2009C_NONL_ASYM,
+                Space.REGISTRY.MNI152_2009C_NONL_ASYM,
                 icbm_coord, 
                 expression_levels = [float(p['expression_level'][i]) for p in probes],
                 z_scores = [float(p['z-score'][i]) for p in probes],

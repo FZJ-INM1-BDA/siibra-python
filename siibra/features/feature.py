@@ -12,19 +12,31 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import parcellations,logger
-from ..region import Region
-from ..space import SpaceVOI,SpaceWarper
-from typing import Tuple
+from ..commons import logger,Registry
+from ..core.space import Space,SpaceVOI,SpaceWarper
+from ..core.region import Region
+from ..core.parcellation import Parcellation
 
-class Feature:
+from typing import Tuple
+from abc import ABC,abstractmethod
+
+class Feature(ABC):
     """ 
     Abstract base class for all data features.
     """
+    REGISTRY = Registry()
 
-    def __init__(self,dataset_id):
-        self.dataset_id = dataset_id
+    def __init__(self):
+        pass
 
+    def __init_subclass__(cls):
+        """
+        Registers all subclasses of Feature.
+        """
+        logger.debug(f"Registering feature type {cls.__name__} with modality {cls.modality()}")
+        cls.REGISTRY.add(cls.modality(),cls)
+
+    @abstractmethod
     def matches(self,atlas):
         """
         Returns True if this feature should be considered part of the current
@@ -33,14 +45,20 @@ class Feature:
         raise RuntimeError(f"matches(atlas) needs to be implemented by derived classes of {self.__class__.__name__}")
 
     def __str__(self):
-        return f"{self.__class__.__name} feature (id:{self.dataset_id})"
+        return f"{self.__class__.__name__} feature"
+
+    @classmethod
+    def modality(cls):
+        """ Returns a string representing the modality of a feature. """
+        return str(cls).split("'")[1].split('.')[-1]
+
 
 class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.
     """
 
-    def __init__(self,space,dataset_id,location=None):
+    def __init__(self,space:Space,location=None):
         """
         Initialize a new spatial feature.
         
@@ -55,7 +73,8 @@ class SpatialFeature(Feature):
             Note that the default "None" is  meant to indicate that the feature is not yet full initialized. 
             This is used for multi-point features, where the locations are added manually later on.
         """
-        Feature.__init__(self,dataset_id)
+        Feature.__init__(self)
+        assert(isinstance(space,Space))
         self.space = space
         self.location = location
 
@@ -96,7 +115,7 @@ class SpatialFeature(Feature):
                     if tspace==self.space:
                         return self.location.overlaps(M)
                     else:
-                        logger.warn(f"Volume of interest cannot be tested for {atlas.selected_region.name} in {self.space}, testing in {tspace} instead.")
+                        logger.warn(f"{self.__class__.__name__} cannot be tested for {atlas.selected_region.name} in {self.space}, testing in {tspace} instead.")
                         minpt = SpaceWarper.convert(self.space,tspace,self.location.minpt)
                         maxpt = SpaceWarper.convert(self.space,tspace,self.location.maxpt)
                         return tspace.get_voi(minpt,maxpt).overlaps(M)
@@ -124,17 +143,16 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self,regionspec : Tuple[str,Region],dataset_id:str):
+    def __init__(self,regionspec : Tuple[str,Region]):
         """
         Parameters
         ----------
         regionspec : string or Region
             Specifier for the brain region, will be matched at test time
-        dataset_id : str
-            Any identifier for the underlying dataset
         """
-        assert(any(map(lambda c:isinstance(regionspec,c),[Region,str])))
-        Feature.__init__(self,dataset_id)
+        if not any(map(lambda c:isinstance(regionspec,c),[Region,str])):
+            raise TypeError(f"invalid type {type(regionspec)} provided as region specification")
+        Feature.__init__(self)
         self.regionspec = regionspec
  
     def matches(self,atlas):
@@ -156,18 +174,16 @@ class GlobalFeature(Feature):
     connectivity matrix, which applies to all regions in the atlas.
     """
 
-    def __init__(self,parcellationspec,dataset_id):
+    def __init__(self,parcellationspec):
         """
         Parameters
         ----------
         parcellationspec : str or Parcellation object
             Identifies the underlying parcellation
-        dataset_id : str
-            Any identifier for the underlying dataset
         """
-        Feature.__init__(self,dataset_id)
+        Feature.__init__(self)
         self.spec = parcellationspec
-        self.parcellations = parcellations.find(parcellationspec)
+        self.parcellations = Parcellation.REGISTRY.find(parcellationspec)
  
     def matches(self,atlas):
         """
@@ -176,3 +192,5 @@ class GlobalFeature(Feature):
         if atlas.selected_parcellation in self.parcellations:
             return True
 
+    def __str__(self):
+        return f"{self.__class__.__name__} for {self.spec}"

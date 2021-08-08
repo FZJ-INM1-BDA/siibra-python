@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from unittest import loader
-from . import logger,spaces
-from .commons import create_key, Glossary, MapType, ParcellationIndex
-from .volumesrc import HasVolumeSrc
+from .core import SemanticConcept
 from .space import Space
-from .retrieval import GitlabConnector
+
+from ..commons import logger
+from .space import Space
+from ..commons import Registry,ParcellationIndex,MapType
+from ..retrieval.repositories import GitlabConnector
+
 import numpy as np
 import nibabel as nib
 from memoization import cached
@@ -31,20 +33,22 @@ REMOVE_FROM_NAME=['hemisphere',' -',
     # when they are present, the regions cannot be parsed properly
     'both', 'Both']
 
-def _clear_name(name):
-    result = name
-    for word in REMOVE_FROM_NAME:
-        result = result.replace(word,'')
-    return " ".join(w for w in result.split(' ') if len(w))
 
-class Region(anytree.NodeMixin,HasVolumeSrc):
+class Region(anytree.NodeMixin,SemanticConcept):
     """
     Representation of a region with name and more optional attributes
     """
 
     CONNECTOR = GitlabConnector(server='https://jugit.fz-juelich.de',project=3009,reftag='master')
 
-    def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None):
+    @staticmethod
+    def _clear_name(name):
+        result = name
+        for word in REMOVE_FROM_NAME:
+            result = result.replace(word,'')
+        return " ".join(w for w in result.split(' ') if len(w))
+
+    def __init__(self, name, parcellation, index:ParcellationIndex, attrs={}, parent=None, children=None, dataset_specs=[]):
         """
         Constructs a new region object.
 
@@ -65,9 +69,10 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
         volume_src : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
-        HasVolumeSrc.__init__(self)
-        self.key = create_key(name)
-        self.name= _clear_name(name)
+        regionname = __class__._clear_name(name)
+        # regions are not modelled with an id yet in the configuration, so we create one here 
+        id = f"{parcellation.id}-{SemanticConcept._create_key((regionname+str(index))).replace('NONE','X')}"
+        SemanticConcept.__init__(self,identifier=id,name=regionname,dataset_specs=dataset_specs)
         self.parcellation = parcellation
         self.index = index
         self.attrs = attrs
@@ -106,7 +111,7 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
 
     @property
     def names(self):
-        return Glossary([r.key for r in self])
+        return Registry(elements={r.key:r.name for r in self})
 
     def __eq__(self,other):
         return self.__hash__() == other.__hash__()
@@ -119,12 +124,6 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
 
     def has_parent(self,parent):
         return parent in [a for a in self.ancestors]
-
-    def __getattr__(self,name):
-        if name in self.attrs.keys():
-            return self.attrs[name]
-        else:
-            raise AttributeError("No such attribute: {}".format(name))
 
     def includes(self, region):
         """
@@ -156,7 +155,11 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
         """
         if isinstance(regionspec,str) and regionspec in self.names:
             # key is given, this gives us an exact region
-            return [anytree.search.find_by_attr(self,regionspec,name="key")]
+            match = anytree.search.find_by_attr(self,regionspec,name="key")
+            if match is None:
+                return []
+            else:
+                return [match]
         result = list(set(anytree.search.findall(self,
                 lambda node: node.matches(regionspec))))
         if len(result)>1 and select_uppermost:
@@ -212,7 +215,7 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
             else:
                 words = splitstr(self.name.lower())
                 return all([w.lower() in words 
-                            for w in splitstr(_clear_name(regionspec))]) 
+                            for w in splitstr(__class__._clear_name(regionspec))]) 
         else:
             raise TypeError(f"Cannot interpret region specification of type '{type(regionspec)}'")
 
@@ -243,10 +246,11 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
 
         if self.parcellation.continuous_map_threshold is not None:
 
-            T = self.parcellation.continuous_map_threshold 
-            if self.has_regional_map(space,MapType.CONTINUOUS):
+            T = self.parcellation.continuous_map_threshold
+            regionmap = self.get_regional_map(space,MapType.CONTINOUS)
+            if regionmap is not None:
                 logger.info(f"Computing mask for {self.name} by thresholding the continuous regional map at {T}.")
-                pmap = self.volume_src[space,MapType.CONTINUOUS].fetch(resolution_mm=resolution_mm)
+                pmap = regionmap.fetch(resolution_mm=resolution_mm)
             else:
                 logger.info(f"Extracting mask for {self.name} from continuous map volume of {self.parcellation.name}.")
                 pmap = self.parcellation.get_map(space,maptype=MapType.CONTINUOUS).extract_regionmap(self,resolution_mm=resolution_mm)
@@ -254,22 +258,25 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
                 mask = (np.asanyarray(pmap.dataobj)>T).astype('uint8')
                 affine = pmap.affine
 
-        elif self.has_regional_map(space,MapType.LABELLED):
-            logger.info(f"Extracting mask for {self.name} from regional labelmap.")
-            labelimg = self.volume_src[space,MapType.LABELLED].fetch(resolution_mm=resolution_mm)
-            mask = labelimg.dataobj
-            affine = labelimg.affine
-        
         else:
-            logger.info(f"Extracting mask for {self.name} from parcellation volume of {self.parcellation.name}.")
-            labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
-            for mapindex,img in enumerate(labelmap):
-                if mask is None:
-                    mask = np.zeros(img.dataobj.shape,dtype='uint8')
-                    affine = img.affine                
-                for r in self: # consider all children
-                    if (r.index.map is None) or (r.index.map==mapindex):
-                        mask[img.get_fdata()==r.index.label]=1
+
+            regionmap = self.get_regional_map(space,MapType.LABELLED)
+            if regionmap is not None:
+                logger.info(f"Extracting mask for {self.name} in {space} from regional labelmap.")
+                labelimg = self.get_regional_map(space,MapType.LABELLED).fetch(resolution_mm=resolution_mm)
+                mask = labelimg.dataobj
+                affine = labelimg.affine
+        
+            else:
+                logger.info(f"Extracting mask for {self.name} in {space} from parcellation volume of {self.parcellation.name}.")
+                labelmap = self.parcellation.get_map(space,maptype=MapType.LABELLED).fetchall(resolution_mm=resolution_mm)
+                for mapindex,img in enumerate(labelmap):
+                    if mask is None:
+                        mask = np.zeros(img.dataobj.shape,dtype='uint8')
+                        affine = img.affine                
+                    for r in self: # consider all children
+                        if (r.index.map is None) or (r.index.map==mapindex):
+                            mask[img.get_fdata()==r.index.label]=1
 
         if mask is None:
             raise RuntimeError(f"Could not compute mask for {self.region.name} in {space.name}.")
@@ -288,19 +295,6 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
         except (ValueError,IndexError):
             return False
 
-    def has_regional_map(self,space,maptype : MapType):
-        """
-        Tests wether a specific map is available for this region.
-
-        Parameters
-        ----------
-        space : Space 
-            Template space 
-        maptype : MapType
-            Type of map (e.g. continuous, labelled - see commons.MapType)
-        """
-        return (space,maptype) in self.volume_src
-
     @cached
     def get_regional_map(self,space:Space,maptype:Union[str,MapType]):
         """
@@ -318,15 +312,25 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
         """
         if isinstance(maptype,str):
             maptype = MapType[maptype.upper()]
-        try:
-            spaceobj = spaces[space]
-        except IndexError:
-            logger.error(f"Cannot resolve space specification '{space}'.")
+
+        def maptype_ok(vsrc,maptype):
+            if vsrc.map_type is None:
+                # if the map type is not defined, we consider float volumes 
+                # for continuous and int volumes for labelled maps.
+                return (maptype==MapType.CONTINUOUS)==(vsrc.is_float())
+            else:
+                return vsrc.map_type==maptype
+
+        available = self.get_volume_src(space)
+        suitable = [v for v in available if maptype_ok(v,maptype)]
+        if len(suitable)==0:
+            logger.debug(f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)")
             return None
-        if not self.has_regional_map(spaceobj,maptype):
-            logger.warning(f"{self.parcellation.name} has no regional map for {self} in {spaceobj.name}.")
-            return None
-        return self.volume_src[spaceobj,maptype]
+        elif len(suitable)==1:
+            return suitable[0]
+        else:
+            raise RuntimeError(f"Multiple regional maps found for {self} in {space}. This is not expected by siibra.")
+
 
     def __getitem__(self, labelindex):
         """
@@ -435,8 +439,8 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
         """
         return anytree.PreOrderIter(self)
 
-    @staticmethod
-    def from_json(jsonstr,parcellation):
+    @classmethod
+    def from_json(cls,jsonstr,parcellation):
         """
         Provides an object hook for the json library to construct a Region
         object from a json definition.
@@ -460,20 +464,9 @@ class Region(anytree.NodeMixin,HasVolumeSrc):
 
         # Setup the region object
         pindex = ParcellationIndex(label=labelindex,map=jsonstr.get('mapIndex',None))
-        result = Region( 
+        result = cls( 
             name=jsonstr['name'], parcellation=parcellation, index=pindex, 
-            attrs=jsonstr, children=children )
-
-        # update volume sources and origin datasets
-        for spec in jsonstr.get('volumeSrc',[]):
-            result._add_volumeSrc(spec)
-        for spec in jsonstr.get('originDataset',[]):
-            result._add_originDatainfo(spec)
-
-        key2maptype = {
-                'pmap' : MapType.CONTINUOUS,
-                'collect' : MapType.LABELLED
-                }
+            attrs=jsonstr, children=children, dataset_specs=jsonstr.get('datasets',[]) )
 
         return result
 

@@ -12,21 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .logging import LoggingContext,logger
-QUIET = LoggingContext("ERROR")
-VERBOSE = LoggingContext("DEBUG")
+from .commons import logger,QUIET,VERBOSE
 
 # __version__ is parsed by setup.py
-__version__='0.1a8'
+__version__='0.2a0'
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk. Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
-from .space import REGISTRY as spaces
-from .parcellation import REGISTRY as parcellations
-from .atlas import REGISTRY as atlases
+
+try:
+    from matplotlib import pyplot 
+    HAVE_PYPLOT=True
+except Exception as e:
+    HAVE_PYPLOT=False
+
+try:
+    from nilearn import plotting
+    HAVE_PLOTTING=True
+except Exception as e:
+    HAVE_PLOTTING=False
+
+
+from .core import spaces,parcellations,atlases
 from .features import modalities,gene_names
-from .ebrains import KG_TOKEN as EBRAINS_KG_TOKEN
-from .commons import MapType,ParcellationIndex
-from .retrieval import Cache
-CACHE = Cache.instance()
+from .commons import MapType, ParcellationIndex
+from .retrieval import EbrainsRequest
+set_ebrains_token = EbrainsRequest.set_token
 

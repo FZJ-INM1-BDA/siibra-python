@@ -12,21 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 
-from .. import logger,parcellations
 from .feature import RegionalFeature,GlobalFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabConnector
+
+from ..commons import logger
+from ..core.parcellation import Parcellation
+from ..core.datasets import EbrainsDataset,Dataset
+from ..retrieval.repositories import GitlabConnector
+
 from collections import defaultdict
+import numpy as np
 
 
 class ConnectivityMatrix(GlobalFeature):
 
-    def __init__(self,dataset_id,parcellation_id,matrix,src_info,src_name):
-        GlobalFeature.__init__(self,parcellation_id,dataset_id)
-        self.description = src_info
-        self.name = src_name
+    def __init__(self,parcellation_id,matrix):
+        GlobalFeature.__init__(self,parcellation_id)
         self.matrix = matrix
 
     @property
@@ -46,12 +48,12 @@ class ConnectivityMatrix(GlobalFeature):
                 for f in self._matrix_loader.data.dtype.names[1:])
                 for fnc in [min,max] ]
 
-    @staticmethod
-    def from_json(data):
+    @classmethod
+    def from_json(cls,data):
         """
         Build a connectivity matrix from json object
         """
-        parcellation = parcellations[data['parcellation id']]
+        parcellation = Parcellation.REGISTRY[data['parcellation id']]
 
         # determine the valid brain regions defined in the file,
         # as well as their indices
@@ -79,9 +81,30 @@ class ConnectivityMatrix(GlobalFeature):
         matrix = np.array(profiles,dtype=fields)
         assert(all(N==len(valid_regions) for N in matrix.shape))
 
-        dataset_id = data.get('kgId',data['@id'])
-        return ConnectivityMatrix(dataset_id, data['parcellation id'],matrix,
-                src_info=data['description'],src_name=data['name'])
+        if 'kgId' in data:
+            return EbrainsConnectivityMatrix(data['kgId'], data['parcellation id'],matrix,src_name=data['name'],src_info=data['description'])
+        else:
+            return ExternalConnectivityMatrix(data['@id'], data['parcellation id'],matrix,src_name=data['name'],src_info=data['description'])
+
+
+class ExternalConnectivityMatrix(ConnectivityMatrix,Dataset):
+
+    def __init__(self,id,parcellation_id,matrix,src_name,src_info):
+        assert(id is not None)
+        ConnectivityMatrix.__init__(self,parcellation_id,matrix)
+        Dataset.__init__(self,id)
+        self.description = src_info
+        self.name = src_name
+
+
+class EbrainsConnectivityMatrix(ConnectivityMatrix,EbrainsDataset):
+
+    def __init__(self,kg_id,parcellation_id,matrix,src_name,src_info):
+        assert(kg_id is not None)
+        ConnectivityMatrix.__init__(self,parcellation_id,matrix)
+        EbrainsDataset.__init__(self,kg_id,src_name)
+        self._name_cached = src_name
+        self._description_cached = src_info
 
 
 class ConnectivityProfile(RegionalFeature):
@@ -89,7 +112,8 @@ class ConnectivityProfile(RegionalFeature):
     show_as_log = True
 
     def __init__(self, regionspec:str, connectivitymatrix:ConnectivityMatrix, index):
-        RegionalFeature.__init__(self,regionspec,connectivitymatrix.dataset_id)
+        assert(regionspec is not None)
+        RegionalFeature.__init__(self,regionspec)
         self._cm_index = index
         self._cm = connectivitymatrix
 
@@ -122,7 +146,7 @@ class ConnectivityProfile(RegionalFeature):
         return self._cm.globalrange
 
     def __str__(self):
-        return f"{self.__class__.__name__} from {self.src_name} for {self.regionspec}"
+        return f"{self.__class__.__name__} from dataset '{self._cm.name}' for {self.regionspec}"
 
     def decode(self,parcellation,minstrength=0,force=True):
         """
@@ -136,6 +160,7 @@ class ConnectivityProfile(RegionalFeature):
                 if strength>minstrength)
         return sorted(decoded,key=lambda q:q[0],reverse=True)
 
+
 class ConnectivityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityProfile
@@ -144,11 +169,14 @@ class ConnectivityProfileQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         for _,loader in self._QUERY.get_loaders("connectivity",".json"):
-            cm = ConnectivityMatrix.from_json(loader.data)#json.loads(loader))
+            cm = ConnectivityMatrix.from_json(loader.data)
             for parcellation in cm.parcellations:
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname,build_group=False)
+                    if region is None:
+                        raise RuntimeError(f"Could not decode region name {regionname} in {parcellation}")
                     self.register(ConnectivityProfile(region,cm,regionname))
+
 
 class ConnectivityMatrixQuery(FeatureQuery):
 
