@@ -75,12 +75,12 @@ class OriginDescription(Dataset,type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
 
 class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
 
-    def __init__(self, id, embargo_status=None, filename=None):
+    def __init__(self, id, name, embargo_status=None, filename=None):
         Dataset.__init__(self,id)
         self.embargo_status = embargo_status
         self.filename = filename
         self._description_cached = None # if available, will not be extracted from _detail
-        self._name_cached = None
+        self._name_cached = name
         self._detail = None
         if id is None:
             raise TypeError('Dataset id is required')
@@ -125,7 +125,7 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
     def from_json(cls,spec):
         type_id = cls.extract_type_id(spec)
         assert(type_id==cls.type_id)
-        return EbrainsDataset(
+        return cls(
             id=type_id,
             embargo_status=spec.get('embargo_status',None),
             filename=spec.get('filename',None),

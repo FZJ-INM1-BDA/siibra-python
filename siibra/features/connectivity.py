@@ -103,7 +103,6 @@ class EbrainsConnectivityMatrix(ConnectivityMatrix,EbrainsDataset):
         assert(kg_id is not None)
         ConnectivityMatrix.__init__(self,parcellation_id,matrix)
         EbrainsDataset.__init__(self,kg_id,src_name)
-        self._name_cached = src_name
         self._description_cached = src_info
 
 

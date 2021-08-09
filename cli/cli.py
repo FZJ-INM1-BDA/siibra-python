@@ -59,8 +59,8 @@ def get(ctx,outfile):
 def map(ctx,parcellation,space):
     """Retrieve a parcellation map in the given space"""
 
-    import siibra as sb
-    atlas = sb.atlases['human']
+    import siibra as siibra
+    atlas = siibra.atlases['human']
     try:
         atlas.select_parcellation(parcellation)
     except IndexError:
@@ -68,13 +68,13 @@ def map(ctx,parcellation,space):
         exit(1)
     parcobj = atlas.selected_parcellation
     try:
-        spaceobj = sb.spaces[space]
+        spaceobj = siibra.spaces[space]
     except IndexError:
         print("Space specification invalid.")
         exit(1)
     print(f"Loading map of {atlas.selected_parcellation.name} in {spaceobj.name} space.")
     try:
-        parcmap = atlas.get_map(spaceobj,sb.MapType.LABELLED)
+        parcmap = atlas.get_map(spaceobj,siibra.MapType.LABELLED)
     except ValueError as e:
         print(str(e)+".")
         exit(1)
@@ -108,8 +108,8 @@ def map(ctx,parcellation,space):
 def template(ctx,space):
     """Retrieve the template image for a given space"""
     outfile = ctx.obj['outfile']
-    import siibra as sb
-    spaceobj = sb.spaces[space]
+    import siibra as siibra
+    spaceobj = siibra.spaces[space]
     print(f"Loading template of {spaceobj.name} space.")
     tpl = spaceobj.get_template().fetch()
     suffix = ".nii.gz"
@@ -136,8 +136,8 @@ def find(ctx):
 @click.pass_context
 def region(ctx,region,all,parcellation):
     """Find brain regions by name"""
-    import siibra as sb
-    atlas = sb.atlases['human']
+    import siibra as siibra
+    atlas = siibra.atlases['human']
     if parcellation is not None:
         try:
             atlas.select_parcellation(parcellation)
@@ -162,9 +162,9 @@ def features(ctx,region,parcellation,match):
 
     # init siibra
     os.environ["SIIBRA_LOG_LEVEL"]="WARN"
-    import siibra as sb
-    sb.set_log_level("INFO")
-    atlas = sb.atlases['human']
+    import siibra
+    siibra.commons.set_log_level("INFO")
+    atlas = siibra.atlases['human']
     if parcellation is not None:
         try:
             atlas.select_parcellation(parcellation)
@@ -178,7 +178,7 @@ def features(ctx,region,parcellation,match):
         print(str(e))
         exit(1)
     try:
-        features = atlas.get_features(sb.modalities.EbrainsRegionalDataset)
+        features = atlas.get_features(siibra.modalities.EbrainsRegionalDataset)
     except RuntimeError as e:
         print(str(e))
         exit(1)
@@ -222,10 +222,10 @@ def coordinate(ctx,coordinate,space,parcellation,labelled,sigma_mm):
     
     Note: To provide negative numbers, add "--" as the first argument after all options, ie. `siibra assign coordinate -- -3.2 4.6 -12.12`
     """
-    import siibra as sb
-    atlas = sb.atlases['human']
-    spaceobj = sb.spaces[space]
-    maptype = sb.MapType.LABELLED if labelled else sb.MapType.CONTINUOUS
+    import siibra as siibra
+    atlas = siibra.atlases['human']
+    spaceobj = siibra.spaces[space]
+    maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
     print("Using {maptype} type maps.")
     assignments = atlas.assign_coordinates(spaceobj,coordinate,maptype=maptype,sigma_mm=sigma_mm)
     for i,(region,_,scores) in enumerate(assignments[0]):

@@ -208,7 +208,7 @@ class EbrainsRequest(LazyHttpRequest):
                 self.__class__._KG_API_TOKEN = os.environ['HBP_AUTH_TOKEN']
             except KeyError:
                 raise RuntimeError(f"No API token defined for EBRAINS Knowledge Graph. "\
-                    "Please set $HBP_AUTH_TOKEN or use '{cls}.set_token()'")
+                    f"Please set $HBP_AUTH_TOKEN or use '{self.__class__.__name__}.set_token()'")
         return self.__class__._KG_API_TOKEN     
 
     def get(self):
