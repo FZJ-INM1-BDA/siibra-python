@@ -21,7 +21,7 @@ class TestVolumeSrc(unittest.TestCase):
             'volume_type': 'nii',
             'url':'http://localhost/test'
         }
-        output = volumesrc.from_json(v_json)
+        output = volumesrc._from_json(v_json)
         self.assertIsInstance(output, volumesrc.VolumeSrc)
 
     def test_volume_from_invalid_json(self):
@@ -33,7 +33,7 @@ class TestVolumeSrc(unittest.TestCase):
             'url':'http://localhost/test'
         }
         with self.assertRaises(NotImplementedError):
-            output = volumesrc.from_json(v_invalid_json)
+            output = volumesrc._from_json(v_invalid_json)
 
 if __name__ == "__main__":
     unittest.main()

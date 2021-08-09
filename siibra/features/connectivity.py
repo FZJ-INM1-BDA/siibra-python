@@ -49,7 +49,7 @@ class ConnectivityMatrix(GlobalFeature):
                 for fnc in [min,max] ]
 
     @classmethod
-    def from_json(cls,data):
+    def _from_json(cls,data):
         """
         Build a connectivity matrix from json object
         """
@@ -168,7 +168,7 @@ class ConnectivityProfileQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         for _,loader in self._QUERY.get_loaders("connectivity",".json"):
-            cm = ConnectivityMatrix.from_json(loader.data)
+            cm = ConnectivityMatrix._from_json(loader.data)
             for parcellation in cm.parcellations:
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname,build_group=False)
@@ -185,6 +185,6 @@ class ConnectivityMatrixQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         for _,loader in self._CONNECTOR.get_loaders("connectivity",".json"):
-            matrix = ConnectivityMatrix.from_json(loader.data)
+            matrix = ConnectivityMatrix._from_json(loader.data)
             self.register(matrix)
 

@@ -9,9 +9,9 @@ class TestParcellationVersion(unittest.TestCase):
         '@next': 'foobar-next',
         'deprecated': False,
     }
-    def test_from_json(self):
+    def test__from_json(self):
 
-        ver=siibra.parcellation.ParcellationVersion.from_json(self.correct_json)
+        ver=siibra.parcellation.ParcellationVersion._from_json(self.correct_json)
         self.assertTrue(ver.deprecated == self.correct_json['deprecated'])
         self.assertTrue(ver.name == self.correct_json['name'])
         self.assertTrue(ver.collection == self.correct_json['collectionName'])

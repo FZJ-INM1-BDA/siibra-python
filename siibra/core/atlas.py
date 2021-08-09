@@ -63,7 +63,7 @@ class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atla
         return self.name
 
     @classmethod
-    def from_json(cls,obj):
+    def _from_json(cls,obj):
         """
         Provides an object hook for the json library to construct an Atlas
         object from a json stream.

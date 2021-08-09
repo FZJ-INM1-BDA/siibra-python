@@ -440,7 +440,7 @@ class Region(anytree.NodeMixin,SemanticConcept):
         return anytree.PreOrderIter(self)
 
     @classmethod
-    def from_json(cls,jsonstr,parcellation):
+    def _from_json(cls,jsonstr,parcellation):
         """
         Provides an object hook for the json library to construct a Region
         object from a json definition.
@@ -453,7 +453,7 @@ class Region(anytree.NodeMixin,SemanticConcept):
         if "children" in jsonstr:
             if jsonstr["children"] is not None:
                 for regiondef in jsonstr["children"]:
-                    children.append(Region.from_json(regiondef,parcellation))
+                    children.append(Region._from_json(regiondef,parcellation))
 
         # determine labelindex
         labelindex = jsonstr.get('labelIndex',None)

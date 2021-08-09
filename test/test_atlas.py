@@ -60,8 +60,8 @@ class TestAtlas(unittest.TestCase):
         atlas_str = str(self.atlas)
         self.assertEqual(atlas_str, self.ATLAS_NAME)
 
-    def test_from_json(self):
-        json_atlas = atlas.Atlas.from_json(self.atlas_as_json)
+    def test__from_json(self):
+        json_atlas = atlas.Atlas._from_json(self.atlas_as_json)
         
         self.assertTrue(type(json_atlas) is atlas.Atlas)
 
@@ -70,17 +70,17 @@ class TestAtlas(unittest.TestCase):
         self.assertTrue(len(json_atlas.spaces) == 1)
         self.assertTrue(len(json_atlas.parcellations) == 2)
 
-    def test_from_json_with_invalid_id(self):
+    def test__from_json_with_invalid_id(self):
         invalid_atlas_json = {
             "@id": "foo",
             "bar": "bar",
             "order": 1,
         }
-        json_atlas = atlas.Atlas.from_json(invalid_atlas_json)
+        json_atlas = atlas.Atlas._from_json(invalid_atlas_json)
         self.assertTrue(type(json_atlas) is not atlas.Atlas)
         self.assertEqual(json_atlas, invalid_atlas_json)
 
-    def test_from_json_with_invalid_json(self):
+    def test__from_json_with_invalid_json(self):
         # Error handling for wrong json input
         pass
 

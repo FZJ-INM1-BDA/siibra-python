@@ -48,8 +48,8 @@ class TestSpaces(unittest.TestCase):
         space = Space(self.space_id, self.name, self.url, self.ziptarget)
         self.assertIsNotNone(space)
 
-    def test_space_from_json_with_zip(self):
-        space = Space.from_json(self.json_space_with_zip)
+    def test_space__from_json_with_zip(self):
+        space = Space._from_json(self.json_space_with_zip)
         self.assertEqual(
             str(space),
             self.name
@@ -59,8 +59,8 @@ class TestSpaces(unittest.TestCase):
         self.assertEqual(space.type,self.ttype)
         self.assertEqual(vsrc.zipped_file,self.ziptarget)
 
-    def test_space_from_json_without_zip(self):
-        space = Space.from_json(self.json_space_without_zip)
+    def test_space__from_json_without_zip(self):
+        space = Space._from_json(self.json_space_without_zip)
         self.assertEqual(
             str(space),
             self.name

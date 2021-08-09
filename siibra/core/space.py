@@ -87,7 +87,7 @@ class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/refere
             minpt[2]:maxpt[2]]
 
     @classmethod
-    def from_json(cls,obj):
+    def _from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a Space
         object from a json stream.

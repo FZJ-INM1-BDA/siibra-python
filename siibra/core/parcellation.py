@@ -88,7 +88,7 @@ class ParcellationVersion:
             logger.warning('Accessing REGISTRY before its declaration!')
 
     @classmethod
-    def from_json(cls,obj):
+    def _from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a
         ParcellationVersion object from a json string.
@@ -141,7 +141,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
             self._regiontree_cached = Region(self.name,self,ParcellationIndex(None,None))
             try:
                     self._regiontree_cached.children = tuple( 
-                        Region.from_json(regiondef,self) 
+                        Region._from_json(regiondef,self) 
                         for regiondef in self._regiondefs )
             except Exception as e:
                 logger.error(f"Could not generate child regions for {self.name}")
@@ -299,7 +299,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         return self.version.__lt__(other.version)
 
     @classmethod
-    def from_json(cls,obj):
+    def _from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a Parcellation
         object from a json string.
@@ -312,7 +312,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
             dataset_specs=obj.get('datasets',[]))
 
         if '@version' in obj:
-            result.version = ParcellationVersion.from_json(obj['@version'])
+            result.version = ParcellationVersion._from_json(obj['@version'])
 
         if 'modality' in obj:
             result.modality = obj['modality']

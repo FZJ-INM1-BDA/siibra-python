@@ -53,7 +53,7 @@ class IEEG_Dataset(SpatialFeature,EbrainsDataset):
         self.location = coords if len(coords)>0 else None
 
     @classmethod
-    def from_json(cls,spec):
+    def _from_json(cls,spec):
         return cls(
             dataset_id = spec['kgId'], 
             name = spec['name'], 
@@ -176,7 +176,7 @@ class IEEG_SessionQuery(FeatureQuery):
     def __init__(self):
 
         FeatureQuery.__init__(self)
-        dset = IEEG_Dataset.from_json(
+        dset = IEEG_Dataset._from_json(
             self._CONNECTOR.get_loader('ieeg_contact_points/info.json').data)
 
         for fname,loader in self._CONNECTOR.get_loaders(

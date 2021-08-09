@@ -65,7 +65,7 @@ class SemanticConcept():
                 if Specialist is None:
                     raise RuntimeError(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
                 else:
-                    obj = Specialist.from_json(spec)
+                    obj = Specialist.__from_json(spec)
                     logger.debug(f"Built {obj.__class__.__name__} object '{obj}' from dataset specification.")
                     self._datasets_cached.append(obj)
         return self._datasets_cached
@@ -101,7 +101,7 @@ class SemanticConcept():
         with QUIET:
             for fname,loader in loaders:
                 logger.info(f"Loading {fname}")
-                obj = cls.from_json(loader.data)
+                obj = cls._from_json(loader.data)
                 if isinstance(obj,cls):
                     cls.REGISTRY.add(obj.key,obj)
                 else:

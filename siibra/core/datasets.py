@@ -65,7 +65,7 @@ class OriginDescription(Dataset,type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
         return self._urls
 
     @classmethod
-    def from_json(cls,spec):
+    def _from_json(cls,spec):
         type_id = cls.extract_type_id(spec)
         assert(type_id==cls.type_id)
         return cls(
@@ -122,7 +122,7 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
         return self.id == o.id
 
     @classmethod
-    def from_json(cls,spec):
+    def _from_json(cls,spec):
         type_id = cls.extract_type_id(spec)
         assert(type_id==cls.type_id)
         return cls(

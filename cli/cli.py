@@ -142,7 +142,7 @@ def region(ctx,region,all,parcellation):
     if all:
         print(f"Searching for region '{region}' in all parcellations.")
     else:
-        print(f"Searching for region '{region}' in {atlas.selected_parcellations}.")
+        print(f"Searching for region '{region}' in {atlas.selected_parcellation}.")
     matches = atlas.find_regions(region,all_parcellations=all)
     if len(matches)==0:
         print(f"No region found.")

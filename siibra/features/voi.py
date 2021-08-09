@@ -32,14 +32,14 @@ class VolumeOfInterest(SpatialFeature,EbrainsDataset):
         self.volumes = []
     
     @classmethod
-    def from_json(cls,definition):
+    def _from_json(cls,definition):
         if definition["@type"]=="minds/core/dataset/v1.0.0":
             space = Space.REGISTRY[definition['space id']]
             vsrcs = []
             minpts = []
             maxpts = []            
             for vsrc_def in definition["volumeSrc"]:
-                vsrc = VolumeSrc.from_json(vsrc_def)
+                vsrc = VolumeSrc._from_json(vsrc_def)
                 vsrc.space = space
                 with QUIET:
                     D = vsrc.fetch().get_fdata().squeeze()
@@ -66,5 +66,5 @@ class VolumeOfInterestQuery(FeatureQuery):
     def __init__(self):
         FeatureQuery.__init__(self)
         for _,loader in self._QUERY.get_loaders(folder="vois",suffix=".json"):
-            voi = VolumeOfInterest.from_json(loader.data)#json.loads(data))
+            voi = VolumeOfInterest._from_json(loader.data)#json.loads(data))
             self.register(voi)

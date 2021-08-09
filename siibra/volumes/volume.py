@@ -89,7 +89,7 @@ class VolumeSrc(Dataset,type_id="fzj/tmp/volume_type/v0.0.1"):
         return True
 
     @classmethod
-    def from_json(cls,obj):
+    def _from_json(cls,obj):
         """
         Provides an object hook for the json library to construct a VolumeSrc
         object from a json stream.
