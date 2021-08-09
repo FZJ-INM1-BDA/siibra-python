@@ -61,13 +61,17 @@ class HttpRequest:
         self.cachefile = CACHE.build_filename(self.url+json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
 
+    @property
+    def cached(self):
+        return os.path.isfile(self.cachefile)
+
     def _retrieve(self):
         # Loads the data from http if required. 
         # If the data is already cached, None is returned,
         # otherwise data (as it is already in memory anyway).
         # The caller should load the cachefile only
         # if None is returned.
-        if os.path.isfile(self.cachefile):
+        if self.cached:
             # in cache. Just load the file 
             logger.debug(f"Already in cache at {os.path.basename(self.cachefile)}: {self.url}")
             return

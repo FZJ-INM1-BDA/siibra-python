@@ -127,6 +127,7 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
         assert(type_id==cls.type_id)
         return cls(
             id=type_id,
+            name=spec.get('name'),
             embargo_status=spec.get('embargo_status',None),
             filename=spec.get('filename',None),
         )

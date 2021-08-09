@@ -295,7 +295,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         We sort parcellations by their version
         """
         if (self.version is None) or (other.version is None):
-            raise RuntimeError("Attempted to sort non-versioned instances of {self.__class__}.")
+            raise RuntimeError(f"Attempted to sort non-versioned instances of {self.__class__.__name__}.")
         return self.version.__lt__(other.version)
 
     @classmethod

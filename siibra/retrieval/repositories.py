@@ -61,11 +61,12 @@ class RepositoryConnector(ABC):
         In each iteration, a tuple (filename,file content) is returned.
         """
         fnames = self.search_files(folder,suffix,recursive)
-        it = ( (fname,self.get_loader(fname,decode_func=decode_func)) for fname in fnames ) 
-        if progress is None:
-            return it
+        result = [(fname,self.get_loader(fname,decode_func=decode_func)) for fname in fnames ]
+        all_cached = all(_[1].cached for _ in result)
+        if progress is None or all_cached:
+            return result
         else:
-            return tqdm(it,total=len(fnames),desc=progress)
+            return tqdm(result,total=len(fnames),desc=progress)
 
 
 class GitlabConnector(RepositoryConnector):
