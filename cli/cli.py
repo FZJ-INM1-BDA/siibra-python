@@ -82,24 +82,20 @@ def map(ctx,parcellation,space):
     fname = ctx.obj['outfile']
     suffix = ".nii.gz"
     if fname is None:
-        fname = click.edit('Output file name', default=f"{parcobj.key}_{spaceobj.key}{suffix}")
+        fname = click.prompt('Output file name', f"{parcobj.key}_{spaceobj.key}{suffix}")
     if not fname.endswith(suffix) and not fname.endswith(".nii"):
         fname = f"{os.path.splitext(fname)[0]}{suffix}"
 
     if len(parcmap)==1:
         # we have a single map
         img = parcmap.fetch()
-        print(f"map info: {img.dataobj.dtype} {img.shape}")
         img.to_filename(fname)
-        print(f"Output written to {fname}.")
         exit(0)
-
-    # we have multiple maps
-    for i,img in enumerate(parcmap.fetchall()):
-        fname_ = fname.replace(suffix,f"_{i}{suffix}")
-        print(f"map info: {img.dataobj.dtype} {img.shape}")
-        img.to_filename(fname_)
-        print(f"Output written to {fname_}.")
+    else:
+        for i,img in enumerate(parcmap.fetchall()):
+            fname_ = fname.replace(suffix,f"_{i}{suffix}")
+            img.to_filename(fname_)
+            print(f"File {i+1} of {len(parcmap)} written to '{fname_}'.")
 
 
 @get.command()
@@ -130,7 +126,7 @@ def find(ctx):
 
 @find.command()
 @click.argument('region', type=click.STRING)
-@click.option('-a','--all', type=click.BOOL, default=False,
+@click.option('-a','--all', is_flag=True,
         help="Whether to search region in all available parcellations")
 @click.option('-p','--parcellation',type=click.STRING, default=None, autocompletion=complete_parcellations)
 @click.pass_context
@@ -143,7 +139,10 @@ def region(ctx,region,all,parcellation):
             atlas.select_parcellation(parcellation)
         except IndexError:
             print(f"Cannot select {parcellation} as a parcellation; using default: {atlas.selected_parcellation}")
-    print(f"Searching for region '{region}' in {atlas}.")
+    if all:
+        print(f"Searching for region '{region}' in all parcellations.")
+    else:
+        print(f"Searching for region '{region}' in {atlas.selected_parcellations}.")
     matches = atlas.find_regions(region,all_parcellations=all)
     if len(matches)==0:
         print(f"No region found.")
@@ -222,12 +221,16 @@ def coordinate(ctx,coordinate,space,parcellation,labelled,sigma_mm):
     
     Note: To provide negative numbers, add "--" as the first argument after all options, ie. `siibra assign coordinate -- -3.2 4.6 -12.12`
     """
-    import siibra as siibra
+    import siibra
+    from siibra import logger
     atlas = siibra.atlases['human']
     spaceobj = siibra.spaces[space]
     maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
-    print("Using {maptype} type maps.")
+    logger.info(f"Using {maptype} type maps for assignment.")
     assignments = atlas.assign_coordinates(spaceobj,coordinate,maptype=maptype,sigma_mm=sigma_mm)
+
+    if len(assignments)==0:
+        click.echo(click.style(f"No assignment could be made to {coordinate} in {space}.",bold=True))
     for i,(region,_,scores) in enumerate(assignments[0]):
         if isinstance(scores,dict):
             if i==0:

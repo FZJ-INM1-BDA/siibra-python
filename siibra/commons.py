@@ -18,7 +18,7 @@ from enum import Enum
 import logging
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
+formatter = logging.Formatter('[{name}:{levelname}] {message}',style='{')
 ch.setFormatter(formatter)
 logger.addHandler(ch)
 
