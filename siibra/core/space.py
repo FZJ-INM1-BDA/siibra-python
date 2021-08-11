@@ -30,8 +30,8 @@ from urllib.parse import quote
 
 
 Coordinate = Union[
-    tuple[float,float,float],
-    list[float,float,float]
+    Tuple[float,float,float],
+    List[float,float,float]
     ]
 
 
