@@ -37,31 +37,33 @@ class FeatureQuery(ABC):
         """
         Registers all subclasses of FeatureQuery.
         """
-        logger.debug(f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features")
-        cls.REGISTRY.add(cls._FEATURETYPE.modality(),cls)
+        logger.debug(
+            f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features"
+        )
+        cls.REGISTRY.add(cls._FEATURETYPE.modality(), cls)
 
     @classmethod
-    def queries(cls,modality:str,**kwargs):
+    def queries(cls, modality: str, **kwargs):
         """
-        return global query objects for the given modality, remembering unique instances 
+        return global query objects for the given modality, remembering unique instances
         to avoid redundant FeatureQuery instantiations.
         """
         instances = []
         args_hash = hash(tuple(sorted(kwargs.items())))
         Querytype = cls.REGISTRY[modality]
-        if (Querytype,args_hash) not in cls._instances:
+        if (Querytype, args_hash) not in cls._instances:
             logger.debug(f"Building new query {Querytype} with args {kwargs}")
             try:
-                cls._instances[Querytype,args_hash] = Querytype(**kwargs)
+                cls._instances[Querytype, args_hash] = Querytype(**kwargs)
             except TypeError as e:
                 logger.error(f"Cannot initialize {Querytype} query: {str(e)}")
-                raise(e)
-        instances.append(cls._instances[Querytype,args_hash]) 
+                raise (e)
+        instances.append(cls._instances[Querytype, args_hash])
         return instances
-        
-    def execute(self,selection):
+
+    def execute(self, selection):
         """
-        Executes a query for features associated with atlas object, 
+        Executes a query for features associated with atlas object,
         taking into account its selection of parcellation and region.
         """
         matches = []
@@ -73,8 +75,8 @@ class FeatureQuery(ABC):
     def __str__(self):
         return "\n".join([str(f) for f in self.features])
 
-    def register(self,feature):
-        assert(isinstance(feature,self._FEATURETYPE))
+    def register(self, feature):
+        assert isinstance(feature, self._FEATURETYPE)
         self.features.append(feature)
 
     @classmethod
