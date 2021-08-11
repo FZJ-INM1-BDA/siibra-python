@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from core.space import Point
+
 import numpy as np
 import numbers
 from scipy.ndimage import gaussian_filter
@@ -30,13 +32,13 @@ def create_homogeneous_array(xyz):
         ParcellationMap
     """
     if isinstance(xyz,str):
-        parsed = parse_coordinate_str(xyz)
+        parsed = Point.parse_coordinate_str(xyz)
         if parsed is not None:
             XYZH = np.ones((1,4))
             XYZH[0,:3] = parsed
             return XYZH
     elif isinstance(xyz,list) and all(isinstance(e,str) for e in xyz):
-        parsed = (parse_coordinate_str(s) for s in xyz)
+        parsed = (Point.parse_coordinate_str(s) for s in xyz)
         valid = [np.r_[p,1] for p in parsed if p is not None]
         if len(valid)>0:
             return np.array(valid)
