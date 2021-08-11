@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +26,9 @@ class Cache:
     folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
 
     def __init__(self):
-        raise RuntimeError(f"Call instance() to access {self.__class__.__name__}")
+        raise RuntimeError(
+            "Call instance() to access "
+            f"{self.__class__.__name__}")
 
     @classmethod
     def instance(cls):
@@ -41,7 +44,9 @@ class Cache:
             except Exception as e:
                 print(str(e))
                 raise PermissionError(
-                    f"Cannot create cache at {cls.folder}. Please define a writable cache directory in the environment variable SIIBRA_CACHEDIR."
+                    f"Cannot create cache at {cls.folder}. "
+                    "Please define a writable cache directory "
+                    "in the environment variable SIIBRA_CACHEDIR."
                 )
             cls._instance = cls.__new__(cls)
         return cls._instance
@@ -54,7 +59,8 @@ class Cache:
 
     def build_filename(self, str_rep, suffix=None):
         hashfile = os.path.join(
-            self.folder, str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
+            self.folder,
+            str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
         )
         if suffix is None:
             return hashfile
