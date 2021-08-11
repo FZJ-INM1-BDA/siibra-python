@@ -18,43 +18,48 @@ from appdirs import user_cache_dir
 
 from ..commons import logger
 
+
 class Cache:
 
     _instance = None
-    folder = user_cache_dir('.'.join(__name__.split('.')[:-1]),"")
+    folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
 
     def __init__(self):
-        raise RuntimeError(f'Call instance() to access {self.__class__.__name__}')
+        raise RuntimeError(f"Call instance() to access {self.__class__.__name__}")
 
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            if 'SIIBRA_CACHEDIR' in os.environ:
-                cls.folder = os.environ['SIIBRA_CACHEDIR']
+            if "SIIBRA_CACHEDIR" in os.environ:
+                cls.folder = os.environ["SIIBRA_CACHEDIR"]
             # make sure cachedir exists and is writable
             try:
                 if not os.path.isdir(cls.folder):
                     os.makedirs(cls.folder)
-                assert(os.access(cls.folder, os.W_OK))
-                logger.debug(f'Setup cache at {cls.folder}')
+                assert os.access(cls.folder, os.W_OK)
+                logger.debug(f"Setup cache at {cls.folder}")
             except Exception as e:
                 print(str(e))
-                raise PermissionError(f'Cannot create cache at {cls.folder}. Please define a writable cache directory in the environment variable SIIBRA_CACHEDIR.')
+                raise PermissionError(
+                    f"Cannot create cache at {cls.folder}. Please define a writable cache directory in the environment variable SIIBRA_CACHEDIR."
+                )
             cls._instance = cls.__new__(cls)
         return cls._instance
-        
+
     def clear(self):
         import shutil
+
         logger.info(f"Clearing siibra cache at {self.folder}")
         shutil.rmtree(self.folder)
 
-    def build_filename(self,str_rep,suffix=None):
+    def build_filename(self, str_rep, suffix=None):
         hashfile = os.path.join(
-            self.folder,
-            str(hashlib.sha256(str_rep.encode('ascii')).hexdigest()))
+            self.folder, str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
+        )
         if suffix is None:
             return hashfile
         else:
-            return hashfile+"."+suffix
+            return hashfile + "." + suffix
+
 
 CACHE = Cache.instance()

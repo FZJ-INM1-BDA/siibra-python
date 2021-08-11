@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .repositories import GitlabConnector,GitlabConnector,OwncloudConnector
-from .requests import HttpRequest,LazyHttpRequest,ZipfileRequest,EbrainsRequest
+from .repositories import GitlabConnector, OwncloudConnector
+from .requests import HttpRequest, LazyHttpRequest, ZipfileRequest, EbrainsRequest
 from .cache import CACHE
