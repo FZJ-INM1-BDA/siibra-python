@@ -17,22 +17,15 @@ from .core import SemanticConcept
 from ..commons import logger
 from ..retrieval import HttpRequest
 
-from typing import Union,List,Tuple
 from cloudvolume import Bbox
 import re
 import numpy as np
 from abc import ABC,abstractmethod
 from nibabel import Nifti1Image
 from nibabel.affines import apply_affine
-from numpy import linalg as npl
+import numpy as np
 import json
 from urllib.parse import quote
-
-
-Coordinate = Union[
-    Tuple[float,float,float],
-    List[float,float,float]
-    ]
 
 
 @SemanticConcept.provide_registry
@@ -67,7 +60,7 @@ class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/refere
             raise RuntimeError(f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src.")
         return candidates[0]
 
-    def __getitem__(self,slices:Tuple[slice,slice,slice]):
+    def __getitem__(self,slices):
         """
         Get a volume of interest specification from this space.
 
@@ -156,23 +149,36 @@ class Location(ABC):
 class Point(Location):
     """ A single 3D point in reference space. """
 
-    def __init__(self,coordinate:Union[Coordinate,str],space:Space):
-        Location.__init__(self,space)
-        if isinstance(coordinate,str):
-            self.coordinate = self.__class__.parse_coordinate_str(coordinate)
-        else:
-            assert(isinstance(coordinate,Coordinate))
-            self.coordinate = coordinate
+    @staticmethod
+    def parse(spec,unit='mm'):
+        """ Converts a 3D coordinate specification into a 3D tuple of floats.
+        
+        Parameters
+        ----------
+        spec : Any of str, tuple(float,float,float) 
+            For string specifications, comma separation with decimal points are expected.
 
-    @classmethod
-    def parse_coordinate_str(cls,cstr:str,unit='mm'):
-        """ Convert a string of the form '1,-2.3,4.7 into a 3D tuple of float"""
-        pat=r'([-\d\.]*)'+unit
-        digits = re.findall(pat,cstr)
-        if len(digits)==3:
-            return (float(d) for d in digits)
-        else:
-            raise ValueError(f"Cannot decode the string '{cstr}' into a 3D coordinate tuple")
+        Returns
+        -------
+        tuple(float,float,float) 
+        """
+        if unit!='mm':
+            raise NotImplementedError(f"Coordinate parsing from strings is only supported for mm specifications so far.")
+        if isinstance(spec,str):
+            pat=r'([-\d\.]*)'+unit
+            digits = re.findall(pat,cstr)
+            if len(digits)==3:
+                return (float(d) for d in digits)
+        elif isinstance(spec,tuple) and len(spec)==3 and all(v.isnumeric() for v in spec):
+            return tuple(float(v) for v in spec)
+        elif isinstance(spec,np.ndarray) and spec.size()==3:
+            return tuple(spec)
+
+        raise ValueError(f"Cannot decode the specification 'spec' into a 3D coordinate tuple")
+
+    def __init__(self,coordinatespec,space:Space):
+        Location.__init__(self,space)
+        self.coordinate = parse(coordinatespec)
 
     def intersects_mask(self,mask:Nifti1Image):
         """ Returns true if this point lies in the given mask.
@@ -182,7 +188,7 @@ class Point(Location):
         """
         # transform physical coordinates to voxel coordinates for the query
         def check(mask,c):
-            voxel = (apply_affine(npl.inv(mask.affine),c)+.5).astype(int)
+            voxel = (apply_affine(np.linalg.inv(mask.affine),c)+.5).astype(int)
             if np.any(voxel>=mask.dataobj.shape):
                 return False
             if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
@@ -212,7 +218,7 @@ class Point(Location):
 class PointSet(Location):
     """ A 3D polyline in reference space, defined by a list of coordinates. """
 
-    def __init__(self,coordinates:List[Coordinate],space:Space):
+    def __init__(self,coordinates,space:Space):
         Location.__init__(self,space)
         self.coordinates = [Point(c,space) for c in coordinates]
 
@@ -234,7 +240,7 @@ class PointSet(Location):
 class BoundingBox(Location,Bbox):
     """ A 3D axis-aligned bounding box, spanned by a 3D start- and endpoint """
 
-    def __init__(self,startpoint:Coordinate,endpoint:Coordinate,space:Space):
+    def __init__(self,startpoint,endpoint,space:Space):
         Location.__init__(self,space)
         Bbox.__init__(self,startpoint,endpoint)
         self.startpoint = Point(startpoint)
