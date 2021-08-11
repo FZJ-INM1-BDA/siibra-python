@@ -8,48 +8,50 @@ from siibra.commons import MapType
 
 class TestRegions(unittest.TestCase):
 
-    region_name = 'Interposed Nucleus (Cerebellum) left'
-    kg_id = '658a7f71-1b94-4f4a-8f15-726043bbb52a'
-    parentname = 'region_parent'
+    region_name = "Interposed Nucleus (Cerebellum) left"
+    kg_id = "658a7f71-1b94-4f4a-8f15-726043bbb52a"
+    parentname = "region_parent"
 
     definition = {
-        'name': region_name,
-        'rgb': [170, 29, 10],
-        'labelIndex': 251,
-        'ngId': 'jubrain mni152 v18 left',
-        'children': [],
-        'position': [-9205882, -57128342, -32224599],
+        "name": region_name,
+        "rgb": [170, 29, 10],
+        "labelIndex": 251,
+        "ngId": "jubrain mni152 v18 left",
+        "children": [],
+        "position": [-9205882, -57128342, -32224599],
         "datasets": [
             {
-            'kgId': kg_id,
-            'kgSchema': 'minds/core/dataset/v1.0.0',
-            'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
+                "kgId": kg_id,
+                "kgSchema": "minds/core/dataset/v1.0.0",
+                "filename": "Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]",
             },
             {
                 "@type": "fzj/tmp/volume_type/v0.0.1",
                 "@id": "fzj/tmp/volume_type/v0.0.1/pmap",
-                "space_id" : spaces[0].id,
-                'name': 'Probabilistic map '+region_name,
-                'map_type': 'labelled',
+                "space_id": spaces[0].id,
+                "name": "Probabilistic map " + region_name,
+                "map_type": "labelled",
                 "volume_type": "nii",
-                "url": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas-Area-Ch-4_pub/4.2/Ch-4_l_N10_nlin2Stdcolin27_4.2_publicP_b92bf6270f6426059d719a6ff4d46aa7.nii.gz"
-            }
-        ]
+                "url": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas-Area-Ch-4_pub/4.2/Ch-4_l_N10_nlin2Stdcolin27_4.2_publicP_b92bf6270f6426059d719a6ff4d46aa7.nii.gz",
+            },
+        ],
     }
 
     parent_definition = {
-        'name': parentname,
-        'rgb': [170, 29, 10],
-        'labelIndex': 251,
-        'ngId': 'jubrain mni152 v18 left',
-        'children': [],
-        'position': [-9205882, -57128342, -32224599],
-        'originDatasets': [ {
-            'kgId': kg_id,
-            'kgSchema': 'minds/core/dataset/v1.0.0',
-            'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
-        }],
-        'volumeSrc' : {}
+        "name": parentname,
+        "rgb": [170, 29, 10],
+        "labelIndex": 251,
+        "ngId": "jubrain mni152 v18 left",
+        "children": [],
+        "position": [-9205882, -57128342, -32224599],
+        "originDatasets": [
+            {
+                "kgId": kg_id,
+                "kgSchema": "minds/core/dataset/v1.0.0",
+                "filename": "Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]",
+            }
+        ],
+        "volumeSrc": {},
     }
     parent_region = None
     child_region = None
@@ -59,10 +61,10 @@ class TestRegions(unittest.TestCase):
         retrieval.download_file = MagicMock()
         retrieval.download_file.return_value = None
 
-        cls.parent_region = Region._from_json(cls.parent_definition,parcellations[0])
+        cls.parent_region = Region._from_json(cls.parent_definition, parcellations[0])
 
-        cls.child_region = Region._from_json(cls.definition,parcellations[0])
-        cls.child_region.parent=cls.parent_region
+        cls.child_region = Region._from_json(cls.definition, parcellations[0])
+        cls.child_region.parent = cls.parent_region
 
     def test_regions_init(self):
         self.assertEqual(self.child_region.name, self.region_name)
@@ -96,10 +98,10 @@ class TestRegions(unittest.TestCase):
         self.assertEqual(len(regions), 0)
 
     def test_matches_with_valid_string(self):
-        self.assertTrue(self.child_region.matches('Interposed Nucleus'))
+        self.assertTrue(self.child_region.matches("Interposed Nucleus"))
 
     def test_matches_with_invalid_string(self):
-        self.assertFalse(self.child_region.matches('Area 51'))
+        self.assertFalse(self.child_region.matches("Area 51"))
 
     def test_matches_with_valid_region(self):
         self.assertTrue(self.child_region.matches(self.child_region))
@@ -107,23 +109,23 @@ class TestRegions(unittest.TestCase):
     def test_matches_with_wrong_region(self):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
-    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
+    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
     def test_regional_map_none(self, fetch_mock):
         with self.assertRaises(LookupError):
-            self.parent_region.get_regional_map(spaces[0],MapType.LABELLED)
+            self.parent_region.get_regional_map(spaces[0], MapType.LABELLED)
         fetch_mock.assert_not_called()
 
-    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
+    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
     def test_get_regional_map_wrong_space(self, fetch_mock):
         with self.assertRaises(LookupError):
-            self.child_region.get_regional_map('wird space',MapType.LABELLED)
+            self.child_region.get_regional_map("wird space", MapType.LABELLED)
         fetch_mock.assert_not_called()
 
-    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
+    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
     def test_get_regional_map_no_filename(self, fetch_mock):
         fetch_mock.return_value = None
-        with self.assertRaises(RuntimeError):
-            self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS)
+        with self.assertRaises(LookupError):
+            self.child_region.get_regional_map(spaces.BIG_BRAIN, MapType.CONTINUOUS)
         fetch_mock.assert_not_called()
 
 
