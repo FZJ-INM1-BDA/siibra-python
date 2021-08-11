@@ -361,8 +361,6 @@ class Region(anytree.NodeMixin, SemanticConcept):
 
         def maptype_ok(vsrc, maptype):
             if vsrc.map_type is None:
-                # if the map type is not defined, we consider float volumes
-                # for continuous and int volumes for labelled maps.
                 return (maptype == MapType.CONTINUOUS) == (vsrc.is_float())
             else:
                 return vsrc.map_type == maptype
@@ -373,7 +371,7 @@ class Region(anytree.NodeMixin, SemanticConcept):
         if len(suitable) == 1:
             return suitable[0]
         elif len(suitable) == 0:
-            raise RuntimeError(
+            raise LookupError(
                 f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)"
             )
         else:

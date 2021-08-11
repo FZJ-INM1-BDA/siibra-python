@@ -109,13 +109,13 @@ class TestRegions(unittest.TestCase):
 
     @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
     def test_regional_map_none(self, fetch_mock):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.parent_region.get_regional_map(spaces[0],MapType.LABELLED)
         fetch_mock.assert_not_called()
 
     @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
     def test_get_regional_map_wrong_space(self, fetch_mock):
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(LookupError):
             self.child_region.get_regional_map('wird space',MapType.LABELLED)
         fetch_mock.assert_not_called()
 
