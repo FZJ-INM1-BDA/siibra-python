@@ -13,4 +13,4 @@
 # limitations under the License.
 
 from .parcellationmap import ParcellationMap,LabelledParcellationMap,ContinuousParcellationMap
-from .volume import NeuroglancerVolume,NiftiVolume
+from .volume import VolumeSrc,NeuroglancerVolume,NiftiVolume

@@ -257,7 +257,7 @@ def decode_tsv(bytearray):
         n.decode('utf8').replace('"','').replace("'","").strip() 
         for n in header.split(sep)])
     if any(k.endswith('*') for k in keys):
-        logger.warn('Redundant headers in receptor file')
+        logger.warning('Redundant headers in receptor file')
     assert(len(keys)==len(set(keys)))
     return  { l.split(sep)[0].decode('utf8') : dict(
         zip(keys, [re.sub(r"\\+",r"\\",v.decode('utf8').strip()) for v in l.split(sep)])) 
@@ -354,7 +354,7 @@ class ReceptorDistribution(RegionalFeature,EbrainsDataset):
         self._fingerprint_loader = None
         for url in urls_matching(".*_fp[._]"):
             if self._fingerprint_loader is not None:
-                logger.warn(f"More than one fingerprint found for {self}")
+                logger.warning(f"More than one fingerprint found for {self}")
             self._fingerprint_loader = LazyHttpRequest(url,lambda u:DensityFingerprint(decode_tsv(u)))
 
         # add any cortical profiles
@@ -364,7 +364,7 @@ class ReceptorDistribution(RegionalFeature,EbrainsDataset):
             if rtype not in basename:
                 continue
             if rtype in self._profile_loaders:
-                logger.warn(f"More than one profile for '{rtype}' in {self.url}")
+                logger.warning(f"More than one profile for '{rtype}' in {self.url}")
             self._profile_loaders[rtype] = LazyHttpRequest(url,lambda u:DensityProfile(decode_tsv(u)))
 
         # add autoradiograph
@@ -375,7 +375,7 @@ class ReceptorDistribution(RegionalFeature,EbrainsDataset):
             if rtype not in basename:
                 continue
             if rtype in self._autoradiograph_loaders:
-                logger.warn(f"More than one autoradiograph for '{rtype}' in {self.url}")
+                logger.warning(f"More than one autoradiograph for '{rtype}' in {self.url}")
             self._autoradiograph_loaders[rtype] = LazyHttpRequest(url,img_from_bytes)
 
     @property

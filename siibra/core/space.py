@@ -14,15 +14,26 @@
 
 from .core import SemanticConcept
 
+from ..commons import logger
 from ..retrieval import HttpRequest
-from ..arrays import bbox3d
 
-import numpy as np
+from typing import Union,List,Tuple
 from cloudvolume import Bbox
-from typing import Tuple
-import nibabel as nib
-from urllib.parse import quote
+import re
+import numpy as np
+from abc import ABC,abstractmethod
+from nibabel import Nifti1Image
+from nibabel.affines import apply_affine
+from numpy import linalg as npl
 import json
+from urllib.parse import quote
+
+
+Coordinate = Union[
+    tuple[float,float,float],
+    list[float,float,float]
+    ]
+
 
 @SemanticConcept.provide_registry
 class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/referencespace/v1.0.0"):
@@ -67,24 +78,22 @@ class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/refere
         """
         if len(slices)!=3:
             raise TypeError("Slice access to spaces needs to define x,y and z ranges (e.g. Space[10:30,0:10,200:300])")
-        return SpaceVOI(self,[s.start for s in slices],[s.stop for s in slices])
+        startpoint = [s.start for s in slices]
+        endpoint = [s.stop for s in slices]
+        return self.get_bounding_box(startpoint,endpoint)
 
-    def get_voi(self,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
+
+    def get_bounding_box(self,startpoint,endpoint):
         """
-        Get a rectangular volume of interest specification for this space.
+        Get a volume of interest specification from this space.
 
         Arguments
         ---------
-
-        minpt: 3-tuple
-            smaller 3D point defining the VOI
-        maxpt: 3-tuple
-            larger 3D point defining the VOI
+        startpoint: 3D tuple defined in physical coordinates of this reference space
+        endpoint: 3D tuple defined in physical coordinates of this reference space
         """
-        return self[
-            minpt[0]:maxpt[0],
-            minpt[1]:maxpt[1],
-            minpt[2]:maxpt[2]]
+        return BoundingBox(startpoint,endpoint,self)
+
 
     @classmethod
     def _from_json(cls,obj):
@@ -108,71 +117,189 @@ class Space(SemanticConcept,bootstrap_folder="spaces",type_id="minds/core/refere
         return result
 
 
-class SpaceVOI(Bbox):
 
-    def __init__(self,space:Space,minpt:Tuple[float,float,float],maxpt:Tuple[float,float,float]):
-        assert(len(minpt)==3 and len(maxpt)==3)
-        super().__init__(minpt,maxpt)
-        self.space = space
+# backend for transforming coordinates between spaces
+SPACEWARP_SERVER="https://hbp-spatial-backend.apps.hbp.eu/v1"
 
-    @staticmethod
-    def from_map(space:Space,roi:nib.Nifti1Image):
-        # construct from a roi mask or map
-        bbox = bbox3d(roi.dataobj,affine=roi.affine)
-        return SpaceVOI(space,bbox[:3,0],bbox[:3,1])
+# lookup of space identifiers to be used by SPACEWARP_SERVER
+SPACEWARP_IDS = {
+    Space.REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
+    Space.REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
+    Space.REGISTRY.BIG_BRAIN : "Big Brain (Histology)"
+}
 
-    def overlaps(self,img):
+class Location(ABC):
+    """
+    Defines a location in the given reference space.
+    """
+
+    def __init__(self,space:Space):
+        self.space = Space.REGISTRY[space]
+
+    @abstractmethod
+    def intersects_mask(self,mask:Nifti1Image):
         """
-        Determines wether the given image overlaps with this volume of interest, 
-        that is, wheter at least one nonzero voxel is inside the voi.
-        """
-        # nonzero voxel coordinates
-        X,Y,Z = np.where(img.get_fdata()>0)
-        h = np.ones(len(X))
-        # array of homogenous physcial coordinates
-        coords = np.dot(img.affine,np.vstack((X,Y,Z,h)))[:3,:].T
-        minpt = [min(self.minpt[i],self.maxpt[i]) for i in range(3)]
-        maxpt = [max(self.minpt[i],self.maxpt[i]) for i in range(3)]
-        inside = np.logical_and.reduce([coords>minpt,coords<=maxpt]).min(1)
-        return any(inside)        
+        Verifies wether this 3D location intersects the given mask.
 
-    def transform_bbox(self,transform):
-        assert(transform.shape==(4,4))
-        return Bbox(
-            np.dot(transform,np.r_[self.minpt,1])[:3].astype('int'),
-            np.dot(transform,np.r_[self.maxpt,1])[:3].astype('int') )
+        NOTE: The affine matrix of the image must be set to warp voxels 
+        coordinates into the reference space of this Bounding Box.
+        """
+        pass
 
-    def __iter__(self):
+    @abstractmethod
+    def warp(self,targetspace:Space):
+        """ Generates a new location by warping the 
+        current one into another reference space. """
+        pass
+    
+
+class Point(Location):
+    """ A single 3D point in reference space. """
+
+    def __init__(self,coordinate:Union[Coordinate,str],space:Space):
+        Location.__init__(self,space)
+        if isinstance(coordinate,str):
+            self.coordinate = self.__class__.parse_coordinate_str(coordinate)
+        else:
+            assert(isinstance(coordinate,Coordinate))
+            self.coordinate = coordinate
+
+    @classmethod
+    def parse_coordinate_str(cls,cstr:str,unit='mm'):
+        """ Convert a string of the form '1,-2.3,4.7 into a 3D tuple of float"""
+        pat=r'([-\d\.]*)'+unit
+        digits = re.findall(pat,cstr)
+        if len(digits)==3:
+            return (float(d) for d in digits)
+        else:
+            raise ValueError(f"Cannot decode the string '{cstr}' into a 3D coordinate tuple")
+
+    def intersects_mask(self,mask:Nifti1Image):
+        """ Returns true if this point lies in the given mask.
+
+        NOTE: The affine matrix of the image must be set to warp voxels 
+        coordinates into the reference space of this Bounding Box.
         """
-        Iterator over the min- and maxpt of the volume of interest.
+        # transform physical coordinates to voxel coordinates for the query
+        def check(mask,c):
+            voxel = (apply_affine(npl.inv(mask.affine),c)+.5).astype(int)
+            if np.any(voxel>=mask.dataobj.shape):
+                return False
+            if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
+                return False
+            return True
+
+        if mask.ndim==4:
+            return any(check(mask.slicer[:,:,:,i],self.coordinate) for i in range(mask.shape[3]))
+        else: 
+            return check(mask,self.coordinate)
+
+    def warp(self,targetspace:Space):
+        """ Creates a new location by warping this location to another space """
+        if any (s not in SPACEWARP_IDS for s in [self.space,targetspace]):
+            raise ValueError(f"Cannot convert coordinates between {self.space} and {targetspace}")
+        url='{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}'.format(
+            server=SPACEWARP_SERVER,
+            src=quote(SPACEWARP_IDS[Space.REGISTRY[self.space]]),
+            tgt=quote(SPACEWARP_IDS[Space.REGISTRY[targetspace]]),
+            x=self.coordinate[0], y=self.coordinate[1], z=self.coordinate[2] )
+        response = HttpRequest(url,lambda b:json.loads(b.decode())).get()
+        return self.__class__(
+            coordinate=tuple(response["target_point"]),
+            space=targetspace )
+
+
+class PointSet(Location):
+    """ A 3D polyline in reference space, defined by a list of coordinates. """
+
+    def __init__(self,coordinates:List[Coordinate],space:Space):
+        Location.__init__(self,space)
+        self.coordinates = [Point(c,space) for c in coordinates]
+
+    def intersects_mask(self,mask):
+        """ Returns true if any of the polyline points lies in the given mask.
+
+        NOTE: The affine matrix of the image must be set to warp voxels 
+        coordinates into the reference space of this Bounding Box.
         """
-        return (p for p in [self.minpt,self.maxpt])
+        return any(c.intersects_mask(mask) for c in self.coordinates)
+
+    def warp(self,targetspace):
+        return self.__class__(
+            [c.warp(targetspace) for c in self.coordinates],
+            targetspace
+        )
+
+
+class BoundingBox(Location,Bbox):
+    """ A 3D axis-aligned bounding box, spanned by a 3D start- and endpoint """
+
+    def __init__(self,startpoint:Coordinate,endpoint:Coordinate,space:Space):
+        Location.__init__(self,space)
+        Bbox.__init__(self,startpoint,endpoint)
+        self.startpoint = Point(startpoint)
+        self.endpoint = Point(endpoint)
+
+    @classmethod
+    def _bounding_box(A):
+        """
+        Bounding box of nonzero values in a 3D array.
+        https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+        """
+        x = np.any(A, axis=(1, 2))
+        y = np.any(A, axis=(0, 2))
+        z = np.any(A, axis=(0, 1))
+        nzx,nzy,nzz = [np.where(v) for v in (x,y,z)]
+        if any(len(nz[0])==0 for nz in [nzx,nzy,nzz]):
+            # empty array
+            return None
+        xmin, xmax = nzx[0][[0, -1]]
+        ymin, ymax = nzy[0][[0, -1]]
+        zmin, zmax = nzz[0][[0, -1]]
+        return np.array([
+            [xmin, xmax+1], 
+            [ymin, ymax+1], 
+            [zmin, zmax+1],
+            [1,1] ])
+
+    @classmethod 
+    def from_image(cls,image:"Nifti1Image",space:Space):
+        """ Construct a bounding box from a nifti image """
+        coords = np.dot(image.affine,
+            cls._bounding_box(image.get_fdata()))
+        return cls(
+            startpoint=coords[:3,0],
+            endpoint=coords[:3,1],
+            space=space)     
 
     def __str__(self):
         return f"Bounding box {self.minpt}mm -> {self.maxpt}mm defined in {self.space.name}"
 
-    def __repr__(self):
-        return str(self)
+    def intersects_mask(self,mask):
+        """ Returns true if at least one nonzero voxel 
+        of the given mask is inside the boundding box.
+
+        NOTE: The affine matrix of the image must be set to warp voxels 
+        coordinates into the reference space of this Bounding Box.
+        """
+        # nonzero voxel coordinates
+        X,Y,Z = np.where(mask.get_fdata()>0)
+        h = np.ones(len(X))
+
+        # array of homogenous physical nonzero voxel coordinates
+        coords = np.dot(mask.affine,np.vstack((X,Y,Z,h)))[:3,:].T
+        minpt = [min(self.minpt[i],self.maxpt[i]) for i in range(3)]
+        maxpt = [max(self.minpt[i],self.maxpt[i]) for i in range(3)]
+        inside = np.logical_and.reduce([coords>minpt,coords<=maxpt]).min(1)
+        return any(inside)   
+
+    def warp(self,targetspace):
+        """ Returns a new bounding box obtanied by warping the 
+        start- and endpoint of this one into the new targetspace. """
+        return self.__class__(
+            startpoint = self.startpoint.warp(targetspace),
+            endpoint = self.endpoint.warp(targetspace),
+            space = targetspace
+        )
 
 
-class SpaceWarper():
-    
-    SPACE_IDS = {
-        Space.REGISTRY.MNI152_2009C_NONL_ASYM : "MNI 152 ICBM 2009c Nonlinear Asymmetric",
-        Space.REGISTRY.MNI_COLIN_27 : "MNI Colin 27",
-        Space.REGISTRY.BIG_BRAIN : "Big Brain (Histology)"
-    }
-
-    SERVER="https://hbp-spatial-backend.apps.hbp.eu/v1"
-
-    @staticmethod
-    def convert(from_space,to_space,coord):
-        if any (s not in SpaceWarper.SPACE_IDS for s in [from_space,to_space]):
-            raise ValueError(f"Cannot convert coordinates between {from_space} and {to_space}")
-        url='{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}'.format(
-            server=SpaceWarper.SERVER,
-            src=quote(SpaceWarper.SPACE_IDS[Space.REGISTRY[from_space]]),
-            tgt=quote(SpaceWarper.SPACE_IDS[Space.REGISTRY[to_space]]),
-            x=coord[0], y=coord[1], z=coord[2] )
-        response = HttpRequest(url,lambda b:json.loads(b.decode())).get()
-        return tuple(response["target_point"])

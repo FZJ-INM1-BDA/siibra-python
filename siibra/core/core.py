@@ -55,19 +55,22 @@ class SemanticConcept():
         self._dataset_specs = dataset_specs
         self._datasets_cached = None
 
+    def _populate_datasets(self):
+        self._datasets_cached = []
+        for spec in self._dataset_specs:
+            type_id = Dataset.extract_type_id(spec)
+            Specialist = Dataset.REGISTRY.get(type_id,None)
+            if Specialist is None:
+                raise RuntimeError(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
+            else:
+                obj = Specialist._from_json(spec)
+                logger.debug(f"Built {obj.__class__.__name__} object '{obj}' from dataset specification.")
+                self._datasets_cached.append(obj)
+                
     @property
     def datasets(self):
         if self._datasets_cached is None:
-            self._datasets_cached = []
-            for spec in self._dataset_specs:
-                type_id = Dataset.extract_type_id(spec)
-                Specialist = Dataset.REGISTRY.get(type_id,None)
-                if Specialist is None:
-                    raise RuntimeError(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
-                else:
-                    obj = Specialist.__from_json(spec)
-                    logger.debug(f"Built {obj.__class__.__name__} object '{obj}' from dataset specification.")
-                    self._datasets_cached.append(obj)
+            self._populate_datasets()
         return self._datasets_cached
 
     def __init_subclass__(cls,type_id=None,bootstrap_folder=None):

@@ -1,8 +1,8 @@
 import unittest
 from unittest.mock import MagicMock, patch
 
-from siibra import parcellations, ebrains, spaces, retrieval
-from siibra.region import Region
+from siibra import parcellations, spaces, retrieval
+from siibra.core.region import Region
 from siibra.commons import MapType
 
 
@@ -19,24 +19,22 @@ class TestRegions(unittest.TestCase):
         'ngId': 'jubrain mni152 v18 left',
         'children': [],
         'position': [-9205882, -57128342, -32224599],
-        'originDatasets': [ {
+        "datasets": [
+            {
             'kgId': kg_id,
             'kgSchema': 'minds/core/dataset/v1.0.0',
             'filename': 'Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]'
-        }],
-        "volumeSrc": {
-            spaces[0].id : {
-                "pmap": [
-                    {
-                        "@type": "fzj/tmp/volume_type/v0.0.1",
-                        "@id": "fzj/tmp/volume_type/v0.0.1/pmap",
-                        'name': 'Probabilistic map '+region_name,
-                        "volume_type": "nii",
-                        "url": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas-Area-Ch-4_pub/4.2/Ch-4_l_N10_nlin2Stdcolin27_4.2_publicP_b92bf6270f6426059d719a6ff4d46aa7.nii.gz"
-                    }
-                ]
             },
-        }
+            {
+                "@type": "fzj/tmp/volume_type/v0.0.1",
+                "@id": "fzj/tmp/volume_type/v0.0.1/pmap",
+                "space_id" : spaces[0].id,
+                'name': 'Probabilistic map '+region_name,
+                'map_type': 'labelled',
+                "volume_type": "nii",
+                "url": "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/hbp-d000001_jubrain-cytoatlas-Area-Ch-4_pub/4.2/Ch-4_l_N10_nlin2Stdcolin27_4.2_publicP_b92bf6270f6426059d719a6ff4d46aa7.nii.gz"
+            }
+        ]
     }
 
     parent_definition = {
@@ -109,24 +107,23 @@ class TestRegions(unittest.TestCase):
     def test_matches_with_wrong_region(self):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
-    @patch('siibra.parcellationmap.ParcellationMap.fetch')
-    def test_regional_map_none(self, download_mock):
-        self.assertIsNone(self.parent_region.get_regional_map(spaces[0],MapType.LABELLED))
-        download_mock.assert_not_called()
+    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
+    def test_regional_map_none(self, fetch_mock):
+        with self.assertRaises(RuntimeError):
+            self.parent_region.get_regional_map(spaces[0],MapType.LABELLED)
+        fetch_mock.assert_not_called()
 
-    @patch('siibra.parcellationmap.ParcellationMap.fetch')
-    def test_get_regional_map_wrong_space(self, download_mock):
-        self.child_region.attrs['maps'] = {
-            'spaceId': 'map_url'
-        }
-        self.assertIsNone(self.child_region.get_regional_map(spaces[0],MapType.LABELLED))
-        download_mock.assert_not_called()
+    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
+    def test_get_regional_map_wrong_space(self, fetch_mock):
+        with self.assertRaises(RuntimeError):
+            self.child_region.get_regional_map('wird space',MapType.LABELLED)
+        fetch_mock.assert_not_called()
 
-    @patch('siibra.parcellationmap.ParcellationMap.fetch')
+    @patch('siibra.volumes.parcellationmap.ParcellationMap.fetch')
     def test_get_regional_map_no_filename(self, fetch_mock):
         fetch_mock.return_value = None
         with self.assertRaises(RuntimeError):
-            self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS).fetch()
+            self.child_region.get_regional_map(spaces.BIG_BRAIN,MapType.CONTINUOUS)
         fetch_mock.assert_not_called()
 
 

@@ -1,7 +1,8 @@
+from siibra.retrieval.requests import LazyHttpRequest, ZipfileRequest
 import unittest
 
-import siibra as sb
-from siibra.space import Space
+from siibra import atlases
+from siibra.core import Space
 
 class TestSpaces(unittest.TestCase):
 
@@ -17,9 +18,10 @@ class TestSpaces(unittest.TestCase):
         'name': name,
         'shortName': name,
         'templateType': ttype,
-        "volumeSrc": [{
+        "datasets": [{
             "@type": "fzj/tmp/volume_type/v0.0.1",
             "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
+            "space_id" : 'space1/minds/core/referencespace/v1.0.0',
             "name": "icbm152_2009c_nonlin_asym/nifti",
             "volume_type": ttype,
             "url": url,
@@ -34,9 +36,10 @@ class TestSpaces(unittest.TestCase):
         'templateUrl': url,
         'templateFile': ziptarget,
         'templateType': ttype,
-        "volumeSrc": [{
+        "datasets": [{
             "@type": "fzj/tmp/volume_type/v0.0.1",
             "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
+            "space_id" : 'space1/minds/core/referencespace/v1.0.0',
             "name": "icbm152_2009c_nonlin_asym/nifti",
             "volume_type": "nii",
             "url": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.nii",
@@ -50,27 +53,24 @@ class TestSpaces(unittest.TestCase):
 
     def test_space__from_json_with_zip(self):
         space = Space._from_json(self.json_space_with_zip)
-        self.assertEqual(
-            str(space),
-            self.name
-        )
+        Space.REGISTRY.add(space.key,space)
+        self.assertTrue(self.name in str(space))
         self.assertEqual(len(space.volume_src),1)
         vsrc = space.volume_src[0]     
         self.assertEqual(space.type,self.ttype)
-        self.assertEqual(vsrc.zipped_file,self.ziptarget)
+        self.assertTrue(isinstance(vsrc._image_loader,ZipfileRequest))
+        self.assertEqual(vsrc._image_loader.filename,self.ziptarget)
 
     def test_space__from_json_without_zip(self):
         space = Space._from_json(self.json_space_without_zip)
-        self.assertEqual(
-            str(space),
-            self.name
-        )
+        Space.REGISTRY.add(space.key,space)
+        self.assertTrue(self.name in str(space))
         self.assertEqual(len(space.volume_src),1)
         vsrc = space.volume_src[0]     
-        self.assertIsNone(vsrc.zipped_file)
+        self.assertTrue(isinstance(vsrc._image_loader,LazyHttpRequest))
 
     def test_space_registry(self):
-        spaces = sb.atlases['human'].spaces
+        spaces = atlases['human'].spaces
         self.assertEqual(len(spaces), 4)
 
 

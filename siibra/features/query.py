@@ -59,16 +59,16 @@ class FeatureQuery(ABC):
         instances.append(cls._instances[Querytype,args_hash]) 
         return instances
         
-    def execute(self,atlas):
+    def execute(self,selection):
         """
         Executes a query for features associated with atlas object, 
         taking into account its selection of parcellation and region.
         """
-        selection = []
+        matches = []
         for feature in self.features:
-            if feature.matches(atlas):
-                selection.append(feature)
-        return selection
+            if feature.matches(selection):
+                matches.append(feature)
+        return matches
 
     def __str__(self):
         return "\n".join([str(f) for f in self.features])

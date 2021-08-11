@@ -35,7 +35,7 @@ class IEEG_Dataset(SpatialFeature,EbrainsDataset):
 
     def register_session(self,s):
         if s.subject_id in self.sessions:
-            logger.warn(f"Session {str(s)} alread registered!")
+            logger.warning(f"Session {str(s)} alread registered!")
         self.sessions[s.subject_id] = s
         self._update_location()
 
@@ -72,7 +72,7 @@ class IEEG_Session(SpatialFeature):
 
     def register_electrode(self,e):
         if e.electrode_id in self.electrodes:
-            logger.warn("Electrode {e.electrode_id} of {e.subject_id} already registered!")
+            logger.warning("Electrode {e.electrode_id} of {e.subject_id} already registered!")
         self.electrodes[e.electrode_id] = e
         self._update_location()
 

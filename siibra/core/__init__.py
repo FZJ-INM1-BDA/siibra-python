@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from .atlas import Atlas
-from .space import Space,SpaceVOI,SpaceWarper
+from .space import Space,Point,PointSet,BoundingBox
 from .region import Region
 from .parcellation import Parcellation
 from .datasets import Dataset,OriginDescription,EbrainsDataset

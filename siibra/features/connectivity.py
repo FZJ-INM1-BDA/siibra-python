@@ -82,28 +82,31 @@ class ConnectivityMatrix(GlobalFeature):
         assert(all(N==len(valid_regions) for N in matrix.shape))
 
         if 'kgId' in data:
-            return EbrainsConnectivityMatrix(data['kgId'], data['parcellation id'],matrix,src_name=data['name'],src_info=data['description'])
+            return EbrainsConnectivityMatrix(
+                data['kgId'], data['parcellation id'], matrix,
+                name=data['name'],description=data['description'])
         else:
-            return ExternalConnectivityMatrix(data['@id'], data['parcellation id'],matrix,src_name=data['name'],src_info=data['description'])
+            return ExternalConnectivityMatrix(data['@id'], data['parcellation id'], matrix,
+            name=data['name'],description=data['description'])
 
 
 class ExternalConnectivityMatrix(ConnectivityMatrix,Dataset):
 
-    def __init__(self,id,parcellation_id,matrix,src_name,src_info):
+    def __init__(self,id,parcellation_id,matrix,name,description):
         assert(id is not None)
         ConnectivityMatrix.__init__(self,parcellation_id,matrix)
         Dataset.__init__(self,id)
-        self.description = src_info
-        self.name = src_name
+        self.description = description
+        self.name = name
 
 
 class EbrainsConnectivityMatrix(ConnectivityMatrix,EbrainsDataset):
 
-    def __init__(self,kg_id,parcellation_id,matrix,src_name,src_info):
+    def __init__(self,kg_id,parcellation_id,matrix,name,description):
         assert(kg_id is not None)
         ConnectivityMatrix.__init__(self,parcellation_id,matrix)
-        EbrainsDataset.__init__(self,kg_id,src_name)
-        self._description_cached = src_info
+        EbrainsDataset.__init__(self,kg_id,name)
+        self._description_cached = description
 
 
 class ConnectivityProfile(RegionalFeature):
@@ -113,39 +116,31 @@ class ConnectivityProfile(RegionalFeature):
     def __init__(self, regionspec:str, connectivitymatrix:ConnectivityMatrix, index):
         assert(regionspec is not None)
         RegionalFeature.__init__(self,regionspec)
-        self._cm_index = index
-        self._cm = connectivitymatrix
+        self._matrix_index = index
+        self._matrix = connectivitymatrix
 
     @property
     def profile(self):
-        return self._cm.matrix[self._cm_index]
+        return self._matrix.matrix[self._matrix_index]
     
     @property
     def description(self):
-        return self._cm.description
+        return self._matrix.description
 
     @property
     def name(self):
-        return self._cm.name
-
-    @property
-    def src_file(self):
-        return self._cm.src_file
-
-    @property
-    def kg_schema(self):
-        return self._cm.kg_schema
+        return self._matrix.name
 
     @property
     def regionnames(self):
-        return self._cm.regionnames
+        return self._matrix.regionnames
 
     @property
     def globalrange(self):
-        return self._cm.globalrange
+        return self._matrix.globalrange
 
     def __str__(self):
-        return f"{self.__class__.__name__} from dataset '{self._cm.name}' for {self.regionspec}"
+        return f"{self.__class__.__name__} from dataset '{self._matrix.name}' for {self.regionspec}"
 
     def decode(self,parcellation,minstrength=0,force=True):
         """

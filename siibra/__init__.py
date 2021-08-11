@@ -13,11 +13,12 @@
 # limitations under the License.
 
 from .commons import logger,QUIET,VERBOSE
+import warnings
 
 # __version__ is parsed by setup.py
 __version__='0.2a0'
 logger.info(f"Version: {__version__}")
-logger.warn("This is a development release. Use at your own risk.")
+logger.warning("This is a development release. Use at your own risk.")
 logger.info("Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
 
 

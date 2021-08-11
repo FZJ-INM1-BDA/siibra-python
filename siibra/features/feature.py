@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from ..commons import logger,Registry
-from ..core.space import Space,SpaceVOI,SpaceWarper
+from ..core.space import Location
 from ..core.region import Region
 from ..core.parcellation import Parcellation
 
@@ -37,12 +37,16 @@ class Feature(ABC):
         cls.REGISTRY.add(cls.modality(),cls)
 
     @abstractmethod
-    def matches(self,atlas):
+    def matches(self,selection):
         """
-        Returns True if this feature should be considered part of the current
-        selection of the atlas object, otherwise else.
+        Returns True if this feature should be considered part 
+        of the given atlas selection, otherwise else.
+
+        Parameters:
+        -----------
+        selection : AtlasSelection
         """
-        raise RuntimeError(f"matches(atlas) needs to be implemented by derived classes of {self.__class__.__name__}")
+        raise RuntimeError(f"matches() needs to be implemented by derived classes of {self.__class__.__name__}")
 
     def __str__(self):
         return f"{self.__class__.__name__} feature"
@@ -58,83 +62,47 @@ class SpatialFeature(Feature):
     Base class for coordinate-anchored data features.
     """
 
-    def __init__(self,space:Space,location=None):
+    def __init__(self,location:Location):
         """
         Initialize a new spatial feature.
         
         Parameters
         ----------
-        space : Space
-            The space in which the locations are defined
-        dataset_id : str
-            Any identifier for the underlying dataset
-        location : 3D tuple, or list of 3D tuples
-            The 3D physical coordinates in the given space
-            Note that the default "None" is  meant to indicate that the feature is not yet full initialized. 
-            This is used for multi-point features, where the locations are added manually later on.
+        location : Location type
+            The location, see siibra.core.location
         """
         Feature.__init__(self)
-        assert(isinstance(space,Space))
-        self.space = space
         self.location = location
 
-    @property
-    def is_volume_of_interest(self):
-        return isinstance(self.location,SpaceVOI)
-
-    @property
-    def is_multi_point(self):
+    def matches(self,selection):
         """
-        Determines wether this feature is localized by a list of points.
-        """
-        if self.is_volume_of_interest:
-            return False
-        elif self.location is None:
-            return False
-        else:
-            return hasattr(self.location[0],"__iter__")
-
-    def matches(self,atlas):
-        """
-        Returns true if the location information of this feature overlaps with the selected
-        region of the atlas, according to the mask in the reference space.
+        Returns true if the location information of this feature overlaps 
+        with the given atlas selection, according to the mask computed in 
+        the reference space.
+    
+        Parameters:
+        -----------
+        selection : AtlasSelection
         """
         if self.location is None:
             return False
 
-        elif self.is_multi_point:
-            # location is an iterable over locations
-            return any([atlas.coordinate_selected(self.space,l) for l in self.location])
-
-        elif self.is_volume_of_interest:
-            # If the requested space does not define the selected region, 
-            # we try to test in another space.
-            for tspace in [self.space]+atlas.spaces:
-                if atlas.selected_region.defined_in_space(tspace):
-                    M = atlas.build_mask(tspace)
-                    if tspace==self.space:
-                        return self.location.overlaps(M)
-                    else:
-                        logger.warn(f"{self.__class__.__name__} cannot be tested for {atlas.selected_region.name} in {self.space}, testing in {tspace} instead.")
-                        minpt = SpaceWarper.convert(self.space,tspace,self.location.minpt)
-                        maxpt = SpaceWarper.convert(self.space,tspace,self.location.maxpt)
-                        return tspace.get_voi(minpt,maxpt).overlaps(M)
-
-            else:
-                logger.warn(f"Cannot test overlap of {self.location} with {atlas.selected_region}")
-                return False
-
+        atlas = selection._atlas
+        for tspace in [self.space]+atlas.spaces:
+            if selection.region.defined_in_space(tspace):
+                M = selection.build_mask(tspace)
+                if tspace==self.space:
+                    return self.location.intersects_mask(M)
+                else:
+                    logger.warning(f"{self.__class__.__name__} cannot be tested for {selection.region.name} in {self.space}, testing in {tspace} instead.")
+                    return self.location.warp(tspace).intersects_mask(M)
         else:
-            # location is a single location
-            return atlas.coordinate_selected(self.space,self.location)
+            logger.warning(f"Cannot test overlap of {self.location} with {selection.region}")
+            return False
 
     def __str__(self):
-        xyz2str = lambda c:f"({','.join(map(str,c))})"
-        if self.is_multi_point: 
-            locstr = f"multiple locations:\n{', '.join(xyz2str(l) for l in self.location)}"
-        else:
-            locstr = xyz2str(self.location)
-        return f"{self.__class__.__name__} in {self.space} space at {locstr}"
+        return f"{self.__class__.__name__} at {str(self.location)}"
+
 
 class RegionalFeature(Feature):
     """
@@ -155,17 +123,21 @@ class RegionalFeature(Feature):
         Feature.__init__(self)
         self.regionspec = regionspec
  
-    def matches(self,atlas):
+    def matches(self,selection):
         """
-        Returns true if this feature is linked to the currently selected region
-        in the atlas.
+        Returns true if this feature is linked to the given atlas selection.
+
+        Parameters:
+        -----------
+        selection : AtlasSelection
         """
-        matching_regions = atlas.selected_region.find(self.regionspec)
+        matching_regions = selection.region.find(self.regionspec)
         if len(matching_regions)>0:
             return True
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.regionspec}"
+
 
 class GlobalFeature(Feature):
     """
@@ -185,11 +157,15 @@ class GlobalFeature(Feature):
         self.spec = parcellationspec
         self.parcellations = Parcellation.REGISTRY.find(parcellationspec)
  
-    def matches(self,atlas):
+    def matches(self,selection):
         """
-        Returns true if this global feature is related to the given atlas.
+        Returns true if this global feature is related to the given atlas selection.
+    
+        Parameters:
+        -----------
+        selection : AtlasSelection
         """
-        if atlas.selected_parcellation in self.parcellations:
+        if selection.parcellation in self.parcellations:
             return True
 
     def __str__(self):

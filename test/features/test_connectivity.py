@@ -6,37 +6,37 @@ class TestSwitchParc(unittest.TestCase):
     
     def test_check_switch_parc(self):
         atlas = atlases["human"]
-        atlas.select_parcellation('2.9')
-        atlas.select_region("v1")
-        v29_v1_feats=atlas.get_features('ConnectivityProfile')
+        atlas.select(parcellation='2.9')
+        atlas.select(region="v1")
+        v29_v1_feats=atlas.selection.get_features('ConnectivityProfile')
         # TODO enable once v29 conn data is integrated
         # self.assertTrue(len(v29_v1_feats) > 0)
-        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selected_parcellation.id for f in v29_v1_feats]))
+        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selection.parcellation.id for f in v29_v1_feats]))
 
-        atlas.select_parcellation('1.18')
-        atlas.select_region("hoc1 left")
-        v118_hoc1_left_features=atlas.get_features('ConnectivityProfile')
+        atlas.select(parcellation='1.18')
+        atlas.select(region="hoc1 left")
+        v118_hoc1_left_features=atlas.selection.get_features('ConnectivityProfile')
         self.assertTrue(len(v118_hoc1_left_features) > 0)
-        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selected_parcellation.id for f in v118_hoc1_left_features]))
+        self.assertTrue(all([f.regionspec.parcellation.id == atlas.selection.parcellation.id for f in v118_hoc1_left_features]))
 
 class TestConnectivity(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         atlas = atlases["human"]
-        atlas.select_parcellation(parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18)
+        atlas.select(parcellation=parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18)
         cls.parc=parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18
-        atlas.select_region("v1")
-        cls.got_features = atlas.get_features('ConnectivityProfile')
+        atlas.select(region="v1")
+        cls.got_features = atlas.selection.get_features('ConnectivityProfile')
 
     def test_valid_connectivity_profile_data(self):
         data_name = 'Averaged_SC_JuBrain_184Regions_HCP_10M_length_MEAN'
         assertion_check = False
         for conn_pr in self.got_features:
-            if conn_pr.src_name == data_name:
-                self.assertEqual(conn_pr.src_file, 'Averaged_SC_JuBrain_184Regions_HCP_10M_length_MEAN.json')
-                self.assertEqual(conn_pr.kg_schema, 'minds/core/dataset/v1.0.0')
-                self.assertEqual(conn_pr.dataset_id, '50c215bc-4c65-4f11-a4cd-98cc92750977')
+            if conn_pr.name == data_name:
+                self.assertEqual(conn_pr.name, 'Averaged_SC_JuBrain_184Regions_HCP_10M_length_MEAN')
+                self.assertEqual(conn_pr._matrix.type_id, 'minds/core/dataset/v1.0.0')
+                self.assertEqual(conn_pr._matrix.id, '50c215bc-4c65-4f11-a4cd-98cc92750977')
                 assertion_check = True
 
         self.assertTrue(assertion_check, msg=f'ConnectivityProfile for {data_name} not found')
@@ -45,7 +45,7 @@ class TestConnectivity(unittest.TestCase):
         data_name = 'FOO_BAR'
         assertion_check = True
         for conn_pr in self.got_features:
-            if conn_pr.src_name == data_name:
+            if conn_pr.name == data_name:
                 assertion_check = False
 
         self.assertTrue(assertion_check, msg=f'No ConnectivityProfile should be found for {data_name}')
@@ -53,8 +53,8 @@ class TestConnectivity(unittest.TestCase):
     def test_str_result_with_original_values(self):
         ConnectivityProfile.show_as_log = False
         specific_feats=[feat for feat in self.got_features
-            if feat.src_name == 'Averaged_FC_JuBrain_184Regions_HCP_REST_FIX_AVER_MEAN'
-            and self.parc in feat._cm.parcellations 
+            if feat.name == 'Averaged_FC_JuBrain_184Regions_HCP_REST_FIX_AVER_MEAN'
+            and self.parc in feat._matrix.parcellations 
             # use left hemisphere
             and 'left' in str(feat.regionspec)]
         

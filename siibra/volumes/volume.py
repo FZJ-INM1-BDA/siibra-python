@@ -100,7 +100,7 @@ class VolumeSrc(Dataset,type_id="fzj/tmp/volume_type/v0.0.1"):
         volume_type=obj.get('volume_type')
         detail = obj.get('detail')
         url = obj.get('url')
-        space = Space.REGISTRY[obj.get('space_id',None)]
+        space = Space.REGISTRY[obj.get('space_id')]
         transform_nm = np.identity(4)
         if detail is not None and 'neuroglancer/precomputed' in detail:
                 if 'transform' in detail['neuroglancer/precomputed']:
@@ -110,7 +110,7 @@ class VolumeSrc(Dataset,type_id="fzj/tmp/volume_type/v0.0.1"):
         VolumeClass = cls._SPECIALISTS.get(volume_type,cls)
         kwargs = {'transform_nm':transform_nm, 'zipped_file':obj.get('zipped_file',None)}
         if VolumeClass==cls:
-            logger.warn(f"Volume will be generated as plain VolumeSrc:",obj)
+            logger.warning(f"Volume will be generated as plain VolumeSrc:",obj)
         result = VolumeClass(
             identifier = obj['@id'], 
             name = obj['name'],
@@ -177,8 +177,8 @@ class NiftiVolume(ImageProvider,VolumeSrc,volume_type='nii'):
             Request the template at a particular physical resolution in mm. If None,
             the native resolution is used.
             Currently, this only works for neuroglancer volumes.
-        voi : SpaceVOI
-            optional volume of interest
+        voi : BoundingBox
+            optional bounding box
         clip : Boolean, default: False
             if True, generates an object where the image data array is cropped to its bounding box (with properly adjusted affine matrix)
         """
@@ -400,8 +400,8 @@ class NeuroglancerVolume(ImageProvider,VolumeSrc,volume_type='neuroglancer/preco
         Parameters:
         -----------
         resolution_mm : desired resolution in mm
-        voi : SpaceVOI
-            optional volume of interest
+        voi : BoundingBox
+            optional bounding box
         """
         if clip:
             raise NotImplementedError("Automatic clipping is not yet implemented for neuroglancer volume sources.")
@@ -459,7 +459,7 @@ class GiftiSurfaceLabeling(VolumeSrc,volume_type="threesurfer/gii-label"):
     warning_shown=False
     def __init__(self, identifier, name, url, space, detail=None, **kwargs ):
         if not self.__class__.warning_shown:
-            logger.warn(f"A {self.__class__.__name__} object was registered, "\
+            logger.warning(f"A {self.__class__.__name__} object was registered, "\
                 "but siibra does not yet provide explicit support for this type.")
             self.__class__.warning_shown=True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs )
@@ -472,7 +472,7 @@ class NeuroglancerMesh(VolumeSrc,volume_type="neuroglancer/precompmesh"):
     warning_shown=False
     def __init__(self, identifier, name, url, space, detail=None, **kwargs ):
         if not self.__class__.warning_shown:
-            logger.warn(f"A {self.__class__.__name__} object was registered, "\
+            logger.warning(f"A {self.__class__.__name__} object was registered, "\
                 "but siibra does not yet provide explicit support for this type.")
             self.__class__.warning_shown=True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs )

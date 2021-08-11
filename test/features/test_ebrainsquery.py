@@ -7,8 +7,8 @@ class TestEbrainsQuery(unittest.TestCase):
     def setUpClass(cls):
         
         atlas = atlases["human"]
-        atlas.select_region('hoc1 left')
-        cls.feat=atlas.get_features(modalities.EbrainsRegionalDataset)
+        atlas.select(region='hoc1 left')
+        cls.feat=atlas.selection.get_features(modalities.EbrainsRegionalDataset)
 
     def test_some_result_returned(self):
         assert len(self.feat) > 0

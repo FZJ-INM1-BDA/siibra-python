@@ -66,7 +66,7 @@ class Registry:
     def add(self,key,value):
         assert(isinstance(key,str))
         if key in self._elements:
-            logger.warn(f"Key {key} already in {__class__.__name__}, existing value will be replaced.")
+            logger.warning(f"Key {key} already in {__class__.__name__}, existing value will be replaced.")
         self._elements[key] = value
 
     def __dir__(self):
@@ -85,10 +85,14 @@ class Registry:
         return len(self._elements)
 
     def __getitem__(self,spec):
+        if spec is None:
+            raise RuntimeError(f"{__class__.__name__} indexed with None")
         matches = self.find(spec)
         if len(matches)==0:
             print(str(self))
-            raise IndexError(f"{__class__.__name__} has no entry matching the specification {spec}")
+            raise IndexError(
+                f"{__class__.__name__} has no entry matching the specification '{spec}'"\
+                    f"Possible values are:\n" + "\n - ".join(self._elements.keys()))
         elif len(matches)==1:
             return matches[0]
         else:
@@ -115,7 +119,7 @@ class Registry:
         if isinstance(spec,str) and (spec in self._elements):
             return [self._elements[spec]]
         elif isinstance(spec,int) and (spec<len(self._elements)):
-            return [list(self.elements.values())[spec]]
+            return [list(self._elements.values())[spec]]
         else:
             return  [v for v in self._elements.values() if self._matchfunc(v,spec)]
 

@@ -17,7 +17,7 @@ from .volume import VolumeSrc,ImageProvider
 from .. import logger, QUIET
 from ..commons import ParcellationIndex,MapType
 from ..arrays import create_homogeneous_array,create_gaussian_kernel,argmax_dim4
-from ..core.space import Space,SpaceVOI
+from ..core.space import Space,BoundingBox
 from ..core.region import Region
 
 import numpy as np
@@ -125,7 +125,7 @@ class ParcellationMap(ImageProvider):
         """
         pass
 
-    def fetchall(self,resolution_mm=None,voi:SpaceVOI=None):
+    def fetchall(self,resolution_mm=None,voi:BoundingBox=None):
         """
         Returns an iterator to fetch all available maps sequentially:
 
@@ -139,7 +139,7 @@ class ParcellationMap(ImageProvider):
         logger.debug(f'Iterator for fetching {len(self)} parcellation maps')
         return (fnc(res=resolution_mm,voi=voi) for fnc in self.maploaders)
 
-    def fetch(self,resolution_mm:float=None,mapindex:int=0, voi:SpaceVOI=None):
+    def fetch(self,resolution_mm:float=None,mapindex:int=0, voi:BoundingBox=None):
         """
         Fetches the actual image data
 
@@ -157,7 +157,7 @@ class ParcellationMap(ImageProvider):
         else:
             raise ValueError(f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested.")
 
-    def _load_regional_map(self, region:Region, resolution_mm, voi:SpaceVOI=None, clip:bool=False):
+    def _load_regional_map(self, region:Region, resolution_mm, voi:BoundingBox=None, clip:bool=False):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
         rmap = region.get_regional_map(self.space, self.maptype).fetch(resolution_mm=resolution_mm,voi=voi,clip=clip)
         return rmap
@@ -252,7 +252,7 @@ class ParcellationMap(ImageProvider):
             raise IndexError(f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there.")
         return [idx for idx,_ in subregions]
 
-    def extract_regionmap(self,regionspec:Union[str,int,Region],resolution_mm=None,voi:SpaceVOI=None):
+    def extract_regionmap(self,regionspec:Union[str,int,Region],resolution_mm=None,voi:BoundingBox=None):
         """
         Extract the mask for one particular region. For parcellation maps, this
         is a binary mask volume. For overlapping maps, this is the
@@ -371,7 +371,7 @@ class LabelledParcellationMap(ParcellationMap):
                     logger.warning(f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}")
             
     @cached
-    def _load_map(self,volume_src:VolumeSrc,resolution_mm:float,voi:SpaceVOI):
+    def _load_map(self,volume_src:VolumeSrc,resolution_mm:float,voi:BoundingBox):
         m = volume_src.fetch(resolution_mm=resolution_mm,voi=voi)
         if len(m.dataobj.shape)==4 and m.dataobj.shape[3]>1:
             logger.info(f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. ")

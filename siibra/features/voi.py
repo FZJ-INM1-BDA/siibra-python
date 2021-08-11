@@ -17,7 +17,7 @@ from .query import FeatureQuery
 
 from .. import QUIET
 from ..volumes.volume import VolumeSrc
-from ..core.space import Space,SpaceVOI
+from ..core.space import Space,BoundingBox
 from ..core.datasets import EbrainsDataset
 from ..retrieval.repositories import GitlabConnector
 
@@ -54,7 +54,7 @@ class VolumeOfInterest(SpatialFeature,EbrainsDataset):
                 space, 
                 dataset_id = definition['kgId'],
                 name = definition['name'],
-                location=SpaceVOI(space,minpt,maxpt))
+                location=BoundingBox(minpt,maxpt,space) )
             list(map(result.volumes.append,vsrcs))
             return result
         return definition

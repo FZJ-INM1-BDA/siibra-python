@@ -16,49 +16,7 @@ import numpy as np
 import numbers
 from scipy.ndimage import gaussian_filter
 import nibabel as nib
-import re
-from memoization import cached
-from hashlib import sha1
 
-def __bbox(A):
-    """
-    Bounding box of nonzero values in a 3D array.
-    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
-
-    If affine not None, the affine is applied to the bounding box.
-    """
-    x = np.any(A, axis=(1, 2))
-    y = np.any(A, axis=(0, 2))
-    z = np.any(A, axis=(0, 1))
-    nzx,nzy,nzz = [np.where(v) for v in (x,y,z)]
-    if any(len(nz[0])==0 for nz in [nzx,nzy,nzz]):
-        # empty array
-        return None
-    xmin, xmax = nzx[0][[0, -1]]
-    ymin, ymax = nzy[0][[0, -1]]
-    zmin, zmax = nzz[0][[0, -1]]
-    return np.array([
-        [xmin, xmax+1], 
-        [ymin, ymax+1], 
-        [zmin, zmax+1],
-        [1,1] ])
-
-def bbox3d(A,affine=np.identity(4)):
-    bbox = np.dot(affine,__bbox(A))
-    return np.sort(bbox.astype('int'))
-
-def bbox_intersection(bb1,bb2):
-    lower = [max(bb1[i,0],bb2[i,0]) for i in range(3)]
-    upper = np.maximum(lower,[min(bb1[i,1],bb2[i,1]) for i in range(3)])
-    return np.prod(upper-lower)
-
-def parse_coordinate_str(cstr:str,unit='mm'):
-    pat=r'([-\d\.]*)'+unit
-    digits = re.findall(pat,cstr)
-    if len(digits)==3:
-        return np.array([float(d) for d in digits])
-    else:
-        return None
 
 def create_homogeneous_array(xyz):
     """

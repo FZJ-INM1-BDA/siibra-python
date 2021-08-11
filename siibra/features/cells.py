@@ -149,7 +149,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
 
     def __init__(self):
         FeatureQuery.__init__(self)
-        logger.warn(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
+        logger.warning(f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data.")
 
         for cellfile,loader in self._JUGIT.get_loaders(suffix="segments.txt",recursive=True):
             region_folder = os.path.dirname(cellfile)

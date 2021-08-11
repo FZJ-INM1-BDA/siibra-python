@@ -196,7 +196,7 @@ class Region(anytree.NodeMixin,SemanticConcept):
         -----
         True or False
         """
-        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.\-]', s) 
+        splitstr = lambda s : [w for w in re.split('[^a-zA-Z0-9.-]', s) 
                 if len(w)>0]
         if isinstance(regionspec,Region):
             return self==regionspec
@@ -322,14 +322,14 @@ class Region(anytree.NodeMixin,SemanticConcept):
                 return vsrc.map_type==maptype
 
         available = self.get_volume_src(space)
+
         suitable = [v for v in available if maptype_ok(v,maptype)]
-        if len(suitable)==0:
-            logger.debug(f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)")
-            return None
-        elif len(suitable)==1:
+        if len(suitable)==1:
             return suitable[0]
+        elif len(suitable)==0:
+            raise RuntimeError(f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)")
         else:
-            raise RuntimeError(f"Multiple regional maps found for {self} in {space}. This is not expected by siibra.")
+            raise NotImplementedError(f"Multiple regional maps found for {self} in {space}. This is not expected by siibra.")
 
 
     def __getitem__(self, labelindex):
@@ -368,7 +368,7 @@ class Region(anytree.NodeMixin,SemanticConcept):
                 custom_parent = Region._build_grouptree(
                         parentmatches,self.parcellation)
                 assert(custom_parent.index.label==labelindex)
-                logger.warn("Label index {} resolves to multiple regions. A customized region subtree is returned: {}".format(
+                logger.warning("Label index {} resolves to multiple regions. A customized region subtree is returned: {}".format(
                     labelindex, custom_parent.name))
                 return custom_parent
         return None

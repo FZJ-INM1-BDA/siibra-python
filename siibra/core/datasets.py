@@ -32,7 +32,7 @@ class Dataset:
 
     def __init_subclass__(cls,type_id=None):
         if type_id in Dataset.REGISTRY:
-            logger.warn(f"Type id '{type_id}' already provided by {Dataset.REGISTRY[type_id].__name__}, but {cls.__name__} suggests itself as well")
+            logger.warning(f"Type id '{type_id}' already provided by {Dataset.REGISTRY[type_id].__name__}, but {cls.__name__} suggests itself as well")
         if type_id is not None:
             logger.debug(f"Registering specialist {cls.__name__} for type id {type_id}")
             Dataset.REGISTRY[type_id] = cls
@@ -75,10 +75,9 @@ class OriginDescription(Dataset,type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
 
 class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
 
-    def __init__(self, id, name, embargo_status=None, filename=None):
+    def __init__(self, id, name, embargo_status=None ):
         Dataset.__init__(self,id)
         self.embargo_status = embargo_status
-        self.filename = filename
         self._description_cached = None # if available, will not be extracted from _detail
         self._name_cached = name
         self._detail = None
@@ -128,8 +127,7 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
         return cls(
             id=type_id,
             name=spec.get('name'),
-            embargo_status=spec.get('embargo_status',None),
-            filename=spec.get('filename',None),
+            embargo_status=spec.get('embargo_status',None)
         )
 
 

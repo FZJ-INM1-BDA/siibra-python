@@ -13,186 +13,77 @@
 # limitations under the License.
 
 from .core import SemanticConcept
-from .space import Space,SpaceWarper
+from .space import Space
 from .parcellation import Parcellation
 from .region import Region
 
 from ..commons import MapType,logger
 from ..features.query import FeatureQuery
-from ..features.feature import Feature
 
-from nibabel.affines import apply_affine
-from numpy import linalg as npl
-import numpy as np
 from collections import defaultdict
 
 
 VERSION_BLACKLIST_WORDS=["beta","rc","alpha"]
 
-@SemanticConcept.provide_registry
-class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atlas/v1.0.0"):
 
-    def __init__(self,identifier,name):
+class AtlasSelection:
+    """
+    Represents a particular region selection for the atlas, 
+    effectively defining the state of an atlas object.
+    """
 
-        SemanticConcept.__init__(self,identifier,name,dataset_specs=[])
-
-        # no parcellation initialized at construction
-        self.parcellations = [] # add with _add_parcellation
-        self.spaces = [] # add with _add_space
-
-        # nothing selected yet at construction 
-        self.selected_region = None
-        self.selected_parcellation = None 
-
-    def __hash__(self):
+    def __init__(self,atlas,region:"Region",space:"Space"=None) -> "AtlasSelection":
         """
-        Used for caching functions taking atlas object as an input, like FeatureExtractor.pick_selection()
+        Create an atlas selection.
+
+        Parameters
+        ----------
+        atlas : Atlas
+            The source atlas object. It can be considered the context 
+            corresponding to the state defined by this object.
+        parcellation: Parcellation
+            The parcellation to select
+        region : Region
+            The selected region. If None, the root of the parcellation's 
+            region hierarchy will be chosen.
+        space : Space
+            The reference space to use.
         """
-        hash(self.id)+hash(self.selected_parcellation.id)+hash(self.selected_region)
-
-    def _add_space(self, space):
-        self.spaces.append(space)
-
-    def _add_parcellation(self, parcellation, select=False):
-        self.parcellations.append(parcellation)
-        if self.selected_parcellation is None or select:
-
-            self.select_parcellation(parcellation)
-
-    def __str__(self):
-        return self.name
-
-    @classmethod
-    def _from_json(cls,obj):
-        """
-        Provides an object hook for the json library to construct an Atlas
-        object from a json stream.
-        """
-        assert(obj.get('@type',None)=="juelich/iav/atlas/v1.0.0")
-        if all(['@id' in obj,'spaces' in obj,'parcellations' in obj]):
-            atlas = cls(obj['@id'], obj['name'])
-            for space_id in obj['spaces']:
-                if not Space.REGISTRY.provides(space_id):
-                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known")
-                atlas._add_space( Space.REGISTRY[space_id] )
-            for parcellation_id in obj['parcellations']:
-                if not Parcellation.REGISTRY.provides(parcellation_id):
-                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known")
-                atlas._add_parcellation( Parcellation.REGISTRY[parcellation_id] )
-            return atlas
-        return obj
+        self._atlas = atlas
+        self.parcellation = region.parcellation
+        self.region = region
+        self.space = Space.REGISTRY[space]
 
     @property
     def regionnames(self):
-        return self.selected_parcellation.names
+        """ Return the names of of the selected region and all its child regions. """
+        return self.region.names
 
     @property
     def regionlabels(self):
-        return self.selected_parcellation.regiontree.labels
-
-
-    def threshold_continuous_maps(self,threshold):
-        """
-        Inform the atlas that thresholded continuous maps should be preferred
-        over static labelled maps for building and using region masks.
-        This will, for example, influence spatial filtering of coordinate-based
-        features in the get_features() method.
-        """
-        self.selected_parcellation.continuous_map_threshold = threshold
-
-    def select(self,parcellation=None, region=None, force=False):
-        """
-        Select a parcellation and/or region. See Atlas.select_parcellation, Atlas.select_region
-        """
-        if parcellation is not None:
-            self.select_parcellation(parcellation,force)
-        if region is not None:
-            self.select_region(region)
+        """ Return the label indices of the selected region and all its child regions. """
+        return self.region.regiontree.labels
             
-    def select_parcellation(self, parcellation,force=False):
-        """
-        Select a different parcellation for the atlas.
 
-        Parameters
-        ----------
-
-        parcellation : Parcellation
-            The new parcellation to be selected
-        force : boolean
-            If a parcellation is labelled "beta","rc" or "alpha", it cannot be selected unless force=True is provided as a positional
-            argument.
-
-        Yields
-        ------
-        Selected parcellation
-        """
-        parcellation_obj = Parcellation.REGISTRY[parcellation]
-        if parcellation_obj.version is not None:
-            versionname = parcellation_obj.version.name
-            if any(w in versionname for w in VERSION_BLACKLIST_WORDS) and not force:
-                logger.warning(f"Will not select experimental version {versionname} of {parcellation_obj.name} unless forced.")
-                return
-        if parcellation_obj not in self.parcellations:
-            logger.error('The requested parcellation is not supported by the selected atlas.')
-            logger.error('    Parcellation:  '+parcellation_obj.name)
-            logger.error('    Atlas:         '+self.name)
-            logger.error(parcellation_obj.id,self.parcellations)
-            raise Exception('Invalid Parcellation')
-        self.selected_parcellation = parcellation_obj
-        self.selected_region = parcellation_obj.regiontree
-        logger.info(f'Select "{self.selected_parcellation}"')
-        return self.selected_parcellation
-
-    def select_region(self,region):
-        """
-        Selects a particular region. 
-
-        TODO test carefully for selections of branching points in the region
-        hierarchy, then managing all regions under the tree. This is nontrivial
-        because for incomplete parcellations, the union of all child regions
-        might not represent the complete parent node in the hierarchy.
-
-        Parameters
-        ----------
-        region : Region
-            Region to be selected. Both a region object, as well as a region
-            key (uppercase string identifier) are accepted.
-
-        Yields
-        ------
-        Selected region
-        """
-        previous_selection = self.selected_region
-        if isinstance(region,Region):
-            # argument is already a region object - use it
-            self.selected_region = region
+    def __str__(self):
+        if self.region==self.parcellation.regiontree:
+            return f"'{self.parcellation.name}' in '{self.space.name}'"
         else:
-            # try to interpret argument as the key for a region 
-            selected = self.selected_parcellation.regiontree.find(
-                    region,select_uppermost=True)
-            if len(selected)==1:
-                # one match found - fine
-                self.selected_region = next(iter(selected))
-            elif len(selected)==0:
-                # no match found
-                raise ValueError('Cannot select region. The spec "{}" does not match any known region.'.format(region))
-            else:
-                # multiple matches found. We do not allow this for now.
-                raise ValueError('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
-                    region,", ".join([s.name for s in selected])))
-        if not self.selected_region == previous_selection:
-            logger.info(f'Select "{self.selected_region.name}"')
-        return self.selected_region
+            return f"Area '{self.region.name}' of '{self.parcellation.name}' in '{self.space.name}'"
 
-    def get_map(self, space=None, maptype=MapType.LABELLED):
+    def get_map(self,maptype=MapType.LABELLED):
         """
-        return the map provided by the selected parcellation in the given space.
+        Return the map provided by the selected parcellation in the given space.
         This just forwards to the selected parcellation object, see
         Parcellation.get_map()
-        """
-        return self.selected_parcellation.get_map(space=space,maptype=maptype)
 
-    def build_mask(self, space : Space, resolution_mm=None ):
+        Parameters
+        ----------
+        maptype : MapType
+        """
+        return self.parcellation.get_map(space=self.space,maptype=maptype)
+
+    def build_mask(self, resolution_mm=None ):
         """
         Returns a binary mask in the given space, where nonzero values denote
         voxels corresponding to the current region selection of the atlas. 
@@ -203,52 +94,75 @@ class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atla
 
         Parameters
         ----------
-        space : Space
-            Template space 
         resolution_mm : float or None (Default: None)
             Request the template at a particular physical resolution. If None,
             the native resolution is used.
             Currently, this only works for the BigBrain volume.
         """
-        return self.selected_region.build_mask(space,resolution_mm=resolution_mm)
+        return self.region.build_mask(self.space,resolution_mm=resolution_mm)
 
-    def get_template(self,space=None):
+    def get_template(self):
         """
-        Get the volumetric reference template image for the given space.
-
-        See
-        ---
-        Space.get_template()
+        Get the volumetric reference template image for the selected space.
 
         Parameters
         ----------
-        space : str
-            Template space definition, given as a dictionary with an '@id' key
+        resolution_mm : float or None (Default: None)
+            Request the template at a particular physical resolution. If None,
+            the native resolution is used.
+            Currently, this only works for the BigBrain volume.
 
         Yields
         ------
-        A nibabel Nifti object representing the reference template, or None if not available.
-        TODO Returning None is not ideal, requires to implement a test on the other side. 
+        A nibabel Nifti object representing the reference template.
         """
-        if space is None:
-            space = self.spaces[0]
-            if len(self.spaces)>1:
-                logger.warning(f'{self.name} supports multiple spaces, but none was specified. Falling back to {space.name}.')
+        return self.space.get_template()
 
-        try:
-            spaceobj = Space.REGISTRY[space]
-        except IndexError:
-            logger.error(f'Atlas "{self.name}" does not support reference space "{space}".')
-            print("Available spaces:")
-            for space in self.spaces:
-                print(space.name,space.id)
-            return None
+    def includes_region(self,region):
+        """
+        Verifies wether a given region is part of the selection, 
+        that is, a child of the selected region.
+        """
+        return self.region.includes(region)
 
-        return spaceobj.get_template()
+
+        
+    def get_features(self,modality=None,group_by_dataset=False,**kwargs):
+        """
+        Retrieve data features linked to the selected atlas configuration, by modality. 
+        See siibra.features.modalities for available modalities. 
+        """
+
+        if modality is None:
+            querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
+        else:
+            if not FeatureQuery.REGISTRY.provides(modality):
+                raise RuntimeError(f"Cannot query features - no feature extractor known for feature type {modality}.")
+            querytypes = [FeatureQuery.REGISTRY[modality]]
+
+        result = {}
+        for querytype in querytypes:
+            hits = []
+            for query in FeatureQuery.queries(querytype.modality(),**kwargs):
+                hits.extend(query.execute(self))
+            matches = list(set(hits))
+            if group_by_dataset:
+                grouped = defaultdict(list)
+                for match in matches:
+                    grouped[match.dataset_id].append(match)
+                result[querytype.modality()]=grouped
+            else:
+                result[querytype.modality()]=matches
+        
+        # If only one modality was requested, simplify the dictionary
+        if len(result)==1:
+            return next(iter(result.values()))
+        else:
+            return result
 
     def decode_region(self,regionspec):
         """
-        Given a unique specification, return the corresponding region from the selected parcellation.
+        Given a unique specification, return the corresponding region from this selection.
         The spec could be a label index, a (possibly incomplete) name, or a
         region object.
         This method is meant to definitely determine a valid region. Therefore, 
@@ -268,12 +182,11 @@ class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atla
         ------
         Region object
         """
-        return self.selected_parcellation.decode_region(regionspec)
+        return self.parcellation.decode_region(regionspec)
 
-    def find_regions(self,regionspec,all_parcellations=False):
+    def find_regions(self,regionspec):
         """
-        Find regions with the given specification in the current or all
-        available parcellations of this atlas.
+        Find regions with the given specification in the selected region.
 
         Parameters
         ----------
@@ -282,120 +195,20 @@ class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atla
               against the name and the identifier key, 
             - an integer, which is interpreted as a labelindex
             - a region object
-        all_parcellations : Boolean (default:False)
-            Do not only search the selected but instead all available parcellations.
 
         Yield
         -----
         list of matching regions
         """
-        if not all_parcellations:
-            return self.selected_parcellation.find_regions(regionspec)
-        result = []
-        for p in self.parcellations:
-            result.extend(p.find_regions(regionspec))
-        return result
+        return self.region.find_regions(regionspec)
 
-    def clear_selection(self):
-        """
-        Cancels any current region selection.
-        """
-        self.select_region(self.selected_parcellation.regiontree)
-
-    def region_selected(self,region):
-        """
-        Verifies wether a given region is part of the current selection.
-        """
-        return self.selected_region.includes(region)
-
-    def coordinate_selected(self,space,coordinate,check_other_spaces=True):
-        """
-        Verifies wether a position in the given space is part of the current
-        selection.
-
-        Parameters
-        ----------
-        space : Space
-            The template space in which the test shall be carried out
-        coordinate : tuple x/y/z
-            A coordinate position given in the physical space. It will be
-            converted to the voxel space using the inverse affine matrix of the
-            template space for the query.
-
-        NOTE: since get_mask is lru-cached, this is not necessary slow
-        """
-        assert(space in self.spaces)
-
-        # transform physical coordinates to voxel coordinates for the query
-        def check(mask,coordinate):
-            voxel = (apply_affine(npl.inv(mask.affine),coordinate)+.5).astype(int)
-            if np.any(voxel>=mask.dataobj.shape):
-                return False
-            if mask.dataobj[voxel[0],voxel[1],voxel[2]]==0:
-                return False
-            return True
-
-        # If the requested space does not define the selected region, 
-        # we try to test in another space.
-        for tspace in [space]+self.spaces:
-            if self.selected_region.defined_in_space(tspace):
-                if tspace!=space:
-                    if not check_other_spaces:
-                        continue
-                    logger.warn(f"Coordinate cannot be tested for {self.selected_region.name} in {space}, testing in {tspace} instead.")
-                    coordinate = SpaceWarper.convert(space,tspace,coordinate)
-                M = self.build_mask(tspace)
-                if M.ndim==4:
-                    return any(check(M.slicer[:,:,:,i],coordinate) for i in range(M.shape[3]))
-                else: 
-                    return check(M,coordinate)
-        else:
-            logger.warn(f"Cannot test if coordinate is selected for {self.selected_region}")
-            return False
-
-        
-    def get_features(self,modality=None,group_by_dataset=False,**kwargs):
-        """
-        Retrieve data features linked to the selected atlas configuration, by modality. 
-        See siibra.features.modalities for available modalities. 
-        """
-
-        if modality is None:
-            querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
-        else:
-            if not FeatureQuery.REGISTRY.provides(modality):
-                raise RuntimeError(f"Cannot query features - no feature extractor known for feature type {modality}.")
-            querytypes = [FeatureQuery.REGISTRY[modality]]
-
-        result = {}
-        for  querytype in querytypes:
-            hits = []
-            for query in FeatureQuery.queries(querytype.modality(),**kwargs):
-                hits.extend(query.execute(self))
-            matches = list(set(hits))
-            if group_by_dataset:
-                grouped = defaultdict(list)
-                for match in matches:
-                    grouped[match.dataset_id].append(match)
-                result[querytype.modality()]=grouped
-            else:
-                result[querytype.modality()]=matches
-        
-        # If only one modality was requested, simplify the dictionary
-        if len(result)==1:
-            return next(iter(result.values()))
-        else:
-            return result
-
-    def assign_coordinates(self,space:Space,xyz_mm,maptype=MapType.CONTINUOUS,sigma_mm=1):
+    def assign_coordinates(self,xyz_mm,maptype=MapType.CONTINUOUS,sigma_mm=1):
         """
         Assign physical coordinates with optional standard deviation to atlas regions.
         See also: ContinuousParcellationMap.assign_coordinates()
 
         Parameters
         ----------
-        space : Space
-            reference template space for computing the assignemnt
         xyz_mm : coordinate tuple 
             3D point in physical coordinates of the template space of the
             ParcellationMap. Also accepts a string of the format "15.453mm, 4.828mm, 69.122mm" 
@@ -408,19 +221,190 @@ class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atla
             bandwidth will be used for representing the location instead of a
             deterministic coordinate.
         """
-        smap = self.selected_parcellation.get_map(space,maptype=maptype)
+        smap = self.parcellation.get_map(self.space,maptype=maptype)
         return smap.assign_coordinates(xyz_mm, sigma_mm)
 
-    def assign_maps(self,space:Space,mapimg):
+    def assign_maps(self,mapimg):
         """
         Assign physical coordinates with optional standard deviation to atlas regions.
         See also: ContinuousParcellationMap.assign_coordinates()
 
         Parameters
         ----------
-        space : Space
-            reference template space for computing the assignemnt
         mapimg : 3D volume as nibabel spatial image
         """
-        smap = self.selected_parcellation.get_map(space,maptype=MapType.CONTINUOUS)
+        smap = self.selection.parcellation.get_map(self.space,maptype=MapType.CONTINUOUS)
         return smap.assign(mapimg)
+
+
+
+@SemanticConcept.provide_registry
+class Atlas(SemanticConcept,bootstrap_folder="atlases",type_id="juelich/iav/atlas/v1.0.0"):
+    """ 
+    Main class for an atlas, providing access to feasible 
+    combinations of available parcellations and reference 
+    spaces, as well as common functionalities of those. 
+    """
+
+    def __init__(self,identifier,name):
+        """ Construct an empty atlas object with a name and identifier."""
+
+        SemanticConcept.__init__(self,identifier,name,dataset_specs=[])
+
+        self.parcellations = [] # add with _add_parcellation
+        self.spaces = [] # add with _add_space
+        self.selection = None
+
+    def __hash__(self):
+        """
+        Used for caching functions taking atlas object as an input, like FeatureExtractor.pick_selection()
+        """
+        hash(self.id)+hash(self.selection.parcellation.id)+hash(self.selected_region)
+
+    def _register_space(self, space):
+        """ Registers another reference space to the atlas. """
+        self.spaces.append(space)
+
+    def _register_parcellation(self, parcellation, select=False):
+        """ Registers another parcellation to the atlas."""
+        self.parcellations.append(parcellation)
+
+    @classmethod
+    def _from_json(cls,obj):
+        """
+        Provides an object hook for the json library to construct an Atlas
+        object from a json stream.
+        """
+        if obj.get('@type')!="juelich/iav/atlas/v1.0.0":
+            raise ValueError(f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}")
+        if all(['@id' in obj,'spaces' in obj,'parcellations' in obj]):
+            atlas = cls(obj['@id'], obj['name'])
+            for space_id in obj['spaces']:
+                if not Space.REGISTRY.provides(space_id):
+                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known")
+                atlas._register_space( Space.REGISTRY[space_id] )
+            for parcellation_id in obj['parcellations']:
+                if not Parcellation.REGISTRY.provides(parcellation_id):
+                    raise ValueError(f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known")
+                atlas._register_parcellation( Parcellation.REGISTRY[parcellation_id] )
+            atlas.select() # select defaults
+            return atlas
+        return obj
+
+
+    def threshold_continuous_maps(self,threshold):
+        """
+        Inform the atlas that thresholded continuous maps should be preferred
+        over static labelled maps for building and using region masks.
+        This will, for example, influence spatial filtering of coordinate-based
+        features in the get_features() method.
+        """
+        self.selection.parcellation.continuous_map_threshold = threshold
+
+
+    def select(self,parcellation:Parcellation=None, region:"Region"=None, space:"Space"=None, allow_experimental=False) -> "AtlasSelection":
+        """
+        Modifies the selected region(s) of the atlas.
+
+        Parameters
+        ----------
+        parcellation: Parcellation
+            The parcellation to select. If None, the first of available parcellations is selected. 
+        region : Region
+            Region to be selected. Both a region object, as well as a region
+            key (uppercase string identifier) are accepted. If None, 
+            the root of the parcellation's region hierarchy will be chosen.
+        space : Space
+            The reference space to use. If None, the first of available spaces is selected.
+        allow_experimental : bool
+            Per default, experimental versions of parcellations will not 
+            be admitted for selection. Set to true to change this behaviour.
+        """
+
+        # clarify the default values
+        if self.selection is None:
+            default = AtlasSelection(self,self.parcellations[0].regiontree,self.spaces[0])
+        else:
+            default = self.selection
+
+        # determine the parcellation to select
+        if parcellation is None:
+            parcellation_obj = default.parcellation
+        else:
+            parcellation_obj = Parcellation.REGISTRY[parcellation]
+            if parcellation_obj not in self.parcellations:
+                raise ValueError(f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}.")
+            
+        if parcellation_obj.version is not None:
+            versionname = parcellation_obj.version.name
+            if any(w in versionname for w in VERSION_BLACKLIST_WORDS) and not allow_experimental:
+                logger.warning(f"Will not select experimental version {versionname} of {parcellation_obj.name} unless forced.")
+                return self.selection
+     
+        # determine the region to select
+        if region is None:
+            region_obj = default.region
+            if region_obj.parcellation!=parcellation_obj:
+                logger.warning(f"The previously selected region '{region_obj.name}' is not defined "\
+                    f"by '{parcellation_obj.name}'.")
+                try:
+                    corresponding_region = parcellation_obj.decode_region(region_obj.name)
+                    region_obj = corresponding_region
+                    logger.warning(f"Selecting similar region {region_obj.name} of {parcellation_obj.name} instead.")
+                except Exception as e:
+                    region_obj = parcellation_obj.regiontree
+                    logger.warning(f"Instead, the root of the region tree in '{parcellation_obj.name}' is selected.")
+        elif isinstance(region,Region):
+            region_obj = region
+        else:
+            matches = parcellation_obj.regiontree.find(region,select_uppermost=True)
+            if len(matches)==0:
+                raise ValueError('Cannot select region. The spec "{}" does not match any known region.'.format(region))
+            elif len(matches)==1:
+                region_obj = next(iter(matches))
+            else:
+                raise ValueError('Cannot select region. The spec "{}" is not unique. It matches: {}'.format(
+                    region,", ".join([s.name for s in matches])))
+        
+        if region_obj.parcellation!=parcellation_obj:
+            raise ValueError(f"Selected region {region_obj.name} is not defined in selected parcellation {parcellation_obj.name}.")
+
+        # determine the space to select
+        if space is None:
+            space_obj = default.space
+            if not parcellation_obj.supports_space(space_obj):
+                space_obj = next(iter(filter(parcellation_obj.supports_space,self.spaces)))
+                logger.warning(f"Previously selected space '{default.space.name}' is not supported "\
+                    f"by '{parcellation_obj.name}'. Selecting '{space_obj.name}' instead.")
+        else:
+            space_obj = Space.REGISTRY[space]
+            if space_obj not in self.spaces:
+                raise ValueError(f"Space {space_obj.name} not supported by atlas {self.name}.")
+
+        self.selection = AtlasSelection(parcellation_obj,region_obj,space_obj)
+        logger.info(f"Selected {str(self.selection)}")
+        return self.selection
+
+
+    def find_regions(self,regionspec):
+        """
+        Find regions with the given specification in all
+        parcellations offered by the atlas.
+
+        Parameters
+        ----------
+        regionspec : any of 
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key, 
+            - an integer, which is interpreted as a labelindex
+            - a region object
+
+        Yield
+        -----
+        list of matching regions
+        """
+        result = []
+        for p in self.parcellations:
+            result.extend(p.find_regions(regionspec))
+        return result
+

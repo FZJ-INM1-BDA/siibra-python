@@ -144,10 +144,13 @@ class ZipfileRequest(LazyHttpRequest):
     def __init__(self,url,filename,func=None):
         LazyHttpRequest.__init__(self,url)
         self.filename = filename
-        suitable_decoders = [dec for sfx,dec in DECODERS.items() if filename.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders)>0):
-            assert(len(suitable_decoders)==1)
-            self._decoder = suitable_decoders[0]
+        if func is None:
+            suitable_decoders = [dec for sfx,dec in DECODERS.items() if filename.endswith(sfx)]
+            if len(suitable_decoders)>0:
+                assert(len(suitable_decoders)==1)
+                self._decoder = suitable_decoders[0]
+            else:
+                self._decoder = lambda b: b
         else:
             self._decoder = func
 
