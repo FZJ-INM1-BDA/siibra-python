@@ -16,13 +16,13 @@ from .space import Space
 from .region import Region
 from .core import SemanticConcept
 
-from ..commons import logger,MapType,ParcellationIndex
+from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import parcellationmap
 
 from typing import Union
 from memoization import cached
 
-# NOTE : such code could be used to automatically resolve 
+# NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
 #               try:
 #                    collections = {m.version.collection for m in matches}
@@ -31,36 +31,37 @@ from memoization import cached
 #                except Exception as e:
 #                    pass
 
-class ParcellationVersion:
-    def __init__(self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False):
-        self.name=name
-        self.collection=collection
-        self.next_id=next_id
-        self.prev_id=prev_id
-        self.deprecated=deprecated
 
-    def __eq__(self,other):
-        return all([
-            self.name==other.name,
-            self.collection==other.collection])
-    
+class ParcellationVersion:
+    def __init__(
+        self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False
+    ):
+        self.name = name
+        self.collection = collection
+        self.next_id = next_id
+        self.prev_id = prev_id
+        self.deprecated = deprecated
+
+    def __eq__(self, other):
+        return all([self.name == other.name, self.collection == other.collection])
+
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return  self.name
+        return self.name
 
     def __iter__(self):
-        yield 'name', self.name
-        yield 'prev', self.prev.id if self.prev is not None else None
-        yield 'next', self.next.id if self.next is not None else None
-        yield 'deprecated', self.deprecated
+        yield "name", self.name
+        yield "prev", self.prev.id if self.prev is not None else None
+        yield "next", self.next.id if self.next is not None else None
+        yield "deprecated", self.deprecated
 
-    def __lt__(self,other):
-        """ < operator, useful for sorting by version"""
+    def __lt__(self, other):
+        """< operator, useful for sorting by version"""
         successor = self.next
         while successor is not None:
-            if successor.version==other:
+            if successor.version == other:
                 return True
             successor = successor.version.next
         return False
@@ -74,8 +75,8 @@ class ParcellationVersion:
         except IndexError:
             return None
         except NameError:
-            logger.warning('Accessing REGISTRY before its declaration!')
-    
+            logger.warning("Accessing REGISTRY before its declaration!")
+
     @property
     def prev(self):
         if self.prev_id is None:
@@ -85,10 +86,10 @@ class ParcellationVersion:
         except IndexError:
             return None
         except NameError:
-            logger.warning('Accessing REGISTRY before its declaration!')
+            logger.warning("Accessing REGISTRY before its declaration!")
 
     @classmethod
-    def _from_json(cls,obj):
+    def _from_json(cls, obj):
         """
         Provides an object hook for the json library to construct a
         ParcellationVersion object from a json string.
@@ -96,19 +97,32 @@ class ParcellationVersion:
         if obj is None:
             return None
         return cls(
-            obj.get('name', None), 
-            obj.get('collectionName',None),
-            prev_id=obj.get('@prev', None), 
-            next_id=obj.get('@next', None),
-            deprecated=obj.get('deprecated', False))
-        
+            obj.get("name", None),
+            obj.get("collectionName", None),
+            prev_id=obj.get("@prev", None),
+            next_id=obj.get("@next", None),
+            deprecated=obj.get("deprecated", False),
+        )
+
 
 @SemanticConcept.provide_registry
-class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='minds/core/parcellationatlas/v1.0.0'):
+class Parcellation(
+    SemanticConcept,
+    bootstrap_folder="parcellations",
+    type_id="minds/core/parcellationatlas/v1.0.0",
+):
 
     _regiontree_cached = None
 
-    def __init__(self, identifier : str, name : str, version=None, modality=None, regiondefs=[], dataset_specs=[]):
+    def __init__(
+        self,
+        identifier: str,
+        name: str,
+        version=None,
+        modality=None,
+        regiondefs=[],
+        dataset_specs=[],
+    ):
         """
         Constructs a new parcellation object.
 
@@ -123,7 +137,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
-        SemanticConcept.__init__(self,identifier,name,dataset_specs)
+        SemanticConcept.__init__(self, identifier, name, dataset_specs)
         self.version = version
         self.publications = []
         self.description = ""
@@ -138,21 +152,23 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
     @property
     def regiontree(self):
         if self._regiontree_cached is None:
-            self._regiontree_cached = Region(self.name,self,ParcellationIndex(None,None))
+            self._regiontree_cached = Region(
+                self.name, self, ParcellationIndex(None, None)
+            )
             try:
-                    self._regiontree_cached.children = tuple( 
-                        Region._from_json(regiondef,self) 
-                        for regiondef in self._regiondefs )
+                self._regiontree_cached.children = tuple(
+                    Region._from_json(regiondef, self) for regiondef in self._regiondefs
+                )
             except Exception as e:
                 logger.error(f"Could not generate child regions for {self.name}")
-                raise(e)
+                raise (e)
         return self._regiontree_cached
 
     @cached
-    def get_map(self, space=None, maptype:Union[str,MapType]=MapType.LABELLED):
+    def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
-        template space. This might in general include multiple 
+        template space. This might in general include multiple
         3D volumes. For example, the Julich-Brain atlas provides two separate
         maps, one per hemisphere. Per default, multiple maps are concatenated into a 4D
         array, but you can choose to retrieve a dict of 3D volumes instead using `return_dict=True`.
@@ -160,7 +176,7 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         Parameters
         ----------
         space : Space or str
-            template space specification 
+            template space specification
         maptype : MapType (default: MapType.LABELLED)
             Type of map requested (e.g., continous or labelled, see commons.MapType)
             Use MapType.CONTINUOUS to request probability maps.
@@ -169,22 +185,26 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         ------
         A ParcellationMap representing the volumetric map.
         """
-        if isinstance(maptype,str):
+        if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         if space is None:
             spaces = {v.space for v in self.volume_src}
-            if len(spaces)==0:
+            if len(spaces) == 0:
                 raise RuntimeError(f'Parcellation "{str(self)}" provides no maps.')
-            elif len(spaces)==1:
+            elif len(spaces) == 1:
                 spaceobj = next(iter(spaces))
             else:
-                raise ValueError(f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified ({",".join(s.name for s in spaces)})')
+                raise ValueError(
+                    f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified ({",".join(s.name for s in spaces)})'
+                )
         else:
             spaceobj = Space.REGISTRY[space]
             if not self.supports_space(spaceobj):
-                raise ValueError(f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"')
+                raise ValueError(
+                    f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"'
+                )
 
-        return parcellationmap.create_map(self,spaceobj,maptype)
+        return parcellationmap.create_map(self, spaceobj, maptype)
 
     @property
     def labels(self):
@@ -194,28 +214,29 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
     def names(self):
         return self.regiontree.names
 
-    def supports_space(self,space : Space):
+    def supports_space(self, space: Space):
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return len(self.get_volume_src(space))>0
+        return len(self.get_volume_src(space)) > 0
 
-
-    def decode_region(self,regionspec:Union[str,int,ParcellationIndex,Region],build_group=True):
+    def decode_region(
+        self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
+    ):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
         region object.
-        This method is meant to definitely determine a valid region. Therefore, 
+        This method is meant to definitely determine a valid region. Therefore,
         if no match is found, it raises a ValueError. If it finds multiple
         matches, it tries to return only the common parent node. If there are
         multiple remaining parent nodes, which is rare, a custom group region is constructed.
 
         Parameters
         ----------
-        regionspec : any of 
+        regionspec : any of
             - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
+              against the name and the identifier key,
             - an integer, which is interpreted as a labelindex,
             - a region object
             - a full ParcellationIndex
@@ -224,30 +245,36 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         ------
         Region object
         """
-        candidates = self.regiontree.find(regionspec,select_uppermost=True)
+        candidates = self.regiontree.find(regionspec, select_uppermost=True)
         if not candidates:
-            raise ValueError("Regionspec {} could not be decoded under '{}'".format(
-                regionspec,self.name))
-        elif len(candidates)==1:
+            raise ValueError(
+                "Regionspec {} could not be decoded under '{}'".format(
+                    regionspec, self.name
+                )
+            )
+        elif len(candidates) == 1:
             return candidates[0]
         else:
             if build_group:
-                logger.debug(f"The specification '{regionspec}' resulted more than one region. A group region is returned.")
-                return Region._build_grouptree(candidates,self)
+                logger.debug(
+                    f"The specification '{regionspec}' resulted more than one region. A group region is returned."
+                )
+                return Region._build_grouptree(candidates, self)
             else:
-                raise RuntimeError(f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}.")
-
+                raise RuntimeError(
+                    f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
+                )
 
     @cached
-    def find_regions(self,regionspec):
+    def find_regions(self, regionspec):
         """
         Find regions with the given specification in this parcellation.
 
         Parameters
         ----------
-        regionspec : any of 
+        regionspec : any of
             - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key, 
+              against the name and the identifier key,
             - an integer, which is interpreted as a labelindex
             - a region object
 
@@ -261,22 +288,21 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         return self.name
 
     def __repr__(self):
-        return  self.name
+        return self.name
 
-    def __eq__(self,other):
+    def __eq__(self, other):
         """
         Compare this parcellation with other objects. If other is a string,
         compare to key, name or id.
         """
-        if isinstance(other,Parcellation):
-            return self.id==other.id
-        elif isinstance(other,str):
-            return any([
-                self.name==other, 
-                self.key==other,
-                self.id==other])
+        if isinstance(other, Parcellation):
+            return self.id == other.id
+        elif isinstance(other, str):
+            return any([self.name == other, self.key == other, self.id == other])
         else:
-            raise ValueError("Cannot compare object of type {} to Parcellation".format(type(other)))
+            raise ValueError(
+                "Cannot compare object of type {} to Parcellation".format(type(other))
+            )
 
     def __iter__(self):
         """
@@ -284,43 +310,48 @@ class Parcellation(SemanticConcept,bootstrap_folder="parcellations",type_id='min
         """
         return self.regiontree.__iter__()
 
-    def __getitem__(self,regionspec:Union[str,int]):
+    def __getitem__(self, regionspec: Union[str, int]):
         """
         Retrieve a region object from the parcellation by labelindex or partial name.
         """
         return self.decode_region(regionspec)
 
-    def __lt__(self,other):
+    def __lt__(self, other):
         """
         We sort parcellations by their version
         """
         if (self.version is None) or (other.version is None):
-            raise RuntimeError(f"Attempted to sort non-versioned instances of {self.__class__.__name__}.")
+            raise RuntimeError(
+                f"Attempted to sort non-versioned instances of {self.__class__.__name__}."
+            )
         return self.version.__lt__(other.version)
 
     @classmethod
-    def _from_json(cls,obj):
+    def _from_json(cls, obj):
         """
         Provides an object hook for the json library to construct a Parcellation
         object from a json string.
         """
-        assert(obj.get('@type',None)=='minds/core/parcellationatlas/v1.0.0')
+        assert obj.get("@type", None) == "minds/core/parcellationatlas/v1.0.0"
 
         # create the parcellation, it will create a parent region node for the regiontree.
         result = cls(
-            obj['@id'], obj['shortName'], regiondefs=obj['regions'], 
-            dataset_specs=obj.get('datasets',[]))
+            obj["@id"],
+            obj["shortName"],
+            regiondefs=obj["regions"],
+            dataset_specs=obj.get("datasets", []),
+        )
 
-        if '@version' in obj:
-            result.version = ParcellationVersion._from_json(obj['@version'])
+        if "@version" in obj:
+            result.version = ParcellationVersion._from_json(obj["@version"])
 
-        if 'modality' in obj:
-            result.modality = obj['modality']
+        if "modality" in obj:
+            result.modality = obj["modality"]
 
-        if 'description' in obj:
-            result.description = obj['description']
+        if "description" in obj:
+            result.description = obj["description"]
 
-        if 'publications' in obj:
-            result.publications = obj['publications']
+        if "publications" in obj:
+            result.publications = obj["publications"]
 
         return result

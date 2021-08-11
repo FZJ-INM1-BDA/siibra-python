@@ -16,81 +16,86 @@ from ..commons import logger
 from ..retrieval import EbrainsRequest
 
 import re
-import numpy as np
-import os
-import json
+
 
 class Dataset:
 
     REGISTRY = {}
 
-    def __init__(self,identifier):
+    def __init__(self, identifier):
         self.id = identifier
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.id}"
 
-    def __init_subclass__(cls,type_id=None):
+    def __init_subclass__(cls, type_id=None):
         if type_id in Dataset.REGISTRY:
-            logger.warning(f"Type id '{type_id}' already provided by {Dataset.REGISTRY[type_id].__name__}, but {cls.__name__} suggests itself as well")
+            logger.warning(
+                f"Type id '{type_id}' already provided by {Dataset.REGISTRY[type_id].__name__}, but {cls.__name__} suggests itself as well"
+            )
         if type_id is not None:
             logger.debug(f"Registering specialist {cls.__name__} for type id {type_id}")
             Dataset.REGISTRY[type_id] = cls
         cls.type_id = type_id
 
     def is_image_volume(self):
-        """ Overwritten by derived dataset classes in the siibra.volumes """
+        """Overwritten by derived dataset classes in the siibra.volumes"""
         return False
 
     @classmethod
-    def extract_type_id(cls,spec):
-        for key in ['@type','kgSchema']:
+    def extract_type_id(cls, spec):
+        for key in ["@type", "kgSchema"]:
             if key in spec:
-                return spec[key]                
+                return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
 
-class OriginDescription(Dataset,type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
-
+class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
     def __init__(self, name, description, urls):
-        Dataset.__init__(self,None)
-        # we model the following as property functions, 
+        Dataset.__init__(self, None)
+        # we model the following as property functions,
         # so derived classes may replace them with a lazy loading mechanism.
         self.name = name
-        self.description=description
-        self._urls=urls
+        self.description = description
+        self._urls = urls
 
     @property
     def urls(self):
         return self._urls
 
     @classmethod
-    def _from_json(cls,spec):
+    def _from_json(cls, spec):
         type_id = cls.extract_type_id(spec)
-        assert(type_id==cls.type_id)
+        assert type_id == cls.type_id
         return cls(
-            name=spec['name'],
-            description=spec.get('description'),
-            urls=spec.get('url', []) )
+            name=spec["name"],
+            description=spec.get("description"),
+            urls=spec.get("url", []),
+        )
 
-class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
 
-    def __init__(self, id, name, embargo_status=None ):
-        Dataset.__init__(self,id)
+class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
+    def __init__(self, id, name, embargo_status=None):
+        Dataset.__init__(self, id)
         self.embargo_status = embargo_status
-        self._description_cached = None # if available, will not be extracted from _detail
+        self._description_cached = (
+            None  # if available, will not be extracted from _detail
+        )
         self._name_cached = name
         self._detail = None
         if id is None:
-            raise TypeError('Dataset id is required')
-        
-        match=re.search(r"([a-f0-9-]+)$",id)        
+            raise TypeError("Dataset id is required")
+
+        match = re.search(r"([a-f0-9-]+)$", id)
         if not match:
-            raise ValueError(f'{self.__class__.__name__} initialized with invalid id: {self.id}')
+            raise ValueError(
+                f"{self.__class__.__name__} initialized with invalid id: {self.id}"
+            )
         self._detail_loader = EbrainsRequest(
-            query_id = 'interactiveViewerKgQuery-v1_0',
-            instance_id = match.group(1),
-            params = {'vocab': 'https://schema.hbp.eu/myQuery/'})
+            query_id="interactiveViewerKgQuery-v1_0",
+            instance_id=match.group(1),
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
+        )
 
     @property
     def detail(self):
@@ -99,17 +104,22 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
     @property
     def name(self):
         if self._name_cached is None:
-            self._name_cached = self.detail.get('name')
+            self._name_cached = self.detail.get("name")
         return self._name_cached
 
     @property
     def urls(self):
-        return [{'doi': f,} for f in self.detail.get('kgReference',[])]
+        return [
+            {
+                "doi": f,
+            }
+            for f in self.detail.get("kgReference", [])
+        ]
 
     @property
     def description(self):
         if self._description_cached is None:
-            self._desription_cached = self.detail.get('description')
+            self._desription_cached = self.detail.get("description")
         return self._description_cached
 
     def __hash__(self):
@@ -121,13 +131,11 @@ class EbrainsDataset(Dataset,type_id='minds/core/dataset/v1.0.0'):
         return self.id == o.id
 
     @classmethod
-    def _from_json(cls,spec):
+    def _from_json(cls, spec):
         type_id = cls.extract_type_id(spec)
-        assert(type_id==cls.type_id)
+        assert type_id == cls.type_id
         return cls(
             id=type_id,
-            name=spec.get('name'),
-            embargo_status=spec.get('embargo_status',None)
+            name=spec.get("name"),
+            embargo_status=spec.get("embargo_status", None),
         )
-
-
