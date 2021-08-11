@@ -166,7 +166,7 @@ class Point(Location):
             raise NotImplementedError(f"Coordinate parsing from strings is only supported for mm specifications so far.")
         if isinstance(spec,str):
             pat=r'([-\d\.]*)'+unit
-            digits = re.findall(pat,cstr)
+            digits = re.findall(pat,spec)
             if len(digits)==3:
                 return (float(d) for d in digits)
         elif isinstance(spec,tuple) and len(spec)==3 and all(v.isnumeric() for v in spec):
