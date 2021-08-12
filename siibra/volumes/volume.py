@@ -226,9 +226,9 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             bb_vox = BoundingBox(bb[:3, 0], bb[:3, 1], space=None)
 
         if bb_vox is not None:
-            (x0, y0, z0), (x1, y1, z1) = bb_vox._Bbox.minpt, bb_vox._Bbox.maxpt
+            (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
-            shift[:3, -1] = bb_vox._Bbox.minpt
+            shift[:3, -1] = bb_vox.minpoint
             img = nib.Nifti1Image(
                 dataobj=img.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(img.affine, shift),
@@ -381,11 +381,10 @@ class NeuroglancerVolume(
         # if a volume of interest is given, apply the offset
         shift = np.identity(4)
         if voi is not None:
-            minpt_vox = np.dot(
-                np.linalg.inv(self.build_affine(effective_res_mm)), np.r_[voi._Bbox.minpt, 1]
-            )[:3]
-            logger.debug(f"Affine matrix respects volume of interest shift {voi._Bbox.minpt}")
-            shift[:3, -1] = minpt_vox
+            minpt_vox = voi.minpoint.transform(
+                np.linalg.inv(self.build_affine(effective_res_mm)))
+            logger.debug(f"Affine matrix respects volume of interest shift {voi.minpoint}")
+            shift[:3, -1] = minpt_vox.coordinate
 
         # scaling from voxel to nm
         resolution_nm = self.info["scales"][mip]["resolution"]

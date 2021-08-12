@@ -86,20 +86,20 @@ class Space(
             raise TypeError(
                 "Slice access to spaces needs to define x,y and z ranges (e.g. Space[10:30,0:10,200:300])"
             )
-        startpoint = [s.start for s in slices]
-        endpoint = [s.stop for s in slices]
-        return self.get_bounding_box(startpoint, endpoint)
+        point1 = [s.start for s in slices]
+        point2 = [s.stop for s in slices]
+        return self.get_bounding_box(point1, point2)
 
-    def get_bounding_box(self, startpoint, endpoint):
+    def get_bounding_box(self, point1, point2):
         """
         Get a volume of interest specification from this space.
 
         Arguments
         ---------
-        startpoint: 3D tuple defined in physical coordinates of this reference space
-        endpoint: 3D tuple defined in physical coordinates of this reference space
+        point1: 3D tuple defined in physical coordinates of this reference space
+        point2: 3D tuple defined in physical coordinates of this reference space
         """
-        return BoundingBox(startpoint, endpoint, self)
+        return BoundingBox(point1, point2, self)
 
     @classmethod
     def _from_json(cls, obj):
@@ -354,25 +354,27 @@ class PointSet(Location):
 
 
 class BoundingBox(Location):
-    """A 3D axis-aligned bounding box, spanned by a 3D start- and endpoint"""
+    """A 3D axis-aligned bounding box, spanned by two 3D points """
 
-    def __init__(self, startpoint, endpoint, space: Space):
+    def __init__(self, point1, point2, space: Space):
         """
-        Construct a new bouding box spanned by two 3D coordinates
+        Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
 
         Parameters
         ----------
-        startpoint : Point or 3-tuple
+        point1 : Point or 3-tuple
             Startpoint given in mm of the given space
-        endpoint : Point or 3-tuple
+        point2 : Point or 3-tuple
             Endpoint given in mm of the given space
         space : Space
             The reference space
         """
         Location.__init__(self, space)
-        self.startpoint = Point(startpoint, space)
-        self.endpoint = Point(endpoint, space)
+        xyz1 = Point.parse(point1)
+        xyz2 = Point.parse(point2)
+        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)],space)
+        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)],space)
 
     @property
     def _Bbox(self):
@@ -380,8 +382,8 @@ class BoundingBox(Location):
         Return the bounding box as a cloudvolume Bbox object,
         with rounded integer coordinates. """
         return Bbox(
-            [int(v + .5) for v in self.startpoint.coordinate],
-            [int(v + .5) for v in self.endpoint.coordinate]
+            [int(v + .5) for v in self.minpoint.coordinate],
+            [int(v + .5) for v in self.maxpoint.coordinate]
         )
 
     @classmethod
@@ -406,13 +408,13 @@ class BoundingBox(Location):
     def from_image(cls, image: Nifti1Image, space: Space):
         """Construct a bounding box from a nifti image"""
         coords = np.dot(image.affine, cls._determine_bounds(image.get_fdata()))
-        return cls(startpoint=coords[:3, 0], endpoint=coords[:3, 1], space=space)
+        return cls(point1=coords[:3, 0], point2=coords[:3, 1], space=space)
 
     def __str__(self):
         if self.space is None:
-            return f"Bounding box {self.startpoint} -> {self.endpoint} in unknown coordinate system"
+            return f"Bounding box {self.minpoint} -> {self.maxpoint} in unknown coordinate system"
         else:
-            return f"Bounding box {self.startpoint}mm -> {self.endpoint}mm defined in {self.space.name}"
+            return f"Bounding box {self.minpoint}mm -> {self.maxpoint}mm defined in {self.space.name}"
 
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
@@ -434,16 +436,16 @@ class BoundingBox(Location):
 
     def warp(self, targetspace):
         """Returns a new bounding box obtained by warping the
-        start- and endpoint of this one into the new targetspace."""
+        min- and maxpoint of this one into the new targetspace."""
         return self.__class__(
-            startpoint=self.startpoint.warp(targetspace),
-            endpoint=self.endpoint.warp(targetspace),
+            point1=self.minpoint.warp(targetspace),
+            point2=self.maxpoint.warp(targetspace),
             space=targetspace,
         )
 
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new bounding box obtained by transforming the
-        start- and endpoint of this one with the given affine matrix.
+        min- and maxpoint of this one with the given affine matrix.
 
         Parameters
         ----------
@@ -455,7 +457,7 @@ class BoundingBox(Location):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            startpoint=self.startpoint.transform(affine, space),
-            endpoint=self.endpoint.transform(affine, space),
+            point1=self.minpoint.transform(affine, space),
+            point2=self.maxpoint.transform(affine, space),
             space=space
         )
