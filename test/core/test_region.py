@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from siibra import parcellations, spaces, retrieval
 from siibra.core.region import Region
@@ -109,24 +109,17 @@ class TestRegions(unittest.TestCase):
     def test_matches_with_wrong_region(self):
         self.assertFalse(self.child_region.matches(self.parent_region))
 
-    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
-    def test_regional_map_none(self, fetch_mock):
-        with self.assertRaises(LookupError):
-            self.parent_region.get_regional_map(spaces[0], MapType.LABELLED)
-        fetch_mock.assert_not_called()
+    def test_regional_map_none(self):
+        result = self.parent_region.get_regional_map(spaces[0], MapType.LABELLED)
+        self.assertIsNone(result)
 
-    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
-    def test_get_regional_map_wrong_space(self, fetch_mock):
-        with self.assertRaises(LookupError):
-            self.child_region.get_regional_map("wird space", MapType.LABELLED)
-        fetch_mock.assert_not_called()
+    def test_get_regional_map_wrong_space(self):
+        result = self.child_region.get_regional_map("wird space", MapType.LABELLED)
+        self.assertIsNone(result)
 
-    @patch("siibra.volumes.parcellationmap.ParcellationMap.fetch")
-    def test_get_regional_map_no_filename(self, fetch_mock):
-        fetch_mock.return_value = None
-        with self.assertRaises(LookupError):
-            self.child_region.get_regional_map(spaces.BIG_BRAIN, MapType.CONTINUOUS)
-        fetch_mock.assert_not_called()
+    def test_get_regional_map_no_filename(self):
+        result = self.child_region.get_regional_map(spaces.BIG_BRAIN, MapType.CONTINUOUS)
+        self.assertIsNone(result)
 
 
 if __name__ == "__main__":

@@ -592,9 +592,8 @@ class ContinuousParcellationMap(ParcellationMap):
         # otherwise we look for continuous maps associated to individual regions
         i = 0
         for region in self.parcellation.regiontree:
-            try:
-                regionmap = region.get_regional_map(self.space, MapType.CONTINUOUS)
-            except LookupError:
+            regionmap = region.get_regional_map(self.space, MapType.CONTINUOUS)
+            if regionmap is None:
                 continue
             self._maploaders_cached.append(
                 lambda r=region, res=None, voi=None: self._load_regional_map(

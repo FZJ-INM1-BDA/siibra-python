@@ -371,12 +371,13 @@ class Region(anytree.NodeMixin, SemanticConcept):
         if len(suitable) == 1:
             return suitable[0]
         elif len(suitable) == 0:
-            raise LookupError(
+            logger.warning(
                 f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)"
             )
+            return None
         else:
             raise NotImplementedError(
-                f"Multiple regional maps found for {self} in {space}. This is not expected by siibra."
+                f"Multiple regional maps found for {self} in {space}. This case is not expected."
             )
 
     def __getitem__(self, labelindex):

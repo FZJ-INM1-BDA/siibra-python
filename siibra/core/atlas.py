@@ -85,6 +85,18 @@ class AtlasSelection:
         """
         return self.parcellation.get_map(space=self.space, maptype=maptype)
 
+    def get_regional_map(self, maptype=MapType.LABELLED):
+        """
+        Retrieves and returns a specific map of the selected region in the selected space,
+        if available (otherwise None).
+
+        Parameters
+        ----------
+        maptype : MapType
+            Type of map (e.g. continuous, labelled - see commons.MapType)
+        """
+        return self.region.get_regional_map(self.space, maptype)
+
     def build_mask(self, resolution_mm=None):
         """
         Returns a binary mask in the given space, where nonzero values denote
