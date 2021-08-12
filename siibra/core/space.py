@@ -15,6 +15,7 @@
 
 from .core import SemanticConcept
 
+from ..commons import logger
 from ..retrieval import HttpRequest
 
 from cloudvolume import Bbox
@@ -137,11 +138,15 @@ SPACEWARP_IDS = {
 
 class Location(ABC):
     """
-    Defines a location in the given reference space.
+    Abstract base class for locations in a given reference space.
     """
 
     def __init__(self, space: Space):
-        self.space = Space.REGISTRY[space]
+        if space is None:
+            # typically only used for temporary entities, e.g. in individual voxel spaces.
+            self.space = None
+        else:
+            self.space = Space.REGISTRY[space]
 
     @abstractmethod
     def intersects_mask(self, mask: Nifti1Image):
@@ -157,6 +162,22 @@ class Location(ABC):
     def warp(self, targetspace: Space):
         """Generates a new location by warping the
         current one into another reference space."""
+        pass
+
+    @abstractmethod
+    def transform(self, affine: np.ndarray, space: Space = None):
+        """Returns a new location obtained by transforming the
+        reference coordinates of this one with the given affine matrix.
+
+        Parameters
+        ----------
+        affine : numpy 4x4 ndarray
+            affine matrix
+        space : Space, or None (optional)
+            Target reference space which is reached after
+            applying the transform. Note that the consistency
+            of this cannot be checked and is up to the user.
+        """
         pass
 
 
@@ -185,18 +206,43 @@ class Point(Location):
             digits = re.findall(pat, spec)
             if len(digits) == 3:
                 return (float(d) for d in digits)
-        elif (isinstance(spec, tuple) and len(spec) == 3 and all(v.isnumeric() for v in spec)):
-            return tuple(float(v) for v in spec)
-        elif isinstance(spec, np.ndarray) and spec.size() == 3:
+        elif (
+            isinstance(spec, (tuple, list))
+            and len(spec) in [3, 4]
+        ):
+            if len(spec) == 4:
+                assert(spec[3] == 1)
+            return tuple(float(v) for v in spec[:3])
+        elif isinstance(spec, np.ndarray) and spec.size == 3:
             return tuple(spec)
-
-        raise ValueError(
-            "Cannot decode the specification 'spec' into a 3D coordinate tuple"
-        )
+        elif isinstance(spec, Point):
+            return spec.coordinate
+        else:
+            raise ValueError(
+                f"Cannot decode the specification {spec} (type {type(spec)}, len {len(spec)}, element type {type(spec[0])}) into a 3D coordinate tuple"
+            )
 
     def __init__(self, coordinatespec, space: Space):
+        """
+        Construct a new 3D point set in the given reference space.
+
+        Parameters
+        ----------
+        coordinate : 3-tuple of int/float, or string specification
+            Coordinate in mm of the given space
+        space : Space
+            The reference space
+        """
         Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
+        if isinstance(coordinatespec, Point):
+            assert(coordinatespec.space == space)
+
+    @property
+    def homogeneous(self):
+        """ The homogenous coordinate of this point as a 4-tuple,
+        obtained by appending '1' to the original 3-tuple. """
+        return self.coordinate + (1,)
 
     def intersects_mask(self, mask: Nifti1Image):
         """Returns true if this point lies in the given mask.
@@ -240,11 +286,39 @@ class Point(Location):
             coordinate=tuple(response["target_point"]), space=targetspace
         )
 
+    def transform(self, affine: np.ndarray, space: Space = None):
+        """Returns a new Point obtained by transforming the
+        coordinate of this one with the given affine matrix.
+
+        Parameters
+        ----------
+        affine : numpy 4x4 ndarray
+            affine matrix
+        space : Space, or None (optional)
+            Target reference space which is reached after
+            applying the transform. Note that the consistency
+            of this cannot be checked and is up to the user.
+        """
+        x, y, z, h = np.dot(affine, self.homogeneous)
+        if h != 1:
+            logger.warning(f"Homogeneous coordinate is not one: {h}")
+        return self.__class__((x / h, y / h, z / h), space)
+
 
 class PointSet(Location):
     """A 3D polyline in reference space, defined by a list of coordinates."""
 
     def __init__(self, coordinates, space: Space):
+        """
+        Construct a new 3D point set in the given reference space.
+
+        Parameters
+        ----------
+        coordinates : list of Point, or list of 3-tuples
+            Coordinates in mm of the given space
+        space : Space
+            The reference space
+        """
         Location.__init__(self, space)
         self.coordinates = [Point(c, space) for c in coordinates]
 
@@ -261,18 +335,57 @@ class PointSet(Location):
             [c.warp(targetspace) for c in self.coordinates], targetspace
         )
 
+    def transform(self, affine: np.ndarray, space: Space = None):
+        """Returns a new PointSet obtained by transforming the
+        coordinates of this one with the given affine matrix.
 
-class BoundingBox(Location, Bbox):
+        Parameters
+        ----------
+        affine : numpy 4x4 ndarray
+            affine matrix
+        space : Space, or None (optional)
+            Target reference space which is reached after
+            applying the transform. Note that the consistency
+            of this cannot be checked and is up to the user.
+        """
+        return self.__class__(
+            [c.transform(affine, space) for c in self.coordinates], space
+        )
+
+
+class BoundingBox(Location):
     """A 3D axis-aligned bounding box, spanned by a 3D start- and endpoint"""
 
     def __init__(self, startpoint, endpoint, space: Space):
+        """
+        Construct a new bouding box spanned by two 3D coordinates
+        in the given reference space.
+
+        Parameters
+        ----------
+        startpoint : Point or 3-tuple
+            Startpoint given in mm of the given space
+        endpoint : Point or 3-tuple
+            Endpoint given in mm of the given space
+        space : Space
+            The reference space
+        """
         Location.__init__(self, space)
-        Bbox.__init__(self, startpoint, endpoint)
-        self.startpoint = Point(startpoint)
-        self.endpoint = Point(endpoint)
+        self.startpoint = Point(startpoint, space)
+        self.endpoint = Point(endpoint, space)
+
+    @property
+    def _Bbox(self):
+        """
+        Return the bounding box as a cloudvolume Bbox object,
+        with rounded integer coordinates. """
+        return Bbox(
+            [int(v + .5) for v in self.startpoint.coordinate],
+            [int(v + .5) for v in self.endpoint.coordinate]
+        )
 
     @classmethod
-    def _bounding_box(A):
+    def _determine_bounds(A):
         """
         Bounding box of nonzero values in a 3D array.
         https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
@@ -292,11 +405,14 @@ class BoundingBox(Location, Bbox):
     @classmethod
     def from_image(cls, image: Nifti1Image, space: Space):
         """Construct a bounding box from a nifti image"""
-        coords = np.dot(image.affine, cls._bounding_box(image.get_fdata()))
+        coords = np.dot(image.affine, cls._determine_bounds(image.get_fdata()))
         return cls(startpoint=coords[:3, 0], endpoint=coords[:3, 1], space=space)
 
     def __str__(self):
-        return f"Bounding box {self.minpt}mm -> {self.maxpt}mm defined in {self.space.name}"
+        if self.space is None:
+            return f"Bounding box {self.startpoint} -> {self.endpoint} in unknown coordinate system"
+        else:
+            return f"Bounding box {self.startpoint}mm -> {self.endpoint}mm defined in {self.space.name}"
 
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
@@ -317,10 +433,29 @@ class BoundingBox(Location, Bbox):
         return any(inside)
 
     def warp(self, targetspace):
-        """Returns a new bounding box obtanied by warping the
+        """Returns a new bounding box obtained by warping the
         start- and endpoint of this one into the new targetspace."""
         return self.__class__(
             startpoint=self.startpoint.warp(targetspace),
             endpoint=self.endpoint.warp(targetspace),
             space=targetspace,
+        )
+
+    def transform(self, affine: np.ndarray, space: Space = None):
+        """Returns a new bounding box obtained by transforming the
+        start- and endpoint of this one with the given affine matrix.
+
+        Parameters
+        ----------
+        affine : numpy 4x4 ndarray
+            affine matrix
+        space : Space, or None (optional)
+            Target reference space which is reached after
+            applying the transform. Note that the consistency
+            of this cannot be checked and is up to the user.
+        """
+        return self.__class__(
+            startpoint=self.startpoint.transform(affine, space),
+            endpoint=self.endpoint.transform(affine, space),
+            space=space
         )

@@ -17,7 +17,7 @@ from .volume import VolumeSrc, ImageProvider
 
 from .. import logger, QUIET
 from ..commons import ParcellationIndex, MapType
-from ..arrays import create_homogeneous_array, create_gaussian_kernel, argmax_dim4
+from ..arrays import make_homogeneous, create_gaussian_kernel, argmax_dim4
 from ..core.space import Space, BoundingBox
 from ..core.region import Region
 
@@ -174,9 +174,10 @@ class ParcellationMap(ImageProvider):
         self, region: Region, resolution_mm, voi: BoundingBox = None, clip: bool = False
     ):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        rmap = region.get_regional_map(self.space, self.maptype).fetch(
-            resolution_mm=resolution_mm, voi=voi, clip=clip
-        )
+        with QUIET:
+            rmap = region.get_regional_map(self.space, self.maptype).fetch(
+                resolution_mm=resolution_mm, voi=voi, clip=clip
+            )
         return rmap
 
     @abstractmethod
@@ -388,7 +389,8 @@ class LabelledParcellationMap(ParcellationMap):
                 )
                 # collect all available region maps to maps label indices to regions
                 for region in self.parcellation.regiontree:
-                    regionmap = region.get_regional_map(self.space, MapType.LABELLED)
+                    with QUIET:
+                        regionmap = region.get_regional_map(self.space, MapType.LABELLED)
                     if regionmap is not None:
                         assert region.index.label
                         self._regions_cached[
@@ -455,7 +457,8 @@ class LabelledParcellationMap(ParcellationMap):
         # collect all available region maps
         regions = []
         for r in self.parcellation.regiontree:
-            regionmap = r.get_regional_map(self.space, MapType.LABELLED)
+            with QUIET:
+                regionmap = r.get_regional_map(self.space, MapType.LABELLED)
             if regionmap is not None:
                 regions.append(r)
 
@@ -507,7 +510,7 @@ class LabelledParcellationMap(ParcellationMap):
 
         # Convert input to Nx4 list of homogenous coordinates
         assert len(xyz_phys) > 0
-        XYZH = create_homogeneous_array(xyz_phys)
+        XYZH = make_homogeneous(xyz_phys)
         numpts = XYZH.shape[0]
 
         tpl = self.space.get_template().fetch()
@@ -592,7 +595,8 @@ class ContinuousParcellationMap(ParcellationMap):
         # otherwise we look for continuous maps associated to individual regions
         i = 0
         for region in self.parcellation.regiontree:
-            regionmap = region.get_regional_map(self.space, MapType.CONTINUOUS)
+            with QUIET:
+                regionmap = region.get_regional_map(self.space, MapType.CONTINUOUS)
             if regionmap is None:
                 continue
             self._maploaders_cached.append(
@@ -630,7 +634,7 @@ class ContinuousParcellationMap(ParcellationMap):
 
         # Convert input to Nx4 list of homogenous coordinates
         assert len(xyz_phys) > 0
-        XYZH = create_homogeneous_array(xyz_phys)
+        XYZH = make_homogeneous(xyz_phys)
         numpts = XYZH.shape[0]
 
         # convert sigma to voxel coordinates
