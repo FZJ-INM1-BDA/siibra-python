@@ -268,7 +268,7 @@ class Point(Location):
             return check(mask, self.coordinate)
 
     def warp(self, targetspace: Space):
-        """Creates a new location by warping this location to another space"""
+        """ Creates a new point by warping this point to another space """
         if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space} and {targetspace}"
@@ -306,7 +306,8 @@ class Point(Location):
 
 
 class PointSet(Location):
-    """A 3D polyline in reference space, defined by a list of coordinates."""
+    """A set of 3D points in the same reference space, 
+    defined by a list of coordinates. """
 
     def __init__(self, coordinates, space: Space):
         """
@@ -354,7 +355,12 @@ class PointSet(Location):
 
 
 class BoundingBox(Location):
-    """A 3D axis-aligned bounding box, spanned by two 3D points """
+    """
+    A 3D axis-aligned bounding box spanned by two 3D corner points.
+    The box does not necessarily store the given points,
+    instead it computes the real minimum and maximum points
+    from the two corner points. 
+    """
 
     def __init__(self, point1, point2, space: Space):
         """
