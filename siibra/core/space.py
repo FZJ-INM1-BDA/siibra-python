@@ -373,8 +373,8 @@ class BoundingBox(Location):
         Location.__init__(self, space)
         xyz1 = Point.parse(point1)
         xyz2 = Point.parse(point2)
-        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)],space)
-        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)],space)
+        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
+        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
 
     @property
     def _Bbox(self):
