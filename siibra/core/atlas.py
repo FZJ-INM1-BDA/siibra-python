@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import SemanticConcept,provide_registry
+from .core import SemanticConcept, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 from .region import Region
@@ -82,6 +82,7 @@ class AtlasSelection:
         Parameters
         ----------
         maptype : MapType
+            type of the map (labelled,continuous)
         """
         return self.parcellation.get_map(space=self.space, maptype=maptype)
 
@@ -118,13 +119,6 @@ class AtlasSelection:
     def get_template(self):
         """
         Get the volumetric reference template image for the selected space.
-
-        Parameters
-        ----------
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
 
         Yields
         ------
@@ -322,6 +316,54 @@ class Atlas(
         features in the get_features() method.
         """
         self.selection.parcellation.continuous_map_threshold = threshold
+
+    def get_template(self, space: Space = None):
+        """
+        Returns the reference template in the desired reference space.
+        If no reference space is given, the default or current selection is used.
+        (forwarding to Atlas.selection.get_template())
+        """
+        if space is None:
+            return self.selection.space.get_template()
+        else:
+            return Space.REGISTRY[space].get_template()
+
+    def get_map(self, space: Space = None, maptype: MapType = MapType.LABELLED):
+        """
+        Returns a map of the currently selected parcellation
+        parcellation in the given space using the given type.
+
+        Parameters
+        ----------
+        space : Space
+            Reference space. If None, the default or current selection will be chosen.
+        maptype : MapType
+            type of the map (labelled,continuous)
+        """
+        if space is None:
+            return self.selection.get_map(maptype)
+        else:
+            return self.selection.parcellation.get_map(space=space, maptype=maptype)
+
+    def decode_region(self, regionspec):
+        """
+        Determines a region from the currently selected parcellation by name.
+
+        see Atlas.selection.decode.region
+
+        Parameters
+        ----------
+        regionspec : any of
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key,
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+
+        Return
+        ------
+        Region object
+        """
+        return self.selection.parcellation.decode_region(regionspec)
 
     def select(
         self,
