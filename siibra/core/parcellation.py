@@ -15,7 +15,7 @@
 
 from .space import Space
 from .region import Region
-from .core import SemanticConcept
+from .core import SemanticConcept, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import parcellationmap
@@ -106,7 +106,7 @@ class ParcellationVersion:
         )
 
 
-@SemanticConcept.provide_registry
+@provide_registry
 class Parcellation(
     SemanticConcept,
     bootstrap_folder="parcellations",
@@ -189,7 +189,7 @@ class Parcellation(
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         if space is None:
-            spaces = {v.space for v in self.volume_src}
+            spaces = {v.space for v in self.volumes}
             if len(spaces) == 0:
                 raise RuntimeError(f'Parcellation "{str(self)}" provides no maps.')
             elif len(spaces) == 1:
@@ -219,7 +219,7 @@ class Parcellation(
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return len(self.get_volume_src(space)) > 0
+        return len(self.get_volumes(space)) > 0
 
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True

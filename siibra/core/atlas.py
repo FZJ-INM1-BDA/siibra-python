@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import SemanticConcept
+from .core import SemanticConcept,provide_registry
 from .space import Space
 from .parcellation import Parcellation
 from .region import Region
@@ -253,7 +253,7 @@ class AtlasSelection:
         return smap.assign(mapimg)
 
 
-@SemanticConcept.provide_registry
+@provide_registry
 class Atlas(
     SemanticConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
 ):

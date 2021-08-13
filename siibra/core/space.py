@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import SemanticConcept
+from .core import SemanticConcept, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
@@ -28,7 +28,7 @@ import json
 from urllib.parse import quote
 
 
-@SemanticConcept.provide_registry
+@provide_registry
 class Space(
     SemanticConcept,
     bootstrap_folder="spaces",
@@ -66,7 +66,7 @@ class Space(
         A nibabel Nifti object representing the reference template, or None if not available.
         TODO Returning None is not ideal, requires to implement a test on the other side.
         """
-        candidates = [vsrc for vsrc in self.volume_src if vsrc.volume_type == self.type]
+        candidates = [vsrc for vsrc in self.volumes if vsrc.volume_type == self.type]
         if not len(candidates) == 1:
             raise RuntimeError(
                 f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src."
@@ -306,7 +306,7 @@ class Point(Location):
 
 
 class PointSet(Location):
-    """A set of 3D points in the same reference space, 
+    """A set of 3D points in the same reference space,
     defined by a list of coordinates. """
 
     def __init__(self, coordinates, space: Space):
@@ -359,7 +359,7 @@ class BoundingBox(Location):
     A 3D axis-aligned bounding box spanned by two 3D corner points.
     The box does not necessarily store the given points,
     instead it computes the real minimum and maximum points
-    from the two corner points. 
+    from the two corner points.
     """
 
     def __init__(self, point1, point2, space: Space):

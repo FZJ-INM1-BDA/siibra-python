@@ -367,7 +367,7 @@ class LabelledParcellationMap(ParcellationMap):
         # determine the map loader functions for each available map
         for volumetype in PREFERRED_VOLUMETYPES:
             sources = []
-            for vsrc in self.parcellation.get_volume_src(self.space.id):
+            for vsrc in self.parcellation.get_volumes(self.space.id):
                 if vsrc.__class__.volume_type == volumetype:
                     sources.append(vsrc)
             if len(sources) > 0:
@@ -422,8 +422,8 @@ class LabelledParcellationMap(ParcellationMap):
                     )
 
     @cached
-    def _load_map(self, volume_src: VolumeSrc, resolution_mm: float, voi: BoundingBox):
-        m = volume_src.fetch(resolution_mm=resolution_mm, voi=voi)
+    def _load_map(self, volumes: VolumeSrc, resolution_mm: float, voi: BoundingBox):
+        m = volumes.fetch(resolution_mm=resolution_mm, voi=voi)
         if len(m.dataobj.shape) == 4 and m.dataobj.shape[3] > 1:
             logger.info(
                 f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
@@ -565,7 +565,7 @@ class ContinuousParcellationMap(ParcellationMap):
 
         # Multiple volume sources could be given - find the preferred one
         volume_sources = sorted(
-            self.parcellation.get_volume_src(self.space.id),
+            self.parcellation.get_volumes(self.space.id),
             key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type),
         )
 

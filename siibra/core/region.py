@@ -81,7 +81,7 @@ class Region(anytree.NodeMixin, SemanticConcept):
             A dictionary of arbitrary additional information
         parent : Region
             Parent of this region, if any
-        volume_src : Dict of VolumeSrc
+        volumes : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
         regionname = __class__._clear_name(name)
@@ -365,7 +365,7 @@ class Region(anytree.NodeMixin, SemanticConcept):
             else:
                 return vsrc.map_type == maptype
 
-        available = self.get_volume_src(space)
+        available = self.get_volumes(space)
 
         suitable = [v for v in available if maptype_ok(v, maptype)]
         if len(suitable) == 1:

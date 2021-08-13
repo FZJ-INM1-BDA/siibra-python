@@ -27,6 +27,63 @@ import re
 GITLAB_PROJECT_TAG = os.getenv(
     "SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__)
 )
+USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
+
+
+_BOOTSTRAP_CONNECTORS = (
+    # we use an iterator to only instantiate the one[s] used
+    GitlabConnector(
+        "https://jugit.fz-juelich.de",
+        3484,
+        GITLAB_PROJECT_TAG,
+        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
+    ),
+    GitlabConnector(
+        "https://gitlab.ebrains.eu",
+        93,
+        GITLAB_PROJECT_TAG,
+        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
+    ),
+)
+
+
+def provide_registry(cls):
+    """Used for decorating derived classes - will add a registry of bootstrapped instances then."""
+
+    # find a suitable connector that is reachable
+    for connector in _BOOTSTRAP_CONNECTORS:
+        try:
+            loaders = connector.get_loaders(
+                cls._bootstrap_folder,
+                ".json",
+                progress=f"Bootstrap: {cls.__name__:15.15}",
+            )
+            break
+        except Exception as e:
+            print(str(e))
+            logger.error(
+                f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
+            )
+            raise (e)
+    else:
+        # we get here only if the loop is not broken
+        raise RuntimeError(
+            f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
+        )
+
+    cls.REGISTRY = Registry(matchfunc=cls.match_spec)
+    with QUIET:
+        for fname, loader in loaders:
+            logger.info(f"Loading {fname}")
+            obj = cls._from_json(loader.data)
+            if isinstance(obj, cls):
+                cls.REGISTRY.add(obj.key, obj)
+            else:
+                raise RuntimeError(
+                    f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
+                )
+
+    return cls
 
 
 class SemanticConcept:
@@ -38,24 +95,7 @@ class SemanticConcept:
     """
 
     logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
-    uses_default_tag = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
     _bootstrap_folder = None
-
-    _BOOTSTRAP_CONNECTORS = (
-        # we use an iterator to only instantiate the one[s] used
-        GitlabConnector(
-            "https://jugit.fz-juelich.de",
-            3484,
-            GITLAB_PROJECT_TAG,
-            skip_branchtest=uses_default_tag,
-        ),
-        GitlabConnector(
-            "https://gitlab.ebrains.eu",
-            93,
-            GITLAB_PROJECT_TAG,
-            skip_branchtest=uses_default_tag,
-        ),
-    )
 
     def __init__(self, identifier, name, dataset_specs):
         self.id = identifier
@@ -100,45 +140,6 @@ class SemanticConcept:
             cls._bootstrap_folder = bootstrap_folder
 
     @staticmethod
-    def provide_registry(cls):
-        """Used for decorating derived classes - will add a registry of bootstrapped instances then."""
-
-        # find a suitable connector that is reachable
-        for connector in cls._BOOTSTRAP_CONNECTORS:
-            try:
-                loaders = connector.get_loaders(
-                    cls._bootstrap_folder,
-                    ".json",
-                    progress=f"Bootstrap: {cls.__name__:15.15}",
-                )
-                break
-            except Exception as e:
-                print(str(e))
-                logger.error(
-                    f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
-                )
-                raise (e)
-        else:
-            # we get here only if the loop is not broken
-            raise RuntimeError(
-                f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-            )
-
-        cls.REGISTRY = Registry(matchfunc=cls.match_spec)
-        with QUIET:
-            for fname, loader in loaders:
-                logger.info(f"Loading {fname}")
-                obj = cls._from_json(loader.data)
-                if isinstance(obj, cls):
-                    cls.REGISTRY.add(obj.key, obj)
-                else:
-                    raise RuntimeError(
-                        f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
-                    )
-
-        return cls
-
-    @staticmethod
     def _create_key(name):
         """
         Creates an uppercase identifier string that includes only alphanumeric
@@ -154,13 +155,13 @@ class SemanticConcept:
         return f"{self.__class__.__name__}: {self.name}"
 
     @property
-    def volume_src(self):
+    def volumes(self):
         """
         The list of available datasets representing image volumes.
         """
         return [d for d in self.datasets if d.is_image_volume()]
 
-    def get_volume_src(self, space):
+    def get_volumes(self, space):
         """
         Get available volumes sources in the requested template space.
 
@@ -173,7 +174,7 @@ class SemanticConcept:
         ------
         A list of volume sources
         """
-        return [v for v in self.volume_src if v.space.matches(space)]
+        return [v for v in self.volumes if v.space.matches(space)]
 
     def matches(self, spec):
         """
