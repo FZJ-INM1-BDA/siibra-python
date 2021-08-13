@@ -536,7 +536,7 @@ class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
         if not self.__class__.warning_shown:
             logger.info(
                 f"A {self.__class__.__name__} object was registered, "
-                "but siibra does not yet provide explicit support for this type."
+                "but this type is not yet explicitly supported."
             )
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
@@ -553,7 +553,7 @@ class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
         if not self.__class__.warning_shown:
             logger.info(
                 f"A {self.__class__.__name__} object was registered, "
-                "but siibra does not yet provide explicit support for this type."
+                "but this type is not yet explicitly supported."
             )
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)

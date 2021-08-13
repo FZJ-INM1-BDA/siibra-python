@@ -112,9 +112,9 @@ class Registry:
             S = sorted(matches, reverse=True)
             largest = S[0]
             logger.info(
-                f"Multiple elements matched the specification '{spec}', and the first in sorting order was chosen: {largest}"
+                f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
             )
-            logger.info(f"Other candidates were: {', '.join(m.name for m in S[1:])}")
+            logger.info(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
             return largest
 
     def provides(self, spec):
