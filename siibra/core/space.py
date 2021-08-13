@@ -50,16 +50,9 @@ class Space(
         self.src_volume_type = src_volume_type
         self.type = template_type
 
-    def get_template(self, resolution_mm=None):
+    def get_template(self):
         """
         Get the volumetric reference template image for this space.
-
-        Parameters
-        ----------
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution in mm. If None,
-            the native resolution is used.
-            Currently, this only works for the BigBrain volume.
 
         Yields
         ------
