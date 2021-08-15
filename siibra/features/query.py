@@ -60,8 +60,6 @@ class FeatureQuery(ABC):
         group_by_dataset: bool, default: False
             If True, the resulting features are grouped by dataset
         """
-
-
         if isinstance(modality, str) and modality == 'all':
             querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
         else:

@@ -36,7 +36,7 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
 
     def new_session(self, subject_id):
         # NOTE this will call register_session on construction!
-        return IEEG_Session(self, subject_id)  
+        return IEEG_Session(self, subject_id)
 
     def register_session(self, s):
         if s.subject_id in self.sessions:
@@ -141,7 +141,7 @@ class IEEG_Electrode(SpatialFeature):
 
     def _update_location(self):
         points = [cp.location for cp in self if cp.location is not None]
-        if len(points)>0:
+        if len(points) > 0:
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 

@@ -138,12 +138,12 @@ class Registry:
         else:
             # string matching on values
             matches = [
-                v for v in self._elements.values() 
+                v for v in self._elements.values()
                 if self._matchfunc(v, spec)]
             if len(matches) == 0:
                 # string matching on keys
                 matches = [
-                    self._elements[k] for k in self._elements.keys() 
+                    self._elements[k] for k in self._elements.keys()
                     if all(w.lower() in k.lower() for w in spec.split())]
             return matches
 

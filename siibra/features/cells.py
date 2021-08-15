@@ -122,7 +122,7 @@ class CorticalCellDistribution(RegionalFeature):
         Create & return a matplotlib figure illustrating the patch,
         detected cells, and location in BigBrain space.
         """
-        for pkg in ["matplotlib","nilearn"]:
+        for pkg in ["matplotlib", "nilearn"]:
             if importlib.util.find_spec(pkg) is None:
                 logger.warning(f"{pkg} not available. Plotting disabled.")
                 return None

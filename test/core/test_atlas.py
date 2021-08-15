@@ -1,18 +1,20 @@
 import os
 import unittest
-from siibra import atlases,parcellations,modalities
+import siibra
+from siibra import atlases, parcellations, modalities
 from siibra.core import atlas
 from test.get_token import get_token
 
 token = get_token()
 os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
 
+
 class TestAtlas(unittest.TestCase):
 
     JSON_ATLAS_ID = "json_1337"
     JSON_ATLAS_NAME = "JSON Human Atlas"
     atlas_as_json = {
-        "@type":"juelich/iav/atlas/v1.0.0",
+        "@type": "juelich/iav/atlas/v1.0.0",
         "@id": JSON_ATLAS_ID,
         "name": JSON_ATLAS_NAME,
         "order": 1,
@@ -24,10 +26,10 @@ class TestAtlas(unittest.TestCase):
             "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579",
         ]
     }
+
     @classmethod
     def tearDownClass(cls):
-        cls.atlas.select(parcellation='2.9')
-        cls.atlas.select()
+        cls.parcellation = cls.atlas.get_parcellation('2.9')
 
     @classmethod
     def setUpClass(cls):
@@ -39,18 +41,16 @@ class TestAtlas(unittest.TestCase):
         self.assertEqual(a.name, self.ATLAS_NAME)
         self.assertEqual(a.key, 'MULTILEVEL_HUMAN_ATLAS')
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
-        
+
         # on init, parcellations and spaces are empty lists
         self.assertTrue(len(a.parcellations) == 0)
         self.assertTrue(len(a.spaces) == 0)
-        
-        self.assertIsNone(a.selection)
 
     def test_parcellations(self):
         parcellations = self.atlas.parcellations
         self.assertTrue(len(parcellations) >= 11)
-        self.atlas.select(parcellation=self.atlas.parcellations[0])
-        self.assertIsNotNone(self.atlas.selection.parcellation)
+        parcellation = self.atlas.get_parcellation(self.atlas.parcellations[0])
+        self.assertIsNotNone(parcellation)
 
     def test_spaces(self):
         spaces = self.atlas.spaces
@@ -61,7 +61,7 @@ class TestAtlas(unittest.TestCase):
 
     def test__from_json(self):
         json_atlas = atlas.Atlas._from_json(self.atlas_as_json)
-        
+
         self.assertTrue(type(json_atlas) is atlas.Atlas)
 
         self.assertEqual(json_atlas.name, self.JSON_ATLAS_NAME)
@@ -83,14 +83,14 @@ class TestAtlas(unittest.TestCase):
         pass
 
     def test_select_parcellation(self):
-        selected_parcellation = self.atlas.selection.parcellation
+        selected_parcellation = self.atlas.get_parcellation()
         self.assertEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
 
         new_parcellation = self.atlas.parcellations[2]
-        self.atlas.select(parcellation=new_parcellation)
+        selected_parcellation = self.atlas.get_parcellation(new_parcellation)
 
-        self.assertEqual(self.atlas.selection.parcellation, new_parcellation)
-        self.assertNotEqual(self.atlas.selection.parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
+        self.assertEqual(selected_parcellation, new_parcellation)
+        self.assertNotEqual(selected_parcellation, 'Julich-Brain Cytoarchitectonic Maps 2.9')
 
     def test_get_map(self):
         # test downloading map
@@ -130,20 +130,20 @@ class TestAtlas(unittest.TestCase):
 
     def test_get_features_ebrains_features(self):
 
-        self.atlas.select(region='hoc1 left')
-        features=self.atlas.selection.get_features(modalities.EbrainsRegionalDataset)
+        region = self.atlas.get_region('hoc1 left')
+        features = siibra.get_features(region, modalities.EbrainsRegionalDataset)
         assert(len(features) > 0)
 
     def test_get_features_connectivity_profile_filter_by_sel_parc(self):
-        
-        expected_p_id='minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
-        self.atlas.select(
+
+        expected_p_id = 'minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
+        region = self.atlas.get_region(
             parcellation=parcellations[expected_p_id],
             region='hoc1 left')
-        conns=self.atlas.selection.get_features(modalities.ConnectivityProfile)
-        assert(len(conns)>0)
-        assert(all([self.atlas.selection.parcellation in conn._matrix.parcellations for conn in conns]))
-        assert(all([self.atlas.selection.region.matches(conn.regionspec) for conn in conns]))
+        conns = siibra.get_features(region, modalities.ConnectivityProfile)
+        assert(len(conns) > 0)
+        assert(all([region.parcellation in conn._matrix.parcellations for conn in conns]))
+        assert(all([region.matches(conn.regionspec) for conn in conns]))
 
     def test_regionsprops(self):
         pass

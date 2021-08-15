@@ -17,9 +17,7 @@ from .core import AtlasConcept, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 
-from .. import VERBOSE
 from ..commons import MapType, logger
-
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
@@ -106,7 +104,7 @@ class Atlas(
     def get_space(self, space=None):
         """ Returns a valid reference space object defined by the atlas.
         If no specification is provided, the default is returned.
-        
+
         Parameters:
             space: Space, or string specification of a space
         """
@@ -124,7 +122,7 @@ class Atlas(
 
     def get_map(
         self,
-        space:Space = None,
+        space: Space = None,
         parcellation: Parcellation = None,
         maptype: MapType = MapType.LABELLED,
     ):

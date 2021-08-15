@@ -171,8 +171,7 @@ class RegionalFeature(Feature):
                 for p in concept.parcellations)
         else:
             logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
-            return False        
-
+            return False
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.regionspec}"
@@ -217,7 +216,6 @@ class ParcellationFeature(Feature):
         else:
             logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
             return False
-
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.spec}"

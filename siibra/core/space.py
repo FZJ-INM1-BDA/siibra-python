@@ -84,7 +84,7 @@ class Space(
         if None in point2:
             # fill upper bounds with maximum physical coordinates
             T = self.get_template()
-            shape = Point(T.get_shape(-1),None).transform(T.build_affine(-1))
+            shape = Point(T.get_shape(-1), None).transform(T.build_affine(-1))
             point2 = [
                 shape[i] if v is None else v
                 for i, v in enumerate(point2)]
