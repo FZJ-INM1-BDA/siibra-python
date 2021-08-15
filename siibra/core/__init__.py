@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .core import AtlasConcept
 from .atlas import Atlas
-from .space import Space,Point,PointSet,BoundingBox
+from .space import Space, Point, PointSet, BoundingBox
 from .region import Region
 from .parcellation import Parcellation
-from .datasets import Dataset,OriginDescription,EbrainsDataset
+from .datasets import Dataset, OriginDescription, EbrainsDataset
 
 # initialize the core concepts and their bootstrapped registries
 spaces = Space.REGISTRY

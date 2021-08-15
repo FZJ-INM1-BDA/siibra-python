@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from .feature import RegionalFeature, GlobalFeature
+from .feature import RegionalFeature, ParcellationFeature
 from .query import FeatureQuery
 
 from ..commons import logger
@@ -26,9 +26,9 @@ from collections import defaultdict
 import numpy as np
 
 
-class ConnectivityMatrix(GlobalFeature):
+class ConnectivityMatrix(ParcellationFeature):
     def __init__(self, parcellation_id, matrix):
-        GlobalFeature.__init__(self, parcellation_id)
+        ParcellationFeature.__init__(self, parcellation_id)
         self.matrix = matrix
 
     @property

@@ -17,13 +17,13 @@
 from .feature import RegionalFeature
 from .query import FeatureQuery
 
-from .. import HAVE_PYPLOT
 from ..commons import logger
 from ..core.space import Space
 from ..retrieval.repositories import GitlabConnector, OwncloudConnector
 
 import numpy as np
 import os
+import importlib
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -122,14 +122,13 @@ class CorticalCellDistribution(RegionalFeature):
         Create & return a matplotlib figure illustrating the patch,
         detected cells, and location in BigBrain space.
         """
-        if not HAVE_PYPLOT:
-            logger.warning("matplotlib.pyplot not available. Plotting disabled.")
-            return None
-        if not HAVE_PYPLOT:
-            logger.warning("nilearn.plotting not available. Plotting disabled.")
-            return None
+        for pkg in ["matplotlib","nilearn"]:
+            if importlib.util.find_spec(pkg) is None:
+                logger.warning(f"{pkg} not available. Plotting disabled.")
+                return None
 
-        from .. import pyplot, plotting
+        from matplotlib import pyplot
+        from nilearn import plotting
 
         patch = self.image.get_fdata()
         space, xyz = self.coordinate

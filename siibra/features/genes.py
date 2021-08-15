@@ -17,7 +17,7 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from ..commons import logger, Registry
-from ..core.space import Space
+from ..core.space import Space, Point
 from ..retrieval import HttpRequest
 
 from os import path
@@ -38,8 +38,7 @@ class GeneExpression(SpatialFeature):
     def __init__(
         self,
         gene,
-        space,
-        location,
+        location: Point,
         expression_levels,
         z_scores,
         probe_ids,
@@ -53,11 +52,8 @@ class GeneExpression(SpatialFeature):
         -----------
         gene : str
             Name of gene
-        space : str
-            Name of 3D reference template space in which this feature is defined
-        location : tuple of float
-            3D location of the gene expression sample in physical coordinates
-            of the given space
+        location : Point
+            3D location of the gene expression sample
         expression_levels : list of float
             expression levels measured in possibly multiple probes of the same sample
         z_scores : list of float
@@ -69,7 +65,7 @@ class GeneExpression(SpatialFeature):
         mri_coord : tuple  (optional)
             coordinates in original mri space
         """
-        SpatialFeature.__init__(self, space, location=location)
+        SpatialFeature.__init__(self, location=location)
         self.expression_levels = expression_levels
         self.z_scores = z_scores
         self.donor_info = donor_info
@@ -249,8 +245,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             self.register(
                 GeneExpression(
                     self.gene,
-                    Space.REGISTRY.MNI152_2009C_NONL_ASYM,
-                    icbm_coord,
+                    Point(icbm_coord, Space.REGISTRY.MNI152_2009C_NONL_ASYM),
                     expression_levels=[float(p["expression_level"][i]) for p in probes],
                     z_scores=[float(p["z-score"][i]) for p in probes],
                     probe_ids=[p["id"] for p in probes],

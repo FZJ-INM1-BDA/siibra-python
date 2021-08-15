@@ -13,55 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core.space import Point
 
 import numpy as np
-import numbers
 from scipy.ndimage import gaussian_filter
 import nibabel as nib
-
-
-def make_homogeneous(xyz):
-    """
-    From one 3D point or list of multiple 3D points, build the Nx4 homogenous coordinate array.
-
-    Parameters
-    ----------
-
-    xyz_phys : 3D coordinate tuple, list of 3D tuples, or Nx3 array of coordinate tuples
-        3D point(s) in physical coordinates of the template space of the
-        ParcellationMap
-    """
-    if isinstance(xyz, str):
-        parsed = Point.parse(xyz)
-        if parsed is not None:
-            XYZH = np.ones((1, 4))
-            XYZH[0, :3] = parsed
-            return XYZH
-    elif isinstance(xyz, list) and all(isinstance(e, str) for e in xyz):
-        parsed = (Point.parse(s) for s in xyz)
-        valid = [np.r_[p, 1] for p in parsed if p is not None]
-        if len(valid) > 0:
-            return np.array(valid)
-    elif isinstance(xyz[0], numbers.Number):
-        # only a single point provided
-        assert len(xyz) in [3, 4]
-        XYZH = np.ones((1, 4))
-        XYZH[0, : len(xyz)] = xyz
-        return XYZH
-    else:
-        # assume list of coordinates
-        XYZ = np.array(xyz)
-        assert XYZ.shape[1] == 3
-        return np.c_[XYZ, np.ones_like(XYZ[:, 0])]
-    raise ValueError(f"Could not parse xyz coordinates: {xyz}")
-
-
-def assert_homogeneous_3d(xyz):
-    if len(xyz) == 4:
-        return xyz
-    else:
-        return np.r_[xyz, 1]
 
 
 def create_gaussian_kernel(sigma=1, sigma_point=3):

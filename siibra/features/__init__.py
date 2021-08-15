@@ -25,6 +25,7 @@ from .ieeg import IEEG_SessionQuery
 from .voi import VolumeOfInterestQuery
 
 from .query import FeatureQuery
+get_features = FeatureQuery.get_features
 
 __all__ = []
 from .genes import GENE_NAMES as gene_names

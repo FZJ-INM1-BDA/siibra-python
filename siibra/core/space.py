@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import SemanticConcept, provide_registry
+from .core import AtlasConcept, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
@@ -30,7 +30,7 @@ from urllib.parse import quote
 
 @provide_registry
 class Space(
-    SemanticConcept,
+    AtlasConcept,
     bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
@@ -46,7 +46,7 @@ class Space(
         src_volume_type=None,
         dataset_specs=[],
     ):
-        SemanticConcept.__init__(self, identifier, name, dataset_specs)
+        AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.src_volume_type = src_volume_type
         self.type = template_type
 
@@ -79,8 +79,15 @@ class Space(
             raise TypeError(
                 "Slice access to spaces needs to define x,y and z ranges (e.g. Space[10:30,0:10,200:300])"
             )
-        point1 = [s.start for s in slices]
+        point1 = [0 if s.start is None else s.start for s in slices]
         point2 = [s.stop for s in slices]
+        if None in point2:
+            # fill upper bounds with maximum physical coordinates
+            T = self.get_template()
+            shape = Point(T.get_shape(-1),None).transform(T.build_affine(-1))
+            point2 = [
+                shape[i] if v is None else v
+                for i, v in enumerate(point2)]
         return self.get_bounding_box(point1, point2)
 
     def get_bounding_box(self, point1, point2):
@@ -173,6 +180,51 @@ class Location(ABC):
         """
         pass
 
+    @abstractmethod
+    def __iter__(self):
+        """ To be implemented in derived classes to return an iterator
+        over the coordinates associated with the location. """
+        pass
+
+    def __str__(self):
+        return f"{self.__class__.__name__} in {self.space.name} [{','.join(str(l) for l in iter(self))}]"
+
+
+class WholeBrain(Location):
+    """
+    Trivial location class for formally representing
+    location in a particular reference space. Which
+    is not further specified.
+    """
+
+    def __init__(self, space: Space):
+        if space is None:
+            # typically only used for temporary entities, e.g. in individual voxel spaces.
+            self.space = None
+        else:
+            self.space = Space.REGISTRY[space]
+
+    def intersects_mask(self, mask: Nifti1Image):
+        """ Always true for whole brain features """
+        return True
+
+    def warp(self, targetspace: Space):
+        """ Generates a new whole brain location
+        in another reference space. """
+        return self.__class__(targetspace)
+
+    def transform(self, affine: np.ndarray, space: Space = None):
+        """ Does nothing. """
+        pass
+
+    def __iter__(self):
+        """ To be implemented in derived classes to return an iterator
+        over the coordinates associated with the location. """
+        yield from ()
+
+    def __str__(self):
+        return f"{self.__class__.__name__} in {self.space.name}"
+
 
 class Point(Location):
     """A single 3D point in reference space."""
@@ -198,7 +250,7 @@ class Point(Location):
             pat = r"([-\d\.]*)" + unit
             digits = re.findall(pat, spec)
             if len(digits) == 3:
-                return (float(d) for d in digits)
+                return tuple(float(d) for d in digits)
         elif (
             isinstance(spec, (tuple, list))
             and len(spec) in [3, 4]
@@ -297,6 +349,16 @@ class Point(Location):
             logger.warning(f"Homogeneous coordinate is not one: {h}")
         return self.__class__((x / h, y / h, z / h), space)
 
+    def __iter__(self):
+        """ Return an iterator over the location,
+        so the Point can be easily cast to list or tuple. """
+        return iter(self.coordinate)
+
+    def __getitem__(self, index):
+        """ Index access to the coefficients of this point. """
+        assert(0 <= index < 3)
+        return self.coordinate[index]
+
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,
@@ -304,11 +366,11 @@ class PointSet(Location):
 
     def __init__(self, coordinates, space: Space):
         """
-        Construct a new 3D point set in the given reference space.
+        Construct a 3D point set in the given reference space.
 
         Parameters
         ----------
-        coordinates : list of Point, or list of 3-tuples
+        coordinates : list of Point, 3-tuples or string specs
             Coordinates in mm of the given space
         space : Space
             The reference space
@@ -345,6 +407,19 @@ class PointSet(Location):
         return self.__class__(
             [c.transform(affine, space) for c in self.coordinates], space
         )
+
+    def __iter__(self):
+        """ Return an iterator over the coordinate locations. """
+        return iter(self.coordinates)
+
+    def __len__(self):
+        """ The number of points in this PointSet. """
+        return len(self.coordinates)
+
+    @property
+    def homogeneous(self):
+        """ Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
+        return np.array([c.homogeneous for c in self.coordinates])
 
 
 class BoundingBox(Location):
@@ -385,7 +460,7 @@ class BoundingBox(Location):
             [int(v + .5) for v in self.maxpoint.coordinate]
         )
 
-    @classmethod
+    @staticmethod
     def _determine_bounds(A):
         """
         Bounding box of nonzero values in a 3D array.
@@ -405,7 +480,7 @@ class BoundingBox(Location):
 
     @classmethod
     def from_image(cls, image: Nifti1Image, space: Space):
-        """Construct a bounding box from a nifti image"""
+        """ Construct a bounding box from a nifti image """
         coords = np.dot(image.affine, cls._determine_bounds(image.get_fdata()))
         return cls(point1=coords[:3, 0], point2=coords[:3, 1], space=space)
 
@@ -460,3 +535,7 @@ class BoundingBox(Location):
             point2=self.maxpoint.transform(affine, space),
             space=space
         )
+
+    def __iter__(self):
+        """ Iterate the min- and maxpoint of this bounding box. """
+        return iter((self.minpoint, self.maxpoint))

@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .datasets import Dataset
+
 from .. import QUIET, __version__
 from ..retrieval import GitlabConnector
 from ..commons import logger, Registry
-
-from .datasets import Dataset
 
 import os
 import re
@@ -86,7 +86,7 @@ def provide_registry(cls):
     return cls
 
 
-class SemanticConcept:
+class AtlasConcept:
     """
     Parent class encapsulating commonalities of the basic siibra concept like atlas, parcellation, space, region.
     These concepts have an id, name, and key, and they are bootstrapped from metadata stored in an online resources.
@@ -104,6 +104,18 @@ class SemanticConcept:
         # objects for datasets wil only be generated lazily on request
         self._dataset_specs = dataset_specs
         self._datasets_cached = None
+
+    def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
+        """
+        This method is called whenever SiibraConcept gets subclassed
+        (see https://docs.python.org/3/reference/datamodel.html)
+        """
+        logger.debug(
+            f"New subclass to {__class__.__name__}: {cls.__name__} (config folder: {bootstrap_folder})"
+        )
+        cls.type_id = type_id
+        if bootstrap_folder is not None:
+            cls._bootstrap_folder = bootstrap_folder
 
     def _populate_datasets(self):
         self._datasets_cached = []
@@ -127,18 +139,6 @@ class SemanticConcept:
             self._populate_datasets()
         return self._datasets_cached
 
-    def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
-        """
-        This method is called whenever SiibraConcept gets subclassed
-        (see https://docs.python.org/3/reference/datamodel.html)
-        """
-        logger.debug(
-            f"New subclass to {__class__.__name__}: {cls.__name__} (config folder: {bootstrap_folder})"
-        )
-        cls.type_id = type_id
-        if bootstrap_folder is not None:
-            cls._bootstrap_folder = bootstrap_folder
-
     @staticmethod
     def _create_key(name):
         """
@@ -160,6 +160,13 @@ class SemanticConcept:
         The list of available datasets representing image volumes.
         """
         return [d for d in self.datasets if d.is_image_volume()]
+
+    @property
+    def supported_spaces(self):
+        """
+        The list of spaces for which volumetric datasets are registered.
+        """
+        return list({v.space for v in self.volumes})
 
     def get_volumes(self, space):
         """

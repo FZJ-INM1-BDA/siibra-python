@@ -103,8 +103,8 @@ class Registry:
         if len(matches) == 0:
             print(str(self))
             raise IndexError(
-                f"{__class__.__name__} has no entry matching the specification '{spec}'"
-                f"Possible values are:\n" + "\n - ".join(self._elements.keys())
+                f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
+                f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
             )
         elif len(matches) == 1:
             return matches[0]
@@ -136,7 +136,16 @@ class Registry:
         elif isinstance(spec, int) and (spec < len(self._elements)):
             return [list(self._elements.values())[spec]]
         else:
-            return [v for v in self._elements.values() if self._matchfunc(v, spec)]
+            # string matching on values
+            matches = [
+                v for v in self._elements.values() 
+                if self._matchfunc(v, spec)]
+            if len(matches) == 0:
+                # string matching on keys
+                matches = [
+                    self._elements[k] for k in self._elements.keys() 
+                    if all(w.lower() in k.lower() for w in spec.split())]
+            return matches
 
     def __getattr__(self, index):
         if index in self._elements:

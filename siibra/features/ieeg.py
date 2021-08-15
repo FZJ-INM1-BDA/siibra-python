@@ -18,22 +18,25 @@ from .query import FeatureQuery
 
 from .. import logger
 from ..core.datasets import EbrainsDataset
-from ..core.space import Space
+from ..core.space import Space, Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
 
 import re
 
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
+    """
+    A Dataset of intracranial EEG measurements retrieved from EBRAINS,
+    composed of different sessions on different subjects.
+    """
     def __init__(self, dataset_id, name, space):
-        SpatialFeature.__init__(self, space)
+        SpatialFeature.__init__(self, WholeBrain(space))
         EbrainsDataset.__init__(self, dataset_id, name)
         self.sessions = {}
 
     def new_session(self, subject_id):
-        return IEEG_Session(
-            self, subject_id
-        )  # will call register_session on construction!
+        # NOTE this will call register_session on construction!
+        return IEEG_Session(self, subject_id)  
 
     def register_session(self, s):
         if s.subject_id in self.sessions:
@@ -48,11 +51,12 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
         return iter(self.sessions.values())
 
     def _update_location(self):
-        coords = []
+        points = []
         for s in self:
             if s.location is not None:
-                coords.extend(s.location)
-        self.location = coords if len(coords) > 0 else None
+                points.extend(list(s.location))
+        if len(points) > 0:
+            self.location = PointSet(points, points[0].space)
 
     @classmethod
     def _from_json(cls, spec):
@@ -64,8 +68,13 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
 
 
 class IEEG_Session(SpatialFeature):
+    """
+    An intracranial EEG recording session on a particular subject,
+    storing as set of electrodes and linking to an IEEG_Dataset.
+    """
+
     def __init__(self, dataset: IEEG_Dataset, subject_id):
-        SpatialFeature.__init__(self, dataset.space)
+        SpatialFeature.__init__(self, dataset.location)
         self.sub_id = subject_id
         self.dataset = dataset
         self.electrodes = {}  # key: subject_id
@@ -90,17 +99,22 @@ class IEEG_Session(SpatialFeature):
         return iter(self.electrodes.values())
 
     def _update_location(self):
-        coords = []
-        for e in self:
-            if e.location is not None:
-                coords.extend(e.location)
-        self.location = coords if len(coords) > 0 else None
-        self.dataset._update_location()
+        points = []
+        for electrode in self:
+            if electrode.location is not None:
+                points.extend(list(electrode.location))
+        if len(points) > 0:
+            self.location = PointSet(points, points[0].space)
+            self.dataset._update_location()
 
 
 class IEEG_Electrode(SpatialFeature):
+    """
+    EEG Electrode with multiple contact points placed in a reference space,
+    linking to a particular IEEG recording session.
+    """
     def __init__(self, session: IEEG_Session, electrode_id):
-        SpatialFeature.__init__(self, session.space)
+        SpatialFeature.__init__(self, session.location)
         self.session = session
         self.electrode_id = electrode_id
         self.contact_points = {}
@@ -126,9 +140,10 @@ class IEEG_Electrode(SpatialFeature):
         return iter(self.contact_points.values())
 
     def _update_location(self):
-        coords = [cp.location for cp in self if cp.location is not None]
-        self.location = coords if len(coords) > 0 else None
-        self.session._update_location()
+        points = [cp.location for cp in self if cp.location is not None]
+        if len(points)>0:
+            self.location = PointSet(points, self.session.space)
+            self.session._update_location()
 
 
 class IEEG_ContactPoint(SpatialFeature):
@@ -137,7 +152,8 @@ class IEEG_ContactPoint(SpatialFeature):
     """
 
     def __init__(self, electrode, id, coord):
-        SpatialFeature.__init__(self, electrode.space, location=coord)
+        point = Point(coord, electrode.space)
+        SpatialFeature.__init__(self, point)
         self.electrode = electrode
         self.id = id
         electrode.register_contact_point(self)
@@ -196,7 +212,7 @@ class IEEG_SessionQuery(FeatureQuery):
 
         for fname, loader in self._CONNECTOR.get_loaders("ieeg_contact_points", ".pts"):
 
-            logger.info(f"Retrieving from {fname}")
+            logger.debug(f"Retrieving from {fname}")
 
             obj = parse_ptsfile(loader.data.decode())
             subject_id = fname.split("_")[0]

@@ -17,8 +17,10 @@ from .feature import Feature
 
 from .. import logger
 from ..commons import Registry
+from ..core import AtlasConcept
 
 from abc import ABC
+from collections import defaultdict
 
 
 class FeatureQuery(ABC):
@@ -44,6 +46,54 @@ class FeatureQuery(ABC):
         cls.REGISTRY.add(cls._FEATURETYPE.modality(), cls)
 
     @classmethod
+    def get_features(cls, concept, modality, group_by_dataset=False, **kwargs):
+        """
+        Retrieve data features linked to an atlas concept, by modality.
+
+        Parameters
+        ----------
+        concept: AtlasConcept
+            An atlas concept, typically a Parcellation or Region object.
+        modality: FeatureType, or 'all'
+            See siibra.features.modalities for available modalities.
+            if 'all', all feature modalities will be queried.
+        group_by_dataset: bool, default: False
+            If True, the resulting features are grouped by dataset
+        """
+
+
+        if isinstance(modality, str) and modality == 'all':
+            querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
+        else:
+            if not FeatureQuery.REGISTRY.provides(modality):
+                raise RuntimeError(
+                    f"Cannot query features - no feature extractor known for feature type {modality}."
+                )
+            querytypes = [FeatureQuery.REGISTRY[modality]]
+
+        result = {}
+        for querytype in querytypes:
+
+            hits = []
+            for query in FeatureQuery.queries(querytype.modality(), **kwargs):
+                hits.extend(query.execute(concept))
+            matches = list(set(hits))
+
+            if group_by_dataset:
+                grouped = defaultdict(list)
+                for match in matches:
+                    grouped[match.dataset_id].append(match)
+                result[querytype.modality()] = grouped
+            else:
+                result[querytype.modality()] = matches
+
+        # If only one modality was requested, simplify the dictionary
+        if len(result) == 1:
+            return next(iter(result.values()))
+        else:
+            return result
+
+    @classmethod
     def queries(cls, modality: str, **kwargs):
         """
         return global query objects for the given modality, remembering unique instances
@@ -62,14 +112,13 @@ class FeatureQuery(ABC):
         instances.append(cls._instances[Querytype, args_hash])
         return instances
 
-    def execute(self, selection):
+    def execute(self, concept: AtlasConcept):
         """
-        Executes a query for features associated with atlas object,
-        taking into account its selection of parcellation and region.
+        Executes a query for features associated with an atlas object.
         """
         matches = []
         for feature in self.features:
-            if feature.matches(selection):
+            if feature.matches(concept):
                 matches.append(feature)
         return matches
 

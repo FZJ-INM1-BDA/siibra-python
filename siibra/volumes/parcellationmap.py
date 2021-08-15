@@ -14,11 +14,11 @@
 # limitations under the License.
 
 from .volume import VolumeSrc, ImageProvider
+from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
 from ..commons import ParcellationIndex, MapType
-from ..arrays import make_homogeneous, create_gaussian_kernel, argmax_dim4
-from ..core.space import Space, BoundingBox
+from ..core.space import Space, BoundingBox, PointSet
 from ..core.region import Region
 
 import numpy as np
@@ -390,7 +390,9 @@ class LabelledParcellationMap(ParcellationMap):
                 # collect all available region maps to maps label indices to regions
                 for region in self.parcellation.regiontree:
                     with QUIET:
-                        regionmap = region.get_regional_map(self.space, MapType.LABELLED)
+                        regionmap = region.get_regional_map(
+                            self.space, MapType.LABELLED
+                        )
                     if regionmap is not None:
                         assert region.index.label
                         self._regions_cached[
@@ -422,8 +424,8 @@ class LabelledParcellationMap(ParcellationMap):
                     )
 
     @cached
-    def _load_map(self, volumes: VolumeSrc, resolution_mm: float, voi: BoundingBox):
-        m = volumes.fetch(resolution_mm=resolution_mm, voi=voi)
+    def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
+        m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
         if len(m.dataobj.shape) == 4 and m.dataobj.shape[3] > 1:
             logger.info(
                 f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
@@ -510,7 +512,8 @@ class LabelledParcellationMap(ParcellationMap):
 
         # Convert input to Nx4 list of homogenous coordinates
         assert len(xyz_phys) > 0
-        XYZH = make_homogeneous(xyz_phys)
+        points = PointSet(xyz_phys)
+        XYZH = points.homogeneous
         numpts = XYZH.shape[0]
 
         tpl = self.space.get_template().fetch()
@@ -631,11 +634,12 @@ class ContinuousParcellationMap(ParcellationMap):
             truncate the Gaussian kernel in standard error units.
         """
         assert sigma_mm >= 1
+        assert len(xyz_phys) > 0
 
         # Convert input to Nx4 list of homogenous coordinates
-        assert len(xyz_phys) > 0
-        XYZH = make_homogeneous(xyz_phys)
-        numpts = XYZH.shape[0]
+        points = PointSet(xyz_phys, self.space)
+        XYZH = points.homogeneous
+        numpts = len(points)
 
         # convert sigma to voxel coordinates
         tpl = self.space.get_template().fetch()

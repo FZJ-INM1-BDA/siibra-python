@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import arrays
 from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
@@ -222,8 +221,7 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             bb_vox = voi.transform_bbox(np.linalg.inv(img.affine))
         elif clip:
             # determine bounding box by cropping the nonzero values
-            bb = arrays.bbox3d(img.dataobj)
-            bb_vox = BoundingBox(bb[:3, 0], bb[:3, 1], space=None)
+            bb_vox = BoundingBox.from_image(img)
 
         if bb_vox is not None:
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint

@@ -13,34 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger,QUIET,VERBOSE
-import warnings
+from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__='0.2a0'
+__version__ = "0.2a0"
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
-logger.info("Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
+logger.info(
+    "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
+)
 
 
-try:
-    from matplotlib import pyplot 
-    HAVE_PYPLOT=True
-except Exception as e:
-    HAVE_PYPLOT=False
-
-try:
-    with warnings.catch_warnings():
-        warnings.filterwarnings("FutureWarning")
-        from nilearn import plotting
-    HAVE_PLOTTING=True
-except Exception as e:
-    HAVE_PLOTTING=False
-
-
-from .core import spaces,parcellations,atlases
-from .features import modalities,gene_names
+from .core import spaces, parcellations, atlases
+from .features import modalities, gene_names, get_features
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest
-set_ebrains_token = EbrainsRequest.set_token
+from .core import Point, PointSet, BoundingBox
 
+set_ebrains_token = EbrainsRequest.set_token

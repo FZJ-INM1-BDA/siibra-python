@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import SemanticConcept
+from .core import AtlasConcept
 from .space import Space
 
 from ..commons import logger
@@ -38,7 +38,7 @@ REMOVE_FROM_NAME = [
 ]
 
 
-class Region(anytree.NodeMixin, SemanticConcept):
+class Region(anytree.NodeMixin, AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
@@ -86,8 +86,8 @@ class Region(anytree.NodeMixin, SemanticConcept):
         """
         regionname = __class__._clear_name(name)
         # regions are not modelled with an id yet in the configuration, so we create one here
-        id = f"{parcellation.id}-{SemanticConcept._create_key((regionname+str(index))).replace('NONE','X')}"
-        SemanticConcept.__init__(
+        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(index))).replace('NONE','X')}"
+        AtlasConcept.__init__(
             self, identifier=id, name=regionname, dataset_specs=dataset_specs
         )
         self.parcellation = parcellation
@@ -332,14 +332,18 @@ class Region(anytree.NodeMixin, SemanticConcept):
     def defined_in_space(self, space):
         """
         Verifies wether this region is defined by a labelled map in the given space.
-        TODO handle the case of continuous maps
         """
-        try:
-            M = self.parcellation.get_map(space, maptype="labelled")
-            M.decode_region(self)
-            return True
-        except (ValueError, IndexError):
+        for maptype in ['labelled', 'continuous']:
+            try:
+                M = self.parcellation.get_map(space, maptype=maptype)
+                M.decode_region(self)
+                break
+            except (ValueError, IndexError):
+                continue
+        else:
+            # we get here only if the loop is not interrupted
             return False
+        return True
 
     @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):

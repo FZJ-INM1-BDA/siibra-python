@@ -16,7 +16,6 @@
 from .feature import RegionalFeature
 from .query import FeatureQuery
 
-from .. import HAVE_PYPLOT
 from ..commons import logger
 from ..retrieval.requests import EbrainsRequest, LazyHttpRequest
 from ..core.datasets import EbrainsDataset
@@ -26,6 +25,7 @@ import numpy as np
 from io import BytesIO
 from collections import namedtuple
 import re
+import importlib
 
 
 RECEPTOR_SYMBOLS = {
@@ -404,6 +404,9 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
 
     @property
     def fingerprint(self):
+        """The receptor fingerprint, with mean and standard
+        deviations of receptor densities for different
+        receptor types, measured across multiple samples."""
         if self._fingerprint_loader is None:
             return None
         else:
@@ -411,20 +414,27 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
 
     @property
     def profiles(self):
+        """Dictionary of cortical receptor distribution
+        profiles available for this feature, keyed by
+        receptor type."""
         return {rtype: l.data for rtype, l in self._profile_loaders.items()}
 
     @property
     def autoradiographs(self):
+        """Dictionary of sample autoradiographs available for this feature,
+        keyed by receptor type."""
         return {rtype: l.data for rtype, l in self._autoradiograph_loaders.items()}
 
     def plot(self, title=None):
-        if not HAVE_PYPLOT:
-            logger.warning(
-                "matplotlib.pyplot not available to siibra. plotting disabled."
-            )
+        """
+        Produce a fingerprint and cortical profile plot of this receptor distribution feature.
+        """
+
+        if importlib.util.find_spec("matplotlib") is None:
+            logger.warning("matplotlib not available. Plotting disabled.")
             return None
 
-        from .. import pyplot
+        from matplotlib import pyplot
         from collections import deque
 
         # plot profiles and fingerprint

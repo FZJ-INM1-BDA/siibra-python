@@ -15,7 +15,7 @@
 
 from .space import Space
 from .region import Region
-from .core import SemanticConcept, provide_registry
+from .core import AtlasConcept, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import parcellationmap
@@ -108,7 +108,7 @@ class ParcellationVersion:
 
 @provide_registry
 class Parcellation(
-    SemanticConcept,
+    AtlasConcept,
     bootstrap_folder="parcellations",
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
@@ -138,7 +138,7 @@ class Parcellation(
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
         """
-        SemanticConcept.__init__(self, identifier, name, dataset_specs)
+        AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.version = version
         self.publications = []
         self.description = ""
@@ -219,7 +219,7 @@ class Parcellation(
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return len(self.get_volumes(space)) > 0
+        return space in self.supported_spaces
 
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True

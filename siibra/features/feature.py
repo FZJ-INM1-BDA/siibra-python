@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger, Registry
+from ..core.atlas import Atlas
 from ..core.space import Location
 from ..core.region import Region
 from ..core.parcellation import Parcellation
@@ -42,14 +43,14 @@ class Feature(ABC):
         cls.REGISTRY.add(cls.modality(), cls)
 
     @abstractmethod
-    def matches(self, selection):
+    def matches(self, concept):
         """
         Returns True if this feature should be considered part
-        of the given atlas selection, otherwise else.
+        of the given atlas concept, otherwise else.
 
         Parameters:
         -----------
-        selection : AtlasSelection
+        concept : AtlasConcept
         """
         raise RuntimeError(
             f"matches() needs to be implemented by derived classes of {self.__class__.__name__}"
@@ -78,36 +79,48 @@ class SpatialFeature(Feature):
         location : Location type
             The location, see siibra.core.location
         """
+        assert(location is not None)
         Feature.__init__(self)
         self.location = location
 
-    def matches(self, selection):
+    @property
+    def space(self):
+        return self.location.space
+
+    def matches(self, concept: Region):
         """
         Returns true if the location information of this feature overlaps
-        with the given atlas selection, according to the mask computed in
-        the reference space.
+        with the provided atlas concept.
 
         Parameters:
         -----------
-        selection : AtlasSelection
+        region : Region
         """
         if self.location is None:
             return False
 
-        atlas = selection._atlas
-        for tspace in [self.space] + atlas.spaces:
-            if selection.region.defined_in_space(tspace):
-                M = selection.build_mask(tspace)
+        if isinstance(concept, Parcellation):
+            region = concept.regiontree
+            logger.info(f"{self.__class__} matching against root node {region.name} of {concept.name}")
+        elif isinstance(concept, Region):
+            region = concept
+        else:
+            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            return False
+
+        for tspace in [self.space] + region.supported_spaces:
+            if region.defined_in_space(tspace):
+                M = region.build_mask(space=tspace)
                 if tspace == self.space:
                     return self.location.intersects_mask(M)
                 else:
                     logger.warning(
-                        f"{self.__class__.__name__} cannot be tested for {selection.region.name} in {self.space}, testing in {tspace} instead."
+                        f"{self.__class__.__name__} cannot be tested for {region.name} in {self.space}, testing in {tspace} instead."
                     )
                     return self.location.warp(tspace).intersects_mask(M)
         else:
             logger.warning(
-                f"Cannot test overlap of {self.location} with {selection.region}"
+                f"Cannot test overlap of {self.location} with {region}"
             )
             return False
 
@@ -136,23 +149,36 @@ class RegionalFeature(Feature):
         Feature.__init__(self)
         self.regionspec = regionspec
 
-    def matches(self, selection):
+    def matches(self, concept: Region):
         """
-        Returns true if this feature is linked to the given atlas selection.
+        Returns true if this feature is linked to the given region.
 
         Parameters:
         -----------
-        selection : AtlasSelection
+        concept : Region
         """
-        matching_regions = selection.region.find(self.regionspec)
-        if len(matching_regions) > 0:
-            return True
+        if isinstance(concept, Parcellation):
+            logger.debug(f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}")
+            return len(concept.regiontree.find(self.regionspec)) > 0
+        elif isinstance(concept, Region):
+            return len(concept.find(self.regionspec)) > 0
+        elif isinstance(concept, Atlas):
+            logger.debug(
+                "Matching regional features against a complete atlas. "
+                "This is not efficient and the query may take a while.")
+            return any(
+                len(p.regiontree.find(self.regionspec)) > 0
+                for p in concept.parcellations)
+        else:
+            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            return False        
+
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.regionspec}"
 
 
-class GlobalFeature(Feature):
+class ParcellationFeature(Feature):
     """
     Base class for data features which apply to the atlas as a whole
     instead of a particular location or region. A typical example is a
@@ -170,16 +196,28 @@ class GlobalFeature(Feature):
         self.spec = parcellationspec
         self.parcellations = Parcellation.REGISTRY.find(parcellationspec)
 
-    def matches(self, selection):
+    def matches(self, concept: Parcellation):
         """
         Returns true if this global feature is related to the given atlas selection.
 
         Parameters:
         -----------
-        selection : AtlasSelection
+        concept : Parcellation
         """
-        if selection.parcellation in self.parcellations:
-            return True
+        if isinstance(concept, Parcellation):
+            return concept in self.parcellations
+        elif isinstance(concept, Region):
+            return concept.parcellation in self.parcellations
+        elif isinstance(concept, Atlas):
+            logger.debug(
+                "Matching a parcellation feature against a complete atlas. "
+                "This will return features matching any supported parcellation, "
+                "including different parcellation versions.")
+            return any(p in self.parcellations for p in concept.parcellations)
+        else:
+            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            return False
+
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.spec}"
