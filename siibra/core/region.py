@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import AtlasConcept
+from .concept import AtlasConcept
 from .space import Space
 
 from ..commons import logger

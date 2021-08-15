@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import AtlasConcept
+from .concept import AtlasConcept
 from .atlas import Atlas
 from .space import Space, Point, PointSet, BoundingBox
 from .region import Region

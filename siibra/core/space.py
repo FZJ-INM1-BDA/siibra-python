@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .core import AtlasConcept, provide_registry
+from .concept import AtlasConcept, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest

@@ -15,7 +15,7 @@
 
 from .space import Space
 from .region import Region
-from .core import AtlasConcept, provide_registry
+from .concept import AtlasConcept, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import parcellationmap
