@@ -72,6 +72,12 @@ class Registry:
         self._matchfunc = matchfunc
 
     def add(self, key, value):
+        """Add a key/value pair to the registry.
+
+        Args:
+            key (string): Unique name or key of the object
+            value (object): The registered object
+        """
         assert isinstance(key, str)
         if key in self._elements:
             logger.warning(
@@ -80,23 +86,38 @@ class Registry:
         self._elements[key] = value
 
     def __dir__(self):
+        """ List of all object keys in the registry """
         return self._elements.keys()
 
     def __str__(self):
         return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
 
     def __iter__(self):
-        return (w for w in self._elements.keys())
+        """ Iterate over all objects in the registry """
+        return (w for w in self._elements.values())
 
-    def __contains__(self, spec):
+    def __contains__(self, key):
+        """ Test wether the given key is defined by the registry. """
         return (
-            spec in self._elements
+            key in self._elements
         )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
 
     def __len__(self):
+        """ Return the number of elements in the registry """
         return len(self._elements)
 
     def __getitem__(self, spec):
+        """ Give access to objects in the registry by sequential index,
+        exact key, or keyword matching. If the keywords match multiple objects,
+        the first in sorted order is returned. If the specification does not match,
+        a RuntimeError is raised.
+
+        Args:
+            spec [int or str]: Index or string specification of an object
+
+        Returns:
+            Matched object
+        """
         if spec is None:
             raise RuntimeError(f"{__class__.__name__} indexed with None")
         matches = self.find(spec)
@@ -148,6 +169,10 @@ class Registry:
             return matches
 
     def __getattr__(self, index):
+        """Access elements by using their keys as attributes.
+        Keys are auto-generated from the provided names to be uppercase,
+        with words delimited using underscores.
+        """
         if index in self._elements:
             return self._elements[index]
         else:

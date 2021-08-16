@@ -28,7 +28,7 @@ author = 'Big Data Analytics Group, Institute of Neuroscience and Medicine, Fors
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'autoapi.extension']
+extensions = ['sphinx.ext.autodoc', 'autoapi.extension', 'nbsphinx', 'IPython.sphinxext.ipython_console_highlighting']
 #autosummary_generate = True
 autoapi_type = 'python'
 autoapi_dirs = [os.path.join(os.path.abspath('..'),'siibra')]
