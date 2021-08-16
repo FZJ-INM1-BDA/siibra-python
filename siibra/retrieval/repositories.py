@@ -86,10 +86,13 @@ class GitlabConnector(RepositoryConnector):
         self.reftag = reftag
         self._per_page = 100
         self._branchloader = LazyHttpRequest(
-            f"{self.base_url}/branches", DECODERS[".json"]
+            f"{self.base_url}/branches", DECODERS[".json"], refresh=True
         )
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
+
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
 
     @property
     def want_commit(self):
@@ -101,7 +104,9 @@ class GitlabConnector(RepositoryConnector):
                 if len(matched_branches) > 0:
                     self._want_commit_cached = matched_branches[0]["commit"]
                     logger.debug(
-                        f"{self.reftag} is a branch of {self.base_url}! Want last commit {self._want_commit_cached['short_id']} from {self._want_commit_cached['created_at']}"
+                        f"{self.reftag} is a branch of {self.base_url}! Want last commit "
+                        f"{self._want_commit_cached['short_id']} from "
+                        f"{self._want_commit_cached['created_at']}"
                     )
                 self._tag_checked = True
             except Exception as e:

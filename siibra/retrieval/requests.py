@@ -33,7 +33,7 @@ DECODERS = {
 
 class HttpRequest:
     def __init__(
-        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, **kwargs
+        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, refresh=False, **kwargs
     ):
         """
         Initialize a cached http data loader.
@@ -54,6 +54,8 @@ class HttpRequest:
         status_code_messages : dict
             Optional dictionary of message strings to output in case of error,
             where keys are http status code.
+        refresh : bool, default: False
+            If True, a possibly cached content will be ignored and refreshed
         """
         assert url is not None
         self.url = url
@@ -62,6 +64,7 @@ class HttpRequest:
         self.status_code_messages = status_code_messages
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
+        self.refresh = refresh
 
     @property
     def cached(self):
@@ -73,7 +76,7 @@ class HttpRequest:
         # otherwise data (as it is already in memory anyway).
         # The caller should load the cachefile only
         # if None is returned.
-        if self.cached:
+        if self.cached and not self.refresh:
             # in cache. Just load the file
             logger.debug(
                 f"Already in cache at {os.path.basename(self.cachefile)}: {self.url}"
@@ -88,6 +91,7 @@ class HttpRequest:
             if r.ok:
                 with open(self.cachefile, "wb") as f:
                     f.write(r.content)
+                self.refresh = False
                 return r.content
             elif r.status_code in self.status_code_messages:
                 raise RuntimeError(self.status_code_messages[r.status_code])
@@ -106,7 +110,7 @@ class HttpRequest:
 
 class LazyHttpRequest(HttpRequest):
     def __init__(
-        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, **kwargs
+        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, refresh=False, **kwargs
     ):
         """
         Initialize a lazy and cached http data loader.
@@ -129,9 +133,11 @@ class LazyHttpRequest(HttpRequest):
         status_code_messages : dict
             Optional dictionary of message strings to output in case of error,
             where keys are http status code.
+        refresh : bool, default: False
+            If True, a possibly cached content will be ignored and refreshed
         """
         HttpRequest.__init__(
-            self, url, func, status_code_messages, msg_if_not_cached, **kwargs
+            self, url, func, status_code_messages, msg_if_not_cached, refresh, **kwargs
         )
         self._data_cached = None
         suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
