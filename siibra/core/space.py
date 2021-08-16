@@ -198,6 +198,7 @@ class Location(ABC):
                 f"[{','.join(str(l) for l in iter(self))}]"
             )
 
+
 class WholeBrain(Location):
     """
     Trivial location class for formally representing
