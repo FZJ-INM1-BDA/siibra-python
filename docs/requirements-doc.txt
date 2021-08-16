@@ -1,4 +1,6 @@
 -r ../requirements.txt
+pylint
+astroid
 sphinx-autoapi
 nbsphinx
 IPython
