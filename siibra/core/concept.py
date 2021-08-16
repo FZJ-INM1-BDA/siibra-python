@@ -138,7 +138,7 @@ class AtlasConcept:
                 )
             else:
                 obj = Specialist._from_json(spec)
-                logger.info(
+                logger.debug(
                     f"Built {obj.__class__.__name__} object '{obj}' from dataset specification."
                 )
                 self._datasets_cached.append(obj)
