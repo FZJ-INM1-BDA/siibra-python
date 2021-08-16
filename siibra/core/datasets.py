@@ -20,6 +20,7 @@ import re
 
 
 class Dataset:
+    """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
 

@@ -72,16 +72,24 @@ def provide_registry(cls):
         )
 
     cls.REGISTRY = Registry(matchfunc=cls.match_spec)
+    extensions = []
     with QUIET:
         for fname, loader in loaders:
             logger.info(f"Loading {fname}")
             obj = cls._from_json(loader.data)
+            if obj.extends is not None:
+                extensions.append(obj)
+                continue
             if isinstance(obj, cls):
                 cls.REGISTRY.add(obj.key, obj)
             else:
                 raise RuntimeError(
                     f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
                 )
+
+    for e in extensions:
+        target = cls.REGISTRY[e.extends]
+        target._extend(e)
 
     return cls
 
@@ -104,6 +112,8 @@ class AtlasConcept:
         # objects for datasets wil only be generated lazily on request
         self._dataset_specs = dataset_specs
         self._datasets_cached = None
+        # this attribute can be used to mark a concept as an extension of another one
+        self.extends = None
 
     def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
         """
@@ -128,10 +138,20 @@ class AtlasConcept:
                 )
             else:
                 obj = Specialist._from_json(spec)
-                logger.debug(
+                logger.info(
                     f"Built {obj.__class__.__name__} object '{obj}' from dataset specification."
                 )
                 self._datasets_cached.append(obj)
+
+    def _extend(self, other):
+        """
+        Some concepts allow to be extended by refined concepts.
+        The "@extends" attribute in the configuration is used to indicate this.
+        Use this method to implement the actual extension operation.
+        """
+        raise NotImplementedError(
+            f"'{self.__class__.__name__}' does not implement an extension "
+            f"mechanism with '{other.__class__.__name__}' types.")
 
     @property
     def datasets(self):

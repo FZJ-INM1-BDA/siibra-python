@@ -94,6 +94,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self.index = index
         self.attrs = attrs
         self.parent = parent
+        # this is only used for regions added by parcellation extension:
+        self.extended_from = None
         child_has_mapindex = False
         if children:
             self.children = children
@@ -119,6 +121,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
         region.children = tuple(Region.copy(c) for c in other.children)
         for c in region.children:
             c.parent = region
+        region._datasets_cached = []
+        for d in other.datasets:
+            region._datasets_cached.append(d)
 
         return region
 
@@ -177,6 +182,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 return []
             else:
                 return [match]
+
         result = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
@@ -218,7 +224,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         True or False
         """
         def splitstr(s):
-            return [w for w in re.split("[^a-zA-Z0-9.-]", s) if len(w) > 0]
+            return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
         if isinstance(regionspec, Region):
             return self == regionspec
         elif isinstance(regionspec, int):
@@ -460,7 +466,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __repr__(self):
         return "\n".join(
-            "%s%s" % (pre, node.name) for pre, _, node in anytree.RenderTree(self)
+            "%s%s" % (pre, node.name) if node.extended_from is None
+            else "%s%s [extension region]" % (pre, node.name)
+            for pre, _, node in anytree.RenderTree(self)
         )
 
     @cached
@@ -518,7 +526,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # first construct any child objects
         # This is important due to the bottom-up way the tree gets
-        # constructed # in the Region constructor.
+        # constructed in the Region constructor.
         children = []
         if "children" in jsonstr:
             if jsonstr["children"] is not None:

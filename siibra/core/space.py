@@ -187,8 +187,16 @@ class Location(ABC):
         pass
 
     def __str__(self):
-        return f"{self.__class__.__name__} in {self.space.name} [{','.join(str(l) for l in iter(self))}]"
-
+        if self.space is None:
+            return (
+                f"{self.__class__.__name__} "
+                "[{','.join(str(l) for l in iter(self))}]"
+            )
+        else:
+            return (
+                f"{self.__class__.__name__} in {self.space.name} "
+                f"[{','.join(str(l) for l in iter(self))}]"
+            )
 
 class WholeBrain(Location):
     """
@@ -459,6 +467,10 @@ class BoundingBox(Location):
             [int(v + .5) for v in self.minpoint.coordinate],
             [int(v + .5) for v in self.maxpoint.coordinate]
         )
+
+    @property
+    def volume(self):
+        return self._Bbox.volume()
 
     @staticmethod
     def _determine_bounds(A):

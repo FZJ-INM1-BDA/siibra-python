@@ -16,7 +16,7 @@
 from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__ = "0.2a0"
+__version__ = "0.2a1"
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(

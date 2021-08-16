@@ -322,9 +322,9 @@ class NeuroglancerVolume(
             )
         else:
             gbytes = {
-                res_mm: voi.transform_bbox(
+                res_mm: voi.transform(
                     np.linalg.inv(self.build_affine(res_mm))
-                ).volume()
+                ).volume
                 * self.nbytes
                 / (1024 ** 3)
                 for res_mm in self.resolutions_available.keys()
