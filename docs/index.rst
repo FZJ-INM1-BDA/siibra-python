@@ -1,11 +1,4 @@
 
-.. image:: ../images/siibra-python.jpeg
-  :figwidth: 20%
-  :align: right  
-  :alt: siibra-python logo
-
-.. mdinclude:: ../README.md
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
