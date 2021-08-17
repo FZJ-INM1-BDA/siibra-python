@@ -5,3 +5,4 @@ astroid
 sphinx-autoapi
 nbsphinx
 IPython
+m2r2

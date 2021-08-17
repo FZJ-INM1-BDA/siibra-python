@@ -34,6 +34,7 @@ extensions = [
     "autoapi.extension",
     "nbsphinx",
     "IPython.sphinxext.ipython_console_highlighting",
+    "m2r2"
 ]
 # autosummary_generate = True
 autoapi_type = "python"
@@ -65,3 +66,5 @@ html_static_path = ["_static"]
 html_css_files = ["siibra.css"]
 
 html_logo = "../images/siibra-python.jpeg"
+
+source_suffix = ['.rst','md']

@@ -10,6 +10,7 @@
    :maxdepth: 2
    :caption: Contents:
 
+   readme
    overview
    core_concepts.ipynb
    installation
