@@ -1,8 +1,8 @@
 -r ../requirements.txt
 ipykernel
+nbsphinx
 pylint
 astroid
 sphinx-autoapi
-nbsphinx
 IPython
 m2r2
