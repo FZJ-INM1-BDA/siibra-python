@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,106 +13,203 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
+import os
 from enum import Enum
-from abc import ABC, abstractmethod
-from . import logger
 
-try:
-    from matplotlib import pyplot 
-    HAVE_PYPLOT=True
-except Exception as e:
-    HAVE_PYPLOT=False
+import logging
 
-try:
-    from nilearn import plotting
-    HAVE_PLOTTING=True
-except Exception as e:
-    HAVE_PLOTTING=False
+logger = logging.getLogger(__name__.split(os.path.extsep)[0])
+ch = logging.StreamHandler()
+formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
-class Glossary:
+
+class LoggingContext:
+    def __init__(self, level):
+        self.level = level
+
+    def __enter__(self):
+        self.old_level = logger.level
+        logger.setLevel(self.level)
+
+    def __exit__(self, et, ev, tb):
+        logger.setLevel(self.old_level)
+
+
+def set_log_level(level):
+    logger.setLevel(level)
+
+
+set_log_level(os.getenv("SIIBRA_LOG_LEVEL", "INFO"))
+QUIET = LoggingContext("ERROR")
+VERBOSE = LoggingContext("DEBUG")
+
+
+class Registry:
     """
-    A very simple class that provides enum-like simple autocompletion for an
-    arbitrary list of names.
+    Provide attribute-access and iteration to a set of named elements,
+    given by a dictionary with keys of 'str' type.
     """
-    def __init__(self,words):
-        self.words = list(words)
+
+    def __init__(self, matchfunc=lambda a, b: a == b, elements=None):
+        """
+        Build a glossary from a dictionary with string keys, for easy
+        attribute-like access, name autocompletion, and iteration.
+        Matchfunc can be provided to enable inexact matching inside the index operator.
+        It is a binary function, taking as first argument a value of the dictionary
+        (ie. an object that you put into this glossary), and as second argument
+        the index/specification that should match one of the objects, and returning a boolean.
+        """
+
+        assert hasattr(matchfunc, "__call__")
+        if elements is None:
+            self._elements = {}
+        else:
+            assert isinstance(elements, dict)
+            assert all(isinstance(k, str) for k in elements.keys())
+            self._elements = elements
+        self._matchfunc = matchfunc
+
+    def add(self, key, value):
+        """Add a key/value pair to the registry.
+
+        Args:
+            key (string): Unique name or key of the object
+            value (object): The registered object
+        """
+        assert isinstance(key, str)
+        if key in self._elements:
+            logger.warning(
+                f"Key {key} already in {__class__.__name__}, existing value will be replaced."
+            )
+        self._elements[key] = value
 
     def __dir__(self):
-        return self.words
+        """ List of all object keys in the registry """
+        return self._elements.keys()
 
     def __str__(self):
-        return "\n".join(self.words)
+        return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
 
     def __iter__(self):
-        return (w for w in self.words)
+        """ Iterate over all objects in the registry """
+        return (w for w in self._elements.values())
 
-    def __contains__(self,index):
-        return index in self.__dir__()
+    def __contains__(self, key):
+        """ Test wether the given key is defined by the registry. """
+        return (
+            key in self._elements
+        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
 
-    def __getattr__(self,name):
-        if name in self.words:
-            return name
-        else:
-            raise AttributeError("No such term: {}".format(name))
+    def __len__(self):
+        """ Return the number of elements in the registry """
+        return len(self._elements)
 
-def create_key(name):
-    """
-    Creates an uppercase identifier string that includes only alphanumeric
-    characters and underscore from a natural language name.
-    """
-    return re.sub(
-            r' +','_',
-            "".join([e if e.isalnum() else " " 
-                for e in name]).upper().strip() 
+    def __getitem__(self, spec):
+        """ Give access to objects in the registry by sequential index,
+        exact key, or keyword matching. If the keywords match multiple objects,
+        the first in sorted order is returned. If the specification does not match,
+        a RuntimeError is raised.
+
+        Args:
+            spec [int or str]: Index or string specification of an object
+
+        Returns:
+            Matched object
+        """
+        if spec is None:
+            raise RuntimeError(f"{__class__.__name__} indexed with None")
+        matches = self.find(spec)
+        if len(matches) == 0:
+            print(str(self))
+            raise IndexError(
+                f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
+                f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
             )
+        elif len(matches) == 1:
+            return matches[0]
+        else:
+            S = sorted(matches, reverse=True)
+            largest = S[0]
+            logger.info(
+                f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
+            )
+            logger.info(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
+            return largest
 
-class MapType(Enum):
-    LABELLED = 1
-    CONTINUOUS = 2
+    def provides(self, spec):
+        """
+        Returns True if an element that matches the given specification can be found
+        (using find(), thus going beyond the matching of names only as __contains__ does)
+        """
+        matches = self.find(spec)
+        return len(matches) > 0
+
+    def find(self, spec):
+        """
+        Return a list of items matching the given specification,
+        which could be either the name or a specification that
+        works with the matchfunc of the Glossary.
+        """
+        if isinstance(spec, str) and (spec in self._elements):
+            return [self._elements[spec]]
+        elif isinstance(spec, int) and (spec < len(self._elements)):
+            return [list(self._elements.values())[spec]]
+        else:
+            # string matching on values
+            matches = [
+                v for v in self._elements.values()
+                if self._matchfunc(v, spec)]
+            if len(matches) == 0:
+                # string matching on keys
+                matches = [
+                    self._elements[k] for k in self._elements.keys()
+                    if all(w.lower() in k.lower() for w in spec.split())]
+            return matches
+
+    def __getattr__(self, index):
+        """Access elements by using their keys as attributes.
+        Keys are auto-generated from the provided names to be uppercase,
+        with words delimited using underscores.
+        """
+        if index in self._elements:
+            return self._elements[index]
+        else:
+            hint = ""
+            if isinstance(index, str):
+                import difflib
+
+                closest = difflib.get_close_matches(
+                    index, list(self._elements.keys()), n=3
+                )
+                if len(closest) > 0:
+                    hint = f"Did you mean {' or '.join(closest)}?"
+            raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
 class ParcellationIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
-    def __init__(self,map,label):
-        self.map=map
-        self.label=label
-    
+
+    def __init__(self, map, label):
+        self.map = map
+        self.label = label
+
     def __str__(self):
         return f"({self.map}/{self.label})"
 
     def __repr__(self):
-        return f"{self.__class__.__name__} "+str(self)
+        return f"{self.__class__.__name__} " + str(self)
 
-    def __eq__(self,other):
-        return all([self.map==other.map,self.label==other.label])
+    def __eq__(self, other):
+        return all([self.map == other.map, self.label == other.label])
 
     def __hash__(self):
-        return hash((self.map,self.label))
-
-class OriginDataInfo:
-    def __init__(self, name=None, description=None, urls=[]):
-        self.name=name
-        self.description=description
-        self.urls=urls
-
-    @staticmethod
-    def from_json(jsonstr):
-        json_type=jsonstr.get('@type')
-        if json_type == 'fzj/tmp/simpleOriginInfo/v0.0.1':
-            return OriginDataInfo(name=jsonstr.get('name'),
-                        description=jsonstr.get('description'),
-                        urls=jsonstr.get('url', []))
-        elif json_type == 'minds/core/dataset/v1.0.0':
-            from .ebrains import EbrainsOriginDataInfo
-            return EbrainsOriginDataInfo(id=jsonstr.get('kgId'))
-        logger.debug(f'Cannot parse {jsonstr}')
-        return None
-
-class HasOriginDataInfo:
-    def __init__(self):
-        self.origin_datainfos = []
+        return hash((self.map, self.label))
 
 
+class MapType(Enum):
+    LABELLED = 1
+    CONTINUOUS = 2

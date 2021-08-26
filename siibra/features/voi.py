@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,68 +13,59 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-import numpy as np
-
-from .. import spaces,volumesrc,QUIET
-from ..space import SpaceVOI
 from .feature import SpatialFeature
 from .query import FeatureQuery
-from ..retrieval import GitlabQueryBuilder,cached_get
 
-# TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
-QUERIES = GitlabQueryBuilder(
-    server="https://jugit.fz-juelich.de",
-    project=3009,
-    reftag="develop")
+from .. import QUIET
+from ..volumes.volume import VolumeSrc
+from ..core.space import Space, BoundingBox
+from ..core.datasets import EbrainsDataset
+from ..retrieval.repositories import GitlabConnector
 
-class VolumeOfInterest(SpatialFeature):
+import numpy as np
 
-    def __init__(self,space,dataset_id,location,name):
-        SpatialFeature.__init__(
-            self,
-            space=space,
-            dataset_id=dataset_id,
-            location=location)
-        self.name = name
+
+class VolumeOfInterest(SpatialFeature, EbrainsDataset):
+    def __init__(self, dataset_id, location, name):
+        SpatialFeature.__init__(self, location)
+        EbrainsDataset.__init__(self, dataset_id, name)
         self.volumes = []
-    
-    @staticmethod
-    def from_json(definition):
-        if definition["@type"]=="minds/core/dataset/v1.0.0":
-            space = spaces[definition['space id']]
+
+    @classmethod
+    def _from_json(cls, definition):
+        if definition["@type"] == "minds/core/dataset/v1.0.0":
+            space = Space.REGISTRY[definition["space id"]]
             vsrcs = []
-            minpts = []
-            maxpts = []            
+            minpoints = []
+            maxpoints = []
             for vsrc_def in definition["volumeSrc"]:
-                vsrc = volumesrc.from_json(vsrc_def)
+                vsrc = VolumeSrc._from_json(vsrc_def)
                 vsrc.space = space
                 with QUIET:
                     D = vsrc.fetch().get_fdata().squeeze()
-                    nonzero = np.array(np.where(D>0))
+                    nonzero = np.array(np.where(D > 0))
                     A = vsrc.build_affine()
-                minpts.append(np.dot(A,np.r_[nonzero.min(1)[:3],1])[:3])
-                maxpts.append(np.dot(A,np.r_[nonzero.max(1)[:3],1])[:3])
+                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
+                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
                 vsrcs.append(vsrc)
-            minpt=np.array(minpts).min(0)
-            maxpt=np.array(maxpts).max(0)
-            result = VolumeOfInterest(
-                space, 
-                dataset_id = definition['kgId'],
-                name = definition['name'],
-                location=SpaceVOI(space,minpt,maxpt))
-            list(map(result.volumes.append,vsrcs))
+            minpoint = np.array(minpoints).min(0)
+            maxpoint = np.array(maxpoints).max(0)
+            result = cls(
+                dataset_id=definition["kgId"],
+                name=definition["name"],
+                location=BoundingBox(minpoint, maxpoint, space),
+            )
+            list(map(result.volumes.append, vsrcs))
             return result
         return definition
-    
+
+
 class VolumeOfInterestQuery(FeatureQuery):
     _FEATURETYPE = VolumeOfInterest
+    _QUERY = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
-        url = QUERIES.tree("vois")
-        tree = json.loads(cached_get(url).decode())
-        for e in tree:
-            if e['type']=="blob" and e['name'].endswith('.json'):
-                voi = VolumeOfInterest.from_json(json.loads(QUERIES.data(e['path'])))
-                self.register(voi)
+        for _, loader in self._QUERY.get_loaders(folder="vois", suffix=".json"):
+            voi = VolumeOfInterest._from_json(loader.data)  # json.loads(data))
+            self.register(voi)
