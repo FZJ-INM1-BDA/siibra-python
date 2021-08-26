@@ -379,10 +379,10 @@ class NeuroglancerVolume(
         # if a volume of interest is given, apply the offset
         shift = np.identity(4)
         if voi is not None:
-            minpt_vox = voi.minpoint.transform(
+            minpoint_vox = voi.minpoint.transform(
                 np.linalg.inv(self.build_affine(effective_res_mm)))
             logger.debug(f"Affine matrix respects volume of interest shift {voi.minpoint}")
-            shift[:3, -1] = minpt_vox.coordinate
+            shift[:3, -1] = minpoint_vox.coordinate
 
         # scaling from voxel to nm
         resolution_nm = self.info["scales"][mip]["resolution"]
@@ -519,6 +519,7 @@ class NeuroglancerVolume(
 
 
 class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
+    
     def __init__(self, identifier, name, url, space, detail=None, **kwargs):
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
 

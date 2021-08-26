@@ -574,7 +574,12 @@ class ContinuousParcellationMap(ParcellationMap):
 
         for source in volume_sources:
 
-            if source.is_float() and source.is_4D() and source.get_shape()[3] > 1:
+            if (
+                isinstance(source, ImageProvider)
+                and source.is_float()
+                and source.is_4D()
+                and source.get_shape()[3] > 1
+            ):
 
                 # The source is 4D float, that's what we are looking for.
                 # We assume the fourth dimension contains the regional continuous maps.

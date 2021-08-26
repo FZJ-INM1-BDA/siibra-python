@@ -32,7 +32,7 @@ class FeatureQuery(ABC):
     _instances = {}
     REGISTRY = Registry()
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         logger.debug(f"Initializing query for {self._FEATURETYPE.__name__} features")
         self.features = []
 

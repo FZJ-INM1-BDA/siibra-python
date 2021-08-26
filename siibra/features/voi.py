@@ -26,8 +26,8 @@ import numpy as np
 
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset):
-    def __init__(self, space, dataset_id, location, name):
-        SpatialFeature.__init__(self, space=space, location=location)
+    def __init__(self, dataset_id, location, name):
+        SpatialFeature.__init__(self, location)
         EbrainsDataset.__init__(self, dataset_id, name)
         self.volumes = []
 
@@ -36,8 +36,8 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
         if definition["@type"] == "minds/core/dataset/v1.0.0":
             space = Space.REGISTRY[definition["space id"]]
             vsrcs = []
-            minpts = []
-            maxpts = []
+            minpoints = []
+            maxpoints = []
             for vsrc_def in definition["volumeSrc"]:
                 vsrc = VolumeSrc._from_json(vsrc_def)
                 vsrc.space = space
@@ -45,16 +45,15 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
                     D = vsrc.fetch().get_fdata().squeeze()
                     nonzero = np.array(np.where(D > 0))
                     A = vsrc.build_affine()
-                minpts.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
-                maxpts.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
+                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
+                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
                 vsrcs.append(vsrc)
-            minpt = np.array(minpts).min(0)
-            maxpt = np.array(maxpts).max(0)
+            minpoint = np.array(minpoints).min(0)
+            maxpoint = np.array(maxpoints).max(0)
             result = cls(
-                space,
                 dataset_id=definition["kgId"],
                 name=definition["name"],
-                location=BoundingBox(minpt, maxpt, space),
+                location=BoundingBox(minpoint, maxpoint, space),
             )
             list(map(result.volumes.append, vsrcs))
             return result
@@ -65,7 +64,7 @@ class VolumeOfInterestQuery(FeatureQuery):
     _FEATURETYPE = VolumeOfInterest
     _QUERY = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         for _, loader in self._QUERY.get_loaders(folder="vois", suffix=".json"):
             voi = VolumeOfInterest._from_json(loader.data)  # json.loads(data))

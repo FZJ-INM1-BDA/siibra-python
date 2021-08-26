@@ -337,7 +337,8 @@ class Point(Location):
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
         return self.__class__(
-            coordinate=tuple(response["target_point"]), space=targetspace
+            coordinatespec=tuple(response["target_point"]),
+            space=targetspace
         )
 
     def transform(self, affine: np.ndarray, space: Space = None):
@@ -516,9 +517,9 @@ class BoundingBox(Location):
 
         # array of homogenous physical nonzero voxel coordinates
         coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
-        minpt = [min(self.minpt[i], self.maxpt[i]) for i in range(3)]
-        maxpt = [max(self.minpt[i], self.maxpt[i]) for i in range(3)]
-        inside = np.logical_and.reduce([coords > minpt, coords <= maxpt]).min(1)
+        minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
         return any(inside)
 
     def warp(self, targetspace):

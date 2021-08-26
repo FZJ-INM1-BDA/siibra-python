@@ -478,7 +478,7 @@ class ReceptorQuery(FeatureQuery):
 
     _FEATURETYPE = ReceptorDistribution
 
-    def __init__(self):
+    def __init__(self,**kwargs):
         FeatureQuery.__init__(self)
         kg_query = EbrainsRequest(query_id="siibra_receptor_densities").get()
         # kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )

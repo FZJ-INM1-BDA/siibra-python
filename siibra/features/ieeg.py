@@ -203,7 +203,7 @@ class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
     _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "master")
 
-    def __init__(self):
+    def __init__(self,**kwargs):
 
         FeatureQuery.__init__(self)
         dset = IEEG_Dataset._from_json(

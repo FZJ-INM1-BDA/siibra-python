@@ -157,7 +157,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
     _JUGIT = GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
     _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         logger.warning(
             f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data."

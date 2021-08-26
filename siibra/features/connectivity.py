@@ -180,7 +180,7 @@ class ConnectivityProfileQuery(FeatureQuery):
         "https://jugit.fz-juelich.de", 3009, "develop"
     )  # folder="connectivity"
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         for _, loader in self._QUERY.get_loaders("connectivity", ".json"):
             cm = ConnectivityMatrix._from_json(loader.data)
@@ -199,7 +199,7 @@ class ConnectivityMatrixQuery(FeatureQuery):
     _FEATURETYPE = ConnectivityMatrix
     _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         for _, loader in self._CONNECTOR.get_loaders("connectivity", ".json"):
             matrix = ConnectivityMatrix._from_json(loader.data)
