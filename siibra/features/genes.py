@@ -146,43 +146,51 @@ class AllenBrainAtlasQuery(FeatureQuery):
         "H0351.2002",
     ]
 
-    def __init__(self, gene):
+    def __init__(self, **kwargs):
         """
         Retrieves probes IDs for the given gene, then collects the
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
-
         FeatureQuery.__init__(self)
-        self.gene = gene
 
-        if not self.__class__._notification_shown:
-            print(self.__class__.ALLEN_ATLAS_NOTIFICATION)
-            self.__class__._notification_shown = True
-        logger.info("Retrieving probe ids for gene {}".format(gene))
-        url = self._QUERY["probe"].format(gene=gene)
-        response = HttpRequest(url).get()
-        root = ElementTree.fromstring(response)
-        num_probes = int(root.attrib["total_rows"])
-        probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+        self.gene = kwargs.get('gene', None)
+        self._specimen = {}
+        self.factors = {}
 
-        # get specimen information
-        self._specimen = {
-            spcid: self._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
-        }
-        response = json.loads(HttpRequest(self._QUERY["factors"]).get())
-        self.factors = {
-            item["id"]: {
-                "race": item["race_only"],
-                "gender": item["sex"],
-                "age": int(item["age"]["days"] / 365),
+        if self.gene is None:
+            logger.warning(
+                f'No gene name provided to {self.__class__.__name__}, so no gene expressions will be retrieved. '
+                'Use the "gene=<name>" option in the feature query to specify one.')
+
+        else:
+            if not self.__class__._notification_shown:
+                print(self.__class__.ALLEN_ATLAS_NOTIFICATION)
+                self.__class__._notification_shown = True
+            logger.info("Retrieving probe ids for gene {}".format(self.gene))
+            url = self._QUERY["probe"].format(gene=self.gene)
+            response = HttpRequest(url).get()
+            root = ElementTree.fromstring(response)
+            num_probes = int(root.attrib["total_rows"])
+            probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+
+            # get specimen information
+            self._specimen = {
+                spcid: self._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
             }
-            for item in response["msg"]
-        }
+            response = json.loads(HttpRequest(self._QUERY["factors"]).get())
+            self.factors = {
+                item["id"]: {
+                    "race": item["race_only"],
+                    "gender": item["sex"],
+                    "age": int(item["age"]["days"] / 365),
+                }
+                for item in response["msg"]
+            }
 
-        # get expression levels and z_scores for the gene
-        for donor_id in self._DONOR_IDS:
-            self._retrieve_microarray(donor_id, probe_ids)
+            # get expression levels and z_scores for the gene
+            for donor_id in self._DONOR_IDS:
+                self._retrieve_microarray(donor_id, probe_ids)
 
     def _retrieve_specimen(self, specimen_id):
         """
