@@ -215,9 +215,9 @@ class MapType(Enum):
     CONTINUOUS = 2
 
 
-def snake2camel(s:str):
+def snake2camel(s: str):
     """ Converts a string in snake_case into CamelCase.
     For example: JULICH_BRAIN -> JulichBrain """
     return "".join([
-        w[0].upper()+w[1:] 
+        w[0].upper() + w[1:].lower()
         for w in s.split('_')])
