@@ -9,9 +9,6 @@
 
    readme
    core_concepts.ipynb
-   installation
-   authentication
-   usage
    contribute
    acknowledgements
 
