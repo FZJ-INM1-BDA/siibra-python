@@ -213,3 +213,11 @@ class ParcellationIndex:
 class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
+
+
+def snake2camel(s:str):
+    """ Converts a string in snake_case into CamelCase.
+    For example: JULICH_BRAIN -> JulichBrain """
+    return "".join([
+        w[0].upper()+w[1:] 
+        for w in s.split('_')])
