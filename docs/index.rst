@@ -9,6 +9,7 @@
 
    readme
    core_concepts.ipynb
+   download_maps.ipynb
    contribute
    acknowledgements
 
