@@ -43,7 +43,7 @@ class TestAtlas(unittest.TestCase):
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
 
         # on init, parcellations and spaces are empty lists
-        self.assertTrue(len(a.parcellations) == 0)
+        self.assertTrue(len(a._parcellations) == 0)
         self.assertTrue(len(a.spaces) == 0)
 
     def test_parcellations(self):

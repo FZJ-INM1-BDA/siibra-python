@@ -17,7 +17,7 @@ from .concept import AtlasConcept, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, logger
+from ..commons import MapType, logger, Registry
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
@@ -37,7 +37,7 @@ class Atlas(
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
 
-        self.parcellations = []  # add with _add_parcellation
+        self._parcellations = []  # add with _add_parcellation
         self.spaces = []  # add with _add_space
         self.continuous_map_threshold = None
 
@@ -47,7 +47,12 @@ class Atlas(
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
-        self.parcellations.append(parcellation)
+        self._parcellations.append(parcellation)
+
+    @property
+    def parcellations(self):
+        """Access a registry of parcellations supported by this atlas. """
+        return Registry(elements={p.key: p for p in self._parcellations})
 
     @classmethod
     def _from_json(cls, obj):
@@ -90,12 +95,12 @@ class Atlas(
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self.parcellations[0]
-            if len(self.parcellations) > 1:
+            parcellation_obj = self._parcellations[0]
+            if len(self._parcellations) > 1:
                 logger.info(f"No parcellation specified, using default '{parcellation_obj.name}'.")
         else:
             parcellation_obj = Parcellation.REGISTRY[parcellation]
-            if parcellation_obj not in self.parcellations:
+            if parcellation_obj not in self._parcellations:
                 raise ValueError(
                     f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
                 )
@@ -183,7 +188,7 @@ class Atlas(
             raise ValueError(f"Requested space {space} not supported by {self.__class__.__name__} {self.name}.")
         return spaceobj.get_bounding_box(point1, point2)
 
-    def find_regions(self, regionspec):
+    def find_regions(self, regionspec, use_newest_versions_only=True):
         """
         Find regions with the given specification in all
         parcellations offered by the atlas.
@@ -195,12 +200,15 @@ class Atlas(
               against the name and the identifier key,
             - an integer, which is interpreted as a labelindex
             - a region object
+        use_newest_versions_only : Bool, default: True
+            If False matched regions for all versions of a parcellation are returned.
 
         Yield
         -----
         list of matching regions
         """
         result = []
-        for p in self.parcellations:
-            result.extend(p.find_regions(regionspec))
+        for p in self._parcellations:
+            if p.is_newest_version:
+                result.extend(p.find_regions(regionspec))
         return result

@@ -221,6 +221,10 @@ class Parcellation(
         """
         return space in self.supported_spaces
 
+    @property
+    def is_newest_version(self):
+        return (self.version is None) or (self.version.next is None)
+
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
     ):
