@@ -341,6 +341,38 @@ class Point(Location):
             space=targetspace
         )
 
+    def __sub__(self, other):
+        """ Substract the coordinates of two points to get
+        a new point representing the offset vector. """
+        assert(self.space == other.space)
+        return Point(
+            [
+                self.coordinate[i] - other.coordinate[i] 
+                for i in range(3)],
+            self.space)
+
+    def __add__(self, other):
+        """ Add the coordinates of two points to get
+        a new point representing. """
+        assert(self.space == other.space)
+        return Point(
+            [
+                self.coordinate[i] + other.coordinate[i] 
+                for i in range(3)],
+            self.space)
+
+    def __truediv__(self, number):
+        """ Return a new point with divided 
+        coordinates in the same space. """
+        return Point(
+            np.array(self.coordinate)/float(number),
+            self.space
+        )
+
+    def __mult__(self, number):
+        """ Return a new point with multiplied 
+        coordinates in the same space. """
+
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new Point obtained by transforming the
         coordinate of this one with the given affine matrix.
@@ -473,6 +505,10 @@ class BoundingBox(Location):
     @property
     def volume(self):
         return self._Bbox.volume()
+
+    @property
+    def center(self):
+        return self.minpoint + (self.maxpoint - self.minpoint) / 2
 
     @staticmethod
     def _determine_bounds(A):
