@@ -688,7 +688,7 @@ class ContinuousParcellationMap(ParcellationMap):
 
         return assignments
 
-    def assign(self, img: nib.Nifti1Image, msg=None, quiet=False):
+    def assign(self, img: nib.Nifti1Image, msg=None, quiet=False, regions=None):
         """
         Assign the region of interest represented by a given volumetric image to continuous brain regions in this map.
 
@@ -700,6 +700,8 @@ class ContinuousParcellationMap(ParcellationMap):
             Message to display with the progress bar
         quiet: Boolen, default:False
             If true, no progess indicator will be displayed
+        regions : List of REgion, or None
+            If not None, only the given regions will be considered
         """
 
         if msg is None and not quiet:
@@ -719,6 +721,10 @@ class ContinuousParcellationMap(ParcellationMap):
         pmaps = {}
 
         for mapindex, loadfnc in progress(enumerate(self.maploaders)):
+
+            this_region = self.decode_label(mapindex)
+            if (regions is not None) and (this_region not in regions):
+                continue
 
             # load the regional map
             this = loadfnc()
