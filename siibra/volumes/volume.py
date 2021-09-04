@@ -21,7 +21,7 @@ from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
 import numpy as np
-import nibabel as nib
+from nibabel import Nifti1Image
 from cloudvolume.exceptions import OutOfBoundsError
 from cloudvolume import CloudVolume
 import os
@@ -163,7 +163,35 @@ class ImageProvider(ABC):
         return len(self.get_shape()) == 4
 
 
-class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
+class LocalNiftiVolume(ImageProvider):
+
+    volume_type = 'nii'
+
+    def __init__(self, name: str, img: Nifti1Image, space: Space):
+        """ Create a new local nifti volume from a Nifti1Image object.
+
+        Args:
+            name ([str]): A human-readable name
+            img (Nifti1Image): 3D image
+            space (Space): the reference space associated with the Image
+        """
+        self.image = img
+        self.space = space
+
+    def fetch(self, **kwargs):
+        return self.image
+
+    def get_shape(self):
+        return self.image.shape
+
+    def is_float(self):
+        return self.image.dataobj.dtype.kind == "f"
+
+    def is_image_volume(self):
+        return True
+
+
+class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
 
     _image_cached = None
 
@@ -211,7 +239,7 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
                 f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}."
             )
         else:
-            img = nib.Nifti1Image(
+            img = Nifti1Image(
                 dataobj=self.image.dataobj[:, :, :, mapindex], affine=self.image.affine
             )
         assert img is not None
@@ -227,7 +255,7 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
-            img = nib.Nifti1Image(
+            img = Nifti1Image(
                 dataobj=img.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(img.affine, shift),
             )
@@ -473,7 +501,7 @@ class NeuroglancerVolume(
             raise NotImplementedError(
                 f"NgVolume does not support access by map index (but {mapindex} was given)"
             )
-        return nib.Nifti1Image(
+        return Nifti1Image(
             self._load_data(resolution_mm=resolution_mm, voi=voi).squeeze(),
             affine=self.build_affine(resolution_mm=resolution_mm, voi=voi),
         )
@@ -519,7 +547,7 @@ class NeuroglancerVolume(
 
 
 class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
-    
+
     def __init__(self, identifier, name, url, space, detail=None, **kwargs):
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
 
