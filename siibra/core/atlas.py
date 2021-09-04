@@ -51,7 +51,7 @@ class Atlas(
 
     @property
     def parcellations(self):
-        """Access a registry of parcellations supported by this atlas. """
+        """Access a registry of parcellations supported by this atlas."""
         return Registry(elements={p.key: p for p in self._parcellations})
 
     @classmethod
@@ -97,9 +97,11 @@ class Atlas(
         if parcellation is None:
             parcellation_obj = self._parcellations[0]
             if len(self._parcellations) > 1:
-                logger.info(f"No parcellation specified, using default '{parcellation_obj.name}'.")
+                logger.info(
+                    f"No parcellation specified, using default '{parcellation_obj.name}'."
+                )
         else:
-            parcellation_obj = Parcellation.REGISTRY[parcellation]
+            parcellation_obj = self.parcellations[parcellation]
             if parcellation_obj not in self._parcellations:
                 raise ValueError(
                     f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
@@ -107,7 +109,7 @@ class Atlas(
         return parcellation_obj
 
     def get_space(self, space=None):
-        """ Returns a valid reference space object defined by the atlas.
+        """Returns a valid reference space object defined by the atlas.
         If no specification is provided, the default is returned.
 
         Parameters:
@@ -185,10 +187,18 @@ class Atlas(
         """
         spaceobj = Space.REGISTRY[space]
         if spaceobj not in self.spaces:
-            raise ValueError(f"Requested space {space} not supported by {self.__class__.__name__} {self.name}.")
+            raise ValueError(
+                f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
+            )
         return spaceobj.get_bounding_box(point1, point2)
 
-    def find_regions(self, regionspec, use_newest_versions_only=True):
+    def find_regions(
+        self,
+        regionspec,
+        all_versions=False,
+        filter_children=True,
+        build_groups=False,
+    ):
         """
         Find regions with the given specification in all
         parcellations offered by the atlas.
@@ -200,8 +210,14 @@ class Atlas(
               against the name and the identifier key,
             - an integer, which is interpreted as a labelindex
             - a region object
-        use_newest_versions_only : Bool, default: True
-            If False matched regions for all versions of a parcellation are returned.
+        all_versions : Bool, default: False
+            If True, matched regions for all versions of a parcellation are returned.
+        filter_children : Boolean
+            If true, children of matched parents will not be returned
+        build_groups : Boolean, default: False
+            If true, a group region will be formed per parellations
+            which includes the resulting elements,
+            in case they do not have a single common parent anyway.
 
         Yield
         -----
@@ -209,6 +225,15 @@ class Atlas(
         """
         result = []
         for p in self._parcellations:
-            if p.is_newest_version:
-                result.extend(p.find_regions(regionspec))
+            if p.is_newest_version or all_versions:
+                match = p.find_regions(
+                    regionspec,
+                    filter_children=filter_children,
+                    build_group=build_groups,
+                )
+                if build_groups:
+                    if match is not None:
+                        result.append(match)
+                else:
+                    result.extend(match)
         return result

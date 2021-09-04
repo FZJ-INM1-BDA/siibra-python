@@ -123,6 +123,7 @@ class Parcellation(
         modality=None,
         regiondefs=[],
         dataset_specs=[],
+        maps=None,
     ):
         """
         Constructs a new parcellation object.
@@ -137,6 +138,13 @@ class Parcellation(
             a version specification, optional
         modality  :  str or None
             a specification of the modality used for creating the parcellation.
+        regiondefs : list of dict
+            json specification of regions (siibra-configuration schema)
+        dataset_specs : list of dict
+            json specification of dataset (siibra-configuration schema)
+        maps : list of VolumeSrc (optional)
+            List of already instantiated parcellation maps
+            (as opposed to the dataset_specs, which still need to be instantiated)
         """
         AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.version = version
@@ -144,6 +152,10 @@ class Parcellation(
         self.description = ""
         self.modality = modality
         self._regiondefs = regiondefs
+        if maps is not None:
+            if self._datasets_cached is None:
+                self._datasets_cached = []
+            self._datasets_cached.extend(maps)
 
         # If set, thresholded continuous maps will be preferred
         # over static labelled maps for building and using region masks.
@@ -250,7 +262,7 @@ class Parcellation(
         ------
         Region object
         """
-        candidates = self.regiontree.find(regionspec, select_uppermost=True)
+        candidates = self.regiontree.find(regionspec, filter_children=True)
         if not candidates:
             raise ValueError(
                 "Regionspec {} could not be decoded under '{}'".format(
@@ -271,7 +283,7 @@ class Parcellation(
                 )
 
     @cached
-    def find_regions(self, regionspec):
+    def find_regions(self, regionspec, filter_children=False, build_group=False):
         """
         Find regions with the given specification in this parcellation.
 
@@ -282,12 +294,19 @@ class Parcellation(
               against the name and the identifier key,
             - an integer, which is interpreted as a labelindex
             - a region object
+        filter_children : Boolean
+            If true, children of matched parents will not be returned
+        build_group : Boolean, default: False
+            If true, the result will be a single region object. To do so,
+            a group region of matched elements will be created if needed.
 
         Yield
         -----
         list of matching regions
         """
-        return self.regiontree.find(regionspec)
+        return self.regiontree.find(
+            regionspec, filter_children=filter_children, build_group=build_group
+        )
 
     def __str__(self):
         return self.name
@@ -338,8 +357,8 @@ class Parcellation(
         Args:
             other (Parcellation): Extension parcellation
         """
-        assert(other.extends == self.id)
-        assert(isinstance(other, self.__class__))
+        assert other.extends == self.id
+        assert isinstance(other, self.__class__)
         for region in other.regiontree:
 
             try:
@@ -347,17 +366,23 @@ class Parcellation(
             except (ValueError, AttributeError):
                 continue
 
-            conflicts = matched_parent.find(region.name, select_uppermost=True)
+            conflicts = matched_parent.find(region.name, filter_children=True)
             if len(conflicts) == 1:
                 merge_with = conflicts[0]
                 for d in region.datasets:
                     if len(merge_with.datasets) > 0 and (d in merge_with.datasets):
-                        logger.error(f"Dataset '{str(d)}' already exists in '{merge_with.name}', and will not be extended.")
-                    logger.debug(f"Extending existing region {merge_with.name} with dataset {str(d)}")
+                        logger.error(
+                            f"Dataset '{str(d)}' already exists in '{merge_with.name}', and will not be extended."
+                        )
+                    logger.debug(
+                        f"Extending existing region {merge_with.name} with dataset {str(d)}"
+                    )
                     merge_with._datasets_cached.append(d)
 
             elif len(conflicts) == 0:
-                logger.debug(f"Extending '{matched_parent}' with '{region.name}' from '{other.name}'.")
+                logger.debug(
+                    f"Extending '{matched_parent}' with '{region.name}' from '{other.name}'."
+                )
                 new_child = Region.copy(region)
                 new_child.parcellation = matched_parent.parcellation
                 new_child.extended_from = other
@@ -367,7 +392,8 @@ class Parcellation(
                 raise RuntimeError(
                     f"Cannot extend '{matched_parent}' with '{region.name}' "
                     "due to multiple conflicting children: "
-                    f"{', '.join(c.name for c in conflicts)}")
+                    f"{', '.join(c.name for c in conflicts)}"
+                )
 
     @classmethod
     def _from_json(cls, obj):

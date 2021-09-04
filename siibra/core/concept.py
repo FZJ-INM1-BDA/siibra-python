@@ -127,6 +127,10 @@ class AtlasConcept:
         if bootstrap_folder is not None:
             cls._bootstrap_folder = bootstrap_folder
 
+    def add_dataset(self, dataset: Dataset):
+        """ Explictly add another dataset object to this atlas concept. """
+        self._datasets_cached.append(dataset)
+
     def _populate_datasets(self):
         self._datasets_cached = []
         for spec in self._dataset_specs:
