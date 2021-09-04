@@ -16,8 +16,7 @@
 from .concept import AtlasConcept
 from .space import Space
 
-from ..commons import logger
-from ..commons import Registry, ParcellationIndex, MapType
+from ..commons import logger, Registry, ParcellationIndex, MapType, compare_maps
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -27,6 +26,7 @@ import re
 import anytree
 from typing import Union
 import json
+from nibabel import Nifti1Image
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -154,7 +154,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return region == self or region in self.descendants
 
     @cached
-    def find(self, regionspec, filter_children=False, build_group=False):
+    def find(self, regionspec, filter_children=False, build_group=False, groupname=None):
         """
         Find regions that match the given region specification in the subtree
         headed by this region.
@@ -171,8 +171,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         filter_children : Boolean
             If true, children of matched parents will not be returned
         build_group : Boolean, default: False
-            If true, the result will be a single region object, or None. 
+            If true, the result will be a single region object, or None.
             If needed,a group region of matched elements will be created.
+        groupname : str (optional)
+            Name of the resulting group region, if build_group is True
 
         Yield
         -----
@@ -195,10 +197,13 @@ class Region(anytree.NodeMixin, AtlasConcept):
             filtered = [r for r in result if r.parent not in result]
 
             # find any non-matched regions of which all children are matched
-            complete_parents = list({
-                r.parent for r in filtered
-                if all((c in filtered) for c in r.parent.children)
-            })
+            complete_parents = list(
+                {
+                    r.parent
+                    for r in filtered
+                    if all((c in filtered) for c in r.parent.children)
+                }
+            )
 
             if len(complete_parents) == 0:
                 result = filtered
@@ -209,18 +214,18 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # ensure the result is a list
         if result is None:
-            result = [] 
+            result = []
         elif isinstance(result, Region):
             result = [result]
         else:
             result = list(result)
-        
+
         if build_group:
             # return a single region as the result
             if len(result) == 1:
                 return result[0]
             elif len(result) > 1:
-                return Region._build_grouptree(result, self.parcellation)
+                return Region._build_grouptree(result, self.parcellation, name=groupname)
             else:
                 return None
         else:
@@ -246,8 +251,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         -----
         True or False
         """
+
         def splitstr(s):
             return [w for w in re.split(r"[^a-zA-Z0-9.-]", s) if len(w) > 0]
+
         if isinstance(regionspec, Region):
             return self == regionspec
         elif isinstance(regionspec, int):
@@ -257,9 +264,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             return self.index == regionspec
         elif isinstance(regionspec, re.Pattern):
             # match regular expression
-            return any(
-                regionspec.search(s) is not None 
-                for s in [self.name, self.key])
+            return any(regionspec.search(s) is not None for s in [self.name, self.key])
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
@@ -281,7 +286,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
             )
 
     @cached
-    def build_mask(self, space: Space, resolution_mm=None, maptype: MapType = 'labelled'):
+    def build_mask(
+        self, space: Space, resolution_mm=None, maptype: MapType = "labelled"
+    ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
@@ -303,13 +310,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             'continuous' attempts to build a continuous mask, possibly by
             elementwise maximum of continuous maps of children )
         """
-        if not self.parcellation.supports_space(space):
-            logger.error(
-                'Region "{}" does not provide a map for space "{}"'.format(
-                    str(self), str(space)
-                )
-            )
-
         mask = affine = None
 
         if self.parcellation.continuous_map_threshold is not None:
@@ -326,33 +326,34 @@ class Region(anytree.NodeMixin, AtlasConcept):
                     f"Extracting mask for {self.name} from continuous map volume of {self.parcellation.name}."
                 )
                 pmap = self.parcellation.get_map(
-                    space, maptype=MapType.CONTINUOUS,
+                    space,
+                    maptype=MapType.CONTINUOUS,
                 ).extract_regionmap(self, resolution_mm=resolution_mm)
             if pmap is not None:
-                mask = (np.asanyarray(pmap.dataobj) > T).astype("uint8")
+                mask = (np.asanyarray(pmap.dataobj) > T).astype("uint8").squeez()
                 affine = pmap.affine
 
         else:
 
             regionmap = self.get_regional_map(space, maptype=maptype)
             if regionmap is not None:
-                logger.info(
+                logger.debug(
                     f"Extracting mask for {self.name} in {space} from regional map."
                 )
                 labelimg = self.get_regional_map(space, maptype=maptype).fetch(
                     resolution_mm=resolution_mm
                 )
-                mask = labelimg.dataobj
+                mask = labelimg.get_fdata()
                 affine = labelimg.affine
 
             else:
-                logger.info(
+                logger.debug(
                     f"Extracting mask for {self.name} in {space} from "
                     f"{maptype} parcellation volume of {self.parcellation.name}."
                 )
                 labelmap = self.parcellation.get_map(space, maptype=maptype)
                 for r in self:  # consider all children
-                    logger.info(f'Aggregating mask of {r.name} with index {r.index}')
+                    logger.debug(f"Aggregating mask of {r.name} with index {r.index}")
 
                     if maptype == MapType.LABELLED:
                         for mapindex, img in enumerate(
@@ -360,7 +361,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         ):
                             if (r.index.map is None) or (r.index.map == mapindex):
                                 if mask is None:
-                                    mask = np.zeros(img.dataobj.shape, dtype="uint8")
+                                    mask = np.zeros(img.get_fdata().shape, dtype="uint8")
                                     affine = img.affine
                                 mask[img.get_fdata() == r.index.label] = 1
 
@@ -368,9 +369,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         try:
                             for index in labelmap.decode_region(r):
                                 img = labelmap.fetch(
-                                    mapindex=index.map, resolution_mm=resolution_mm)
+                                    mapindex=index.map, resolution_mm=resolution_mm
+                                )
                                 if mask is None:
-                                    mask = np.zeros(img.dataobj.shape, dtype="uint8")
+                                    mask = np.zeros(img.get_fdata().shape, dtype="uint8")
                                     affine = img.affine
                                 mask = np.maximum(mask, img.get_fdata())
                         except IndexError:
@@ -381,13 +383,13 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 f"Could not compute mask for {self.region.name} in {space.name}."
             )
         else:
-            return nib.Nifti1Image(dataobj=mask, affine=affine)
+            return nib.Nifti1Image(dataobj=mask.squeeze(), affine=affine)
 
     def defined_in_space(self, space):
         """
         Verifies wether this region is defined by a labelled map in the given space.
         """
-        for maptype in ['labelled', 'continuous']:
+        for maptype in ["labelled", "continuous"]:
             try:
                 M = self.parcellation.get_map(space, maptype=maptype)
                 M.decode_region(self)
@@ -487,7 +489,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return None
 
     @staticmethod
-    def _build_grouptree(regions, parcellation):
+    def _build_grouptree(regions, parcellation, name=None):
         """
         Creates an artificial subtree from a list of regions by adding a group
         parent and adding the regions as deep copies recursively.
@@ -501,8 +503,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
             next(iter(unique)) if len(unique) == 1 else ParcellationIndex(None, None)
         )
 
+        if name is None:
+            name = "Group: " + ",".join([r.name for r in regions])
         group = Region(
-            "Group: " + ",".join([r.name for r in regions]),
+            name,
             parcellation,
             index,
             children=[Region.copy(r) for r in regions],
@@ -514,7 +518,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __repr__(self):
         return "\n".join(
-            "%s%s" % (pre, node.name) if node.extended_from is None
+            "%s%s" % (pre, node.name)
+            if node.extended_from is None
             else "%s%s [extension region]" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
         )
@@ -551,6 +556,19 @@ class Region(anytree.NodeMixin, AtlasConcept):
             for c in p["components"]
             if p["region"]["name"] == self.name
         ]
+
+    def compare(
+        self,
+        img: Nifti1Image,
+        space: Space,
+        use_maptype: MapType = MapType.CONTINUOUS,
+        resolution_mm=None,
+    ):
+        """Compare the given image to the map of this region in the specified space."""
+        mask = self.build_mask(
+            space, resolution_mm, maptype=use_maptype
+        )
+        return compare_maps(mask, img)
 
     def print_tree(self):
         """

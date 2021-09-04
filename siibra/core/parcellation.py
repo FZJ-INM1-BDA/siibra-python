@@ -283,7 +283,9 @@ class Parcellation(
                 )
 
     @cached
-    def find_regions(self, regionspec, filter_children=False, build_group=False):
+    def find_regions(
+        self, regionspec, filter_children=False, build_group=False, groupname=None
+    ):
         """
         Find regions with the given specification in this parcellation.
 
@@ -299,13 +301,18 @@ class Parcellation(
         build_group : Boolean, default: False
             If true, the result will be a single region object. To do so,
             a group region of matched elements will be created if needed.
+        groupname : str (optional)
+            Name of the resulting group region, if build_group is True
 
         Yield
         -----
         list of matching regions
         """
         return self.regiontree.find(
-            regionspec, filter_children=filter_children, build_group=build_group
+            regionspec,
+            filter_children=filter_children,
+            build_group=build_group,
+            groupname=groupname
         )
 
     def __str__(self):

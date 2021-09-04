@@ -198,6 +198,7 @@ class Atlas(
         all_versions=False,
         filter_children=True,
         build_groups=False,
+        groupname=None
     ):
         """
         Find regions with the given specification in all
@@ -218,6 +219,8 @@ class Atlas(
             If true, a group region will be formed per parellations
             which includes the resulting elements,
             in case they do not have a single common parent anyway.
+        groupname : str (optional)
+            Name of the resulting group region, if build_groups is True
 
         Yield
         -----
@@ -230,6 +233,7 @@ class Atlas(
                     regionspec,
                     filter_children=filter_children,
                     build_group=build_groups,
+                    groupname=groupname
                 )
                 if build_groups:
                     if match is not None:
