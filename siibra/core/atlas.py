@@ -52,7 +52,10 @@ class Atlas(
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return Registry(elements={p.key: p for p in self._parcellations})
+        return Registry(
+            elements={p.key: p for p in self._parcellations},
+            matchfunc=Parcellation.match_spec,
+        )
 
     @classmethod
     def _from_json(cls, obj):
