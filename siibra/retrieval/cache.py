@@ -16,6 +16,7 @@
 import hashlib
 import os
 from appdirs import user_cache_dir
+import tempfile
 
 from ..commons import logger
 
@@ -32,6 +33,9 @@ class Cache:
 
     @classmethod
     def instance(cls):
+        """
+        Return an instance of the siibra cache. Create folder if needed.
+        """
         if cls._instance is None:
             if "SIIBRA_CACHEDIR" in os.environ:
                 cls.folder = os.environ["SIIBRA_CACHEDIR"]
@@ -39,15 +43,19 @@ class Cache:
             try:
                 if not os.path.isdir(cls.folder):
                     os.makedirs(cls.folder)
-                assert os.access(cls.folder, os.W_OK)
+                if not os.access(cls.folder, os.W_OK):
+                    raise OSError
                 logger.debug(f"Setup cache at {cls.folder}")
-            except Exception as e:
-                print(str(e))
-                raise PermissionError(
-                    f"Cannot create cache at {cls.folder}. "
-                    "Please define a writable cache directory "
-                    "in the environment variable SIIBRA_CACHEDIR."
-                )
+            except OSError:
+                # cannot write to requested directory, create a temporary one.
+                tmpdir = os.environ["SIIBRA_CACHEDIR"] = \
+                    tempfile.mkdtemp(prefix="siibra-cache-")
+                logger.warning(
+                    f"Siibra created a temporary cache directory at {tmpdir}, as "
+                    f"the requested folder ({cls.folder}) was not usable. "
+                    "Please consider to set the SIIBRA_CACHEDIR environment variable "
+                    "to a suitable directory.")
+                cls.folder = tmpdir
             cls._instance = cls.__new__(cls)
         return cls._instance
 
