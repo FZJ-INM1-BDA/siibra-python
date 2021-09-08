@@ -112,8 +112,7 @@ class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):
     def __init__(self, id, parcellation_id, matrix, name, description):
         assert id is not None
         ConnectivityMatrix.__init__(self, parcellation_id, matrix)
-        Dataset.__init__(self, id)
-        self.description = description
+        Dataset.__init__(self, id, description=description)
         self.name = name
 
 
@@ -121,8 +120,8 @@ class EbrainsConnectivityMatrix(ConnectivityMatrix, EbrainsDataset):
     def __init__(self, kg_id, parcellation_id, matrix, name, description):
         assert kg_id is not None
         ConnectivityMatrix.__init__(self, parcellation_id, matrix)
-        EbrainsDataset.__init__(self, kg_id, name)
         self._description_cached = description
+        EbrainsDataset.__init__(self, kg_id, name)
 
 
 class ConnectivityProfile(RegionalFeature):

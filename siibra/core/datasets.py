@@ -24,8 +24,9 @@ class Dataset:
 
     REGISTRY = {}
 
-    def __init__(self, identifier):
+    def __init__(self, identifier, description=""):
         self.id = identifier
+        self._description_cached = description
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.id}"
@@ -66,7 +67,7 @@ class Dataset:
         Textual description of Dataset. 
         Empty string here, but implemented in some derived classes.
         """
-        return ""
+        return self._description_cached
 
     @classmethod
     def extract_type_id(cls, spec):
@@ -78,16 +79,11 @@ class Dataset:
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
     def __init__(self, name, description, urls):
-        Dataset.__init__(self, None)
+        Dataset.__init__(self, None, description=description)
         # we model the following as property functions,
         # so derived classes may replace them with a lazy loading mechanism.
         self.name = name
-        self._description = description
         self._urls = urls
-
-    @property
-    def description(self):
-        return self._description
 
     @property
     def urls(self):
@@ -106,9 +102,8 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
 
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
     def __init__(self, id, name, embargo_status=None):
-        Dataset.__init__(self, id)
+        Dataset.__init__(self, id, description=None)
         self.embargo_status = embargo_status
-        self._description_cached = None
         self._name_cached = name
         self._detail = None
         if id is None:
