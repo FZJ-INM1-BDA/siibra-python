@@ -38,16 +38,24 @@ class Atlas(
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
 
         self._parcellations = []  # add with _add_parcellation
-        self.spaces = []  # add with _add_space
+        self._spaces = []  # add with _add_space
         self.continuous_map_threshold = None
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
-        self.spaces.append(space)
+        self._spaces.append(space)
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
         self._parcellations.append(parcellation)
+
+    @property
+    def spaces(self):
+        """Access a registry of reference spaces supported by this atlas."""
+        return Registry(
+            elements={s.key: s for s in self._spaces},
+            matchfunc=Space.match_spec,
+        )        
 
     @property
     def parcellations(self):
@@ -119,12 +127,12 @@ class Atlas(
             space: Space, or string specification of a space
         """
         if space is None:
-            space_obj = self.spaces[0]
-            if len(self.spaces) > 1:
+            space_obj = self._spaces[0]
+            if len(self._spaces) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
         else:
             space_obj = Space.REGISTRY[space]
-            if space_obj not in self.spaces:
+            if space_obj not in self._spaces:
                 raise ValueError(
                     f"Space {space_obj.name} not supported by atlas {self.name}."
                 )
@@ -189,7 +197,7 @@ class Atlas(
             Bounding Box
         """
         spaceobj = Space.REGISTRY[space]
-        if spaceobj not in self.spaces:
+        if spaceobj not in self._spaces:
             raise ValueError(
                 f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
             )
