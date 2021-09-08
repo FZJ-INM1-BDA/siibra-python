@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import Space
+from .space import Space, Point
 
 from ..commons import logger, Registry, ParcellationIndex, MapType, compare_maps
 from ..retrieval.repositories import GitlabConnector
@@ -25,8 +25,8 @@ from memoization import cached
 import re
 import anytree
 from typing import Union
-import json
 from nibabel import Nifti1Image
+
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -287,7 +287,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     @cached
     def build_mask(
-        self, space: Space, resolution_mm=None, maptype: MapType = "labelled"
+        self, space: Space, resolution_mm=None, maptype: MapType = MapType.LABELLED
     ):
         """
         Returns a binary mask where nonzero values denote
@@ -311,8 +311,18 @@ class Region(anytree.NodeMixin, AtlasConcept):
             elementwise maximum of continuous maps of children )
         """
         mask = affine = None
+        if isinstance(maptype, str):
+            maptype = MapType[maptype.upper()]
+
+        # TODO This method is too lengthy and difficult to read. 
+        # it would be more elegenat to distinguish first wether a 
+        # regional map is availalbe as dedicated dataset.
+        # If yes, return the proper type.
+        # If no, delegate to the ParcellationMap object to extract from there.
 
         if self.parcellation.continuous_map_threshold is not None:
+
+            # build mask by thresholding a continuous map
 
             T = self.parcellation.continuous_map_threshold
             regionmap = self.get_regional_map(space, MapType.CONTINOUS)
@@ -335,6 +345,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         else:
 
+            # build mask by selecting indices in labelled volume
+
             regionmap = self.get_regional_map(space, maptype=maptype)
             if regionmap is not None:
                 logger.debug(
@@ -351,6 +363,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
                     f"Extracting mask for {self.name} in {space} from "
                     f"{maptype} parcellation volume of {self.parcellation.name}."
                 )
+
+                # TODO this part might better be placed as a method of LabelledParcellationMap
                 labelmap = self.parcellation.get_map(space, maptype=maptype)
                 for r in self:  # consider all children
                     logger.debug(f"Aggregating mask of {r.name} with index {r.index}")
@@ -390,6 +404,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Verifies wether this region is defined by a labelled map in the given space.
         """
         for maptype in ["labelled", "continuous"]:
+            if self.has_regional_map(space, maptype):
+                break
             try:
                 M = self.parcellation.get_map(space, maptype=maptype)
                 M.decode_region(self)
@@ -400,6 +416,12 @@ class Region(anytree.NodeMixin, AtlasConcept):
             # we get here only if the loop is not interrupted
             return False
         return True
+
+    def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
+        """
+        Tests wether a specific map of this region is available.
+        """
+        return (self.get_regional_map(space, maptype) is not None)
 
     @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
@@ -431,9 +453,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if len(suitable) == 1:
             return suitable[0]
         elif len(suitable) == 0:
-            logger.warning(
-                f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)"
-            )
             return None
         else:
             raise NotImplementedError(
@@ -525,37 +544,55 @@ class Region(anytree.NodeMixin, AtlasConcept):
         )
 
     @cached
-    def spatialprops(self, space, force=False):
+    def spatial_props(self, space: Space):
         """
-        Returns spatial region properties for connected components of this region found by analyzing the parcellation volume in the given space.
+        Compute spatial properties for connected components of this region in the given space.
 
         Parameters
         ----------
         space : Space
             the space in which the computation shall be performed
-        force : Boolean (Default: False)
-            spatialprops will only be computed for leave regions (without
-            children), except this is set to True.
 
         Return
         ------
-        List of RegionProps objects, one per connected component found in the corresponding labelled parcellation map.
+        dictionary of regionprops.
         """
-        filename = f"{self.parcellation.key}-{space.key}-spatialprops.json"
-        logger.debug(f"Trying to load spatial region props from {filename}")
-        try:
-            loader = self.CONNECTOR.get_loader(filename, folder="spatialprops")
-            D = json.loads(loader.data)
-        except Exception:
-            raise RuntimeError(
-                f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name}"
-            )
-        return [
-            c
-            for p in D["spatialprops"]
-            for c in p["components"]
-            if p["region"]["name"] == self.name
-        ]
+        from skimage import measure
+
+        if not isinstance(space, Space):
+            space = Space.REGISTRY[space]
+        
+        if not self.defined_in_space(space):
+            raise RuntimeError(f"Spatial properties of {self.name} cannot be computed in {space.name}.")
+
+        # build binary mask of the image
+        pimg = self.build_mask(space)
+
+        # determine scaling factor from voxels to cube mm
+        orig = np.dot(pimg.affine, [0, 0, 0, 1])
+        unit_lengths = []
+        for vec in np.identity(3):
+            vec_phys = np.dot(pimg.affine, np.r_[vec, 1])
+            unit_lengths.append(np.linalg.norm(orig - vec_phys))
+        scale = np.prod(unit_lengths)
+
+        # compute properties of labelled volume
+        A = np.asarray(pimg.get_fdata(), dtype=np.int32).squeeze()
+        C = measure.label(A)
+
+        # compute spatial properties of each connected component
+        result = {'space':space, 'components':[]}
+        for label in range(1, C.max() + 1):
+            props = {}
+            nonzero = np.c_[np.nonzero(C == label)]
+            props['centroid'] = Point(
+                np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3],
+                space=space)
+            props['volume'] = nonzero.shape[0] * scale
+
+            result['components'].append(props)
+
+        return result
 
     def compare(
         self,
