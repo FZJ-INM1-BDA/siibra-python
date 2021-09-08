@@ -186,6 +186,29 @@ class AtlasConcept:
         return [d for d in self.datasets if d.is_image_volume()]
 
     @property
+    def infos(self):
+        """
+        List of available datasets representing additional information.
+        """
+        return [d for d in self.datasets if not d.is_image_volume()]
+
+    @property
+    def publications(self):
+        """List of publications found in info datasets."""
+        result = []
+        for info in self.infos:
+            result.extend(info.publications)
+        return result
+
+    @property
+    def descriptions(self):
+        """List of descriptions found in info datasets."""
+        result = []
+        for info in self.infos:
+            result.append(info.description)
+        return result
+
+    @property
     def supported_spaces(self):
         """
         The list of spaces for which volumetric datasets are registered.

@@ -148,7 +148,6 @@ class Parcellation(
         """
         AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.version = version
-        self.publications = []
         self.description = ""
         self.modality = modality
         self._regiondefs = regiondefs
@@ -236,6 +235,10 @@ class Parcellation(
     @property
     def is_newest_version(self):
         return (self.version is None) or (self.version.next is None)
+
+    @property
+    def publications(self):
+        return self._publications + super(self).publications
 
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
@@ -428,7 +431,7 @@ class Parcellation(
             result.description = obj["description"]
 
         if "publications" in obj:
-            result.publications = obj["publications"]
+            result._publications = obj["publications"]
 
         if "@extends" in obj:
             result.extends = obj["@extends"]
