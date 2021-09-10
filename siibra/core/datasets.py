@@ -64,7 +64,7 @@ class Dataset:
     @property
     def description(self):
         """
-        Textual description of Dataset. 
+        Textual description of Dataset.
         Empty string here, but implemented in some derived classes.
         """
         return self._description_cached

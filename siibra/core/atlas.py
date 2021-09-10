@@ -55,7 +55,7 @@ class Atlas(
         return Registry(
             elements={s.key: s for s in self._spaces},
             matchfunc=Space.match_spec,
-        )        
+        )
 
     @property
     def parcellations(self):
