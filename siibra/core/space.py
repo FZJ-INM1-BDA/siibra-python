@@ -347,7 +347,7 @@ class Point(Location):
         assert(self.space == other.space)
         return Point(
             [
-                self.coordinate[i] - other.coordinate[i] 
+                self.coordinate[i] - other.coordinate[i]
                 for i in range(3)],
             self.space)
 
@@ -357,20 +357,20 @@ class Point(Location):
         assert(self.space == other.space)
         return Point(
             [
-                self.coordinate[i] + other.coordinate[i] 
+                self.coordinate[i] + other.coordinate[i]
                 for i in range(3)],
             self.space)
 
     def __truediv__(self, number):
-        """ Return a new point with divided 
+        """ Return a new point with divided
         coordinates in the same space. """
         return Point(
-            np.array(self.coordinate)/float(number),
+            np.array(self.coordinate) / float(number),
             self.space
         )
 
     def __mult__(self, number):
-        """ Return a new point with multiplied 
+        """ Return a new point with multiplied
         coordinates in the same space. """
 
     def transform(self, affine: np.ndarray, space: Space = None):
@@ -540,6 +540,54 @@ class BoundingBox(Location):
         else:
             return f"Bounding box {self.minpoint}mm -> {self.maxpoint}mm defined in {self.space.name}"
 
+    def intersection(self, other):
+        """Computes the intersection of this boudning box with another one.
+
+        Args:
+            other (BoundingBox): Another bounding box
+        """
+        warped = other.warp(self.space)
+
+        # Determine the intersecting bounding box by sorting
+        # the coordinates of both bounding boxes for each dimension,
+        # and fetching the second and third coordinate after sorting.
+        # If those belong to a minimum and maximum point,
+        # no matter of which bounding box,
+        # we have a nonzero intersection in that dimension.
+        minpoints = [b.minpoint for b in (self, warped)]
+        maxpoints = [b.maxpoint for b in (self, warped)]
+        allpoints = minpoints + maxpoints
+        result_minpt = []
+        result_maxpt = []
+        for dim in range(3):
+            A, B = sorted(allpoints, key=lambda P: P[dim])[1:3]
+            if (A in maxpoints) or (B in minpoints):
+                # no intersection in this dimension
+                return None
+            else:
+                result_minpt.append(A[dim])
+                result_maxpt.append(B[dim])
+
+        return BoundingBox(
+            point1=Point(result_minpt, self.space),
+            point2=Point(result_maxpt, self.space),
+            space=self.space,
+        )
+
+    def union(self, other):
+        """Computes the union of this boudning box with another one.
+
+        Args:
+            other (BoundingBox): Another bounding box
+        """
+        warped = other.warp(self.space)
+        points = [self.minpoint, self.maxpoint, warped.minpoint, warped.maxpoint]
+        return BoundingBox(
+            point1=[min(p[i] for p in points) for i in range(3)],
+            point2=[max(p[i] for p in points) for i in range(3)],
+            space=self.space,
+        )
+
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
         of the given mask is inside the boundding box.
@@ -561,11 +609,28 @@ class BoundingBox(Location):
     def warp(self, targetspace):
         """Returns a new bounding box obtained by warping the
         min- and maxpoint of this one into the new targetspace."""
-        return self.__class__(
-            point1=self.minpoint.warp(targetspace),
-            point2=self.maxpoint.warp(targetspace),
-            space=targetspace,
-        )
+        if targetspace == self.space:
+            return self
+        else:
+            return self.__class__(
+                point1=self.minpoint.warp(targetspace),
+                point2=self.maxpoint.warp(targetspace),
+                space=targetspace,
+            )
+
+    def build_mask(self):
+        """Generate a volumetric binary mask of this
+        bounding box in the reference template space."""
+        tpl = self.space.get_template().fetch()
+        arr = np.zeros(tpl.shape, dtype='uint8')
+        bbvox = self.transform(np.linalg.inv(tpl.affine))
+        arr[
+            int(bbvox.minpoint[0]):int(bbvox.maxpoint[0]),
+            int(bbvox.minpoint[1]):int(bbvox.maxpoint[2]),
+            int(bbvox.minpoint[2]):int(bbvox.maxpoint[2]),
+        ] = 1
+        return Nifti1Image(arr,tpl.affine)
+    
 
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new bounding box obtained by transforming the
