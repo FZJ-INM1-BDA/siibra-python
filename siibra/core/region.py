@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import Space, Point
+from .space import Space, Point, BoundingBox
 
 from ..commons import logger, Registry, ParcellationIndex, MapType, compare_maps
 from ..retrieval.repositories import GitlabConnector
@@ -314,8 +314,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 
-        # TODO This method is too lengthy and difficult to read. 
-        # it would be more elegenat to distinguish first wether a 
+        # TODO This method is too lengthy and difficult to read.
+        # it would be more elegenat to distinguish first wether a
         # regional map is availalbe as dedicated dataset.
         # If yes, return the proper type.
         # If no, delegate to the ParcellationMap object to extract from there.
@@ -544,6 +544,20 @@ class Region(anytree.NodeMixin, AtlasConcept):
         )
 
     @cached
+    def get_bounding_box(self, space: Space, maptype: MapType = MapType.LABELLED):
+        """ Compute the bounding box of this region in the given space.
+
+        Args:
+            space (Space or str): Requested reference space
+
+        Returns:
+            BoundingBox
+        """
+        return BoundingBox.from_image(
+            self.build_mask(space, maptype=maptype),
+            space=space)
+
+    @cached
     def spatial_props(self, space: Space):
         """
         Compute spatial properties for connected components of this region in the given space.
@@ -561,7 +575,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         if not isinstance(space, Space):
             space = Space.REGISTRY[space]
-        
+
         if not self.defined_in_space(space):
             raise RuntimeError(f"Spatial properties of {self.name} cannot be computed in {space.name}.")
 
@@ -581,7 +595,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         C = measure.label(A)
 
         # compute spatial properties of each connected component
-        result = {'space':space, 'components':[]}
+        result = {'space': space, 'components': []}
         for label in range(1, C.max() + 1):
             props = {}
             nonzero = np.c_[np.nonzero(C == label)]
