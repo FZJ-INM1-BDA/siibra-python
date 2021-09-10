@@ -629,8 +629,7 @@ class BoundingBox(Location):
             int(bbvox.minpoint[1]):int(bbvox.maxpoint[2]),
             int(bbvox.minpoint[2]):int(bbvox.maxpoint[2]),
         ] = 1
-        return Nifti1Image(arr,tpl.affine)
-    
+        return Nifti1Image(arr, tpl.affine)
 
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new bounding box obtained by transforming the
