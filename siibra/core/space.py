@@ -323,6 +323,8 @@ class Point(Location):
 
     def warp(self, targetspace: Space):
         """ Creates a new point by warping this point to another space """
+        if not isinstance(targetspace, Space):
+            targetspace = Space.REGISTRY[targetspace]
         if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space} and {targetspace}"
@@ -400,6 +402,26 @@ class Point(Location):
         """ Index access to the coefficients of this point. """
         assert(0 <= index < 3)
         return self.coordinate[index]
+
+    def bigbrain_section(self):
+        """
+        Estimate the histological section number of BigBraing
+        which corresponds to this point. If the point is given
+        in another space, a warping to BigBrain space will be tried.
+        """
+        if self.space == Space.REGISTRY['bigbrain']:
+            coronal_position = self[1]
+        else:
+            try:
+                bigbrain_point = self.warp('bigbrain')
+                coronal_position = bigbrain_point[1]
+            except Exception:
+                raise RuntimeError(
+                    "BigBrain section numbers can only be determined "
+                    "for points in BigBrain space, but the given point "
+                    f"is given in '{self.space.name}' and could not "
+                    "be converted.")
+        return int((coronal_position + 70.) / 0.02 + 1.5)
 
 
 class PointSet(Location):
@@ -540,11 +562,13 @@ class BoundingBox(Location):
         else:
             return f"Bounding box {self.minpoint}mm -> {self.maxpoint}mm defined in {self.space.name}"
 
-    def intersection(self, other):
+    def intersection(self, other, dims=[0, 1, 2]):
         """Computes the intersection of this boudning box with another one.
 
         Args:
             other (BoundingBox): Another bounding box
+            dims (list of int): Dimensions where the intersection should be computed.
+            Default: all three. Along dimensions not listed, the union is applied instead.
         """
         warped = other.warp(self.space)
 
@@ -559,7 +583,15 @@ class BoundingBox(Location):
         allpoints = minpoints + maxpoints
         result_minpt = []
         result_maxpt = []
+
         for dim in range(3):
+
+            if dim not in dims:
+                # do not intersect in this dimension, so take the union instead
+                result_minpt.append(min(p[dim] for p in allpoints))
+                result_maxpt.append(max(p[dim] for p in allpoints))
+                continue
+
             A, B = sorted(allpoints, key=lambda P: P[dim])[1:3]
             if (A in maxpoints) or (B in minpoints):
                 # no intersection in this dimension
