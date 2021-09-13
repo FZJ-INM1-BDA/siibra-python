@@ -116,7 +116,7 @@ class FeatureQuery(ABC):
         """
         matches = []
         for feature in self.features:
-            if feature.matches(concept):
+            if feature.match(concept):
                 matches.append(feature)
         return matches
 
