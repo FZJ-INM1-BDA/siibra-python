@@ -136,7 +136,7 @@ class Registry:
             logger.info(
                 f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
             )
-            logger.info(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
+            logger.debug(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
             return largest
 
     def provides(self, spec):

@@ -309,6 +309,8 @@ class Point(Location):
             voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
             if np.any(voxel >= mask.dataobj.shape):
                 return False
+            if np.any(voxel < 0):
+                return False
             if mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
                 return False
             return True
@@ -471,6 +473,14 @@ class PointSet(Location):
         return self.__class__(
             [c.transform(affine, space) for c in self.coordinates], space
         )
+
+    def __getitem__(self, index: int):
+        if (index >= self.__len__()) or (index < 0):
+            raise IndexError(
+                f"Pointset has only {self.__len__()} points, "
+                f"but index of {index} was requested.")
+        else:
+            return self.coordinates[index]
 
     def __iter__(self):
         """ Return an iterator over the coordinate locations. """
