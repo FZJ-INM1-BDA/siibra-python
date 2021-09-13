@@ -18,7 +18,7 @@ from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
 from ..commons import ParcellationIndex, MapType, compare_maps
-from ..core.space import Space, BoundingBox, PointSet
+from ..core.space import Point, PointSet, Space, BoundingBox
 from ..core.region import Region
 
 import numpy as np
@@ -496,39 +496,44 @@ class LabelledParcellationMap(ParcellationMap):
         return m
 
     @cached
-    def assign_coordinates(self, xyz_phys, sigma_mm=None, sigma_truncation=None):
+    def assign_coordinates(self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
         Parameters
         ----------
-        xyz_phys : 3D point(s) in physical coordinates of the template space of the ParcellationMap
-            Can be one 3D coordinate tuple, list of 3D tuples, Nx3 or Nx4 array of coordinate tuples,
-            str of the form "3.1mm, -3.1mm, 80978mm", or list of such strings.
-            See arrays.create_homogeneous_array
+        point : Point or PointSet
         sigma_mm : Not needed for labelled parcellation maps
         sigma_truncation : Not needed for labelled parcellation maps
         """
 
+        if point.space != self.space:
+            logger.info(
+                f'Coordinates will be converted from {point.space.name} '
+                f'to {self.space.name} space for assignment.')
+
         # Convert input to Nx4 list of homogenous coordinates
-        assert len(xyz_phys) > 0
-        points = PointSet(xyz_phys)
-        XYZH = points.homogeneous
-        numpts = XYZH.shape[0]
+        if isinstance(point, Point):
+            coords = [point.warp(self.space).homogeneous]
+        elif isinstance(point, PointSet):
+            pointset = point
+            coords = [p.homogeneous for p in pointset.warp(self.space)]
+        else:
+            raise ValueError("assign_coordinates expects a Point or PointSet object.")
 
         tpl = self.space.get_template().fetch()
         assignments = []
         N = len(self)
-        msg = f"Assigning {numpts} coordinates to {N} maps"
-        assignments = [[] for n in range(numpts)]
+        msg = f"Assigning {len(coords)} points to {N} maps"
+        assignments = [[] for _ in coords]
         for mapindex, loadfnc in tqdm(
             enumerate(self.maploaders), total=len(self), desc=msg, unit=" maps"
         ):
             lmap = loadfnc()
             p2v = np.linalg.inv(tpl.affine)
             A = lmap.get_fdata()
-            for i, xyzh in enumerate(XYZH):
-                x, y, z = (np.dot(p2v, xyzh) + 0.5).astype("int")[:3]
+            for i, coord in enumerate(coords):
+                x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]
                 label = A[x, y, z]
                 if label > 0:
                     region = self.decode_label(mapindex=mapindex, labelindex=label)
@@ -677,16 +682,13 @@ class ContinuousParcellationMap(ParcellationMap):
         logger.info(f"{i} regional continuous maps found for {self.parcellation}.")
 
     @cached
-    def assign_coordinates(self, xyz_phys, sigma_mm=1, sigma_truncation=3):
+    def assign_coordinates(self, point: Union[Point, PointSet], sigma_mm=1, sigma_truncation=3):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
         Parameters
         ----------
-        xyz_phys : 3D point(s) in physical coordinates of the template space of the ParcellationMap
-            Can be one 3D coordinate tuple, list of 3D tuples, Nx3 or Nx4 array of coordinate tuples,
-            str of the form "3.1mm, -3.1mm, 80978mm", or list of such strings.
-            See arrays.create_homogeneous_array
+        point : Point or PointSet
         sigma_mm : float (default: 1)
             standard deviation /expected localization accuracy of the point, in
             mm units. A 3D Gaussian distribution with that
@@ -696,12 +698,20 @@ class ContinuousParcellationMap(ParcellationMap):
             truncate the Gaussian kernel in standard error units.
         """
         assert sigma_mm >= 1
-        assert len(xyz_phys) > 0
+
+        if point.space != self.space:
+            logger.info(
+                f'Coordinates will be converted from {point.space.name} '
+                f'to {self.space.name} space for assignment.')
 
         # Convert input to Nx4 list of homogenous coordinates
-        points = PointSet(xyz_phys, self.space)
-        XYZH = points.homogeneous
-        numpts = len(points)
+        if isinstance(point, Point):
+            coords = [point.warp(self.space).homogeneous]
+        elif isinstance(point, PointSet):
+            pointset = point
+            coords = [p.homogeneous for p in pointset.warp(self.space)]
+        else:
+            raise ValueError("assign_coordinates expects a Point or PointSet object.")
 
         # convert sigma to voxel coordinates
         tpl = self.space.get_template().fetch()
@@ -709,11 +719,10 @@ class ContinuousParcellationMap(ParcellationMap):
         scaling = np.array([np.linalg.norm(tpl.affine[:, i]) for i in range(3)]).mean()
         sigma_vox = sigma_mm / scaling
 
-        assignments = []
         if sigma_vox < 3:
             N = len(self)
-            msg = f"Assigning {numpts} coordinates to {N} maps"
-            assignments = [[] for n in range(numpts)]
+            msg = f"Assigning {len(coords)} coordinates to {N} maps"
+            assignments = [[] for _ in coords]
             for mapindex, loadfnc in tqdm(
                 enumerate(self.maploaders), total=len(self), desc=msg, unit=" maps"
             ):
@@ -721,29 +730,33 @@ class ContinuousParcellationMap(ParcellationMap):
                 p2v = np.linalg.inv(tpl.affine)
                 A = pmap.get_fdata()
                 region = self.decode_label(mapindex=mapindex)
-                for i, xyzh in enumerate(XYZH):
-                    x, y, z = (np.dot(p2v, xyzh) + 0.5).astype("int")[:3]
+                for i, coord in enumerate(coords):
+                    x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]
                     value = A[x, y, z]
                     if value > 0:
                         assignments[i].append((region, pmap, value))
         else:
             logger.info(
                 (
-                    f"Assigning {numpts} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps."
+                    f"Assigning {len(coords)} uncertain coordinates (stderr={sigma_mm}) to {len(self)} maps."
                 )
             )
             kernel = create_gaussian_kernel(sigma_vox, sigma_truncation)
             r = int(kernel.shape[0] / 2)  # effective radius
-            for i, xyzh in enumerate(XYZH):
-                xyz_vox = (np.dot(phys2vox, xyzh) + 0.5).astype("int")
+            assignments = []
+            for coord in coords:
+                xyz_vox = (np.dot(phys2vox, coord) + 0.5).astype("int")
                 shift = np.identity(4)
                 shift[:3, -1] = xyz_vox[:3] - r
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(tpl.affine, shift))
                 assignments.append(
-                    self.assign(W, msg=", ".join([f"{v:.1f}" for v in xyzh[:3]]))
+                    self.assign(W, msg=", ".join([f"{v:.1f}" for v in coord[:3]]))
                 )
 
-        return assignments
+        if len(assignments) == 1:
+            return assignments[0]
+        else:
+            return assignments
 
     def assign(self, img: Nifti1Image, msg=None, quiet=False):
         """
@@ -798,4 +811,7 @@ class ContinuousParcellationMap(ParcellationMap):
                 reverse=True,
             )
         ]
-        return assignments
+        if len(assignments) == 1:
+            return assignments[0]
+        else:
+            return assignments
