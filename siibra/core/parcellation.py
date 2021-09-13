@@ -238,7 +238,7 @@ class Parcellation(
 
     @property
     def publications(self):
-        return self._publications + super(self).publications
+        return self._publications + super().publications
 
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
