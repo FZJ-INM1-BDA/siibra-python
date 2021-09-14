@@ -133,7 +133,6 @@ class CorticalCellDistribution(RegionalFeature):
         patch = self.image.get_fdata()
         space, xyz = self.coordinate
         tpl = space.get_template().fetch()
-        X, Y, A, L = [self.cells[:, i] for i in [0, 1, 2, 3]]
         fig = pyplot.figure(figsize=(12, 6))
         pyplot.suptitle(str(self))
         ax1 = pyplot.subplot2grid((1, 4), (0, 0))
@@ -142,7 +141,11 @@ class CorticalCellDistribution(RegionalFeature):
         ax1.imshow(patch, cmap="gray")
         ax2.axis("off")
         ax2.imshow(patch, cmap="gray")
-        ax2.scatter(X, Y, s=np.sqrt(A), c=L)
+        ax2.scatter(
+            self.cells['x'],
+            self.cells['y'],
+            s=np.sqrt(self.cells['area']),
+            c=self.cells['layer'])
         ax2.axis("off")
         view = plotting.plot_img(
             tpl, cut_coords=xyz, cmap="gray", axes=ax3, display_mode="tiled"
@@ -170,13 +173,13 @@ class RegionalCellDensityExtractor(FeatureQuery):
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
             cells = np.array(
                 [
-                    (float(w) for w in _.strip().split(" "))
+                    tuple(float(w) for w in _.strip().split(" "))
                     for _ in loader.data.strip().split("\n")[1:]
                 ],
                 dtype=[
                     ("x", "f"),
                     ("y", "f"),
-                    ("area (micron^2)", "f"),
+                    ("area", "f"),
                     ("layer", "<i8"),
                     ("instance label", "<i"),
                 ]
