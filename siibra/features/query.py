@@ -65,7 +65,7 @@ class FeatureQuery(ABC):
         """
         if isinstance(modality, str) and modality == 'all':
             querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
-        elif isinstance(modality, (list,tuple)):
+        elif isinstance(modality, (list, tuple)):
             querytypes = [FeatureQuery.REGISTRY[m] for m in modality]
         else:
             if not FeatureQuery.REGISTRY.provides(modality):
