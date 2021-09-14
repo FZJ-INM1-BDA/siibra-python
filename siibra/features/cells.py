@@ -170,8 +170,15 @@ class RegionalCellDensityExtractor(FeatureQuery):
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
             cells = np.array(
                 [
-                    [float(w) for w in _.strip().split(" ")]
+                    (float(w) for w in _.strip().split(" "))
                     for _ in loader.data.strip().split("\n")[1:]
+                ],
+                dtype=[
+                    ("x", "f"),
+                    ("y", "f"),
+                    ("area (micron^2)", "f"),
+                    ("layer", "<i8"),
+                    ("instance label", "<i"),
                 ]
             )
             self.register(
