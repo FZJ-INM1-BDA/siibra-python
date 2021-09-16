@@ -29,7 +29,7 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
     @property
     def url(self):
         return (
-            f"https://search.kg.ebrains.eu/instances/Dataset/{self.id.split('/')[-1]}"
+            f"https://search.kg.ebrains.eu/instances/{self.id.split('/')[-1]}"
         )
 
     def __str__(self):

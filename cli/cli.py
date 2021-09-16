@@ -78,6 +78,7 @@ def map(ctx, parcellation, space):
 
     import siibra as siibra
     atlas = siibra.atlases[ctx.obj['species']]
+    siibra.logger.info(f"Using atlas '{atlas.name}'.")
     try:
         parcobj = atlas.get_parcellation(parcellation)
     except IndexError:
@@ -128,8 +129,9 @@ def map(ctx, parcellation, space):
 def template(ctx, space):
     """Retrieve the template image for a given space"""
     outfile = ctx.obj["outfile"]
-    import siibra as siibra
+    import siibra
     atlas = siibra.atlases[ctx.obj['species']]
+    siibra.logger.info(f"Using atlas '{atlas.name}'.")
     spaceobj = atlas.get_space(space)
     tpl = atlas.get_template(spaceobj)
     click.echo(f"Loading template of {spaceobj.name} space.")
@@ -168,8 +170,9 @@ def find(ctx):
 @click.pass_context
 def region(ctx, region, parcellation, tree):
     """Find brain regions by name"""
-    import siibra as siibra
+    import siibra
     atlas = siibra.atlases[ctx.obj['species']]
+    siibra.logger.info(f"Using atlas '{atlas.name}'.")
     regionspec = " ".join(region)
     if parcellation is None:
         click.echo(f"Searching for region '{regionspec}' in all parcellations.")
@@ -212,6 +215,7 @@ def features(ctx, region, parcellation, match):
     import siibra
     siibra.commons.set_log_level("INFO")
     atlas = siibra.atlases[ctx.obj['species']]
+    siibra.logger.info(f"Using atlas '{atlas.name}'.")
     parcobj = atlas.get_parcellation(parcellation)
 
     regionspec = " ".join(region)
@@ -280,7 +284,7 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
     """
     import siibra
     atlas = siibra.atlases[ctx.obj['species']]
-
+    siibra.logger.info(f"Using atlas '{atlas.name}'.")
     parcobj = atlas.get_parcellation(parcellation)
     maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
     requested_space = atlas.get_space(space)
