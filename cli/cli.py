@@ -19,7 +19,6 @@
 import click
 import os
 
-
 # ---- Autocompletion
 
 
@@ -38,9 +37,16 @@ def complete_spaces(ctx, args, incomplete):
 
 @click.group()
 @click.pass_context
-def siibra(ctx):
+@click.option(
+    "-s",
+    "--species",
+    type=click.STRING,
+    default="human",
+    help="Species (human, rat, mouse)",
+)
+def siibra(ctx, species):
     """Command line interface to the siibra atlas toolsuite"""
-    ctx.obj = {}
+    ctx.obj = {'species':species}
 
 
 # ---- download files
@@ -71,24 +77,26 @@ def map(ctx, parcellation, space):
     """Retrieve a parcellation map in the given space"""
 
     import siibra as siibra
-
-    atlas = siibra.atlases["human"]
+    atlas = siibra.atlases[ctx.obj['species']]
     try:
-        atlas.select_parcellation(parcellation)
+        parcobj = atlas.get_parcellation(parcellation)
     except IndexError:
         print("Parcellation specification invalid.")
         exit(1)
-    parcobj = atlas.selected_parcellation
+    
     try:
-        spaceobj = siibra.spaces[space]
+        spaceobj = atlas.get_space(space)
     except IndexError:
         print("Space specification invalid.")
         exit(1)
     print(
-        f"Loading map of {atlas.selected_parcellation.name} in {spaceobj.name} space."
+        f"Loading map of {parcobj.name} in {spaceobj.name} space."
     )
     try:
-        parcmap = atlas.get_map(spaceobj, siibra.MapType.LABELLED)
+        parcmap = atlas.get_map(
+            space=spaceobj, 
+            parcellation=parcobj,
+            maptype=siibra.MapType.LABELLED)
     except ValueError as e:
         print(str(e) + ".")
         exit(1)
@@ -121,15 +129,16 @@ def template(ctx, space):
     """Retrieve the template image for a given space"""
     outfile = ctx.obj["outfile"]
     import siibra as siibra
-
-    spaceobj = siibra.spaces[space]
+    atlas = siibra.atlases[ctx.obj['species']]
+    spaceobj = atlas.get_space(space)
+    tpl = atlas.get_template(spaceobj)
     print(f"Loading template of {spaceobj.name} space.")
-    tpl = spaceobj.get_template().fetch()
+    img = tpl.fetch()
     suffix = ".nii.gz"
     fname = f"{spaceobj.key}{suffix}" if outfile is None else outfile
     if not fname.endswith(suffix) and not fname.endswith(".nii"):
         fname = f"{os.path.splitext(fname)[0]}{suffix}"
-    tpl.to_filename(fname)
+    img.to_filename(fname)
     print(f"Output written to {fname}.")
 
 
@@ -144,13 +153,7 @@ def find(ctx):
 
 
 @find.command()
-@click.argument("region", type=click.STRING)
-@click.option(
-    "-a",
-    "--all",
-    is_flag=True,
-    help="Whether to search region in all available parcellations",
-)
+@click.argument("region", type=click.STRING, nargs=-1)
 @click.option(
     "-p",
     "--parcellation",
@@ -158,33 +161,36 @@ def find(ctx):
     default=None,
     autocompletion=complete_parcellations,
 )
+@click.option(
+    "--tree/--no-tree",
+    default=False,
+)
 @click.pass_context
-def region(ctx, region, all, parcellation):
+def region(ctx, region, parcellation, tree):
     """Find brain regions by name"""
+    print("tree:",tree)
     import siibra as siibra
-
-    atlas = siibra.atlases["human"]
-    if parcellation is not None:
-        try:
-            atlas.select_parcellation(parcellation)
-        except IndexError:
-            print(
-                f"Cannot select {parcellation} as a parcellation; using default: {atlas.selected_parcellation}"
-            )
-    if all:
-        print(f"Searching for region '{region}' in all parcellations.")
+    print("parcellation:",parcellation)
+    atlas = siibra.atlases[ctx.obj['species']]
+    regionspec = " ".join(region)
+    if parcellation is None:
+        print(f"Searching for region '{regionspec}' in all parcellations.")
+        matches = atlas.find_regions(regionspec)
     else:
-        print(f"Searching for region '{region}' in {atlas.selected_parcellation}.")
-    matches = atlas.find_regions(region, all_parcellations=all)
+        parcobj = atlas.get_parcellation(parcellation)
+        print(f"Searching for region '{regionspec}' in {parcobj.name}.")
+        matches = parcobj.find_regions(regionspec)
+
     if len(matches) == 0:
-        print(f"No region found using the specification {region}.")
+        print(f"No region found using the specification {regionspec}.")
         exit(1)
     for i, m in enumerate(matches):
-        print(f"{i:5} - {m}")
+        txt = m.__repr__() if tree else m.name
+        print(f"{i:5} - {txt}")
 
 
 @find.command()
-@click.argument("region", type=click.STRING)
+@click.argument("region", type=click.STRING, nargs=-1)
 @click.option(
     "-p",
     "--parcellation",
@@ -206,44 +212,39 @@ def features(ctx, region, parcellation, match):
     # init siibra
     os.environ["SIIBRA_LOG_LEVEL"] = "WARN"
     import siibra
-
     siibra.commons.set_log_level("INFO")
-    atlas = siibra.atlases["human"]
-    if parcellation is not None:
-        try:
-            atlas.select_parcellation(parcellation)
-        except IndexError:
-            print(
-                f"Cannot select {parcellation} as a parcellation; using default: {atlas.selected_parcellation}"
-            )
+    atlas = siibra.atlases[ctx.obj['species']]
+    parcobj = atlas.get_parcellation(parcellation)
 
-    # select the requested region
+    regionspec = " ".join(region)
     try:
-        matched_region = atlas.select_region(region)
-    except ValueError as e:
-        print(str(e))
+        regionobj = atlas.get_region(regionspec, parcellation=parcobj)
+    except ValueError:
+        print(f'Cannot decode region specification "{regionspec}" for {parcobj.name}.')
         exit(1)
-    try:
-        features = atlas.get_features(siibra.modalities.EbrainsRegionalDataset)
-    except RuntimeError as e:
-        print(str(e))
-        exit(1)
-    if match is None:
-        print(f"{len(features)} features found.")
-    else:
+
+    features = siibra.get_features(regionobj, "ebrains")
+    if match is not None:
         N = len(features)
         features = list(filter(lambda f: match in f.name, features))
         print(
-            f"{N} features found for {matched_region.name}, {len(features)} matching the string '{match}'."
+            f"{N} features found for {regionobj.name}, {len(features)} matching the string '{match}'."
         )
+
+    if len(features) == 0:
+        print(f"No features found for {regionobj.name} in {parcobj.name}")
+        exit(1)
+
+    for i, m in enumerate(features):    
+        print(f"{i:5} - {m.name}")
+    
     if len(features) > 1:
-        for i, m in enumerate(features):
-            print(f"{i:5} - {m.name}")
         index = click.prompt(
-            "Chooose a feature?", type=click.IntRange(0, len(features))
+            "Choose a feature?", type=click.IntRange(0, len(features))
         )
     else:
         index = 0
+        
     print(features[index])
     if click.confirm("Open in browser?", default=True):
         click.launch(features[index].url)
@@ -284,9 +285,8 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
     """
     import siibra
     from siibra import logger
-
-    atlas = siibra.atlases["human"]
-    spaceobj = siibra.spaces[space]
+    atlas = siibra.atlases[ctx.obj['species']]
+    spaceobj = atlas.get_space(space)
     maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
     logger.info(f"Using {maptype} type maps for assignment.")
     assignments = atlas.assign_coordinates(

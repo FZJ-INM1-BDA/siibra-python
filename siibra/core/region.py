@@ -201,7 +201,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 {
                     r.parent
                     for r in filtered
-                    if all((c in filtered) for c in r.parent.children)
+                    if (r.parent is not None) and all((c in filtered) for c in r.parent.children)
                 }
             )
 
