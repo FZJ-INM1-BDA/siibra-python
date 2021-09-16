@@ -90,6 +90,9 @@ class Space(
                 for i, v in enumerate(point2)]
         return self.get_bounding_box(point1, point2)
 
+    def __lt__(self, other):
+        return self.type < other.type
+
     def get_bounding_box(self, point1, point2):
         """
         Get a volume of interest specification from this space.

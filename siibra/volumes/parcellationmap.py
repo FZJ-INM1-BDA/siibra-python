@@ -521,7 +521,6 @@ class LabelledParcellationMap(ParcellationMap):
         else:
             raise ValueError("assign_coordinates expects a Point or PointSet object.")
 
-        tpl = self.space.get_template().fetch()
         assignments = []
         N = len(self)
         msg = f"Assigning {len(coords)} points to {N} maps"
@@ -530,7 +529,7 @@ class LabelledParcellationMap(ParcellationMap):
             enumerate(self.maploaders), total=len(self), desc=msg, unit=" maps"
         ):
             lmap = loadfnc()
-            p2v = np.linalg.inv(tpl.affine)
+            p2v = np.linalg.inv(lmap.affine)
             A = lmap.get_fdata()
             for i, coord in enumerate(coords):
                 x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]

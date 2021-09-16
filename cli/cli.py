@@ -46,7 +46,7 @@ def complete_spaces(ctx, args, incomplete):
 )
 def siibra(ctx, species):
     """Command line interface to the siibra atlas toolsuite"""
-    ctx.obj = {'species':species}
+    ctx.obj = {'species': species}
 
 
 # ---- download files
@@ -81,24 +81,24 @@ def map(ctx, parcellation, space):
     try:
         parcobj = atlas.get_parcellation(parcellation)
     except IndexError:
-        print("Parcellation specification invalid.")
+        click.echo("Parcellation specification invalid.")
         exit(1)
-    
+
     try:
         spaceobj = atlas.get_space(space)
     except IndexError:
-        print("Space specification invalid.")
+        click.echo("Space specification invalid.")
         exit(1)
-    print(
+    click.echo(
         f"Loading map of {parcobj.name} in {spaceobj.name} space."
     )
     try:
         parcmap = atlas.get_map(
-            space=spaceobj, 
+            space=spaceobj,
             parcellation=parcobj,
             maptype=siibra.MapType.LABELLED)
     except ValueError as e:
-        print(str(e) + ".")
+        click.echo(str(e) + ".")
         exit(1)
 
     fname = ctx.obj["outfile"]
@@ -119,7 +119,7 @@ def map(ctx, parcellation, space):
         for i, img in enumerate(parcmap.fetchall()):
             fname_ = fname.replace(suffix, f"_{i}{suffix}")
             img.to_filename(fname_)
-            print(f"File {i+1} of {len(parcmap)} written to '{fname_}'.")
+            click.echo(f"File {i+1} of {len(parcmap)} written to '{fname_}'.")
 
 
 @get.command()
@@ -132,14 +132,14 @@ def template(ctx, space):
     atlas = siibra.atlases[ctx.obj['species']]
     spaceobj = atlas.get_space(space)
     tpl = atlas.get_template(spaceobj)
-    print(f"Loading template of {spaceobj.name} space.")
+    click.echo(f"Loading template of {spaceobj.name} space.")
     img = tpl.fetch()
     suffix = ".nii.gz"
     fname = f"{spaceobj.key}{suffix}" if outfile is None else outfile
     if not fname.endswith(suffix) and not fname.endswith(".nii"):
         fname = f"{os.path.splitext(fname)[0]}{suffix}"
     img.to_filename(fname)
-    print(f"Output written to {fname}.")
+    click.echo(f"Output written to {fname}.")
 
 
 # ---- Searching for things
@@ -168,25 +168,23 @@ def find(ctx):
 @click.pass_context
 def region(ctx, region, parcellation, tree):
     """Find brain regions by name"""
-    print("tree:",tree)
     import siibra as siibra
-    print("parcellation:",parcellation)
     atlas = siibra.atlases[ctx.obj['species']]
     regionspec = " ".join(region)
     if parcellation is None:
-        print(f"Searching for region '{regionspec}' in all parcellations.")
+        click.echo(f"Searching for region '{regionspec}' in all parcellations.")
         matches = atlas.find_regions(regionspec)
     else:
         parcobj = atlas.get_parcellation(parcellation)
-        print(f"Searching for region '{regionspec}' in {parcobj.name}.")
+        click.echo(f"Searching for region '{regionspec}' in {parcobj.name}.")
         matches = parcobj.find_regions(regionspec)
 
     if len(matches) == 0:
-        print(f"No region found using the specification {regionspec}.")
+        click.echo(f"No region found using the specification {regionspec}.")
         exit(1)
     for i, m in enumerate(matches):
         txt = m.__repr__() if tree else m.name
-        print(f"{i:5} - {txt}")
+        click.echo(f"{i:5} - {txt}")
 
 
 @find.command()
@@ -220,21 +218,20 @@ def features(ctx, region, parcellation, match):
     try:
         regionobj = atlas.get_region(regionspec, parcellation=parcobj)
     except ValueError:
-        print(f'Cannot decode region specification "{regionspec}" for {parcobj.name}.')
+        click.echo(f'Cannot decode region specification "{regionspec}" for {parcobj.name}.')
         exit(1)
 
     features = siibra.get_features(regionobj, "ebrains")
     if match is not None:
         N = len(features)
         features = list(filter(lambda f: match in f.name, features))
-        print(
+        click.echo(
             f"{N} features found for {regionobj.name}, {len(features)} matching the string '{match}'."
         )
 
     if len(features) == 0:
-        print(f"No features found for {regionobj.name} in {parcobj.name}")
+        click.echo(f"No features found for {regionobj.name} in {parcobj.name}")
         exit(1)
-
 
     if len(features) > 1:
         from simple_term_menu import TerminalMenu
@@ -242,8 +239,8 @@ def features(ctx, region, parcellation, match):
         index = menu.show()
     else:
         index = 0
-        
-    print(features[index])
+
+    click.echo(features[index])
     if click.confirm("Open in browser?", default=True):
         click.launch(features[index].url)
 
@@ -282,27 +279,35 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
     Note: To provide negative numbers, add "--" as the first argument after all options, ie. `siibra assign coordinate -- -3.2 4.6 -12.12`
     """
     import siibra
-    from siibra import logger
     atlas = siibra.atlases[ctx.obj['species']]
-    spaceobj = atlas.get_space(space)
+
+    parcobj = atlas.get_parcellation(parcellation)
     maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
-    logger.info(f"Using {maptype} type maps for assignment.")
-    assignments = atlas.assign_coordinates(
-        spaceobj, coordinate, maptype=maptype, sigma_mm=sigma_mm
-    )
+    requested_space = atlas.get_space(space)
+    location = siibra.Point(coordinate, space=requested_space)
+
+    assignments = []
+    for spaceobj in [requested_space] + list(atlas.spaces - requested_space):
+        try:
+            parcmap = atlas.get_map(parcellation=parcobj, space=spaceobj, maptype=maptype)
+            new = parcmap.assign_coordinates(location, sigma_mm=sigma_mm)
+            assignments.extend(new[0])
+        except (RuntimeError, ValueError):
+            continue
+
+        if len(assignments) > 0 and spaceobj == requested_space:
+            break
 
     if len(assignments) == 0:
-        click.echo(
-            click.style(
-                f"No assignment could be made to {coordinate} in {space}.", bold=True
-            )
-        )
-    for i, (region, _, scores) in enumerate(assignments[0]):
+        click.echo(f"No assignment could be made to {coordinate}.")
+        exit(1)
+
+    for i, (region, _, scores) in enumerate(assignments):
         if isinstance(scores, dict):
             if i == 0:
                 headers = "".join(f"{k:>12.12}" for k in scores.keys())
-                print(f"{'Scores':40.40} {headers}")
+                click.echo(f"{'Scores':40.40} {headers}")
             values = "".join(f"{v:12.2f}" for v in scores.values())
-            print(f"{region.name:40.40} {values}")
+            click.echo(f"{region.name:40.40} {values}")
         else:
-            print(region.name)
+            click.echo(region.name)

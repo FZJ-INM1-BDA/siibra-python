@@ -87,28 +87,28 @@ class Registry:
         self._elements[key] = value
 
     def __dir__(self):
-        """ List of all object keys in the registry """
+        """List of all object keys in the registry"""
         return self._elements.keys()
 
     def __str__(self):
         return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
 
     def __iter__(self):
-        """ Iterate over all objects in the registry """
+        """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
 
     def __contains__(self, key):
-        """ Test wether the given key is defined by the registry. """
+        """Test wether the given key is defined by the registry."""
         return (
             key in self._elements
         )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
 
     def __len__(self):
-        """ Return the number of elements in the registry """
+        """Return the number of elements in the registry"""
         return len(self._elements)
 
     def __getitem__(self, spec):
-        """ Give access to objects in the registry by sequential index,
+        """Give access to objects in the registry by sequential index,
         exact key, or keyword matching. If the keywords match multiple objects,
         the first in sorted order is returned. If the specification does not match,
         a RuntimeError is raised.
@@ -139,6 +139,17 @@ class Registry:
             logger.debug(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
             return largest
 
+    def __sub__(self, obj):
+        """
+        remove an object from the registry
+        """
+        if obj in self._elements.values():
+            return Registry(
+                self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
+            )
+        else:
+            return self
+
     def provides(self, spec):
         """
         Returns True if an element that matches the given specification can be found
@@ -159,14 +170,14 @@ class Registry:
             return [list(self._elements.values())[spec]]
         else:
             # string matching on values
-            matches = [
-                v for v in self._elements.values()
-                if self._matchfunc(v, spec)]
+            matches = [v for v in self._elements.values() if self._matchfunc(v, spec)]
             if len(matches) == 0:
                 # string matching on keys
                 matches = [
-                    self._elements[k] for k in self._elements.keys()
-                    if all(w.lower() in k.lower() for w in spec.split())]
+                    self._elements[k]
+                    for k in self._elements.keys()
+                    if all(w.lower() in k.lower() for w in spec.split())
+                ]
             return matches
 
     def __getattr__(self, index):
@@ -217,11 +228,9 @@ class MapType(Enum):
 
 
 def snake2camel(s: str):
-    """ Converts a string in snake_case into CamelCase.
-    For example: JULICH_BRAIN -> JulichBrain """
-    return "".join([
-        w[0].upper() + w[1:].lower()
-        for w in s.split('_')])
+    """Converts a string in snake_case into CamelCase.
+    For example: JULICH_BRAIN -> JulichBrain"""
+    return "".join([w[0].upper() + w[1:].lower() for w in s.split("_")])
 
 
 # getting nonzero pixels of pmaps is one of the most time consuming tasks when computing metrics,

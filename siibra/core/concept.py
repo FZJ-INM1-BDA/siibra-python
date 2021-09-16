@@ -186,6 +186,11 @@ class AtlasConcept:
         return [d for d in self.datasets if d.is_image_volume()]
 
     @property
+    def has_volumes(self):
+        """Returns True, if this concept can provide an image volume."""
+        return len(self.volumes) > 0
+
+    @property
     def infos(self):
         """
         List of available datasets representing additional information.
