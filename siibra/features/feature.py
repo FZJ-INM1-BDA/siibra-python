@@ -207,21 +207,28 @@ class RegionalFeature(Feature):
         True, if match was successful, otherwise False
         """
         self._match = None
+        spec = self.regionspec.lower()
         if isinstance(concept, Parcellation):
             logger.debug(f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}")
-            for match in concept.regiontree.find(self.regionspec):
+            for w in concept.key.split('_'):
+                spec = spec.replace(w.lower(), '')
+            for match in concept.regiontree.find(spec):
                 self._match = match
                 return True
         elif isinstance(concept, Region):
-            for match in concept.find(self.regionspec):
+            for w in concept.parcellation.key.split('_'):
+                spec = spec.replace(w.lower(), '')
+            for match in concept.find(spec):
                 self._match = match
                 return True
         elif isinstance(concept, Atlas):
             logger.debug(
                 "Matching regional features against a complete atlas. "
                 "This is not efficient and the query may take a while.")
+            for w in concept.key.split('_'):
+                spec = spec.replace(w.lower(), '')
             for p in concept.parcellations:
-                for match in p.regiontree.find(self.regionspec):
+                for match in p.regiontree.find(spec):
                     self._match = match
                     return True
         else:
