@@ -235,13 +235,11 @@ def features(ctx, region, parcellation, match):
         print(f"No features found for {regionobj.name} in {parcobj.name}")
         exit(1)
 
-    for i, m in enumerate(features):    
-        print(f"{i:5} - {m.name}")
-    
+
     if len(features) > 1:
-        index = click.prompt(
-            "Choose a feature?", type=click.IntRange(0, len(features))
-        )
+        from simple_term_menu import TerminalMenu
+        menu = TerminalMenu(f.name for f in features)
+        index = menu.show()
     else:
         index = 0
         

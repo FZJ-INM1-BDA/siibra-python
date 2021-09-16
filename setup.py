@@ -56,5 +56,6 @@ setup(
         "memoization",
         "cloud-volume",
         "nilearn",
+        "simple-term-menu",
     ],
 )

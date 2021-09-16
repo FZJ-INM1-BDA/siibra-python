@@ -13,3 +13,4 @@ statsmodels
 cloud-volume
 memoization
 nilearn
+simple-term-menu
