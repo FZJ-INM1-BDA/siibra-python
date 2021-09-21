@@ -26,6 +26,8 @@ from nibabel import Nifti1Image
 from nibabel.affines import apply_affine
 import json
 from urllib.parse import quote
+from os import path
+import numbers
 
 
 @provide_registry
@@ -201,6 +203,30 @@ class Location(ABC):
                 f"[{','.join(str(l) for l in iter(self))}]"
             )
 
+    @classmethod
+    def from_sands(cls, spec):
+        """ Try to build a location object from an openMINDS/SANDS specification. """
+        if isinstance(spec, str):
+            if path.isfile(spec):
+                with open(spec, 'r') as f:
+                    obj = json.load(f)
+            else:
+                obj = json.loads(spec)
+        elif isinstance(spec, dict):
+            obj = spec
+        else:
+            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
+
+        if obj['@type'] == "https://openminds.ebrains.eu/sands/CoordinatePoint":
+            return Point.from_sands(obj)
+        elif obj['@type'] == "tmp/poly":
+            return PointSet.from_sands(obj)
+        else:
+            raise NotImplementedError(
+                "Building location objects from openMINDS/Sands "
+                f"type {obj['@type']} is not yet supported."
+            )
+
 
 class WholeBrain(Location):
     """
@@ -276,7 +302,7 @@ class Point(Location):
             return spec.coordinate
         else:
             raise ValueError(
-                f"Cannot decode the specification {spec} (type {type(spec)}, len {len(spec)}, element type {type(spec[0])}) into a 3D coordinate tuple"
+                f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
             )
 
     def __init__(self, coordinatespec, space: Space):
@@ -350,7 +376,15 @@ class Point(Location):
 
     def __sub__(self, other):
         """ Substract the coordinates of two points to get
-        a new point representing the offset vector. """
+        a new point representing the offset vector. Alternatively,
+        subtract an integer from the all coordinates of this point
+        to create a new one."""
+        if isinstance(other, numbers.Number):
+            return Point(
+                [c - other for c in self.coordinate],
+                self.space
+            )
+
         assert(self.space == other.space)
         return Point(
             [
@@ -361,6 +395,11 @@ class Point(Location):
     def __add__(self, other):
         """ Add the coordinates of two points to get
         a new point representing. """
+        if isinstance(other, numbers.Number):
+            return Point(
+                [c + other for c in self.coordinate],
+                self.space
+            )
         assert(self.space == other.space)
         return Point(
             [
@@ -407,6 +446,39 @@ class Point(Location):
         """ Index access to the coefficients of this point. """
         assert(0 <= index < 3)
         return self.coordinate[index]
+
+    @classmethod
+    def from_sands(cls, spec):
+        """ Generate a point from an openMINDS/SANDS specification,
+        given as a dictionary, json string, or json filename. """
+
+        if isinstance(spec, str):
+            if path.isfile(spec):
+                with open(spec, 'r') as f:
+                    obj = json.load(f)
+            else:
+                obj = json.loads(spec)
+        elif isinstance(spec, dict):
+            obj = spec
+        else:
+            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
+
+        assert(obj['@type'] == "https://openminds.ebrains.eu/sands/CoordinatePoint")
+
+        # require space spec
+        space_id = obj['coordinateSpace']['@id']
+        assert(Space.REGISTRY.provides(space_id))
+
+        # require a 3D point spec for the coordinates
+        assert(all(
+            c["unit"]["@id"] == "id.link/mm"
+            for c in obj['coordinates']))
+
+        # build the Point
+        return cls(
+            list(np.float16(c["value"]) for c in obj['coordinates']),
+            space=Space.REGISTRY[space_id]
+        )
 
     def bigbrain_section(self):
         """
@@ -493,6 +565,53 @@ class PointSet(Location):
         """ The number of points in this PointSet. """
         return len(self.coordinates)
 
+    @classmethod
+    def from_sands(cls, spec):
+        """ Generate a point set from an openMINDS/SANDS specification,
+        given as a dictionary, json string, or json filename. """
+
+        if isinstance(spec, str):
+            if path.isfile(spec):
+                with open(spec, 'r') as f:
+                    obj = json.load(f)
+            else:
+                obj = json.loads(spec)
+        elif isinstance(spec, dict):
+            obj = spec
+        else:
+            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
+
+        assert(obj['@type'] == "tmp/poly")
+
+        # require space spec
+        space_id = obj['coordinateSpace']['@id']
+        assert(Space.REGISTRY.provides(space_id))
+
+        # require mulitple 3D point specs
+        coords = []
+        for coord in obj['coordinates']:
+            assert(all(c["unit"]["@id"] == "id.link/mm" for c in coord))
+            coords.append(list(np.float16(c["value"]) for c in coord))
+
+        # build the Point
+        return cls(coords, space=Space.REGISTRY[space_id])
+
+    @property
+    def boundingbox(self):
+        """ Return the bounding box of these points."""
+        XYZ = self.homogeneous[:, :3]
+        return BoundingBox(
+            point1=XYZ.min(0),
+            point2=XYZ.max(0),
+            space=self.space
+        )
+
+    @property
+    def centroid(self):
+        return Point(
+            self.homogeneous[:, :3].mean(0),
+            space=self.space)
+
     @property
     def homogeneous(self):
         """ Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
@@ -533,8 +652,8 @@ class BoundingBox(Location):
         Return the bounding box as a cloudvolume Bbox object,
         with rounded integer coordinates. """
         return Bbox(
-            [int(v + .5) for v in self.minpoint.coordinate],
-            [int(v + .5) for v in self.maxpoint.coordinate]
+            [int(v) for v in self.minpoint.coordinate],
+            [int(v + 1) for v in self.maxpoint.coordinate]
         )
 
     @property
@@ -544,6 +663,14 @@ class BoundingBox(Location):
     @property
     def center(self):
         return self.minpoint + (self.maxpoint - self.minpoint) / 2
+
+    @property
+    def shape(self):
+        return tuple(self.maxpoint - self.minpoint)
+
+    @property
+    def is_planar(self):
+        return any(d == 0 for d in self.shape)
 
     @staticmethod
     def _determine_bounds(A):
@@ -692,7 +819,7 @@ class BoundingBox(Location):
         return self.__class__(
             point1=self.minpoint.transform(affine, space),
             point2=self.maxpoint.transform(affine, space),
-            space=space
+            space=space,
         )
 
     def __iter__(self):

@@ -444,12 +444,13 @@ class NeuroglancerVolume(
             f"Loading neuroglancer data at a resolution of {effective_res_mm} mm (mip={mip})"
         )
 
+        maxdims = tuple(np.array(self.volume.mip_shape(mip)[:3]) - 1)
         if voi is not None:
             bbox_vox = voi.transform(
-                np.linalg.inv(self.build_affine(effective_res_mm))
-            )
+                np.linalg.inv(self.build_affine(effective_res_mm)),
+            ).clip(maxdims)
         else:
-            bbox_vox = BoundingBox([0, 0, 0], self.volume.mip_shape(mip), space=None)
+            bbox_vox = BoundingBox([0, 0, 0], maxdims, space=None)
 
         # estimate size and check feasibility
         gbytes = bbox_vox._Bbox.volume() * self.nbytes / (1024 ** 3)
@@ -501,10 +502,14 @@ class NeuroglancerVolume(
             raise NotImplementedError(
                 f"NgVolume does not support access by map index (but {mapindex} was given)"
             )
-        return Nifti1Image(
-            self._load_data(resolution_mm=resolution_mm, voi=voi).squeeze(),
-            affine=self.build_affine(resolution_mm=resolution_mm, voi=voi),
-        )
+        data = self._load_data(resolution_mm=resolution_mm, voi=voi)
+
+        if data.ndim == 4:
+            data = data.squeeze(axis=3)
+        if data.ndim == 2:
+            data = data.reshape(list(data.shape) + [1])
+
+        return Nifti1Image(data, self.build_affine(resolution_mm=resolution_mm, voi=voi))
 
     def get_shape(self, resolution_mm=None):
         mip = self._resolution_to_mip(resolution_mm, voi=None)
