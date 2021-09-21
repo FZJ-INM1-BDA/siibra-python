@@ -373,11 +373,13 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         for mapindex, img in enumerate(
                             labelmap.fetchall(resolution_mm=resolution_mm)
                         ):
-                            if (r.index.map is None) or (r.index.map == mapindex):
-                                if mask is None:
-                                    mask = np.zeros(img.get_fdata().shape, dtype="uint8")
-                                    affine = img.affine
-                                mask[img.get_fdata() == r.index.label] = 1
+                            actual_region = labelmap.regions.get(r.index)
+                            if actual_region == r:
+                                if (r.index.map is None) or (r.index.map == mapindex):
+                                    if mask is None:
+                                        mask = np.zeros(img.get_fdata().shape, dtype="uint8")
+                                        affine = img.affine
+                                    mask[img.get_fdata() == r.index.label] = 1
 
                     else:
                         try:
@@ -394,7 +396,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         if mask is None:
             raise RuntimeError(
-                f"Could not compute mask for {self.region.name} in {space.name}."
+                f"Could not compute mask for {self.name} in {space}."
             )
         else:
             return nib.Nifti1Image(dataobj=mask.squeeze(), affine=affine)
