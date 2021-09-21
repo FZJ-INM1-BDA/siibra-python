@@ -29,7 +29,6 @@ def _check_envs():
 def _build_request_object():
     request_template = Template('grant_type=client_credentials&client_id=${CLIENT_ID}&client_secret=${CLIENT_SECRET}')
     result = request_template.substitute(
-                REFRESH_TOKEN = os.environ[REFRESH_TOKEN_env],
                 CLIENT_ID = os.environ[CLIENT_ID_env],
                 CLIENT_SECRET = os.environ[CLIENT_SECRET_env]
             )
