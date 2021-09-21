@@ -156,11 +156,6 @@ class Parcellation(
                 self._datasets_cached = []
             self._datasets_cached.extend(maps)
 
-        # If set, thresholded continuous maps will be preferred
-        # over static labelled maps for building and using region masks.
-        # This will influence the shape of region masks used for filtering.
-        self.continuous_map_threshold = None
-
     @property
     def regiontree(self):
         if self._regiontree_cached is None:

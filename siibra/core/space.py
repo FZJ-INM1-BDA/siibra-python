@@ -693,7 +693,10 @@ class BoundingBox(Location):
     @classmethod
     def from_image(cls, image: Nifti1Image, space: Space):
         """ Construct a bounding box from a nifti image """
-        coords = np.dot(image.affine, cls._determine_bounds(image.get_fdata()))
+        bounds = cls._determine_bounds(image.get_fdata())
+        if bounds is None:
+            return None
+        coords = np.dot(image.affine, bounds)
         return cls(point1=coords[:3, 0], point2=coords[:3, 1], space=space)
 
     def __str__(self):

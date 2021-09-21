@@ -32,6 +32,7 @@ from .core.space import Location as _
 from_sands = _.from_sands
 set_ebrains_token = EbrainsRequest.set_token
 
+
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
     volume.gbyte_feasible = maxsize_gbyte

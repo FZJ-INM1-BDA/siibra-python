@@ -123,6 +123,8 @@ class SpatialFeature(Feature):
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
 
+        TODO this could use parameters for continuous maps, thresholding and resolution
+
         Parameters:
         -----------
         concept : AtlasConcept

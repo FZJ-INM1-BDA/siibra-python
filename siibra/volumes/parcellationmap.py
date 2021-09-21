@@ -680,7 +680,7 @@ class ContinuousParcellationMap(ParcellationMap):
             pindex = ParcellationIndex(map=i, label=None)
             self._regions_cached[pindex] = region
             i += 1
-        logger.info(f"{i} regional continuous maps found for {self.parcellation}.")
+        logger.info(f"{i} regional continuous maps found for {self.parcellation} in {self.space.name}.")
 
     @cached
     def assign_coordinates(self, point: Union[Point, PointSet], sigma_mm=1, sigma_truncation=3):

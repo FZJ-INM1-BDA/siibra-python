@@ -41,6 +41,7 @@ class Dataset:
             Dataset.REGISTRY[type_id] = cls
         cls.type_id = type_id
 
+    @property
     def is_image_volume(self):
         """Overwritten by derived dataset classes in the siibra.volumes"""
         return False

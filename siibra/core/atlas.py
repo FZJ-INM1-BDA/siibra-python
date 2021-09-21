@@ -39,7 +39,6 @@ class Atlas(
 
         self._parcellations = []  # add with _add_parcellation
         self._spaces = []  # add with _add_space
-        self.continuous_map_threshold = None
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
@@ -91,15 +90,6 @@ class Atlas(
                 atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
             return atlas
         return obj
-
-    def threshold_continuous_maps(self, threshold):
-        """
-        Inform the atlas that thresholded continuous maps should be preferred
-        over static labelled maps for building and using region masks.
-        This will, for example, influence spatial filtering of coordinate-based
-        features in the get_features() method.
-        """
-        self.continuous_map_threshold = threshold
 
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.
