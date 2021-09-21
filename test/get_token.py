@@ -16,9 +16,6 @@ def _check_envs():
         if HBP_TOKEN_env not in os.environ:
             raise Exception("HBP_AUTH_TOKEN not set")
     else:
-        if REFRESH_TOKEN_env not in os.environ:
-            raise Exception("Refresh token not set")
-
         if CLIENT_ID_env not in os.environ:
             raise Exception("Client ID not set")
 
