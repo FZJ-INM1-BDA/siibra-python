@@ -207,6 +207,18 @@ class RegionalFeature(Feature):
         True, if match was successful, otherwise False
         """
         self._match = None
+
+        # regionspec might be a specific region, then we can
+        # directly test for the object.
+        if isinstance(self.regionspec, Region):
+            if isinstance(concept, Parcellation):
+                return self.regionspec in concept
+            elif isinstance(concept, Region):
+                return self.regionspec == concept
+            elif isinstance(concept, Atlas):
+                return any(self.regionspec in p for p in concept.parcellations)
+
+        # otherwise, it is a string and we need to match explicitely.
         spec = self.regionspec.lower()
         if isinstance(concept, Parcellation):
             logger.debug(f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}")
@@ -215,12 +227,14 @@ class RegionalFeature(Feature):
             for match in concept.regiontree.find(spec):
                 self._match = match
                 return True
+
         elif isinstance(concept, Region):
             for w in concept.parcellation.key.split('_'):
                 spec = spec.replace(w.lower(), '')
             for match in concept.find(spec):
                 self._match = match
                 return True
+
         elif isinstance(concept, Atlas):
             logger.debug(
                 "Matching regional features against a complete atlas. "
