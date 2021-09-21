@@ -87,6 +87,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
     def get_url(self):
         return self.url
 
+    @property
     def is_image_volume(self):
         return True
 
@@ -117,7 +118,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             "zipped_file": obj.get("zipped_file", None),
         }
         if VolumeClass == cls:
-            logger.warning(f"Volume will be generated as plain VolumeSrc: {obj}")
+            logger.error(f"Volume will be generated as plain VolumeSrc: {obj}")
         result = VolumeClass(
             identifier=obj["@id"],
             name=obj["name"],
@@ -189,6 +190,7 @@ class LocalNiftiVolume(ImageProvider):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
+    @property
     def is_image_volume(self):
         return True
 
@@ -582,6 +584,33 @@ class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
 
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False
+
+
+class GiftiSurface(VolumeSrc, volume_type="threesurfer/gii"):
+    """
+    TODO Implement this, surfaces need special handling
+    """
+
+    warning_shown = False
+
+    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+        if not self.__class__.warning_shown:
+            logger.info(
+                f"A {self.__class__.__name__} object was registered, "
+                "but this type is not yet explicitly supported."
+            )
+            self.__class__.warning_shown = True
+        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False
+
 
 class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
     """
@@ -598,3 +627,8 @@ class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
             )
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False
