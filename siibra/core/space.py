@@ -760,6 +760,16 @@ class BoundingBox(Location):
             space=self.space,
         )
 
+    def clip(self, xyzmax, xyzmin=(0, 0, 0)):
+        """ Returns a new bounding box obtained by clippin at the given maximum coordinate. """
+        return self.intersection(
+            BoundingBox(
+                Point(xyzmin, self.space),
+                Point(xyzmax, self.space),
+                self.space
+            )
+        )
+
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
         of the given mask is inside the boundding box.
