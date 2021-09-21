@@ -437,6 +437,17 @@ class Point(Location):
             logger.warning(f"Homogeneous coordinate is not one: {h}")
         return self.__class__((x / h, y / h, z / h), space)
 
+    def get_enclosing_cube(self, width_mm):
+        """
+        Create a bounding box centered around this point with the given width.
+        """
+        offset = width_mm / 2
+        return BoundingBox(
+            point1=self - offset,
+            point2=self + offset,
+            space=self.space,
+        )
+
     def __iter__(self):
         """ Return an iterator over the location,
         so the Point can be easily cast to list or tuple. """

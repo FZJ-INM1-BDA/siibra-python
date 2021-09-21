@@ -14,9 +14,16 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import Space, Point, BoundingBox
+from .space import PointSet, Space, Point, BoundingBox
 
-from ..commons import logger, Registry, ParcellationIndex, MapType, compare_maps
+from ..commons import (
+    logger,
+    Registry,
+    ParcellationIndex,
+    MapType,
+    compare_maps,
+    affine_scaling,
+)
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -335,7 +342,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
             logger.info(
                 f"Extracting mask for {self.name} in {spaceobj.name} by "
-                f"thresholding continuous map at {threshold_continuous}.")
+                f"thresholding continuous map at {threshold_continuous}."
+            )
             regionmap = self.get_regional_map(space, MapType.CONTINUOUS)
             pmap = None
             if regionmap is None:
@@ -418,7 +426,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
                             continue
 
         if mask is None:
-            raise RuntimeError(f"Could not compute mask for {self.name} in {spaceobj.name}.")
+            raise RuntimeError(
+                f"Could not compute mask for {self.name} in {spaceobj.name}."
+            )
         else:
             return nib.Nifti1Image(dataobj=mask.squeeze(), affine=affine)
 
@@ -615,6 +625,45 @@ class Region(anytree.NodeMixin, AtlasConcept):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
+    def find_peaks(self, space: Space, min_distance_mm=5):
+        """
+        Find peaks of the region's continuous map in the given space, if any.
+
+        Arguments:
+        ----------
+        space : Space
+            requested reference space
+        min_distance_mm : float
+            Minimum distance between peaks in mm
+
+        Returns:
+        --------
+        peaks: PointSet
+        pmap: continuous map
+        """
+        spaceobj = Space.REGISTRY[space]
+        pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
+        if pmap is None:
+            logger.warn(
+                f"No continuous map found for {self.name} in {spaceobj.name}, "
+                "cannot compute peaks."
+            )
+            return PointSet([], space)
+
+        from skimage.feature.peak import peak_local_max
+
+        img = pmap.fetch()
+        dist = int(min_distance_mm / affine_scaling(img.affine) + .5)
+        voxels = peak_local_max(
+            img.get_fdata(),
+            exclude_border=False,
+            min_distance=dist,
+        )
+        return PointSet(
+            [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
+            space=spaceobj,
+        ), img
+
     @cached
     def spatial_props(
         self,
@@ -655,12 +704,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         pimg = self.build_mask(space)
 
         # determine scaling factor from voxels to cube mm
-        orig = np.dot(pimg.affine, [0, 0, 0, 1])
-        unit_lengths = []
-        for vec in np.identity(3):
-            vec_phys = np.dot(pimg.affine, np.r_[vec, 1])
-            unit_lengths.append(np.linalg.norm(orig - vec_phys))
-        scale = np.prod(unit_lengths)
+        scale = affine_scaling(pimg.affine)
 
         # compute properties of labelled volume
         A = np.asarray(pimg.get_fdata(), dtype=np.int32).squeeze()

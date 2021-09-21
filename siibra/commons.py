@@ -245,6 +245,16 @@ def nonzero_coordinates(arr):
     return NZCACHE[obj_id]
 
 
+def affine_scaling(affine):
+    """Estimate approximate isotropic scaling factor of an affine matrix. """
+    orig = np.dot(affine, [0, 0, 0, 1])
+    unit_lengths = []
+    for vec in np.identity(3):
+        vec_phys = np.dot(affine, np.r_[vec, 1])
+        unit_lengths.append(np.linalg.norm(orig - vec_phys))
+    return np.prod(unit_lengths)
+
+
 def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     """
     Compare two maps, given as Nifti1Image objects.
