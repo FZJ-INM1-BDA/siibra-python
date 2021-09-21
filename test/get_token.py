@@ -49,7 +49,7 @@ def get_token():
         except json.JSONDecodeError as error:
             print("invalid json: %s" % error)
             raise Exception("Invalid response from OIDC")
-        
+
         if 'error' in token:
             raise Exception(token['error_description'])
     else:
