@@ -478,6 +478,8 @@ class LabelledParcellationMap(ParcellationMap):
             )
             if not mask_:
                 continue
+            if np.prod(mask_.shape) == 0:
+                continue
             # build up the aggregated mask with labelled indices
             if mask_.shape != tpl.shape:
                 mask = image.resample_to_img(mask_, tpl, interpolation="nearest")

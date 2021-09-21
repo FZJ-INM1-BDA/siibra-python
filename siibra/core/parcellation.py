@@ -17,7 +17,7 @@ from .space import Space
 from .region import Region
 from .concept import AtlasConcept, provide_registry
 
-from ..commons import logger, MapType, ParcellationIndex
+from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import parcellationmap
 
 from typing import Union
@@ -231,6 +231,13 @@ class Parcellation(
         Return true if this parcellation supports the given space, else False.
         """
         return space in self.supported_spaces
+
+    @property
+    def spaces(self):
+        return Registry(
+            matchfunc=Space.matches,
+            elements={s.key: s for s in self.supported_spaces},
+        )
 
     @property
     def is_newest_version(self):

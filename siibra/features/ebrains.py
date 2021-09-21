@@ -45,7 +45,7 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
 class EbrainsRegionalFeatureQuery(FeatureQuery):
     _FEATURETYPE = EbrainsRegionalDataset
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
 
         FeatureQuery.__init__(self)
 

@@ -28,6 +28,8 @@ import os
 import json
 from abc import ABC, abstractmethod
 
+gbyte_feasible = 0.1
+
 
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
 
@@ -285,7 +287,6 @@ class NeuroglancerVolume(
 
     # Gigabyte size that is considered feasible for ad-hoc downloads of
     # neuroglancer volume data. This is used to avoid accidental huge downloads.
-    gbyte_feasible = 0.5
     _cached_volume = None
 
     def __init__(
@@ -345,7 +346,7 @@ class NeuroglancerVolume(
                 [
                     res
                     for res, v in self.resolutions_available.items()
-                    if v["GBytes"] < self.gbyte_feasible
+                    if v["GBytes"] < gbyte_feasible
                 ]
             )
         else:
@@ -357,7 +358,7 @@ class NeuroglancerVolume(
                 / (1024 ** 3)
                 for res_mm in self.resolutions_available.keys()
             }
-            return min([res for res, gb in gbytes.items() if gb < self.gbyte_feasible])
+            return min([res for res, gb in gbytes.items() if gb < gbyte_feasible])
 
     def _resolution_to_mip(self, resolution_mm, voi):
         """
@@ -377,7 +378,11 @@ class NeuroglancerVolume(
         elif resolution_mm == -1:
             maxres = self.largest_feasible_resolution(voi=voi)
             mip = self.resolutions_available[maxres]["mip"]
-            logger.info(f"Using largest feasible resolution of {maxres} mm (mip={mip})")
+            if mip > 0:
+                logger.info(
+                    f"Due to the size of the volume requested, "
+                    f"a reduced resolution of {maxres}mm is used "
+                    f"(full resolution: {self.mip_resolution_mm[0]}mm).")
         elif resolution_mm in self.resolutions_available:
             mip = self.resolutions_available[resolution_mm]["mip"]
         if mip is None:
@@ -445,20 +450,24 @@ class NeuroglancerVolume(
         )
 
         maxdims = tuple(np.array(self.volume.mip_shape(mip)[:3]) - 1)
-        if voi is not None:
+        if voi is None:
+            bbox_vox = BoundingBox([0, 0, 0], maxdims, space=None)
+        else:
             bbox_vox = voi.transform(
                 np.linalg.inv(self.build_affine(effective_res_mm)),
             ).clip(maxdims)
-        else:
-            bbox_vox = BoundingBox([0, 0, 0], maxdims, space=None)
+
+        if bbox_vox is None:
+            # zero size bounding box, return empty array
+            return np.empty((0, 0, 0))
 
         # estimate size and check feasibility
         gbytes = bbox_vox._Bbox.volume() * self.nbytes / (1024 ** 3)
-        if gbytes > NeuroglancerVolume.gbyte_feasible:
+        if gbytes > gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
             logger.error(
                 "Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(
-                    gbytes, self.gbyte_feasible
+                    gbytes, gbyte_feasible
                 )
             )
             print(self.helptext)
@@ -482,7 +491,7 @@ class NeuroglancerVolume(
             except OutOfBoundsError as e:
                 logger.error("Bounding box does not match image.")
                 print(str(e))
-                return None
+                return np.empty((0, 0, 0))
 
     def fetch(self, resolution_mm=None, voi=None, mapindex=None, clip=False):
         """

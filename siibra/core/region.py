@@ -555,9 +555,22 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Returns:
             BoundingBox
         """
-        return BoundingBox.from_image(
-            self.build_mask(space, maptype=maptype),
-            space=space)
+        spaceobj = Space.REGISTRY[space]
+        try:
+            mask = self.build_mask(spaceobj, maptype=maptype)
+            return BoundingBox.from_image(mask, space=spaceobj)
+        except RuntimeError:
+            for other_space in self.parcellation.spaces - spaceobj:
+                try:
+                    mask = self.build_mask(other_space, maptype=maptype)
+                    logger.warn(
+                        f"Could not compute bounding box for {self.name} in {spaceobj.name}, "
+                        f"Will warp the bounding box from {other_space.name} instead.")
+                    return BoundingBox.from_image(mask, space=other_space).warp(spaceobj)
+                except RuntimeError:
+                    continue
+        logger.error(f"Could not compute bounding box for {self.name}.")
+        return None
 
     @cached
     def spatial_props(self, space: Space):
