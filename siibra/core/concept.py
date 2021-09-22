@@ -127,6 +127,10 @@ class AtlasConcept:
         if bootstrap_folder is not None:
             cls._bootstrap_folder = bootstrap_folder
 
+    def add_dataset(self, dataset: Dataset):
+        """ Explictly add another dataset object to this atlas concept. """
+        self._datasets_cached.append(dataset)
+
     def _populate_datasets(self):
         self._datasets_cached = []
         for spec in self._dataset_specs:
@@ -179,7 +183,35 @@ class AtlasConcept:
         """
         The list of available datasets representing image volumes.
         """
-        return [d for d in self.datasets if d.is_image_volume()]
+        return [d for d in self.datasets if d.is_image_volume]
+
+    @property
+    def has_volumes(self):
+        """Returns True, if this concept can provide an image volume."""
+        return len(self.volumes) > 0
+
+    @property
+    def infos(self):
+        """
+        List of available datasets representing additional information.
+        """
+        return [d for d in self.datasets if not d.is_image_volume]
+
+    @property
+    def publications(self):
+        """List of publications found in info datasets."""
+        result = []
+        for info in self.infos:
+            result.extend(info.publications)
+        return result
+
+    @property
+    def descriptions(self):
+        """List of descriptions found in info datasets."""
+        result = []
+        for info in self.infos:
+            result.append(info.description)
+        return result
 
     @property
     def supported_spaces(self):

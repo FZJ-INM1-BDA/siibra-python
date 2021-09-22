@@ -16,18 +16,24 @@
 from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__ = "0.2a1"
+__version__ = "0.2a5"
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-
 from .core import spaces, parcellations, atlases
 from .features import modalities, gene_names, get_features
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest
 from .core import Point, PointSet, BoundingBox
-
+from .core.space import Location as _
+from_sands = _.from_sands
 set_ebrains_token = EbrainsRequest.set_token
+
+
+def set_feasible_download_size(maxsize_gbyte):
+    from .volumes import volume
+    volume.gbyte_feasible = maxsize_gbyte
+    logger.info(f"Set feasible download size to {maxsize_gbyte} GByte.")

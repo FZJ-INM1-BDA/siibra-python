@@ -21,12 +21,14 @@ from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
 import numpy as np
-import nibabel as nib
+from nibabel import Nifti1Image
 from cloudvolume.exceptions import OutOfBoundsError
 from cloudvolume import CloudVolume
 import os
 import json
 from abc import ABC, abstractmethod
+
+gbyte_feasible = 0.1
 
 
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
@@ -85,6 +87,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
     def get_url(self):
         return self.url
 
+    @property
     def is_image_volume(self):
         return True
 
@@ -115,7 +118,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             "zipped_file": obj.get("zipped_file", None),
         }
         if VolumeClass == cls:
-            logger.warning(f"Volume will be generated as plain VolumeSrc: {obj}")
+            logger.error(f"Volume will be generated as plain VolumeSrc: {obj}")
         result = VolumeClass(
             identifier=obj["@id"],
             name=obj["name"],
@@ -163,7 +166,36 @@ class ImageProvider(ABC):
         return len(self.get_shape()) == 4
 
 
-class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
+class LocalNiftiVolume(ImageProvider):
+
+    volume_type = 'nii'
+
+    def __init__(self, name: str, img: Nifti1Image, space: Space):
+        """ Create a new local nifti volume from a Nifti1Image object.
+
+        Args:
+            name ([str]): A human-readable name
+            img (Nifti1Image): 3D image
+            space (Space): the reference space associated with the Image
+        """
+        self.image = img
+        self.space = space
+
+    def fetch(self, **kwargs):
+        return self.image
+
+    def get_shape(self):
+        return self.image.shape
+
+    def is_float(self):
+        return self.image.dataobj.dtype.kind == "f"
+
+    @property
+    def is_image_volume(self):
+        return True
+
+
+class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
 
     _image_cached = None
 
@@ -211,7 +243,7 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
                 f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}."
             )
         else:
-            img = nib.Nifti1Image(
+            img = Nifti1Image(
                 dataobj=self.image.dataobj[:, :, :, mapindex], affine=self.image.affine
             )
         assert img is not None
@@ -227,7 +259,7 @@ class NiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
-            img = nib.Nifti1Image(
+            img = Nifti1Image(
                 dataobj=img.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(img.affine, shift),
             )
@@ -257,7 +289,6 @@ class NeuroglancerVolume(
 
     # Gigabyte size that is considered feasible for ad-hoc downloads of
     # neuroglancer volume data. This is used to avoid accidental huge downloads.
-    gbyte_feasible = 0.5
     _cached_volume = None
 
     def __init__(
@@ -317,7 +348,7 @@ class NeuroglancerVolume(
                 [
                     res
                     for res, v in self.resolutions_available.items()
-                    if v["GBytes"] < self.gbyte_feasible
+                    if v["GBytes"] < gbyte_feasible
                 ]
             )
         else:
@@ -329,7 +360,7 @@ class NeuroglancerVolume(
                 / (1024 ** 3)
                 for res_mm in self.resolutions_available.keys()
             }
-            return min([res for res, gb in gbytes.items() if gb < self.gbyte_feasible])
+            return min([res for res, gb in gbytes.items() if gb < gbyte_feasible])
 
     def _resolution_to_mip(self, resolution_mm, voi):
         """
@@ -349,7 +380,11 @@ class NeuroglancerVolume(
         elif resolution_mm == -1:
             maxres = self.largest_feasible_resolution(voi=voi)
             mip = self.resolutions_available[maxres]["mip"]
-            logger.info(f"Using largest feasible resolution of {maxres} mm (mip={mip})")
+            if mip > 0:
+                logger.info(
+                    f"Due to the size of the volume requested, "
+                    f"a reduced resolution of {maxres}mm is used "
+                    f"(full resolution: {self.mip_resolution_mm[0]}mm).")
         elif resolution_mm in self.resolutions_available:
             mip = self.resolutions_available[resolution_mm]["mip"]
         if mip is None:
@@ -416,20 +451,25 @@ class NeuroglancerVolume(
             f"Loading neuroglancer data at a resolution of {effective_res_mm} mm (mip={mip})"
         )
 
-        if voi is not None:
-            bbox_vox = voi.transform(
-                np.linalg.inv(self.build_affine(effective_res_mm))
-            )
+        maxdims = tuple(np.array(self.volume.mip_shape(mip)[:3]) - 1)
+        if voi is None:
+            bbox_vox = BoundingBox([0, 0, 0], maxdims, space=None)
         else:
-            bbox_vox = BoundingBox([0, 0, 0], self.volume.mip_shape(mip), space=None)
+            bbox_vox = voi.transform(
+                np.linalg.inv(self.build_affine(effective_res_mm)),
+            ).clip(maxdims)
+
+        if bbox_vox is None:
+            # zero size bounding box, return empty array
+            return np.empty((0, 0, 0))
 
         # estimate size and check feasibility
         gbytes = bbox_vox._Bbox.volume() * self.nbytes / (1024 ** 3)
-        if gbytes > NeuroglancerVolume.gbyte_feasible:
+        if gbytes > gbyte_feasible:
             # TODO would better do an estimate of the acutal data size
             logger.error(
                 "Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(
-                    gbytes, self.gbyte_feasible
+                    gbytes, gbyte_feasible
                 )
             )
             print(self.helptext)
@@ -453,7 +493,7 @@ class NeuroglancerVolume(
             except OutOfBoundsError as e:
                 logger.error("Bounding box does not match image.")
                 print(str(e))
-                return None
+                return np.empty((0, 0, 0))
 
     def fetch(self, resolution_mm=None, voi=None, mapindex=None, clip=False):
         """
@@ -473,10 +513,14 @@ class NeuroglancerVolume(
             raise NotImplementedError(
                 f"NgVolume does not support access by map index (but {mapindex} was given)"
             )
-        return nib.Nifti1Image(
-            self._load_data(resolution_mm=resolution_mm, voi=voi).squeeze(),
-            affine=self.build_affine(resolution_mm=resolution_mm, voi=voi),
-        )
+        data = self._load_data(resolution_mm=resolution_mm, voi=voi)
+
+        if data.ndim == 4:
+            data = data.squeeze(axis=3)
+        if data.ndim == 2:
+            data = data.reshape(list(data.shape) + [1])
+
+        return Nifti1Image(data, self.build_affine(resolution_mm=resolution_mm, voi=voi))
 
     def get_shape(self, resolution_mm=None):
         mip = self._resolution_to_mip(resolution_mm, voi=None)
@@ -519,7 +563,7 @@ class NeuroglancerVolume(
 
 
 class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
-    
+
     def __init__(self, identifier, name, url, space, detail=None, **kwargs):
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
 
@@ -540,6 +584,33 @@ class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
 
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False
+
+
+class GiftiSurface(VolumeSrc, volume_type="threesurfer/gii"):
+    """
+    TODO Implement this, surfaces need special handling
+    """
+
+    warning_shown = False
+
+    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+        if not self.__class__.warning_shown:
+            logger.info(
+                f"A {self.__class__.__name__} object was registered, "
+                "but this type is not yet explicitly supported."
+            )
+            self.__class__.warning_shown = True
+        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False
+
 
 class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
     """
@@ -556,3 +627,8 @@ class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
             )
             self.__class__.warning_shown = True
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+
+    @property
+    def is_image_volume(self):
+        """ Meshes are not volumes. """
+        return False

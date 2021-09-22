@@ -49,7 +49,13 @@ class RepositoryConnector(ABC):
         else:
             return response
 
+    def get(self, filename, folder="", decode_func=None):
+        """ Get a file right away. """
+        return self.get_loader(filename, folder, decode_func).data
+
     def get_loader(self, filename, folder="", decode_func=None):
+        """ Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed. """
         if decode_func is None:
             return LazyHttpRequest(
                 self._build_url(folder, filename),

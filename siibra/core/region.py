@@ -14,10 +14,16 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import Space
+from .space import PointSet, Space, Point, BoundingBox
 
-from ..commons import logger
-from ..commons import Registry, ParcellationIndex, MapType
+from ..commons import (
+    logger,
+    Registry,
+    ParcellationIndex,
+    MapType,
+    compare_maps,
+    affine_scaling,
+)
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -26,7 +32,8 @@ from memoization import cached
 import re
 import anytree
 from typing import Union
-import json
+from nibabel import Nifti1Image
+
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -154,7 +161,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return region == self or region in self.descendants
 
     @cached
-    def find(self, regionspec, select_uppermost=False):
+    def find(
+        self, regionspec, filter_children=False, build_group=False, groupname=None
+    ):
         """
         Find regions that match the given region specification in the subtree
         headed by this region.
@@ -164,16 +173,21 @@ class Region(anytree.NodeMixin, AtlasConcept):
         regionspec : any of
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
+            - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
             - a full ParcellationIndex
             - a region object
-        select_uppermost : Boolean
-            If true, only the uppermost matches in the region hierarchy are
-            returned (otherwise all siblings as well if they match the name)
+        filter_children : Boolean
+            If true, children of matched parents will not be returned
+        build_group : Boolean, default: False
+            If true, the result will be a single region object, or None.
+            If needed,a group region of matched elements will be created.
+        groupname : str (optional)
+            Name of the resulting group region, if build_group is True
 
         Yield
         -----
-        list of matching regions
+        list of matching regions if build_group==False, else Region
         """
         if isinstance(regionspec, str) and regionspec in self.names:
             # key is given, this gives us an exact region
@@ -186,23 +200,48 @@ class Region(anytree.NodeMixin, AtlasConcept):
         result = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
-        if len(result) > 1 and select_uppermost:
-            all_results = result
-            mindepth = min([r.depth for r in result])
-            result = [r for r in all_results if r.depth == mindepth]
-            if len(result) < len(all_results):
-                logger.debug(
-                    "Returning only {} parent nodes of in total {} matching regions for spec '{}'.".format(
-                        len(result), len(all_results), regionspec
-                    )
-                )
+        if len(result) > 1 and filter_children:
 
-        if isinstance(result, Region):
-            return [result]
-        elif result is None:
-            return []
+            # filter regions whose parent is in the list
+            filtered = [r for r in result if r.parent not in result]
+
+            # find any non-matched regions of which all children are matched
+            complete_parents = list(
+                {
+                    r.parent
+                    for r in filtered
+                    if (r.parent is not None)
+                    and all((c in filtered) for c in r.parent.children)
+                }
+            )
+
+            if len(complete_parents) == 0:
+                result = filtered
+            else:
+                # filter child regions again
+                filtered += complete_parents
+                result = [r for r in filtered if r.parent not in filtered]
+
+        # ensure the result is a list
+        if result is None:
+            result = []
+        elif isinstance(result, Region):
+            result = [result]
         else:
-            return list(result)
+            result = list(result)
+
+        if build_group:
+            # return a single region as the result
+            if len(result) == 1:
+                return result[0]
+            elif len(result) > 1:
+                return Region._build_grouptree(
+                    result, self.parcellation, name=groupname
+                )
+            else:
+                return None
+        else:
+            return result
 
     @cached
     def matches(self, regionspec):
@@ -215,6 +254,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         regionspec : any of
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
+            - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
             - a full ParcellationIndex
             - a region object
@@ -223,8 +263,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         -----
         True or False
         """
+
         def splitstr(s):
             return [w for w in re.split(r"[^a-zA-Z0-9.-]", s) if len(w) > 0]
+
         if isinstance(regionspec, Region):
             return self == regionspec
         elif isinstance(regionspec, int):
@@ -232,6 +274,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
             return self.index.label == regionspec
         elif isinstance(regionspec, ParcellationIndex):
             return self.index == regionspec
+        elif isinstance(regionspec, re.Pattern):
+            # match regular expression
+            return any(regionspec.search(s) is not None for s in [self.name, self.key])
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
@@ -253,93 +298,147 @@ class Region(anytree.NodeMixin, AtlasConcept):
             )
 
     @cached
-    def build_mask(self, space: Space, resolution_mm=None):
+    def build_mask(
+        self,
+        space: Space,
+        resolution_mm=None,
+        maptype: MapType = MapType.LABELLED,
+        threshold_continuous=None,
+    ):
         """
         Returns a binary mask where nonzero values denote
         voxels corresponding to the region.
-
-        NOTE: This is sensitive to the `continuous_map_threshold` attribute of
-        the parent parcellation. If set, thresholded continuous maps will be
-        preferred over labelled masks when a continuous regional map is available.
 
         Parameters
         ----------
         space : Space
             The desired template space.
         resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution in mm. If None,
-            the native resolution is used.
+            Request the template at a particular physical resolution in mm.
+            If None, the native resolution is used.
             Currently, this only works for the BigBrain volume.
+        maptype: MapType
+            Type of map to build ('labelled' will result in a binary mask,
+            'continuous' attempts to build a continuous mask, possibly by
+            elementwise maximum of continuous maps of children )
+        threshold_continuous: float, or None
+            if not None, masks will be preferably constructed by thresholding
+            continuous maps with the given value.
         """
-        if not self.parcellation.supports_space(space):
-            logger.error(
-                'Region "{}" does not provide a map for space "{}"'.format(
-                    str(self), str(space)
-                )
-            )
-
+        spaceobj = Space.REGISTRY[space]
         mask = affine = None
+        if isinstance(maptype, str):
+            maptype = MapType[maptype.upper()]
 
-        if self.parcellation.continuous_map_threshold is not None:
+        # TODO This method is too lengthy and difficult to read.
+        # it would be more elegenat to distinguish first wether a
+        # regional map is availalbe as dedicated dataset.
+        # If yes, return the proper type.
+        # If no, delegate to the ParcellationMap object to extract from there.
 
-            T = self.parcellation.continuous_map_threshold
-            regionmap = self.get_regional_map(space, MapType.CONTINOUS)
-            if regionmap is not None:
-                logger.info(
-                    f"Computing mask for {self.name} by thresholding the continuous regional map at {T}."
-                )
-                pmap = regionmap.fetch(resolution_mm=resolution_mm)
+        if threshold_continuous is not None:
+
+            # build mask by thresholding a continuous map
+
+            logger.info(
+                f"Extracting mask for {self.name} in {spaceobj.name} by "
+                f"thresholding continuous map at {threshold_continuous}."
+            )
+            regionmap = self.get_regional_map(space, MapType.CONTINUOUS)
+            pmap = None
+            if regionmap is None:
+                try:
+                    pmap = self.parcellation.get_map(
+                        spaceobj,
+                        maptype=MapType.CONTINUOUS,
+                    ).extract_regionmap(self, resolution_mm=resolution_mm)
+                except ValueError:
+                    pass
             else:
-                logger.info(
-                    f"Extracting mask for {self.name} from continuous map volume of {self.parcellation.name}."
-                )
-                pmap = self.parcellation.get_map(
-                    space, maptype=MapType.CONTINUOUS
-                ).extract_regionmap(self, resolution_mm=resolution_mm)
+                pmap = regionmap.fetch(resolution_mm=resolution_mm)
+
             if pmap is not None:
-                mask = (np.asanyarray(pmap.dataobj) > T).astype("uint8")
+                mask = (
+                    (np.asanyarray(pmap.dataobj) > threshold_continuous)
+                    .astype("uint8")
+                    .squeeze()
+                )
+                if mask.max() == 0:
+                    logger.warn(
+                        f"Thresholding continuous map with {threshold_continuous} resulted in zero mask."
+                    )
+                    mask = None
                 affine = pmap.affine
 
         else:
 
-            regionmap = self.get_regional_map(space, MapType.LABELLED)
+            # build mask by selecting indices in labelled volume
+
+            regionmap = self.get_regional_map(spaceobj, maptype=maptype)
             if regionmap is not None:
-                logger.info(
-                    f"Extracting mask for {self.name} in {space} from regional labelmap."
+                logger.debug(
+                    f"Extracting mask for {self.name} in {spaceobj.name} from regional map."
                 )
-                labelimg = self.get_regional_map(space, MapType.LABELLED).fetch(
+                labelimg = self.get_regional_map(spaceobj, maptype=maptype).fetch(
                     resolution_mm=resolution_mm
                 )
-                mask = labelimg.dataobj
+                mask = labelimg.get_fdata()
                 affine = labelimg.affine
 
             else:
-                logger.info(
-                    f"Extracting mask for {self.name} in {space} from parcellation volume of {self.parcellation.name}."
+                logger.debug(
+                    f"Extracting mask for {self.name} in {spaceobj.name} from "
+                    f"{maptype} parcellation volume."
                 )
-                labelmap = self.parcellation.get_map(
-                    space, maptype=MapType.LABELLED
-                ).fetchall(resolution_mm=resolution_mm)
-                for mapindex, img in enumerate(labelmap):
-                    if mask is None:
-                        mask = np.zeros(img.dataobj.shape, dtype="uint8")
-                        affine = img.affine
-                    for r in self:  # consider all children
-                        if (r.index.map is None) or (r.index.map == mapindex):
-                            mask[img.get_fdata() == r.index.label] = 1
+
+                # TODO this part might better be placed as a method of LabelledParcellationMap
+                labelmap = self.parcellation.get_map(space, maptype=maptype)
+                for r in self:  # consider all children
+                    logger.debug(f"Aggregating mask of {r.name} with index {r.index}")
+
+                    if maptype == MapType.LABELLED:
+                        for mapindex, img in enumerate(
+                            labelmap.fetchall(resolution_mm=resolution_mm)
+                        ):
+                            actual_region = labelmap.regions.get(r.index)
+                            if actual_region == r:
+                                if (r.index.map is None) or (r.index.map == mapindex):
+                                    if mask is None:
+                                        mask = np.zeros(
+                                            img.get_fdata().shape, dtype="uint8"
+                                        )
+                                        affine = img.affine
+                                    mask[img.get_fdata() == r.index.label] = 1
+
+                    else:
+                        try:
+                            for index in labelmap.decode_region(r):
+                                img = labelmap.fetch(
+                                    mapindex=index.map, resolution_mm=resolution_mm
+                                )
+                                if mask is None:
+                                    mask = np.zeros(
+                                        img.get_fdata().shape, dtype="uint8"
+                                    )
+                                    affine = img.affine
+                                mask = np.maximum(mask, img.get_fdata())
+                        except IndexError:
+                            continue
 
         if mask is None:
             raise RuntimeError(
-                f"Could not compute mask for {self.region.name} in {space.name}."
+                f"Could not compute mask for {self.name} in {spaceobj.name}."
             )
         else:
-            return nib.Nifti1Image(dataobj=mask, affine=affine)
+            return nib.Nifti1Image(dataobj=mask.squeeze(), affine=affine)
 
     def defined_in_space(self, space):
         """
         Verifies wether this region is defined by a labelled map in the given space.
         """
-        for maptype in ['labelled', 'continuous']:
+        for maptype in ["labelled", "continuous"]:
+            if self.has_regional_map(space, maptype):
+                break
             try:
                 M = self.parcellation.get_map(space, maptype=maptype)
                 M.decode_region(self)
@@ -351,7 +450,13 @@ class Region(anytree.NodeMixin, AtlasConcept):
             return False
         return True
 
-    @cached
+    def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
+        """
+        Tests wether a specific map of this region is available.
+        """
+        return self.get_regional_map(space, maptype) is not None
+
+    # @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
         Retrieves and returns a specific map of this region, if available
@@ -381,9 +486,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if len(suitable) == 1:
             return suitable[0]
         elif len(suitable) == 0:
-            logger.warning(
-                f"No regional map of type {maptype} found for {self.name} in {space} ({len(available)} in space)"
-            )
             return None
         else:
             raise NotImplementedError(
@@ -439,7 +541,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return None
 
     @staticmethod
-    def _build_grouptree(regions, parcellation):
+    def _build_grouptree(regions, parcellation, name=None):
         """
         Creates an artificial subtree from a list of regions by adding a group
         parent and adding the regions as deep copies recursively.
@@ -453,8 +555,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
             next(iter(unique)) if len(unique) == 1 else ParcellationIndex(None, None)
         )
 
+        if name is None:
+            name = "Group: " + ",".join([r.name for r in regions])
         group = Region(
-            "Group: " + ",".join([r.name for r in regions]),
+            name,
             parcellation,
             index,
             children=[Region.copy(r) for r in regions],
@@ -466,43 +570,192 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __repr__(self):
         return "\n".join(
-            "%s%s" % (pre, node.name) if node.extended_from is None
+            "%s%s" % (pre, node.name)
+            if node.extended_from is None
             else "%s%s [extension region]" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
         )
 
     @cached
-    def spatialprops(self, space, force=False):
+    def get_bounding_box(
+        self,
+        space: Space,
+        maptype: MapType = MapType.LABELLED,
+        threshold_continuous=None,
+    ):
+        """Compute the bounding box of this region in the given space.
+
+        Parameters
+        ----------
+        space : Space or str):
+            Requested reference space
+        maptype: MapType
+            Type of map to build ('labelled' will result in a binary mask,
+            'continuous' attempts to build a continuous mask, possibly by
+            elementwise maximum of continuous maps of children )
+        threshold_continuous: float, or None
+            if not None, masks will be preferably constructed by thresholding
+            continuous maps with the given value.
+        Returns:
+            BoundingBox
         """
-        Returns spatial region properties for connected components of this region found by analyzing the parcellation volume in the given space.
+        spaceobj = Space.REGISTRY[space]
+        try:
+            mask = self.build_mask(
+                spaceobj, maptype=maptype, threshold_continuous=threshold_continuous
+            )
+            return BoundingBox.from_image(mask, space=spaceobj)
+        except (RuntimeError, ValueError):
+            for other_space in self.parcellation.spaces - spaceobj:
+                try:
+                    mask = self.build_mask(
+                        other_space,
+                        maptype=maptype,
+                        threshold_continuous=threshold_continuous,
+                    )
+                    logger.warn(
+                        f"No bounding box for {self.name} defined in {spaceobj.name}, "
+                        f"will warp the bounding box from {other_space.name} instead."
+                    )
+                    bbox = BoundingBox.from_image(mask, space=other_space)
+                    if bbox is not None:
+                        return bbox.warp(spaceobj)
+                except RuntimeError:
+                    continue
+        logger.error(f"Could not compute bounding box for {self.name}.")
+        return None
+
+    def find_peaks(self, space: Space, min_distance_mm=5):
+        """
+        Find peaks of the region's continuous map in the given space, if any.
+
+        Arguments:
+        ----------
+        space : Space
+            requested reference space
+        min_distance_mm : float
+            Minimum distance between peaks in mm
+
+        Returns:
+        --------
+        peaks: PointSet
+        pmap: continuous map
+        """
+        spaceobj = Space.REGISTRY[space]
+        pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
+        if pmap is None:
+            logger.warn(
+                f"No continuous map found for {self.name} in {spaceobj.name}, "
+                "cannot compute peaks."
+            )
+            return PointSet([], space)
+
+        from skimage.feature.peak import peak_local_max
+
+        img = pmap.fetch()
+        dist = int(min_distance_mm / affine_scaling(img.affine) + .5)
+        voxels = peak_local_max(
+            img.get_fdata(),
+            exclude_border=False,
+            min_distance=dist,
+        )
+        return PointSet(
+            [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
+            space=spaceobj,
+        ), img
+
+    @cached
+    def spatial_props(
+        self,
+        space: Space,
+        maptype: MapType = MapType.LABELLED,
+        threshold_continuous=None,
+    ):
+        """
+        Compute spatial properties for connected components of this region in the given space.
 
         Parameters
         ----------
         space : Space
             the space in which the computation shall be performed
-        force : Boolean (Default: False)
-            spatialprops will only be computed for leave regions (without
-            children), except this is set to True.
+        maptype: MapType
+            Type of map to build ('labelled' will result in a binary mask,
+            'continuous' attempts to build a continuous mask, possibly by
+            elementwise maximum of continuous maps of children )
+        threshold_continuous: float, or None
+            if not None, masks will be preferably constructed by thresholding
+            continuous maps with the given value.
 
         Return
         ------
-        List of RegionProps objects, one per connected component found in the corresponding labelled parcellation map.
+        dictionary of regionprops.
         """
-        filename = f"{self.parcellation.key}-{space.key}-spatialprops.json"
-        logger.debug(f"Trying to load spatial region props from {filename}")
-        try:
-            loader = self.CONNECTOR.get_loader(filename, folder="spatialprops")
-            D = json.loads(loader.data)
-        except Exception:
+        from skimage import measure
+
+        if not isinstance(space, Space):
+            space = Space.REGISTRY[space]
+
+        if not self.defined_in_space(space):
             raise RuntimeError(
-                f"Cannot load and parse spatial property data for {self.parcellation.name} in {space.name}"
+                f"Spatial properties of {self.name} cannot be computed in {space.name}."
             )
-        return [
-            c
-            for p in D["spatialprops"]
-            for c in p["components"]
-            if p["region"]["name"] == self.name
-        ]
+
+        # build binary mask of the image
+        pimg = self.build_mask(space)
+
+        # determine scaling factor from voxels to cube mm
+        scale = affine_scaling(pimg.affine)
+
+        # compute properties of labelled volume
+        A = np.asarray(pimg.get_fdata(), dtype=np.int32).squeeze()
+        C = measure.label(A)
+
+        # compute spatial properties of each connected component
+        result = {"space": space, "components": []}
+        for label in range(1, C.max() + 1):
+            props = {}
+            nonzero = np.c_[np.nonzero(C == label)]
+            props["centroid"] = Point(
+                np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3], space=space
+            )
+            props["volume"] = nonzero.shape[0] * scale
+
+            result["components"].append(props)
+
+        return result
+
+    def compare(
+        self,
+        img: Nifti1Image,
+        space: Space,
+        use_maptype: MapType = MapType.CONTINUOUS,
+        threshold_continuous: float = None,
+        resolution_mm: float = None,
+    ):
+        """
+        Compare the given image to the map of this region in the specified space.
+
+        Parameters:
+        -----------
+        img: Nifti1Image
+            Image to compare with
+        space: Space
+            Reference space to use
+        use_maptype: MapType
+            Type of map to build ('labelled' will result in a binary mask,
+            'continuous' attempts to build a continuous mask, possibly by
+            elementwise maximum of continuous maps of children )
+        threshold_continuous: float, or None
+            if not None, masks will be preferably constructed by thresholding
+            continuous maps with the given value.
+        """
+        mask = self.build_mask(
+            space,
+            resolution_mm,
+            maptype=use_maptype,
+            threshold_continuous=threshold_continuous,
+        )
+        return compare_maps(mask, img)
 
     def print_tree(self):
         """

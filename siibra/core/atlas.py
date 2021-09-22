@@ -17,7 +17,7 @@ from .concept import AtlasConcept, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, logger
+from ..commons import MapType, logger, Registry
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
@@ -37,17 +37,32 @@ class Atlas(
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
 
-        self.parcellations = []  # add with _add_parcellation
-        self.spaces = []  # add with _add_space
-        self.continuous_map_threshold = None
+        self._parcellations = []  # add with _add_parcellation
+        self._spaces = []  # add with _add_space
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
-        self.spaces.append(space)
+        self._spaces.append(space)
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
-        self.parcellations.append(parcellation)
+        self._parcellations.append(parcellation)
+
+    @property
+    def spaces(self):
+        """Access a registry of reference spaces supported by this atlas."""
+        return Registry(
+            elements={s.key: s for s in self._spaces},
+            matchfunc=Space.match_spec,
+        )
+
+    @property
+    def parcellations(self):
+        """Access a registry of parcellations supported by this atlas."""
+        return Registry(
+            elements={p.key: p for p in self._parcellations},
+            matchfunc=Parcellation.match_spec,
+        )
 
     @classmethod
     def _from_json(cls, obj):
@@ -76,45 +91,38 @@ class Atlas(
             return atlas
         return obj
 
-    def threshold_continuous_maps(self, threshold):
-        """
-        Inform the atlas that thresholded continuous maps should be preferred
-        over static labelled maps for building and using region masks.
-        This will, for example, influence spatial filtering of coordinate-based
-        features in the get_features() method.
-        """
-        self.continuous_map_threshold = threshold
-
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self.parcellations[0]
-            if len(self.parcellations) > 1:
-                logger.info(f"No parcellation specified, using default '{parcellation_obj.name}'.")
+            parcellation_obj = self._parcellations[0]
+            if len(self._parcellations) > 1:
+                logger.info(
+                    f"No parcellation specified, using default '{parcellation_obj.name}'."
+                )
         else:
-            parcellation_obj = Parcellation.REGISTRY[parcellation]
-            if parcellation_obj not in self.parcellations:
+            parcellation_obj = self.parcellations[parcellation]
+            if parcellation_obj not in self._parcellations:
                 raise ValueError(
                     f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
                 )
         return parcellation_obj
 
     def get_space(self, space=None):
-        """ Returns a valid reference space object defined by the atlas.
+        """Returns a valid reference space object defined by the atlas.
         If no specification is provided, the default is returned.
 
         Parameters:
             space: Space, or string specification of a space
         """
         if space is None:
-            space_obj = self.spaces[0]
-            if len(self.spaces) > 1:
+            space_obj = self._spaces[0]
+            if len(self._spaces) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
         else:
             space_obj = Space.REGISTRY[space]
-            if space_obj not in self.spaces:
+            if space_obj not in self._spaces:
                 raise ValueError(
                     f"Space {space_obj.name} not supported by atlas {self.name}."
                 )
@@ -179,11 +187,20 @@ class Atlas(
             Bounding Box
         """
         spaceobj = Space.REGISTRY[space]
-        if spaceobj not in self.spaces:
-            raise ValueError(f"Requested space {space} not supported by {self.__class__.__name__} {self.name}.")
+        if spaceobj not in self._spaces:
+            raise ValueError(
+                f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
+            )
         return spaceobj.get_bounding_box(point1, point2)
 
-    def find_regions(self, regionspec):
+    def find_regions(
+        self,
+        regionspec,
+        all_versions=False,
+        filter_children=True,
+        build_groups=False,
+        groupname=None
+    ):
         """
         Find regions with the given specification in all
         parcellations offered by the atlas.
@@ -195,12 +212,33 @@ class Atlas(
               against the name and the identifier key,
             - an integer, which is interpreted as a labelindex
             - a region object
+        all_versions : Bool, default: False
+            If True, matched regions for all versions of a parcellation are returned.
+        filter_children : Boolean
+            If true, children of matched parents will not be returned
+        build_groups : Boolean, default: False
+            If true, a group region will be formed per parellations
+            which includes the resulting elements,
+            in case they do not have a single common parent anyway.
+        groupname : str (optional)
+            Name of the resulting group region, if build_groups is True
 
         Yield
         -----
         list of matching regions
         """
         result = []
-        for p in self.parcellations:
-            result.extend(p.find_regions(regionspec))
+        for p in self._parcellations:
+            if p.is_newest_version or all_versions:
+                match = p.find_regions(
+                    regionspec,
+                    filter_children=filter_children,
+                    build_group=build_groups,
+                    groupname=groupname
+                )
+                if build_groups:
+                    if match is not None:
+                        result.append(match)
+                else:
+                    result.extend(match)
         return result

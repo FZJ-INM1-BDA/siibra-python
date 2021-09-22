@@ -1,6 +1,6 @@
 import unittest
 
-from siibra.volumes import VolumeSrc, NiftiVolume
+from siibra.volumes import VolumeSrc, RemoteNiftiVolume
 from siibra import spaces
 
 
@@ -24,7 +24,7 @@ class TestVolumeSrc(unittest.TestCase):
         }
         output = VolumeSrc._from_json(v_json)
         self.assertIsInstance(output, VolumeSrc)
-        self.assertIsInstance(output, NiftiVolume)
+        self.assertIsInstance(output, RemoteNiftiVolume)
 
     def test_volume_from_invalid_json(self):
         v_invalid_json = {

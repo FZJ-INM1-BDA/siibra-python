@@ -17,7 +17,7 @@ from .feature import Feature
 
 from .. import logger
 from ..commons import Registry
-from ..core import AtlasConcept
+from ..core import AtlasConcept, Dataset
 
 from abc import ABC
 from collections import defaultdict
@@ -46,7 +46,7 @@ class FeatureQuery(ABC):
         cls.REGISTRY.add(cls._FEATURETYPE.modality(), cls)
 
     @classmethod
-    def get_features(cls, concept, modality, group_by_dataset=False, **kwargs):
+    def get_features(cls, concept, modality, group_by=None, **kwargs):
         """
         Retrieve data features linked to an atlas concept, by modality.
 
@@ -54,14 +54,19 @@ class FeatureQuery(ABC):
         ----------
         concept: AtlasConcept
             An atlas concept, typically a Parcellation or Region object.
-        modality: FeatureType, or 'all'
+        modality: FeatureType, list of FeatureType, or 'all'
             See siibra.features.modalities for available modalities.
             if 'all', all feature modalities will be queried.
-        group_by_dataset: bool, default: False
-            If True, the resulting features are grouped by dataset
+        group_by: string, default: None
+            If "dataset", group features additionally by dataset id.
+            If "concept", group features additionally by the exact linked concept.
+            Use the latter for example when you query by a parcellation, and want to get
+            features grouped by the particular region of that parcellation which they have been attached to.
         """
         if isinstance(modality, str) and modality == 'all':
             querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
+        elif isinstance(modality, (list, tuple)):
+            querytypes = [FeatureQuery.REGISTRY[m] for m in modality]
         else:
             if not FeatureQuery.REGISTRY.provides(modality):
                 raise RuntimeError(
@@ -77,13 +82,26 @@ class FeatureQuery(ABC):
                 hits.extend(query.execute(concept))
             matches = list(set(hits))
 
-            if group_by_dataset:
+            if group_by is None:
+                grouped = matches
+
+            elif group_by == "dataset":
                 grouped = defaultdict(list)
-                for match in matches:
-                    grouped[match.dataset_id].append(match)
-                result[querytype.modality()] = grouped
+                for m in matches:
+                    idf = m.id if isinstance(m, Dataset) else None
+                    grouped[idf].append(m)
+
+            elif group_by == "concept":
+                grouped = defaultdict(list)
+                for m in matches:
+                    grouped[m._match].append(m)
+
             else:
-                result[querytype.modality()] = matches
+                raise ValueError(
+                    f"Invalid parameter '{group_by}' for the 'group_by' attribute of get_features. "
+                    "Valid entries are: 'dataset', 'concept', or None.")
+
+            result[querytype.modality()] = grouped
 
         # If only one modality was requested, simplify the dictionary
         if len(result) == 1:
@@ -116,7 +134,7 @@ class FeatureQuery(ABC):
         """
         matches = []
         for feature in self.features:
-            if feature.matches(concept):
+            if feature.match(concept):
                 matches.append(feature)
         return matches
 
