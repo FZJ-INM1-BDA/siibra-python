@@ -91,7 +91,7 @@ class Atlas(
             raise ValueError(
                 f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}"
             )
-        if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
+        if all(f in obj for f in ["@id", "spaces", "parcellations"]):
             atlas = cls(obj["@id"], obj["name"], obj["species"])
             for space_id in obj["spaces"]:
                 if not Space.REGISTRY.provides(space_id):
