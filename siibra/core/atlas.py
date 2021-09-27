@@ -22,6 +22,21 @@ from ..commons import MapType, logger, Registry
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
+SPECIES_MAP = {
+    "homo sapiens": "human",
+    "human": "human",
+    "mus musculus": "mouse",
+    "mouse": "mouse",
+    "rattus norvegicus": "rat",
+    "rat": "rat",
+    "Macaca fascicularis": "monkey",
+    "Macaca mulatta": "monkey",
+    "macaca fuscata": "monkey",
+    "monkey": "monkey",
+    "macaque": "monkey",
+}
+
+
 @provide_registry
 class Atlas(
     AtlasConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
@@ -32,11 +47,12 @@ class Atlas(
     spaces, as well as common functionalities of those.
     """
 
-    def __init__(self, identifier, name):
+    def __init__(self, identifier, name, species):
         """Construct an empty atlas object with a name and identifier."""
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
 
+        self.species = SPECIES_MAP[species]
         self._parcellations = []  # add with _add_parcellation
         self._spaces = []  # add with _add_space
 
@@ -46,6 +62,7 @@ class Atlas(
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
+        parcellation.atlas = self
         self._parcellations.append(parcellation)
 
     @property
@@ -75,7 +92,7 @@ class Atlas(
                 f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}"
             )
         if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
-            atlas = cls(obj["@id"], obj["name"])
+            atlas = cls(obj["@id"], obj["name"], obj["species"])
             for space_id in obj["spaces"]:
                 if not Space.REGISTRY.provides(space_id):
                     raise ValueError(

@@ -353,7 +353,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
 
     def __init__(self, region, kg_result):
 
-        RegionalFeature.__init__(self, region)
+        RegionalFeature.__init__(self, region, species=None)
         EbrainsDataset.__init__(self, kg_result["identifier"], kg_result["name"])
 
         self.info = kg_result["description"]
@@ -401,6 +401,12 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                     f"More than one autoradiograph for '{rtype}' in {self.url}"
                 )
             self._autoradiograph_loaders[rtype] = LazyHttpRequest(url, img_from_bytes)
+
+    @property
+    def species(self):
+        " Lazy-load the species attribute from the dataset for informing the RegionalFeature. "
+        if self._species_cached is None:
+            self._species_cached = self.detail['species']
 
     @property
     def fingerprint(self):
@@ -478,7 +484,7 @@ class ReceptorQuery(FeatureQuery):
 
     _FEATURETYPE = ReceptorDistribution
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         kg_query = EbrainsRequest(query_id="siibra_receptor_densities").get()
         # kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )

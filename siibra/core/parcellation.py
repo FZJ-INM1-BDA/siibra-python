@@ -151,6 +151,7 @@ class Parcellation(
         self.description = ""
         self.modality = modality
         self._regiondefs = regiondefs
+        self.atlas = None
         if maps is not None:
             if self._datasets_cached is None:
                 self._datasets_cached = []
@@ -220,6 +221,14 @@ class Parcellation(
     @property
     def names(self):
         return self.regiontree.names
+
+    @property
+    def species(self):
+        if self.atlas is None:
+            logger.warning(f"No atlas object linked to {self.name}, cannot determine species.")
+            return None
+        else:
+            return self.atlas.species
 
     def supports_space(self, space: Space):
         """

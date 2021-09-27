@@ -23,6 +23,7 @@ from ..commons import (
     MapType,
     compare_maps,
     affine_scaling,
+    create_key,
 )
 from ..retrieval.repositories import GitlabConnector
 
@@ -93,7 +94,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         regionname = __class__._clear_name(name)
         # regions are not modelled with an id yet in the configuration, so we create one here
-        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(index))).replace('NONE','X')}"
+        id = f"{parcellation.id}-{create_key((regionname+str(index))).replace('NONE','X')}"
         AtlasConcept.__init__(
             self, identifier=id, name=regionname, dataset_specs=dataset_specs
         )

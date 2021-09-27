@@ -491,6 +491,7 @@ class Point(Location):
             space=Space.REGISTRY[space_id]
         )
 
+    @property
     def bigbrain_section(self):
         """
         Estimate the histological section number of BigBraing

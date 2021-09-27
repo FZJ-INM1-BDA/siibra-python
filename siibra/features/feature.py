@@ -110,9 +110,17 @@ class SpatialFeature(Feature):
         location : Location type
             The location, see siibra.core.location
         """
-        assert(location is not None)
+        # assert(location is not None)
         Feature.__init__(self)
-        self.location = location
+        self._location_cached = location
+
+    @property
+    def location(self):
+        """
+        Explicit property implementation, allowing derived
+        classes to implement lazy loading if needed.
+        """
+        return self._location_cached
 
     @property
     def space(self):
@@ -181,7 +189,7 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self, regionspec: Tuple[str, Region]):
+    def __init__(self, regionspec: Tuple[str, Region], species):
         """
         Parameters
         ----------
@@ -193,7 +201,13 @@ class RegionalFeature(Feature):
                 f"invalid type {type(regionspec)} provided as region specification"
             )
         Feature.__init__(self)
+        self._species_cached = species
         self.regionspec = regionspec
+
+    @property
+    def species(self):
+        """allow derived classes to lazy-load the species attribute"""
+        return self._species_cached
 
     def match(self, concept):
         """

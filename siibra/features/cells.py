@@ -14,19 +14,19 @@
 # limitations under the License.
 
 
-from .feature import RegionalFeature
+from .feature import RegionalFeature, SpatialFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..core.space import Space
-from ..retrieval.repositories import GitlabConnector, OwncloudConnector
+from ..core.space import Space, BoundingBox
+from ..retrieval import requests, repositories
 
 import numpy as np
 import os
 import importlib
 
 
-class CorticalCellDistribution(RegionalFeature):
+class CorticalCellDistribution(RegionalFeature, SpatialFeature):
     """
     Represents a cortical cell distribution dataset.
     Implements lazy and cached loading of actual data.
@@ -35,7 +35,14 @@ class CorticalCellDistribution(RegionalFeature):
     def __init__(self, regionspec, cells, connector, folder):
 
         _, section_id, patch_id = folder.split("/")
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec, species="human")
+
+        # this class implements a lazy loader for the location,
+        # to avoid accessing the image patch unless requested.
+        # self._location_cached will only be computed when first
+        # accessed. See self.location() below
+        SpatialFeature.__init__(self, location=None)
+
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
@@ -66,12 +73,6 @@ class CorticalCellDistribution(RegionalFeature):
         )
 
     def load_segmentations(self):
-        from PIL import Image
-        from io import BytesIO
-
-        def imgdecoder(b):
-            return np.array(Image.open(BytesIO(b)))
-
         index = 0
         result = []
         logger.info(f"Loading cell instance segmentation masks for {self}...")
@@ -79,7 +80,7 @@ class CorticalCellDistribution(RegionalFeature):
             try:
                 target = f"segments_cpn_{index:02d}.tif"
 
-                loader = self._connector.get_loader(target, self.folder, imgdecoder)
+                loader = self._connector.get_loader(target, self.folder, requests.decoders.PNG)
                 result.append(loader.data)
                 index += 1
             except RuntimeError:
@@ -107,12 +108,23 @@ class CorticalCellDistribution(RegionalFeature):
         return self._image_loader.data
 
     @property
-    def coordinate(self):
+    def location(self):
         """
-        Coordinate of this image patch in BigBrain histological space in mm.
+        Location of this image patch in BigBrain histological space,
+        defined as the bounding box of the image patch.
+        Implements a lazy loader to avoid accessing the image patch
+        unless specifically requested.
         """
-        A = self.image.affine
-        return Space.REGISTRY.BIG_BRAIN, np.dot(A, [0, 0, 0, 1])[:3]
+        if self._location_cached is None:
+            xd, yd, z = self.image.shape
+            voxel_bbox = BoundingBox(
+                point1=[0, 0, 0],
+                point2=[xd, yd, 0],
+                space=None
+            )
+            self._location_cached = voxel_bbox.transform(
+                self.image.affine, Space.REGISTRY.BIG_BRAIN)
+        return self._location_cached
 
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
@@ -131,7 +143,7 @@ class CorticalCellDistribution(RegionalFeature):
         from nilearn import plotting
 
         patch = self.image.get_fdata()
-        space, xyz = self.coordinate
+        space, xyz = self.location
         tpl = space.get_template().fetch()
         fig = pyplot.figure(figsize=(12, 6))
         pyplot.suptitle(str(self))
@@ -157,8 +169,8 @@ class CorticalCellDistribution(RegionalFeature):
 class RegionalCellDensityExtractor(FeatureQuery):
 
     _FEATURETYPE = CorticalCellDistribution
-    _JUGIT = GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
-    _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
+    _JUGIT = repositories.GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
+    _SCIEBO = repositories.OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
 
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)

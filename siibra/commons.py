@@ -18,6 +18,7 @@ from enum import Enum
 from nibabel import Nifti1Image
 import logging
 import numpy as np
+import re
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -253,6 +254,18 @@ def affine_scaling(affine):
         vec_phys = np.dot(affine, np.r_[vec, 1])
         unit_lengths.append(np.linalg.norm(orig - vec_phys))
     return np.prod(unit_lengths)
+
+
+def create_key(name):
+    """
+    Creates an uppercase identifier string that includes only alphanumeric
+    characters and underscore from a natural language name.
+    """
+    return re.sub(
+        r" +",
+        "_",
+        "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
+    )
 
 
 def compare_maps(map1: Nifti1Image, map2: Nifti1Image):

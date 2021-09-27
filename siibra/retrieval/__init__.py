@@ -16,3 +16,14 @@
 from .repositories import GitlabConnector, OwncloudConnector
 from .requests import HttpRequest, LazyHttpRequest, ZipfileRequest, EbrainsRequest
 from .cache import CACHE
+
+
+def _build_decoder_registry():
+    from .requests import DECODERS
+    from ..commons import Registry, create_key
+    return Registry(
+        elements={create_key(k): v for k, v in DECODERS.items()}
+    )
+
+
+decoders = _build_decoder_registry()

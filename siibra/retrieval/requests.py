@@ -22,12 +22,15 @@ import requests
 import os
 from nibabel import Nifti1Image
 import gzip
+from PIL import Image
+from io import BytesIO
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".txt": lambda b: b.decode(),
+    ".png": lambda b: Image.open(BytesIO(b)),
 }
 
 
@@ -129,7 +132,7 @@ class LazyHttpRequest(HttpRequest):
             If None, `func` will be called without arguments.
         func : function pointer
             Function for constructing the output data
-            (called on the data retrieved from `url`, if supplied)
+            (called on the data retrieved from `url`, if supplied).
         status_code_messages : dict
             Optional dictionary of message strings to output in case of error,
             where keys are http status code.

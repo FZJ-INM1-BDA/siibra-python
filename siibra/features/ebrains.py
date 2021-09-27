@@ -23,8 +23,14 @@ from ..retrieval.requests import EbrainsRequest
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
     def __init__(self, regionspec, kg_id, name, embargo_status):
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec, species=None)  # will lazy-load this
         EbrainsDataset.__init__(self, kg_id, name, embargo_status)
+
+    @property
+    def species(self):
+        " Lazy-load the species attribute from the dataset for informing the RegionalFeature. "
+        if self._species_cached is None:
+            self._species_cached = self.detail['species']
 
     @property
     def url(self):
