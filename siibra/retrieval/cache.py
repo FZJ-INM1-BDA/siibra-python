@@ -36,7 +36,7 @@ def assert_folder(folder):
             tempfile.mkdtemp(prefix="siibra-cache-")
         logger.warning(
             f"Siibra created a temporary cache directory at {tmpdir}, as "
-            f"the requested folder ({cls.folder}) was not usable. "
+            f"the requested folder ({folder}) was not usable. "
             "Please consider to set the SIIBRA_CACHEDIR environment variable "
             "to a suitable directory.")
         return tmpdir
