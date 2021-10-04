@@ -117,7 +117,7 @@ def map(ctx, parcellation, space):
         img.to_filename(fname)
         exit(0)
     else:
-        for i, img in enumerate(parcmap.fetchall()):
+        for i, img in enumerate(parcmap.fetch_iter()):
             fname_ = fname.replace(suffix, f"_{i}{suffix}")
             img.to_filename(fname_)
             click.echo(f"File {i+1} of {len(parcmap)} written to '{fname_}'.")

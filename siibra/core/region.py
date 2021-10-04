@@ -398,7 +398,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
                     if maptype == MapType.LABELLED:
                         for mapindex, img in enumerate(
-                            labelmap.fetchall(resolution_mm=resolution_mm)
+                            labelmap.fetch_iter(resolution_mm=resolution_mm)
                         ):
                             actual_region = labelmap.regions.get(r.index)
                             if actual_region == r:

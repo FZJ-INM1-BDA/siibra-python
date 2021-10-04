@@ -22,7 +22,7 @@ from ..core.space import Point, PointSet, Space, BoundingBox
 from ..core.region import Region
 
 import numpy as np
-from nibabel import Nifti1Image
+from nibabel import Nifti1Image, funcs
 from nilearn import image
 from memoization import cached
 from tqdm import tqdm
@@ -134,9 +134,9 @@ class ParcellationMap(ImageProvider):
         """
         pass
 
-    def fetchall(self, resolution_mm=None, voi: BoundingBox = None):
+    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None):
         """
-        Returns an iterator to fetch all available maps sequentially:
+        Returns an iterator to fetch all available maps sequentially.
 
         Parameters
         ----------
@@ -149,26 +149,110 @@ class ParcellationMap(ImageProvider):
         return (fnc(res=resolution_mm, voi=voi) for fnc in self.maploaders)
 
     def fetch(
-        self, resolution_mm: float = None, mapindex: int = 0, voi: BoundingBox = None
+        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None
     ):
         """
         Fetches the actual image data
 
         Parameters
         ----------
+        mapindex : int
+            The index of the available maps to be fetched.
         resolution_mm : float or None (optional)
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
-        mapindex : int
-            The index of the available maps to be fetched.
         """
         if mapindex < len(self):
+            if len(self) > 1:
+                logger.info(
+                    f"Returning map {mapindex+1} of in total {len(self)} available maps."
+                )
             return self.maploaders[mapindex](res=resolution_mm, voi=voi)
         else:
             raise ValueError(
                 f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested."
             )
+
+    def fetch_all(self):
+        """Returns a 4D array containing all 3D maps.
+
+        All available maps are stacked along the 4th dimension.
+        Note that this can be quite memory-intensive for continuous maps.
+        If you just want to iterate over maps, prefer using
+            'for img in ParcellationMaps.fetch_iter():'
+        """
+        N = len(self)
+        with QUIET:
+            im0 = self.fetch(mapindex=0)
+        out_shape = (N,) + im0.shape
+        logger.info(f"Create 4D array from {N} maps with size {im0.shape + (N,)}")
+        out_data = np.empty(out_shape, dtype=im0.dataobj.dtype)
+
+        for mapindex, img in tqdm(enumerate(self.fetch_iter()), total=N):
+            out_data[mapindex] = np.asanyarray(img.dataobj)
+
+        return funcs.squeeze_image(
+            Nifti1Image(
+                np.rollaxis(out_data, 0, out_data.ndim), im0.affine
+            )
+        )
+        
+    def fetch_regionmap(
+        self,
+        regionspec: Union[str, int, Region],
+        resolution_mm=None,
+        voi: BoundingBox = None,
+    ):
+        """
+        Extract the mask for one particular region. For parcellation maps, this
+        is a binary mask volume. For overlapping maps, this is the
+        corresponding slice, which typically is a volume of float type.
+
+        Parameters
+        ----------
+        regionspec : labelindex, partial region name, or Region
+            The desired region.
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes.
+            If None, the smallest possible resolution will be chosen.
+            If -1, the largest feasible resolution will be chosen.
+
+        Return
+        ------
+        Nifti1Image, if found, otherwise None
+        """
+        indices = self.decode_region(regionspec)
+        mapimgs = []
+        for index in indices:
+            mapimg = self.fetch(
+                resolution_mm=resolution_mm, mapindex=index.map, voi=voi
+            )
+            if index.label is not None:
+                mapimg = Nifti1Image(
+                    dataobj=(mapimg.get_fdata() == index.label).astype(np.uint8),
+                    affine=mapimg.affine,
+                )
+            mapimgs.append(mapimg)
+
+        if len(mapimgs) == 1:
+            return mapimgs[0]
+        elif self.maptype == MapType.LABELLED:
+            m = mapimgs[0]
+            for m2 in mapimgs[1:]:
+                m.dataobj[m2.dataobj > 0] = 1
+            return m
+        else:
+            logger.info(
+                f"4D volume with {len(mapimgs)} continuous region maps extracted from region specification '{regionspec}'"
+            )
+            return image.concat_imgs(mapimgs)
+
+    def get_shape(self, resolution_mm=None):
+        return list(self.space.get_template().get_shape()) + [len(self)]
+
+    def is_float(self):
+        return self.maptype == MapType.CONTINUOUS
 
     def _load_regional_map(
         self, region: Region, resolution_mm, voi: BoundingBox = None, clip: bool = False
@@ -277,63 +361,6 @@ class ParcellationMap(ImageProvider):
             )
         return [idx for idx, _ in subregions]
 
-    def extract_regionmap(
-        self,
-        regionspec: Union[str, int, Region],
-        resolution_mm=None,
-        voi: BoundingBox = None,
-    ):
-        """
-        Extract the mask for one particular region. For parcellation maps, this
-        is a binary mask volume. For overlapping maps, this is the
-        corresponding slice, which typically is a volume of float type.
-
-        Parameters
-        ----------
-        regionspec : labelindex, partial region name, or Region
-            The desired region.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-
-        Return
-        ------
-        Nifti1Image, if found, otherwise None
-        """
-        indices = self.decode_region(regionspec)
-        mapimgs = []
-        for index in indices:
-            mapimg = self.fetch(
-                resolution_mm=resolution_mm, mapindex=index.map, voi=voi
-            )
-            if index.label is not None:
-                mapimg = Nifti1Image(
-                    dataobj=(mapimg.get_fdata() == index.label).astype(np.uint8),
-                    affine=mapimg.affine,
-                )
-            mapimgs.append(mapimg)
-
-        if len(mapimgs) == 1:
-            return mapimgs[0]
-        elif self.maptype == MapType.LABELLED:
-            m = mapimgs[0]
-            for m2 in mapimgs[1:]:
-                m.dataobj[m2.dataobj > 0] = 1
-            return m
-        else:
-            logger.info(
-                f"4D volume with {len(mapimgs)} continuous region maps extracted from region specification '{regionspec}'"
-            )
-            return image.concat_imgs(mapimgs)
-
-    def get_shape(self, resolution_mm=None):
-        return list(self.space.get_template().get_shape()) + [len(self)]
-
-    def is_float(self):
-        return self.maptype == MapType.CONTINUOUS
-
-
 class LabelledParcellationMap(ParcellationMap):
     """
     Represents a brain map in a reference space, with
@@ -435,9 +462,7 @@ class LabelledParcellationMap(ParcellationMap):
             logger.warning(
                 f"Floating point image type encountered when building a labelled volume for {self.parcellation.name}, converting to integer."
             )
-            m = Nifti1Image(
-                dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine
-            )
+            m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine)
         return m
 
     @cached
@@ -498,7 +523,9 @@ class LabelledParcellationMap(ParcellationMap):
         return m
 
     @cached
-    def assign_coordinates(self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None):
+    def assign_coordinates(
+        self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
+    ):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
@@ -511,8 +538,9 @@ class LabelledParcellationMap(ParcellationMap):
 
         if point.space != self.space:
             logger.info(
-                f'Coordinates will be converted from {point.space.name} '
-                f'to {self.space.name} space for assignment.')
+                f"Coordinates will be converted from {point.space.name} "
+                f"to {self.space.name} space for assignment."
+            )
 
         # Convert input to Nx4 list of homogenous coordinates
         if isinstance(point, Point):
@@ -585,7 +613,7 @@ class LabelledParcellationMap(ParcellationMap):
                     this = region.build_mask(self.space, maptype=self.maptype)
             scores = compare_maps(img, this)
             if scores["overlap"] > 0:
-                assert(region not in pmaps)
+                assert region not in pmaps
                 pmaps[region] = this
                 values[region] = scores
 
@@ -681,10 +709,14 @@ class ContinuousParcellationMap(ParcellationMap):
             pindex = ParcellationIndex(map=i, label=None)
             self._regions_cached[pindex] = region
             i += 1
-        logger.info(f"{i} regional continuous maps found for {self.parcellation} in {self.space.name}.")
+        logger.info(
+            f"{i} regional continuous maps found for {self.parcellation} in {self.space.name}."
+        )
 
     @cached
-    def assign_coordinates(self, point: Union[Point, PointSet], sigma_mm=1, sigma_truncation=3):
+    def assign_coordinates(
+        self, point: Union[Point, PointSet], sigma_mm=1, sigma_truncation=3
+    ):
         """
         Assign regions to a physical coordinates with optional standard deviation.
 
@@ -703,8 +735,9 @@ class ContinuousParcellationMap(ParcellationMap):
 
         if point.space != self.space:
             logger.info(
-                f'Coordinates will be converted from {point.space.name} '
-                f'to {self.space.name} space for assignment.')
+                f"Coordinates will be converted from {point.space.name} "
+                f"to {self.space.name} space for assignment."
+            )
 
         # Convert input to Nx4 list of homogenous coordinates
         if isinstance(point, Point):
