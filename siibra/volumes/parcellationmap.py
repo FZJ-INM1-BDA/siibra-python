@@ -677,6 +677,7 @@ class ContinuousParcellationMap(ParcellationMap):
             )
             if region in self.regions.values():
                 logger.debug(f"Region already seen in tree: {region.key}")
+                continue
             pindex = ParcellationIndex(map=i, label=None)
             self._regions_cached[pindex] = region
             i += 1
