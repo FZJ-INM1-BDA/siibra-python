@@ -698,14 +698,14 @@ class ContinuousParcellationMap(ParcellationMap):
                 regionmap = region.get_regional_map(self.space, MapType.CONTINUOUS)
             if regionmap is None:
                 continue
+            if region in self.regions.values():
+                logger.debug(f"Region already seen in tree: {region.key}")
+                continue
             self._maploaders_cached.append(
                 lambda r=region, res=None, voi=None: self._load_regional_map(
                     r, resolution_mm=res, voi=voi
                 )
             )
-            if region in self.regions.values():
-                logger.debug(f"Region already seen in tree: {region.key}")
-                continue
             pindex = ParcellationIndex(map=i, label=None)
             self._regions_cached[pindex] = region
             i += 1
