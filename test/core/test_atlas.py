@@ -17,6 +17,7 @@ class TestAtlas(unittest.TestCase):
         "@type": "juelich/iav/atlas/v1.0.0",
         "@id": JSON_ATLAS_ID,
         "name": JSON_ATLAS_NAME,
+        "species": 'human',
         "order": 1,
         "spaces": [
             "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
@@ -37,14 +38,15 @@ class TestAtlas(unittest.TestCase):
         cls.ATLAS_NAME = 'Multilevel Human Atlas'
 
     def test_atlas_init(self):
-        a = atlas.Atlas('juelich/iav/atlas/v1.0.0/1', self.ATLAS_NAME)
+        a = atlas.Atlas('juelich/iav/atlas/v1.0.0/1', self.ATLAS_NAME)#, species='human')
         self.assertEqual(a.name, self.ATLAS_NAME)
         self.assertEqual(a.key, 'MULTILEVEL_HUMAN_ATLAS')
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
+        #self.assertEqual(a.species, 'human')
 
         # on init, parcellations and spaces are empty lists
         self.assertTrue(len(a._parcellations) == 0)
-        self.assertTrue(len(a.spaces) == 0)
+        self.assertTrue(len(a._spaces) == 0)
 
     def test_parcellations(self):
         parcellations = self.atlas.parcellations

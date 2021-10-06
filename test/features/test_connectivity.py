@@ -37,7 +37,7 @@ class TestConnectivity(unittest.TestCase):
             siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18
         )
         cls.parc = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18
-        region = atlas.get_region("v1", parcellation=parcellation)
+        region = atlas.get_region("v1 left", parcellation=parcellation)
         cls.got_features = siibra.get_features(region, "ConnectivityProfile")
 
     def test_valid_connectivity_profile_data(self):
