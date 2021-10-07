@@ -45,13 +45,10 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         "anytree",
-        "statsmodels",
         "nibabel",
         "click",
         "appdirs",
         "scikit-image",
-        "scipy",
-        "statsmodels",
         "requests",
         "memoization",
         "cloud-volume",

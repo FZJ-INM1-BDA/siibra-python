@@ -664,6 +664,15 @@ class Region(anytree.NodeMixin, AtlasConcept):
             space=spaceobj,
         ), img
 
+    def centroids(self, space: Space):
+        """ Compute the centroids of the region in the given space.
+        
+        Note that a region can generally have multiple centroids
+        if it has multiple connected components in the map.
+        """
+        props = self.spatial_props(space)
+        return [c['centroid'] for c in props['components']]
+
     @cached
     def spatial_props(
         self,

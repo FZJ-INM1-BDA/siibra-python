@@ -15,7 +15,7 @@
 
 
 import numpy as np
-from scipy.ndimage import gaussian_filter
+from skimage.filters import gaussian
 import nibabel as nib
 
 
@@ -27,7 +27,7 @@ def create_gaussian_kernel(sigma=1, sigma_point=3):
     k_size = 2 * r + 1
     impulse = np.zeros((k_size, k_size, k_size))
     impulse[r, r, r] = 1
-    kernel = gaussian_filter(impulse, sigma)
+    kernel = gaussian(impulse, sigma)
     kernel /= kernel.sum()
     return kernel
 
