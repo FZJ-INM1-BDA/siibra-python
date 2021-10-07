@@ -846,7 +846,4 @@ class ContinuousParcellationMap(ParcellationMap):
                 reverse=True,
             )
         ]
-        if len(assignments) == 1:
-            return assignments[0]
-        else:
-            return assignments
+        return assignments
