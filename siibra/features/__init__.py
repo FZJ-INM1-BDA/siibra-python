@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,23 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import Glossary
+from ..commons import Registry
 
-def __init__():
-    """
-    Setup the module silently
-    """
-    from .receptors import ReceptorQuery
-    from .genes import AllenBrainAtlasQuery
-    from .connectivity import ConnectivityProfileExtractor, ConnectivityMatrixExtractor
-    from .ebrainsquery import EbrainsRegionalFeatureExtractor
-    from .ieeg import IEEG_ContactPointExtractor, IEEG_ElectrodeExtractor
-    from .extractor import FeatureExtractorRegistry
-    extractor_types = FeatureExtractorRegistry() 
-    return [ extractor_types,
-            Glossary(AllenBrainAtlasQuery.GENE_NAMES.keys()),
-            Glossary(extractor_types.modalities.keys()) ]
+# Want to include these queries with their features into the pre-populated lists
+from .receptors import ReceptorQuery
+from .genes import AllenBrainAtlasQuery
+from .connectivity import ConnectivityProfileQuery, ConnectivityMatrixQuery
+from .ebrains import EbrainsRegionalFeatureQuery
+from .cells import RegionalCellDensityExtractor
+from .ieeg import IEEG_SessionQuery
+from .voi import VolumeOfInterestQuery
 
-extractor_types,gene_names,modalities = __init__()
-classes = { name:extractor_types._extractors[name][0]._FEATURETYPE 
-        for name in extractor_types._extractors.keys()}
+from .query import FeatureQuery
+get_features = FeatureQuery.get_features
+
+__all__ = []
+from .genes import GENE_NAMES as gene_names
+modalities = FeatureQuery.REGISTRY
+__all__ += ['gene_names','modalities']

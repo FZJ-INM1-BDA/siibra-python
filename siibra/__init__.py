@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,45 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from os import path, getenv
+from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__='0.1a8'
-
-import logging
-logger = logging.getLogger(__name__)
-ch = logging.StreamHandler()
-formatter = logging.Formatter('[%(name)s:%(levelname)s]  %(message)s')
-ch.setFormatter(formatter)
-logger.addHandler(ch)
-
-class LoggingContext:
-    def __init__(self, level ):
-        self.level = level
-
-    def __enter__(self):
-        self.old_level = logger.level
-        logger.setLevel(self.level)
-
-    def __exit__(self, et, ev, tb):
-        logger.setLevel(self.old_level)
-
-QUIET = LoggingContext("ERROR")
-VERBOSE = LoggingContext("DEBUG")
-
-# convenience function, will be easier to discover
-def set_log_level(level):
-    logger.setLevel(level)
-
-set_log_level(getenv("SIIBRA_LOG_LEVEL","INFO"))
-
+__version__ = "0.2a51"
 logger.info(f"Version: {__version__}")
-logger.warning("This is a development release. Use at your own risk. Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python.")
+logger.warning("This is a development release. Use at your own risk.")
+logger.info(
+    "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
+)
 
-from .space import REGISTRY as spaces
-from .parcellation import REGISTRY as parcellations
-from .atlas import REGISTRY as atlases
-from .retrieval import clear_cache
-from .features import modalities
-from .ebrains import set_token as set_ebrains_token
-from .commons import MapType,ParcellationIndex
+from .core import spaces, parcellations, atlases
+from .features import modalities, gene_names, get_features
+from .commons import MapType, ParcellationIndex
+from .retrieval import EbrainsRequest, CACHE
+from .core import Point, PointSet, BoundingBox
+from .core.space import Location as _
+from_sands = _.from_sands
+set_ebrains_token = EbrainsRequest.set_token
+clear_cache = CACHE.clear
+
+
+def set_feasible_download_size(maxsize_gbyte):
+    from .volumes import volume
+    volume.gbyte_feasible = maxsize_gbyte
+    logger.info(f"Set feasible download size to {maxsize_gbyte} GByte.")

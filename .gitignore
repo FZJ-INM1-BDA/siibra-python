@@ -8,6 +8,7 @@ dist
 build
 .*nii
 brainscapes_client/*.nii
+.ipynb_checkpoints
 .DS_Store
 *.swp
 docs/make.bat
@@ -18,3 +19,5 @@ venv
 _autosummary
 __Tag_List__
 *.code-workspace
+.vscode
+playground

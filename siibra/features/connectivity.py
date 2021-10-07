@@ -1,4 +1,5 @@
-# Copyright 2018-2020 Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,236 +13,193 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import json
-import numpy as np
-import warnings
-from gitlab import Gitlab
 
-from .. import logger
-from ..commons import ParcellationIndex
-from ..region import Region
-from .feature import RegionalFeature,GlobalFeature
-from .extractor import FeatureExtractor
-from ..termplot import FontStyles as style
-from .. import termplot,parcellations
+from .feature import RegionalFeature, ParcellationFeature
+from .query import FeatureQuery
+
+from ..commons import logger
+from ..core.parcellation import Parcellation
+from ..core.datasets import EbrainsDataset, Dataset
+from ..retrieval.repositories import GitlabConnector
+
+from collections import defaultdict
+import numpy as np
+
+
+class ConnectivityMatrix(ParcellationFeature):
+    def __init__(self, parcellation_id, matrix):
+        ParcellationFeature.__init__(self, parcellation_id)
+        self.matrix = matrix
+
+    @property
+    def array(self):
+        """
+        Returns the pure data array with connectivity information
+        """
+        return np.array([self.matrix[f] for f in self.matrix.dtype.names[1:]])
+
+    @property
+    def regionnames(self):
+        return self.matrix.dtype.names[1:]
+
+    @property
+    def globalrange(self):
+        return [
+            fnc(
+                fnc(self._matrix_loader.data[f])
+                for f in self._matrix_loader.data.dtype.names[1:]
+            )
+            for fnc in [min, max]
+        ]
+
+    @classmethod
+    def _from_json(cls, data):
+        """
+        Build a connectivity matrix from json object
+        """
+        parcellation = Parcellation.REGISTRY[data["parcellation id"]]
+
+        # determine the valid brain regions defined in the file,
+        # as well as their indices
+        column_names = data["data"]["field names"]
+        valid_regions = {}
+        matchings = defaultdict(list)
+        for i, name in enumerate(column_names):
+            try:
+                region = parcellation.decode_region(name, build_group=False)
+                if region not in valid_regions.values():
+                    valid_regions[i] = region
+                    matchings[region].append(name)
+                else:
+                    logger.debug(
+                        f"Region occured multiple times in connectivity dataset: {region}"
+                    )
+            except ValueError:
+                continue
+
+        profiles = []
+        for i, region in valid_regions.items():
+            regionname = column_names[i]
+            profile = [region.name] + [
+                data["data"]["profiles"][regionname][j] for j in valid_regions.keys()
+            ]
+            profiles.append(tuple(profile))
+        fields = [("sourceregion", "U64")] + [
+            (v.name, "f") for v in valid_regions.values()
+        ]
+        matrix = np.array(profiles, dtype=fields)
+        assert all(N == len(valid_regions) for N in matrix.shape)
+
+        if "kgId" in data:
+            return EbrainsConnectivityMatrix(
+                data["kgId"],
+                data["parcellation id"],
+                matrix,
+                name=data["name"],
+                description=data["description"],
+            )
+        else:
+            return ExternalConnectivityMatrix(
+                data["@id"],
+                data["parcellation id"],
+                matrix,
+                name=data["name"],
+                description=data["description"],
+            )
+
+
+class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):
+    def __init__(self, id, parcellation_id, matrix, name, description):
+        assert id is not None
+        ConnectivityMatrix.__init__(self, parcellation_id, matrix)
+        Dataset.__init__(self, id, description=description)
+        self.name = name
+
+
+class EbrainsConnectivityMatrix(ConnectivityMatrix, EbrainsDataset):
+    def __init__(self, kg_id, parcellation_id, matrix, name, description):
+        assert kg_id is not None
+        ConnectivityMatrix.__init__(self, parcellation_id, matrix)
+        self._description_cached = description
+        EbrainsDataset.__init__(self, kg_id, name)
+
 
 class ConnectivityProfile(RegionalFeature):
 
     show_as_log = True
 
-    def __init__(self, region, profile, column_names, src_name, src_info, src_file, parcellation, kg_schema, kg_id):
-        RegionalFeature.__init__(self,region)
-        self.profile = profile
-        self.src_name = src_name
-        self.src_info = src_info
-        self.src_file = src_file
-        self.column_names = column_names
-        self.parcellation = parcellation
-        self.kg_schema = kg_schema
-        self.kg_id = kg_id
-        self.globalrange = None
+    def __init__(self, regionspec: str, connectivitymatrix: ConnectivityMatrix, index):
+        assert regionspec is not None
+        RegionalFeature.__init__(self, regionspec)
+        self._matrix_index = index
+        self._matrix = connectivitymatrix
+
+    @property
+    def profile(self):
+        return self._matrix.matrix[self._matrix_index]
+
+    @property
+    def description(self):
+        return self._matrix.description
+
+    @property
+    def name(self):
+        return self._matrix.name
+
+    @property
+    def regionnames(self):
+        return self._matrix.regionnames
+
+    @property
+    def globalrange(self):
+        return self._matrix.globalrange
 
     def __str__(self):
-        """
-        Returns a multiline barplot of the sorted profiles in log scale.
-        Set ConnectivityProfile.show_as_log to False to see original values
-        """
-        if ConnectivityProfile.show_as_log:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                profile = np.log(self.profile)
-                vrange = np.log(self.globalrange)
-            profile[profile==-np.inf] = 0
-            vrange[vrange==-np.inf] = 0
-        else:
-            profile = self.profile
-            vrange = self.globalrange
-        calib = termplot.calibrate(vrange, self.column_names)
-        return "\n".join([style.BOLD+'Connectivity profile of "{}"'.format(self.region)+style.END] 
-                + [ termplot.format_row(self.column_names[i] if i in self.column_names else 'Undecoded region',profile[i],calib)
-                    for i in np.argsort(profile)
-                    if self.profile[i]>0
-                    ])
+        return f"{self.__class__.__name__} from dataset '{self._matrix.name}' for {self.regionspec}"
 
-
-    def decode(self,parcellation,minstrength=0,force=True):
+    def decode(self, parcellation, minstrength=0, force=True):
         """
         Decode the profile into a list of connections strengths to real regions
-        that match the given parcellation. 
+        that match the given parcellation.
         If a column name for the profile cannot be decoded, a dummy region is
         returned if force==True, otherwise we fail.
         """
-        def decoderegion(parcellation,regionname,force):
-            try:
-                return parcellation.decode_region(regionname)
-            except ValueError as e:
-                logger.warning(f'Region name "{regionname}" cannot be decoded by parcellation {parcellation.key}, returning dummy region.')
-                if force:
-                    return Region(regionname, parcellation, ParcellationIndex(None,None))
-                raise e
+        decoded = (
+            (strength, parcellation.decode_region(regionname, build_group=not force))
+            for strength, regionname in zip(self.profile, self.regionnames)
+            if strength > minstrength
+        )
+        return sorted(decoded, key=lambda q: q[0], reverse=True)
 
-        decoded = ( (strength,decoderegion(parcellation,regionname,force))
-                for strength,regionname in zip(self.profile,self.column_names.values())
-                if strength>minstrength)
-        return sorted(decoded,key=lambda q:q[0],reverse=True)
 
-class ConnectivityProfileExtractor(FeatureExtractor):
+class ConnectivityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityProfile
-    __jsons = None
+    _QUERY = GitlabConnector(
+        "https://jugit.fz-juelich.de", 3009, "develop"
+    )  # folder="connectivity"
 
-    def __init__(self,atlas):
-
-        FeatureExtractor.__init__(self,atlas)
-        self.profiles = []        
-        if self.__class__.__jsons is None:
-            self.__load_jsons()
-        
-        self.load_profiles()
-
-        for profile in self.profiles:
-            self.register(profile)
-
-    def __load_jsons(self):
-
-        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
-        jsonfiles = [f['name'] 
-                for f in project.repository_tree(all=True)
-                if f['type']=='blob' 
-                and f['name'].endswith('json')]
-        self.__class__.__jsons=[]
-        for jsonfile in jsonfiles:
-            f = project.files.get(file_path=jsonfile, ref='master')
-            data = json.loads(f.decode())
-            self.__class__.__jsons.append({
-                'data':data,
-                'jsonfile': jsonfile})
-        
-    def load_profiles(self):
-        if self.__class__.__jsons is None:
-            raise RuntimeError('must call __load_jsons before calling load_profiles !')   
-
-        minval = maxval = 0
-        for obj in self.__class__.__jsons: 
-            data=obj['data']
-            jsonfile=obj['jsonfile']
-
-            src_name = data['name']
-            src_info = data['description']
-            kg_schema = data['kgschema'] if 'kgschema' in data.keys() else ''
-            kg_id = data['kgId'] if 'kgId' in data.keys() else ''
-            src_file = jsonfile
-            try:
-                parcellation = parcellations[data['parcellation id']]
-                if parcellation!=self.parcellation:
-                    logger.debug(f'parcellation with id {parcellation.id} does not match selected parcellation with id {self.parcellation.id}, ignoring {jsonfile}')
-                    continue
-            except IndexError as e:
-                # cannot find parcellation from parcellation id
-                # Log and continue
-                logger.warning(f'{e}, ignoring {jsonfile} ')
-                continue
-            column_names = data['data']['field names']
-            valid_regions = {}
-            for i,name in enumerate(column_names):
-                try:
-                    region = parcellation.decode_region(name)
-                except ValueError:
-                    logger.debug(f'Cannot decode {name} at index {i}')
-                    continue
-                valid_regions[i] = region
-            if len(valid_regions)<len(column_names):
-                logger.warning(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset pointed to valid regions.')
-            for i,region in valid_regions.items():
-                regionname = column_names[i]
-                profile = data['data']['profiles'][regionname]
-                if max(profile)>maxval:
-                    maxval = max(profile)
-                if min(profile)>minval:
-                    minval = min(profile)
-                self.profiles.append( ConnectivityProfile(
-                    region, profile, 
-                    {i: r.name for i,r in valid_regions.items()},
-                    src_name, src_info, src_file,
-                    parcellation,
-                    kg_schema, kg_id ) )
-
-        for profile in self.profiles :
-            profile.globalrange = (minval,maxval)
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+        for _, loader in self._QUERY.get_loaders("connectivity", ".json"):
+            cm = ConnectivityMatrix._from_json(loader.data)
+            for parcellation in cm.parcellations:
+                for regionname in cm.regionnames:
+                    region = parcellation.decode_region(regionname, build_group=False)
+                    if region is None:
+                        raise RuntimeError(
+                            f"Could not decode region name {regionname} in {parcellation}"
+                        )
+                    self.register(ConnectivityProfile(region, cm, regionname))
 
 
-class ConnectivityMatrix(GlobalFeature):
-
-    def __init__(self, parcellation, matrix, column_names, src_name, src_info ):
-        GlobalFeature.__init__(self,parcellation)
-        self.matrix = matrix
-        self.column_names = column_names
-        self.src_name = src_name
-        self.src_info = src_info
-
-    def __str__(self):
-        # TODO implement a reasonable display of the matrix
-        return "Connectivity matrix for {}".format(
-                self.parcellation)
-
-
-class ConnectivityMatrixExtractor(FeatureExtractor):
+class ConnectivityMatrixQuery(FeatureQuery):
 
     _FEATURETYPE = ConnectivityMatrix
-    __features = None
+    _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
 
-    def __init__(self,atlas):
-
-        FeatureExtractor.__init__(self,atlas)
-        if self.__class__.__features is None:
-            self._load_features()
-        for feature in self.__class__.__features:
-            self.register(feature)        
-
-    def _load_features(self):
-
-        project = Gitlab('https://jugit.fz-juelich.de').projects.get(3009)
-        jsonfiles = [f['name'] 
-                for f in project.repository_tree() 
-                if f['type']=='blob' 
-                and f['name'].endswith('json')]
-        self.__class__.__features = []
-        for jsonfile in jsonfiles: 
-            f = project.files.get(file_path=jsonfile, ref='master')
-            profiles = []
-            data = json.loads(f.decode())
-            src_name = data['name']
-            src_info  = data['description']
-            parcellation = parcellations[data['parcellation id']]
-            if parcellation!=self.parcellation:
-                continue
-
-            # determine the valid brain regions defined in the file,
-            # as well as their indices
-            column_names = data['data']['field names']
-            valid_regions = {}
-            for i,name in enumerate(column_names):
-                try:
-                    region = parcellation.decode_region(name)
-                except ValueError:
-                    continue
-                valid_regions[i] = region
-            if len(valid_regions)<len(column_names):
-                logger.info(f'{len(valid_regions)} of {len(column_names)} columns in connectivity dataset point to valid regions.')
-
-            for i,region in valid_regions.items():
-                regionname = column_names[i]
-                profile = [data['data']['profiles'][regionname][i] 
-                        for i in valid_regions.keys()]
-                profiles.append(profile)
-            matrix = np.array(profiles)
-            assert(all(N==len(valid_regions) for N in matrix.shape))
-            self.__class__.__features.append(
-                ConnectivityMatrix(
-                    parcellation, matrix, column_names, src_name, src_info ))
-
-if __name__ == '__main__':
-
-    profileextractor = ConnectivityProfileExtractor()
-    matrixextractor = ConnectivityMatrixExtractor()
-
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+        for _, loader in self._CONNECTOR.get_loaders("connectivity", ".json"):
+            matrix = ConnectivityMatrix._from_json(loader.data)
+            self.register(matrix)
