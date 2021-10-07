@@ -170,7 +170,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             logger.info("Retrieving probe ids for gene {}".format(self.gene))
             url = self._QUERY["probe"].format(gene=self.gene)
             response = HttpRequest(url).get()
-            if "site unavailable" in response.decode).lower():
+            if "site unavailable" in response.decode().lower():
                 # When the Allen site is not available, they still send a status code 200.
                 raise RuntimeError(f"Allen institute site unavailable - please try again later.")
             root = ElementTree.fromstring(response)
