@@ -12,7 +12,12 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
+    
+    env:
+      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+      KEYCLOAK_ENDPOINT: ${{ secrets.HBP_KEYCLOAK_ENDPOINT }}
+      
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.9
