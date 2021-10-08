@@ -415,16 +415,18 @@ class LabelledParcellationMap(ParcellationMap):
                     )
                 )
                 # collect all available region maps to maps label indices to regions
+                current_index = 1
                 for region in self.parcellation.regiontree:
                     with QUIET:
                         regionmap = region.get_regional_map(
                             self.space, MapType.LABELLED
                         )
                     if regionmap is not None:
-                        assert region.index.label
                         self._regions_cached[
-                            ParcellationIndex(map=0, label=region.index.label)
+                            ParcellationIndex(map=0, label=current_index)
                         ] = region
+                        current_index += 1
+
             elif source.volume_type == self.space.type:
                 self._maploaders_cached.append(
                     lambda res=None, s=source, voi=None: self._load_map(
@@ -469,6 +471,7 @@ class LabelledParcellationMap(ParcellationMap):
     def _collect_maps(self, resolution_mm, voi):
         """
         Build a 3D volume from the list of available regional maps.
+        Label indices will just be sequentially assigned.
 
         Return
         ------
@@ -495,8 +498,9 @@ class LabelledParcellationMap(ParcellationMap):
             )
 
         msg = f"Collecting {len(regions)} regional maps for '{self.space.name}'"
+        current_index = 1
         for region in tqdm(regions, total=len(regions), desc=msg, unit="maps"):
-            assert region.index.label
+
             # load region mask
             mask_ = self._load_regional_map(
                 region, resolution_mm=resolution_mm, voi=voi
@@ -515,10 +519,11 @@ class LabelledParcellationMap(ParcellationMap):
                 m = Nifti1Image(
                     np.zeros_like(tpl.dataobj, dtype=mask.dataobj.dtype), tpl.affine
                 )
-            m.dataobj[mask.dataobj > 0] = region.index.label
+            m.dataobj[mask.dataobj > 0] = current_index
             self._regions_cached[
-                ParcellationIndex(map=0, label=region.index.label)
+                ParcellationIndex(map=0, label=current_index)
             ] = region
+            current_index += 1
 
         return m
 
