@@ -48,7 +48,7 @@ jobs:
       run: |
         echo "[pypi]" >~/.pypirc
         echo "username = __token__" >>~/.pypirc
-        echo "password = ${{secrets.PYPI_PUSH}}" >>~/.pypirc
+        echo "password = ${{ secrets.PYPI_PUSH }}" >>~/.pypirc
     - name: Upload to pypi
       run: |
         echo "Uploading to pypi"
