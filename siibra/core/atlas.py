@@ -242,3 +242,9 @@ class Atlas(
                 else:
                     result.extend(match)
         return result
+
+    def __lt__(self, other):
+        """
+        We sort atlases by their names
+        """
+        return self.name < other.name
