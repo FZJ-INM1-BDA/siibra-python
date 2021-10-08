@@ -1,10 +1,5 @@
-import os
 import unittest
 import siibra
-from test.get_token import get_token
-
-token = get_token()
-os.environ["HBP_AUTH_TOKEN"] = token["access_token"]
 
 
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):

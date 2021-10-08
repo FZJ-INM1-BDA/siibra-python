@@ -1,13 +1,7 @@
-import os
 import unittest
 import siibra
 from siibra import atlases, parcellations, modalities
 from siibra.core import atlas
-from test.get_token import get_token
-
-token = get_token()
-os.environ['HBP_AUTH_TOKEN'] = token["access_token"]
-
 
 class TestAtlas(unittest.TestCase):
 
