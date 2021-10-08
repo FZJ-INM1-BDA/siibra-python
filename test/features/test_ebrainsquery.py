@@ -5,7 +5,7 @@ import siibra
 class TestEbrainsQuery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        atlas = siibra.atlases["human"]
+        atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         region = atlas.get_region("hoc1 left")
         cls.feat = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
 

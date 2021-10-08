@@ -21,7 +21,7 @@ from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
 import numpy as np
-from nibabel import Nifti1Image
+import nibabel
 from cloudvolume.exceptions import OutOfBoundsError
 from cloudvolume import CloudVolume
 import os
@@ -170,7 +170,7 @@ class LocalNiftiVolume(ImageProvider):
 
     volume_type = 'nii'
 
-    def __init__(self, name: str, img: Nifti1Image, space: Space):
+    def __init__(self, name: str, img: nibabel.Nifti1Image, space: Space):
         """ Create a new local nifti volume from a Nifti1Image object.
 
         Args:
@@ -179,12 +179,19 @@ class LocalNiftiVolume(ImageProvider):
             space (Space): the reference space associated with the Image
         """
         self.name = name
-        if isinstance(img, Nifti1Image):
+        if isinstance(img, nibabel.Nifti1Image):
             self.image = img
         elif isinstance(img, str): 
-            self.image = Nifti1Image.from_filename(img)
+            self.image = nibabel.load(img)
         else:
             raise ValueError(f"Cannot create local nifti volume from image parameter {img}") 
+
+        if np.isnan(self.image.get_fdata()).any():
+            logger.warn(f'Replacing NaN by 0 for {self.name}')
+            self.image = nibabel.Nifti1Image(
+                np.nan_to_num(self.image.get_fdata()),
+                self.image.affine
+            )
         self.space = space
 
     def fetch(self, **kwargs):
@@ -249,7 +256,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
                 f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}."
             )
         else:
-            img = Nifti1Image(
+            img = nibabel.Nifti1Image(
                 dataobj=self.image.dataobj[:, :, :, mapindex], affine=self.image.affine
             )
         assert img is not None
@@ -265,7 +272,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
-            img = Nifti1Image(
+            img = nibabel.Nifti1Image(
                 dataobj=img.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(img.affine, shift),
             )
@@ -526,7 +533,7 @@ class NeuroglancerVolume(
         if data.ndim == 2:
             data = data.reshape(list(data.shape) + [1])
 
-        return Nifti1Image(data, self.build_affine(resolution_mm=resolution_mm, voi=voi))
+        return nibabel.Nifti1Image(data, self.build_affine(resolution_mm=resolution_mm, voi=voi))
 
     def get_shape(self, resolution_mm=None):
         mip = self._resolution_to_mip(resolution_mm, voi=None)

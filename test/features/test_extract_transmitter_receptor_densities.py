@@ -4,7 +4,7 @@ import siibra
 
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):
     def test_extract_densities(self):
-        atlas = siibra.atlases["human"]
+        atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         region = atlas.get_region("hoc1 left", parcellation="2.9")
         features = siibra.get_features(region, siibra.modalities.ReceptorDistribution)
         self.assertTrue(len(features) == 1)

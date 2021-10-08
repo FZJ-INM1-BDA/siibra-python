@@ -32,7 +32,7 @@ class TestSwitchParc(unittest.TestCase):
 class TestConnectivity(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        atlas = siibra.atlases["human"]
+        atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         parcellation = atlas.get_parcellation(
             siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_1_18
         )
