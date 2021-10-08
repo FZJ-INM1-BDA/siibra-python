@@ -19,6 +19,7 @@ from ..commons import logger
 import json
 from zipfile import ZipFile
 import requests
+from urllib.parse import quote
 import os
 from nibabel import Nifti1Image
 import gzip
@@ -208,6 +209,8 @@ class EbrainsRequest(LazyHttpRequest):
     domain = "core"
     version = "v1.0.0"
 
+    keycloak_endpoint = "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
+
     def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
         inst_tail = "/" + instance_id if instance_id is not None else ""
         self.schema = schema
@@ -254,15 +257,16 @@ class EbrainsRequest(LazyHttpRequest):
         # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET  
         keycloak = {
             v:os.environ.get(f'KEYCLOAK_{v.upper()}') 
-            for v in ['endpoint','client_id','client_secret']
+            for v in ['client_id','client_secret']
         }
         if None not in keycloak.values():
+            logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
-                keycloak['endpoint'],
+                self.__class__.keycloak_endpoint,
                 data = (
-                    f"grant_type=client_credentials&client_id={keycloak['client_id']}&"
-                    f"client_secret={keycloak['client_secret']}&"
-                    "scope=kg-nexus-role-mapping kg-nexus-service-account-mock"
+                    f"grant_type=client_credentials&client_id={keycloak['client_id']}"
+                    f"&client_secret={keycloak['client_secret']}"
+                    #"&scope=kg-nexus-role-mapping%20kg-nexus-service-account-mock"
                 ),
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
