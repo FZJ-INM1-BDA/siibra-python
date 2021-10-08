@@ -482,7 +482,15 @@ class ReceptorQuery(FeatureQuery):
         FeatureQuery.__init__(self)
         kg_query = EbrainsRequest(query_id="siibra_receptor_densities").get()
         # kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )
+        not_used = 0
         for kg_result in kg_query["results"]:
             region_names = [e["name"] for e in kg_result["region"]]
             for region_name in region_names:
-                self.register(ReceptorDistribution(region_name, kg_result))
+                f = ReceptorDistribution(region_name, kg_result)
+                if f.fingerprint is None:
+                    not_used += 1
+                else:
+                    self.register(f)
+        
+        if not_used > 0:
+            logger.info(f'{not_used} receptor datasets skipped due to unsupported format.')
