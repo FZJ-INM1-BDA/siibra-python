@@ -240,14 +240,49 @@ class EbrainsRequest(LazyHttpRequest):
 
     @property
     def kg_token(self):
-        if self.__class__._KG_API_TOKEN is None:
+
+        # token is available, return it
+        if self.__class__._KG_API_TOKEN is not None:
+            return self.__class__._KG_API_TOKEN
+
+        # See if a token is direcctly provided in  $HBP_AUTH_TOKEN
+        if "HBP_AUTH_TOKEN" in os.environ:
+            self.__class__._KG_API_TOKEN = os.environ['HBP_AUTH_TOKEN']
+            return self.__class__._KG_API_TOKEN
+
+        # try KEYCLOAK. Requires the following environment variables set:
+        # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET  
+        keycloak = {
+            v:os.environ.get(f'KEYCLOAK_{v.upper()}') 
+            for v in ['endpoint','client_id','client_secret']
+        }
+        if None not in keycloak.values():
+            result = requests.post(
+                keycloak['endpoint'],
+                data = (
+                    f"grant_type=client_credentials&client_id=${keycloak['client_id']}&"
+                    f"client_secret=${keycloak['client_secret']}&"
+                    "scope=kg-nexus-role-mapping kg-nexus-service-account-mock"
+                ),
+                headers = {'content-type': 'application/x-www-form-urlencoded'}
+            )
             try:
-                self.__class__._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
-            except KeyError:
-                raise RuntimeError(
-                    f"No API token defined for EBRAINS Knowledge Graph. "
-                    f"Please set $HBP_AUTH_TOKEN or use '{self.__class__.__name__}.set_token()'"
-                )
+                self.__class__._KG_API_TOKEN = json.loads(result.content.decode("utf-8"))
+            except json.JSONDecodeError as error:
+                logger.error(f"Invalid json from keycloak:{error}")
+            if 'error' in self.__class__._KG_API_TOKEN:
+                logger.error(self.__class__._KG_API_TOKEN['error_description'])
+                self.__class__._KG_API_TOKEN = None
+
+        if self.__class__._KG_API_TOKEN is None:
+            # No success getting the token
+            raise RuntimeError(
+                "No access token for EBRAINS Knowledge Graph found. "
+                f"Please set $HBP_AUTH_TOKEN or use '{self.__class__.__name__}.set_token()', "
+                "or configure keycloak access by setting $KEYCLOAK_ENDPOINT, $KEYCLOAK_CLIENT_ID "
+                "and $KEYCLOAK_CLIENT_SECRET."
+            )
+        
         return self.__class__._KG_API_TOKEN
 
     def get(self):
