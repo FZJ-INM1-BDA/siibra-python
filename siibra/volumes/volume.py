@@ -178,7 +178,13 @@ class LocalNiftiVolume(ImageProvider):
             img (Nifti1Image): 3D image
             space (Space): the reference space associated with the Image
         """
-        self.image = img
+        self.name = name
+        if isinstance(img, Nifti1Image):
+            self.image = img
+        elif isinstance(img, str): 
+            self.image = Nifti1Image.from_filename(img)
+        else:
+            raise ValueError(f"Cannot create local nifti volume from image parameter {img}") 
         self.space = space
 
     def fetch(self, **kwargs):
