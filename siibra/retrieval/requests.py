@@ -97,6 +97,7 @@ class HttpRequest:
             elif r.status_code in self.status_code_messages:
                 raise RuntimeError(self.status_code_messages[r.status_code])
             else:
+                print(self.kwargs)
                 raise RuntimeError(
                     f"Could not retrieve data.\nhttp status code: {r.status_code}\nURL: {self.url}"
                 )
@@ -248,7 +249,7 @@ class EbrainsRequest(LazyHttpRequest):
         if self.__class__._KG_API_TOKEN is not None:
             return self.__class__._KG_API_TOKEN
 
-        # See if a token is direcctly provided in  $HBP_AUTH_TOKEN
+        # See if a token is directly provided in  $HBP_AUTH_TOKEN
         if "HBP_AUTH_TOKEN" in os.environ:
             self.__class__._KG_API_TOKEN = os.environ['HBP_AUTH_TOKEN']
             return self.__class__._KG_API_TOKEN
@@ -271,9 +272,10 @@ class EbrainsRequest(LazyHttpRequest):
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
             try:
-                self.__class__._KG_API_TOKEN = json.loads(result.content.decode("utf-8"))
+                self.__class__._KG_API_TOKEN = json.loads(result.content.decode("utf-8"))['access_token']
             except json.JSONDecodeError as error:
                 logger.error(f"Invalid json from keycloak:{error}")
+                self.__class__._KG_API_TOKEN = None
             if 'error' in self.__class__._KG_API_TOKEN:
                 logger.error(self.__class__._KG_API_TOKEN['error_description'])
                 self.__class__._KG_API_TOKEN = None
