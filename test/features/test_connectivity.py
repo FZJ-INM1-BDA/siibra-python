@@ -5,7 +5,7 @@ from siibra.features.connectivity import ConnectivityProfile
 
 class TestSwitchParc(unittest.TestCase):
     def test_check_switch_parc(self):
-        atlas = siibra.atlases["human"]
+        atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         parcellation = atlas.get_parcellation("2.9")
         region = atlas.get_region("v1", parcellation=parcellation)
         v29_v1_feats = siibra.get_features(region, "ConnectivityProfile")

@@ -74,7 +74,7 @@ class TestSpaces(unittest.TestCase):
         self.assertTrue(isinstance(vsrc._image_loader, LazyHttpRequest))
 
     def test_space_registry(self):
-        spaces = atlases["human"].spaces
+        spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces
         self.assertEqual(len(spaces), 4)
 
 
