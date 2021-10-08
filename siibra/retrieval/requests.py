@@ -260,8 +260,8 @@ class EbrainsRequest(LazyHttpRequest):
             result = requests.post(
                 keycloak['endpoint'],
                 data = (
-                    f"grant_type=client_credentials&client_id=${keycloak['client_id']}&"
-                    f"client_secret=${keycloak['client_secret']}&"
+                    f"grant_type=client_credentials&client_id={keycloak['client_id']}&"
+                    f"client_secret={keycloak['client_secret']}&"
                     "scope=kg-nexus-role-mapping kg-nexus-service-account-mock"
                 ),
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
