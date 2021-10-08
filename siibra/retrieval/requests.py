@@ -272,13 +272,14 @@ class EbrainsRequest(LazyHttpRequest):
                 headers = {'content-type': 'application/x-www-form-urlencoded'}
             )
             try:
-                self.__class__._KG_API_TOKEN = json.loads(result.content.decode("utf-8"))['access_token']
+                content = json.loads(result.content.decode("utf-8"))
             except json.JSONDecodeError as error:
                 logger.error(f"Invalid json from keycloak:{error}")
                 self.__class__._KG_API_TOKEN = None
-            if 'error' in self.__class__._KG_API_TOKEN:
-                logger.error(self.__class__._KG_API_TOKEN['error_description'])
+            if 'error' in content:
+                logger.error(content['error_description'])
                 self.__class__._KG_API_TOKEN = None
+            self.__class__._KG_API_TOKEN = content['access_token']
 
         if self.__class__._KG_API_TOKEN is None:
             # No success getting the token
