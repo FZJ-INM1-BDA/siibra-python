@@ -527,6 +527,38 @@ class LabelledParcellationMap(ParcellationMap):
 
         return m
 
+    def colorize(self, values: dict):
+        """Colorize the map with the provided regional values.
+
+        Parameters
+        ----------
+        values : dict
+            Dictionary mapping regions to values
+
+        Return
+        ------
+        Nifti1Image
+        """
+        
+        # generate empty image
+        maps = {}
+        result = None
+
+        for region, value in values.items():
+            indices = self.decode_region(region)
+            for index in indices:
+                if index.map not in maps:
+                    # load the map
+                    maps[index.map] = self.fetch(index.map)
+                thismap = maps[index.map]
+                if result is None:
+                    # create the empty output
+                    result = np.zeros_like(thismap.get_fdata())
+                    affine = thismap.affine
+                result[thismap.get_fdata()==index.label] = value
+                
+        return Nifti1Image(result, affine)    
+
     @cached
     def assign_coordinates(
         self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
