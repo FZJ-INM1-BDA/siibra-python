@@ -137,9 +137,7 @@ class AtlasConcept:
             type_id = Dataset.extract_type_id(spec)
             Specialist = Dataset.REGISTRY.get(type_id, None)
             if Specialist is None:
-                raise RuntimeError(
-                    f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}."
-                )
+                logger.warn(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
             else:
                 obj = Specialist._from_json(spec)
                 logger.debug(

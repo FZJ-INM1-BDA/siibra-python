@@ -44,6 +44,7 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
+REGEX_TYPE=type(re.compile('test'))
 
 class Region(anytree.NodeMixin, AtlasConcept):
     """
@@ -274,9 +275,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             return self.index.label == regionspec
         elif isinstance(regionspec, ParcellationIndex):
             return self.index == regionspec
-        elif isinstance(regionspec, re.Pattern):
-            # match regular expression
-            return any(regionspec.search(s) is not None for s in [self.name, self.key])
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
@@ -292,6 +290,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         for w in splitstr(__class__._clear_name(regionspec))
                     ]
                 )
+        # Python 3.6 does not support re.Pattern
+        elif isinstance(regionspec, REGEX_TYPE):
+            # match regular expression
+            return any(regionspec.search(s) is not None for s in [self.name, self.key])
         else:
             raise TypeError(
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
