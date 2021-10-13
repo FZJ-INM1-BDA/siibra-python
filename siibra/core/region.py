@@ -44,6 +44,7 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
+REGEX_TYPE=type(re.compile('test'))
 
 class Region(anytree.NodeMixin, AtlasConcept):
     """
@@ -290,7 +291,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                     ]
                 )
         # Python 3.6 does not support re.Pattern
-        elif hasattr(re, 'Pattern') and isinstance(regionspec, re.Pattern):
+        elif isinstance(regionspec, REGEX_TYPE):
             # match regular expression
             return any(regionspec.search(s) is not None for s in [self.name, self.key])
         else:
