@@ -121,11 +121,8 @@ class Atlas(
             if len(self._spaces) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
         else:
-            space_obj = Space.REGISTRY[space]
-            if space_obj not in self._spaces:
-                raise ValueError(
-                    f"Space {space_obj.name} not supported by atlas {self.name}."
-                )
+            space_obj = self.spaces[space]
+
         return space_obj
 
     def get_map(
