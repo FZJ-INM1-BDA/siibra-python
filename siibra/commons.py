@@ -327,7 +327,11 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     mu_y = y.sum() / a2.size
     x0 = x - mu_x
     y0 = y - mu_y
-    r = np.sum(np.multiply(x0, y0)) / np.sqrt(np.sum(x0 ** 2) * np.sum(y0 ** 2))
+    dem = np.sqrt(np.sum(x0 ** 2) * np.sum(y0 ** 2))
+    if dem==0:
+        r = 0
+    else:
+        r = np.sum(np.multiply(x0, y0)) / dem
 
     bx = (x > 0).astype("uint8")
     by = (y > 0).astype("uint8")
