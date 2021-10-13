@@ -318,11 +318,17 @@ class DensityFingerprint:
         self.stdvals = [float(s) if s.isnumeric() else 0 for s in std]
 
     def __getitem__(self, index):
-        assert index < len(self.labels)
+        if isinstance(index, int):
+            assert index < len(self.labels)
+            index_ = index
+
+        elif isinstance(index, str):
+            assert index in self.labels
+            index_ = self.labels.index(index)
         return Density(
-            name=self.labels[index],
-            mean=self.meanvals[index],
-            std=self.stdvals[index],
+            name=self.labels[index_],
+            mean=self.meanvals[index_],
+            std=self.stdvals[index_],
             unit=self.unit,
         )
 
