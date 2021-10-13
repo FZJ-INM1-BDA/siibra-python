@@ -361,6 +361,8 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         self.modality = kg_result["modality"]
 
         urls = kg_result["files"]
+        
+        self.files=urls
 
         def urls_matching(regex):
             return filter(lambda u: re.match(regex, u), urls)
