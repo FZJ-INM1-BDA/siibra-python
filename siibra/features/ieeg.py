@@ -215,7 +215,7 @@ class IEEG_SessionQuery(FeatureQuery):
             logger.debug(f"Retrieving from {fname}")
 
             obj = parse_ptsfile(loader.data.decode())
-            subject_id = fname.split("_")[0]
+            subject_id = fname.replace('ieeg_contact_points/', '').split("_")[0]
             session = dset.new_session(subject_id)
             for electrode_id, contact_points in obj.items():
                 electrode = session.new_electrode(electrode_id)
