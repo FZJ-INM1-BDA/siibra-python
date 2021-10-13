@@ -1,20 +1,15 @@
 <img align="right" src="https://github.com/FZJ-INM1-BDA/siibra-python/raw/main/images/siibra-python.jpeg" width="200">
 
-[![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![PyPI version](https://badge.fury.io/py/siibra.svg)](https://pypi.org/project/siibra/)
+[![Python versions](https://img.shields.io/pypi/pyversions/siibra.svg)](https://pypi.python.org/pypi/siibra)
+[![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
 
 # siibra - Python interface for interacting with brain atlases 
 
 Copyright 2020-2021, Forschungszentrum Jülich GmbH 
 
 *Authors: Big Data Analytics Group, Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH*
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![PyPI version](https://badge.fury.io/py/siibra.svg)](https://pypi.org/project/siibra/)
-[![Python versions](https://img.shields.io/pypi/pyversions/siibra.svg)](https://pypi.python.org/pypi/siibra)
-[![Documentation Status](https://readthedocs.org/projects/siibra-python/badge/?version=latest)](https://siibra-python.readthedocs.io/en/latest/?badge=latest)
-
 
 **Note: siibra-python is still at an experimental stage.** The API of the library is not stable, and the software is not yet fully tested. You are welcome to install and test it, but be aware that you will likely encounter bugs.
 
