@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept, JSONableConcept, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
@@ -33,6 +33,7 @@ import numbers
 @provide_registry
 class Space(
     AtlasConcept,
+    JSONableConcept,
     bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
@@ -128,6 +129,21 @@ class Space(
 
         return result
 
+    def from_json(self):
+        pass
+
+    def to_json(self, detail=False, **kwargs):
+        base_info={
+            '@id': self.id,
+            '@type': self.type_id,
+            'name': self.name,
+            'id': self.id,
+            'type_id': self.type_id
+        }
+        detail_info={
+            'volume_type': self.src_volume_type
+        }
+        return {**base_info, **(detail_info if detail else {})}
 
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
@@ -264,7 +280,7 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location):
+class Point(Location, JSONableConcept):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -511,6 +527,23 @@ class Point(Location):
                     "be converted.")
         return int((coronal_position + 70.) / 0.02 + 1.5)
 
+    def from_json(self):
+        pass
+
+    def to_json(self, **kwargs):
+        return {
+            '@id': None,
+            '@type': 'https://openminds.ebrains.eu/sands/CoordinatePoint',
+            'coordinateSpace': self.space,
+            'coordinates': [{
+                '@id': None,
+                '@type': 'https://openminds.ebrains.eu/core/QuantitativeValue',
+                'value': float(coord),
+                "unit": {
+                    "@id": "id.link/mm"
+                }
+            } for coord in self.coordinate]
+        }
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,

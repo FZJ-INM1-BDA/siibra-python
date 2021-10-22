@@ -21,6 +21,7 @@ from ..commons import logger, Registry
 
 import os
 import re
+from abc import ABC, abstractmethod
 
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
@@ -260,3 +261,19 @@ class AtlasConcept:
     def match_spec(cls, obj, spec):
         assert isinstance(obj, cls)
         return obj.matches(spec)
+
+class JSONableConcept(ABC):
+    @abstractmethod
+    def to_json(self, detail=False, **kwargs):
+        """
+        Return a json dictionary representing this object.
+        The key(s) must be of type str
+        The value(s) must be of primitive type(s), or subclass of JSONableConcept:
+        - str | int | float | JSONableConcept
+        - (list|dict)[str|int|float|JSONableConcept]
+        """
+        pass
+    
+    @abstractmethod
+    def from_json(self, **kwargs):
+        pass

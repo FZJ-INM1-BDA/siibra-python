@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
+from .concept import AtlasConcept, JSONableConcept
 from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
@@ -46,7 +46,7 @@ REMOVE_FROM_NAME = [
 
 REGEX_TYPE=type(re.compile('test'))
 
-class Region(anytree.NodeMixin, AtlasConcept):
+class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
     """
     Representation of a region with name and more optional attributes
     """
@@ -817,6 +817,29 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return result
 
+    def to_json(self, detail=False, space: Space=None, **kwargs):
+        
+        try:
+            id_obj = self.attrs.get('fullId').get('kg')
+            full_id = f'{id_obj.get("kgSchema")}/{id_obj.get("kgId")}'
+        except AttributeError:
+            full_id = None
+
+        basic_info={
+            'name': self.name,
+            'children': [c for c in self.children],
+            'rgb': self.attrs.get('rgb'),
+            '@id': full_id,
+            '@type': self.type_id or 'minds/core/parcellationregion/v1.0.0'
+        }
+
+        detail_info={
+            **({ 'centroids': self.centroids(space) } if space is not None else {})
+        }
+        return {**basic_info, **(detail_info if detail else {})}
+
+    def from_json(self):
+        pass
 
 if __name__ == "__main__":
 

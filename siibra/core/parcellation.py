@@ -15,7 +15,7 @@
 
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept, JSONableConcept, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import parcellationmap
@@ -109,6 +109,7 @@ class ParcellationVersion:
 @provide_registry
 class Parcellation(
     AtlasConcept,
+    JSONableConcept,
     bootstrap_folder="parcellations",
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
@@ -439,3 +440,20 @@ class Parcellation(
             result.extends = obj["@extends"]
 
         return result
+
+    def to_json(self, detail=False, **kwargs):
+        base_info={
+            '@id': self.id,
+            '@type': self.type_id,
+            'id': self.id,
+            'type_id': self.type_id,
+            'name': self.name,
+            'regions': [r for r in self.regiontree.root.children]
+        }
+        detail_info={
+            'spaces': [s for s in self.spaces],
+        }
+        return { **base_info, **(detail_info if detail else {})}
+
+    def from_json(self):
+        pass
