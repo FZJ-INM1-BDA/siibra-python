@@ -8,7 +8,6 @@ ARG JUGEX_CLIENT_ID
 ARG JUGEX_CLIENT_SECRET
 ARG JUGEX_REFRESH_TOKEN
 ARG HBP_OIDC_ENDPOINT='https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token'
-ARG CI_PIPELINE=1
 
 RUN python -m pip install --upgrade pip
 
