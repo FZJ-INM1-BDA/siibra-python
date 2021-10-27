@@ -1,9 +1,13 @@
+from typing import Optional
+from typing_extensions import TypedDict
 import pytest
 from siibra.core.json_encoder import CircularReferenceException, JSONEncoder, JSONableConcept, UnJSONableException
 
+nested_flag=True
+
 @pytest.mark.parametrize('primitive_input', [ 'hello wolrd', 1, 1.5 ])
 def test_primitive(primitive_input):
-    with JSONEncoder() as handle:
+    with JSONEncoder(nested=nested_flag) as handle:
         assert handle.get_json(primitive_input) is primitive_input
 
 
@@ -12,7 +16,7 @@ def test_primitive(primitive_input):
     ((1,2,3), [1,2,3])
 ])
 def test_list(list_input, expected_output):
-    with JSONEncoder() as handle:
+    with JSONEncoder(nested=nested_flag) as handle:
         assert handle.get_json(list_input) == expected_output
 
 
@@ -21,7 +25,7 @@ def test_circular_ref():
     b=['3', '4', a]
     a.append(b)
     with pytest.raises(CircularReferenceException):
-        with JSONEncoder() as handle:
+        with JSONEncoder(nested=nested_flag) as handle:
             handle.get_json(a)
 
 
@@ -30,7 +34,7 @@ def test_dictionary():
         'hello': 'world',
         'foo': ['bar', 'baz']
     }
-    with JSONEncoder() as handle:
+    with JSONEncoder(nested=nested_flag) as handle:
         assert handle.get_json(a) == a
 
 
@@ -53,7 +57,7 @@ def test_empty_list():
         'baz': empty_list,
         'wok': empty_list
     }
-    with JSONEncoder() as handle:
+    with JSONEncoder(nested=nested_flag) as handle:
         js = handle.get_json(a)
         assert js.get('foo') == []
         assert js.get('bar') == []
@@ -65,7 +69,9 @@ class DummyCls3:
 
 
 class DummyCls2(JSONableConcept):
-
+    typed_json_output = TypedDict('T', {
+        'id': str
+    })
     def to_json(self, **kwargs):
         return {
             'id': 'dummy-cls-2',
@@ -76,6 +82,10 @@ class DummyCls2(JSONableConcept):
 
 
 class DummyCls(JSONableConcept):
+    typed_json_output = TypedDict('T', {
+        'id': str,
+        'child': Optional[any]
+    })
     def __init__(self, child=None):
         self.child = child
 
@@ -98,7 +108,7 @@ class DummyCls(JSONableConcept):
     (DummyCls(child=DummyCls3()), False, False),
 ])
 def test_jsonable_concept_subclass(input,detail_flag,expect_fail):
-    with JSONEncoder() as handle:
+    with JSONEncoder(nested=nested_flag) as handle:
         if expect_fail:
             with pytest.raises(UnJSONableException):
                 handle.get_json(input, detail=detail_flag)
@@ -109,3 +119,17 @@ def test_jsonable_concept_subclass(input,detail_flag,expect_fail):
                 assert 'child' in result
             else:
                 assert 'child' not in result
+
+def test_jsonable_concept_not_nested():
+    inst = DummyCls(child=DummyCls(child=DummyCls2()))
+    with JSONEncoder() as handle:
+        output=handle.get_json(inst, detail=True)
+        assert 'payload' in output and 'references' in output
+        assert list(output.get('payload').get('child').keys()) == ['@id']
+        child_id=output.get('payload').get('child').get('@id')
+        child_in_ref=[ref for ref in output.get('references', []) if ref['@id'] == child_id]
+        assert len(child_in_ref) == 1
+
+        # since depth == 1, the second level child will be empty object
+        assert inst.child.child is not None
+        assert child_in_ref[0].get('child') == {}

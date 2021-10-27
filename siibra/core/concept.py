@@ -21,7 +21,7 @@ from ..commons import logger, Registry
 
 import os
 import re
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
@@ -121,6 +121,7 @@ class AtlasConcept:
         This method is called whenever SiibraConcept gets subclassed
         (see https://docs.python.org/3/reference/datamodel.html)
         """
+        super().__init_subclass__()
         logger.debug(
             f"New subclass to {__class__.__name__}: {cls.__name__} (config folder: {bootstrap_folder})"
         )
@@ -263,6 +264,12 @@ class AtlasConcept:
         return obj.matches(spec)
 
 class JSONableConcept(ABC):
+
+    @property
+    @abstractproperty
+    def typed_json_output(self):
+        pass
+
     @abstractmethod
     def to_json(self, detail=False, **kwargs):
         """

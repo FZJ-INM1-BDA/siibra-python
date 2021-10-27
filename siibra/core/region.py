@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing_extensions import TypedDict
 from .concept import AtlasConcept, JSONableConcept
 from .space import PointSet, Space, Point, BoundingBox
 
@@ -31,7 +32,7 @@ import nibabel as nib
 from memoization import cached
 import re
 import anytree
-from typing import Union
+from typing import List, Optional, Union
 from nibabel import Nifti1Image
 
 
@@ -816,6 +817,16 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
         )
 
         return result
+
+    typed_json_output = TypedDict('RegionJson', {
+            'name': str,
+            # https://www.python.org/dev/peps/pep-0484/#the-problem-of-forward-declarations
+            'children': List['Region.typed_json_output'],
+            'rgb': List[int],
+            '@id': str,
+            '@type': str,
+            'centroids': Optional[List[Point.typed_json_output]] 
+    })
 
     def to_json(self, detail=False, space: Space=None, **kwargs):
         

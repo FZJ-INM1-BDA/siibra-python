@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Optional
+from typing_extensions import TypedDict
 from .concept import AtlasConcept, JSONableConcept, provide_registry
 
 from ..commons import logger
@@ -132,6 +134,14 @@ class Space(
     def from_json(self):
         pass
 
+    typed_json_output = TypedDict('SpaceJson', {
+        '@id': str,
+        '@type': str,
+        'name': str,
+        'id': str,
+        'type_id': str,
+        'volume_type': Optional[str]
+    })
     def to_json(self, detail=False, **kwargs):
         base_info={
             '@id': self.id,
@@ -529,6 +539,20 @@ class Point(Location, JSONableConcept):
 
     def from_json(self):
         pass
+
+    typed_json_output = TypedDict('PointTypedDict', {
+        '@id': str,
+        '@type': str,
+        'coordinateSpace': str,
+        'coordinates': List[TypedDict('Coordinates', {
+            '@id': Optional[str],
+            '@type': str,
+            'value': List[float],
+            'unit': TypedDict('TypedDictUnit', {
+                '@id': str
+            })
+        })],
+    })
 
     def to_json(self, **kwargs):
         return {

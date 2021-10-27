@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing_extensions import TypedDict
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept, JSONableConcept, provide_registry
@@ -20,7 +21,7 @@ from .concept import AtlasConcept, JSONableConcept, provide_registry
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import parcellationmap
 
-from typing import Union
+from typing import List, Optional, Union
 from memoization import cached
 
 # NOTE : such code could be used to automatically resolve
@@ -440,6 +441,17 @@ class Parcellation(
             result.extends = obj["@extends"]
 
         return result
+
+
+    typed_json_output = TypedDict('ParcellationJson', {
+        'id': str,
+        '@id': str,
+        'type_id': str,
+        '@type': str,
+        'name': str,
+        'regions': List[Region.typed_json_output],
+        'spaces': Optional[List[Space.typed_json_output]]
+    })
 
     def to_json(self, detail=False, **kwargs):
         base_info={
