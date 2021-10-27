@@ -14,7 +14,10 @@
 # limitations under the License.
 
 from typing import List, Optional
-from typing_extensions import TypedDict
+try:
+    from typing_extensions import TypedDict
+except:
+    from typing import TypedDict
 from .concept import AtlasConcept, JSONableConcept, provide_registry
 
 from ..commons import logger

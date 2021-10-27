@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing_extensions import TypedDict
+try:
+    from typing_extensions import TypedDict
+except:
+    from typing import TypedDict
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept, JSONableConcept, provide_registry

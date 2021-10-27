@@ -1,5 +1,8 @@
 from typing import Optional
-from typing_extensions import TypedDict
+try:
+    from typing_extensions import TypedDict
+except:
+    from typing import TypedDict
 import pytest
 from siibra.core.json_encoder import CircularReferenceException, JSONEncoder, JSONableConcept, UnJSONableException
 
