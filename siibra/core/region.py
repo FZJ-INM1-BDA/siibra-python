@@ -13,11 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from typing_extensions import TypedDict
-except:
-    from typing import TypedDict
-from .concept import AtlasConcept, JSONableConcept
+from pydantic import BaseModel
+from pydantic.fields import Field
+from .concept import AtlasConcept
+from .jsonable import AtAliasBaseModel, JSONableConcept
 from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
@@ -49,6 +48,15 @@ REMOVE_FROM_NAME = [
 ]
 
 REGEX_TYPE=type(re.compile('test'))
+
+
+class RegionJson(AtAliasBaseModel):
+    name: str
+    children: List['RegionJson']
+    rgb: Optional[List[int]]
+    centroids: Optional[List[Point.typed_json_output]]
+
+RegionJson.update_forward_refs()
 
 class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
     """
@@ -821,15 +829,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
 
         return result
 
-    typed_json_output = TypedDict('RegionJson', {
-            'name': str,
-            # https://www.python.org/dev/peps/pep-0484/#the-problem-of-forward-declarations
-            'children': List['Region.typed_json_output'],
-            'rgb': List[int],
-            '@id': str,
-            '@type': str,
-            'centroids': Optional[List[Point.typed_json_output]] 
-    })
+    typed_json_output = RegionJson
 
     def to_json(self, detail=False, space: Space=None, **kwargs):
         
@@ -839,12 +839,15 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
         except AttributeError:
             full_id = None
 
+        if space is not None and space not in self.supported_spaces:
+            raise NotImplementedError(f'region {str(self)} not supported in space {str(space)}')
+        
         basic_info={
             'name': self.name,
-            'children': [c for c in self.children],
+            'children': [c for c in self.children if space is None or space in c.supported_spaces ],
             'rgb': self.attrs.get('rgb'),
             '@id': full_id,
-            '@type': self.type_id or 'minds/core/parcellationregion/v1.0.0'
+            '@type': self.type_id or 'minds/core/parcellationregion/v1.0.0',
         }
 
         detail_info={

@@ -16,7 +16,8 @@
 from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
-from ..core.space import Space, BoundingBox
+from ..core.space import Space, BoundingBox, VolumeBaseModel
+from ..core.jsonable import JSONableConcept
 from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
@@ -31,7 +32,7 @@ from abc import ABC, abstractmethod
 gbyte_feasible = 0.1
 
 
-class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
+class VolumeSrc(Dataset, JSONableConcept, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     _SPECIALISTS = {}
     volume_type = None
@@ -133,6 +134,24 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             result.map_type = MapType[maptype.upper()]
         return result
 
+    def from_json(self):
+        pass
+
+    typed_json_output = VolumeBaseModel
+
+    def to_json(self, **kwargs):
+        base_info={
+            '@id': self.id,
+            '@type': self.type_id,
+            'name': self.name,
+            'id': self.id,
+            'url': self.url,
+            'volume_type': self.volume_type,
+            'type_id': VolumeSrc.type_id,
+            'detail': self.detail
+        }
+
+        return base_info
 
 class ImageProvider(ABC):
     @abstractmethod

@@ -13,13 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Optional
+from uuid import uuid4
+
+from pydantic.main import BaseModel
+from .jsonable import AtAliasBaseModel, JSONableConcept
 from ..commons import logger
 from ..retrieval import EbrainsRequest
 
 import re
 
+class DOIModel(BaseModel):
+    cite: Optional[str]
+    doi: Optional[str]
 
-class Dataset:
+class Dataset(JSONableConcept):
     """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
@@ -76,6 +84,28 @@ class Dataset:
             if key in spec:
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
+
+    class typed_json_output(AtAliasBaseModel):
+        id: str
+        name: str
+        description: Optional[str]
+        urls: List[DOIModel]
+
+    def to_json(self, **kwargs):
+        # TODO some simpleDescription does not have id attr
+        self_id=self.id or str(uuid4())
+        base_info={
+            '@type': self.type_id,
+            '@id': self_id,
+            'id': self_id,
+            'name': self.name,
+            'description': self.description,
+            'urls': self.urls
+        }
+        return base_info
+
+    def from_json(self):
+        pass
 
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):

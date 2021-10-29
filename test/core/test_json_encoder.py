@@ -1,10 +1,7 @@
-from typing import Optional
-try:
-    from typing_extensions import TypedDict
-except:
-    from typing import TypedDict
+from typing import Any, Optional
 import pytest
 from siibra.core.json_encoder import CircularReferenceException, JSONEncoder, JSONableConcept, UnJSONableException
+from siibra.core.jsonable import AtAliasBaseModel
 
 nested_flag=True
 
@@ -71,24 +68,29 @@ class DummyCls3:
     pass
 
 
+class TypedCls2Output(AtAliasBaseModel):
+    id: str
+
 class DummyCls2(JSONableConcept):
-    typed_json_output = TypedDict('T', {
-        'id': str
-    })
+    
+    typed_json_output = TypedCls2Output
     def to_json(self, **kwargs):
         return {
             'id': 'dummy-cls-2',
+            '@id': 'dummy-cls-2',
+            '@type': 'dummy-cls'
         }
 
     def from_json(self):
         pass
 
 
+class TypedClsOutput(AtAliasBaseModel):
+    id: str
+    child: Optional[Any]
+
 class DummyCls(JSONableConcept):
-    typed_json_output = TypedDict('T', {
-        'id': str,
-        'child': Optional[any]
-    })
+    typed_json_output=TypedClsOutput
     def __init__(self, child=None):
         self.child = child
 
@@ -98,6 +100,8 @@ class DummyCls(JSONableConcept):
         } if detail else {}
         return {
             'id': 'id-bar',
+            '@id': 'id-bar2',
+            '@type': 'dummy-cls',
             **detail_info
         }
 
@@ -133,6 +137,17 @@ def test_jsonable_concept_not_nested():
         child_in_ref=[ref for ref in output.get('references', []) if ref['@id'] == child_id]
         assert len(child_in_ref) == 1
 
-        # since depth == 1, the second level child will be empty object
+        # since depth == 1, the second level child will be None (otherwise, validator complains)
         assert inst.child.child is not None
-        assert child_in_ref[0].get('child') == {}
+        assert child_in_ref[0].get('child') == {
+            '@id': 'dummy-cls-2',
+            '@type': 'dummy-cls'
+        }
+
+def test_jsonable_concept_not_nested_list():
+    inst = [DummyCls(child=DummyCls2()), DummyCls(child=DummyCls2()), DummyCls(child=DummyCls2())]
+    with JSONEncoder() as handle:
+        output=handle.get_json(inst, detail=True)
+        payload=output.get('payload')
+        assert len(payload) == 3
+        assert all([item.get('@id') is not None for item in payload])

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .concept import AtlasConcept, provide_registry
+from .jsonable import AtAliasBaseModel, JSONableConcept
 from .space import Space
 from .parcellation import Parcellation
 
@@ -24,7 +25,7 @@ VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 @provide_registry
 class Atlas(
-    AtlasConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    AtlasConcept, JSONableConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
 ):
     """
     Main class for an atlas, providing access to feasible
@@ -245,3 +246,22 @@ class Atlas(
         We sort atlases by their names
         """
         return self.name < other.name
+
+    class typed_json_output(AtAliasBaseModel):
+        id: str
+        name: str
+        # spaces: List[Space.typed_json_output]
+        # parcellations: List[Parcellation.typed_json_output]
+
+    def to_json(self, **kwargs):
+        return {
+            '@id': self.id,
+            '@type': self.type_id,
+            'id': self.id,
+            'name': self.name,
+            # 'spaces': [s for s in self.spaces],
+            # 'parcellations': [p for p in self.parcellations]
+        } 
+
+    def from_json(self):
+        pass

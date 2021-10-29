@@ -13,16 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-try:
-    from typing_extensions import TypedDict
-except:
-    from typing import TypedDict
+from .datasets import Dataset
+from siibra.core.json_encoder import JSONEncoder
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept, JSONableConcept, provide_registry
+from .concept import AtlasConcept, provide_registry
+from .jsonable import AtAliasBaseModel, JSONableConcept
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
-from ..volumes import parcellationmap
+from ..volumes import parcellationmap, VolumeSrc
 
 from typing import List, Optional, Union
 from memoization import cached
@@ -445,16 +444,15 @@ class Parcellation(
 
         return result
 
-
-    typed_json_output = TypedDict('ParcellationJson', {
-        'id': str,
-        '@id': str,
-        'type_id': str,
-        '@type': str,
-        'name': str,
-        'regions': List[Region.typed_json_output],
-        'spaces': Optional[List[Space.typed_json_output]]
-    })
+    class typed_json_output(AtAliasBaseModel):
+        id: Optional[str]
+        type_id: Optional[str]
+        name: Optional[str]
+        modality: Optional[str]
+        # turns out, volumesrc is a sublcass of dataset
+        infos: List[Union[VolumeSrc.typed_json_output, Dataset.typed_json_output]]
+        regions: Optional[List[Region.typed_json_output]]
+        spaces: Optional[List[Space.typed_json_output]]
 
     def to_json(self, detail=False, **kwargs):
         base_info={
@@ -463,9 +461,11 @@ class Parcellation(
             'id': self.id,
             'type_id': self.type_id,
             'name': self.name,
-            'regions': [r for r in self.regiontree.root.children]
+            'modality': self.modality,
+            'infos': [info for info in self.infos if isinstance(info, Dataset) ],
         }
         detail_info={
+            'regions': JSONEncoder.encode([r for r in self.regiontree.root.children], nested=True , detail=False, depth_threshold=1000),
             'spaces': [s for s in self.spaces],
         }
         return { **base_info, **(detail_info if detail else {})}

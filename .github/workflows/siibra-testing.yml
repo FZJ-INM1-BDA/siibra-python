@@ -1,12 +1,12 @@
 name: Siibra testing
 
 on: [push]
+env:
+  KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+  KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
 jobs:
   tests:
     runs-on: ubuntu-latest
-    env:
-      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
       # SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
@@ -40,9 +40,6 @@ jobs:
 
     # always run coverage, even if test fails
     if: ${{ always() }}
-    env:
-      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python 3.7

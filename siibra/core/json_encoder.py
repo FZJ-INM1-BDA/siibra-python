@@ -1,11 +1,17 @@
 from typing import Type, Union
-from siibra.core.concept import JSONableConcept
+from .jsonable import JSONableConcept
 from uuid import uuid4
 class CircularReferenceException(Exception): pass
 class UnJSONableException(Exception): pass
 
 class JSONEncoder:
-    def __init__(self, nested=False, debug=False, **kwargs):
+
+    @staticmethod
+    def encode(obj: Union[None, str, int, float, list, tuple, dict, JSONableConcept], detail=False, depth_threshold=1, **kwargs):
+        encoder = JSONEncoder(depth_threshold=depth_threshold, **kwargs)
+        return encoder.get_json(obj, detail=detail, **kwargs)
+
+    def __init__(self, nested=False, debug=False, depth_threshold=1, **kwargs):
         self.depth = 0
 
         # all references of objects added are kept in _added_tuple
@@ -19,8 +25,7 @@ class JSONEncoder:
         self.references = []
         self.debug = debug
         self.nested = nested
-        self.depth_threshold=1
-        
+        self.depth_threshold=depth_threshold
         
     def __enter__(self):
         return self
@@ -28,7 +33,7 @@ class JSONEncoder:
     def __exit__(self, type, value, trackback):
         pass
 
-    def _serialize(self, obj: Union[None, str, int, float, list, tuple, dict, JSONableConcept], **kwargs):
+    def _serialize(self, obj: Union[None, str, int, float, list, tuple, dict, JSONableConcept], depth=0, **kwargs):
         
         # if primitive, return original representation
         if obj is None or type(obj) == str or type(obj) == int or type(obj) == float:
@@ -49,21 +54,17 @@ class JSONEncoder:
         if type(obj) == list or type(obj) == tuple:
             if double_take_flag:
                 raise CircularReferenceException(f'obj {str(obj)} has a circular reference. Terminating.')
-            return [ self._serialize(item, **kwargs) for item in list(obj) ]
+            return [ self._serialize(item, depth=depth, **kwargs) for item in list(obj) ]
 
         if type(obj) == dict:
             if double_take_flag:
                 raise CircularReferenceException(f'obj {str(obj)} has a circular reference. Terminating.')
             return {
-                key: self._serialize(obj[key], **kwargs) for key in obj
+                key: self._serialize(obj[key], depth=depth, **kwargs) for key in obj
             }
         
         if isinstance(obj, JSONableConcept):
-            current_depth = self.depth
-            self.depth = self.depth + 1
-
-            if current_depth > self.depth_threshold:
-                return {}
+            next_depth = depth + 1
 
             if double_take_flag:
                 kwargs['detail'] = False
@@ -71,12 +72,19 @@ class JSONEncoder:
 
             serialized_obj= self._serialize(
                 obj.to_json(**kwargs),
+                depth=next_depth,
                 **kwargs)
+
+            if depth > self.depth_threshold:
+                return {
+                    '@id': serialized_obj.get('@id'),
+                    '@type': serialized_obj.get('@type')
+                }
             
             # set an id, if one does not exist
             serialized_obj['@id'] = serialized_obj.get('@id', str(uuid4())) or str(uuid4())
 
-            if self.nested or current_depth < self.depth_threshold:
+            if self.nested or depth < self.depth_threshold:
                 return serialized_obj
             else:
                 self.references.append(serialized_obj)
@@ -87,9 +95,9 @@ class JSONEncoder:
         raise UnJSONableException(f'object with type {type(obj)} cannot be json serialized')
 
 
-    def get_json(self, obj: Type[JSONableConcept], **kwargs):
+    def get_json(self, obj: Type[JSONableConcept], detail=False, **kwargs):
         try:
-            payload = self._serialize(obj, **kwargs)
+            payload = self._serialize(obj, detail=detail, **kwargs)
             if self.nested:
                 return payload
             else:

@@ -14,12 +14,11 @@
 # limitations under the License.
 
 from typing import List, Optional
-try:
-    from typing_extensions import TypedDict
-except:
-    from typing import TypedDict
-from .concept import AtlasConcept, JSONableConcept, provide_registry
+from pydantic.fields import Field
+from pydantic.main import BaseModel
 
+from .concept import AtlasConcept, provide_registry
+from .jsonable import AtAliasBaseModel, JSONableConcept
 from ..commons import logger
 from ..retrieval import HttpRequest
 
@@ -34,6 +33,15 @@ from urllib.parse import quote
 from os import path
 import numbers
 
+# as volume imports this module, cannot import volumeSrc
+# But nothing against leaving this here.
+class VolumeBaseModel(AtAliasBaseModel):
+    name: Optional[str]
+    id: Optional[str]
+    url: Optional[str]
+    volume_type: Optional[str]
+    type_id: Optional[str]
+    detail: Optional[dict]
 
 @provide_registry
 class Space(
@@ -137,24 +145,25 @@ class Space(
     def from_json(self):
         pass
 
-    typed_json_output = TypedDict('SpaceJson', {
-        '@id': str,
-        '@type': str,
-        'name': str,
-        'id': str,
-        'type_id': str,
-        'volume_type': Optional[str]
-    })
+    class typed_json_output(AtAliasBaseModel):
+        name: Optional[str]
+        id: Optional[str]
+        type_id: Optional[str] = 'minds/core/referencespace/v1.0.0'
+        volume_type: Optional[str]
+        volumes: Optional[List[VolumeBaseModel]]
+
     def to_json(self, detail=False, **kwargs):
+        
         base_info={
             '@id': self.id,
             '@type': self.type_id,
             'name': self.name,
             'id': self.id,
-            'type_id': self.type_id
+            'type_id': self.type_id,
+            'volume_type': self.src_volume_type,
+            'volumes': [vol for vol in self.volumes if isinstance(vol, JSONableConcept)]
         }
         detail_info={
-            'volume_type': self.src_volume_type
         }
         return {**base_info, **(detail_info if detail else {})}
 
@@ -543,19 +552,13 @@ class Point(Location, JSONableConcept):
     def from_json(self):
         pass
 
-    typed_json_output = TypedDict('PointTypedDict', {
-        '@id': str,
-        '@type': str,
-        'coordinateSpace': str,
-        'coordinates': List[TypedDict('Coordinates', {
-            '@id': Optional[str],
-            '@type': str,
-            'value': List[float],
-            'unit': TypedDict('TypedDictUnit', {
-                '@id': str
-            })
-        })],
-    })
+    class typed_json_output(AtAliasBaseModel):
+        coordinateSpace: Space.typed_json_output
+        class coodrinates(AtAliasBaseModel):
+            value: float
+            class unit(BaseModel):
+                at_id: str = Field(alias='@id')
+
 
     def to_json(self, **kwargs):
         return {
