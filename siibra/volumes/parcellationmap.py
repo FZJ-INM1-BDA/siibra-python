@@ -884,3 +884,36 @@ class ContinuousParcellationMap(ParcellationMap):
             )
         ]
         return assignments
+
+    def colorize(self, values: dict):
+            """Produce a colorized 3D map by projecting the regional values to regional maps.
+
+            Parameters
+            ----------
+            values : dict
+                Dictionary mapping regions to values
+
+            Return
+            ------
+            Nifti1Image
+            """
+            
+            # generate empty image
+            maps = {}
+            result = None
+
+            for region, value in values.items():
+                indices = self.decode_region(region)
+                for index in indices:
+                    if index.map not in maps:
+                        # load the map
+                        with QUIET:
+                            maps[index.map] = self.fetch(mapindex=index.map)
+                    thismap = maps[index.map]
+                    if result is None:
+                        # create the empty output
+                        result = np.zeros_like(thismap.get_fdata())
+                        affine = thismap.affine
+                    result = np.maximum(result, thismap.get_fdata()*value)
+                    
+            return Nifti1Image(result, affine) 
