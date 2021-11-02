@@ -155,6 +155,7 @@ class Parcellation(
             if self._datasets_cached is None:
                 self._datasets_cached = []
             self._datasets_cached.extend(maps)
+        self.atlas = None # to be set by atlas on registration
 
     @property
     def regiontree(self):

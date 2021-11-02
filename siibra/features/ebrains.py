@@ -22,8 +22,8 @@ from ..retrieval.requests import EbrainsRequest
 
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
-    def __init__(self, regionspec, kg_id, name, embargo_status):
-        RegionalFeature.__init__(self, regionspec)
+    def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
+        RegionalFeature.__init__(self, regionspec, species)
         EbrainsDataset.__init__(self, kg_id, name, embargo_status)
 
     @property
@@ -46,11 +46,10 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     _FEATURETYPE = EbrainsRegionalDataset
 
     def __init__(self, **kwargs):
-
         FeatureQuery.__init__(self)
 
         loader = EbrainsRequest(
-            query_id="siibra-kg-feature-summary-0.0.1",
+            query_id="siibra-kg-feature-summary-0_0_2",
             schema="parcellationregion",
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
@@ -65,10 +64,12 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                         f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})"
                     )
                     continue
-                regionname = r.get("name", None)
+                regionname: str = r.get("name", None)
+                alias: str = r.get("alias", None)
+                species = r.get("species", []) # list with keys @id, identifier, name
                 self.register(
                     EbrainsRegionalDataset(
-                        regionname, ds_id, ds_name, ds_embargo_status
+                        alias or regionname, ds_id, ds_name, ds_embargo_status, species
                     )
                 )
 

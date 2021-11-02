@@ -32,20 +32,54 @@ class Atlas(
     spaces, as well as common functionalities of those.
     """
 
-    def __init__(self, identifier, name):
+    @staticmethod
+    def get_species_data(species_str: str):
+        if species_str == 'human':
+            return {
+                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9',
+                'name': 'Homo sapiens'
+            }
+        if species_str == 'rat':
+            return {
+                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412',
+                'name': 'Rattus norvegicus'
+            }
+        if species_str == 'mouse':
+            return {
+                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c',
+                'name': 'Mus musculus'
+            }
+        # TODO this may not be correct. Wait for feedback and get more accurate
+        if species_str == 'monkey':
+            return {
+                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/3f75b0ad-dbcd-464e-b614-499a1b9ae86b',
+                'name': 'Primates'
+            }
+
+        raise ValueError(f'species with spec {species_str} cannot be decoded')
+
+    def __init__(self, identifier, name, species = None):
         """Construct an empty atlas object with a name and identifier."""
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
 
         self._parcellations = []  # add with _add_parcellation
         self._spaces = []  # add with _add_space
+        if species is not None:
+            self.species = self.get_species_data(species)
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
+        if space.atlas is not None:
+            raise AttributeError(f'space has atlas already set by {str(space.atlas)}')
+        space.atlas = self
         self._spaces.append(space)
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
+        if parcellation.atlas is not None:
+            raise AttributeError(f'parcellation has atlas already set by {str(parcellation.atlas)}')
+        parcellation.atlas = self
         self._parcellations.append(parcellation)
 
     @property
@@ -75,7 +109,7 @@ class Atlas(
                 f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}"
             )
         if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
-            atlas = cls(obj["@id"], obj["name"])
+            atlas = cls(obj["@id"], obj["name"], species=obj["species"])
             for space_id in obj["spaces"]:
                 if not Space.REGISTRY.provides(space_id):
                     raise ValueError(
