@@ -70,16 +70,12 @@ class Atlas(
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
-        if space.atlas is not None:
-            raise AttributeError(f'space has atlas already set by {str(space.atlas)}')
-        space.atlas = self
+        space.atlases.add(self)
         self._spaces.append(space)
 
     def _register_parcellation(self, parcellation):
         """Registers another parcellation to the atlas."""
-        if parcellation.atlas is not None:
-            raise AttributeError(f'parcellation has atlas already set by {str(parcellation.atlas)}')
-        parcellation.atlas = self
+        parcellation.atlases.add(self)
         self._parcellations.append(parcellation)
 
     @property

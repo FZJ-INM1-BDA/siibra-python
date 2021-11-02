@@ -221,15 +221,15 @@ class RegionalFeature(Feature):
         # first check if any of
         try:
             if isinstance(concept, Region):
-                atlas = concept.parcellation.atlas
+                atlases = concept.parcellation.atlases
             if isinstance(concept, Parcellation):
-                atlas = concept.atlas
+                atlases = concept.atlases
             if isinstance(concept, Atlas):
-                atlas = concept
-            if atlas is not None:
+                atlases = {concept}
+            if atlases:
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
-                if atlas.species.get('@id') not in self.species_ids:
+                if all(atlas.species.get('@id') not in self.species_ids for atlas in atlases):
                     return False
         # for backwards compatibility. If any attr is not found, pass
         except AttributeError:
