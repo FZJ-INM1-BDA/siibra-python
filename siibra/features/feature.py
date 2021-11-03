@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from numpy.lib.arraysetops import isin
 from ..commons import logger, Registry
 from ..core.atlas import Atlas
 from ..core.space import Location
