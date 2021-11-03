@@ -182,7 +182,7 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self, regionspec: Tuple[str, Region], species = []):
+    def __init__(self, regionspec: Tuple[str, Region], species = [], **kwargs):
         """
         Parameters
         ----------
@@ -199,9 +199,6 @@ class RegionalFeature(Feature):
 
     @property
     def species_ids(self):
-        if not self.species:
-            # if species is empty list, default to human
-            return ['https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9']
         return [s.get('@id') for s in self.species]
 
     def match(self, concept):

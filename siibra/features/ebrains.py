@@ -49,13 +49,23 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
         FeatureQuery.__init__(self)
 
         loader = EbrainsRequest(
-            query_id="siibra-kg-feature-summary-0_0_2",
+            query_id="siibra-kg-feature-summary-0_0_4",
             schema="parcellationregion",
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
 
         for r in loader.data.get("results", []):
+
+            species_alt = []
+            # List, keys @id, name
             for dataset in r.get("datasets", []):
+                species_alt = [
+                    *species_alt,
+                    *dataset.get('ds_specimengroup_subject_species', []),
+                    *dataset.get('s_subject_species', []),
+                ]
+            for dataset in r.get("datasets", []):
+
                 ds_id = dataset.get("@id")
                 ds_name = dataset.get("name")
                 ds_embargo_status = dataset.get("embargo_status")
@@ -66,10 +76,26 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                     continue
                 regionname: str = r.get("name", None)
                 alias: str = r.get("alias", None)
-                species = r.get("species", []) # list with keys @id, identifier, name
+
+                # species defined for the current dataset
+                dataset_species = [
+                    *dataset.get('ds_specimengroup_subject_species', []),
+                    *dataset.get('s_subject_species', []),
+                ]
+
+                # if the current dataset has species defined, use the current species, else use the general speices
+                species = [*r.get("species", []), *(dataset_species if dataset_species else species_alt)] # list with keys @id, identifier, name
+
+                # filter species by @id attribute
+                unique_species = []
+                for sp in species:
+                    if sp.get('@id') in [s.get('@id') for s in unique_species]:
+                        continue
+                    unique_species.append(sp)
+
                 self.register(
                     EbrainsRegionalDataset(
-                        alias or regionname, ds_id, ds_name, ds_embargo_status, species
+                        alias or regionname, ds_id, ds_name, ds_embargo_status, unique_species
                     )
                 )
 
