@@ -13,10 +13,10 @@ parameters: List[Tuple[str, str]] = [
 ]
 
 def get_model():
-    if issubclass(Parcellation.typed_json_output, BaseModel):
-        Model = Parcellation.typed_json_output
+    if issubclass(Parcellation.SiibraSerializationSchema, BaseModel):
+        Model = Parcellation.SiibraSerializationSchema
     else:
-        raise ValueError('typed_json_output needs to extend pydantic.BaseModel')
+        raise ValueError('SiibraSerializationSchema needs to extend pydantic.BaseModel')
     return Model
 
 def test_wrong_model_raises():

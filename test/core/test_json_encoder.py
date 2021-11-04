@@ -1,7 +1,7 @@
 from typing import Any, Optional
 import pytest
-from siibra.core.json_encoder import CircularReferenceException, JSONEncoder, JSONableConcept, UnJSONableException
-from siibra.core.jsonable import AtAliasBaseModel
+from siibra.core.json_encoder import CircularReferenceException, JSONEncoder, SiibraSerializable, UnJSONableException
+from siibra.core.jsonable import SiibraBaseSerialization
 
 nested_flag=True
 
@@ -68,12 +68,12 @@ class DummyCls3:
     pass
 
 
-class TypedCls2Output(AtAliasBaseModel):
+class TypedCls2Output(SiibraBaseSerialization):
     id: str
 
-class DummyCls2(JSONableConcept):
+class DummyCls2(SiibraSerializable):
     
-    typed_json_output = TypedCls2Output
+    SiibraSerializationSchema = TypedCls2Output
     def to_json(self, **kwargs):
         return {
             'id': 'dummy-cls-2',
@@ -85,12 +85,12 @@ class DummyCls2(JSONableConcept):
         pass
 
 
-class TypedClsOutput(AtAliasBaseModel):
+class TypedClsOutput(SiibraBaseSerialization):
     id: str
     child: Optional[Any]
 
-class DummyCls(JSONableConcept):
-    typed_json_output=TypedClsOutput
+class DummyCls(SiibraSerializable):
+    SiibraSerializationSchema=TypedClsOutput
     def __init__(self, child=None):
         self.child = child
 
@@ -108,41 +108,63 @@ class DummyCls(JSONableConcept):
     def from_json(self):
         pass
 
-@pytest.mark.parametrize('input,detail_flag,expect_fail', [
-    (DummyCls(), True, False),
-    (DummyCls(child=DummyCls2()), True, False),
-    (DummyCls(child=DummyCls3()), True, True),
-    (DummyCls(child=DummyCls3()), False, False),
+expected_base_nested_output={
+    'id': 'id-bar',
+    '@id': 'id-bar2',
+    '@type': 'dummy-cls',
+}
+expected_detail_nested_output={
+    **expected_base_nested_output,
+    'child': {
+        'id': 'dummy-cls-2',
+        '@id': 'dummy-cls-2',
+        '@type': 'dummy-cls'
+    }
+}
+
+@pytest.mark.parametrize('input,detail_flag,expect_fail,expected_output', [
+    (DummyCls(), True, False, {**expected_base_nested_output, 'child': None}),
+    (DummyCls(child=DummyCls2()), True, False, expected_detail_nested_output),
+    (DummyCls(child=DummyCls3()), True, True, None),
+    (DummyCls(child=DummyCls3()), False, False, expected_base_nested_output),
 ])
-def test_jsonable_concept_subclass(input,detail_flag,expect_fail):
+def test_jsonable_concept_subclass(input,detail_flag,expect_fail, expected_output):
     with JSONEncoder(nested=nested_flag) as handle:
         if expect_fail:
             with pytest.raises(UnJSONableException):
                 handle.get_json(input, detail=detail_flag)
-        else:
+        if expected_output:
             result=handle.get_json(input, detail=detail_flag)
-            assert result.get('id') == 'id-bar'
-            if detail_flag:
-                assert 'child' in result
-            else:
-                assert 'child' not in result
+            assert expected_output == result
 
 def test_jsonable_concept_not_nested():
-    inst = DummyCls(child=DummyCls(child=DummyCls2()))
-    with JSONEncoder() as handle:
-        output=handle.get_json(inst, detail=True)
-        assert 'payload' in output and 'references' in output
-        assert list(output.get('payload').get('child').keys()) == ['@id']
-        child_id=output.get('payload').get('child').get('@id')
-        child_in_ref=[ref for ref in output.get('references', []) if ref['@id'] == child_id]
-        assert len(child_in_ref) == 1
+    inst = DummyCls(
+                child=DummyCls(
+                    child=DummyCls2()))
 
-        # since depth == 1, the second level child will be None (otherwise, validator complains)
-        assert inst.child.child is not None
-        assert child_in_ref[0].get('child') == {
-            '@id': 'dummy-cls-2',
-            '@type': 'dummy-cls'
-        }
+    expected_flat_json={
+        'payload': {
+            'id': 'id-bar',
+            '@id': 'id-bar2',
+            '@type': 'dummy-cls',
+            'child': {
+                '@id': 'id-bar2',
+                '@type': 'dummy-cls',
+            }
+        },
+        'references': [{
+            'id': 'id-bar',
+            '@id': 'id-bar2',
+            '@type': 'dummy-cls',
+            'child': {
+                '@id': 'dummy-cls-2',
+                '@type': 'dummy-cls',
+            }
+        }]
+    }
+
+    output = JSONEncoder.encode(inst, detail=True)
+    assert output == expected_flat_json
 
 def test_jsonable_concept_not_nested_list():
     inst = [DummyCls(child=DummyCls2()), DummyCls(child=DummyCls2()), DummyCls(child=DummyCls2())]

@@ -16,7 +16,7 @@
 from pydantic import BaseModel
 from pydantic.fields import Field
 from .concept import AtlasConcept
-from .jsonable import AtAliasBaseModel, JSONableConcept
+from .jsonable import SiibraBaseSerialization, SiibraSerializable
 from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
@@ -50,15 +50,15 @@ REMOVE_FROM_NAME = [
 REGEX_TYPE=type(re.compile('test'))
 
 
-class RegionJson(AtAliasBaseModel):
+class RegionJson(SiibraBaseSerialization):
     name: str
     children: List['RegionJson']
     rgb: Optional[List[int]]
-    centroids: Optional[List[Point.typed_json_output]]
+    centroids: Optional[List[Point.SiibraSerializationSchema]]
 
 RegionJson.update_forward_refs()
 
-class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
+class Region(anytree.NodeMixin, AtlasConcept, SiibraSerializable):
     """
     Representation of a region with name and more optional attributes
     """
@@ -829,7 +829,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONableConcept):
 
         return result
 
-    typed_json_output = RegionJson
+    SiibraSerializationSchema = RegionJson
 
     def to_json(self, detail=False, space: Space=None, **kwargs):
         

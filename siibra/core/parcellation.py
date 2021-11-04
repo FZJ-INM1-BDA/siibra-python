@@ -18,7 +18,7 @@ from siibra.core.json_encoder import JSONEncoder
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept, provide_registry
-from .jsonable import AtAliasBaseModel, JSONableConcept
+from .jsonable import SiibraBaseSerialization, SiibraSerializable
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import parcellationmap, VolumeSrc
@@ -112,7 +112,7 @@ class ParcellationVersion:
 @provide_registry
 class Parcellation(
     AtlasConcept,
-    JSONableConcept,
+    SiibraSerializable,
     bootstrap_folder="parcellations",
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
@@ -444,15 +444,15 @@ class Parcellation(
 
         return result
 
-    class typed_json_output(AtAliasBaseModel):
+    class SiibraSerializationSchema(SiibraBaseSerialization):
         id: Optional[str]
         type_id: Optional[str]
         name: Optional[str]
         modality: Optional[str]
         # turns out, volumesrc is a sublcass of dataset
-        infos: List[Union[VolumeSrc.typed_json_output, Dataset.typed_json_output]]
-        regions: Optional[List[Region.typed_json_output]]
-        spaces: Optional[List[Space.typed_json_output]]
+        infos: List[Union[VolumeSrc.SiibraSerializationSchema, Dataset.SiibraSerializationSchema]]
+        regions: Optional[List[Region.SiibraSerializationSchema]]
+        spaces: Optional[List[Space.SiibraSerializationSchema]]
 
     def to_json(self, detail=False, **kwargs):
         base_info={

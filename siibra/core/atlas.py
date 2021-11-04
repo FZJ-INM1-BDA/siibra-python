@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .concept import AtlasConcept, provide_registry
-from .jsonable import AtAliasBaseModel, JSONableConcept
+from .jsonable import SiibraBaseSerialization, SiibraSerializable
 from .space import Space
 from .parcellation import Parcellation
 
@@ -25,7 +25,7 @@ VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 @provide_registry
 class Atlas(
-    AtlasConcept, JSONableConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    AtlasConcept, SiibraSerializable, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
 ):
     """
     Main class for an atlas, providing access to feasible
@@ -247,11 +247,11 @@ class Atlas(
         """
         return self.name < other.name
 
-    class typed_json_output(AtAliasBaseModel):
+    class SiibraSerializationSchema(SiibraBaseSerialization):
         id: str
         name: str
-        # spaces: List[Space.typed_json_output]
-        # parcellations: List[Parcellation.typed_json_output]
+        # spaces: List[Space.SiibraSerializationSchema]
+        # parcellations: List[Parcellation.SiibraSerializationSchema]
 
     def to_json(self, **kwargs):
         return {

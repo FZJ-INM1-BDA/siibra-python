@@ -18,7 +18,7 @@ from pydantic.fields import Field
 from pydantic.main import BaseModel
 
 from .concept import AtlasConcept, provide_registry
-from .jsonable import AtAliasBaseModel, JSONableConcept
+from .jsonable import SiibraBaseSerialization, SiibraSerializable
 from ..commons import logger
 from ..retrieval import HttpRequest
 
@@ -35,7 +35,7 @@ import numbers
 
 # as volume imports this module, cannot import volumeSrc
 # But nothing against leaving this here.
-class VolumeBaseModel(AtAliasBaseModel):
+class VolumeBaseModel(SiibraBaseSerialization):
     name: Optional[str]
     id: Optional[str]
     url: Optional[str]
@@ -46,7 +46,7 @@ class VolumeBaseModel(AtAliasBaseModel):
 @provide_registry
 class Space(
     AtlasConcept,
-    JSONableConcept,
+    SiibraSerializable,
     bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
@@ -145,7 +145,7 @@ class Space(
     def from_json(self):
         pass
 
-    class typed_json_output(AtAliasBaseModel):
+    class SiibraSerializationSchema(SiibraBaseSerialization):
         name: Optional[str]
         id: Optional[str]
         type_id: Optional[str] = 'minds/core/referencespace/v1.0.0'
@@ -161,7 +161,7 @@ class Space(
             'id': self.id,
             'type_id': self.type_id,
             'volume_type': self.src_volume_type,
-            'volumes': [vol for vol in self.volumes if isinstance(vol, JSONableConcept)]
+            'volumes': [vol for vol in self.volumes if isinstance(vol, SiibraSerializable)]
         }
         detail_info={
         }
@@ -302,7 +302,7 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location, JSONableConcept):
+class Point(Location, SiibraSerializable):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -552,9 +552,9 @@ class Point(Location, JSONableConcept):
     def from_json(self):
         pass
 
-    class typed_json_output(AtAliasBaseModel):
-        coordinateSpace: Space.typed_json_output
-        class coodrinates(AtAliasBaseModel):
+    class SiibraSerializationSchema(SiibraBaseSerialization):
+        coordinateSpace: Space.SiibraSerializationSchema
+        class coodrinates(SiibraBaseSerialization):
             value: float
             class unit(BaseModel):
                 at_id: str = Field(alias='@id')

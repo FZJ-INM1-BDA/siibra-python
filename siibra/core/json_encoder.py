@@ -1,5 +1,5 @@
 from typing import Type, Union
-from .jsonable import JSONableConcept
+from .jsonable import SiibraSerializable
 from uuid import uuid4
 class CircularReferenceException(Exception): pass
 class UnJSONableException(Exception): pass
@@ -7,7 +7,7 @@ class UnJSONableException(Exception): pass
 class JSONEncoder:
 
     @staticmethod
-    def encode(obj: Union[None, str, int, float, list, tuple, dict, JSONableConcept], detail=False, depth_threshold=1, **kwargs):
+    def encode(obj: Union[None, str, int, float, list, tuple, dict, SiibraSerializable], detail=False, depth_threshold=1, **kwargs):
         encoder = JSONEncoder(depth_threshold=depth_threshold, **kwargs)
         return encoder.get_json(obj, detail=detail, **kwargs)
 
@@ -33,7 +33,7 @@ class JSONEncoder:
     def __exit__(self, type, value, trackback):
         pass
 
-    def _serialize(self, obj: Union[None, str, int, float, list, tuple, dict, JSONableConcept], depth=0, **kwargs):
+    def _serialize(self, obj: Union[None, str, int, float, list, tuple, dict, SiibraSerializable], depth=0, **kwargs):
         
         # if primitive, return original representation
         if obj is None or type(obj) == str or type(obj) == int or type(obj) == float:
@@ -63,39 +63,44 @@ class JSONEncoder:
                 key: self._serialize(obj[key], depth=depth, **kwargs) for key in obj
             }
         
-        if isinstance(obj, JSONableConcept):
-            next_depth = depth + 1
-
+        if isinstance(obj, SiibraSerializable):
             if double_take_flag:
                 kwargs['detail'] = False
                 self._triple_added_reference[id(obj)] = obj
 
+            next_depth = depth + 1
+            obj_json = obj.to_json(**kwargs)
             serialized_obj= self._serialize(
-                obj.to_json(**kwargs),
+                obj_json,
                 depth=next_depth,
                 **kwargs)
 
-            if depth > self.depth_threshold:
+            # set an id, if one does not exist
+            serialized_obj['@id'] = serialized_obj.get('@id') or str(uuid4())
+
+            above_threshold_flag = depth > self.depth_threshold
+            if above_threshold_flag:
                 return {
                     '@id': serialized_obj.get('@id'),
                     '@type': serialized_obj.get('@type')
                 }
             
-            # set an id, if one does not exist
-            serialized_obj['@id'] = serialized_obj.get('@id', str(uuid4())) or str(uuid4())
-
-            if self.nested or depth < self.depth_threshold:
+            if self.nested or depth == 0:
                 return serialized_obj
-            else:
+
+            if not above_threshold_flag:
                 self.references.append(serialized_obj)
-                return {
-                    '@id': serialized_obj.get('@id')
-                }
+
+            return {
+                '@id': serialized_obj.get('@id'),
+                '@type': serialized_obj.get('@type')
+            }
+                
 
         raise UnJSONableException(f'object with type {type(obj)} cannot be json serialized')
 
 
-    def get_json(self, obj: Type[JSONableConcept], detail=False, **kwargs):
+    def get_json(self, obj: Type[SiibraSerializable], detail=False, **kwargs):
         try:
             payload = self._serialize(obj, detail=detail, **kwargs)
             if self.nested:

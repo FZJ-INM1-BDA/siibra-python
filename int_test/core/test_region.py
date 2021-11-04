@@ -24,10 +24,10 @@ parameters: List[Tuple[str, str, str]]=[
 # ]
 
 def get_model():
-    if issubclass(Region.typed_json_output, BaseModel):
-        Model = Region.typed_json_output
+    if issubclass(Region.SiibraSerializationSchema, BaseModel):
+        Model = Region.SiibraSerializationSchema
     else:
-        raise ValueError('typed_json_output needs to extend pydantic.BaseModel')
+        raise ValueError('SiibraSerializationSchema needs to extend pydantic.BaseModel')
     return Model
 
 def test_wrong_model_raises():

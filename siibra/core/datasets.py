@@ -17,7 +17,7 @@ from typing import List, Optional
 from uuid import uuid4
 
 from pydantic.main import BaseModel
-from .jsonable import AtAliasBaseModel, JSONableConcept
+from .jsonable import SiibraBaseSerialization, SiibraSerializable
 from ..commons import logger
 from ..retrieval import EbrainsRequest
 
@@ -27,7 +27,7 @@ class DOIModel(BaseModel):
     cite: Optional[str]
     doi: Optional[str]
 
-class Dataset(JSONableConcept):
+class Dataset(SiibraSerializable):
     """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
@@ -85,7 +85,7 @@ class Dataset(JSONableConcept):
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
-    class typed_json_output(AtAliasBaseModel):
+    class SiibraSerializationSchema(SiibraBaseSerialization):
         id: str
         name: str
         description: Optional[str]

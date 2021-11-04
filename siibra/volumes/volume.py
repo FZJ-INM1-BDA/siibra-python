@@ -17,7 +17,7 @@ from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
 from ..core.space import Space, BoundingBox, VolumeBaseModel
-from ..core.jsonable import JSONableConcept
+from ..core.jsonable import SiibraSerializable
 from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
@@ -32,7 +32,7 @@ from abc import ABC, abstractmethod
 gbyte_feasible = 0.1
 
 
-class VolumeSrc(Dataset, JSONableConcept, type_id="fzj/tmp/volume_type/v0.0.1"):
+class VolumeSrc(Dataset, SiibraSerializable, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     _SPECIALISTS = {}
     volume_type = None
@@ -137,7 +137,7 @@ class VolumeSrc(Dataset, JSONableConcept, type_id="fzj/tmp/volume_type/v0.0.1"):
     def from_json(self):
         pass
 
-    typed_json_output = VolumeBaseModel
+    SiibraSerializationSchema = VolumeBaseModel
 
     def to_json(self, **kwargs):
         base_info={

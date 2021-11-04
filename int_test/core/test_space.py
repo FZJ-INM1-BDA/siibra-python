@@ -14,10 +14,10 @@ parameters: List[Tuple[str, str]] = [
     for space in atlas.spaces
 ]
 def get_model():
-    if issubclass(Space.typed_json_output, BaseModel):
-        Model = Space.typed_json_output
+    if issubclass(Space.SiibraSerializationSchema, BaseModel):
+        Model = Space.SiibraSerializationSchema
     else:
-        raise ValueError('typed_json_output needs to extend pydantic.BaseModel')
+        raise ValueError('SiibraSerializationSchema needs to extend pydantic.BaseModel')
     return Model
 def test_wrong_model_raises():
     with pytest.raises(ValidationError):
@@ -39,10 +39,10 @@ point_specs: List[Union[str, tuple, list]] = [
     '-12.950mm, 29.750mm, -4.200mm'
 ]
 def get_point_model():
-    if issubclass(Point.typed_json_output, BaseModel):
-        Model = Point.typed_json_output
+    if issubclass(Point.SiibraSerializationSchema, BaseModel):
+        Model = Point.SiibraSerializationSchema
     else:
-        raise ValueError('typed_json_output needs to extend pydantic.BaseModel')
+        raise ValueError('SiibraSerializationSchema needs to extend pydantic.BaseModel')
     return Model
     
 @pytest.mark.parametrize('point_spec', point_specs)

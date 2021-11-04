@@ -3,15 +3,15 @@ from abc import ABC, abstractmethod, abstractproperty
 from pydantic import BaseModel
 from pydantic.fields import Field
 
-class AtAliasBaseModel(BaseModel):
+class SiibraBaseSerialization(BaseModel):
     at_id: str = Field(alias='@id')
     at_type: str = Field(alias='@type')
 
-class JSONableConcept(ABC):
+class SiibraSerializable(ABC):
 
     @property
     @abstractproperty
-    def typed_json_output(self) -> BaseModel:
+    def SiibraSerializationSchema(self) -> BaseModel:
         pass
 
     @abstractmethod
@@ -19,9 +19,9 @@ class JSONableConcept(ABC):
         """
         Return a json dictionary representing this object.
         The key(s) must be of type str
-        The value(s) must be of primitive type(s), or subclass of JSONableConcept:
-        - str | int | float | JSONableConcept
-        - (list|dict)[str|int|float|JSONableConcept]
+        The value(s) must be of primitive type(s), or subclass of SiibraSerializable:
+        - str | int | float | SiibraSerializable
+        - (list|dict)[str|int|float|SiibraSerializable]
         """
         pass
     
