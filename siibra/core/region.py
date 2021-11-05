@@ -308,7 +308,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         threshold_continuous=None,
     ):
         """
-        Returns a binary mask where nonzero values denote
+        Returns a mask where nonzero values denote
         voxels corresponding to the region.
 
         Parameters
@@ -332,107 +332,22 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 
-        # TODO This method is too lengthy and difficult to read.
-        # it would be more elegenat to distinguish first wether a
-        # regional map is availalbe as dedicated dataset.
-        # If yes, return the proper type.
-        # If no, delegate to the ParcellationMap object to extract from there.
+        if self.has_regional_map(spaceobj, maptype):
+            mask = self.get_regional_map(space, maptype).fetch(resolution_mm=resolution_mm)
+        else:
+            parcmap = self.parcellation.get_map(spaceobj,  maptype)
+            mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
 
         if threshold_continuous is not None:
-
-            # build mask by thresholding a continuous map
-
-            logger.info(
-                f"Extracting mask for {self.name} in {spaceobj.name} by "
-                f"thresholding continuous map at {threshold_continuous}."
-            )
-            regionmap = self.get_regional_map(space, MapType.CONTINUOUS)
-            pmap = None
-            if regionmap is None:
-                try:
-                    pmap = self.parcellation.get_map(
-                        spaceobj,
-                        maptype=MapType.CONTINUOUS,
-                    ).extract_regionmap(self, resolution_mm=resolution_mm)
-                except ValueError:
-                    pass
-            else:
-                pmap = regionmap.fetch(resolution_mm=resolution_mm)
-
-            if pmap is not None:
-                mask = (
-                    (np.asanyarray(pmap.dataobj) > threshold_continuous)
-                    .astype("uint8")
-                    .squeeze()
-                )
-                if mask.max() == 0:
-                    logger.warn(
-                        f"Thresholding continuous map with {threshold_continuous} resulted in zero mask."
-                    )
-                    mask = None
-                affine = pmap.affine
-
-        else:
-
-            # build mask by selecting indices in labelled volume
-
-            regionmap = self.get_regional_map(spaceobj, maptype=maptype)
-            if regionmap is not None:
-                logger.debug(
-                    f"Extracting mask for {self.name} in {spaceobj.name} from regional map."
-                )
-                labelimg = self.get_regional_map(spaceobj, maptype=maptype).fetch(
-                    resolution_mm=resolution_mm
-                )
-                mask = labelimg.get_fdata()
-                affine = labelimg.affine
-
-            else:
-                logger.debug(
-                    f"Extracting mask for {self.name} in {spaceobj.name} from "
-                    f"{maptype} parcellation volume."
-                )
-
-                # TODO this part might better be placed as a method of LabelledParcellationMap
-                labelmap = self.parcellation.get_map(space, maptype=maptype)
-                for r in self:  # consider all children
-                    logger.debug(f"Aggregating mask of {r.name} with index {r.index}")
-
-                    if maptype == MapType.LABELLED:
-                        for mapindex, img in enumerate(
-                            labelmap.fetch_iter(resolution_mm=resolution_mm)
-                        ):
-                            actual_region = labelmap.regions.get(r.index)
-                            if actual_region == r:
-                                if (r.index.map is None) or (r.index.map == mapindex):
-                                    if mask is None:
-                                        mask = np.zeros(
-                                            img.get_fdata().shape, dtype="uint8"
-                                        )
-                                        affine = img.affine
-                                    mask[img.get_fdata() == r.index.label] = 1
-
-                    else:
-                        try:
-                            for index in labelmap.decode_region(r):
-                                img = labelmap.fetch(
-                                    mapindex=index.map, resolution_mm=resolution_mm
-                                )
-                                if mask is None:
-                                    mask = np.zeros(
-                                        img.get_fdata().shape, dtype="uint8"
-                                    )
-                                    affine = img.affine
-                                mask = np.maximum(mask, img.get_fdata())
-                        except IndexError:
-                            continue
+            assert(maptype==MapType.CONTINUOUS)
+            data = np.asanyarray(mask.dataobj) > threshold_continuous
+            assert(any(data)) 
+            mask = nib.Nifti1Image(data.astype('uint8').squeeze(), mask.affine)
 
         if mask is None:
-            raise RuntimeError(
-                f"Could not compute mask for {self.name} in {spaceobj.name}."
-            )
-        else:
-            return nib.Nifti1Image(dataobj=mask.squeeze(), affine=affine)
+            logger.warn(f"Could not compute {maptype} mask for {self.name} in {spaceobj.name}.")
+
+        return mask
 
     def defined_in_space(self, space):
         """
@@ -440,17 +355,22 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         for maptype in ["labelled", "continuous"]:
             if self.has_regional_map(space, maptype):
-                break
+                return True
             try:
                 M = self.parcellation.get_map(space, maptype=maptype)
                 M.decode_region(self)
-                break
+                return True
             except (ValueError, IndexError):
-                continue
-        else:
-            # we get here only if the loop is not interrupted
-            return False
-        return True
+                pass
+        return False
+
+    @property
+    def supported_spaces(self):
+        """
+        The list of spaces for which a mask could be extracted. 
+        Overwrites the corresponding method of AtlasConcept.
+        """
+        return [s for s in self.parcellation.spaces if self.defined_in_space(s)]
 
     def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
