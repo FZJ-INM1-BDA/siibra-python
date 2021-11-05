@@ -14,6 +14,8 @@
 # limitations under the License.
 
 
+from typing import Dict, List, Optional
+from siibra.core.jsonable import SiibraBaseSerialization, SiibraSerializable
 from .feature import RegionalFeature, ParcellationFeature
 from .query import FeatureQuery
 
@@ -26,7 +28,7 @@ from collections import defaultdict
 import numpy as np
 
 
-class ConnectivityMatrix(ParcellationFeature):
+class ConnectivityMatrix(ParcellationFeature, SiibraSerializable):
     def __init__(self, parcellation_id, matrix):
         ParcellationFeature.__init__(self, parcellation_id)
         self.matrix = matrix
@@ -107,6 +109,26 @@ class ConnectivityMatrix(ParcellationFeature):
                 description=data["description"],
             )
 
+    class SiibraSerializationSchema(SiibraBaseSerialization):
+        matrix: Optional[Dict[str, List[float]]]
+    
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, detail=False, **kwargs):
+        assert hasattr(self, 'id')
+        assert hasattr(self, 'type_id')
+        basic_json = {
+            '@id': self.id,
+            '@type': self.type_id
+        }
+        detail_json = {
+            'matrix': {
+                row[0]: row.tolist()[1:] for row in self.matrix
+            }
+        } if detail else {}
+        return { **basic_json, **detail_json }
+
 
 class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):
     def __init__(self, id, parcellation_id, matrix, name, description):
@@ -114,6 +136,7 @@ class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):
         ConnectivityMatrix.__init__(self, parcellation_id, matrix)
         Dataset.__init__(self, id, description=description)
         self.name = name
+        self.type_id = 'dataset/connectivity/external/v0.0.1'
 
 
 class EbrainsConnectivityMatrix(ConnectivityMatrix, EbrainsDataset):

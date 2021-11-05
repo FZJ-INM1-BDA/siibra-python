@@ -13,16 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, Optional
+
+from pydantic.main import BaseModel
+from siibra.core.jsonable import SiibraSerializable
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import logger
+from ..core.json_encoder import JSONEncoder
 from ..core.datasets import EbrainsDataset
 from ..core.space import Space, Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
 
 import re
 
+class ContactPtSchema(BaseModel):
+    id: str
+    location: Point.SiibraSerializationSchema
+    in_roi: Optional[bool]
+
+class ElectrodeSchema(BaseModel):
+    electrode_id: str
+    subject_id: str
+    contact_points: Dict[str, ContactPtSchema]
+    in_roi: Optional[bool]
+
+class IEEGSessionDetailSchema(BaseModel):
+    sub_id: str
+    electrodes: Dict[str, ElectrodeSchema]
+    in_roi: Optional[bool]
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
     """
@@ -67,7 +87,7 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
         )
 
 
-class IEEG_Session(SpatialFeature):
+class IEEG_Session(SpatialFeature, SiibraSerializable):
     """
     An intracranial EEG recording session on a particular subject,
     storing as set of electrodes and linking to an IEEG_Dataset.
@@ -107,8 +127,35 @@ class IEEG_Session(SpatialFeature):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
+    class SiibraSerializationSchema(IEEG_Dataset.SiibraSerializationSchema):
+        detail: Optional[IEEGSessionDetailSchema]
 
-class IEEG_Electrode(SpatialFeature):
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, detail=False, region=None, **kwargs):
+        assert self.dataset
+        base_info = {
+            **JSONEncoder.encode(self.dataset, nested=True, detail=True),
+            # should not use @type for dataset, or it will get confusing really quickly
+            '@type': 'ieeg/session/v0.0.1',
+        }
+
+        in_roi = {
+            'in_roi': self.match(region)
+        } if region else {}
+
+        detail_info = {
+            'detail': {
+                'sub_id': self.sub_id,
+                'electrodes': self.electrodes,
+                **in_roi,
+            }
+        } if detail else {}
+        return { **base_info, **detail_info }
+
+
+class IEEG_Electrode(SpatialFeature, SiibraSerializable):
     """
     EEG Electrode with multiple contact points placed in a reference space,
     linking to a particular IEEG recording session.
@@ -145,8 +192,24 @@ class IEEG_Electrode(SpatialFeature):
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 
+    SiibraSerializationSchema = ElectrodeSchema
 
-class IEEG_ContactPoint(SpatialFeature):
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, region = None, **kwargs):
+        in_roi = {
+            'in_roi': self.match(region)
+        } if region else {}
+        return {
+            "electrode_id": self.electrode_id,
+            "subject_id": self.session.sub_id,
+            "contact_points": self.contact_points,
+            **in_roi
+        }
+
+
+class IEEG_ContactPoint(SpatialFeature, SiibraSerializable):
     """
     Basic regional feature for iEEG contact points.
     """
@@ -183,6 +246,22 @@ class IEEG_ContactPoint(SpatialFeature):
             return self.electrode.contact_points[prev_id]
         else:
             return None
+
+    SiibraSerializationSchema = ContactPtSchema
+
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, region = None, **kwargs):
+        no_detail_kwargs = {**kwargs, 'detail': False}
+        in_roi = {
+            'in_roi': self.match(region)
+        } if region else {}
+        return {
+            "id": self.id,
+            "location": JSONEncoder.encode(self.location, **no_detail_kwargs),
+            **in_roi
+        }
 
 
 def parse_ptsfile(spec):

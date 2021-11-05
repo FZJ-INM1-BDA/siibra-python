@@ -118,7 +118,7 @@ class SpatialFeature(Feature):
     def space(self):
         return self.location.space
 
-    def match(self, concept):
+    def match(self, concept) -> bool:
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.

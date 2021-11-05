@@ -160,12 +160,12 @@ class Space(
             'name': self.name,
             'id': self.id,
             'type_id': self.type_id,
-            'volume_type': self.src_volume_type,
-            'volumes': [vol for vol in self.volumes if isinstance(vol, SiibraSerializable)]
         }
         detail_info={
-        }
-        return {**base_info, **(detail_info if detail else {})}
+            'volume_type': self.src_volume_type,
+            'volumes': [vol for vol in self.volumes if isinstance(vol, SiibraSerializable)]
+        } if detail else {}
+        return {**base_info, **detail_info}
 
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"

@@ -4,22 +4,26 @@ from uuid import uuid4
 class CircularReferenceException(Exception): pass
 class UnJSONableException(Exception): pass
 
+JSONableType = Union[None, bool, str, int, float, list, tuple, dict, SiibraSerializable]
+
 class JSONEncoder:
+    """
+    Utility class for generating a JSON object from classes subclassing SiibraSerializable.
+    Reference counting is done via _added_reference, to avoid circular references.
+
+    TODO 
+    Known issue: reference counting is slightly bugged in that, it will count siblings & cousins.
+    """
 
     @staticmethod
-    def encode(obj: Union[None, str, int, float, list, tuple, dict, SiibraSerializable], detail=False, depth_threshold=1, **kwargs):
+    def encode(obj: JSONableType, detail=False, depth_threshold=-1, **kwargs):
         encoder = JSONEncoder(depth_threshold=depth_threshold, **kwargs)
         return encoder.get_json(obj, detail=detail, **kwargs)
 
-    def __init__(self, nested=False, debug=False, depth_threshold=1, **kwargs):
+    def __init__(self, nested=False, debug=False, depth_threshold=-1, **kwargs):
         self.depth = 0
 
-        # all references of objects added are kept in _added_tuple
-        # in order to avoid circular reference
         self._triple_added_reference = {}
-
-        # it seems the reference must be added to a map
-        # or the id gets recycled, and collision will occur
         self._added_reference = {}
 
         self.references = []
@@ -33,16 +37,16 @@ class JSONEncoder:
     def __exit__(self, type, value, trackback):
         pass
 
-    def _serialize(self, obj: Union[None, str, int, float, list, tuple, dict, SiibraSerializable], depth=0, **kwargs):
+    def _serialize(self, obj: JSONableType, depth=0, **kwargs):
         
         # if primitive, return original representation
-        if obj is None or type(obj) == str or type(obj) == int or type(obj) == float:
+        if obj is None or type(obj) == bool or type(obj) == str or type(obj) == int or type(obj) == float:
             return obj
 
-        # if empty list/tuple, simpley return an empty list
+        # if empty list/tuple/dict, simply return an empty list/tuple/dict
         # otherwise, causes false positive Circular reference
-        if (type(obj) == list or type(obj) == tuple) and len(obj) == 0:
-            return list(obj)
+        if (type(obj) == list or type(obj) == tuple or type(obj) == dict) and len(obj) == 0:
+            return obj
 
         if id(obj) in self._triple_added_reference:
             raise CircularReferenceException(f'str {obj} has been referenced three times. Terminating.')
@@ -78,7 +82,7 @@ class JSONEncoder:
             # set an id, if one does not exist
             serialized_obj['@id'] = serialized_obj.get('@id') or str(uuid4())
 
-            above_threshold_flag = depth > self.depth_threshold
+            above_threshold_flag = self.depth_threshold >=0 and depth > self.depth_threshold
             if above_threshold_flag:
                 return {
                     '@id': serialized_obj.get('@id'),
@@ -95,7 +99,6 @@ class JSONEncoder:
                 '@id': serialized_obj.get('@id'),
                 '@type': serialized_obj.get('@type')
             }
-                
 
         raise UnJSONableException(f'object with type {type(obj)} cannot be json serialized')
 

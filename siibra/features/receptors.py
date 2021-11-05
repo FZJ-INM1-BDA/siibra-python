@@ -13,6 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, List, Optional
+
+from pydantic.main import BaseModel
+from siibra.core.jsonable import SiibraSerializable
 from .feature import RegionalFeature
 from .query import FeatureQuery
 
@@ -28,7 +32,18 @@ import re
 import importlib
 
 
-RECEPTOR_SYMBOLS = {
+class ReceptorMetadataSchema(BaseModel):
+    class receptor(BaseModel):
+        latex: str
+        markdown: str
+        name: str
+    class neurotransmitter(BaseModel):
+        label: str
+        latex: str
+        markdown: str
+        name: str
+
+RECEPTOR_SYMBOLS: Dict[str, ReceptorMetadataSchema] = {
     "5-HT1A": {
         "receptor": {
             "latex": "$5-HT_{1A}$",
@@ -275,7 +290,7 @@ def decode_tsv(bytearray):
     }
 
 
-class DensityProfile:
+class DensityProfile(SiibraSerializable):
     def __init__(self, data):
         units = {list(v.values())[3] for v in data.values()}
         assert len(units) == 1
@@ -287,11 +302,25 @@ class DensityProfile:
     def __iter__(self):
         return self.densities.values()
 
+    class SiibraSerializationSchema(BaseModel):
+        unit: str
+        densities: List[float]
+        
+
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, **kwargs):
+        return {
+            'unit': self.unit,
+            'densities': [ value for value in self.densities.values()]
+        }
+
 
 Density = namedtuple("Density", "name, mean, std, unit")
 
 
-class DensityFingerprint:
+class DensityFingerprint(SiibraSerializable):
 
     unit = None
     labels = []
@@ -348,6 +377,23 @@ class DensityFingerprint:
             "{d.name:15.15s} {d.mean:8.1f} {d.unit} (+/-{d.std:5.1f})".format(d=d)
             for d in iter(self)
         )
+    
+    class SiibraSerializationSchema(BaseModel):
+        labels: List[str]
+        unit: str
+        meanvals: List[int]
+        stdvals: List[int]
+
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, **kwargs):
+        return {
+            'labels': self.labels,
+            'unit': self.unit,
+            'meanvals': self.meanvals,
+            'stdvals': self.stdvals,
+        }
 
 
 class ReceptorDistribution(RegionalFeature, EbrainsDataset):
@@ -360,7 +406,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     def __init__(self, region, kg_result):
 
         RegionalFeature.__init__(self, region)
-        EbrainsDataset.__init__(self, kg_result["identifier"], kg_result["name"])
+        EbrainsDataset.__init__(self, kg_result["id"], kg_result["name"])
 
         self.info = kg_result["description"]
         self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
@@ -421,7 +467,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
             return self._fingerprint_loader.data
 
     @property
-    def profiles(self):
+    def profiles(self) -> Dict[str, DensityProfile.SiibraSerializationSchema]:
         """Dictionary of cortical receptor distribution
         profiles available for this feature, keyed by
         receptor type."""
@@ -481,6 +527,24 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         ax.tick_params(axis="y", labelsize=8)
         return fig
 
+    class SiibraSerializationSchema(EbrainsDataset.SiibraSerializationSchema):
+        fingerprint: Optional[DensityFingerprint.SiibraSerializationSchema]
+        profiles: Optional[Dict[str, DensityProfile.SiibraSerializationSchema]]
+        autoradiographs: Optional[str]
+        receptor_symbols: Optional[Dict[str, ReceptorMetadataSchema]]
+    
+    def from_json(self):
+        pass
+
+    def to_json(self, detail=False, **kwargs):
+        base = super().to_json(detail=detail, **kwargs)
+        extra = {
+            'fingerprint': self.fingerprint,
+            'profiles': self.profiles,
+            'autoradiographs': None,
+            'receptor_symbols': RECEPTOR_SYMBOLS
+        } if detail else {}
+        return { **base, **extra }
 
 class ReceptorQuery(FeatureQuery):
 
