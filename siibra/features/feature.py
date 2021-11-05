@@ -181,7 +181,7 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self, regionspec: Tuple[str, Region]):
+    def __init__(self, regionspec: Tuple[str, Region], species = [], **kwargs):
         """
         Parameters
         ----------
@@ -194,6 +194,11 @@ class RegionalFeature(Feature):
             )
         Feature.__init__(self)
         self.regionspec = regionspec
+        self.species = species
+
+    @property
+    def species_ids(self):
+        return [s.get('@id') for s in self.species]
 
     def match(self, concept):
         """
@@ -208,6 +213,24 @@ class RegionalFeature(Feature):
         -------
         True, if match was successful, otherwise False
         """
+
+        # first check if any of
+        try:
+            if isinstance(concept, Region):
+                atlases = concept.parcellation.atlases
+            if isinstance(concept, Parcellation):
+                atlases = concept.atlases
+            if isinstance(concept, Atlas):
+                atlases = {concept}
+            if atlases:
+                # if self.species_ids is defined, and the concept is explicitly not in
+                # return False
+                if all(atlas.species.get('@id') not in self.species_ids for atlas in atlases):
+                    return False
+        # for backwards compatibility. If any attr is not found, pass
+        except AttributeError:
+            pass
+
         self._match = None
 
         # regionspec might be a specific region, then we can
@@ -227,6 +250,7 @@ class RegionalFeature(Feature):
             for w in concept.key.split('_'):
                 spec = spec.replace(w.lower(), '')
             for match in concept.regiontree.find(spec):
+                # TODO what's with the mutation here?
                 self._match = match
                 return True
 
@@ -234,6 +258,7 @@ class RegionalFeature(Feature):
             for w in concept.parcellation.key.split('_'):
                 spec = spec.replace(w.lower(), '')
             for match in concept.find(spec):
+                # TODO what's with the mutation here?
                 self._match = match
                 return True
 
@@ -245,6 +270,7 @@ class RegionalFeature(Feature):
                 spec = spec.replace(w.lower(), '')
             for p in concept.parcellations:
                 for match in p.regiontree.find(spec):
+                    # TODO what's with the mutation here?
                     self._match = match
                     return True
         else:
