@@ -205,9 +205,8 @@ class ParcellationMap(ImageProvider):
         voi: BoundingBox = None,
     ):
         """
-        Extract the mask for one particular region. For parcellation maps, this
-        is a binary mask volume. For overlapping maps, this is the
-        corresponding slice, which typically is a volume of float type.
+        Extract the mask for one particular region. 
+        For multi-regions, returns the voxelwise maximum of their children's masks.
 
         Parameters
         ----------
@@ -223,30 +222,24 @@ class ParcellationMap(ImageProvider):
         Nifti1Image, if found, otherwise None
         """
         indices = self.decode_region(regionspec)
-        mapimgs = []
+        data = None
+        affine = None
         for index in indices:
-            mapimg = self.fetch(
-                resolution_mm=resolution_mm, mapindex=index.map, voi=voi
-            )
-            if index.label is not None:
-                mapimg = Nifti1Image(
-                    dataobj=(mapimg.get_fdata() == index.label).astype(np.uint8),
-                    affine=mapimg.affine,
+            with QUIET:
+                mapimg = self.fetch(
+                    resolution_mm=resolution_mm, mapindex=index.map, voi=voi
                 )
-            mapimgs.append(mapimg)
+            if index.label is None: # region is defined by the whole map
+                newdata = mapimg.get_fdata()
+            else: # region is defined by a particular label
+                newdata = (mapimg.get_fdata() == index.label).astype(np.uint8)
+            if data is None:
+                data = newdata
+                affine = mapimg.affine
+            else:
+                data = np.maximum(data, newdata)
 
-        if len(mapimgs) == 1:
-            return mapimgs[0]
-        elif self.maptype == MapType.LABELLED:
-            m = mapimgs[0]
-            for m2 in mapimgs[1:]:
-                m.dataobj[m2.dataobj > 0] = 1
-            return m
-        else:
-            logger.info(
-                f"4D volume with {len(mapimgs)} continuous region maps extracted from region specification '{regionspec}'"
-            )
-            return image.concat_imgs(mapimgs)
+        return Nifti1Image(data, affine)
 
     def get_shape(self, resolution_mm=None):
         return list(self.space.get_template().get_shape()) + [len(self)]
