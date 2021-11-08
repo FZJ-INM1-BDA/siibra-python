@@ -22,8 +22,8 @@ from ..retrieval.requests import EbrainsRequest
 
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
-    def __init__(self, regionspec, kg_id, name, embargo_status):
-        RegionalFeature.__init__(self, regionspec)
+    def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
+        RegionalFeature.__init__(self, regionspec, species)
         EbrainsDataset.__init__(self, kg_id, name, embargo_status)
 
     @property
@@ -46,17 +46,26 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     _FEATURETYPE = EbrainsRegionalDataset
 
     def __init__(self, **kwargs):
-
         FeatureQuery.__init__(self)
 
         loader = EbrainsRequest(
-            query_id="siibra-kg-feature-summary-0.0.1",
+            query_id="siibra-kg-feature-summary-0_0_4",
             schema="parcellationregion",
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
 
         for r in loader.data.get("results", []):
+
+            species_alt = []
+            # List, keys @id, name
             for dataset in r.get("datasets", []):
+                species_alt = [
+                    *species_alt,
+                    *dataset.get('ds_specimengroup_subject_species', []),
+                    *dataset.get('s_subject_species', []),
+                ]
+            for dataset in r.get("datasets", []):
+
                 ds_id = dataset.get("@id")
                 ds_name = dataset.get("name")
                 ds_embargo_status = dataset.get("embargo_status")
@@ -65,10 +74,28 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                         f"'{ds_name}' is not an interpretable dataset and will be skipped.\n(id:{ds_id})"
                     )
                     continue
-                regionname = r.get("name", None)
+                regionname: str = r.get("name", None)
+                alias: str = r.get("alias", None)
+
+                # species defined for the current dataset
+                dataset_species = [
+                    *dataset.get('ds_specimengroup_subject_species', []),
+                    *dataset.get('s_subject_species', []),
+                ]
+
+                # if the current dataset has species defined, use the current species, else use the general speices
+                species = [*r.get("species", []), *(dataset_species if dataset_species else species_alt)] # list with keys @id, identifier, name
+
+                # filter species by @id attribute
+                unique_species = []
+                for sp in species:
+                    if sp.get('@id') in [s.get('@id') for s in unique_species]:
+                        continue
+                    unique_species.append(sp)
+
                 self.register(
                     EbrainsRegionalDataset(
-                        regionname, ds_id, ds_name, ds_embargo_status
+                        alias or regionname, ds_id, ds_name, ds_embargo_status, unique_species
                     )
                 )
 

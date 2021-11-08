@@ -177,9 +177,9 @@ class ConnectivityProfile(RegionalFeature, SiibraSerializable):
 
     show_as_log = True
 
-    def __init__(self, regionspec: str, connectivitymatrix: ConnectivityMatrix, index):
+    def __init__(self, regionspec: str, connectivitymatrix: ConnectivityMatrix, index, **kwargs):
         assert regionspec is not None
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec, **kwargs)
         self._matrix_index = index
         self._matrix = connectivitymatrix
 
@@ -255,13 +255,14 @@ class ConnectivityProfileQuery(FeatureQuery):
         for _, loader in self._QUERY.get_loaders("connectivity", ".json"):
             cm = ConnectivityMatrix._from_json(loader.data)
             for parcellation in cm.parcellations:
+                species = [atlas.species for atlas in parcellation.atlases]
                 for regionname in cm.regionnames:
                     region = parcellation.decode_region(regionname, build_group=False)
                     if region is None:
                         raise RuntimeError(
                             f"Could not decode region name {regionname} in {parcellation}"
                         )
-                    self.register(ConnectivityProfile(region, cm, regionname))
+                    self.register(ConnectivityProfile(region, cm, regionname, species=species))
 
 
 class ConnectivityMatrixQuery(FeatureQuery):

@@ -205,9 +205,8 @@ class ParcellationMap(ImageProvider):
         voi: BoundingBox = None,
     ):
         """
-        Extract the mask for one particular region. For parcellation maps, this
-        is a binary mask volume. For overlapping maps, this is the
-        corresponding slice, which typically is a volume of float type.
+        Extract the mask for one particular region. 
+        For multi-regions, returns the voxelwise maximum of their children's masks.
 
         Parameters
         ----------
@@ -223,30 +222,24 @@ class ParcellationMap(ImageProvider):
         Nifti1Image, if found, otherwise None
         """
         indices = self.decode_region(regionspec)
-        mapimgs = []
+        data = None
+        affine = None
         for index in indices:
-            mapimg = self.fetch(
-                resolution_mm=resolution_mm, mapindex=index.map, voi=voi
-            )
-            if index.label is not None:
-                mapimg = Nifti1Image(
-                    dataobj=(mapimg.get_fdata() == index.label).astype(np.uint8),
-                    affine=mapimg.affine,
+            with QUIET:
+                mapimg = self.fetch(
+                    resolution_mm=resolution_mm, mapindex=index.map, voi=voi
                 )
-            mapimgs.append(mapimg)
+            if index.label is None: # region is defined by the whole map
+                newdata = mapimg.get_fdata()
+            else: # region is defined by a particular label
+                newdata = (mapimg.get_fdata() == index.label).astype(np.uint8)
+            if data is None:
+                data = newdata
+                affine = mapimg.affine
+            else:
+                data = np.maximum(data, newdata)
 
-        if len(mapimgs) == 1:
-            return mapimgs[0]
-        elif self.maptype == MapType.LABELLED:
-            m = mapimgs[0]
-            for m2 in mapimgs[1:]:
-                m.dataobj[m2.dataobj > 0] = 1
-            return m
-        else:
-            logger.info(
-                f"4D volume with {len(mapimgs)} continuous region maps extracted from region specification '{regionspec}'"
-            )
-            return image.concat_imgs(mapimgs)
+        return Nifti1Image(data, affine)
 
     def get_shape(self, resolution_mm=None):
         return list(self.space.get_template().get_shape()) + [len(self)]
@@ -884,3 +877,36 @@ class ContinuousParcellationMap(ParcellationMap):
             )
         ]
         return assignments
+
+    def colorize(self, values: dict):
+            """Produce a colorized 3D map by projecting the regional values to regional maps.
+
+            Parameters
+            ----------
+            values : dict
+                Dictionary mapping regions to values
+
+            Return
+            ------
+            Nifti1Image
+            """
+            
+            # generate empty image
+            maps = {}
+            result = None
+
+            for region, value in values.items():
+                indices = self.decode_region(region)
+                for index in indices:
+                    if index.map not in maps:
+                        # load the map
+                        with QUIET:
+                            maps[index.map] = self.fetch(mapindex=index.map)
+                    thismap = maps[index.map]
+                    if result is None:
+                        # create the empty output
+                        result = np.zeros_like(thismap.get_fdata())
+                        affine = thismap.affine
+                    result = np.maximum(result, thismap.get_fdata()*value)
+                    
+            return Nifti1Image(result, affine) 

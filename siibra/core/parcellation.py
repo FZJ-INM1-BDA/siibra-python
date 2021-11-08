@@ -24,6 +24,7 @@ from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import parcellationmap, VolumeSrc
 
 from typing import List, Optional, Union
+import difflib
 from memoization import cached
 
 # NOTE : such code could be used to automatically resolve
@@ -159,6 +160,7 @@ class Parcellation(
             if self._datasets_cached is None:
                 self._datasets_cached = []
             self._datasets_cached.extend(maps)
+        self.atlases = set()
 
     @property
     def regiontree(self):
@@ -317,12 +319,16 @@ class Parcellation(
         -----
         list of matching regions
         """
-        return self.regiontree.find(
+        found_regions = self.regiontree.find(
             regionspec,
             filter_children=filter_children,
             build_group=build_group,
             groupname=groupname
         )
+
+        # Perform ranking of return result, if the spec provided is a string. Otherwise, return the unsorted found_regions
+        # reverse is set to True, since SequenceMatcher().ratio(), higher == better
+        return sorted(found_regions,reverse=True, key=lambda region: difflib.SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
 
     def __str__(self):
         return self.name

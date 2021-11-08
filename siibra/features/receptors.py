@@ -403,9 +403,9 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     TODO lazy loading could be more elegant.
     """
 
-    def __init__(self, region, kg_result):
+    def __init__(self, region, kg_result, **kwargs):
 
-        RegionalFeature.__init__(self, region)
+        RegionalFeature.__init__(self, region, **kwargs)
         EbrainsDataset.__init__(self, kg_result["id"], kg_result["name"])
 
         self.info = kg_result["description"]
@@ -552,13 +552,18 @@ class ReceptorQuery(FeatureQuery):
 
     def __init__(self,**kwargs):
         FeatureQuery.__init__(self)
-        kg_query = EbrainsRequest(query_id="siibra_receptor_densities").get()
-        # kg_query = ebrains.execute_query_by_id('minds', 'core', 'dataset', 'v1.0.0', )
+        kg_req = EbrainsRequest(
+            query_id="siibra_receptor_densities-0_0_2",
+            params={'vocab': 'https://schema.hbp.eu/myQuery/' }
+        )
+        kg_query = kg_req.get()
+        
         not_used = 0
         for kg_result in kg_query["results"]:
-            region_names = [e["name"] for e in kg_result["region"]]
+            region_names = [p_region["name"] for p_region in kg_result["parcellationRegion"]]
+            species = kg_result.get('species', [])
             for region_name in region_names:
-                f = ReceptorDistribution(region_name, kg_result)
+                f = ReceptorDistribution(region_name, kg_result, species=species)
                 if f.fingerprint is None:
                     not_used += 1
                 else:

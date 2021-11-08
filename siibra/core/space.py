@@ -65,6 +65,7 @@ class Space(
         AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.src_volume_type = src_volume_type
         self.type = template_type
+        self.atlases = set()
 
     def get_template(self):
         """
