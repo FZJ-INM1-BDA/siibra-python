@@ -76,7 +76,7 @@ class DummyCls2(SiibraSerializable):
     SiibraSerializationSchema = TypedCls2Output
     def to_json(self, **kwargs):
         return {
-            'id': 'dummy-cls-2',
+            'data': 'dummy-cls-2-data',
             '@id': 'dummy-cls-2',
             '@type': 'dummy-cls'
         }
@@ -116,7 +116,7 @@ expected_base_nested_output={
 expected_detail_nested_output={
     **expected_base_nested_output,
     'child': {
-        'id': 'dummy-cls-2',
+        'data': 'dummy-cls-2-data',
         '@id': 'dummy-cls-2',
         '@type': 'dummy-cls'
     }
@@ -153,6 +153,10 @@ def test_jsonable_concept_not_nested():
             }
         },
         'references': [{
+            '@id': 'dummy-cls-2',
+            '@type': 'dummy-cls',
+            'data': 'dummy-cls-2-data',
+        },{
             'id': 'id-bar',
             '@id': 'id-bar2',
             '@type': 'dummy-cls',
