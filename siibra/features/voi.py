@@ -13,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List, Optional
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import QUIET
 from ..volumes.volume import VolumeSrc
-from ..core.space import Space, BoundingBox
+from ..core.space import Space, BoundingBox, VolumeBaseModel
 from ..core.datasets import EbrainsDataset
 from ..retrieval.repositories import GitlabConnector
 
@@ -58,6 +59,18 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
             list(map(result.volumes.append, vsrcs))
             return result
         return definition
+
+    class VOISerializationSchema(EbrainsDataset.SiibraSerializationSchema):
+        volumes: Optional[List[VolumeBaseModel]]
+
+    SiibraSerializationSchema = VOISerializationSchema
+
+    def to_json(self, **kwargs):
+        previous_json = super().to_json(**kwargs)
+        return {
+            **previous_json,
+            'volumes': self.volumes
+        }
 
 
 class VolumeOfInterestQuery(FeatureQuery):
