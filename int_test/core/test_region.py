@@ -4,7 +4,8 @@ from siibra.core.json_encoder import JSONEncoder
 import pytest
 import siibra
 from siibra.core.parcellation import Parcellation
-from pydantic import ValidationError, BaseModel
+from pydantic import ValidationError
+from int_test.util import get_model
 
 # ... maybe... not a good idea to test all possible regions in all possible parcellation in all possible atlas?
 parameters: List[Tuple[str, str, str]]=[
@@ -23,16 +24,10 @@ parameters: List[Tuple[str, str, str]]=[
 #     for region in parcellation.regiontree
 # ]
 
-def get_model():
-    if issubclass(Region.SiibraSerializationSchema, BaseModel):
-        Model = Region.SiibraSerializationSchema
-    else:
-        raise ValueError('SiibraSerializationSchema needs to extend pydantic.BaseModel')
-    return Model
 
 def test_wrong_model_raises():
     with pytest.raises(ValidationError):
-        Model = get_model()
+        Model = get_model(Region)
         Model(id='test')
 
 @pytest.mark.parametrize('atlas_id,parcellation_id,region_id', parameters)
@@ -41,7 +36,7 @@ def test_region_jsonable(atlas_id: str, parcellation_id: str, region_id: str):
     parcellation: Parcellation = atlas.parcellations[parcellation_id]
     region: Region = parcellation.decode_region(region_id)
 
-    Model = get_model()
+    Model = get_model(Region)
     result_json = JSONEncoder.encode(region, nested=True, depth_threshold=1000)
     Model(**result_json)
 
@@ -50,7 +45,7 @@ def test_region_has_children():
     parcellation: Parcellation = atlas.parcellations['2 9']
     region: Region = parcellation.decode_region('hoc1')
 
-    Model = get_model()
+    Model = get_model(Region)
 
     result_json = JSONEncoder.encode(region, nested=True)
     region = Model(**result_json)
@@ -64,7 +59,7 @@ def test_region_filtered_by_space():
     region: Region = parcellation.decode_region('hoc1')
     bigbrain = siibra.spaces['big brain']
 
-    Model = get_model()
+    Model = get_model(Region)
 
     result_json = JSONEncoder.encode(region, space=bigbrain, nested=True)
     region = Model(**result_json)

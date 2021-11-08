@@ -14,8 +14,12 @@
 # limitations under the License.
 
 
-from typing import Dict, List, Optional
+import hashlib
+from typing import Dict, List, Optional, Union
+
+from pydantic.main import BaseModel
 from siibra.core.jsonable import SiibraBaseSerialization, SiibraSerializable
+from siibra.core.json_encoder import JSONEncoder
 from .feature import RegionalFeature, ParcellationFeature
 from .query import FeatureQuery
 
@@ -26,6 +30,14 @@ from ..retrieval.repositories import GitlabConnector
 
 from collections import defaultdict
 import numpy as np
+
+
+class ConnectivityMatrixBaseModel(SiibraBaseSerialization):
+    matrix: Optional[Dict[str, List[float]]]
+
+
+class EbrainsConnectivityMatrix(EbrainsDataset.SiibraSerializationSchema):
+    matrix: Optional[Dict[str, List[float]]]
 
 
 class ConnectivityMatrix(ParcellationFeature, SiibraSerializable):
@@ -109,13 +121,14 @@ class ConnectivityMatrix(ParcellationFeature, SiibraSerializable):
                 description=data["description"],
             )
 
-    class SiibraSerializationSchema(SiibraBaseSerialization):
-        matrix: Optional[Dict[str, List[float]]]
-    
+    SiibraSerializationSchema = Union[ConnectivityMatrixBaseModel, EbrainsConnectivityMatrix]
     def from_json(self, **kwargs):
         pass
 
     def to_json(self, detail=False, **kwargs):
+
+        previous_json = super().to_json(**kwargs)
+
         assert hasattr(self, 'id')
         assert hasattr(self, 'type_id')
         basic_json = {
@@ -127,7 +140,7 @@ class ConnectivityMatrix(ParcellationFeature, SiibraSerializable):
                 row[0]: row.tolist()[1:] for row in self.matrix
             }
         } if detail else {}
-        return { **basic_json, **detail_json }
+        return { **previous_json, **basic_json, **detail_json }
 
 
 class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):
@@ -147,7 +160,20 @@ class EbrainsConnectivityMatrix(ConnectivityMatrix, EbrainsDataset):
         EbrainsDataset.__init__(self, kg_id, name)
 
 
-class ConnectivityProfile(RegionalFeature):
+class ConnectivityProfileDetailModel(BaseModel):
+    profile: List[float]
+    regionnames: List[str]
+
+
+class ConnectivityProfileBaseModel(SiibraBaseSerialization):
+    profile: Optional[ConnectivityProfileDetailModel]
+
+
+class EbrainsConnectivityProfile(EbrainsDataset.SiibraSerializationSchema):
+    profile: Optional[ConnectivityProfileDetailModel]
+
+
+class ConnectivityProfile(RegionalFeature, SiibraSerializable):
 
     show_as_log = True
 
@@ -156,6 +182,9 @@ class ConnectivityProfile(RegionalFeature):
         RegionalFeature.__init__(self, regionspec)
         self._matrix_index = index
         self._matrix = connectivitymatrix
+
+        self.id = hashlib.md5(str(self.profile).encode('ascii')).hexdigest()
+        self.type = 'siibra-python/regional-feature/connectivity-profile/v1.0.0'
 
     @property
     def profile(self):
@@ -193,6 +222,25 @@ class ConnectivityProfile(RegionalFeature):
             if strength > minstrength
         )
         return sorted(decoded, key=lambda q: q[0], reverse=True)
+    
+    SiibraSerializationSchema = Union[EbrainsConnectivityProfile, ConnectivityProfileBaseModel]
+
+    def from_json(self, **kwargs):
+        pass
+
+    def to_json(self, detail=False, **kwargs):
+        ebrains_info = JSONEncoder.encode(self._matrix, detail=False, nested=False) if isinstance(self._matrix, EbrainsDataset) else {}
+        basic_info = {
+            '@id': self.id,
+            '@type': self.type,
+        }
+        detail_json = {
+            'profile': {
+                'profile': self.profile.tolist(),
+                'regionnames': self.regionnames
+            }
+        } if detail else {}
+        return { **ebrains_info, **basic_info, **detail_json}
 
 
 class ConnectivityProfileQuery(FeatureQuery):

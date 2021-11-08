@@ -23,6 +23,12 @@ from ..commons import MapType, logger, Registry
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
+class AtlasSerializationSchema(SiibraBaseSerialization):
+    id: str
+    name: str
+    # spaces: List[Space.SiibraSerializationSchema]
+    # parcellations: List[Parcellation.SiibraSerializationSchema]
+
 @provide_registry
 class Atlas(
     AtlasConcept, SiibraSerializable, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
@@ -247,11 +253,7 @@ class Atlas(
         """
         return self.name < other.name
 
-    class SiibraSerializationSchema(SiibraBaseSerialization):
-        id: str
-        name: str
-        # spaces: List[Space.SiibraSerializationSchema]
-        # parcellations: List[Parcellation.SiibraSerializationSchema]
+    SiibraSerializationSchema = AtlasSerializationSchema
 
     def to_json(self, **kwargs):
         return {

@@ -50,13 +50,13 @@ REMOVE_FROM_NAME = [
 REGEX_TYPE=type(re.compile('test'))
 
 
-class RegionJson(SiibraBaseSerialization):
+class RegionSerializationSchema(SiibraBaseSerialization):
     name: str
-    children: List['RegionJson']
+    children: List['RegionSerializationSchema']
     rgb: Optional[List[int]]
     centroids: Optional[List[Point.SiibraSerializationSchema]]
 
-RegionJson.update_forward_refs()
+RegionSerializationSchema.update_forward_refs()
 
 class Region(anytree.NodeMixin, AtlasConcept, SiibraSerializable):
     """
@@ -829,7 +829,7 @@ class Region(anytree.NodeMixin, AtlasConcept, SiibraSerializable):
 
         return result
 
-    SiibraSerializationSchema = RegionJson
+    SiibraSerializationSchema = RegionSerializationSchema
 
     def to_json(self, detail=False, space: Space=None, **kwargs):
         

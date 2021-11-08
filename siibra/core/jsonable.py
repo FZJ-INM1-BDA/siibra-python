@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod, abstractproperty
+from typing import Union
 
 from pydantic import BaseModel
 from pydantic.fields import Field
@@ -11,7 +12,7 @@ class SiibraSerializable(ABC):
 
     @property
     @abstractproperty
-    def SiibraSerializationSchema(self) -> BaseModel:
+    def SiibraSerializationSchema(self) -> Union[BaseModel, Union[BaseModel, BaseModel]]:
         pass
 
     @abstractmethod

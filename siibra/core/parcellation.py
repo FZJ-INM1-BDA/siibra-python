@@ -248,7 +248,7 @@ class Parcellation(
 
     def decode_region(
         self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
-    ):
+    ) -> Region:
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -294,7 +294,7 @@ class Parcellation(
     @cached
     def find_regions(
         self, regionspec, filter_children=False, build_group=False, groupname=None
-    ):
+    ) -> List[Region]:
         """
         Find regions with the given specification in this parcellation.
 
