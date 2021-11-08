@@ -2,8 +2,13 @@ from siibra.core.jsonable import SiibraSerializable
 from pydantic import ValidationError, BaseModel
 
 def get_model(cls: SiibraSerializable):
-    if issubclass(cls.SiibraSerializationSchema, BaseModel):
-        return cls.SiibraSerializationSchema
+    try:
+        if issubclass(cls.SiibraSerializationSchema, BaseModel):
+            return cls.SiibraSerializationSchema
+
+    # python >= 3.7, issubclass must be a class
+    except TypeError:
+        pass
 
     # if Union type, should have attr __args__
     if hasattr(cls.SiibraSerializationSchema, '__args__'):

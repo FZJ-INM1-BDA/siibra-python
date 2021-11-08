@@ -127,8 +127,10 @@ class IEEG_Session(SpatialFeature, SiibraSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
-    class SiibraSerializationSchema(IEEG_Dataset.SiibraSerializationSchema):
+    class IEEGSessionSerializationSchema(IEEG_Dataset.SiibraSerializationSchema):
         detail: Optional[IEEGSessionDetailSchema]
+
+    SiibraSerializationSchema = IEEGSessionSerializationSchema
 
     def from_json(self, **kwargs):
         pass
