@@ -404,9 +404,8 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     """
 
     def __init__(self, region, kg_result, **kwargs):
-
         RegionalFeature.__init__(self, region, **kwargs)
-        EbrainsDataset.__init__(self, kg_result["id"], kg_result["name"])
+        EbrainsDataset.__init__(self, kg_result["@id"], kg_result["name"])
 
         self.info = kg_result["description"]
         self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
