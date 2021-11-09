@@ -14,6 +14,8 @@
 # limitations under the License.
 
 from typing import List, Optional
+
+from pydantic.fields import Field
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -22,9 +24,11 @@ from ..volumes.volume import VolumeSrc
 from ..core.space import Space, BoundingBox, VolumeBaseModel
 from ..core.datasets import EbrainsDataset
 from ..retrieval.repositories import GitlabConnector
+from ..core.jsonable import Literal
 
 import numpy as np
 
+_at_type = 'siibra/spatial-feature/v0.0.1'
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset):
     def __init__(self, dataset_id, location, name):
@@ -61,16 +65,21 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
         return definition
 
     class VOISerializationSchema(EbrainsDataset.SiibraSerializationSchema):
+        at_type: Literal[_at_type] = Field(alias='@type')
         volumes: Optional[List[VolumeBaseModel]]
 
     SiibraSerializationSchema = VOISerializationSchema
 
-    def to_json(self, **kwargs):
+    def to_json(self, detail=False, **kwargs):
         previous_json = super().to_json(**kwargs)
-        return {
+        base = {
             **previous_json,
-            'volumes': self.volumes
+            '@type': _at_type,
         }
+        detailed = {
+            'volumes': self.volumes
+        } if detail else {}
+        return {**base, **detailed}
 
 
 class VolumeOfInterestQuery(FeatureQuery):

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from typing import Dict, Optional
+from pydantic.fields import Field
 
 from pydantic.main import BaseModel
 from siibra.core.jsonable import SiibraSerializable
@@ -22,6 +23,7 @@ from .query import FeatureQuery
 
 from .. import logger
 from ..core.json_encoder import JSONEncoder
+from ..core.jsonable import Literal
 from ..core.datasets import EbrainsDataset
 from ..core.space import Space, Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
@@ -43,6 +45,12 @@ class IEEGSessionDetailSchema(BaseModel):
     sub_id: str
     electrodes: Dict[str, ElectrodeSchema]
     in_roi: Optional[bool]
+
+_at_type = 'ieeg/session/v0.0.1'
+class IEEGSessionSerializationSchema(EbrainsDataset.SiibraSerializationSchema):
+    at_type: Literal[_at_type] = Field(alias='@type')
+    detail: Optional[IEEGSessionDetailSchema]
+
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
     """
@@ -127,9 +135,6 @@ class IEEG_Session(SpatialFeature, SiibraSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
-    class IEEGSessionSerializationSchema(IEEG_Dataset.SiibraSerializationSchema):
-        detail: Optional[IEEGSessionDetailSchema]
-
     SiibraSerializationSchema = IEEGSessionSerializationSchema
 
     def from_json(self, **kwargs):
@@ -140,9 +145,8 @@ class IEEG_Session(SpatialFeature, SiibraSerializable):
         base_info = {
             **JSONEncoder.encode(self.dataset, nested=True, detail=True),
             # should not use @type for dataset, or it will get confusing really quickly
-            '@type': 'ieeg/session/v0.0.1',
+            '@type': _at_type,
         }
-
         in_roi = {
             'in_roi': self.match(region)
         } if region else {}

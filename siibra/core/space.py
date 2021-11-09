@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 from typing import List, Optional
 from pydantic.fields import Field
 from pydantic.main import BaseModel
+
+from siibra.core.json_encoder import JSONEncoder
 
 from .concept import AtlasConcept, provide_registry
 from .jsonable import SiibraBaseSerialization, SiibraSerializable
@@ -303,6 +306,20 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
+class UnitSchema(BaseModel):
+    at_id: str = Field(alias='@id')
+
+
+class CoordinateSchema(SiibraBaseSerialization):
+    value: float
+    unit: UnitSchema
+
+
+class PointSerializationSchema(SiibraBaseSerialization):
+    coordinateSpace: Space.SiibraSerializationSchema
+    coordinates: List[CoordinateSchema]
+
+
 class Point(Location, SiibraSerializable):
     """A single 3D point in reference space."""
 
@@ -553,22 +570,19 @@ class Point(Location, SiibraSerializable):
     def from_json(self):
         pass
 
-    class SiibraSerializationSchema(SiibraBaseSerialization):
-        coordinateSpace: Space.SiibraSerializationSchema
-        class coodrinates(SiibraBaseSerialization):
-            value: float
-            class unit(BaseModel):
-                at_id: str = Field(alias='@id')
+
+    SiibraSerializationSchema = PointSerializationSchema
 
 
-    def to_json(self, **kwargs):
+    def to_json(self, detail=False, **kwargs):
+        id = hashlib.md5((str(self) + str(self.space)).encode('ascii')).hexdigest()
         return {
-            '@id': None,
+            '@id': id,
             '@type': 'https://openminds.ebrains.eu/sands/CoordinatePoint',
-            'coordinateSpace': self.space,
+            'coordinateSpace': JSONEncoder.encode(self.space, detail=False, nested=True),
             'coordinates': [{
-                '@id': None,
-                '@type': 'https://openminds.ebrains.eu/core/QuantitativeValue',
+                '@id': hashlib.md5((str(coord) + str(self.space)).encode('ascii')).hexdigest(),
+                '@type': 'https://openminds.ebrains.eu/core/dQuantitativeValue',
                 'value': float(coord),
                 "unit": {
                     "@id": "id.link/mm"

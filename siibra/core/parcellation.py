@@ -15,7 +15,7 @@
 
 from .datasets import Dataset
 from siibra.core.json_encoder import JSONEncoder
-from .space import Space
+from .space import Space, VolumeBaseModel
 from .region import Region
 from .concept import AtlasConcept, provide_registry
 from .jsonable import SiibraBaseSerialization, SiibraSerializable
@@ -450,17 +450,21 @@ class Parcellation(
 
         return result
 
-    class SiibraSerializationSchema(SiibraBaseSerialization):
-        id: Optional[str]
-        type_id: Optional[str]
+    class ParcellationSerializationSchema(SiibraBaseSerialization):
+        id: str
+        type_id: str
         name: Optional[str]
+        # some parcellation have None as modality
         modality: Optional[str]
         # turns out, volumesrc is a sublcass of dataset
-        infos: List[Union[VolumeSrc.SiibraSerializationSchema, Dataset.SiibraSerializationSchema]]
+        infos: Optional[List[Union[VolumeSrc.SiibraSerializationSchema, Dataset.SiibraSerializationSchema]]]
         regions: Optional[List[Region.SiibraSerializationSchema]]
         spaces: Optional[List[Space.SiibraSerializationSchema]]
+        volumes: Optional[List[VolumeBaseModel]]
 
-    def to_json(self, detail=False, **kwargs):
+    SiibraSerializationSchema = ParcellationSerializationSchema
+
+    def to_json(self, detail=False, include_regions=False, **kwargs):
         base_info={
             '@id': self.id,
             '@type': self.type_id,
@@ -468,13 +472,14 @@ class Parcellation(
             'type_id': self.type_id,
             'name': self.name,
             'modality': self.modality,
-            'infos': [info for info in self.infos if isinstance(info, Dataset) ],
         }
         detail_info={
-            'regions': JSONEncoder.encode([r for r in self.regiontree.root.children], nested=True , detail=False, depth_threshold=1000),
+            'regions': JSONEncoder.encode([r for r in self.regiontree.root.children], nested=True , detail=False, depth_threshold=1000) if include_regions else None,
             'spaces': [s for s in self.spaces],
-        }
-        return { **base_info, **(detail_info if detail else {})}
+            'infos': [info for info in self.infos if isinstance(info, Dataset) ],
+            'volumes': self.volumes
+        } if detail else {}
+        return { **base_info, **detail_info }
 
     def from_json(self):
         pass

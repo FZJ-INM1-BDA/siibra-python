@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from typing import List, Optional
-from uuid import uuid4
+import hashlib
 
 from pydantic.main import BaseModel
 from .jsonable import SiibraBaseSerialization, SiibraSerializable
@@ -93,7 +93,7 @@ class Dataset(SiibraSerializable):
 
     def to_json(self, **kwargs):
         # TODO some simpleDescription does not have id attr
-        self_id=self.id or str(uuid4())
+        self_id=self.id or str(hashlib.md5(f'{self.name}{self.description}'.encode("ascii")).hexdigest())
         base_info={
             '@type': self.type_id,
             '@id': self_id,

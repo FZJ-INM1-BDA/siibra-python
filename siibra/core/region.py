@@ -15,9 +15,11 @@
 
 from pydantic import BaseModel
 from pydantic.fields import Field
+
+from siibra.core.datasets import Dataset
 from .concept import AtlasConcept
 from .jsonable import SiibraBaseSerialization, SiibraSerializable
-from .space import PointSet, Space, Point, BoundingBox
+from .space import PointSet, Space, Point, BoundingBox, VolumeBaseModel
 
 from ..commons import (
     logger,
@@ -55,6 +57,10 @@ class RegionSerializationSchema(SiibraBaseSerialization):
     children: List['RegionSerializationSchema']
     rgb: Optional[List[int]]
     centroids: Optional[List[Point.SiibraSerializationSchema]]
+    infos: Optional[List[Dataset.SiibraSerializationSchema]]
+    label: Optional[int]
+    volumes: Optional[List[VolumeBaseModel]]
+    has_regional_map: Optional[bool] = Field(alias='hasRegionalMap')
 
 RegionSerializationSchema.update_forward_refs()
 
@@ -766,11 +772,15 @@ class Region(anytree.NodeMixin, AtlasConcept, SiibraSerializable):
             'name': self.name,
             'children': [c for c in self.children if space is None or space in c.supported_spaces ],
             'rgb': self.attrs.get('rgb'),
+            'label': self.index.label,
             '@id': full_id,
             '@type': self.type_id or 'minds/core/parcellationregion/v1.0.0',
         }
 
         detail_info={
+            'infos': [info for info in self.infos if isinstance(info, Dataset) ],
+            'volumes': self.volumes,
+            **({ 'hasRegionalMap': space in self.supported_spaces } if space is not None else {}),
             **({ 'centroids': self.centroids(space) } if space is not None else {})
         }
         return {**basic_info, **(detail_info if detail else {})}

@@ -32,16 +32,18 @@ import re
 import importlib
 
 
+class ReceptorSchema(BaseModel):
+    latex: str
+    markdown: str
+    name: str
+
+class NeurotransmitterSchema(ReceptorSchema):
+    label: str
+
 class ReceptorMetadataSchema(BaseModel):
-    class receptor(BaseModel):
-        latex: str
-        markdown: str
-        name: str
-    class neurotransmitter(BaseModel):
-        label: str
-        latex: str
-        markdown: str
-        name: str
+    receptor: ReceptorSchema
+    neurotransmitter: NeurotransmitterSchema
+
 
 RECEPTOR_SYMBOLS: Dict[str, ReceptorMetadataSchema] = {
     "5-HT1A": {
