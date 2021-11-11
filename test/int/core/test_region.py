@@ -5,7 +5,7 @@ import pytest
 import siibra
 from siibra.core.parcellation import Parcellation
 from pydantic import ValidationError
-from int_test.util import get_model
+from ..util import get_model
 
 # ... maybe... not a good idea to test all possible regions in all possible parcellation in all possible atlas?
 parameters: List[Tuple[str, str, str]]=[

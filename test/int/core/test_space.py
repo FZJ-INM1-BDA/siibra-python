@@ -6,7 +6,7 @@ import siibra
 from pydantic import ValidationError, BaseModel
 
 from siibra.core.space import Point
-from int_test.util import get_model
+from ..util import get_model
 
 # This should always go through all available spaces in all atlases
 parameters: List[Tuple[str, str]] = [

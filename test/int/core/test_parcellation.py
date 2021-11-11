@@ -4,7 +4,7 @@ from siibra.core.json_encoder import JSONEncoder
 import pytest
 import siibra 
 from pydantic import ValidationError
-from int_test.util import get_model
+from ..util import get_model
 
 # should test all combinations of atlas/parellation
 parameters: List[Tuple[str, str]] = [

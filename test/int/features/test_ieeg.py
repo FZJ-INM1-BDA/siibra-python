@@ -4,7 +4,7 @@ import siibra
 from siibra.core.json_encoder import JSONEncoder
 from siibra.features.ieeg import IEEG_Session
 from siibra.core import Atlas, Region
-from int_test.util import get_model
+from ..util import get_model
 
 queries = siibra.features.FeatureQuery.queries('ieeg')
 

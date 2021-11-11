@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError, BaseModel
 
 from siibra.core.jsonable import SiibraSerializable
-from int_test.util import get_model
+from ..util import get_model
 # This should test possible parcellation.infos
 
 def test_wrong_model_raises():

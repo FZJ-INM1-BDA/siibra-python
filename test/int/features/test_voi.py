@@ -4,7 +4,7 @@ import pytest
 import siibra
 from siibra.core.json_encoder import JSONEncoder
 from siibra.features.voi import VolumeOfInterest
-from int_test.util import get_model
+from ..util import get_model
 
 queries = siibra.features.FeatureQuery.queries('VolumeOfInterest')
 

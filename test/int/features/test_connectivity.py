@@ -3,7 +3,7 @@ import pytest
 import siibra
 from siibra.core.json_encoder import JSONEncoder
 from siibra.features.connectivity import ConnectivityMatrix, ConnectivityProfile
-from int_test.util import get_model
+from ..util import get_model
 matrix_queries = siibra.features.FeatureQuery.queries('connectivitymatrix')
 
 # assert only one type of receptor query is returned
