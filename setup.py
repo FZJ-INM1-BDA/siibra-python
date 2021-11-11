@@ -18,6 +18,9 @@ def find_version():
 with open(os.path.join(ROOT_DIR, "README.md"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
+directory='examples/snippets/'
+snippet_files = [f'{directory}{file}' for file in os.listdir(directory) if not re.search(r'^__', file)]
+
 setup(
     name="siibra",
     version=find_version(),
@@ -27,7 +30,10 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
-    packages=find_packages(include=["siibra", "siibra.*"]),
+    packages=find_packages(include=["siibra","siibra.*"]),
+    data_files=[
+        ('siibra_snippets', snippet_files)
+    ],
     include_package_data=True,
     # packages=find_packages(include=['.']),
     classifiers=[

@@ -67,4 +67,10 @@ html_css_files = ["siibra.css"]
 
 html_logo = "../images/siibra-python.jpeg"
 
-source_suffix = ['.rst','md']
+source_suffix = ['.rst','.md']
+
+import docs.generate_code_snippets
+
+md = docs.generate_code_snippets.gen_code_snippet_md()
+with open('./code_snippets.md', 'w') as fp:
+    fp.write(md)

@@ -8,8 +8,7 @@
    :maxdepth: 2
 
    readme
-   core_concepts.ipynb
-   download_maps.ipynb
+   code_snippets
    contribute
    acknowledgements
 
