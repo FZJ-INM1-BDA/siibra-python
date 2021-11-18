@@ -181,7 +181,7 @@ class RegionalFeature(Feature):
     TODO store region as an object that has a link to the parcellation
     """
 
-    def __init__(self, regionspec: Tuple[str, Region], species = [], **kwargs):
+    def __init__(self, regionspec: Tuple[str, Region], species: dict, **kwargs):
         """
         Parameters
         ----------

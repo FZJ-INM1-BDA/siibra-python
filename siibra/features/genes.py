@@ -174,7 +174,6 @@ class AllenBrainAtlasQuery(FeatureQuery):
                 # When the Allen site is not available, they still send a status code 200.
                 raise RuntimeError(f"Allen institute site unavailable - please try again later.")
             root = ElementTree.fromstring(response)
-            print(root.attrib.keys())
             num_probes = int(root.attrib["total_rows"])
             probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
 
