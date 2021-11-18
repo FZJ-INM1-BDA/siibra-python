@@ -360,7 +360,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 M = self.parcellation.get_map(space, maptype=maptype)
                 M.decode_region(self)
                 return True
-            except (ValueError, IndexError):
+            except (ValueError, IndexError, TypeError):
                 pass
         return False
 

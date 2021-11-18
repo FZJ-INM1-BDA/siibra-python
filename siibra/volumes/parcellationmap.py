@@ -29,18 +29,22 @@ from tqdm import tqdm
 from abc import abstractmethod
 from typing import Union
 
-# Which types of available volumes should be preferred if multiple choices are available?
-PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed", "detailed maps"]
-
 
 def create_map(parcellation, space: Space, maptype: MapType):
     """
     Creates a new ParcellationMap object of the given type.
     """
-    classes = {
-        MapType.LABELLED: LabelledParcellationMap,
-        MapType.CONTINUOUS: ContinuousParcellationMap,
-    }
+    if space.type=="gii":
+        classes = {
+            MapType.LABELLED: LabelledSurface,
+            MapType.CONTINUOUS: None,
+        }
+    else:
+        classes = {
+            MapType.LABELLED: LabelledParcellationVolume,
+            MapType.CONTINUOUS: ContinuousParcellationVolume,
+        }
+
     if maptype in classes:
         obj = classes[maptype](parcellation, space)
     elif maptype is None:
@@ -57,25 +61,10 @@ def create_map(parcellation, space: Space, maptype: MapType):
 
     return obj
 
-
-class ParcellationMap(ImageProvider):
+class ParcellationMap():
     """
     Represents a brain map in a particular reference space, with
     explicit knowledge about the region information per labelindex or channel.
-
-    There are two types:
-        1) Parcellation maps / labelled volumes (MapType.LABELLED)
-            A 3D or 4D volume with integer labels separating different,
-            non-overlapping regions. The number of regions corresponds to the
-            number of nonzero image labels in the volume.
-        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
-            a 4D volume where each "time"-slice is a 3D volume representing
-            a map of a particular brain region. This format is used for
-            probability maps and similar continuous forms. The number of
-            regions correspond to the z dimension of the 4 object.
-
-    ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
-    a feasible downsampled resolution is provided.
     """
 
     _regions_cached = None
@@ -134,7 +123,7 @@ class ParcellationMap(ImageProvider):
         """
         pass
 
-    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None):
+    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None, variant = None):
         """
         Returns an iterator to fetch all available maps sequentially.
 
@@ -144,12 +133,15 @@ class ParcellationMap(ImageProvider):
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        variant : str
+            Optional specification of variant of the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         """
         logger.debug(f"Iterator for fetching {len(self)} parcellation maps")
-        return (fnc(res=resolution_mm, voi=voi) for fnc in self.maploaders)
+        return (fnc(res=resolution_mm, voi=voi, variant=variant) for fnc in self.maploaders)
 
     def fetch(
-        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None
+        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None, variant = None
     ):
         """
         Fetches the actual image data
@@ -162,17 +154,136 @@ class ParcellationMap(ImageProvider):
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        variant : str
+            Optional specification of a specific variant to use for the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         """
         if mapindex < len(self):
             if len(self) > 1:
                 logger.info(
                     f"Returning map {mapindex+1} of in total {len(self)} available maps."
                 )
-            return self.maploaders[mapindex](res=resolution_mm, voi=voi)
+            return self.maploaders[mapindex](res=resolution_mm, voi=voi, variant=variant)
         else:
             raise ValueError(
                 f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested."
             )
+
+    def __len__(self):
+        """
+        Returns the number of maps available in this parcellation.
+        """
+        return len(self.maploaders)
+
+    def __contains__(self, spec):
+        """
+        Test if a map identified by the given specification is included in this parcellation map.
+        For integer values, it is checked wether a corresponding slice along the fourth dimension could be extracted.
+        Alternatively, a region object can be provided, and it will be checked wether the region is mapped.
+        You might find the decode_region() function of Parcellation and Region objects useful for the latter.
+        """
+        if isinstance(spec, int):
+            return spec in range(len(self.maploaders))
+        elif isinstance(spec, Region):
+            for _, region in self.regions.items():
+                if region == spec:
+                    return True
+        return False
+
+    def decode_label(self, mapindex=None, labelindex=None):
+        """
+        Decode the region associated to a particular index.
+
+        Parameters
+        ----------
+        mapindex : Sequential index of the 3D map used, if more than one are included
+        labelindex : Label index of the region, if the map is a labelled volume
+        """
+        pindex = ParcellationIndex(map=mapindex, label=labelindex)
+        region = self.regions.get(pindex)
+        if region is None:
+            raise ValueError(f"Could not decode parcellation index {pindex}")
+        else:
+            return region
+
+    def decode_region(self, regionspec: Union[str, Region]):
+        """
+        Find the ParcellationIndex for a given region.
+
+        Parameters
+        ----------
+        regionspec : str or Region
+            Partial name of region, or Region object
+
+        Return
+        ------
+        list of MapIndex objects
+        """
+        region = (
+            self.parcellation.decode_region(regionspec)
+            if isinstance(regionspec, str)
+            else regionspec
+        )
+        subregions = []
+        for idx, r in self.regions.items():
+            if r == region:
+                return [idx]
+            elif r.has_parent(region):
+                subregions.append((idx, r))
+        if len(subregions) == 0:
+            raise IndexError(
+                f"Could not decode region specified by {regionspec} in {self.parcellation.name}"
+            )
+
+        # if we found maps of child regions, we want the mapped leaves to be identical to the leaves of the requested region.
+        children_found = {c for _, r in subregions for c in r.leaves}
+        children_requested = set(region.leaves)
+        if children_found != children_requested:
+            raise IndexError(
+                f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there."
+            )
+        return [idx for idx, _ in subregions]
+
+
+class ParcellationVolume(ParcellationMap, ImageProvider):
+    """
+    Represents a brain map in a particular volumetric reference space, with
+    explicit knowledge about the region information per labelindex or channel.
+
+    There are two types:
+        1) Parcellation maps / labelled volumes (MapType.LABELLED)
+            A 3D or 4D volume with integer labels separating different,
+            non-overlapping regions. The number of regions corresponds to the
+            number of nonzero image labels in the volume.
+        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
+            a 4D volume where each "time"-slice is a 3D volume representing
+            a map of a particular brain region. This format is used for
+            probability maps and similar continuous forms. The number of
+            regions correspond to the z dimension of the 4 object.
+
+    ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
+    a feasible downsampled resolution is provided.
+    """
+    # Which types of available volumes should be preferred if multiple choices are available?
+    PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed", "detailed maps"]
+
+    _regions_cached = None
+    _maploaders_cached = None
+
+    def __init__(self, parcellation, space: Space, maptype=MapType):
+        """
+        Construct a ParcellationMap for the given parcellation and space.
+
+        Parameters
+        ----------
+        parcellation : Parcellation
+            The parcellation object used to build the map
+        space : Space
+            The desired template space to build the map
+        maptype : MapType
+            The desired type of the map
+        """
+        ParcellationMap.__init__(self, parcellation, space, maptype)
 
     def fetch_all(self):
         """Returns a 4D array containing all 3D maps.
@@ -279,82 +390,8 @@ class ParcellationMap(ImageProvider):
         """
         pass
 
-    def __len__(self):
-        """
-        Returns the number of maps available in this parcellation.
-        """
-        return len(self.maploaders)
 
-    def __contains__(self, spec):
-        """
-        Test if a 3D map identified by the given specification is included in this parcellation map.
-        For integer values, it is checked wether a corresponding slice along the fourth dimension could be extracted.
-        Alternatively, a region object can be provided, and it will be checked wether the region is mapped.
-        You might find the decode_region() function of Parcellation and Region objects useful for the latter.
-        """
-        if isinstance(spec, int):
-            return spec in range(len(self.maploaders))
-        elif isinstance(spec, Region):
-            for _, region in self.regions.items():
-                if region == spec:
-                    return True
-        return False
-
-    def decode_label(self, mapindex=None, labelindex=None):
-        """
-        Decode the region associated to a particular index.
-
-        Parameters
-        ----------
-        mapindex : Sequential index of the 3D map used, if more than one are included
-        labelindex : Label index of the region, if the map is a labelled volume
-        """
-        pindex = ParcellationIndex(map=mapindex, label=labelindex)
-        region = self.regions.get(pindex)
-        if region is None:
-            raise ValueError(f"Could not decode parcellation index {pindex}")
-        else:
-            return region
-
-    def decode_region(self, regionspec: Union[str, Region]):
-        """
-        Find the ParcellationIndex for a given region.
-
-        Parameters
-        ----------
-        regionspec : str or Region
-            Partial name of region, or Region object
-
-        Return
-        ------
-        list of MapIndex objects
-        """
-        region = (
-            self.parcellation.decode_region(regionspec)
-            if isinstance(regionspec, str)
-            else regionspec
-        )
-        subregions = []
-        for idx, r in self.regions.items():
-            if r == region:
-                return [idx]
-            elif r.has_parent(region):
-                subregions.append((idx, r))
-        if len(subregions) == 0:
-            raise IndexError(
-                f"Could not decode region specified by {regionspec} in {self.parcellation.name}"
-            )
-
-        # if we found maps of child regions, we want the mapped leaves to be identical to the leaves of the requested region.
-        children_found = {c for _, r in subregions for c in r.leaves}
-        children_requested = set(region.leaves)
-        if children_found != children_requested:
-            raise IndexError(
-                f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there."
-            )
-        return [idx for idx, _ in subregions]
-
-class LabelledParcellationMap(ParcellationMap):
+class LabelledParcellationVolume(ParcellationVolume):
     """
     Represents a brain map in a reference space, with
     explicit knowledge about the region information per labelindex or channel.
@@ -385,7 +422,7 @@ class LabelledParcellationMap(ParcellationMap):
         self._regions_cached = {}
 
         # determine the map loader functions for each available map
-        for volumetype in PREFERRED_VOLUMETYPES:
+        for volumetype in self.PREFERRED_VOLUMETYPES:
             sources = []
             for vsrc in self.parcellation.get_volumes(self.space.id):
                 if vsrc.__class__.volume_type == volumetype:
@@ -403,7 +440,7 @@ class LabelledParcellationMap(ParcellationMap):
             # Choose map loader function and populate label-to-region maps
             if source.volume_type == "detailed maps":
                 self._maploaders_cached.append(
-                    lambda res=None, voi=None: self._collect_maps(
+                    lambda res=None, voi=None, variant=None: self._collect_maps(
                         resolution_mm=res, voi=voi
                     )
                 )
@@ -422,14 +459,14 @@ class LabelledParcellationMap(ParcellationMap):
 
             elif source.volume_type == self.space.type:
                 self._maploaders_cached.append(
-                    lambda res=None, s=source, voi=None: self._load_map(
+                    lambda res=None, voi=None, variant=None, s=source: self._load_map(
                         s, resolution_mm=res, voi=voi
                     )
                 )
                 # load map at lowest resolution to map label indices to regions
                 mapindex = len(self._maploaders_cached) - 1
                 with QUIET:
-                    m = self._maploaders_cached[mapindex](res=None)
+                    m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
                 unmatched = []
                 for labelindex in np.unique(m.get_fdata()):
                     if labelindex != 0:
@@ -658,7 +695,7 @@ class LabelledParcellationMap(ParcellationMap):
         return assignments
 
 
-class ContinuousParcellationMap(ParcellationMap):
+class ContinuousParcellationVolume(ParcellationVolume):
     """
     Represents a brain map in a particular reference space, with
     explicit knowledge about the region information per labelindex or channel.
@@ -690,7 +727,7 @@ class ContinuousParcellationMap(ParcellationMap):
         # Multiple volume sources could be given - find the preferred one
         volume_sources = sorted(
             self.parcellation.get_volumes(self.space.id),
-            key=lambda vsrc: PREFERRED_VOLUMETYPES.index(vsrc.volume_type),
+            key=lambda vsrc: self.PREFERRED_VOLUMETYPES.index(vsrc.volume_type),
         )
 
         for source in volume_sources:
@@ -710,7 +747,7 @@ class ContinuousParcellationMap(ParcellationMap):
                 )
                 for i in range(nmaps):
                     self._maploaders_cached.append(
-                        lambda res=None, voi=None, mi=i: source.fetch(
+                        lambda res=None, voi=None, variant=None, mi=i: source.fetch(
                             resolution_mm=res, voi=voi, mapindex=mi
                         )
                     )
@@ -732,14 +769,14 @@ class ContinuousParcellationMap(ParcellationMap):
                 logger.debug(f"Region already seen in tree: {region.key}")
                 continue
             self._maploaders_cached.append(
-                lambda r=region, res=None, voi=None: self._load_regional_map(
+                lambda res=None, voi=None, variant=None, r=region: self._load_regional_map(
                     r, resolution_mm=res, voi=voi
                 )
             )
             pindex = ParcellationIndex(map=i, label=None)
             self._regions_cached[pindex] = region
             i += 1
-        logger.info(
+        logger.debug(
             f"{i} regional continuous maps found for {self.parcellation} in {self.space.name}."
         )
 
@@ -909,4 +946,85 @@ class ContinuousParcellationMap(ParcellationMap):
                         affine = thismap.affine
                     result = np.maximum(result, thismap.get_fdata()*value)
                     
-            return Nifti1Image(result, affine) 
+            return Nifti1Image(result, affine)
+
+
+class LabelledSurface(ParcellationMap):
+    """
+    Represents a brain map in a surface space, with
+    explicit knowledge about the region information per labelindex or channel.
+    """
+
+    def __init__(self, parcellation, space: Space):
+        """
+        Construct a labelled surface for the given parcellation and space.
+
+        Parameters
+        ----------
+        parcellation : Parcellation
+            The parcellation object used to build the map
+        space : Space
+            The desired template space to build the map
+        """
+        assert(space.type=="gii")
+        super().__init__(parcellation, space, MapType.LABELLED)
+        self.type = "gii-label"
+
+    def _define_maps_and_regions(self):
+        self._maploaders_cached = []
+        self._regions_cached = {}
+
+        tpl = self.space.get_template()
+        for meshindex, meshname in enumerate(tpl.variants):
+
+            labelsets = [
+                v for v in self.parcellation.get_volumes(self.space)
+                if v.volume_type==self.type
+                and v.name == meshname
+            ]
+            assert len(labelsets)==1
+            labels = labelsets[0].fetch()
+            unmatched = []
+            for labelindex in np.unique(labels):
+                if labelindex != 0:
+                    pindex = ParcellationIndex(map=meshindex, label=labelindex)
+                    try:
+                        region = self.parcellation.decode_region(pindex)
+                        if labelindex > 0:
+                            self._regions_cached[pindex] = region
+                    except ValueError:
+                        unmatched.append(pindex)
+            if unmatched:
+                logger.warning(
+                    f"{len(unmatched)} parcellation indices in labelled surface couldn't "
+                    f"be matched to region definitions in {self.parcellation.name}"
+                )
+
+            self._maploaders_cached.append(
+                lambda res=None, voi=None, variant=None, name=meshname, labels=labels: {
+                    **self.space.get_template(variant=variant).fetch(name=name), 
+                    'labels': labels
+                }
+            )
+
+    def fetch_all(self, variant=None):
+        """Get the combined mesh composed of all found submeshes (e.g. both hemispheres).
+
+        Parameters
+        -----------
+        variant : str
+            Optional specification of variant of the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+        """
+        vertices = np.empty((0, 3))
+        faces = np.empty((0,3))
+        labels = np.empty((0))
+        for surfmap in self.fetch_iter(variant=variant):
+            npoints = vertices.shape[0]
+            vertices = np.append(vertices, surfmap['verts'], axis = 0)
+            faces = np.append(faces, surfmap['faces']+npoints, axis = 0)
+            labels = np.append(labels, surfmap['labels'], axis = 0)
+
+        return dict(zip(['verts','faces','labels'], [vertices, faces, labels]))
+
+

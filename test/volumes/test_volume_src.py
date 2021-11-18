@@ -11,7 +11,7 @@ class TestVolumeSrc(unittest.TestCase):
         url = "http://localhost/test"
         volume_src = VolumeSrc(id, name, url, spaces[0])
         self.assertIsNotNone(volume_src)
-        self.assertEqual(volume_src.get_url(), url)
+        self.assertEqual(volume_src.url, url)
 
     def test_volume_from_valid_json(self):
         v_json = {

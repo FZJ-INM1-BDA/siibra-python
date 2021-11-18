@@ -13,5 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .parcellationmap import ParcellationMap, LabelledParcellationMap, ContinuousParcellationMap
+from .parcellationmap import ParcellationVolume, LabelledParcellationVolume, ContinuousParcellationVolume
 from .volume import VolumeSrc, NeuroglancerVolume, RemoteNiftiVolume, LocalNiftiVolume
+from .mesh import  GiftiSurfaceLabeling, NeuroglancerMesh, GiftiSurface

@@ -42,9 +42,12 @@ class Dataset:
         cls.type_id = type_id
 
     @property
-    def is_image_volume(self):
-        """Overwritten by derived dataset classes in the siibra.volumes"""
-        return False
+    def is_volume(self):
+        """Return True if this dataset is derived from siibra.volumes.VolumeSrc.
+        
+        We use string matching of the class name to avoid importing the module.
+        """
+        return "VolumeSrc" in [t.__name__ for t in type(self).__mro__]
 
     @property
     def publications(self):

@@ -15,7 +15,7 @@
 
 from .feature import Feature
 
-from .. import logger
+from .. import logger, QUIET
 from ..commons import Registry
 from ..core import AtlasConcept, Dataset
 
@@ -133,9 +133,10 @@ class FeatureQuery(ABC):
         Executes a query for features associated with an atlas object.
         """
         matches = []
-        for feature in self.features:
-            if feature.match(concept):
-                matches.append(feature)
+        with QUIET:
+            for feature in self.features:
+                if feature.match(concept):
+                    matches.append(feature)
         return matches
 
     def __str__(self):

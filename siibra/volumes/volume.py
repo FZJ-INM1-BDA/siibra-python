@@ -84,13 +84,6 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
     def __str__(self):
         return f"{self.volume_type} {self.url}"
 
-    def get_url(self):
-        return self.url
-
-    @property
-    def is_image_volume(self):
-        return True
-
     @classmethod
     def _from_json(cls, obj):
         """
@@ -111,7 +104,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             if "transform" in detail["neuroglancer/precomputed"]:
                 transform_nm = np.array(detail["neuroglancer/precomputed"]["transform"])
 
-        # decide if object shoulc be generated with a specialized derived class
+        # decide if object should be generated with a specialized derived class
         VolumeClass = cls._SPECIALISTS.get(volume_type, cls)
         kwargs = {
             "transform_nm": transform_nm,
@@ -203,11 +196,6 @@ class LocalNiftiVolume(ImageProvider):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
-    @property
-    def is_image_volume(self):
-        return True
-
-
 class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
 
     _image_cached = None
@@ -295,7 +283,6 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
-
 class NeuroglancerVolume(
     ImageProvider, VolumeSrc, volume_type="neuroglancer/precomputed"
 ):
@@ -318,6 +305,7 @@ class NeuroglancerVolume(
         ngsite: base url of neuroglancer http location
         transform_nm: optional transform to be applied after scaling voxels to nm
         """
+        assert isinstance(url,str)
         super().__init__(identifier, name, url, space, detail)
         self.transform_nm = transform_nm
         self.info = HttpRequest(url + "/info", lambda b: json.loads(b.decode())).get()
@@ -579,69 +567,3 @@ class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
 
     def __init__(self, identifier, name, url, space, detail=None, **kwargs):
         VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-
-
-class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
-    """
-    TODO Implement this, surfaces need special handling
-    """
-
-    warning_shown = False
-
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        if not self.__class__.warning_shown:
-            logger.info(
-                f"A {self.__class__.__name__} object was registered, "
-                "but this type is not yet explicitly supported."
-            )
-            self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-
-    @property
-    def is_image_volume(self):
-        """ Meshes are not volumes. """
-        return False
-
-
-class GiftiSurface(VolumeSrc, volume_type="threesurfer/gii"):
-    """
-    TODO Implement this, surfaces need special handling
-    """
-
-    warning_shown = False
-
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        if not self.__class__.warning_shown:
-            logger.info(
-                f"A {self.__class__.__name__} object was registered, "
-                "but this type is not yet explicitly supported."
-            )
-            self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-
-    @property
-    def is_image_volume(self):
-        """ Meshes are not volumes. """
-        return False
-
-
-class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
-    """
-    TODO Implement this, surfaces need special handling
-    """
-
-    warning_shown = False
-
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        if not self.__class__.warning_shown:
-            logger.info(
-                f"A {self.__class__.__name__} object was registered, "
-                "but this type is not yet explicitly supported."
-            )
-            self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-
-    @property
-    def is_image_volume(self):
-        """ Meshes are not volumes. """
-        return False

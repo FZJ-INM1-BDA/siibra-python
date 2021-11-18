@@ -34,31 +34,31 @@ class Atlas(
 
     @staticmethod
     def get_species_data(species_str: str):
-        if species_str == 'human':
+        if species_str == "human":
             return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9',
-                'name': 'Homo sapiens'
+                "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
+                "name": "Homo sapiens",
             }
-        if species_str == 'rat':
+        if species_str == "rat":
             return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412',
-                'name': 'Rattus norvegicus'
+                "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412",
+                "name": "Rattus norvegicus",
             }
-        if species_str == 'mouse':
+        if species_str == "mouse":
             return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c',
-                'name': 'Mus musculus'
+                "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c",
+                "name": "Mus musculus",
             }
         # TODO this may not be correct. Wait for feedback and get more accurate
-        if species_str == 'monkey':
+        if species_str == "monkey":
             return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/3f75b0ad-dbcd-464e-b614-499a1b9ae86b',
-                'name': 'Primates'
+                "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/3f75b0ad-dbcd-464e-b614-499a1b9ae86b",
+                "name": "Primates",
             }
 
-        raise ValueError(f'species with spec {species_str} cannot be decoded')
+        raise ValueError(f"species with spec {species_str} cannot be decoded")
 
-    def __init__(self, identifier, name, species = None):
+    def __init__(self, identifier, name, species=None):
         """Construct an empty atlas object with a name and identifier."""
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
@@ -195,12 +195,23 @@ class Atlas(
         """
         return self.get_parcellation(parcellation).decode_region(region)
 
-    def get_template(self, space: Space = None):
+    def get_template(self, space: Space = None, variant: str = None):
         """
         Returns the reference template in the desired reference space.
         If no reference space is given, the default from `Atlas.space()` is used.
+
+        Parameters
+        ----------
+        space: Space
+            The desired reference space
+        variant: str (optional)
+            Some templates are provided in different variants, e.g.
+            freesurfer is available as either white matter, pial or
+            inflated surface for left and right hemispheres (6 variants).
+            This field could be used to request a specific variant.
+            Per default, the first found variant is returned.
         """
-        return self.get_space(space).get_template()
+        return self.get_space(space).get_template(variant=variant)
 
     def get_voi(self, space: Space, point1: tuple, point2: tuple):
         """Get a volume of interest spanned by two points in the given reference space.
@@ -226,7 +237,7 @@ class Atlas(
         all_versions=False,
         filter_children=True,
         build_groups=False,
-        groupname=None
+        groupname=None,
     ):
         """
         Find regions with the given specification in all
@@ -261,7 +272,7 @@ class Atlas(
                     regionspec,
                     filter_children=filter_children,
                     build_group=build_groups,
-                    groupname=groupname
+                    groupname=groupname,
                 )
                 if build_groups:
                     if match is not None:

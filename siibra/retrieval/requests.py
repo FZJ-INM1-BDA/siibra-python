@@ -21,16 +21,16 @@ from zipfile import ZipFile
 import requests
 from urllib.parse import quote
 import os
-from nibabel import Nifti1Image
+from nibabel import Nifti1Image, GiftiImage
 import gzip
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
+    ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".txt": lambda b: b.decode(),
 }
-
 
 class HttpRequest:
     def __init__(
@@ -60,7 +60,12 @@ class HttpRequest:
         """
         assert url is not None
         self.url = url
-        self.func = func
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
+        if (func is None) and (len(suitable_decoders) > 0):
+            assert len(suitable_decoders) == 1
+            self.func = suitable_decoders[0]
+        else:
+            self.func = func
         self.kwargs = kwargs
         self.status_code_messages = status_code_messages
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
@@ -109,6 +114,11 @@ class HttpRequest:
                 data = f.read()
         return data if self.func is None else self.func(data)
 
+    def __call__(self):
+        """Allows the loader to return data via function call as well.
+        This is used by some ParcellationMap objects for lazy map loading.
+        """
+        return self.get()
 
 class LazyHttpRequest(HttpRequest):
     def __init__(
@@ -142,19 +152,12 @@ class LazyHttpRequest(HttpRequest):
             self, url, func, status_code_messages, msg_if_not_cached, refresh, **kwargs
         )
         self._data_cached = None
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders) > 0):
-            assert len(suitable_decoders) == 1
-            self.func = suitable_decoders[0]
-        else:
-            self.func = func
 
     @property
     def data(self):
         if self._data_cached is None:
             self._data_cached = self.get()
         return self._data_cached
-
 
 class ZipfileRequest(LazyHttpRequest):
     def __init__(self, url, filename, func=None):
