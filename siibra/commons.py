@@ -219,7 +219,7 @@ class ParcellationIndex:
         return all([self.map == other.map, self.label == other.label])
 
     def __hash__(self):
-        return hash((self.map, self.label))
+        return hash((self.__class__.__name__, self.map, self.label))
 
 
 class MapType(Enum):
@@ -246,7 +246,7 @@ def nonzero_coordinates(arr):
 
 
 def affine_scaling(affine):
-    """Estimate approximate isotropic scaling factor of an affine matrix. """
+    """Estimate approximate isotropic scaling factor of an affine matrix."""
     orig = np.dot(affine, [0, 0, 0, 1])
     unit_lengths = []
     for vec in np.identity(3):
@@ -328,7 +328,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     x0 = x - mu_x
     y0 = y - mu_y
     dem = np.sqrt(np.sum(x0 ** 2) * np.sum(y0 ** 2))
-    if dem==0:
+    if dem == 0:
         r = 0
     else:
         r = np.sum(np.multiply(x0, y0)) / dem

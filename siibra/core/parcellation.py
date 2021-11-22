@@ -227,16 +227,18 @@ class Parcellation(
         """Generate a matplotlib colormap from known rgb values of label indices."""
         from matplotlib.colors import ListedColormap
         import numpy as np
+
         colors = {
-            r.index.label:r.attrs['rgb'] 
-            for r in self.regiontree 
-            if 'rgb' in r.attrs and r.index.label
+            r.index.label: r.attrs["rgb"]
+            for r in self.regiontree
+            if "rgb" in r.attrs and r.index.label
         }
-        pallette = np.array([
-            colors[i]+[1] 
-            if i in colors else [0,0,0,0] 
-            for i in range(max(colors.keys())+1)
-        ]) / [255,255,255,1]
+        pallette = np.array(
+            [
+                colors[i] + [1] if i in colors else [0, 0, 0, 0]
+                for i in range(max(colors.keys()) + 1)
+            ]
+        ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
 
     def supports_space(self, space: Space):
@@ -335,12 +337,22 @@ class Parcellation(
             regionspec,
             filter_children=filter_children,
             build_group=build_group,
-            groupname=groupname
+            groupname=groupname,
         )
 
         # Perform ranking of return result, if the spec provided is a string. Otherwise, return the unsorted found_regions
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        return sorted(found_regions,reverse=True, key=lambda region: difflib.SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
+        return (
+            sorted(
+                found_regions,
+                reverse=True,
+                key=lambda region: difflib.SequenceMatcher(
+                    None, str(region), regionspec
+                ).ratio(),
+            )
+            if type(regionspec) == str
+            else found_regions
+        )
 
     def __str__(self):
         return self.name

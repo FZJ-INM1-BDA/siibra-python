@@ -468,7 +468,7 @@ class LabelledParcellationVolume(ParcellationVolume):
                 with QUIET:
                     m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
                 unmatched = []
-                for labelindex in np.unique(m.get_fdata()):
+                for labelindex in np.unique(np.asanyarray(m.dataobj)):
                     if labelindex != 0:
                         pindex = ParcellationIndex(map=mapindex, label=labelindex)
                         try:

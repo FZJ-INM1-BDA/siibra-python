@@ -150,7 +150,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Identify each region by its parcellation and region key.
         """
-        return hash(self.parcellation.key + self.key)
+        return hash((self.parcellation.key, self.key, self.index)) 
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
