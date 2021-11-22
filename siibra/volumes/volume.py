@@ -196,6 +196,9 @@ class LocalNiftiVolume(ImageProvider):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
+    def is_volume(self):
+        return True
+
 class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
 
     _image_cached = None
