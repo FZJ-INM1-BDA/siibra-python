@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Tuple
 from .concept import AtlasConcept, provide_registry
 
 from ..commons import logger
@@ -29,6 +30,59 @@ from urllib.parse import quote
 from os import path
 import numbers
 
+from siibra.openminds.SANDS.v3.atlas import commonCoordinateSpace 
+from siibra.openminds.SANDS.v3.miscellaneous import coordinatePoint
+
+# n.b. coordinate point cannot yet be properly implemented
+# pending https://github.com/HumanBrainProject/openMINDS_SANDS/issues/150
+class CoordinatePoint(coordinatePoint.Model):
+    
+    @property
+    def homogeneous(self) -> Tuple[float, float, float, float]:
+        pass
+
+    def intersects_mask(self, mask: Nifti1Image) -> bool:
+        pass
+
+    def wrap(self, targetspace: 'CommonCoordinateSpace') -> 'CoordinatePoint':
+        pass
+
+
+class CommonCoordinateSpace(commonCoordinateSpace.Model):
+
+    def get_template(self):
+        """
+        self.default_image is List[Dict['@id', str]].
+        Need to further resolve @id against file
+        """
+        return self.default_image
+
+    def __getitem__(self, slices: Tuple[int, int, int]):
+        """
+        Get a volume of interest specification from this space.
+
+        Arguments
+        ---------
+        slices: triple of slice
+            defines the x, y and z range
+        """
+        pass
+
+    def get_bounding_box(self, point1: CoordinatePoint, point2: CoordinatePoint):
+        """
+        Get a volume of interest specification from this space.
+
+        Arguments
+        ---------
+        point1: 3D tuple defined in physical coordinates of this reference space
+        point2: 3D tuple defined in physical coordinates of this reference space
+        """
+        pass
+
+    def __lt__(self, other: 'CommonCoordinateSpace'):
+        return self._id < other._id
+
+    
 
 @provide_registry
 class Space(
