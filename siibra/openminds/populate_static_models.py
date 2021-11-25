@@ -57,6 +57,7 @@ def process_schema(model: OpenmindsSchema):
         resp_text,
         input_file_type=InputFileType.JsonSchema,
         input_filename=url,
+        snake_case_field=True,
         output=Path(output_filename)
     )
 
