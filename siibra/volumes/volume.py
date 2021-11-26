@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
 from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
@@ -27,6 +28,75 @@ from cloudvolume import CloudVolume
 import os
 import json
 from abc import ABC, abstractmethod
+
+from siibra.openminds.core.v4.data import file, contentType
+
+class ContentType(contentType.Model):
+    ...
+
+ng_volume = ContentType(
+    _id='https://openminds.ebrains.eu/core/ContentType/neuroglancer.precomputed',
+    _type='https://openminds.ebrains.eu/core/ContentType',
+    name='application/vnd.neuroglancer.precomputed')
+
+ng_mesh = ContentType(
+    _id='https://openminds.ebrains.eu/core/ContentType/neuroglancer.precompmesh',
+    _type='https://openminds.ebrains.eu/core/ContentType',
+    name='application/vnd.neuroglancer.precompmesh')
+
+# existing
+gii = ContentType(
+    _id='https://openminds.ebrains.eu/instances/contentTypes/application/vnd.gifti',
+    _type='https://openminds.ebrains.eu/core/ContentType',
+    name='application/vnd.gifti')
+
+class File(file.Model):
+    @staticmethod
+    def parse_legacy(json_input) -> List['File']:
+        
+        assert json_input.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
+
+        volume_type = json_input.get('volume_type')
+        if volume_type == 'neuroglancer/precomputed':
+            is_ng_volume = True
+            content_type = ng_volume
+        if volume_type == 'neuroglancer/precompmesh':
+            is_mesh = True
+            content_type = ng_mesh
+        if volume_type == 'gii':
+            is_mesh = True
+            content_type = gii
+        
+        content_description = None
+        file_repository = None
+        hash = None
+        is_part_of = None
+        special_usage_role = None
+        storage_size = None
+
+        base_id = os.path.basename(json_input.get('@id'))
+
+        url_val = json_input.get('url')
+        if type(url_val) == str:
+            urls = [ (None, url_val) ]
+        elif type[url_val] == dict:
+            urls = [(key, val) for key, val in url_val.items()]
+            assert all([type(url) == str for _, url in urls])
+        else:
+            raise ValueError(f'cannot parse type of url: {type(url_val)}')
+
+        return [File(
+            name=json_input.get('name', 'Unnamed file'),
+            _id=f"https://openminds.ebrains.eu/core/File/{base_id}{'/' + key if key else ''}",
+            _type="https://openminds.ebrains.eu/core/File",
+            iri=url,
+            data_type=[
+                *(['https://openminds.ebrains.eu/instances/dataType/voxelData'] if is_ng_volume else []),
+                *(['https://openminds.ebrains.eu/instances/dataType/3DComputerGraphic'] if is_mesh else [])
+            ],
+            format=content_type,
+        ) for key, url in url_val]
+
 
 gbyte_feasible = 0.1
 

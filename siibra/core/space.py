@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Tuple
+from datetime import date
+from typing import Any, Dict, Tuple
 from .concept import AtlasConcept, provide_registry
 
 from ..commons import logger
@@ -32,17 +33,43 @@ import numbers
 
 from siibra.openminds.SANDS.v3.atlas import commonCoordinateSpace 
 from siibra.openminds.SANDS.v3.miscellaneous import coordinatePoint
-
+from siibra.openminds.core.v4.data import file
 # n.b. coordinate point cannot yet be properly implemented
 # pending https://github.com/HumanBrainProject/openMINDS_SANDS/issues/150
 class CoordinatePoint(coordinatePoint.Model):
-    
+
+    @property
+    def coordinates_tuple(self) -> Tuple[float, float, float]:
+        return (c.value for c in self.coordinates)
+
     @property
     def homogeneous(self) -> Tuple[float, float, float, float]:
-        pass
+        return self.coordinates_tuple + (1.,)
 
     def intersects_mask(self, mask: Nifti1Image) -> bool:
-        pass
+        """Returns true if this point lies in the given mask.
+
+        NOTE: The affine matrix of the image must be set to warp voxels
+        coordinates into the reference space of this Bounding Box.
+        """
+        # transform physical coordinates to voxel coordinates for the query
+        def check(mask, c: Tuple[float, float, float]):
+            voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
+            if np.any(voxel >= mask.dataobj.shape):
+                return False
+            if np.any(voxel < 0):
+                return False
+            if mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
+                return False
+            return True
+
+        if mask.ndim == 4:
+            return any(
+                check(mask.slicer[:, :, :, i], self.coordinates_tuple)
+                for i in range(mask.shape[3])
+            )
+        else:
+            return check(mask, self.coordinates_tuple)
 
     def wrap(self, targetspace: 'CommonCoordinateSpace') -> 'CoordinatePoint':
         pass
@@ -82,6 +109,43 @@ class CommonCoordinateSpace(commonCoordinateSpace.Model):
     def __lt__(self, other: 'CommonCoordinateSpace'):
         return self._id < other._id
 
+    @staticmethod
+    def parse_legacy(json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
+
+        # import here to avoid circular dep
+        from siibra.volumes.volume import File
+        from os import path
+
+        digital_identifier = None
+        homepage = None
+        how_to_cite = None
+        ontology_identifier = None
+
+        base_id = path.basename(json_input.get('@id'))
+
+        CommonCoordinateSpace(
+            _id=f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
+            _type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+            anatomical_axes_orientation={
+                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
+            },
+            axes_origin=[
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+            ],
+            default_image=[ f
+                for v in json_input.get('datasets')
+                for f in File.parse_legacy(v)
+                if v.get('@type') == 'fzj/tmp/volume_type/v0.0.1'],
+            full_name=json_input.get('name'),
+            native_unit=[{
+                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
+            }],
+            release_date=date(2015),
+            short_name=json_input.get('shortName') or json_input.get('name'),
+            version_identifier=json_input.get('name')
+        )
     
 
 @provide_registry
