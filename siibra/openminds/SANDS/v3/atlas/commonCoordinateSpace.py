@@ -41,7 +41,7 @@ class Model(BaseModel):
         description='Relation between reference planes used in anatomy and mathematics.',
         title='anatomicalAxesOrientation',
     )
-    axes_origin: AxesOrigin = Field(
+    axes_origin: List[AxesOrigin] = Field(
         ...,
         alias='https://openminds.ebrains.eu/vocab/axesOrigin',
         description='Structured information on a quantitative value.',
