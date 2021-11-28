@@ -19,7 +19,6 @@ from ..commons import logger
 import json
 from zipfile import ZipFile
 import requests
-from urllib.parse import quote
 import os
 from nibabel import Nifti1Image
 import gzip
@@ -65,12 +64,16 @@ class HttpRequest:
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders) > 0):
-            assert len(suitable_decoders) == 1
-            self.func = suitable_decoders[0]
-        else:
-            self.func = func
+        self._set_decoder_func(func, url)
+
+    def _set_decoder_func(self, func, fileurl: str):
+        if func is None:
+            suitable_decoders = [dec for sfx, dec in DECODERS.items() if fileurl.endswith(sfx)]
+            if len(suitable_decoders) > 0:
+                assert len(suitable_decoders) == 1
+                self.func = suitable_decoders[0]
+                return
+        self.func = func
 
     @property
     def cached(self):
@@ -122,8 +125,9 @@ class HttpRequest:
 
 class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None):
-        HttpRequest.__init__(self, url)
+        HttpRequest.__init__(self, url, func=func )
         self.filename = filename
+        self._set_decoder_func(func, filename)
 
     def get(self):
         self._retrieve()
