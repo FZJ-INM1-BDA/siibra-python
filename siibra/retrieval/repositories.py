@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, LazyHttpRequest
+from .requests import DECODERS, HttpRequest
 from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
@@ -57,12 +57,12 @@ class RepositoryConnector(ABC):
         """ Get a lazy loader for a file, for executing the query
         only once loader.data is accessed. """
         if decode_func is None:
-            return LazyHttpRequest(
+            return HttpRequest(
                 self._build_url(folder, filename),
                 lambda b: self._decode_response(b, filename),
             )
         else:
-            return LazyHttpRequest(self._build_url(folder, filename), decode_func)
+            return HttpRequest(self._build_url(folder, filename), decode_func)
 
     def get_loaders(
         self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
@@ -91,7 +91,7 @@ class GitlabConnector(RepositoryConnector):
         )
         self.reftag = reftag
         self._per_page = 100
-        self._branchloader = LazyHttpRequest(
+        self._branchloader = HttpRequest(
             f"{self.base_url}/branches", DECODERS[".json"], refresh=True
         )
         self._tag_checked = True if skip_branchtest else False
@@ -143,7 +143,7 @@ class GitlabConnector(RepositoryConnector):
         page = 1
         results = []
         while True:
-            loader = LazyHttpRequest(
+            loader = HttpRequest(
                 self._build_url(folder, recursive=recursive, page=page),
                 DECODERS[".json"],
             )

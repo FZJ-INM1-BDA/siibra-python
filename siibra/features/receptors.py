@@ -17,7 +17,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..retrieval.requests import EbrainsRequest, LazyHttpRequest
+from ..retrieval.requests import EbrainsRequest, HttpRequest
 from ..core.datasets import EbrainsDataset
 
 import PIL.Image as Image
@@ -378,7 +378,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         for url in urls_matching(".*_fp[._]"):
             if self._fingerprint_loader is not None:
                 logger.warning(f"More than one fingerprint found for {self}")
-            self._fingerprint_loader = LazyHttpRequest(
+            self._fingerprint_loader = HttpRequest(
                 url, lambda u: DensityFingerprint(decode_tsv(u))
             )
 
@@ -390,7 +390,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 continue
             if rtype in self._profile_loaders:
                 logger.warning(f"More than one profile for '{rtype}' in {self.url}")
-            self._profile_loaders[rtype] = LazyHttpRequest(
+            self._profile_loaders[rtype] = HttpRequest(
                 url, lambda u: DensityProfile(decode_tsv(u))
             )
 
@@ -408,7 +408,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 logger.warning(
                     f"More than one autoradiograph for '{rtype}' in {self.url}"
                 )
-            self._autoradiograph_loaders[rtype] = LazyHttpRequest(url, img_from_bytes)
+            self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
     @property
     def fingerprint(self):
