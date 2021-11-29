@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic.main import BaseModel
 from .datasets import Dataset
+import enum
 
 from .. import QUIET, __version__
 from ..retrieval import GitlabConnector
-from ..commons import logger, Registry
+from ..commons import TypedRegistry, logger, Registry
 
 import os
 import re
@@ -92,6 +94,65 @@ def provide_registry(cls):
         target._extend(e)
 
     return cls
+
+class RegistrySrc(str, enum.Enum):
+    GITLAB = 'gitlab'
+
+def verify_cls(registry_src: RegistrySrc, cls):
+    assert issubclass(cls, BaseModel), f'Expecting openminds registry to be subclassing pydantic.BaseModel'
+    if registry_src == RegistrySrc.GITLAB:
+        assert hasattr(cls, 'parse_legacy') and callable(getattr(cls, 'parse_legacy')), f'For legacy gitlab src, cls must implement static method parse_legacy'
+    else:
+        raise RuntimeError(f'openminds registry class not yet registered')
+
+def provide_openminds_registry(bootstrap_folder: str, registry_src: RegistrySrc = RegistrySrc.GITLAB):
+    
+    def provide_rg(cls):
+        # sanity check cls construction
+        verify_cls(registry_src=registry_src, cls=cls)
+
+        # find a suitable connector that is reachable
+        for connector in _BOOTSTRAP_CONNECTORS:
+            try:
+                print('connecting to {}'.format(bootstrap_folder))
+                loaders = connector.get_loaders(
+                    bootstrap_folder,
+                    ".json",
+                    progress=f"Bootstrap: {cls.__name__:15.15}",
+                )
+                break
+            except Exception as e:
+                print(str(e))
+                logger.error(
+                    f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
+                )
+                raise (e)
+        else:
+            # we get here only if the loop is not broken
+            raise RuntimeError(
+                f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
+            )
+
+        # for now, use default matchfunc of Registry
+        registry = TypedRegistry[cls]()
+        extensions = []
+        with QUIET:
+            for fname, loader in loaders:
+                logger.info(f"Loading {fname}")
+                obj = cls.parse_legacy(loader.data)
+                if hasattr(obj, 'extends') and getattr(obj, 'extends'):
+                    extensions.append(obj)
+                    continue
+                if isinstance(obj, cls):
+                    registry.add(obj.id, obj)
+                else:
+                    raise RuntimeError(
+                        f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
+                    )
+
+        cls.REGISTRY = registry
+        return cls
+    return provide_rg
 
 
 class AtlasConcept:

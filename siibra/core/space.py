@@ -15,7 +15,7 @@
 
 from datetime import date
 from typing import Any, Dict, Tuple
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
@@ -74,7 +74,7 @@ class CoordinatePoint(coordinatePoint.Model):
     def wrap(self, targetspace: 'CommonCoordinateSpace') -> 'CoordinatePoint':
         pass
 
-
+@provide_openminds_registry(bootstrap_folder='spaces', registry_src=RegistrySrc.GITLAB)
 class CommonCoordinateSpace(commonCoordinateSpace.Model):
 
     def get_template(self):
@@ -109,11 +109,11 @@ class CommonCoordinateSpace(commonCoordinateSpace.Model):
     def __lt__(self, other: 'CommonCoordinateSpace'):
         return self._id < other._id
 
-    @staticmethod
-    def parse_legacy(json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
+    @classmethod
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
 
         # import here to avoid circular dep
-        from siibra.volumes.volume import File
+        # from siibra.volumes.volume import File
         from os import path
 
         digital_identifier = None
@@ -123,9 +123,9 @@ class CommonCoordinateSpace(commonCoordinateSpace.Model):
 
         base_id = path.basename(json_input.get('@id'))
 
-        CommonCoordinateSpace(
-            _id=f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
-            _type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+        return Cls(
+            id=f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
+            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
             anatomical_axes_orientation={
                 "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
             },
@@ -134,18 +134,20 @@ class CommonCoordinateSpace(commonCoordinateSpace.Model):
                 commonCoordinateSpace.AxesOrigin(value=0),
                 commonCoordinateSpace.AxesOrigin(value=0),
             ],
-            default_image=[ f
+            default_image=[ { '@id': v.get('@id') }
                 for v in json_input.get('datasets')
-                for f in File.parse_legacy(v)
                 if v.get('@type') == 'fzj/tmp/volume_type/v0.0.1'],
             full_name=json_input.get('name'),
-            native_unit=[{
+            native_unit={
                 '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
-            }],
-            release_date=date(2015),
+            },
+            release_date=date(2015, 1, 1),
             short_name=json_input.get('shortName') or json_input.get('name'),
             version_identifier=json_input.get('name')
         )
+
+    class Config:
+        allow_population_by_field_name = True
     
 
 @provide_registry

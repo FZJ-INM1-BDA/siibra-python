@@ -34,21 +34,24 @@ from siibra.openminds.core.v4.data import file, contentType
 class ContentType(contentType.Model):
     ...
 
-ng_volume = ContentType(
-    _id='https://openminds.ebrains.eu/core/ContentType/neuroglancer.precomputed',
-    _type='https://openminds.ebrains.eu/core/ContentType',
-    name='application/vnd.neuroglancer.precomputed')
+ng_volume = ContentType(**{
+    "https://openminds.ebrains.eu/vocab/name": "application/vnd.neuroglancer.precomputed",
+    "@id": "https://openminds.ebrains.eu/core/ContentType/neuroglancer.precomputed",
+    "@type": "https://openminds.ebrains.eu/core/ContentType",
+})
 
-ng_mesh = ContentType(
-    _id='https://openminds.ebrains.eu/core/ContentType/neuroglancer.precompmesh',
-    _type='https://openminds.ebrains.eu/core/ContentType',
-    name='application/vnd.neuroglancer.precompmesh')
+ng_mesh = ContentType(**{
+    "https://openminds.ebrains.eu/vocab/name":'application/vnd.neuroglancer.precompmesh',
+    "@id":'https://openminds.ebrains.eu/core/ContentType/neuroglancer.precompmesh',
+    "@type":'https://openminds.ebrains.eu/core/ContentType',
+})
 
-# existing
-gii = ContentType(
-    _id='https://openminds.ebrains.eu/instances/contentTypes/application/vnd.gifti',
-    _type='https://openminds.ebrains.eu/core/ContentType',
-    name='application/vnd.gifti')
+# # # existing
+gii = ContentType(**{
+    "https://openminds.ebrains.eu/vocab/name": 'application/vnd.gifti',
+    "@id": 'https://openminds.ebrains.eu/instances/contentTypes/application/vnd.gifti',
+    "@type": 'https://openminds.ebrains.eu/core/ContentType',
+})
 
 class File(file.Model):
     @staticmethod
