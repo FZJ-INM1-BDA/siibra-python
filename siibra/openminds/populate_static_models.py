@@ -12,7 +12,7 @@ from collections import namedtuple
 from typing import List
 import requests
 from datamodel_code_generator import generate, InputFileType
-
+from datamodel_code_generator.format import PythonVersion
 
 path_to_currdir = path.dirname(
     path.abspath(__file__)
@@ -55,6 +55,7 @@ def process_schema(model: OpenmindsSchema):
     output_filename = f'{path_to_currdir}/{model.domain}/{model.schema}.py'
     generate(
         resp_text,
+        target_python_version=PythonVersion.PY_36,
         input_file_type=InputFileType.JsonSchema,
         input_filename=url,
         snake_case_field=True,
