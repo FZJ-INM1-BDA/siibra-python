@@ -716,7 +716,8 @@ class ContinuousParcellationMap(ParcellationMap):
                 if r in self.regions.values():
                     continue
                 if r.has_regional_map(self.space, self.maptype):
-                    self._maploaders.append(lambda s=self.space, m=self.maptype: r.get_regional_map(s, m).fetch())
+                    regionmap = r.get_regional_map(self.space, self.maptype)
+                    self._maploaders.append(lambda r=regionmap: r.fetch())
                     self._regions_cached[ParcellationIndex(map=mapindex, label=None)] = r
                     mapindex += 1
 
@@ -733,6 +734,7 @@ class ContinuousParcellationMap(ParcellationMap):
         self.spatial_index = None
         self.probs = []
         self.bboxes = []
+        self.affine = None
 
         prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
         probsfile = CACHE.build_filename(f"{prefix}", suffix = 'probs.txt')
@@ -748,7 +750,9 @@ class ContinuousParcellationMap(ParcellationMap):
         self.affine = indeximg.affine
 
         with open(probsfile, 'r') as f:
-            for line in f:
+            lines = f.readlines()
+            msg = f"Preparing spatial index for location assignment"
+            for line in tqdm(lines, total=len(lines), desc=msg, unit="voxels"):
                 fields = line.split(' ')
                 mapindices = list(map(int, fields[3::2]))
                 values = list(map(float, fields[4::2]))
@@ -793,16 +797,21 @@ class ContinuousParcellationMap(ParcellationMap):
         """ Load map image with the given index. """
 
         logger.info(
-            f"First use of {self.parcellation.name} continuous maps "
-            f"in {self.space.name} requires to create the continuous "
-            f"map index, this will take a bit but is only performed once."
+            f"First request of {self.parcellation.name} continuous maps "
+            f"in {self.space.name}."
+        )
+        logger.info(
+            "Now creating the spatial index. This will take a minute, "
+            "but is only performed once."
         )
 
         self.probs = []
         self.bboxes = []
         self.spatial_index = None
+        self.affine = None
         for mapindex in tqdm(
-            range(len(self)), total=len(self), unit="maps"
+            range(len(self)), total=len(self), unit="maps", 
+            desc=f"Fetching {len(self)} volumetric maps"
         ):
             with QUIET:
                 # retrieve the probability map
@@ -973,7 +982,7 @@ class ContinuousParcellationMap(ParcellationMap):
         bbox2 = BoundingBox.from_image(img2, None, ignore_affine=True)
         assignments = []
 
-        for mapindex in tqdm(range(len(self))):
+        for mapindex in tqdm(range(len(self)), total=len(self), unit=" map", desc=msg):
             
             bbox1 = BoundingBox(
                 self.bboxes[mapindex]['minpoint'], 

@@ -227,7 +227,7 @@ class Parcellation(
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return space in self.supported_spaces
+        return any(s.matches(space) for s in self.supported_spaces)
 
     @property
     def spaces(self):
