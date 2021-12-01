@@ -365,7 +365,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             except RuntimeError as e:
                 # in the event that a malformed space is passed, return False
                 # passing malformed space to self.parcellation.get_map raises Runtimeerror
-                logger.debug(f'defined_in_space RunTimeError', e)
+                logger.debug(f'defined_in_space RunTimeError: {str(e)}')
                 pass
         return False
 
@@ -381,7 +381,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Tests wether a specific map of this region is available.
         """
-        return self.get_regional_map(space, maptype) is not None
+        try:
+            return self.get_regional_map(space, maptype) is not None
+        except RuntimeError:
+            return False
 
     # @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
