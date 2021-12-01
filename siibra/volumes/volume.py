@@ -17,7 +17,7 @@ from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
 from ..core.space import Space, BoundingBox
-from ..retrieval import LazyHttpRequest, HttpRequest, ZipfileRequest, CACHE
+from ..retrieval import HttpRequest, ZipfileRequest, CACHE
 
 from ctypes import ArgumentError
 import numpy as np
@@ -217,7 +217,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
     ):
         VolumeSrc.__init__(self, identifier, name, url, space, detail=detail)
         if zipped_file is None:
-            self._image_loader = LazyHttpRequest(url)
+            self._image_loader = HttpRequest(url)
         else:
             self._image_loader = ZipfileRequest(url, zipped_file)
 

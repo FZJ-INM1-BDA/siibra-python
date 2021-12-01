@@ -1,4 +1,4 @@
-from siibra.retrieval.requests import LazyHttpRequest, ZipfileRequest
+from siibra.retrieval.requests import HttpRequest, ZipfileRequest
 import unittest
 
 from siibra import atlases
@@ -71,7 +71,7 @@ class TestSpaces(unittest.TestCase):
         self.assertTrue(self.name in str(space))
         self.assertEqual(len(space.volumes), 1)
         vsrc = space.volumes[0]
-        self.assertTrue(isinstance(vsrc._image_loader, LazyHttpRequest))
+        self.assertTrue(isinstance(vsrc._image_loader, HttpRequest))
 
     def test_space_registry(self):
         spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces

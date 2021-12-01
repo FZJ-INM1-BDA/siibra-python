@@ -351,22 +351,20 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def defined_in_space(self, space) -> bool:
         """
-        Verifies wether this region is defined by a labelled map in the given space.
+        Verifies wether this region is defined by a in the given space.
         """
+        # the simplest case: the region has a non-empty parcellation index. Then we can assume it is mapped.
+        if (
+            self.index != ParcellationIndex(None, None) and
+            len([v for v in self.parcellation.volumes if v.space==space])
+        ):
+            # Region has a non-empty parcellation index, 
+            # *and* the parcellation provides a volumetric map in the requested space.
+            return True
+
         for maptype in ["labelled", "continuous"]:
             if self.has_regional_map(space, maptype):
                 return True
-            try:
-                M = self.parcellation.get_map(space, maptype=maptype)
-                M.decode_region(self)
-                return True
-            except (ValueError, IndexError):
-                pass
-            except RuntimeError as e:
-                # in the event that a malformed space is passed, return False
-                # passing malformed space to self.parcellation.get_map raises Runtimeerror
-                logger.debug(f'defined_in_space RunTimeError: {str(e)}')
-                pass
         return False
 
     @property
