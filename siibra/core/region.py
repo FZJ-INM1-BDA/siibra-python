@@ -349,7 +349,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return mask
 
-    def defined_in_space(self, space):
+    def defined_in_space(self, space) -> bool:
         """
         Verifies wether this region is defined by a labelled map in the given space.
         """
@@ -361,6 +361,11 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 M.decode_region(self)
                 return True
             except (ValueError, IndexError):
+                pass
+            except RuntimeError as e:
+                # in the event that a malformed space is passed, return False
+                # passing malformed space to self.parcellation.get_map raises Runtimeerror
+                logger.debug(f'defined_in_space RunTimeError', e)
                 pass
         return False
 

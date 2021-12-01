@@ -1,16 +1,20 @@
 import unittest
 from unittest.mock import MagicMock
+from siibra.core import Parcellation
 
 from siibra import parcellations, spaces, retrieval
 from siibra.core.region import Region
 from siibra.commons import MapType
 
+from .test_parcellation import TestParcellation
 
 class TestRegions(unittest.TestCase):
 
     region_name = "Interposed Nucleus (Cerebellum) left"
     kg_id = "658a7f71-1b94-4f4a-8f15-726043bbb52a"
     parentname = "region_parent"
+
+    mock_parc = Parcellation._from_json(TestParcellation.correct_json)
 
     definition = {
         "name": region_name,
@@ -61,9 +65,9 @@ class TestRegions(unittest.TestCase):
         retrieval.download_file = MagicMock()
         retrieval.download_file.return_value = None
 
-        cls.parent_region = Region._from_json(cls.parent_definition, parcellations[0])
+        cls.parent_region = Region._from_json(cls.parent_definition, cls.mock_parc)
 
-        cls.child_region = Region._from_json(cls.definition, parcellations[0])
+        cls.child_region = Region._from_json(cls.definition, cls.mock_parc)
         cls.child_region.parent = cls.parent_region
 
     def test_regions_init(self):
@@ -121,6 +125,11 @@ class TestRegions(unittest.TestCase):
         result = self.child_region.get_regional_map(spaces.BIG_BRAIN, MapType.CONTINUOUS)
         self.assertIsNone(result)
 
-
+    def test_defined_in_space(self):
+        tmp_get_map = self.mock_parc.get_map
+        self.mock_parc.get_map = MagicMock(side_effect=RuntimeError('bla'))
+        assert self.child_region.defined_in_space('foo-bar') is False
+        self.mock_parc.get_map = tmp_get_map
+        
 if __name__ == "__main__":
     unittest.main()
