@@ -35,31 +35,6 @@ from os import path
 PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed", "detailed maps"]
 
 
-def create_map(parcellation, space: Space, maptype: MapType):
-    """
-    Creates a new ParcellationMap object of the given type.
-    """
-    classes = {
-        MapType.LABELLED: LabelledParcellationMap,
-        MapType.CONTINUOUS: ContinuousParcellationMap,
-    }
-    if maptype in classes:
-        obj = classes[maptype](parcellation, space)
-    elif maptype is None:
-        logger.warning(
-            "No maptype provided when requesting the parcellation map. Falling back to MapType.LABELLED"
-        )
-        obj = classes[MapType.LABELLED](parcellation, space)
-    else:
-        raise ValueError(f"Invalid maptype: '{maptype}'")
-    if len(obj) == 0:
-        raise ValueError(
-            f"No data found to construct a {maptype} map for {parcellation.name} in {space.name}."
-        )
-
-    return obj
-
-
 class ParcellationMap(ImageProvider):
     """
     Represents a brain map in a particular reference space, with
@@ -79,6 +54,8 @@ class ParcellationMap(ImageProvider):
     ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
     a feasible downsampled resolution is provided.
     """
+
+    _instances = {}
 
     def __init__(self, parcellation, space: Space, maptype=MapType):
         """
@@ -104,6 +81,39 @@ class ParcellationMap(ImageProvider):
         self.parcellation = parcellation
         self.space = space
         self._regions_cached = {}
+
+    @classmethod
+    def get_instance(cls, parcellation, space: Space, maptype: MapType):
+        """
+        Returns the ParcellationMap object of the requested type.
+        """
+        key = (parcellation.key, space.key, maptype)
+
+        if key in cls._instances:
+            # Instance already available - do not build another object
+            return cls._instances[key]
+
+        # create a new object
+        classes = {
+            MapType.LABELLED: LabelledParcellationMap,
+            MapType.CONTINUOUS: ContinuousParcellationMap,
+        }
+        if maptype in classes:
+            obj = classes[maptype](parcellation, space)
+        elif maptype is None:
+            logger.warning(
+                "No maptype provided when requesting the parcellation map. Falling back to MapType.LABELLED"
+            )
+            obj = classes[MapType.LABELLED](parcellation, space)
+        else:
+            raise ValueError(f"Invalid maptype: '{maptype}'")
+        if len(obj) == 0:
+            raise ValueError(
+                f"No data found to construct a {maptype} map for {parcellation.name} in {space.name}."
+            )
+
+        cls._instances[key] = obj
+        return obj
 
     @property
     def regions(self):
@@ -751,13 +761,12 @@ class ContinuousParcellationMap(ParcellationMap):
 
         with open(probsfile, 'r') as f:
             lines = f.readlines()
-            msg = f"Preparing spatial index for location assignment"
+            msg = f"Loading spatial index for location assignment"
             for line in tqdm(lines, total=len(lines), desc=msg, unit="voxels"):
                 fields = line.split(' ')
-                mapindices = list(map(int, fields[3::2]))
-                values = list(map(float, fields[4::2]))
+                mapindices = list(map(int, fields[0::2]))
+                values = list(map(float, fields[1::2]))
                 D = dict(zip(mapindices, values))
-                D["coord"] = tuple(map(int, fields[:3]))
                 self.probs.append(D)
         
         with open(bboxfile, 'r') as f:
@@ -781,9 +790,8 @@ class ContinuousParcellationMap(ParcellationMap):
 
         with open(probsfile, 'w') as f:
             for D in self.probs:
-                f.write("{} {}\n".format(
-                        ' '.join(map(str, D['coord'])),
-                        ' '.join(f'{i} {p}' for i, p in D.items() if i!='coord')
+                f.write("{}\n".format(
+                        ' '.join(f'{i} {p}' for i, p in D.items())
                 ))
 
         with open(bboxfile, 'w') as f:
@@ -797,12 +805,8 @@ class ContinuousParcellationMap(ParcellationMap):
         """ Load map image with the given index. """
 
         logger.info(
-            f"First request of {self.parcellation.name} continuous maps "
-            f"in {self.space.name}."
-        )
-        logger.info(
-            "Now creating the spatial index. This will take a minute, "
-            "but is only performed once."
+            f"Creating the spatial index for {self.parcellation.name} continuous maps "
+            f"in {self.space.name}. This will take a minute, but is only performed once."
         )
 
         self.probs = []
@@ -837,7 +841,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     # New coordinate. Append entry with observed value.
                     coord_id = len(self.probs)
                     self.spatial_index[x, y, z] = coord_id
-                    self.probs.append({'coord': (x, y, z), mapindex: prob})
+                    self.probs.append({mapindex: prob})
             
             self.bboxes.append({
                 'minpoint' : (X.min(), Y.min(), Z.min()),
@@ -853,10 +857,14 @@ class ContinuousParcellationMap(ParcellationMap):
 
     def _coords(self, mapindex):
         # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
-        return np.array([
-            lst['coord'] for lst in self.probs 
-            if mapindex in lst
-        ]).T
+        coord_ids = [i for i, l in enumerate(self.probs) if mapindex in l]
+        x0, y0, z0 = self.bboxes[mapindex]['minpoint']
+        x1, y1, z1 = self.bboxes[mapindex]['maxpoint']
+        return (np.array(
+            np.where(
+                np.isin(self.spatial_index[x0:x1+1, y0:y1+1, z0:z1+1], coord_ids)
+            )
+        ).T + (x0, y0, z0)).T
 
     def _mapped_voxels(self, mapindex):
         # returns the x, y, and z coordinates of nonzero voxels for the map 
@@ -939,8 +947,6 @@ class ContinuousParcellationMap(ParcellationMap):
             for i, coord in enumerate(coords):
                 x, y, z = (np.dot(phys2vox, coord) + 0.5).astype("int")[:3]
                 for mapindex, value in self.probs[self.spatial_index[x,y,z]].items():
-                    if mapindex=='coord':
-                        continue
                     region = self.decode_label(mapindex=mapindex)
                     if value > 0:
                         assignments[i].append((region, mapindex, value))

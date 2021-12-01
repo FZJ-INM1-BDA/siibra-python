@@ -18,7 +18,7 @@ from .region import Region
 from .concept import AtlasConcept, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
-from ..volumes import parcellationmap
+from ..volumes import ParcellationMap
 
 import difflib
 from typing import Union
@@ -173,7 +173,6 @@ class Parcellation(
                 raise (e)
         return self._regiontree_cached
 
-    @cached
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
         Get the volumetric maps for the parcellation in the requested
@@ -213,7 +212,7 @@ class Parcellation(
                     f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"'
                 )
 
-        return parcellationmap.create_map(self, spaceobj, maptype)
+        return ParcellationMap.get_instance(self, spaceobj, maptype)
 
     @property
     def labels(self):
