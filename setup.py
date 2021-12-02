@@ -54,5 +54,6 @@ setup(
         "cloud-volume",
         "nilearn",
         "simple-term-menu",
+        "pydantic",
     ],
 )

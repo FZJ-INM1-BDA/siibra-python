@@ -13,15 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import date
+
+from siibra.openminds.common import CommonConfig
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 
-from ..commons import logger, MapType, ParcellationIndex, Registry
+from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
 
 import difflib
-from typing import Union
+from typing import Any, Dict, List, Optional, Union
+from siibra.openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas
 from memoization import cached
 
 # NOTE : such code could be used to automatically resolve
@@ -107,24 +111,28 @@ class ParcellationVersion:
         )
 
 
-@provide_registry
+@provide_openminds_registry(
+    bootstrap_folder='parcellations',
+    registry_src=RegistrySrc.GITLAB,
+)
 class Parcellation(
+    brainAtlasVersion.Model,
     AtlasConcept,
-    bootstrap_folder="parcellations",
-    type_id="minds/core/parcellationatlas/v1.0.0",
 ):
 
     _regiontree_cached = None
+    _atlases = set()
 
     def __init__(
         self,
-        identifier: str,
-        name: str,
+        identifier: str=None,
+        name: str=None,
         version=None,
         modality=None,
         regiondefs=[],
         dataset_specs=[],
         maps=None,
+        **data
     ):
         """
         Constructs a new parcellation object.
@@ -147,16 +155,20 @@ class Parcellation(
             List of already instantiated parcellation maps
             (as opposed to the dataset_specs, which still need to be instantiated)
         """
-        AtlasConcept.__init__(self, identifier, name, dataset_specs)
-        self.version = version
-        self.description = ""
-        self.modality = modality
-        self._regiondefs = regiondefs
-        if maps is not None:
-            if self._datasets_cached is None:
-                self._datasets_cached = []
-            self._datasets_cached.extend(maps)
-        self.atlases = set()
+        brainAtlasVersion.Model.__init__(self,**data)
+        AtlasConcept.__init__(self, self.id, self.name, dataset_specs)
+        # self.version = version
+        # self.description = ""
+        # self.modality = modality
+        # self._regiondefs = regiondefs
+        # if maps is not None:
+        #     if self._datasets_cached is None:
+        #         self._datasets_cached = []
+        #     self._datasets_cached.extend(maps)
+
+    @property
+    def space(self) -> Space:
+        return main_openminds_registry[self.coordinate_space]
 
     @property
     def regiontree(self):
@@ -222,18 +234,15 @@ class Parcellation(
     def names(self):
         return self.regiontree.names
 
-    def supports_space(self, space: Space):
+    def supports_space(self, space: Space) -> bool:
         """
         Return true if this parcellation supports the given space, else False.
         """
-        return any(s.matches(space) for s in self.supported_spaces)
+        return space == main_openminds_registry[self.coordinate_space]
 
     @property
     def spaces(self):
-        return Registry(
-            matchfunc=Space.matches,
-            elements={s.key: s for s in self.supported_spaces},
-        )
+        return [ main_openminds_registry[self.coordinate_space] ]
 
     @property
     def is_newest_version(self):
@@ -329,9 +338,9 @@ class Parcellation(
         return self.name
 
     def __repr__(self):
-        return self.name
+        return f'{self.full_name} - {self.space.id}'
 
-    def __eq__(self, other):
+    def __eq__(self, other: Union['Parcellation', str]) -> bool:
         """
         Compare this parcellation with other objects. If other is a string,
         compare to key, name or id.
@@ -339,7 +348,7 @@ class Parcellation(
         if isinstance(other, Parcellation):
             return self.id == other.id
         elif isinstance(other, str):
-            return any([self.name == other, self.key == other, self.id == other])
+            return any([self.short_name == other, self.full_name == other, self.id == other])
         else:
             raise ValueError(
                 "Cannot compare object of type {} to Parcellation".format(type(other))
@@ -357,15 +366,20 @@ class Parcellation(
         """
         return self.decode_region(regionspec)
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'Parcellation') -> bool:
         """
         We sort parcellations by their version
         """
-        if (self.version is None) or (other.version is None):
-            raise RuntimeError(
-                f"Attempted to sort non-versioned instances of {self.__class__.__name__}."
-            )
-        return self.version.__lt__(other.version)
+        
+        def get_prev_version(parc: Parcellation) -> Optional[Parcellation]:
+            return self.is_new_version_of and main_openminds_registry[parc.is_new_version_of]
+        
+        prev_version = get_prev_version(self)
+        while prev_version:
+            if prev_version == other:
+                return False
+            prev_version = get_prev_version(prev_version)
+        return True
 
     def _extend(self, other):
         """Extend a parcellation by additional regions
@@ -413,34 +427,75 @@ class Parcellation(
                 )
 
     @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct a Parcellation
-        object from a json string.
-        """
-        assert obj.get("@type", None) == "minds/core/parcellationatlas/v1.0.0"
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> List['Parcellation']:
+        assert json_input.get('@id') is not None
+        if json_input.get('@extends'):
+            return []
 
-        # create the parcellation, it will create a parent region node for the regiontree.
-        result = cls(
-            obj["@id"],
-            obj["shortName"],
-            regiondefs=obj["regions"],
-            dataset_specs=obj.get("datasets", []),
-        )
+        parc_id = json_input.get('@id')
+        parc_type = 'https://openminds.ebrains.eu/sands/BrainAtlasVersion'
+        accessibility = {
+            '@id': 'https://openminds.ebrains.eu/instances/productAccessibility/freeAccess'
+        }
+        author = []
+        coordinate_spaces: List[str] = [dataset.get('space_id') for dataset in json_input.get('datasets') if dataset.get('space_id')]
+        copyright = None
+        custodian = []
+        description = json_input.get('description')
+        digital_identifier = None
+        full_documentation = {
+            '@id': 'add_doi_here'
+        }
+        full_name = json_input.get('name')
+        funding = []
+        has_terminology_version = {
+            "has_entity_version": [1, 2, 3],
+            "short_name": "stuff",
+            "version_identifier": "stuff2",
+            "version_innovation": "stuff3"
+        }
+        homepage = None
 
-        if "@version" in obj:
-            result.version = ParcellationVersion._from_json(obj["@version"])
+        license = {
+            '@id': 'https://openminds.ebrains.eu/instances/licenses/ccByNc4.0	'
+        }
 
-        if "modality" in obj:
-            result.modality = obj["modality"]
+        is_new_version_of = {
+            "@id": json_input.get("@version").get("@prev")
+        } if json_input.get("@version") and json_input.get("@version").get("@prev") else None
+        release_date = date(1970, 1, 1)
+        short_name = json_input.get('shortName')
+        version_identifier = json_input.get('@version', {}).get('name') or json_input.get('version') or 'Unknown version'
+        version_innovation = 'place holder'
 
-        if "description" in obj:
-            result.description = obj["description"]
+        if len(short_name) > 30:
+            short_name = short_name[:30]
 
-        if "publications" in obj:
-            result._publications = obj["publications"]
+        # TODO add ng volumes
+        # TODO add nifti volume as file
+        # TODO add brainAtlas (parent instance) for each collection
+        # TODO add regions
+        return [
+            Cls(
+                id=f'{parc_id}-{spc}',
+                type=parc_type,
+                accessibility=accessibility,
+                coordinate_space={
+                    "@id": spc
+                },
+                copyright=None,
+                full_documentation=full_documentation,
+                full_name=full_name,
+                is_new_version_of=is_new_version_of,
+                release_date=release_date,
+                # n.b. TODO add regions
+                # has_terminology_version=has_terminology_version,
+                license=license,
+                short_name=short_name,
+                version_identifier=version_identifier,
+                version_innovation=version_innovation,
+            ) for spc in coordinate_spaces
+        ]
 
-        if "@extends" in obj:
-            result.extends = obj["@extends"]
+    Config = CommonConfig
 
-        return result

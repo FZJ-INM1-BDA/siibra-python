@@ -115,7 +115,7 @@ class Space(
         return BoundingBox(point1, point2, self)
 
     @classmethod
-    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'Space':
 
         # import here to avoid circular dep
         # from siibra.volumes.volume import File
@@ -128,6 +128,8 @@ class Space(
 
         base_id = path.basename(json_input.get('@id'))
 
+        # TODO add ng volume as file
+        # TODO add nifti volume as file
         return Cls(
             id=json_input.get('@id') or f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
             type="https://openminds.ebrains.eu/sands/CoordinateSpace",

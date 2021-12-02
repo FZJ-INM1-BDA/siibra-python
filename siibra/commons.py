@@ -168,6 +168,8 @@ class TypedRegistry(Generic[T]):
         """
         if isinstance(spec, str) and (spec in self._elements):
             return [self._elements[spec]]
+        if isinstance(spec, dict) and spec.get('@id'):
+            return [self._elements[spec.get('@id')]]
         elif isinstance(spec, int) and (spec < len(self._elements)):
             return [list(self._elements.values())[spec]]
         else:

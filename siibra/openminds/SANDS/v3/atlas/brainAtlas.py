@@ -12,7 +12,8 @@ class HasTerminology(BaseModel):
         None,
         alias='definedIn',
         description='Reference to a file instance in which something is stored.',
-        min_items=1,
+        # TODO fix
+        # min_items=1,
         title='definedIn',
     )
     full_name: Optional[str] = Field(
@@ -21,7 +22,11 @@ class HasTerminology(BaseModel):
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
-    has_entity: List = Field(..., alias='hasEntity', min_items=1, title='hasEntity')
+    has_entity: List = Field(...,
+        alias='hasEntity',
+        # TODO fix
+        # min_items=1,
+        title='hasEntity')
     ontology_identifier: Optional[List[str]] = Field(
         None,
         alias='ontologyIdentifier',

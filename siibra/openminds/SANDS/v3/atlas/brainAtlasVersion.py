@@ -5,14 +5,15 @@
 from datetime import date
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, constr
+from pydantic import BaseModel, Field, constr, conlist
 
 
 class Copyright(BaseModel):
     holder: List = Field(
         ...,
         description='Legal person in possession of something.',
-        min_items=1,
+        # TODO fix
+        # min_items=1,
         title='holder',
     )
     year: constr(regex=r'([0-9]{4})') = Field(
@@ -27,7 +28,8 @@ class HasTerminologyVersion(BaseModel):
         None,
         alias='definedIn',
         description='Reference to a file instance in which something is stored.',
-        min_items=1,
+        # TODO fix
+        # min_items=1,
         title='definedIn',
     )
     full_name: Optional[str] = Field(
@@ -37,13 +39,18 @@ class HasTerminologyVersion(BaseModel):
         title='fullName',
     )
     has_entity_version: List = Field(
-        ..., alias='hasEntityVersion', min_items=1, title='hasEntityVersion'
+        ...,
+        alias='hasEntityVersion',
+        # TODO fix
+        # min_items=1,
+        title='hasEntityVersion'
     )
     is_alternative_version_of: Optional[List] = Field(
         None,
         alias='isAlternativeVersionOf',
         description='Reference to an original form where the essence was preserved, but presented in an alternative form.',
-        min_items=1,
+        # TODO fix
+        # # min_items=1,
         title='isAlternativeVersionOf',
     )
     is_new_version_of: Optional[Any] = Field(
@@ -56,7 +63,8 @@ class HasTerminologyVersion(BaseModel):
         None,
         alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
-        min_items=1,
+        # TODO fix
+        # # min_items=1,
         title='ontologyIdentifier',
     )
     short_name: str = Field(
@@ -84,7 +92,8 @@ class OtherContribution(BaseModel):
         ...,
         alias='contributionType',
         description='Distinct class of what was given or supplied as a part or share.',
-        min_items=1,
+        # TODO fix
+        # # min_items=1,
         title='contributionType',
     )
     contributor: Any = Field(
@@ -159,9 +168,10 @@ class Model(BaseModel):
         min_items=1,
         title='funding',
     )
-    has_terminology_version: 'HasTerminologyVersion' = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/hasTerminologyVersion'
-    )
+    # TODO fix - add region
+    # # has_terminology_version: 'HasTerminologyVersion' = Field(
+    #     ..., alias='https://openminds.ebrains.eu/vocab/hasTerminologyVersion'
+    # )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
         alias='https://openminds.ebrains.eu/vocab/homepage',

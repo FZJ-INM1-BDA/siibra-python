@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, Union
 from pydantic.main import BaseModel
 from .datasets import Dataset
 import enum
@@ -115,19 +116,22 @@ def provide_openminds_registry(bootstrap_folder: str,
         verify_cls(registry_src=registry_src, cls=cls)
 
 
-        def default_match_spec_fn(obj: cls, spec) -> bool:
+        def default_match_spec_fn(obj: cls, spec: Union[str, cls, Dict[str, str]]) -> bool:
             assert isinstance(obj, cls)
-            if spec == obj:
-                return True
+
+            if isinstance(spec, cls):
+                return spec.id == obj.id
+            if isinstance(spec, dict) and spec.get('@id'):
+                return obj.id == spec.get('@id')
             if isinstance(spec, str):
-                if spec == obj.key:
+                if hasattr(obj, 'key') and spec == obj.key:
                     return True
                 elif spec == obj.id:
                     return True
                 else:
                     # match the name
                     words = [w for w in re.split("[ -]", spec)]
-                    squeezedname = obj.name.lower().replace(" ", "")
+                    squeezedname = obj.name.lower().replace(" ", "") if obj.name else ""
                     return any(
                         [
                             all(w.lower() in squeezedname for w in words),
@@ -135,6 +139,28 @@ def provide_openminds_registry(bootstrap_folder: str,
                         ]
                     )
             return False
+
+        registry = TypedRegistry[cls](matchfunc=default_match_spec_fn)
+        extensions = []
+
+        def process_instance(instance: cls, fname: str):
+
+            if hasattr(instance, 'extends') and getattr(instance, 'extends'):
+                extensions.append(instance)
+                return
+            if isinstance(instance, cls):
+                registry.add(instance.id, instance)
+
+                # also add item to main registry
+                if instance.id in main_openminds_registry:
+                    logger.warn(f'adding to main registry warning: {instance.id} already exists in main registry. Overwriting...')
+                main_openminds_registry.add(instance.id, instance)
+
+            else:
+                raise RuntimeError(
+                    f"Could not generate object of type {cls} from configuration {fname} - construction provided type {instance.__class__}"
+                )
+
 
         # find a suitable connector that is reachable
         for connector in _BOOTSTRAP_CONNECTORS:
@@ -158,27 +184,16 @@ def provide_openminds_registry(bootstrap_folder: str,
                 f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
             )
 
-        registry = TypedRegistry[cls](matchfunc=default_match_spec_fn)
-        extensions = []
         with QUIET:
             for fname, loader in loaders:
                 logger.info(f"Loading {fname}")
                 obj = cls.parse_legacy(loader.data)
-                if hasattr(obj, 'extends') and getattr(obj, 'extends'):
-                    extensions.append(obj)
-                    continue
-                if isinstance(obj, cls):
-                    registry.add(obj.id, obj)
 
-                    # also add item to main registry
-                    if obj.id in main_openminds_registry:
-                        logger.warn(f'adding to main registry warning: {obj.id} already exists in main registry. Overwriting...')
-                    main_openminds_registry.add(obj.id, obj)
-
+                if isinstance(obj, list):
+                    for inst in obj:
+                        process_instance(inst, fname)
                 else:
-                    raise RuntimeError(
-                        f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
-                    )
+                    process_instance(obj, fname)
 
         cls.REGISTRY = registry
         return cls

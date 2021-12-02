@@ -106,18 +106,19 @@ class Atlas(
             )
         if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
             atlas = cls(obj["@id"], obj["name"], species=obj["species"])
-            for space_id in obj["spaces"]:
-                if not Space.REGISTRY.provides(space_id):
-                    raise ValueError(
-                        f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known"
-                    )
-                atlas._register_space(Space.REGISTRY[space_id])
-            for parcellation_id in obj["parcellations"]:
-                if not Parcellation.REGISTRY.provides(parcellation_id):
-                    raise ValueError(
-                        f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known"
-                    )
-                atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
+            # TODO maybe... reenable somehow?
+            # for space_id in obj["spaces"]:
+            #     if not Space.REGISTRY.provides(space_id):
+            #         raise ValueError(
+            #             f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known"
+            #         )
+            #     atlas._register_space(Space.REGISTRY[space_id])
+            # for parcellation_id in obj["parcellations"]:
+            #     if not Parcellation.REGISTRY.provides(parcellation_id):
+            #         raise ValueError(
+            #             f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known"
+            #         )
+            #     atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
             return atlas
         return obj
 
