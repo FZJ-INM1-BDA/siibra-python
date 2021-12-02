@@ -19,7 +19,6 @@ from ..commons import logger
 import json
 from zipfile import ZipFile
 import requests
-from urllib.parse import quote
 import os
 from nibabel import Nifti1Image
 import gzip
@@ -60,12 +59,21 @@ class HttpRequest:
         """
         assert url is not None
         self.url = url
-        self.func = func
         self.kwargs = kwargs
         self.status_code_messages = status_code_messages
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
+        self._set_decoder_func(func, url)
+
+    def _set_decoder_func(self, func, fileurl: str):
+        if func is None:
+            suitable_decoders = [dec for sfx, dec in DECODERS.items() if fileurl.endswith(sfx)]
+            if len(suitable_decoders) > 0:
+                assert len(suitable_decoders) == 1
+                self.func = suitable_decoders[0]
+                return
+        self.func = func
 
     @property
     def cached(self):
@@ -77,6 +85,7 @@ class HttpRequest:
         # otherwise data (as it is already in memory anyway).
         # The caller should load the cachefile only
         # if None is returned.
+
         if self.cached and not self.refresh:
             # in cache. Just load the file
             logger.debug(
@@ -109,90 +118,35 @@ class HttpRequest:
                 data = f.read()
         return data if self.func is None else self.func(data)
 
-
-class LazyHttpRequest(HttpRequest):
-    def __init__(
-        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, refresh=False, **kwargs
-    ):
-        """
-        Initialize a lazy and cached http data loader.
-        It stores a URL and optional data conversion function,
-        but loads the actual data only when its 'data' property
-        is accessed the first time.
-        For loading, the http request is only performed if the
-        result is not yet available in the disk cache.
-        Leaves the interpretation of the returned content to the caller.
-
-        Parameters
-        ----------
-        url : string, or None
-            URL for loading raw data, which is then fed into `func`
-            for creating the output.
-            If None, `func` will be called without arguments.
-        func : function pointer
-            Function for constructing the output data
-            (called on the data retrieved from `url`, if supplied)
-        status_code_messages : dict
-            Optional dictionary of message strings to output in case of error,
-            where keys are http status code.
-        refresh : bool, default: False
-            If True, a possibly cached content will be ignored and refreshed
-        """
-        HttpRequest.__init__(
-            self, url, func, status_code_messages, msg_if_not_cached, refresh, **kwargs
-        )
-        self._data_cached = None
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders) > 0):
-            assert len(suitable_decoders) == 1
-            self.func = suitable_decoders[0]
-        else:
-            self.func = func
-
     @property
     def data(self):
-        if self._data_cached is None:
-            self._data_cached = self.get()
-        return self._data_cached
+        # for backward compatibility with old LazyHttpRequest class
+        return self.get()
 
-
-class ZipfileRequest(LazyHttpRequest):
+class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None):
-        LazyHttpRequest.__init__(self, url)
+        HttpRequest.__init__(self, url, func=func )
         self.filename = filename
-        if func is None:
-            suitable_decoders = [
-                dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)
-            ]
-            if len(suitable_decoders) > 0:
-                assert len(suitable_decoders) == 1
-                self._decoder = suitable_decoders[0]
-            else:
-                self._decoder = lambda b: b
-        else:
-            self._decoder = func
+        self._set_decoder_func(func, filename)
 
-    @property
-    def data(self):
-        if self._data_cached is None:
-            self._retrieve()
-            zipfile = ZipFile(self.cachefile)
-            filenames = zipfile.namelist()
-            matches = [fn for fn in filenames if fn.endswith(self.filename)]
-            if len(matches) == 0:
-                raise RuntimeError(
-                    f"Requested filename {self.filename} not found in archive at {self.url}"
-                )
-            if len(matches) > 1:
-                raise RuntimeError(
-                    f'Requested filename {self.filename} was not unique in archive at {self.url}. Candidates were: {", ".join(matches)}'
-                )
-            with zipfile.open(matches[0]) as f:
-                self._data_cached = self._decoder(f.read())
-        return self._data_cached
+    def get(self):
+        self._retrieve()
+        zipfile = ZipFile(self.cachefile)
+        filenames = zipfile.namelist()
+        matches = [fn for fn in filenames if fn.endswith(self.filename)]
+        if len(matches) == 0:
+            raise RuntimeError(
+                f"Requested filename {self.filename} not found in archive at {self.url}"
+            )
+        if len(matches) > 1:
+            raise RuntimeError(
+                f'Requested filename {self.filename} was not unique in archive at {self.url}. Candidates were: {", ".join(matches)}'
+            )
+        with zipfile.open(matches[0]) as f:
+            data = f.read()
+        return data if self.func is None else self.func(data)
 
-
-class EbrainsRequest(LazyHttpRequest):
+class EbrainsRequest(HttpRequest):
     """
     Implements lazy loading of HTTP Knowledge graph queries.
     """
@@ -229,7 +183,7 @@ class EbrainsRequest(LazyHttpRequest):
         # since we want to evaluate them late in the get() method.
         # This is nice because it allows to set env. variable KG_TOKEN only when
         # really needed, and not necessarily on package initialization.
-        LazyHttpRequest.__init__(
+        HttpRequest.__init__(
             self,
             url,
             DECODERS[".json"],

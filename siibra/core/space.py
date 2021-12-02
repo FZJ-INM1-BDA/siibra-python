@@ -413,6 +413,8 @@ class Point(coordinatePoint.Model, Location):
         # perhaps patch linear xform backend to use space id instead of space name?
         if not isinstance(targetspace, Space):
             targetspace = Space.REGISTRY[targetspace]
+        if targetspace == self.space:
+            return self
         if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space} and {targetspace}"
@@ -580,6 +582,8 @@ class PointSet(Location):
         return any(c.intersects_mask(mask) for c in self.coordinates)
 
     def warp(self, targetspace):
+        if targetspace == self.space:
+            return self
         return self.__class__(
             [c.warp(targetspace) for c in self.coordinates], targetspace
         )
@@ -705,12 +709,12 @@ class BoundingBox(Location):
         with rounded integer coordinates. """
         return Bbox(
             [int(v) for v in self.minpoint.coordinate],
-            [int(v + 1) for v in self.maxpoint.coordinate]
+            [int(v+.5) for v in self.maxpoint.coordinate]
         )
 
     @property
     def volume(self):
-        return self._Bbox.volume()
+        return np.prod(self.shape)
 
     @property
     def center(self):
@@ -743,13 +747,17 @@ class BoundingBox(Location):
         return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
     @classmethod
-    def from_image(cls, image: Nifti1Image, space: Space):
+    def from_image(cls, image: Nifti1Image, space: Space, ignore_affine=False):
         """ Construct a bounding box from a nifti image """
         bounds = cls._determine_bounds(image.get_fdata())
         if bounds is None:
             return None
-        coords = np.dot(image.affine, bounds)
-        return cls(point1=coords[:3, 0], point2=coords[:3, 1], space=space)
+        if ignore_affine:
+            target_space = None
+        else:
+            bounds = np.dot(image.affine, bounds)
+            targetspace = space
+        return cls(point1=bounds[:3, 0], point2=bounds[:3, 1], space=space)
 
     def __str__(self):
         if self.space is None:

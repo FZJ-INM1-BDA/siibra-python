@@ -14,5 +14,5 @@
 # limitations under the License.
 
 from .repositories import GitlabConnector, OwncloudConnector
-from .requests import HttpRequest, LazyHttpRequest, ZipfileRequest, EbrainsRequest
+from .requests import HttpRequest, ZipfileRequest, EbrainsRequest
 from .cache import CACHE
