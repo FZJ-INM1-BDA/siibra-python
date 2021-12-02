@@ -980,9 +980,14 @@ class ContinuousParcellationMap(ParcellationMap):
         if (img.affine-self.affine).sum() == 0:
             img2 = img
         else:
+            if issubclass(np.asanyarray(img.dataobj).dtype.type, np.integer):
+                interp = 'nearest'
+            else:
+                interp = 'continuous'
             img2 = image.resample_img( img,
                 target_affine = self.affine,
-                target_shape = self.shape   
+                target_shape = self.shape,
+                interpolation = interp
             )
 
         bbox2 = BoundingBox.from_image(img2, None, ignore_affine=True)
