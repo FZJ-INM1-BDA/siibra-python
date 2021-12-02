@@ -14,7 +14,11 @@
 # limitations under the License.
 
 from datetime import date
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Iterable, Tuple, Union
+
+from pydantic import BaseModel
+
+from siibra.openminds.common import CommonConfig
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, provide_registry
 
 from ..commons import logger
@@ -34,144 +38,27 @@ import numbers
 from siibra.openminds.SANDS.v3.atlas import commonCoordinateSpace 
 from siibra.openminds.SANDS.v3.miscellaneous import coordinatePoint
 from siibra.openminds.core.v4.data import file
-# n.b. coordinate point cannot yet be properly implemented
-# pending https://github.com/HumanBrainProject/openMINDS_SANDS/issues/150
-class CoordinatePoint(coordinatePoint.Model):
 
-    @property
-    def coordinates_tuple(self) -> Tuple[float, float, float]:
-        return (c.value for c in self.coordinates)
 
-    @property
-    def homogeneous(self) -> Tuple[float, float, float, float]:
-        return self.coordinates_tuple + (1.,)
-
-    def intersects_mask(self, mask: Nifti1Image) -> bool:
-        """Returns true if this point lies in the given mask.
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        # transform physical coordinates to voxel coordinates for the query
-        def check(mask, c: Tuple[float, float, float]):
-            voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
-            if np.any(voxel >= mask.dataobj.shape):
-                return False
-            if np.any(voxel < 0):
-                return False
-            if mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
-                return False
-            return True
-
-        if mask.ndim == 4:
-            return any(
-                check(mask.slicer[:, :, :, i], self.coordinates_tuple)
-                for i in range(mask.shape[3])
-            )
-        else:
-            return check(mask, self.coordinates_tuple)
-
-    def wrap(self, targetspace: 'CommonCoordinateSpace') -> 'CoordinatePoint':
-        pass
 
 @provide_openminds_registry(bootstrap_folder='spaces', registry_src=RegistrySrc.GITLAB)
-class CommonCoordinateSpace(commonCoordinateSpace.Model):
-
-    def get_template(self):
-        """
-        self.default_image is List[Dict['@id', str]].
-        Need to further resolve @id against file
-        """
-        return self.default_image
-
-    def __getitem__(self, slices: Tuple[int, int, int]):
-        """
-        Get a volume of interest specification from this space.
-
-        Arguments
-        ---------
-        slices: triple of slice
-            defines the x, y and z range
-        """
-        pass
-
-    def get_bounding_box(self, point1: CoordinatePoint, point2: CoordinatePoint):
-        """
-        Get a volume of interest specification from this space.
-
-        Arguments
-        ---------
-        point1: 3D tuple defined in physical coordinates of this reference space
-        point2: 3D tuple defined in physical coordinates of this reference space
-        """
-        pass
-
-    def __lt__(self, other: 'CommonCoordinateSpace'):
-        return self._id < other._id
-
-    @classmethod
-    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
-
-        # import here to avoid circular dep
-        # from siibra.volumes.volume import File
-        from os import path
-
-        digital_identifier = None
-        homepage = None
-        how_to_cite = None
-        ontology_identifier = None
-
-        base_id = path.basename(json_input.get('@id'))
-
-        return Cls(
-            id=f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
-            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
-            anatomical_axes_orientation={
-                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
-            },
-            axes_origin=[
-                commonCoordinateSpace.AxesOrigin(value=0),
-                commonCoordinateSpace.AxesOrigin(value=0),
-                commonCoordinateSpace.AxesOrigin(value=0),
-            ],
-            default_image=[ { '@id': v.get('@id') }
-                for v in json_input.get('datasets')
-                if v.get('@type') == 'fzj/tmp/volume_type/v0.0.1'],
-            full_name=json_input.get('name'),
-            native_unit={
-                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
-            },
-            release_date=date(2015, 1, 1),
-            short_name=json_input.get('shortName') or json_input.get('name'),
-            version_identifier=json_input.get('name')
-        )
-
-    class Config:
-        allow_population_by_field_name = True
-    
-
-@provide_registry
 class Space(
+    commonCoordinateSpace.Model,
     AtlasConcept,
-    bootstrap_folder="spaces",
-    type_id="minds/core/referencespace/v1.0.0",
 ):
     """
     A particular brain reference space.
     """
+    _atlases = set()
 
     def __init__(
         self,
-        identifier,
-        name,
         template_type=None,
         src_volume_type=None,
-        dataset_specs=[],
+        **data
     ):
-        AtlasConcept.__init__(self, identifier, name, dataset_specs)
-        self.src_volume_type = src_volume_type
-        self.type = template_type
-        self.atlases = set()
+        commonCoordinateSpace.Model.__init__(self, **data)
+        AtlasConcept.__init__(self, identifier=self.id, name=self.full_name)
 
     def get_template(self):
         """
@@ -228,38 +115,50 @@ class Space(
         return BoundingBox(point1, point2, self)
 
     @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct a Space
-        object from a json stream.
-        """
-        required_keys = ["@id", "name", "shortName", "templateType"]
-        if any([k not in obj for k in required_keys]):
-            return obj
-        if "minds/core/referencespace/v1.0.0" not in obj["@id"]:
-            return obj
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'CommonCoordinateSpace':
 
-        result = cls(
-            identifier=obj["@id"],
-            name=obj["shortName"],
-            template_type=obj["templateType"],
-            src_volume_type=obj.get("srcVolumeType"),
-            dataset_specs=obj.get("datasets", []),
+        # import here to avoid circular dep
+        # from siibra.volumes.volume import File
+        from os import path
+
+        digital_identifier = None
+        homepage = None
+        how_to_cite = None
+        ontology_identifier = None
+
+        base_id = path.basename(json_input.get('@id'))
+
+        return Cls(
+            id=json_input.get('@id') or f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
+            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+            anatomical_axes_orientation={
+                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
+            },
+            axes_origin=[
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+            ],
+            default_image=[ { '@id': v.get('@id') }
+                for v in json_input.get('datasets')
+                if v.get('@type') == 'fzj/tmp/volume_type/v0.0.1'],
+            full_name=json_input.get('name'),
+            native_unit={
+                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
+            },
+            release_date=date(2015, 1, 1),
+            short_name=json_input.get('shortName') or json_input.get('name'),
+            version_identifier=json_input.get('name')
         )
 
-        return result
-
+    Config = CommonConfig
 
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
 
 
 # lookup of space identifiers to be used by SPACEWARP_SERVER
-SPACEWARP_IDS = {
-    Space.REGISTRY.MNI152_2009C_NONL_ASYM: "MNI 152 ICBM 2009c Nonlinear Asymmetric",
-    Space.REGISTRY.MNI_COLIN_27: "MNI Colin 27",
-    Space.REGISTRY.BIG_BRAIN: "Big Brain (Histology)",
-}
+SPACEWARP_IDS = dict()
 
 
 class Location(ABC):
@@ -267,12 +166,17 @@ class Location(ABC):
     Abstract base class for locations in a given reference space.
     """
 
+    @property
+    def is_legacy(self):
+        return not isinstance(self, BaseModel)
+
     def __init__(self, space: Space):
-        if space is None:
-            # typically only used for temporary entities, e.g. in individual voxel spaces.
-            self.space = None
-        else:
-            self.space = Space.REGISTRY[space]
+        if self.is_legacy:
+            if space is None:
+                # typically only used for temporary entities, e.g. in individual voxel spaces.
+                self.space = None
+            else:
+                self.space = Space.REGISTRY[space]
 
     @abstractmethod
     def intersects_mask(self, mask: Nifti1Image):
@@ -385,11 +289,13 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location):
+# n.b. coordinate point cannot yet be properly implemented
+# pending https://github.com/HumanBrainProject/openMINDS_SANDS/issues/150
+class Point(coordinatePoint.Model, Location):
     """A single 3D point in reference space."""
 
     @staticmethod
-    def parse(spec, unit="mm"):
+    def parse(spec, unit="mm") -> Tuple[float, float, float]:
         """Converts a 3D coordinate specification into a 3D tuple of floats.
 
         Parameters
@@ -426,7 +332,7 @@ class Point(Location):
                 f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
             )
 
-    def __init__(self, coordinatespec, space: Space):
+    def __init__(self, coordinatespec=None, space: Union[Space, Dict[str, str]]=None, **data):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -435,12 +341,39 @@ class Point(Location):
         coordinate : 3-tuple of int/float, or string specification
             Coordinate in mm of the given space
         space : Space
-            The reference space
+            (deprecated) The reference space. The **data object should contain reference to space.
         """
-        Location.__init__(self, space)
-        self.coordinate = Point.parse(coordinatespec)
-        if isinstance(coordinatespec, Point):
-            assert(coordinatespec.space == space)
+        coordinatePoint.Model.__init__(self, **data)
+
+        space_id = None
+        if isinstance(space, Space):
+            referenced_space = space
+            space_id = space.id
+        elif isinstance(space, dict):
+            space_id = space.get('@id')
+            assert space_id is not None
+            referenced_space = Space.REGISTRY[space_id]
+
+        if space_id is None:
+            space_id = self.coordinate_space.get('@id')
+            referenced_space = Space.REGISTRY[space_id]
+        else:
+            assert space_id == self.coordinate_space.get('@id')
+
+        Location.__init__(self, space=referenced_space)
+
+        if coordinatespec is not None:
+            x, y, z = Point.parse(coordinatespec)
+            self.coordinates[0].value = x
+            self.coordinates[1].value = y
+            self.coordinates[2].value = z
+
+            if isinstance(coordinatespec, Point):
+                assert(coordinatespec.space == space)
+    
+    @property
+    def coordinates_tuple(self) -> Tuple[float, float, float]:
+        return tuple(c.value for c in self.coordinates)
 
     @property
     def homogeneous(self):
@@ -475,6 +408,9 @@ class Point(Location):
 
     def warp(self, targetspace: Space):
         """ Creates a new point by warping this point to another space """
+        raise RuntimeError(f'wrapping is not yet implemented')
+        # TODO properly implement wraping
+        # perhaps patch linear xform backend to use space id instead of space name?
         if not isinstance(targetspace, Space):
             targetspace = Space.REGISTRY[targetspace]
         if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
@@ -495,52 +431,60 @@ class Point(Location):
             space=targetspace
         )
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[numbers.Number, 'Point']) -> 'Point':
         """ Substract the coordinates of two points to get
         a new point representing the offset vector. Alternatively,
         subtract an integer from the all coordinates of this point
         to create a new one."""
         if isinstance(other, numbers.Number):
             return Point(
-                [c - other for c in self.coordinate],
-                self.space
+                [c - other for c in self.coordinates_tuple],
+                **self.dict(),
             )
 
-        assert(self.space == other.space)
+        assert(self.coordinate_space == other.coordinate_space)
         return Point(
             [
-                self.coordinate[i] - other.coordinate[i]
+                self.coordinates_tuple[i] - other.coordinates_tuple[i]
                 for i in range(3)],
-            self.space)
+            **self.dict(),
+        )
 
-    def __add__(self, other):
+    def __add__(self, other: Union[numbers.Number, 'Point']) -> 'Point':
         """ Add the coordinates of two points to get
         a new point representing. """
         if isinstance(other, numbers.Number):
             return Point(
-                [c + other for c in self.coordinate],
-                self.space
+                [c + other for c in self.coordinates_tuple],
+                **self.dict(),
             )
-        assert(self.space == other.space)
+        assert(self.coordinate_space == other.coordinate_space)
         return Point(
             [
-                self.coordinate[i] + other.coordinate[i]
+                self.coordinates_tuple[i] + other.coordinates_tuple[i]
                 for i in range(3)],
-            self.space)
+            **self.dict(),
+        )
 
-    def __truediv__(self, number):
+    def __truediv__(self, number: numbers.Number) -> 'Point':
         """ Return a new point with divided
         coordinates in the same space. """
         return Point(
-            np.array(self.coordinate) / float(number),
-            self.space
+            np.array(self.coordinates_tuple) / float(number),
+            **self.dict(),
         )
 
-    def __mult__(self, number):
+    def __mul__(self, number: numbers.Number) -> 'Point':
         """ Return a new point with multiplied
         coordinates in the same space. """
+        return Point(
+            np.array(self.coordinates_tuple) * float(number),
+            **self.dict(),
+        )
 
-    def transform(self, affine: np.ndarray, space: Space = None):
+    __rmul__ = __mul__
+
+    def transform(self, affine: np.ndarray, space: Space = None) -> 'Point':
         """Returns a new Point obtained by transforming the
         coordinate of this one with the given affine matrix.
 
@@ -558,7 +502,7 @@ class Point(Location):
             logger.warning(f"Homogeneous coordinate is not one: {h}")
         return self.__class__((x / h, y / h, z / h), space)
 
-    def get_enclosing_cube(self, width_mm):
+    def get_enclosing_cube(self, width_mm) -> 'BoundingBox':
         """
         Create a bounding box centered around this point with the given width.
         """
@@ -569,48 +513,22 @@ class Point(Location):
             space=self.space,
         )
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[float]:
         """ Return an iterator over the location,
         so the Point can be easily cast to list or tuple. """
-        return iter(self.coordinate)
+        return iter(self.coordinates_tuple)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> float:
         """ Index access to the coefficients of this point. """
         assert(0 <= index < 3)
-        return self.coordinate[index]
+        return self.coordinates_tuple[index]
 
     @classmethod
     def from_sands(cls, spec):
         """ Generate a point from an openMINDS/SANDS specification,
         given as a dictionary, json string, or json filename. """
+        raise RuntimeError(f'from_sands has been deprecated. Use constructor instead')
 
-        if isinstance(spec, str):
-            if path.isfile(spec):
-                with open(spec, 'r') as f:
-                    obj = json.load(f)
-            else:
-                obj = json.loads(spec)
-        elif isinstance(spec, dict):
-            obj = spec
-        else:
-            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
-
-        assert(obj['@type'] == "https://openminds.ebrains.eu/sands/CoordinatePoint")
-
-        # require space spec
-        space_id = obj['coordinateSpace']['@id']
-        assert(Space.REGISTRY.provides(space_id))
-
-        # require a 3D point spec for the coordinates
-        assert(all(
-            c["unit"]["@id"] == "id.link/mm"
-            for c in obj['coordinates']))
-
-        # build the Point
-        return cls(
-            list(np.float16(c["value"]) for c in obj['coordinates']),
-            space=Space.REGISTRY[space_id]
-        )
 
     def bigbrain_section(self):
         """
@@ -631,6 +549,8 @@ class Point(Location):
                     f"is given in '{self.space.name}' and could not "
                     "be converted.")
         return int((coronal_position + 70.) / 0.02 + 1.5)
+
+    Config = CommonConfig
 
 
 class PointSet(Location):

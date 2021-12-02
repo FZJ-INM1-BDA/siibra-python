@@ -105,16 +105,41 @@ def verify_cls(registry_src: RegistrySrc, cls):
     else:
         raise RuntimeError(f'openminds registry class not yet registered')
 
-def provide_openminds_registry(bootstrap_folder: str, registry_src: RegistrySrc = RegistrySrc.GITLAB):
-    
+main_openminds_registry = Registry()
+
+def provide_openminds_registry(bootstrap_folder: str,
+    registry_src: RegistrySrc = RegistrySrc.GITLAB):
+
     def provide_rg(cls):
         # sanity check cls construction
         verify_cls(registry_src=registry_src, cls=cls)
 
+
+        def default_match_spec_fn(obj: cls, spec) -> bool:
+            assert isinstance(obj, cls)
+            if spec == obj:
+                return True
+            if isinstance(spec, str):
+                if spec == obj.key:
+                    return True
+                elif spec == obj.id:
+                    return True
+                else:
+                    # match the name
+                    words = [w for w in re.split("[ -]", spec)]
+                    squeezedname = obj.name.lower().replace(" ", "")
+                    return any(
+                        [
+                            all(w.lower() in squeezedname for w in words),
+                            spec.replace(" ", "") in squeezedname,
+                        ]
+                    )
+            return False
+
         # find a suitable connector that is reachable
         for connector in _BOOTSTRAP_CONNECTORS:
             try:
-                print('connecting to {}'.format(bootstrap_folder))
+                logger.debug('connecting to {}'.format(bootstrap_folder))
                 loaders = connector.get_loaders(
                     bootstrap_folder,
                     ".json",
@@ -133,8 +158,7 @@ def provide_openminds_registry(bootstrap_folder: str, registry_src: RegistrySrc 
                 f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
             )
 
-        # for now, use default matchfunc of Registry
-        registry = TypedRegistry[cls]()
+        registry = TypedRegistry[cls](matchfunc=default_match_spec_fn)
         extensions = []
         with QUIET:
             for fname, loader in loaders:
@@ -145,6 +169,12 @@ def provide_openminds_registry(bootstrap_folder: str, registry_src: RegistrySrc 
                     continue
                 if isinstance(obj, cls):
                     registry.add(obj.id, obj)
+
+                    # also add item to main registry
+                    if obj.id in main_openminds_registry:
+                        logger.warn(f'adding to main registry warning: {obj.id} already exists in main registry. Overwriting...')
+                    main_openminds_registry.add(obj.id, obj)
+
                 else:
                     raise RuntimeError(
                         f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
@@ -166,15 +196,24 @@ class AtlasConcept:
     logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
     _bootstrap_folder = None
 
-    def __init__(self, identifier, name, dataset_specs):
-        self.id = identifier
-        self.name = name
-        self.key = __class__._create_key(name)
-        # objects for datasets wil only be generated lazily on request
-        self._dataset_specs = dataset_specs
-        self._datasets_cached = None
-        # this attribute can be used to mark a concept as an extension of another one
-        self.extends = None
+    @property
+    def is_legacy(self):
+        return not isinstance(self, BaseModel)
+
+    @property
+    def name(self):
+        return self._name if self.is_legacy else None
+
+    def __init__(self, identifier, name, dataset_specs=[]):
+        if self.is_legacy:
+            self._name = name
+            self.id = identifier
+            self.key = __class__._create_key(name)
+            # objects for datasets wil only be generated lazily on request
+            self._dataset_specs = dataset_specs
+            self._datasets_cached = None
+            # this attribute can be used to mark a concept as an extension of another one
+            self.extends = None
 
     def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
         """

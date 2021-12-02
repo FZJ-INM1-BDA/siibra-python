@@ -1,82 +1,102 @@
-from siibra.retrieval.requests import LazyHttpRequest, ZipfileRequest
-import unittest
+import pytest
+from siibra.core import Space, Point
 
-from siibra import atlases
-from siibra.core import Space
+all_spaces = [s for s in Space.REGISTRY]
 
+def test_num_space():
+    assert len(all_spaces) > 5
 
-class TestSpaces(unittest.TestCase):
+@pytest.mark.parametrize('space', all_spaces)
+def test_space_jsonable(space: Space):
+    space.json()
 
-    space_id = "space_id"
-    name = "space name"
-    url = "space_url"
-    ziptarget = "space_zip_target"
-    template = "temp_file"
-    ttype = "nii"
+point_json_1={
+    "@id": 'test-id',
+    "@type": "test-type",
+    "https://openminds.ebrains.eu/vocab/coordinateSpace": {
+        "@id": "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588"
+    },
+    "https://openminds.ebrains.eu/vocab/coordinates": [{
+        "value": 10,
+    }, {
+        "value": 11,
+    }, {
+        "value": 12,
+    }]
+}
 
-    json_space_with_zip = {
-        "@id": "space1/minds/core/referencespace/v1.0.0",
-        "name": name,
-        "shortName": name,
-        "templateType": ttype,
-        "datasets": [
-            {
-                "@type": "fzj/tmp/volume_type/v0.0.1",
-                "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-                "space_id": "space1/minds/core/referencespace/v1.0.0",
-                "name": "icbm152_2009c_nonlin_asym/nifti",
-                "volume_type": ttype,
-                "url": url,
-                "zipped_file": ziptarget,
-            }
-        ],
-    }
+point_json_2={
+    "@id": 'test-id-2',
+    "@type": "test-type",
+    "https://openminds.ebrains.eu/vocab/coordinateSpace": {
+        "@id": "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992"
+    },
+    "https://openminds.ebrains.eu/vocab/coordinates": [{
+        "value": 10,
+    }, {
+        "value": 11,
+    }, {
+        "value": 12,
+    }]
+}
 
-    json_space_without_zip = {
-        "@id": "space1/minds/core/referencespace/v1.0.0",
-        "name": name,
-        "shortName": name,
-        "templateUrl": url,
-        "templateFile": ziptarget,
-        "templateType": ttype,
-        "datasets": [
-            {
-                "@type": "fzj/tmp/volume_type/v0.0.1",
-                "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-                "space_id": "space1/minds/core/referencespace/v1.0.0",
-                "name": "icbm152_2009c_nonlin_asym/nifti",
-                "volume_type": "nii",
-                "url": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.nii",
-            }
-        ],
-    }
+def test_point_creation():
+    p = Point(**point_json_1)
+    assert p.coordinates_tuple == (10, 11, 12)
 
-    def test_space_init(self):
-        space = Space(self.space_id, self.name, self.url, self.ziptarget)
-        self.assertIsNotNone(space)
+subtraction = ['sub,expected,expect_raise', [
+    (1, (9, 10, 11), False),
+    (Point(
+        [1,2,3],
+        **point_json_1), (9,9,9), False),
+    (Point(**point_json_2), None, True)
+]]
 
-    def test_space__from_json_with_zip(self):
-        space = Space._from_json(self.json_space_with_zip)
-        Space.REGISTRY.add(space.key, space)
-        self.assertTrue(self.name in str(space))
-        self.assertEqual(len(space.volumes), 1)
-        vsrc = space.volumes[0]
-        self.assertEqual(space.type, self.ttype)
-        self.assertTrue(isinstance(vsrc._image_loader, ZipfileRequest))
-        self.assertEqual(vsrc._image_loader.filename, self.ziptarget)
-
-    def test_space__from_json_without_zip(self):
-        space = Space._from_json(self.json_space_without_zip)
-        Space.REGISTRY.add(space.key, space)
-        self.assertTrue(self.name in str(space))
-        self.assertEqual(len(space.volumes), 1)
-        vsrc = space.volumes[0]
-        self.assertTrue(isinstance(vsrc._image_loader, LazyHttpRequest))
-
-    def test_space_registry(self):
-        spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces
-        self.assertEqual(len(spaces), 4)
+@pytest.mark.parametrize(*subtraction)
+def test_point_sub_num(sub,expected,expect_raise):
+    p = Point(**point_json_1)
+    if expect_raise:
+        with pytest.raises(AssertionError):
+            sub_result = p - sub
+    else:
+        sub_result = p - sub
+        assert sub_result.coordinates_tuple == expected
+        assert p.coordinates_tuple == (10, 11, 12)
+        assert sub_result is not p
 
 
-if __name__ == "__main__":
-    unittest.main()
+addition = ['add,expected,expect_raise', [
+    (1, (11, 12, 13), False),
+    (Point(
+        [1,2,3],
+        **point_json_1), (11, 13, 15), False),
+    (Point(**point_json_2), None, True)
+]]
+@pytest.mark.parametrize(*addition)
+def test_point_add_num(add,expected,expect_raise):
+    p = Point(**point_json_1)
+    if expect_raise:
+        with pytest.raises(AssertionError):
+            add_result = p + add
+    else:
+        add_result = p + add
+        assert add_result.coordinates_tuple == expected
+        assert p.coordinates_tuple == (10, 11, 12)
+        assert add_result is not p
+
+def test_point_div():
+    p = Point(**point_json_1)
+    new_p = p / 2
+    assert new_p.coordinates_tuple == (5, 5.5, 6)
+    assert p.coordinates_tuple == (10, 11, 12)
+    assert new_p is not p
+
+
+def test_point_mul():
+    p = Point(**point_json_1)
+    new_p = p * 2
+    new_p_r = 2 * p
+    assert new_p.coordinates_tuple == (20, 22, 24)
+    assert new_p.coordinates_tuple == new_p_r.coordinates_tuple
+    assert p.coordinates_tuple == (10, 11, 12)
+    assert new_p is not p

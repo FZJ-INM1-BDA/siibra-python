@@ -38,7 +38,7 @@ class Model(BaseModel):
         description='Two or three dimensional geometric setting.',
         title='coordinateSpace',
     )
-    coordinates: 'Coordinates' = Field(
+    coordinates: List['Coordinates'] = Field(
         ...,
         alias='https://openminds.ebrains.eu/vocab/coordinates',
         description='Structured information on a quantitative value.',

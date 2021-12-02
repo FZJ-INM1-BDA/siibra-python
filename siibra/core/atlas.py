@@ -70,7 +70,7 @@ class Atlas(
 
     def _register_space(self, space):
         """Registers another reference space to the atlas."""
-        space.atlases.add(self)
+        space._atlases.add(self)
         self._spaces.append(space)
 
     def _register_parcellation(self, parcellation):
