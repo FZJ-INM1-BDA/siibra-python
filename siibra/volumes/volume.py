@@ -29,7 +29,7 @@ import os
 import json
 from abc import ABC, abstractmethod
 
-from siibra.openminds.core.v4.data import file, contentType
+from ..openminds.core.v4.data import file, contentType
 
 class ContentType(contentType.Model):
     ...

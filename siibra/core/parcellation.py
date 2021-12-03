@@ -15,7 +15,7 @@
 
 from datetime import date
 
-from siibra.openminds.common import CommonConfig
+from ..openminds.common import CommonConfig
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
@@ -25,7 +25,7 @@ from ..volumes import ParcellationMap
 
 import difflib
 from typing import Any, Dict, List, Optional, Union
-from siibra.openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas
+from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas
 from memoization import cached
 
 # NOTE : such code could be used to automatically resolve

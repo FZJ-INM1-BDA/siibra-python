@@ -18,7 +18,7 @@ from typing import Any, Dict, Iterable, Tuple, Union
 
 from pydantic import BaseModel
 
-from siibra.openminds.common import CommonConfig
+from ..openminds.common import CommonConfig
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, provide_registry
 
 from ..commons import logger
@@ -35,9 +35,9 @@ from urllib.parse import quote
 from os import path
 import numbers
 
-from siibra.openminds.SANDS.v3.atlas import commonCoordinateSpace 
-from siibra.openminds.SANDS.v3.miscellaneous import coordinatePoint
-from siibra.openminds.core.v4.data import file
+from ..openminds.SANDS.v3.atlas import commonCoordinateSpace 
+from ..openminds.SANDS.v3.miscellaneous import coordinatePoint
+from ..openminds.core.v4.data import file
 
 
 
