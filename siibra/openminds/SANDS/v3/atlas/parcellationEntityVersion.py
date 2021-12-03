@@ -68,7 +68,8 @@ class HasAnnotation(BaseModel):
         None,
         alias='inspiredBy',
         description='Reference to an inspiring element.',
-        min_items=1,
+        # TODO fix
+        # min_items=1,
         title='inspiredBy',
     )
     internal_identifier: str = Field(
@@ -80,8 +81,9 @@ class HasAnnotation(BaseModel):
     laterality: Optional[List] = Field(
         None,
         description='Differentiation between a pair of lateral homologous parts of the body.',
-        max_items=2,
-        min_items=1,
+        # TODO fix
+        # max_items=2,
+        # min_items=1,
         title='laterality',
     )
     visualized_in: Optional[Any] = Field(

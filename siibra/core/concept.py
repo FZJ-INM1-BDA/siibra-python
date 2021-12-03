@@ -215,13 +215,9 @@ class AtlasConcept:
     def is_legacy(self):
         return not isinstance(self, BaseModel)
 
-    @property
-    def name(self):
-        return self._name if self.is_legacy else None
-
     def __init__(self, identifier, name, dataset_specs=[]):
         if self.is_legacy:
-            self._name = name
+            self.name = name
             self.id = identifier
             self.key = __class__._create_key(name)
             # objects for datasets wil only be generated lazily on request

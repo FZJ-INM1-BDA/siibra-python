@@ -24,16 +24,17 @@ from ..commons import (
     compare_maps,
     affine_scaling,
 )
-from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
 import nibabel as nib
 from memoization import cached
 import re
 import anytree
-from typing import Union
+from anytree import NodeMixin
+from typing import Any, Dict, List, Union
 from nibabel import Nifti1Image
-
+from ..openminds.SANDS.v3.atlas import parcellationEntityVersion
+from ..openminds.common import CommonConfig
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -46,14 +47,15 @@ REMOVE_FROM_NAME = [
 
 REGEX_TYPE=type(re.compile('test'))
 
-class Region(anytree.NodeMixin, AtlasConcept):
+class RegionNode(NodeMixin):
+    ref: 'Region' = None
+    def __init__(self, ref: 'Region'):
+        self.ref = ref
+
+class Region(parcellationEntityVersion.Model, AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
-
-    CONNECTOR = GitlabConnector(
-        server="https://jugit.fz-juelich.de", project=3009, reftag="master"
-    )
 
     @staticmethod
     def _clear_name(name):
@@ -62,15 +64,36 @@ class Region(anytree.NodeMixin, AtlasConcept):
             result = result.replace(word, "")
         return " ".join(w for w in result.split(" ") if len(w))
 
+    Config = CommonConfig
+
+    _parcellation = None
+    _node = None
+
+    @property
+    def children(self) -> List['Region']:
+        return [c.ref for c in self._node.children]
+
+    @property
+    def parent(self) -> Union['Region', None]:
+        return self._node.parent and self._node.parent.ref
+
+    # do not use attribute setter
+    # see https://github.com/samuelcolvin/pydantic/issues/1577
+    def set_parent(self, value: 'Region'):
+        self._node.parent = value and value._node
+
+    @property
+    def index(self) -> str:
+        return self.lookup_label
+
     def __init__(
         self,
-        name,
-        parcellation,
-        index: ParcellationIndex,
+        parcellation=None,
         attrs={},
         parent=None,
         children=None,
         dataset_specs=[],
+        **data,
     ):
         """
         Constructs a new region object.
@@ -92,56 +115,59 @@ class Region(anytree.NodeMixin, AtlasConcept):
         volumes : Dict of VolumeSrc
             VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
         """
-        regionname = __class__._clear_name(name)
+        
         # regions are not modelled with an id yet in the configuration, so we create one here
+        name = data.get('name')
+        index = data.get('labelIndex')
+        regionname = __class__._clear_name(name)
         id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(index))).replace('NONE','X')}"
+        
+        parcellationEntityVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(
-            self, identifier=id, name=regionname, dataset_specs=dataset_specs
+            self, identifier=self.id, name=regionname
         )
-        self.parcellation = parcellation
-        self.index = index
-        self.attrs = attrs
-        self.parent = parent
-        # this is only used for regions added by parcellation extension:
-        self.extended_from = None
-        child_has_mapindex = False
-        if children:
-            self.children = children
-            for c in self.children:
-                c.parent = self
-                c.parcellation = self.parcellation
-                if c.index.map is not None:
-                    child_has_mapindex = True
+        self._node = RegionNode(ref=self)
 
-        if (self.index.map is None) and (not child_has_mapindex):
-            self.index.map = 0
+        self._parcellation = parcellation
+        self.set_parent(parent)
 
+        # TODO check if these properties are used anywhere
+
+        # self.attrs = attrs
+        # # this is only used for regions added by parcellation extension:
+        # self.extended_from = None
+        # child_has_mapindex = False
+
+        
     @staticmethod
-    def copy(other):
+    def copy(other: 'Region'):
         """
         copy contructor must detach the parent to avoid problems with
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
-        region = Region(other.name, other.parcellation, other.index, other.attrs)
+        region = Region(**other.dict())
 
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
         for c in region.children:
             c.parent = region
         region._datasets_cached = []
-        for d in other.datasets:
-            region._datasets_cached.append(d)
+        # for d in other.datasets:
+        #     region._datasets_cached.append(d)
 
         return region
 
-    @property
-    def labels(self):
-        return {r.index.label for r in self if r.index.label is not None}
+    # TODO fix
+    # @property
+    # def labels(self):
+    #     return {r.index.label for r in self if r.index.label is not None}
 
+    # TODO fix
     @property
     def names(self):
-        return Registry(elements={r.key: r.name for r in self})
+        return [self.name]
+        # return Registry(elements={r.key: r.name for r in self})
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
@@ -150,16 +176,19 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Identify each region by its parcellation and region key.
         """
-        return hash(self.parcellation.key + self.key)
+        return hash(str(self._parcellation.__hash__()) + self.name)
 
-    def has_parent(self, parent):
-        return parent in [a for a in self.ancestors]
+    # TODO breaking change
+    # has_parent is an existing attribute for model
+    # method must be renamed has_parent -> has_node_parent
+    def has_node_parent(self, parent: 'Region'):
+        return parent._node in [a for a in self._node.ancestors]
 
-    def includes(self, region):
+    def includes(self, region: 'Region'):
         """
         Determine wether this regiontree includes the given region.
         """
-        return region == self or region in self.descendants
+        return region._node is self._node or region._node in self._node.descendants
 
     @cached
     def find(
@@ -198,16 +227,16 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else:
                 return [match]
 
-        result = list(
-            set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
-        )
+        result: List['Region'] = [r.ref for r in list(
+            set(anytree.search.findall(self._node, lambda node: node.ref.matches(regionspec)))
+        )]
         if len(result) > 1 and filter_children:
 
             # filter regions whose parent is in the list
             filtered = [r for r in result if r.parent not in result]
 
             # find any non-matched regions of which all children are matched
-            complete_parents = list(
+            complete_parents: List['Region'] = list(
                 {
                     r.parent
                     for r in filtered
@@ -217,7 +246,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             )
 
             if len(complete_parents) == 0:
-                result = filtered
+                result: List['Region'] = [r for r in filtered]
             else:
                 # filter child regions again
                 filtered += complete_parents
@@ -278,9 +307,13 @@ class Region(anytree.NodeMixin, AtlasConcept):
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
-            if q == self.key.lower().strip():
-                return True
-            elif q == self.name.lower().strip():
+            
+            # TODO
+            # what is self.key?
+
+            # if q == self.key.lower().strip():
+            #     return True
+            if q == self.name.lower().strip():
                 return True
             else:
                 words = splitstr(self.name.lower())
@@ -293,7 +326,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         # Python 3.6 does not support re.Pattern
         elif isinstance(regionspec, REGEX_TYPE):
             # match regular expression
-            return any(regionspec.search(s) is not None for s in [self.name, self.key])
+            return any(regionspec.search(s) is not None for s in [self.name])
         else:
             raise TypeError(
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
@@ -492,12 +525,12 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return group
 
     def __str__(self):
-        return f"{self.parcellation.name}: {self.name}"
+        return f"{self._parcellation.full_name}: {self.name}"
 
     def __repr__(self):
         return "\n".join(
             "%s%s" % (pre, node.name)
-            if node.extended_from is None
+            if hasattr(node, 'extended_from') and node.extended_from is None
             else "%s%s [extension region]" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
         )
@@ -741,6 +774,36 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return result
 
+    @classmethod
+    def parse_legacy(Cls, json_input: Dict[str, Any], parcellation=None, parent=None) -> List['Region']:
+        regionname = Cls._clear_name(json_input.get('name'))
+        idx=json_input.get('labelIndex')
+        
+        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(idx))).replace('NONE','X')}"
+        has_annotation=None
+        has_parent=None
+        this_region = Cls(
+            id=id,
+            name=regionname,
+            type='https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
+            has_annotation=has_annotation,
+            lookup_label=str(idx) if idx else None,
+            parcellation=parcellation,
+            version_identifier='12',
+            parent=parent,
+        )
+
+        # TODO: parse _datasrc properly
+        children = [child
+            for c in json_input.get('children')
+            for child in Cls.parse_legacy(
+                json_input=c,
+                parcellation=parcellation,
+                parent=this_region,
+            )
+        ]
+
+        return [ this_region, *children ]
 
 if __name__ == "__main__":
 

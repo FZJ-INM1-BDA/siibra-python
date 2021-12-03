@@ -156,7 +156,7 @@ class Parcellation(
             (as opposed to the dataset_specs, which still need to be instantiated)
         """
         brainAtlasVersion.Model.__init__(self,**data)
-        AtlasConcept.__init__(self, self.id, self.name, dataset_specs)
+        AtlasConcept.__init__(self, self.id, self.full_name, dataset_specs)
         # self.version = version
         # self.description = ""
         # self.modality = modality
@@ -225,6 +225,9 @@ class Parcellation(
                 )
 
         return ParcellationMap.get_instance(self, spaceobj, maptype)
+
+    def __hash__(self):
+        return hash(self.full_name + self.coordinate_space.get('@id'))
 
     @property
     def labels(self):
