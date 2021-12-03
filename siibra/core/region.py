@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
+from .concept import AtlasConcept, main_openminds_registry
 from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
@@ -31,7 +31,7 @@ from memoization import cached
 import re
 import anytree
 from anytree import NodeMixin
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Generic, List, TypeVar, Union
 from nibabel import Nifti1Image
 from ..openminds.SANDS.v3.atlas import parcellationEntityVersion
 from ..openminds.common import CommonConfig
@@ -47,12 +47,34 @@ REMOVE_FROM_NAME = [
 
 REGEX_TYPE=type(re.compile('test'))
 
-class RegionNode(NodeMixin):
-    ref: 'Region' = None
-    def __init__(self, ref: 'Region'):
+class MixedNode(NodeMixin):
+
+    # ref can also be a parcellation
+    ref = None
+    def __init__(self, ref):
         self.ref = ref
 
-class Region(parcellationEntityVersion.Model, AtlasConcept):
+class SiibraNode:
+    def __init__(self):
+        # if this line raises ValueError: object has no field "_node"
+        # ensure the class has _node defined under class
+        self._node = MixedNode(self)
+
+    @property
+    def children(self) -> List:
+        return [c.ref for c in self._node.children]
+
+    @property
+    def parent(self):
+        return self._node.parent and self._node.parent.ref
+
+    # do not use attribute setter
+    # see https://github.com/samuelcolvin/pydantic/issues/1577
+    def set_parent(self, value):
+        self._node.parent = value and value._node
+
+
+class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     """
     Representation of a region with name and more optional attributes
     """
@@ -67,28 +89,20 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
     Config = CommonConfig
 
     _parcellation = None
+    _parcellation_id = None
     _node = None
-
-    @property
-    def children(self) -> List['Region']:
-        return [c.ref for c in self._node.children]
-
-    @property
-    def parent(self) -> Union['Region', None]:
-        return self._node.parent and self._node.parent.ref
-
-    # do not use attribute setter
-    # see https://github.com/samuelcolvin/pydantic/issues/1577
-    def set_parent(self, value: 'Region'):
-        self._node.parent = value and value._node
 
     @property
     def index(self) -> str:
         return self.lookup_label
 
+    @property
+    def _parcellation(self):
+        return main_openminds_registry[self._parcellation_id] if self._parcellation_id else None
+
     def __init__(
         self,
-        parcellation=None,
+        parcellation_id=None,
         attrs={},
         parent=None,
         children=None,
@@ -120,15 +134,14 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
         name = data.get('name')
         index = data.get('labelIndex')
         regionname = __class__._clear_name(name)
-        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(index))).replace('NONE','X')}"
         
+        self._parcellation_id = parcellation_id
+
         parcellationEntityVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(
             self, identifier=self.id, name=regionname
         )
-        self._node = RegionNode(ref=self)
-
-        self._parcellation = parcellation
+        SiibraNode.__init__(self)
         self.set_parent(parent)
 
         # TODO check if these properties are used anywhere
@@ -176,7 +189,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
         """
         Identify each region by its parcellation and region key.
         """
-        return hash(str(self._parcellation.__hash__()) + self.name)
+        return hash((str(self._parcellation.__hash__()) if self._parcellation else f'UNKNOWN_PARC:{self._parcellation_id}') + self.name)
 
     # TODO breaking change
     # has_parent is an existing attribute for model
@@ -525,7 +538,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
         return group
 
     def __str__(self):
-        return f"{self._parcellation.full_name}: {self.name}"
+        return f"{self._parcellation.full_name if self._parcellation else f'unknown parc - {self._parcellation_id}'}: {self.name}"
 
     def __repr__(self):
         return "\n".join(
@@ -739,47 +752,11 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
         return anytree.PreOrderIter(self)
 
     @classmethod
-    def _from_json(cls, jsonstr, parcellation):
-        """
-        Provides an object hook for the json library to construct a Region
-        object from a json definition.
-        """
-
-        # first construct any child objects
-        # This is important due to the bottom-up way the tree gets
-        # constructed in the Region constructor.
-        children = []
-        if "children" in jsonstr:
-            if jsonstr["children"] is not None:
-                for regiondef in jsonstr["children"]:
-                    children.append(Region._from_json(regiondef, parcellation))
-
-        # determine labelindex
-        labelindex = jsonstr.get("labelIndex", None)
-        if labelindex is None and len(children) > 0:
-            L = [c.index.label for c in children]
-            if (len(L) > 0) and (L.count(L[0]) == len(L)):
-                labelindex = L[0]
-
-        # Setup the region object
-        pindex = ParcellationIndex(label=labelindex, map=jsonstr.get("mapIndex", None))
-        result = cls(
-            name=jsonstr["name"],
-            parcellation=parcellation,
-            index=pindex,
-            attrs=jsonstr,
-            children=children,
-            dataset_specs=jsonstr.get("datasets", []),
-        )
-
-        return result
-
-    @classmethod
-    def parse_legacy(Cls, json_input: Dict[str, Any], parcellation=None, parent=None) -> List['Region']:
+    def parse_legacy(Cls, json_input: Dict[str, Any], parcellation_id=None, parent:'Region'=None) -> List['Region']:
         regionname = Cls._clear_name(json_input.get('name'))
         idx=json_input.get('labelIndex')
         
-        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(idx))).replace('NONE','X')}"
+        id = f"{parcellation_id}-{AtlasConcept._create_key((regionname+str(idx))).replace('NONE','X')}"
         has_annotation=None
         has_parent=None
         this_region = Cls(
@@ -788,17 +765,17 @@ class Region(parcellationEntityVersion.Model, AtlasConcept):
             type='https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
             has_annotation=has_annotation,
             lookup_label=str(idx) if idx else None,
-            parcellation=parcellation,
+            parcellation_id=parcellation_id,
             version_identifier='12',
             parent=parent,
         )
 
         # TODO: parse _datasrc properly
         children = [child
-            for c in json_input.get('children')
+            for c in json_input.get('children', [])
             for child in Cls.parse_legacy(
                 json_input=c,
-                parcellation=parcellation,
+                parcellation_id=parcellation_id,
                 parent=this_region,
             )
         ]

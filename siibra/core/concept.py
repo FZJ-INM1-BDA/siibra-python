@@ -153,7 +153,7 @@ def provide_openminds_registry(bootstrap_folder: str,
 
                 # also add item to main registry
                 if instance.id in main_openminds_registry:
-                    logger.warn(f'adding to main registry warning: {instance.id} already exists in main registry. Overwriting...')
+                    logger.warning(f'adding to main registry warning: {instance.id} already exists in main registry. Overwriting...')
                 main_openminds_registry.add(instance.id, instance)
 
             else:
@@ -248,7 +248,7 @@ class AtlasConcept:
             type_id = Dataset.extract_type_id(spec)
             Specialist = Dataset.REGISTRY.get(type_id, None)
             if Specialist is None:
-                logger.warn(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
+                logger.warning(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
             else:
                 obj = Specialist._from_json(spec)
                 logger.debug(

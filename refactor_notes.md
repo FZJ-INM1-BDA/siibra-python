@@ -4,3 +4,4 @@
 
 - `Region` no longer directly subclass NodeMixin. Instances has a `_node` attribute, which references the inherit `anytree` node
 - `Region.has_parent` -> `Region.has_node_parent`
+- `Parcellation.regiontree` now returns List of root regions instead of **a** root region

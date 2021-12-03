@@ -86,6 +86,10 @@ class HasTerminologyVersion(BaseModel):
         title='versionInnovation',
     )
 
+    class Config:
+        allow_population_by_field_name = True
+        underscore_attrs_are_private = True
+
 
 class OtherContribution(BaseModel):
     contribution_type: List = Field(
@@ -168,10 +172,9 @@ class Model(BaseModel):
         min_items=1,
         title='funding',
     )
-    # TODO fix - add region
-    # # has_terminology_version: 'HasTerminologyVersion' = Field(
-    #     ..., alias='https://openminds.ebrains.eu/vocab/hasTerminologyVersion'
-    # )
+    has_terminology_version: 'HasTerminologyVersion' = Field(
+        ..., alias='https://openminds.ebrains.eu/vocab/hasTerminologyVersion'
+    )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
         alias='https://openminds.ebrains.eu/vocab/homepage',

@@ -17,7 +17,7 @@ from datetime import date
 
 from ..openminds.common import CommonConfig
 from .space import Space
-from .region import Region
+from .region import Region, SiibraNode
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 
 from ..commons import logger, MapType, ParcellationIndex
@@ -27,6 +27,7 @@ import difflib
 from typing import Any, Dict, List, Optional, Union
 from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas
 from memoization import cached
+from anytree import Node
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -118,10 +119,11 @@ class ParcellationVersion:
 class Parcellation(
     brainAtlasVersion.Model,
     AtlasConcept,
+    SiibraNode,
 ):
 
-    _regiontree_cached = None
     _atlases = set()
+    _node = None
 
     def __init__(
         self,
@@ -157,6 +159,12 @@ class Parcellation(
         """
         brainAtlasVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(self, self.id, self.full_name, dataset_specs)
+        SiibraNode.__init__(self)
+        all_regions: List[Region] = self.has_terminology_version.has_entity_version
+        root_regions = [ r for r in  all_regions if r.parent is None ]
+        for r in root_regions:
+            r.set_parent(self)
+
         # self.version = version
         # self.description = ""
         # self.modality = modality
@@ -170,20 +178,10 @@ class Parcellation(
     def space(self) -> Space:
         return main_openminds_registry[self.coordinate_space]
 
+    # TODO deprecate?
     @property
-    def regiontree(self):
-        if self._regiontree_cached is None:
-            self._regiontree_cached = Region(
-                self.name, self, ParcellationIndex(None, None)
-            )
-            try:
-                self._regiontree_cached.children = tuple(
-                    Region._from_json(regiondef, self) for regiondef in self._regiondefs
-                )
-            except Exception as e:
-                logger.error(f"Could not generate child regions for {self.name}")
-                raise (e)
-        return self._regiontree_cached
+    def regiontree(self) -> Node:
+        return self._node
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -442,6 +440,9 @@ class Parcellation(
         }
         author = []
         coordinate_spaces: List[str] = [dataset.get('space_id') for dataset in json_input.get('datasets') if dataset.get('space_id')]
+        
+        # remove duplicates
+        coordinate_spaces = list(set(coordinate_spaces))
         copyright = None
         custodian = []
         description = json_input.get('description')
@@ -451,12 +452,19 @@ class Parcellation(
         }
         full_name = json_input.get('name')
         funding = []
-        has_terminology_version = {
-            "has_entity_version": [1, 2, 3],
-            "short_name": "stuff",
-            "version_identifier": "stuff2",
-            "version_innovation": "stuff3"
-        }
+
+
+        def get_has_terminology_version(spc):
+            return {
+                "has_entity_version": [entity
+                    for r in json_input.get('regions')
+                    for entity in Region.parse_legacy(r, parcellation_id=f'{parc_id}-{spc}')
+                ],
+                "short_name": "stuff",
+                "version_identifier": "stuff2",
+                "version_innovation": "stuff3"
+            }
+        
         homepage = None
 
         license = {
@@ -492,7 +500,7 @@ class Parcellation(
                 is_new_version_of=is_new_version_of,
                 release_date=release_date,
                 # n.b. TODO add regions
-                # has_terminology_version=has_terminology_version,
+                has_terminology_version=get_has_terminology_version(spc),
                 license=license,
                 short_name=short_name,
                 version_identifier=version_identifier,

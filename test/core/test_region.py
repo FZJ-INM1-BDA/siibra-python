@@ -56,7 +56,7 @@ class Tmp:
     def __hash__(self):
         return hash(self.id)
 
-output = Region.parse_legacy(parent_definition,Tmp())
+output = Region.parse_legacy(parent_definition,parcellation_id='foo-bar')
 parents = [ r for r in output if r.name == parentname ]
 children = [ r for r in output if r.name == region_name ]
 
