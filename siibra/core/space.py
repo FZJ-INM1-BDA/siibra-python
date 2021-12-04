@@ -542,10 +542,11 @@ class PointSet(Location):
         return any(c.intersects_mask(mask) for c in self.coordinates)
 
     def warp(self, targetspace):
-        if targetspace == self.space:
+        spaceobj = Space.REGISTRY[targetspace]
+        if spaceobj == self.space:
             return self
         return self.__class__(
-            [c.warp(targetspace) for c in self.coordinates], targetspace
+            [c.warp(spaceobj) for c in self.coordinates], spaceobj
         )
 
     def transform(self, affine: np.ndarray, space: Space = None):
@@ -627,6 +628,10 @@ class PointSet(Location):
         return Point(
             self.homogeneous[:, :3].mean(0),
             space=self.space)
+
+    def as_list(self):
+        """ Return the point set as a list of 3D tuples. """
+        return [tuple(p) for p in self]
 
     @property
     def homogeneous(self):

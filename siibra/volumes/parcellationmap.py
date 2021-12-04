@@ -873,6 +873,30 @@ class ContinuousParcellationMap(ParcellationMap):
         v = [self.probs[i][mapindex] for i in self.spatial_index[x, y, z]]
         return x, y, z, v
 
+    def sample(self, mapindex, numpoints):
+        """ Sample 3D points by using one of the maps as probability distributions.
+        
+        Parameters
+        ----------
+        mapindex: int
+            Index of the map to be used
+        numpoints: int
+            Number of samples to draw
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+
+        TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
+        """
+        pmap = self.fetch(mapindex, cropped=True)
+        D = np.asanyarray(pmap.dataobj)
+        D /= D.sum()
+        p = D.ravel()
+        XYZ_ = np.array(np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)).T
+        XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3,:].T
+        return PointSet(XYZ, space=self.space)
+
     def fetch(self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None, cropped=False):
         """ 
         Recreate a particular volumetric map from the sparse
