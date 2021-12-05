@@ -30,6 +30,7 @@ from tqdm import tqdm
 from abc import abstractmethod
 from typing import Union
 from os import path
+from numbers import Number
 
 # Which types of available volumes should be preferred if multiple choices are available?
 PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed", "detailed maps"]
@@ -873,12 +874,12 @@ class ContinuousParcellationMap(ParcellationMap):
         v = [self.probs[i][mapindex] for i in self.spatial_index[x, y, z]]
         return x, y, z, v
 
-    def sample(self, mapindex, numpoints):
-        """ Sample 3D points by using one of the maps as probability distributions.
+    def sample_locations(self, mapindex, numpoints):
+        """ Sample 3D locations by using one of the maps as probability distributions.
         
         Parameters
         ----------
-        mapindex: int
+        mapindex: int, or valid region specification
             Index of the map to be used
         numpoints: int
             Number of samples to draw
@@ -889,6 +890,10 @@ class ContinuousParcellationMap(ParcellationMap):
 
         TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
         """
+        if not isinstance(mapindex, Number):
+            # assume we have some form of unique region specification
+            logger.info(f'Trying to decode map index for region specification "{mapindex}".')
+            mapindex = self.decode_region(mapindex)[0].map
         pmap = self.fetch(mapindex, cropped=True)
         D = np.asanyarray(pmap.dataobj)
         D /= D.sum()
@@ -901,6 +906,20 @@ class ContinuousParcellationMap(ParcellationMap):
         """ 
         Recreate a particular volumetric map from the sparse
         representation. 
+
+        Arguments
+        ---------
+        mapindex: int, or a valid region specification
+            Index (or specification) of the map to be used
+        resolution_mm: float
+            Optional specification of a target resolution. Only used for neuroglancer volumes.
+        voi: BoundingBox
+            Optional specification of a bounding box
+        cropped: Boolean
+            If true, only a cropped image of the nonzero values with 
+            appropriate affine matrix is returned, otherwise a full-sized 
+            volume with padded zeros (Default: False)
+        
         """
         if voi is not None:
             raise NotImplementedError(
@@ -910,6 +929,11 @@ class ContinuousParcellationMap(ParcellationMap):
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support fetching at resolutions other than 1mm yet."
             )
+
+        if not isinstance(mapindex, Number):
+            # assume we have some form of unique region specification
+            logger.debug(f'Trying to decode map index for region specification "{mapindex}".')
+            mapindex = self.decode_region(mapindex)[0].map
 
         x, y, z, v = self._mapped_voxels(mapindex)
         if cropped:

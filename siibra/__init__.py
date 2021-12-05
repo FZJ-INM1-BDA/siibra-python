@@ -29,6 +29,7 @@ from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
 from .core import Point, PointSet, BoundingBox
 from .core.space import Location as _
+from . import samplers
 from_sands = _.from_sands
 set_ebrains_token = EbrainsRequest.set_token
 clear_cache = CACHE.clear
