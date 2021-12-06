@@ -87,7 +87,7 @@ class File(file.Model):
         if volume_type == 'neuroglancer/precompmesh':
             is_mesh = True
             content_type = ng_mesh
-        if volume_type == 'gii' or volume_type == 'threesurfer/gii':
+        if volume_type == 'gii' or volume_type == 'threesurfer/gii' or volume_type == 'threesurfer/gii-label':
             is_mesh = True
             content_type = gii
         
@@ -102,12 +102,20 @@ class File(file.Model):
         url_val = json_input.get('url')
         if type(url_val) == str:
             urls = [ (None, url_val) ]
-        elif type[url_val] == dict:
+        elif type(url_val) == dict:
             urls = [(key, val) for key, val in url_val.items()]
             assert all([type(url) == str for _, url in urls])
+        elif url_val is None:
+            # TODO some dataset has None as url attr
+            # e.g. big brain collect volume src
+            return []
         else:
             raise ValueError(f'cannot parse type of url: {type(url_val)}')
 
+        # expect the mesh to be either volume or mesh
+        # as this will populate the data_type which has a min 1 requirement
+        assert is_volume or is_mesh, f'Expecting the volume to be either volume or mesh, but is neither: {json_input}'
+        
         # TODO does not parse threesurfer gii files at all
         # use new schema (0.3a5)
         return [Cls(
@@ -136,6 +144,7 @@ class VolumeSrc(File):
     _space = None
     _volume_type = None
     _map_type = None
+    _detail = None
 
     def __init__(self, space=None, detail=None, **data):
         """
@@ -199,7 +208,7 @@ class VolumeSrc(File):
         # decide if object shoulc be generated with a specialized derived class
         VolumeClass = Cls._SPECIALISTS.get(volume_type, VolumeSrc)
 
-        result = File.parse_legacy(json_input)
+        result = super().parse_legacy(json_input)
 
         if VolumeClass == VolumeSrc:
             logger.error(f"Volume will be generated as plain VolumeSrc: {json_input}")

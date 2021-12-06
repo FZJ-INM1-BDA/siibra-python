@@ -220,3 +220,7 @@ class Model(BaseModel):
         description='Documentation on what changed in comparison to a previously published form of something.',
         title='versionInnovation',
     )
+    
+    class Config:
+        allow_population_by_field_name = True
+        underscore_attrs_are_private = True

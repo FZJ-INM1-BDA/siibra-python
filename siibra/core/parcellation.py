@@ -21,13 +21,14 @@ from .region import Region, SiibraNode
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 
 from ..commons import logger, MapType, ParcellationIndex
-from ..volumes import ParcellationMap
+from ..volumes import ParcellationMap, VolumeSrc
 
 import difflib
 from typing import Any, Dict, List, Optional, Union
-from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas
+from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas, parcellationEntityVersion
 from memoization import cached
 from anytree import Node
+from uuid import uuid4
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -112,6 +113,10 @@ class ParcellationVersion:
         )
 
 
+class ParcellationMapModel(parcellationEntityVersion.Model):
+    Config = CommonConfig
+
+
 @provide_openminds_registry(
     bootstrap_folder='parcellations',
     registry_src=RegistrySrc.GITLAB,
@@ -160,7 +165,7 @@ class Parcellation(
         brainAtlasVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(self, self.id, self.full_name, dataset_specs)
         SiibraNode.__init__(self)
-        all_regions: List[Region] = self.has_terminology_version.has_entity_version
+        all_regions: List[Region] = [entity for entity in self.has_terminology_version.has_entity_version if isinstance(entity, Region)]
         root_regions = [ r for r in  all_regions if r.parent is None ]
         for r in root_regions:
             r.set_parent(self)
@@ -182,6 +187,12 @@ class Parcellation(
     @property
     def regiontree(self) -> Node:
         return self._node
+
+    @property
+    def volumes(self):
+        return [entity
+            for entity in self.has_terminology_version.has_entity_version
+            if isinstance(entity, ParcellationMapModel)]
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -453,12 +464,46 @@ class Parcellation(
         full_name = json_input.get('name')
         funding = []
 
+        append_openminds_entities = []
+        def get_mpm(spc_id: str) -> List[ParcellationMapModel]:
+            mpms = [ file
+                for dataset in json_input.get('datasets')
+                if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1' and dataset.get('space_id') == spc_id
+                for file in VolumeSrc.parse_legacy(dataset) ]
 
-        def get_has_terminology_version(spc):
+
+            # TODO discuss index the mpms in main registry?
+
+            # append_openminds_entities.extend(mpms)
+
+            return [ParcellationMapModel(
+                id=f'https://openminds.ebrains.eu/sands/ParcellationEntityVersion/{uuid4()}',
+                type=f'https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
+                version_identifier='parc-mpm-model',
+                has_annotation={
+                    'criteriaQualityType': {
+                        '@id': 'criteriaQualityType/someCriteria'
+                    },
+                    'internalIdentifier': "internalIdentifier/internalIdentifier",
+                    'visualizedIn': {
+                        '@id': mpm.id
+                    }
+                }) for mpm in mpms]
+
+        def get_has_terminology_version(spc_id: str):
+
+            # TODO discuss: register regions at main_openminds_registry?
+            regions_entities = [entity
+                for r in json_input.get('regions')
+                for entity in Region.parse_legacy(r, parcellation_id=f'{parc_id}-{spc_id}')
+            ]
+
+            mpm_entities = get_mpm(spc_id)
+            
             return {
-                "has_entity_version": [entity
-                    for r in json_input.get('regions')
-                    for entity in Region.parse_legacy(r, parcellation_id=f'{parc_id}-{spc}')
+                "has_entity_version": [
+                    *regions_entities,
+                    *mpm_entities,
                 ],
                 "short_name": "stuff",
                 "version_identifier": "stuff2",
@@ -485,27 +530,28 @@ class Parcellation(
         # TODO add ng volumes
         # TODO add nifti volume as file
         # TODO add brainAtlas (parent instance) for each collection
-        # TODO add regions
         return [
-            Cls(
-                id=f'{parc_id}-{spc}',
-                type=parc_type,
-                accessibility=accessibility,
-                coordinate_space={
-                    "@id": spc
-                },
-                copyright=None,
-                full_documentation=full_documentation,
-                full_name=full_name,
-                is_new_version_of=is_new_version_of,
-                release_date=release_date,
-                # n.b. TODO add regions
-                has_terminology_version=get_has_terminology_version(spc),
-                license=license,
-                short_name=short_name,
-                version_identifier=version_identifier,
-                version_innovation=version_innovation,
-            ) for spc in coordinate_spaces
+            *[
+                Cls(
+                    id=f'{parc_id}-{spc}',
+                    type=parc_type,
+                    accessibility=accessibility,
+                    coordinate_space={
+                        "@id": spc
+                    },
+                    copyright=None,
+                    full_documentation=full_documentation,
+                    full_name=full_name,
+                    is_new_version_of=is_new_version_of,
+                    release_date=release_date,
+                    has_terminology_version=get_has_terminology_version(spc),
+                    license=license,
+                    short_name=short_name,
+                    version_identifier=version_identifier,
+                    version_innovation=version_innovation,
+                ) for spc in coordinate_spaces
+            ],
+            *append_openminds_entities,
         ]
 
     Config = CommonConfig
