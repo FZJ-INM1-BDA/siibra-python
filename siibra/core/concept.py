@@ -155,47 +155,50 @@ def provide_openminds_registry(bootstrap_folder: str,
                 if instance.id in main_openminds_registry:
                     logger.warning(f'adding to main registry warning: {instance.id} already exists in main registry. Overwriting...')
                 main_openminds_registry.add(instance.id, instance)
-
+            elif isinstance(instance, BaseModel):
+                # sometimes, parse_legacy also produces artefacts that does not belong to the class
+                # e.g. volume created from space
+                main_openminds_registry.add(instance.id, instance)
             else:
                 raise RuntimeError(
                     f"Could not generate object of type {cls} from configuration {fname} - construction provided type {instance.__class__}"
                 )
 
-
-        # find a suitable connector that is reachable
-        for connector in _BOOTSTRAP_CONNECTORS:
-            try:
-                logger.debug('connecting to {}'.format(bootstrap_folder))
-                loaders = connector.get_loaders(
-                    bootstrap_folder,
-                    ".json",
-                    progress=f"Bootstrap: {cls.__name__:15.15}",
+        def init_boostrap():
+            # find a suitable connector that is reachable
+            for connector in _BOOTSTRAP_CONNECTORS:
+                try:
+                    logger.debug('connecting to {}'.format(bootstrap_folder))
+                    loaders = connector.get_loaders(
+                        bootstrap_folder,
+                        ".json",
+                        progress=f"Bootstrap: {cls.__name__:15.15}",
+                    )
+                    break
+                except Exception as e:
+                    print(str(e))
+                    logger.error(
+                        f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
+                    )
+                    raise (e)
+            else:
+                # we get here only if the loop is not broken
+                raise RuntimeError(
+                    f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
                 )
-                break
-            except Exception as e:
-                print(str(e))
-                logger.error(
-                    f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
-                )
-                raise (e)
-        else:
-            # we get here only if the loop is not broken
-            raise RuntimeError(
-                f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-            )
 
-        with QUIET:
-            for fname, loader in loaders:
-                logger.info(f"Loading {fname}")
-                obj = cls.parse_legacy(loader.data)
-
-                if isinstance(obj, list):
-                    for inst in obj:
-                        process_instance(inst, fname)
-                else:
-                    process_instance(obj, fname)
+            with QUIET:
+                for fname, loader in loaders:
+                    logger.info(f"Loading {fname}")
+                    obj = cls.parse_legacy(loader.data)
+                    if isinstance(obj, list):
+                        for inst in obj:
+                            process_instance(inst, fname)
+                    else:
+                        process_instance(obj, fname)
 
         cls.REGISTRY = registry
+        cls.init_boostrap = init_boostrap
         return cls
     return provide_rg
 

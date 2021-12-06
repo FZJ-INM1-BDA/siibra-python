@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import List
+from typing import ClassVar, List
+
+from ..openminds.common import CommonConfig
 from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
@@ -46,27 +48,46 @@ ng_mesh = ContentType(**{
     "@type":'https://openminds.ebrains.eu/core/ContentType',
 })
 
-# # # existing
+fall_back = ContentType(**{
+    "https://openminds.ebrains.eu/vocab/name":'application/unknown',
+    "@id":'https://openminds.ebrains.eu/core/ContentType/unknown',
+    "@type":'https://openminds.ebrains.eu/core/ContentType',
+})
+
+# existing
 gii = ContentType(**{
     "https://openminds.ebrains.eu/vocab/name": 'application/vnd.gifti',
     "@id": 'https://openminds.ebrains.eu/instances/contentTypes/application/vnd.gifti',
     "@type": 'https://openminds.ebrains.eu/core/ContentType',
 })
+nii = ContentType(**{
+    "https://openminds.ebrains.eu/vocab/name": 'application/vnd.nifti.1',
+    "@id": 'https://openminds.ebrains.eu/instances/contentTypes/application/vnd.nifti.1',
+    "@type": 'https://openminds.ebrains.eu/core/ContentType',
+})
 
 class File(file.Model):
-    @staticmethod
-    def parse_legacy(json_input) -> List['File']:
-        
+    @classmethod
+    def parse_legacy(Cls, json_input) -> List['File']:
         assert json_input.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
 
+        is_mesh = False
+        is_volume = False
+        content_type = fall_back
+
         volume_type = json_input.get('volume_type')
+        
+        if volume_type == 'nii':
+            is_volume = True
+            content_type = nii
+
         if volume_type == 'neuroglancer/precomputed':
-            is_ng_volume = True
+            is_volume = True
             content_type = ng_volume
         if volume_type == 'neuroglancer/precompmesh':
             is_mesh = True
             content_type = ng_mesh
-        if volume_type == 'gii':
+        if volume_type == 'gii' or volume_type == 'threesurfer/gii':
             is_mesh = True
             content_type = gii
         
@@ -78,7 +99,6 @@ class File(file.Model):
         storage_size = None
 
         base_id = os.path.basename(json_input.get('@id'))
-
         url_val = json_input.get('url')
         if type(url_val) == str:
             urls = [ (None, url_val) ]
@@ -88,28 +108,36 @@ class File(file.Model):
         else:
             raise ValueError(f'cannot parse type of url: {type(url_val)}')
 
-        return [File(
+        # TODO does not parse threesurfer gii files at all
+        # use new schema (0.3a5)
+        return [Cls(
             name=json_input.get('name', 'Unnamed file'),
-            _id=f"https://openminds.ebrains.eu/core/File/{base_id}{'/' + key if key else ''}",
-            _type="https://openminds.ebrains.eu/core/File",
+            id=f"https://openminds.ebrains.eu/core/File/{base_id}{'/' + key if key else ''}",
+            type="https://openminds.ebrains.eu/core/File",
             iri=url,
             data_type=[
-                *(['https://openminds.ebrains.eu/instances/dataType/voxelData'] if is_ng_volume else []),
+                *(['https://openminds.ebrains.eu/instances/dataType/voxelData'] if is_volume else []),
                 *(['https://openminds.ebrains.eu/instances/dataType/3DComputerGraphic'] if is_mesh else [])
             ],
-            format=content_type,
-        ) for key, url in url_val]
+            format={
+                '@id': content_type and content_type.id or 'UnknownContentType'
+            },
+        ) for key, url in urls]
+
+    Config = CommonConfig
 
 
 gbyte_feasible = 0.1
 
 
-class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
+class VolumeSrc(File):
 
-    _SPECIALISTS = {}
-    volume_type = None
+    _SPECIALISTS: ClassVar[dict] = {}
+    _space = None
+    _volume_type = None
+    _map_type = None
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+    def __init__(self, space=None, detail=None, **data):
         """
         Construct a new volume source.
 
@@ -133,29 +161,20 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             extreact niftis from zip archives, as for example in case of the
             MNI reference templates.
         """
-        Dataset.__init__(self, identifier=identifier)
-        assert name is not None
-        self.name = name
-        self.url = url
-        if "SIIBRA_URL_MODS" in os.environ and url:
-            mods = json.loads(os.environ["SIIBRA_URL_MODS"])
-            for old, new in mods.items():
-                self.url = self.url.replace(old, new)
-            if self.url != url:
-                logger.warning(f"Applied URL modification\nfrom {url}\nto   {self.url}")
-        self.detail = {} if detail is None else detail
-        self.space = space
-        self.map_type = None
+        File.__init__(self, **data)
+        
+        self._detail = {} if detail is None else detail
+        self._space = space
 
     def __init_subclass__(cls, volume_type=None):
         """Called when this class gets subclassed by cls."""
-        cls.volume_type = volume_type
+        cls._volume_type = volume_type
         if volume_type is not None:
-            assert volume_type not in VolumeSrc._SPECIALISTS
+            assert volume_type not in VolumeSrc._SPECIALISTS.keys()
             VolumeSrc._SPECIALISTS[volume_type] = cls
 
     def __str__(self):
-        return f"{self.volume_type} {self.url}"
+        return f"{self._volume_type} {self.url}"
 
     def get_url(self):
         return self.url
@@ -163,47 +182,33 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
     @property
     def is_image_volume(self):
         return True
-
+    
     @classmethod
-    def _from_json(cls, obj):
+    def parse_legacy(Cls, json_input) -> List['File']:
         """
         Provides an object hook for the json library to construct a VolumeSrc
         object from a json stream.
         """
-        if obj.get("@type") != "fzj/tmp/volume_type/v0.0.1":
+        if json_input.get("@type") != "fzj/tmp/volume_type/v0.0.1":
             raise NotImplementedError(
-                f"Cannot build VolumeSrc from this json spec: {obj}"
+                f"Cannot build VolumeSrc from this json spec: {json_input}"
             )
 
-        volume_type = obj.get("volume_type")
-        detail = obj.get("detail")
-        url = obj.get("url")
-        space = Space.REGISTRY[obj.get("space_id")]
-        transform_nm = np.identity(4)
-        if detail is not None and "neuroglancer/precomputed" in detail:
-            if "transform" in detail["neuroglancer/precomputed"]:
-                transform_nm = np.array(detail["neuroglancer/precomputed"]["transform"])
+        volume_type = json_input.get("volume_type")
 
         # decide if object shoulc be generated with a specialized derived class
-        VolumeClass = cls._SPECIALISTS.get(volume_type, cls)
-        kwargs = {
-            "transform_nm": transform_nm,
-            "zipped_file": obj.get("zipped_file", None),
-        }
-        if VolumeClass == cls:
-            logger.error(f"Volume will be generated as plain VolumeSrc: {obj}")
-        result = VolumeClass(
-            identifier=obj["@id"],
-            name=obj["name"],
-            url=url,
-            space=space,
-            detail=detail,
-            **kwargs,
-        )
-        # result.volume_type = obj.get('volume_type',None)
-        maptype = obj.get("map_type", None)
+        VolumeClass = Cls._SPECIALISTS.get(volume_type, VolumeSrc)
+
+        result = File.parse_legacy(json_input)
+
+        if VolumeClass == VolumeSrc:
+            logger.error(f"Volume will be generated as plain VolumeSrc: {json_input}")
+            return result
+        
+        maptype = json_input.get("map_type", None)
         if maptype is not None:
-            result.map_type = MapType[maptype.upper()]
+            for r in result:
+                r._map_type = MapType[maptype.upper()]
         return result
 
 
@@ -243,7 +248,7 @@ class LocalNiftiVolume(ImageProvider):
 
     volume_type = 'nii'
 
-    def __init__(self, name: str, img: nibabel.Nifti1Image, space: Space):
+    def __init__(self, name: str, img: nibabel.Nifti1Image, space):
         """ Create a new local nifti volume from a Nifti1Image object.
 
         Args:
@@ -286,13 +291,14 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
     _image_cached = None
 
     def __init__(
-        self, identifier, name, url, space, detail=None, zipped_file=None, **kwargs
+        self, **data
     ):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail=detail)
+        VolumeSrc.__init__(self, **data)
+        zipped_file=data.get('zipped_file')
         if zipped_file is None:
-            self._image_loader = HttpRequest(url)
+            self._image_loader = HttpRequest(self.iri)
         else:
-            self._image_loader = ZipfileRequest(url, zipped_file)
+            self._image_loader = ZipfileRequest(self.iri, zipped_file)
 
     @property
     def image(self):
@@ -377,38 +383,29 @@ class NeuroglancerVolume(
     # neuroglancer volume data. This is used to avoid accidental huge downloads.
     _cached_volume = None
 
-    def __init__(
-        self,
-        identifier,
-        name,
-        url,
-        space,
-        detail=None,
-        transform_nm=np.identity(4),
-        **kwargs,
-    ):
+    def __init__(self, **data):
         """
         ngsite: base url of neuroglancer http location
         transform_nm: optional transform to be applied after scaling voxels to nm
         """
-        super().__init__(identifier, name, url, space, detail)
-        self.transform_nm = transform_nm
-        self.info = HttpRequest(url + "/info", lambda b: json.loads(b.decode())).get()
-        self.nbytes = np.dtype(self.info["data_type"]).itemsize
-        self.num_scales = len(self.info["scales"])
-        self.mip_resolution_mm = {
+        VolumeSrc.__init__(self, **data)
+        # self.transform_nm = transform_nm
+        self._info = HttpRequest(self.iri + "/info", lambda b: json.loads(b.decode())).get()
+        self._nbytes = np.dtype(self._info["data_type"]).itemsize
+        self._num_scales = len(self._info["scales"])
+        self._mip_resolution_mm = {
             i: np.min(v["resolution"]) / (1000 ** 2)
-            for i, v in enumerate(self.info["scales"])
+            for i, v in enumerate(self._info["scales"])
         }
-        self.resolutions_available = {
+        self._resolutions_available = {
             np.min(v["resolution"])
             / (1000 ** 2): {
                 "mip": i,
-                "GBytes": np.prod(v["size"]) * self.nbytes / (1024 ** 3),
+                "GBytes": np.prod(v["size"]) * self._nbytes / (1024 ** 3),
             }
-            for i, v in enumerate(self.info["scales"])
+            for i, v in enumerate(self._info["scales"])
         }
-        self.helptext = "\n".join(
+        self._helptext = "\n".join(
             [
                 "{:7.4f} mm {:10.4f} GByte".format(k, v["GBytes"])
                 for k, v in self.resolutions_available.items()
@@ -433,7 +430,7 @@ class NeuroglancerVolume(
             return min(
                 [
                     res
-                    for res, v in self.resolutions_available.items()
+                    for res, v in self._resolutions_available.items()
                     if v["GBytes"] < gbyte_feasible
                 ]
             )
@@ -442,9 +439,9 @@ class NeuroglancerVolume(
                 res_mm: voi.transform(
                     np.linalg.inv(self.build_affine(res_mm))
                 ).volume
-                * self.nbytes
+                * self._nbytes
                 / (1024 ** 3)
-                for res_mm in self.resolutions_available.keys()
+                for res_mm in self._resolutions_available.keys()
             }
             return min([res for res, gb in gbytes.items() if gb < gbyte_feasible])
 
@@ -648,10 +645,7 @@ class NeuroglancerVolume(
         return np.vstack([xx.ravel(), yy.ravel(), zz.ravel(), zz.ravel() * 0 + 1])
 
 
-class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
-
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"): pass
 
 
 class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
@@ -661,14 +655,14 @@ class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
 
     warning_shown = False
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+    def __init__(self, **data):
         if not self.__class__.warning_shown:
             logger.info(
                 f"A {self.__class__.__name__} object was registered, "
                 "but this type is not yet explicitly supported."
             )
             self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+        VolumeSrc.__init__(self, **data)
 
     @property
     def is_image_volume(self):
@@ -683,14 +677,14 @@ class GiftiSurface(VolumeSrc, volume_type="threesurfer/gii"):
 
     warning_shown = False
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+    def __init__(self, **data):
         if not self.__class__.warning_shown:
             logger.info(
                 f"A {self.__class__.__name__} object was registered, "
                 "but this type is not yet explicitly supported."
             )
             self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+        VolumeSrc.__init__(self, **data)
 
     @property
     def is_image_volume(self):
@@ -705,14 +699,14 @@ class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
 
     warning_shown = False
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
+    def __init__(self, **data):
         if not self.__class__.warning_shown:
             logger.info(
                 f"A {self.__class__.__name__} object was registered, "
                 "but this type is not yet explicitly supported."
             )
             self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+        VolumeSrc.__init__(self, **data)
 
     @property
     def is_image_volume(self):

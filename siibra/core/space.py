@@ -19,7 +19,7 @@ from typing import Any, Dict, Iterable, Tuple, Union
 from pydantic import BaseModel
 
 from ..openminds.common import CommonConfig
-from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, provide_registry
+from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
@@ -37,8 +37,6 @@ import numbers
 
 from ..openminds.SANDS.v3.atlas import commonCoordinateSpace 
 from ..openminds.SANDS.v3.miscellaneous import coordinatePoint
-from ..openminds.core.v4.data import file
-
 
 
 @provide_openminds_registry(bootstrap_folder='spaces', registry_src=RegistrySrc.GITLAB)
@@ -53,12 +51,17 @@ class Space(
 
     def __init__(
         self,
-        template_type=None,
-        src_volume_type=None,
         **data
     ):
         commonCoordinateSpace.Model.__init__(self, **data)
         AtlasConcept.__init__(self, identifier=self.id, name=self.full_name)
+        
+    @property
+    def volumes(self):
+        return [
+            main_openminds_registry[img.get('@id')]
+            for img in self.default_image
+        ]
 
     def get_template(self):
         """
@@ -118,7 +121,7 @@ class Space(
     def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'Space':
 
         # import here to avoid circular dep
-        # from siibra.volumes.volume import File
+        from siibra.volumes.volume import VolumeSrc
         from os import path
 
         digital_identifier = None
@@ -128,9 +131,11 @@ class Space(
 
         base_id = path.basename(json_input.get('@id'))
 
-        # TODO add ng volume as file
-        # TODO add nifti volume as file
-        return Cls(
+        d = [vol_src
+                for dataset in json_input.get('datasets') if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
+                for vol_src in VolumeSrc.parse_legacy(dataset)
+            ]
+        return [Cls(
             id=json_input.get('@id') or f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
             type="https://openminds.ebrains.eu/sands/CoordinateSpace",
             anatomical_axes_orientation={
@@ -141,9 +146,7 @@ class Space(
                 commonCoordinateSpace.AxesOrigin(value=0),
                 commonCoordinateSpace.AxesOrigin(value=0),
             ],
-            default_image=[ { '@id': v.get('@id') }
-                for v in json_input.get('datasets')
-                if v.get('@type') == 'fzj/tmp/volume_type/v0.0.1'],
+            default_image=[ { '@id': ds.id } for ds in d],
             full_name=json_input.get('name'),
             native_unit={
                 '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
@@ -151,7 +154,7 @@ class Space(
             release_date=date(2015, 1, 1),
             short_name=json_input.get('shortName') or json_input.get('name'),
             version_identifier=json_input.get('name')
-        )
+        ), *d]
 
     Config = CommonConfig
 

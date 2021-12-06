@@ -1,14 +1,28 @@
 import pytest
 from siibra.core import Space, Point
+from siibra.volumes.volume import File
 
 all_spaces = [s for s in Space.REGISTRY]
-
 def test_num_space():
+    from siibra.core import Space, Point
+    all_spaces = [s for s in Space.REGISTRY]
     assert len(all_spaces) > 5
 
 @pytest.mark.parametrize('space', all_spaces)
 def test_space_jsonable(space: Space):
     space.json()
+
+@pytest.mark.parametrize('space', all_spaces)
+def test_space_volumes_defined(space: Space):
+    assert len(space.volumes) > 0
+    assert all([
+        isinstance(v, File) for v in  space.volumes
+    ])
+
+@pytest.mark.parametrize('space', all_spaces)
+def test_space_volumes_jsonable(space: Space):
+    for v in space.volumes:
+        v.json()
 
 point_json_1={
     "@id": 'test-id',

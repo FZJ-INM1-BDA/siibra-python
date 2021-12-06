@@ -125,7 +125,6 @@ class TypedRegistry(Generic[T]):
             raise RuntimeError(f"{__class__.__name__} indexed with None")
         matches = self.find(spec)
         if len(matches) == 0:
-            print(str(self))
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
                 f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
