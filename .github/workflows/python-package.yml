@@ -1,4 +1,4 @@
-name: '[python-package]'
+name: '[importable]'
 
 on: [ 'push' ]
 jobs:

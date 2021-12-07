@@ -1,0 +1,57 @@
+name: '[build docker]'
+
+on:
+  push:
+    branches:
+      - feat_builddocker
+
+jobs:
+  build-docker-img:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        docker-repo: [ 'docker-registry.ebrains.eu' ]
+        docker-file: [ 'Dockerfile', 'Dockerfile-jupyter' ]
+    steps:
+    - uses: actions/checkout@v2
+    - name: 'Set env var'
+      run: |
+        
+        SIIBRA_VERSION=$(grep -Po '^__version__.*?"\K[\w.]+' siibra/__init__.py)
+
+        if [ ${{ matrix.docker-file }} == 'Dockerfile' ]
+        then
+          DOCKER_TAG=siibra/siibra-python:python-${SIIBRA_VERSION}
+        elif [ ${{ matrix.docker-file }} == 'Dockerfile-jupyter' ]
+        then
+          DOCKER_TAG=siibra/siibra-python:jupyter-${SIIBRA_VERSION}
+        else
+          echo Unknown docker-file configuration: ${{ matrix.docker-file }}
+          return 1
+        fi
+
+        if [ ! -z "${{ matrix.docker-repo }}" ]
+        then
+          DOCKER_TAG=${{ matrix.docker-repo }}/${DOCKER_TAG}
+        fi
+
+        echo "siibra-version: $SIIBRA_VERSION , docker tag: $DOCKER_TAG"
+
+        echo "SIIBRA_VERSION=$SIIBRA_VERSION" >> $GITHUB_ENV
+        echo "DOCKER_TAG=$DOCKER_TAG" >> $GITHUB_ENV
+
+    - name: 'Build docker image'
+      run: |
+        docker build -t $DOCKER_TAG -f ${{ matrix.docker-file }} .
+
+    - name: 'Publish repo'
+      run: |
+        if [ ! -z "${{ matrix.docker-repo }}" ]
+        then
+          docker login \
+            -u ${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }} \
+            -p ${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }} \
+            ${{ matrix.docker-repo }}
+        fi
+
+        docker push $DOCKER_TAG

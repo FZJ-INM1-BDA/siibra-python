@@ -1,4 +1,4 @@
-FROM python:3.8-alpine
+FROM jupyter/base-notebook:python-3.8.5
 
 RUN python -m pip install -U pip
 
@@ -8,4 +8,3 @@ WORKDIR /siibra-python
 RUN pip install -U .
 
 # HBP_AUTH_TOKEN
-
