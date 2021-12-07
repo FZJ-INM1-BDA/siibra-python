@@ -256,7 +256,8 @@ class RegionalFeature(Feature):
 
         elif isinstance(concept, Region):
             for w in concept.parcellation.key.split('_'):
-                spec = spec.replace(w.lower(), '')
+                if not w.isnumeric() and len(w)>2:
+                    spec = spec.replace(w.lower(), '')
             for match in concept.find(spec):
                 # TODO what's with the mutation here?
                 self._match = match

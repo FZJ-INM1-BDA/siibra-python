@@ -196,7 +196,7 @@ class Location(ABC):
         if self.space is None:
             return (
                 f"{self.__class__.__name__} "
-                "[{','.join(str(l) for l in iter(self))}]"
+                f"[{','.join(str(l) for l in iter(self))}]"
             )
         else:
             return (
