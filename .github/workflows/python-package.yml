@@ -1,4 +1,4 @@
-name: '[importable]'
+name: '[test] importable'
 
 on: [ 'push' ]
 jobs:

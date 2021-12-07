@@ -1,11 +1,19 @@
-FROM python:3.8-alpine
+# Inspired from https://www.docker.com/blog/containerized-python-development-part-1/
 
-RUN python -m pip install -U pip
+FROM jupyter/scipy-notebook:lab-3.2.3 as builder
 
-ADD . /siibra-python
+USER root
+RUN apt-get update
+RUN apt-get install -y build-essential
+
+RUN pip install -U pip
+
+COPY . /siibra-python
 WORKDIR /siibra-python
+RUN pip install .
 
-RUN pip install -U .
+FROM jupyter/scipy-notebook:lab-3.2.3
+
+COPY --from=builder /opt/conda /opt/conda
 
 # HBP_AUTH_TOKEN
-

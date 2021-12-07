@@ -1,4 +1,4 @@
-name: '[build docker]'
+name: '[build] build and push docker images'
 
 on:
   push:
@@ -9,9 +9,10 @@ jobs:
   build-docker-img:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         docker-repo: [ 'docker-registry.ebrains.eu' ]
-        docker-file: [ 'Dockerfile', 'Dockerfile-jupyter' ]
+        docker-file: [ 'Dockerfile' ]
     steps:
     - uses: actions/checkout@v2
     - name: 'Set env var'
@@ -20,9 +21,6 @@ jobs:
         SIIBRA_VERSION=$(grep -Po '^__version__.*?"\K[\w.]+' siibra/__init__.py)
 
         if [ ${{ matrix.docker-file }} == 'Dockerfile' ]
-        then
-          DOCKER_TAG=siibra/siibra-python:python-${SIIBRA_VERSION}
-        elif [ ${{ matrix.docker-file }} == 'Dockerfile-jupyter' ]
         then
           DOCKER_TAG=siibra/siibra-python:jupyter-${SIIBRA_VERSION}
         else
