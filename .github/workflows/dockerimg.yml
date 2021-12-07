@@ -1,9 +1,9 @@
 name: '[build] build and push docker images'
 
 on:
-  push:
-    branches:
-      - feat_builddocker
+  release:
+    types:
+      - created
 
 jobs:
   build-docker-img:
@@ -23,6 +23,7 @@ jobs:
         if [ ${{ matrix.docker-file }} == 'Dockerfile' ]
         then
           DOCKER_TAG=siibra/siibra-python:jupyter-${SIIBRA_VERSION}
+          LATEST_TAG=siibra/siibra-python:latest
         else
           echo Unknown docker-file configuration: ${{ matrix.docker-file }}
           return 1
@@ -31,16 +32,19 @@ jobs:
         if [ ! -z "${{ matrix.docker-repo }}" ]
         then
           DOCKER_TAG=${{ matrix.docker-repo }}/${DOCKER_TAG}
+          LATEST_TAG=${{ matrix.docker-repo }}/${LATEST_TAG}
         fi
 
         echo "siibra-version: $SIIBRA_VERSION , docker tag: $DOCKER_TAG"
 
         echo "SIIBRA_VERSION=$SIIBRA_VERSION" >> $GITHUB_ENV
         echo "DOCKER_TAG=$DOCKER_TAG" >> $GITHUB_ENV
+        echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
 
     - name: 'Build docker image'
       run: |
         docker build -t $DOCKER_TAG -f ${{ matrix.docker-file }} .
+        docker tag $DOCKER_TAG $LATEST_TAG
         docker images
 
     - name: 'Publish repo'
@@ -54,3 +58,4 @@ jobs:
         fi
 
         docker push $DOCKER_TAG
+        docker push $LATEST_TAG

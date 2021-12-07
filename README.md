@@ -52,9 +52,33 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 To get familiar with `siibra`, we recommend to checkout the jupyter notebooks in the `docs/` subfolder of the repository, which are the basis for much of the [documentation](https://siibra-python.readthedocs.io).
 
 
-## Installation and setup
+## Installation
 
-`siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`. In order to work with the latest development version from github, use `pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@develop`.
+### via pypi
+
+`siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`.
+
+### via docker
+
+```sh
+# image is based on jupyter:scipy-notebook
+docker run -dit \
+    -p 10000:8888 \
+    --rm \
+    --name siibra \
+    docker-registry.ebrains.eu/siibra/siibra-python:latest 
+```
+
+### via source
+
+```sh
+git clone https://github.com/FZJ-INM1-BDA/siibra-python.git
+cd siibra-python
+pip install .
+```
+
+
+## Setup
 
 `siibra` retrieves much of its data from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), which requires authentication. 
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
