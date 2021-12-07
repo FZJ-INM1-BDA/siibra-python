@@ -41,14 +41,15 @@ jobs:
     - name: 'Build docker image'
       run: |
         docker build -t $DOCKER_TAG -f ${{ matrix.docker-file }} .
+        docker images
 
     - name: 'Publish repo'
       run: |
         if [ ! -z "${{ matrix.docker-repo }}" ]
         then
           docker login \
-            -u ${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }} \
-            -p ${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }} \
+            -u '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER_NAME }}' \
+            -p '${{ secrets.EBRAINS_DOCKER_REPO_IMAGE_PUSHER }}' \
             ${{ matrix.docker-repo }}
         fi
 
