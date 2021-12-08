@@ -4,3 +4,33 @@ img.center {
     margin: auto;
 }
 
+.sphx-glr-thumbcontainer {
+    min-height: 2px !important;
+    width: 100% !important;
+    margin: 0 !important;
+}
+
+.sphx-glr-thumbcontainer .figure {
+    width: 250px !important;
+}
+.sphx-glr-thumbcontainer figcaption {
+	padding: 10;
+}
+.sphx-glr-thumbcontainer .caption-text {
+}
+.sphx-glr-thumbcontainer p {
+	text-align: left;
+}
+.sphx-glr-thumbcontainer img {
+    width: 250px !important;
+	display: none;
+}
+.sphx-glr-thumbcontainer a.internal {
+    padding: 20px !important;
+}
+.sphx-glr-thumbcontainer a.headerlink {
+    display: none;
+	margin: 0;
+	padding: 0;
+}
+

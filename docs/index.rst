@@ -8,10 +8,11 @@
    :maxdepth: 2
 
    readme
-   core_concepts.ipynb
-   download_maps.ipynb
+   core_conceps.ipynb
+   examples/index
    contribute
    acknowledgements
+
 
 ..
     Indices and tables

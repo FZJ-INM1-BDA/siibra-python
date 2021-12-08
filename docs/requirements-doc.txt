@@ -6,3 +6,4 @@ astroid
 sphinx-autoapi
 IPython
 m2r2
+sphinx-gallery

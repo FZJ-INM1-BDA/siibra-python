@@ -12,6 +12,7 @@
 #
 import os
 import sys
+from sphinx_gallery.sorting import FileNameSortKey
 
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
@@ -30,11 +31,12 @@ author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Fors
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "sphinx_gallery.gen_gallery",
     "sphinx.ext.autodoc",
     "autoapi.extension",
     "nbsphinx",
     "IPython.sphinxext.ipython_console_highlighting",
-    "m2r2"
+    "m2r2",
 ]
 # autosummary_generate = True
 autoapi_type = "python"
@@ -42,6 +44,17 @@ autoapi_dirs = [os.path.join(os.path.abspath(".."), "siibra")]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+
+# example gallery
+sphinx_gallery_conf = {
+     'examples_dirs': [
+         '../examples/snippets',
+     ],
+     'filename_pattern': r'^.*_run.py', # which files to execute and include their outputs
+     'gallery_dirs': 'examples',  # path to where to save gallery generated output
+     'capture_repr': ('_repr_html_', '__repr__'),
+     'within_subsection_order': FileNameSortKey,
+}
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
