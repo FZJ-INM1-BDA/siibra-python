@@ -17,44 +17,25 @@ Copyright 2020-2021, Forschungszentrum Jülich GmbH
 ## Overview
 <!--- Please keep this at line 19, or adjust the line skip in docs/readme.rst accordingly -->
 
+`siibra` is a Python client for working with "multilevel" brain atlas frameworks, and aims to facilitate the programmatic and reproducible incorporation of brain region definitions and multidimensional brain region features into reproducible neuroscience workflows.
+`siibra` provides structured acccess to parcellation schemes in different brain reference spaces, including volumetric reference templates at both macroscopic and microscopic resolutions as well as surface representations. It supports both discretely labelled and continuous (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. Among the datasets anchored to brain regions are many different modalities from in-vivo and post mortem studies, including regional information about cell and transmitter receptor densties, structural and functional connectivity, gene expressions, and more.
 
-`siibra` is a Python client for interacting with "multilevel" brain atlases, which combine multiple brain parcellations, reference coordinate spaces and modalities. 
-`siibra` is designed to allow safe and convenient interaction with brain definitions from different parcellations, facilitating implementation of reproducible neuroscience workflows on the basis of brain atlases. It allows to work with reference brain templates both at millimeter and micrometer resolutions, and provides streamlined access to multimodal data features linked to brain regions. 
+`siibra` is mainly developed by the [Human Brain Project](https://humanbrainproject.eu) for accessing the [EBRAINS human brain atlas](https://ebrains.eu/service/human-brain-atlas). 
+It stores much of its contents in the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
+Its functionalities include common actions known from the interactive viewer `siibra explorer` [hosted on EBRAINS](https://atlases.ebrains.eu/viewer). 
+In fact, the viewer is a good resource for exploring `siibra`'s core functionalities interactively: 
+Selecting different parcellations, browsing and searching brain region hierarchies, downloading maps, identifying brain regions, and accessing multimodal features and connectivity information associated with brain regions. Feature queries in `siibra` are parameterized by data modality and anatomical location, while the latter could be a brain region, brain parcellation, or location in reference space.
+Beyond the functionality of `siibra-explorer`, the Python library also supports a range of data analysis features suitable for typical neuroscience workflows.
 
-`siibra` is largely developed inside the [Human Brain Project](https://humanbrainproject.eu) for accessing the [EBRAINS human brain atlas](https://ebrains.eu/service/human-brain-atlas). 
-It stores most of its configuration and data features in the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
-
-The functionality of `siibra-python` matches common actions known from browsing the interactive viewer `siibra explorer` [hosted on EBRAINS](https://atlases.ebrains.eu/viewer): 
-Selecting different parcellations, browsing and searching brain region hierarchies, downloading maps, identifying brain regions, and accessing multimodal features and connectivity information associated with brain regions.
-
-A key feature is a streamlined implementation of performing structured data queries for the main atlas concepts: reference spaces, parcellations, and brain regions. 
-Accordingly, `siibra` implements unified handling for different types of features, namely
-
- - *spatial features* (which are linked to atlas regions via coordinates; like contact points of physiological electrodes), 
- - *regional features* (which are linked to atlases via a brain region specifications, like cell densities or neurotransmitter distributions), and 
- - *parcellation features* (linked to an atlas via a whole brain parcellation, like grouped connectivity matrices). 
-
-As a result, all forms of data features can be queried using the same mechanism (`siibra.get_features()`) which accepts the specification of an concept (e.g. a selected brain region), and a data modality.
-Currently available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, high-resolution volumes of interest, gene expressions, and cell distributions. 
-Additional features, including functional activation maps and electrophysiologal recordings, will become available soon.
-Stay tuned!
-
-`siibra` hides much of the complexity that would be required to interact with the individual data repositories that host the associated data.
+`siibra` hides much of the complexity that would be required to collect and interact with the individual paracellations,templates andd data repositories.
 By encapsulating many aspects of interacting with different maps and reference templates spaces, it also minimizes common errors like misinterpretation of coordinates from different reference spaces, mixing up label indices of brain regions, or utilisation of inconsistent versions of parcellation maps. 
 It aims to provide a safe way of using maps defined across multiple spatial scales for reproducible analysis. 
 
-## Documentation
-
-`siibra-python`'s documentation is hosted at https://siibra-python.readthedocs.io.
-
-## Usage examples
-
-To get familiar with `siibra`, we recommend to checkout the jupyter notebooks in the `docs/` subfolder of the repository, which are the basis for much of the [documentation](https://siibra-python.readthedocs.io).
+## Getting started: Installation, setup and first steps
 
 
-## Installation and setup
+`siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`. In order to work with the latest version from github, use `pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main`. 
 
-`siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`. In order to work with the latest development version from github, use `pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@develop`.
 
 `siibra` retrieves much of its data from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), which requires authentication. 
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
@@ -62,6 +43,10 @@ Please make sure that you have a valid EBRAINS user account by [registering to E
 Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.ebrains.eu/develop.html).
 As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`.  Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
 
+`siibra-python`'s documentation is hosted at https://siibra-python.readthedocs.io. It includes a catalogue of well documented code examples that walk you through the different concepts and functionalities. As a new user, it is recommended to go through these examples - it is easy and will quickly provide you with the right code snippets that get you started. Furthermore, a set of jupyter notebooks demonstrating concrete example usecases are maintained in the [siibra-tutorials](https://github.com/FZJ-INM1-BDA/siibra-tutorials) repository. 
+
+If you run into issues, please open a ticket on [EBRAINS support](https://ebrains.eu/support/) or directly file bugs and feature requests on [github](https://github.com/FZJ-INM1-BDA/siibra-python/issues).
+Please keep in mind that `siibra-python` is still at in development. While care is taken to make everything work reliably, the API of the library is not yet stable, and the software is not yet fully tested. 
 
 ## Acknowledgements
 
