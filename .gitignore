@@ -22,3 +22,5 @@ __Tag_List__
 .vscode
 playground
 .env
+docs/examples
+docs/autoapi
