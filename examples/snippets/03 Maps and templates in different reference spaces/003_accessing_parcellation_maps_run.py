@@ -5,12 +5,12 @@ Accessing parcellation maps
 
 """
 
-import siibra
 
 # %%
 # We choose the MNI152 space, and then request the template that `siibra`
 # linked to it. In this concrete case, it turns out to be a NIfTI file stored
 # on a remote server
+import siibra
 mni152tpl = siibra.spaces['mni152'].get_template()
 type(mni152tpl)
 

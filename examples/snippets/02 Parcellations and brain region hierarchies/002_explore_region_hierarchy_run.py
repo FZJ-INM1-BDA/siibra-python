@@ -5,6 +5,8 @@ Exploring brain region hierarchies
 Each parcellation provides access to a tree of brain regions. 
 """
 
+# %%
+# We start by selecting an atlas and a parcellation
 import siibra
 atlas = siibra.atlases['human']
 julich_brain = atlas.get_parcellation('julich 2.9')

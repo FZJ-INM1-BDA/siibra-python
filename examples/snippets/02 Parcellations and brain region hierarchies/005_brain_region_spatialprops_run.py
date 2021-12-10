@@ -6,20 +6,23 @@ When a reference space is specified, brain regions can expose a range of
 spatial properties.
 """
 
+# %%
+# We start by selecting an atlas and a space
+from pprint import pprint # we'll use that for some outputs
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
+space = atlas.spaces.MNI152_2009C_NONL_ASYM
 
 # %%
-# Compute the centroid and volume of a brain region. 
-# Note that a brain region
+# The `Region.spatial_props()` method computes the centroid and volume of a
+# brain region.  Note that a brain region
 # might in general consist of multiple separated components in the space.
 # Also note that in `siibra`, spatial properties are always represented in
 # millimeter units of the physical coordinate system of the reference space,
 # not in voxel units.
 v1_left = atlas.get_region("v1 left")
-space = atlas.spaces.MNI152_2009C_NONL_ASYM
 props = v1_left.spatial_props(space)
-props
+pprint(props)
 
 # %%
 # The returned centroid is `siibra.Point` object. Such spatial primitives are 

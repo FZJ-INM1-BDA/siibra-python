@@ -6,12 +6,12 @@ Other than the rerence space itself, a reference template is a spatial object - 
 objects in `siibra`, instantiation of a reference template is lazy: The actual image or mesh is only loaded after explicitely calling a "fetch" method.
 """
 
-import siibra
 
 # %%
 # We choose the MNI152 space, and then request the template that `siibra`
 # linked to it. In this concrete case, it turns out to be a NIfTI file stored
 # on a remote server
+import siibra
 mni152tpl = siibra.spaces['mni152'].get_template()
 type(mni152tpl)
 

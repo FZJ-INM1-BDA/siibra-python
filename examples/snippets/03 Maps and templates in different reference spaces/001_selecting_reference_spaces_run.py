@@ -10,11 +10,11 @@ to each reference space are one or more reference templates, representing a
 concrete reference image or surface representation of the brain.
 """
 
-import siibra
 
 # %%
 # As for atlases and parcellations, siibra provides a registry of predefined
 # reference spaces:
+import siibra
 dir(siibra.spaces)
 
 # %%

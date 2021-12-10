@@ -5,10 +5,11 @@ Finding brain regions in a parcellation
 We can use Parcellation objects to find individual brain regions.
 """
 
+# %%
+# We start by seleting an atlas and a parcellation.
 import siibra
 atlas = siibra.atlases['human']
 julich_brain = atlas.get_parcellation('julich 2.9')
-print(julich_brain)
 
 # %%
 # The most basic way is to search for all regions matching a particular string:
