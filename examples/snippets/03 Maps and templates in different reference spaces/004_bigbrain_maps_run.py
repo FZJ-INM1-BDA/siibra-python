@@ -51,6 +51,6 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.1, symmetric_cmap=False)
 # for location assignment. 
 julich_pmaps = atlas.get_map(space='mni152', parcellation='julich', maptype='continuous')
 assignments = julich_pmaps.assign_coordinates(voi.center)
-for region, mapindex, scores in assignments:
-    print(f"{region.name:40.40} {scores['correlation']:4.2f}")
+for region, mapindex, probability in assignments:
+    print(f"{region.name:40.40} {probability:4.2f}")
 

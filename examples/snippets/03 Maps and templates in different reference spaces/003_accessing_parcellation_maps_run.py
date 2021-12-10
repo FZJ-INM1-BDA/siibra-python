@@ -54,11 +54,16 @@ for img in julich_mpm.fetch_iter():
     plotting.plot_stat_map(img)
 
 # %%
-# Julich-Brain, like some other parcellations, is in fact a probabilistic map.
+# Julich-Brain, like some other parcellations, provides probabilistic maps.
 # The maximum probability map is just a simplified representation, displaying
-# for each voxel the label o the brain region with highest probability. We can
-# access the much richer probabilistic information by requesting the
-# "continuous" maptype, identified by `siibra.maptype.CONTINUOUS`.
+# for each voxel the label of the brain region with highest probability. We can
+# access the probabilistic information by requesting the
+# "continuous" maptype (`siibra.maptype.CONTINUOUS`).
+# Note that since the set of probability maps are usually a large number of
+# sparsely populated image volumes, `siibra` will load the volumetric data only
+# once and then convert it to a sparse index format, that is much more
+# efficient to process and store. The sparse index is cached on the local disk,
+# therefore subsequent use of probability maps will be much faster.
 julich_pmaps = atlas.get_map(space="mni152", parcellation="julich", maptype="continuous")
 julich_pmaps
 
