@@ -2,67 +2,91 @@
 Accessing parcellation maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
+Just like reference templates (covered in :ref:`templates`), a parcellation map
+or region map is a spatial object - usually a volumetric image with discrete
+voxel labels for each region, a binary mask image, or a 3D distribution of
+float values in case of a probabilistic map. Since some parcellations provide maps
+in different reference spaces, obtaining a parcellation map involves to specify
+a reference space.
 """
 
-
 # %%
-# We choose the MNI152 space, and then request the template that `siibra`
-# linked to it. In this concrete case, it turns out to be a NIfTI file stored
-# on a remote server
+# We start by selecting an atlas.
 import siibra
-mni152tpl = siibra.spaces['mni152'].get_template()
-type(mni152tpl)
+atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
-# A more common way to grab a template however is via an atlas. The same as
-# above can be achieved this way:
-atlas = siibra.atlases['human']
-mni152tpl = atlas.get_template(space="mni152")
+# We select the maximum probability map of Julich-Brain in MNI152 space,
+# which is a parcellation map with discrete labels. The `get_map` method
+# of the atlas assumes maptype='labelled' by default.
+julich_mpm = atlas.get_map(space="mni152", parcellation="julich", maptype="labelled")
+julich_mpm
 
 # %%
-# To load the actual image object, we will use the template's fetch() method.
-# This gives us a Nifti1Image object with spatial metadata, compatible with
-# the wonderful nibabel library and most common neuroimaging toolboxes.
-img = mni152tpl.fetch()
-img
-
-# %%
-# We can directly display this template now with common visualization tools.
-# Here we use the plotting tools provided by nilearn.(https://nilearn.github.io)
+# As already seen for reference templates, the returned object does not contain
+# any image data yet, since siibra uses a lazy strategy for loading data. 
+# To access the actual image data, we call the fetch() method. 
+# This gives us a Nifti1Image object defined in the reference space.
 from nilearn import plotting
-plotting.plot_img(img, bg_img=None)
+import matplotlib
+matplotlib.use('webagg')
+mapimg = julich_mpm.fetch()
+print(type(mapimg))
+plotting.plot_roi(mapimg, title=f"{julich_mpm.parcellation.name}")
 
 # %%
-# The BigBrain template is a very different dataset. Its native resolution is
-# 20 micrometer, resulting in about one Terybyte of image data. Yet, fetchig the
-# template works the same way, with the difference that we can specify a 
-# reduced resolution or volume of interest to fetch a feasible amount of image data.
-# Per default, `siibra` will fetch the whole brain volume at a reasonably
-# reduced resolution.
-bigbrain = atlas.get_template('bigbrain')
-bb_whole = bigbrain.fetch()
-plotting.plot_img(bb_whole, bg_img=None)
+# This map shows only the left hemisphere, because Julich-Brain ships the left
+# and right hemispheres in different volumes, so corresponding regions can use
+# the same label index while still being distinguishable. We can find the number
+# of mapped volumes inside a parcellation map simply from its length:
+len(julich_mpm)
 
 # %%
-# To see the full resolution, we may specify a bounding box in the physical
-# space. You will learn more about spatial primities like points and bounding
-# boxes in :ref:`locations`. For now, we just define a volume of interest from
-# two corner points in the histological space. We specify the points with 
-# a string representation, which could be conveniently copy pasted from the
-# interactive viewer "siibra explorer", hosted at https://atlases.ebrains.eu/viewer.
-# Of course we can also specify coordinates by a 3-tuple, and in other ways.
-voi = siibra.BoundingBox(
-    point1="-30.590mm, 3.270mm, 47.814mm",
-    point2="-26.557mm, 6.277mm, 50.631mm", 
-    space=siibra.spaces['bigbrain']
-)
-bb_chunk = bigbrain.fetch(voi=voi)
-plotting.plot_img(bb_chunk, bg_img=None)
+# To get the second labelled volume, we can explicitly pass the map index to
+# `fetch()` - it defaults to 0 otherwise.
+mapimg2 = julich_mpm.fetch(mapindex=1)
+plotting.plot_roi(mapimg2, title=f"{julich_mpm.parcellation.name}, map index 1")
 
 # %%
-# Note that since both fetched image volumes are spatial images with a properly
-# defined transformation between their voxel and physical spaces, we can
-# directly plot them correctly superimposed on each other:
-plotting.view_img(bb_chunk, bg_img=bb_whole)
+# Instead of dealing with map indices, we can also simply iterate over all
+# available maps using `fetch_iter()`.
+for img in julich_mpm.fetch_iter():
+    plotting.plot_stat_map(img)
+
+# %%
+# Julich-Brain, like some other parcellations, is in fact a probabilistic map.
+# The maximum probability map is just a simplified representation, displaying
+# for each voxel the label o the brain region with highest probability. We can
+# access the much richer probabilistic information by requesting the
+# "continuous" maptype, identified by `siibra.maptype.CONTINUOUS`.
+julich_pmaps = atlas.get_map(space="mni152", parcellation="julich", maptype="continuous")
+julich_pmaps
+
+# %%
+# Since the continuous maps overlap, this map provides access to several
+# hundreds of brain volumes.
+print(len(julich_pmaps))
+
+# %%
+# Again, we can iterate over all >300 pmaps using `fetch_iter_()`, but for simplicity, we just access a random index here.
+pmap = julich_pmaps.fetch(mapindex=102)
+plotting.plot_stat_map(pmap)
+
+# %%
+# Now we might wonder which region this map index actually refers to. 
+# The Parcellation map objects can safely translate
+# indices into regions and vice versa:
+
+# What is the region behind map index 102?
+julich_pmaps.decode_label(mapindex=102)
+
+# Vice versa, what is the index of that region?
+julich_pmaps.decode_region('hoc5 left')
+
+# %%
+# Besides parcellation maps, `siibra` can also produce binary masks of brain regions.
+v5l = atlas.get_region('hoc5 left')
+v5l_mask = v5l.build_mask("mni152")
+plotting.plot_roi(v5l_mask)
+
 

@@ -1,4 +1,6 @@
 """
+.. _templates:
+
 Accessing brain reference templates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -32,7 +34,7 @@ img
 # We can directly display this template now with common visualization tools.
 # Here we use the plotting tools provided by nilearn.(https://nilearn.github.io)
 from nilearn import plotting
-plotting.plot_img(img, bg_img=None)
+plotting.view_img(img, bg_img=None, cmap='gray')
 
 # %%
 # The BigBrain template is a very different dataset. Its native resolution is
@@ -43,7 +45,7 @@ plotting.plot_img(img, bg_img=None)
 # reduced resolution.
 bigbrain = atlas.get_template('bigbrain')
 bb_whole = bigbrain.fetch()
-plotting.plot_img(bb_whole, bg_img=None)
+plotting.view_img(bb_whole, bg_img=None, cmap='gray')
 
 # %%
 # To see the full resolution, we may specify a bounding box in the physical
@@ -58,12 +60,12 @@ voi = siibra.BoundingBox(
     point2="-26.557mm, 6.277mm, 50.631mm", 
     space=siibra.spaces['bigbrain']
 )
-bb_chunk = bigbrain.fetch(voi=voi)
-plotting.plot_img(bb_chunk, bg_img=None)
+bb_chunk = bigbrain.fetch(voi=voi, resolution_mm=0.02)
+plotting.view_img(bb_chunk, bg_img=None, cmap='gray')
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly
 # defined transformation between their voxel and physical spaces, we can
 # directly plot them correctly superimposed on each other:
-plotting.view_img(bb_chunk, bg_img=bb_whole)
+plotting.view_img(bb_chunk, bg_img=bb_whole, cmap='magma', cut_coords=tuple(voi.center))
 

@@ -1,6 +1,6 @@
 """
-Exploring brain region hierarchies
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Exploring the brain region hierarchy of a parcellation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Each parcellation provides access to a tree of brain regions. 
 """

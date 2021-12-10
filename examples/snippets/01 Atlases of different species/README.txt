@@ -1,3 +1,5 @@
+.. _atlases:
+
 Atlases of different species
 ----------------------------
 

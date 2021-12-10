@@ -1,5 +1,5 @@
 """
-Spatial properties of brain regions
+Spatial brain region properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 When a reference space is specified, brain regions can expose a range of

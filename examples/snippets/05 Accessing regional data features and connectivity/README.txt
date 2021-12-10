@@ -1,3 +1,5 @@
+.. _features:
+
 Retrieving region specific multimodal datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
