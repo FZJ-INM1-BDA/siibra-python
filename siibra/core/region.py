@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, main_openminds_registry
+from .concept import AtlasConcept, RegistrySrc, main_openminds_registry, provide_openminds_registry
 from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
@@ -33,7 +33,7 @@ import anytree
 from anytree import NodeMixin
 from typing import Any, Dict, Generic, List, TypeVar, Union
 from nibabel import Nifti1Image
-from ..openminds.SANDS.v3.atlas import parcellationEntityVersion
+from ..openminds.SANDS.v3.atlas import parcellationEntityVersion, parcellationEntity
 from ..openminds.common import CommonConfig
 
 REMOVE_FROM_NAME = [
@@ -781,6 +781,74 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         ]
 
         return [ this_region, *children ]
+
+
+@provide_openminds_registry(registry_src=RegistrySrc.EMPTY)
+class VersionlessRegion(
+    parcellationEntity.Model,
+    SiibraNode
+):
+    def __init__(self, **kwarg):
+        super().__init__(**kwarg)
+
+    # TODO this method is still flawed.
+    # need to check no duplicates are added
+    @classmethod
+    def add_region(Cls, region: Region):
+        if not region.name:
+            return
+        if ('left' in region.name) or ('right' in region.name):
+            return
+
+        def get_lookup_label(name: str):
+            if name == 'cingulate gyrus, frontal part':
+                return 'frontal-cingulate-gyrus'
+            import re
+            processed_name = name
+            # rule, replace all brackets (and preceding white space)
+            processed_name =  re.sub(r'\s+\(.*?\)$', '', processed_name)
+            # rule, replace all ,s with _
+            processed_name = re.sub(r',', '_', processed_name)
+            # rule, replace all one or more continuous white space characters with -
+            processed_name = re.sub(r'\s+', '-', processed_name)
+            # rule: remove all 's entirely
+            processed_name = re.sub(r'\'', '', processed_name)
+            return 'JBA_{}'.format(processed_name)
+
+        def get_id(name: str):
+            return 'https://openminds.ebrains.eu/instances/parcellationEntity/' + get_lookup_label(name)
+
+        def get_has_version_from_existing(name:str):
+            import requests
+            url = 'https://raw.githubusercontent.com/HumanBrainProject/openMINDS_SANDS/v3/instances/atlas/parcellationEntity/JBA/{lookuplabel}.jsonld'.format(
+                lookuplabel=get_lookup_label(name)
+            )
+            response = requests.get(url)
+            if response.status_code >= 400:
+                logger.warning('cannot find existing entry for {name}, with url: {url}'.format(
+                    name=name,
+                    url=url))
+                return None
+            return response.json().get('hasVersion', [])
+        
+        parent_id = region.parent and hasattr(region.parent, 'name') and get_id(region.parent.name)
+        has_version = get_has_version_from_existing(region.name) if all([
+            ('left' in c.name) or ('right' in c.name)
+            for c in region.children or []
+        ]) else None
+        Cls.REGISTRY.add(
+            region.name,
+            Cls(
+                id=get_id(region.name),
+                type='https://openminds.ebrains.eu/sands/ParcellationEntity',
+                has_parent=[{ '@id': parent_id }] if parent_id else None,
+                has_version=has_version,
+                lookup_label=get_lookup_label(region.name),
+                name=region.name
+            )
+        )
+    Config = CommonConfig
+
 
 if __name__ == "__main__":
 

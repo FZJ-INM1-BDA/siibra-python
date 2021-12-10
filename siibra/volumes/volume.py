@@ -193,7 +193,7 @@ class VolumeSrc(File):
         return True
     
     @classmethod
-    def parse_legacy(Cls, json_input) -> List['File']:
+    def parse_legacy(Cls, json_input) -> List['VolumeSrc']:
         """
         Provides an object hook for the json library to construct a VolumeSrc
         object from a json stream.

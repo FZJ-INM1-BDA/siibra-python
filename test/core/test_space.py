@@ -28,7 +28,7 @@ point_json_1={
     "@id": 'test-id',
     "@type": "test-type",
     "https://openminds.ebrains.eu/vocab/coordinateSpace": {
-        "@id": "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588"
+        "@id": Space.parse_legacy_id("minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588")
     },
     "https://openminds.ebrains.eu/vocab/coordinates": [{
         "value": 10,
@@ -43,7 +43,7 @@ point_json_2={
     "@id": 'test-id-2',
     "@type": "test-type",
     "https://openminds.ebrains.eu/vocab/coordinateSpace": {
-        "@id": "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992"
+        "@id": Space.parse_legacy_id("minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992")
     },
     "https://openminds.ebrains.eu/vocab/coordinates": [{
         "value": 10,

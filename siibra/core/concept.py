@@ -98,18 +98,23 @@ def provide_registry(cls):
 
 class RegistrySrc(str, enum.Enum):
     GITLAB = 'gitlab'
+    EMPTY = 'empty'
 
 def verify_cls(registry_src: RegistrySrc, cls):
     assert issubclass(cls, BaseModel), f'Expecting openminds registry to be subclassing pydantic.BaseModel'
     if registry_src == RegistrySrc.GITLAB:
         assert hasattr(cls, 'parse_legacy') and callable(getattr(cls, 'parse_legacy')), f'For legacy gitlab src, cls must implement static method parse_legacy'
+    elif registry_src == RegistrySrc.EMPTY:
+        pass
     else:
         raise RuntimeError(f'openminds registry class not yet registered')
 
 main_openminds_registry = Registry()
 
-def provide_openminds_registry(bootstrap_folder: str,
-    registry_src: RegistrySrc = RegistrySrc.GITLAB):
+def provide_openminds_registry(
+    bootstrap_folder: str=None,
+    registry_src: RegistrySrc=RegistrySrc.GITLAB,
+    get_aliases=lambda key, obj: key):
 
     def provide_rg(cls):
         # sanity check cls construction
@@ -140,7 +145,10 @@ def provide_openminds_registry(bootstrap_folder: str,
                     )
             return False
 
-        registry = TypedRegistry[cls](matchfunc=default_match_spec_fn)
+        registry = TypedRegistry[cls](
+            matchfunc=default_match_spec_fn,
+            get_aliases=cls.get_aliases if hasattr(cls, 'get_aliases') and callable(cls.get_aliases) else get_aliases
+        )
         extensions = []
 
         def process_instance(instance: cls, fname: str):
@@ -164,41 +172,42 @@ def provide_openminds_registry(bootstrap_folder: str,
                     f"Could not generate object of type {cls} from configuration {fname} - construction provided type {instance.__class__}"
                 )
 
-        def init_boostrap():
+        def init_bootstrap():
             # find a suitable connector that is reachable
-            for connector in _BOOTSTRAP_CONNECTORS:
-                try:
-                    logger.debug('connecting to {}'.format(bootstrap_folder))
-                    loaders = connector.get_loaders(
-                        bootstrap_folder,
-                        ".json",
-                        progress=f"Bootstrap: {cls.__name__:15.15}",
+            if registry_src == RegistrySrc.GITLAB:
+                for connector in _BOOTSTRAP_CONNECTORS:
+                    try:
+                        logger.debug('connecting to {}'.format(bootstrap_folder))
+                        loaders = connector.get_loaders(
+                            bootstrap_folder,
+                            ".json",
+                            progress=f"Bootstrap: {cls.__name__:15.15}",
+                        )
+                        break
+                    except Exception as e:
+                        print(str(e))
+                        logger.error(
+                            f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
+                        )
+                        raise (e)
+                else:
+                    # we get here only if the loop is not broken
+                    raise RuntimeError(
+                        f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
                     )
-                    break
-                except Exception as e:
-                    print(str(e))
-                    logger.error(
-                        f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
-                    )
-                    raise (e)
-            else:
-                # we get here only if the loop is not broken
-                raise RuntimeError(
-                    f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-                )
 
-            with QUIET:
-                for fname, loader in loaders:
-                    logger.info(f"Loading {fname}")
-                    obj = cls.parse_legacy(loader.data)
-                    if isinstance(obj, list):
-                        for inst in obj:
-                            process_instance(inst, fname)
-                    else:
-                        process_instance(obj, fname)
+                with QUIET:
+                    for fname, loader in loaders:
+                        logger.info(f"Loading {fname}")
+                        obj = cls.parse_legacy(loader.data)
+                        if isinstance(obj, list):
+                            for inst in obj:
+                                process_instance(inst, fname)
+                        else:
+                            process_instance(obj, fname)
 
         cls.REGISTRY = registry
-        cls.init_boostrap = init_boostrap
+        cls.init_bootstrap = init_bootstrap
         return cls
     return provide_rg
 

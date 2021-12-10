@@ -21,8 +21,9 @@ from .parcellation import Parcellation
 from .datasets import Dataset, OriginDescription, EbrainsDataset
 
 # initialize the core concepts and their bootstrapped registries
-Space.init_boostrap()
-Parcellation.init_boostrap()
+Space.init_bootstrap()
+Parcellation.init_bootstrap()
+Atlas.init_bootstrap()
 
 spaces = Space.REGISTRY
 parcellations = Parcellation.REGISTRY

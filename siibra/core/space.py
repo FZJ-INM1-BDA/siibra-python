@@ -14,16 +14,8 @@
 # limitations under the License.
 
 from datetime import date
-from typing import Any, Dict, Iterable, Tuple, Union
-
+from typing import Any, Dict, Iterable, List, Tuple, Union
 from pydantic import BaseModel
-
-from ..openminds.common import CommonConfig
-from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
-
-from ..commons import logger
-from ..retrieval import HttpRequest
-
 from cloudvolume import Bbox
 import re
 import numpy as np
@@ -35,11 +27,19 @@ from urllib.parse import quote
 from os import path
 import numbers
 
+
+from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
+from ..openminds.common import CommonConfig
+from ..commons import logger
+from ..retrieval import HttpRequest
 from ..openminds.SANDS.v3.atlas import commonCoordinateSpace 
 from ..openminds.SANDS.v3.miscellaneous import coordinatePoint
+from ..openminds.controlledTerms.v1 import species
 
-
-@provide_openminds_registry(bootstrap_folder='spaces', registry_src=RegistrySrc.GITLAB)
+@provide_openminds_registry(
+    bootstrap_folder='spaces',
+    registry_src=RegistrySrc.GITLAB,
+)
 class Space(
     commonCoordinateSpace.Model,
     AtlasConcept,
@@ -55,7 +55,12 @@ class Space(
     ):
         commonCoordinateSpace.Model.__init__(self, **data)
         AtlasConcept.__init__(self, identifier=self.id, name=self.full_name)
-        
+    
+    # TODO fix species
+    @property
+    def species(self) -> List[species.Model]:
+        return []
+
     @property
     def volumes(self):
         return [
@@ -117,26 +122,33 @@ class Space(
         """
         return BoundingBox(point1, point2, self)
 
+    @staticmethod
+    def get_aliases(key: str, space: 'Space') -> List[str]:
+        return [space.short_name]
+
+    @staticmethod
+    def parse_legacy_id(space_id: str) -> str:
+        base_id = path.basename(space_id)
+        return f'https://openminds.ebrains.eu/instances/CoordinateSpace/{base_id}'
+
     @classmethod
     def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'Space':
 
         # import here to avoid circular dep
         from siibra.volumes.volume import VolumeSrc
-        from os import path
 
         digital_identifier = None
         homepage = None
         how_to_cite = None
         ontology_identifier = None
 
-        base_id = path.basename(json_input.get('@id'))
-
         d = [vol_src
-                for dataset in json_input.get('datasets') if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
+                for dataset in json_input.get('datasets')
+                if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
                 for vol_src in VolumeSrc.parse_legacy(dataset)
             ]
         return [Cls(
-            id=json_input.get('@id') or f'https://openminds.ebrains.eu/sands/CoordinateSpace/{base_id}',
+            id=Space.parse_legacy_id(json_input.get('@id')),
             type="https://openminds.ebrains.eu/sands/CoordinateSpace",
             anatomical_axes_orientation={
                 "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"

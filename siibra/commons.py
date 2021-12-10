@@ -15,10 +15,11 @@
 
 import os
 from enum import Enum
-from typing import Any, Generic, Iterable, List, TypeVar
+from typing import Any, Callable, Generic, Iterable, List, TypeVar
 from nibabel import Nifti1Image
 import logging
 import numpy as np
+import re
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -54,8 +55,8 @@ class TypedRegistry(Generic[T]):
     Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
     """
-
-    def __init__(self, matchfunc=lambda a, b: a == b, elements=None):
+    _get_aliases: Callable[[str, T], List[str]] = lambda key, val: [key]
+    def __init__(self, matchfunc=lambda a, b: False, elements=None, get_aliases = lambda key, obj: [key]):
         """
         Build a glossary from a dictionary with string keys, for easy
         attribute-like access, name autocompletion, and iteration.
@@ -74,6 +75,9 @@ class TypedRegistry(Generic[T]):
             self._elements = elements
         self._matchfunc = matchfunc
 
+        assert hasattr(get_aliases, "__call__")
+        self._get_aliases = get_aliases
+
     def add(self, key: str, value: T):
         """Add a key/value pair to the registry.
 
@@ -90,7 +94,11 @@ class TypedRegistry(Generic[T]):
 
     def __dir__(self) -> List[str]:
         """List of all object keys in the registry"""
-        return self._elements.keys()
+        return [
+            TypedRegistry.process_alias(alias)
+            for key, el in self._elements.items()
+            for alias in self._get_aliases(key, el)
+        ]
 
     def __str__(self) -> str:
         return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
@@ -127,7 +135,10 @@ class TypedRegistry(Generic[T]):
         if len(matches) == 0:
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
+                f"Possible values are:\n - " + "\n - ".join([
+                    self.process_alias(alias)
+                    for key, value in self._elements.items()
+                    for alias in self._get_aliases(key, value) ])
             )
         elif len(matches) == 1:
             return matches[0]
@@ -137,7 +148,7 @@ class TypedRegistry(Generic[T]):
             logger.info(
                 f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
             )
-            logger.debug(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
+            logger.debug(f"(Other candidates were: {', '.join(str(m) for m in S[1:])})")
             return largest
 
     def __sub__(self, obj):
@@ -159,14 +170,25 @@ class TypedRegistry(Generic[T]):
         matches = self.find(spec)
         return len(matches) > 0
 
+    # TODO this method hangs in the else block
     def find(self, spec) -> List[T]:
         """
         Return a list of items matching the given specification,
         which could be either the name or a specification that
         works with the matchfunc of the Glossary.
         """
-        if isinstance(spec, str) and (spec in self._elements):
-            return [self._elements[spec]]
+        if isinstance(spec, str):
+            if spec in self._elements:
+                return [self._elements[spec]]
+            
+            found = [
+                el
+                for key, el in self._elements.items()
+                for alias in self._get_aliases(key, el)
+                if spec in TypedRegistry.process_alias(alias)
+            ]
+            if len(found) > 0:
+                return found
         if isinstance(spec, dict) and spec.get('@id'):
             return [self._elements[spec.get('@id')]]
         elif isinstance(spec, int) and (spec < len(self._elements)):
@@ -188,20 +210,30 @@ class TypedRegistry(Generic[T]):
         Keys are auto-generated from the provided names to be uppercase,
         with words delimited using underscores.
         """
-        if index in self._elements:
-            return self._elements[index]
-        else:
-            hint = ""
-            if isinstance(index, str):
-                import difflib
+        try:
+            return self[index]
+        except IndexError:
+            logger.debug(f'attr {index} not found.')
+        
+        hint = ""
+        if isinstance(index, str):
+            import difflib
 
-                closest = difflib.get_close_matches(
-                    index, list(self._elements.keys()), n=3
-                )
-                if len(closest) > 0:
-                    hint = f"Did you mean {' or '.join(closest)}?"
-            raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
+            closest = difflib.get_close_matches(
+                index, [
+                    TypedRegistry.process_alias(alias)
+                    for key, el in self._elements.items()
+                    for alias in self._get_aliases(key, el)
+                ],
+                n=3
+            )
+            if len(closest) > 0:
+                hint = f"Did you mean {' or '.join(closest)}?"
+        raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
+    @staticmethod
+    def process_alias(alias: str) -> str:
+        return re.sub(r'\W+', '_', alias).upper()
 
 class Registry(TypedRegistry[Any]): pass
 

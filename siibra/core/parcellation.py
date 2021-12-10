@@ -14,21 +14,21 @@
 # limitations under the License.
 
 from datetime import date
+from memoization import cached
+from anytree import Node
+import difflib
+from typing import Any, Dict, List, Optional, Union
 
-from ..openminds.common import CommonConfig
+
 from .space import Space
 from .region import Region, SiibraNode
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 
-from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap, VolumeSrc
-
-import difflib
-from typing import Any, Dict, List, Optional, Union
+from ..commons import Registry, logger, MapType, ParcellationIndex
+from ..openminds.common import CommonConfig
 from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas, parcellationEntityVersion
-from memoization import cached
-from anytree import Node
-from uuid import uuid4
+
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -112,9 +112,61 @@ class ParcellationVersion:
             deprecated=obj.get("deprecated", False),
         )
 
-
-class ParcellationMapModel(parcellationEntityVersion.Model):
+class BrainAtlasHasTerminology(brainAtlas.HasTerminology):
     Config = CommonConfig
+
+class BrainAtlas(brainAtlas.Model):
+    Config = CommonConfig
+
+    @staticmethod
+    def parse_legacy_id(legacy_id: str) -> str:
+        return f'https://openminds.ebrains.eu/instances/BrainAtlas/{legacy_id}'
+
+    @classmethod
+    def parse_legacy(Cls, json_input: Dict[str, Any], has_versions=[]) -> List['BrainAtlas']:
+        """
+        pass the value of @version to parse_legacy method.
+        n.b. BrainAtlas.parse_legacy, unlike its peers, have side effects
+        If a brain atlas of the same collectionName already exists in the main registry,
+        it will extend the has_version attr
+        """
+        
+        brainatlas_id=BrainAtlas.parse_legacy_id(json_input.get("collectionName"))
+
+        if main_openminds_registry.provides(brainatlas_id):
+            
+            logger.debug(f'BrainAtlas.parse_legacy of {brainatlas_id}: skipping adding new brain atlas. Main registry already provides.')
+
+            brain_atlas: 'BrainAtlas' = main_openminds_registry[brainatlas_id]
+            
+            # TODO enable 
+            # assert isinstance(brain_atlas, Cls)
+            
+            existing_version_ids: List[str] = [has_version.get('@id') for has_version in brain_atlas.has_version]
+            for has_v in has_versions:
+                adding_id: str = has_v.get('@id') 
+                if adding_id in existing_version_ids:
+                    logger.warning(f'adding has_version with id {adding_id} skipped. Already exist')
+                else:
+                    brain_atlas.has_version.append(has_v)
+            return []
+
+        brainatlas = Cls(
+            id=brainatlas_id,
+            type="https://openminds.ebrains.eu/sands/BrainAtlas",
+            author=[{
+                "@id": "https://openminds.ebrains.eu/instances/author/default_author"
+            }],
+            description=".",
+            full_name=json_input.get("collectionName"),
+            short_name=json_input.get("collectionName")[:30],
+            has_terminology=BrainAtlasHasTerminology(
+                short_name=f"{json_input.get('collectionName')} - terminology"[:30],
+                has_entity=[]
+            ),
+            has_version=has_versions,
+        )
+        return [ brainatlas ]
 
 
 @provide_openminds_registry(
@@ -132,13 +184,7 @@ class Parcellation(
 
     def __init__(
         self,
-        identifier: str=None,
-        name: str=None,
-        version=None,
-        modality=None,
-        regiondefs=[],
         dataset_specs=[],
-        maps=None,
         **data
     ):
         """
@@ -190,9 +236,7 @@ class Parcellation(
 
     @property
     def volumes(self):
-        return [entity
-            for entity in self.has_terminology_version.has_entity_version
-            if isinstance(entity, ParcellationMapModel)]
+        return self.has_terminology_version.defined_in
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -254,11 +298,19 @@ class Parcellation(
 
     @property
     def spaces(self):
-        return [ main_openminds_registry[self.coordinate_space] ]
+        return Registry(
+            elements=[ main_openminds_registry[self.coordinate_space] ],
+            get_aliases=Space.get_aliases,
+        )
 
     @property
-    def is_newest_version(self):
-        return (self.version is None) or (self.version.next is None)
+    def is_newest_version(self) -> bool:
+        newer = [
+            parc
+            for parc in self.REGISTRY
+            if parc.is_new_version_of and parc.is_new_version_of.get("@id") == self.id
+        ]
+        return len(newer) == 0
 
     @property
     def publications(self):
@@ -347,7 +399,7 @@ class Parcellation(
         return sorted(found_regions,reverse=True, key=lambda region: difflib.SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
 
     def __str__(self):
-        return self.name
+        return self.full_name
 
     def __repr__(self):
         return f'{self.full_name} - {self.space.id}'
@@ -384,7 +436,13 @@ class Parcellation(
         """
         
         def get_prev_version(parc: Parcellation) -> Optional[Parcellation]:
-            return self.is_new_version_of and main_openminds_registry[parc.is_new_version_of]
+            if not parc.is_new_version_of:
+                return None
+            try:
+                return main_openminds_registry[parc.is_new_version_of]
+            except KeyError as e:
+                logger.debug(f"attempt to get prev version {str(self)} was unsuccessful.")
+                return None
         
         prev_version = get_prev_version(self)
         while prev_version:
@@ -438,8 +496,30 @@ class Parcellation(
                     f"{', '.join(c.name for c in conflicts)}"
                 )
 
+    @staticmethod
+    def get_aliases(key: str, parc: 'Parcellation') -> List[str]:
+        return [
+            f'{parc.full_name}_{parc.space.full_name}'
+        ]
+
+    @staticmethod
+    def parse_legacy_id(parc_id: str, space_id: str) -> str:
+        return f'https://openminds.ebrains.eu/instances/BrainAtlasVersion/{parc_id}-{space_id}'
+
     @classmethod
     def parse_legacy(Cls, json_input: Dict[str, Any]) -> List['Parcellation']:
+        """
+        The parse legacy class method for Parcellation has a lot of side effects.
+        
+        - the closest model in openminds sands v3 is brainAtlasVersion, which is separated on a per space basis.
+        This means for multi-spaced parcellations (such as julich brain), the parse_legacy method on a single parcellation
+        will return a list of brainAtlasVersion's
+
+        - the region attribute has been renamed to .has_terminology_version.has_entity_version . Region entities (parcellationEntityVersion 's)
+        are generated
+
+        - 
+        """
         assert json_input.get('@id') is not None
         if json_input.get('@extends'):
             return []
@@ -465,49 +545,33 @@ class Parcellation(
         funding = []
 
         append_openminds_entities = []
-        def get_mpm(spc_id: str) -> List[ParcellationMapModel]:
+        def get_mpm(spc_id: str) -> List[VolumeSrc]:
             mpms = [ file
                 for dataset in json_input.get('datasets')
                 if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1' and dataset.get('space_id') == spc_id
                 for file in VolumeSrc.parse_legacy(dataset) ]
 
-
             # TODO discuss index the mpms in main registry?
-
             # append_openminds_entities.extend(mpms)
 
-            return [ParcellationMapModel(
-                id=f'https://openminds.ebrains.eu/sands/ParcellationEntityVersion/{uuid4()}',
-                type=f'https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
-                version_identifier='parc-mpm-model',
-                has_annotation={
-                    'criteriaQualityType': {
-                        '@id': 'criteriaQualityType/someCriteria'
-                    },
-                    'internalIdentifier': "internalIdentifier/internalIdentifier",
-                    'visualizedIn': {
-                        '@id': mpm.id
-                    }
-                }) for mpm in mpms]
+            return mpms
 
         def get_has_terminology_version(spc_id: str):
 
             # TODO discuss: register regions at main_openminds_registry?
             regions_entities = [entity
                 for r in json_input.get('regions')
-                for entity in Region.parse_legacy(r, parcellation_id=f'{parc_id}-{spc_id}')
+                for entity in Region.parse_legacy(r, parcellation_id=Parcellation.parse_legacy_id(parc_id, spc_id))
             ]
 
             mpm_entities = get_mpm(spc_id)
             
             return {
-                "has_entity_version": [
-                    *regions_entities,
-                    *mpm_entities,
-                ],
+                "has_entity_version": regions_entities,
                 "short_name": "stuff",
                 "version_identifier": "stuff2",
-                "version_innovation": "stuff3"
+                "version_innovation": "stuff3",
+                "defined_in": mpm_entities
             }
         
         homepage = None
@@ -516,13 +580,29 @@ class Parcellation(
             '@id': 'https://openminds.ebrains.eu/instances/licenses/ccByNc4.0	'
         }
 
-        is_new_version_of = {
-            "@id": json_input.get("@version").get("@prev")
-        } if json_input.get("@version") and json_input.get("@version").get("@prev") else None
         release_date = date(1970, 1, 1)
         short_name = json_input.get('shortName')
-        version_identifier = json_input.get('@version', {}).get('name') or json_input.get('version') or 'Unknown version'
         version_innovation = 'place holder'
+
+        version_json = json_input.get("@version", {
+            "collectionName": json_input.get("shortName") or json_input.get("name"),
+            "name": "latest"
+        })
+
+        def get_is_new_version_of(spc_id: str) -> Dict[str, str]:
+            if version_json.get("@prev") is None:
+                return None
+            else:
+                return {
+                    "@id": Parcellation.parse_legacy_id(version_json.get("@prev"), spc_id)
+                }
+
+        version_identifier = version_json.get('name') or 'latest'
+
+        brainatlases = BrainAtlas.parse_legacy(version_json, has_versions=[{
+            "@id": Parcellation.parse_legacy_id(parc_id, spc)
+        } for spc in coordinate_spaces])
+        append_openminds_entities.extend(brainatlases)
 
         if len(short_name) > 30:
             short_name = short_name[:30]
@@ -533,16 +613,16 @@ class Parcellation(
         return [
             *[
                 Cls(
-                    id=f'{parc_id}-{spc}',
+                    id=Parcellation.parse_legacy_id(parc_id, spc),
                     type=parc_type,
                     accessibility=accessibility,
                     coordinate_space={
-                        "@id": spc
+                        "@id": Space.parse_legacy_id(spc)
                     },
                     copyright=None,
                     full_documentation=full_documentation,
                     full_name=full_name,
-                    is_new_version_of=is_new_version_of,
+                    is_new_version_of=get_is_new_version_of(spc),
                     release_date=release_date,
                     has_terminology_version=get_has_terminology_version(spc),
                     license=license,

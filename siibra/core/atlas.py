@@ -13,24 +13,99 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, provide_registry
-from .space import Space
-from .parcellation import Parcellation
+from os import path
+from typing import Any, Dict, List
+from pydantic.fields import Field
 
-from ..commons import MapType, logger, Registry
+from pydantic.main import BaseModel
+from siibra.openminds.SANDS.v3.atlas import brainAtlas
+from siibra.openminds.common import CommonConfig
+from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
+from .space import Space
+from .parcellation import Parcellation, BrainAtlas
+
+from ..commons import MapType, TypedRegistry, logger, Registry
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
+class MultiLevelAtlas(BaseModel):
+    id: str
+    name: str
+    order: float = 5.0
+    brain_atlases: List[BrainAtlas] = Field(
+        ...,
+        alias='brainAtlases'
+    )
+    species: List[Dict[str, str]] = []
 
-@provide_registry
+    @property
+    def parcellations(self) -> TypedRegistry[Parcellation]:
+
+        brainatlases = [brainatlas for brainatlas in self.brain_atlases]
+        parcs_dict: Dict[str, 'Parcellation'] = {
+            ver.get("@id"): main_openminds_registry[ver.get("@id")]
+            for ba in brainatlases
+            for ver in ba.has_version
+        }
+
+        assert all([
+            isinstance(parc, Parcellation)
+            for _, parc in parcs_dict.items()
+        ]), f'{self.name} MultiLevelAtlas.spaces, not all parcs_dict are Parcellation instance'
+        
+        return Registry(
+            elements=parcs_dict,
+            get_aliases=Parcellation.get_aliases,
+        )
+
+    @property
+    def spaces(self) -> TypedRegistry[Space]:
+
+        parcs: List['Parcellation'] = [
+            parc
+            for parc in self.parcellations
+        ]
+
+        space_ids: set[str] = set([
+            parc.coordinate_space.get("@id")
+            for parc in parcs
+        ])
+
+        space_dict = {
+            space_id: main_openminds_registry[{ "@id": space_id }]
+            for space_id in space_ids
+        }
+        return Registry(
+            elements=space_dict,
+            get_aliases=Space.get_aliases
+        )
+
+
+
+@provide_openminds_registry(
+    bootstrap_folder="atlases",
+    registry_src=RegistrySrc.GITLAB,
+)
 class Atlas(
-    AtlasConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    MultiLevelAtlas,
+    AtlasConcept,
 ):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference
     spaces, as well as common functionalities of those.
     """
+
+    _speces = None
+
+    def __init__(self, **kwargs):
+        """Construct an empty atlas object with a name and identifier."""
+        brainAtlas.Model.__init__(self, **kwargs)
+        AtlasConcept.__init__(self, self.id, self.name, dataset_specs=[])
+
+        # if species is not None:
+        #     self.species = self.get_species_data(species)
+
 
     @staticmethod
     def get_species_data(species_str: str):
@@ -58,85 +133,65 @@ class Atlas(
 
         raise ValueError(f'species with spec {species_str} cannot be decoded')
 
-    def __init__(self, identifier, name, species = None):
-        """Construct an empty atlas object with a name and identifier."""
+    Config = CommonConfig
 
-        AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
-
-        self._parcellations = []  # add with _add_parcellation
-        self._spaces = []  # add with _add_space
-        if species is not None:
-            self.species = self.get_species_data(species)
-
-    def _register_space(self, space):
-        """Registers another reference space to the atlas."""
-        space._atlases.add(self)
-        self._spaces.append(space)
-
-    def _register_parcellation(self, parcellation):
-        """Registers another parcellation to the atlas."""
-        parcellation.atlases.add(self)
-        self._parcellations.append(parcellation)
-
-    @property
-    def spaces(self):
-        """Access a registry of reference spaces supported by this atlas."""
-        return Registry(
-            elements={s.key: s for s in self._spaces},
-            matchfunc=Space.match_spec,
-        )
-
-    @property
-    def parcellations(self):
-        """Access a registry of parcellations supported by this atlas."""
-        return Registry(
-            elements={p.key: p for p in self._parcellations},
-            matchfunc=Parcellation.match_spec,
-        )
+    @staticmethod
+    def parse_legacy_id(atlas_id: str):
+        base_id = path.basename(atlas_id)
+        return f'https://openminds.ebrains.eu/instances/BrainAtlas/{base_id}'
 
     @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct an Atlas
-        object from a json stream.
-        """
-        if obj.get("@type") != "juelich/iav/atlas/v1.0.0":
-            raise ValueError(
-                f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}"
-            )
-        if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
-            atlas = cls(obj["@id"], obj["name"], species=obj["species"])
-            # TODO maybe... reenable somehow?
-            # for space_id in obj["spaces"]:
-            #     if not Space.REGISTRY.provides(space_id):
-            #         raise ValueError(
-            #             f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known"
-            #         )
-            #     atlas._register_space(Space.REGISTRY[space_id])
-            # for parcellation_id in obj["parcellations"]:
-            #     if not Parcellation.REGISTRY.provides(parcellation_id):
-            #         raise ValueError(
-            #             f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known"
-            #         )
-            #     atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
-            return atlas
-        return obj
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> List['Atlas']:
+
+        possible_parc_ids = [
+            Parcellation.parse_legacy_id(parc_id, spc_id)
+            for parc_id in json_input.get('parcellations')
+            for spc_id in json_input.get('spaces')
+        ]
+
+        actual_parc_ids = [
+            parc_id
+            for parc_id in possible_parc_ids
+            if main_openminds_registry.provides(parc_id)
+        ]
+
+        brainatlases = [
+            brainatlas
+            for brainatlas in main_openminds_registry
+            if isinstance(brainatlas, BrainAtlas)
+            and any([
+                version.get("@id") in actual_parc_ids
+                for version in brainatlas.has_version
+            ])
+        ]
+
+        return [Cls(
+            id=Atlas.parse_legacy_id(json_input.get('@id')),
+            name=json_input.get('name'),
+            order=json_input.get('order'),
+            brain_atlases=brainatlases,
+            species=[Atlas.get_species_data(json_input.get("species"))],
+        )]
+
+    @staticmethod
+    def get_aliases(key: str, atlas: 'Atlas') -> List[str]:
+        return [atlas.name]
 
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self._parcellations[0]
-            if len(self._parcellations) > 1:
+            parcellation_obj = self.parcellations[0]
+            if len(self.parcellations) > 1:
                 logger.info(
                     f"No parcellation specified, using default '{parcellation_obj.name}'."
                 )
         else:
             parcellation_obj = self.parcellations[parcellation]
-            if parcellation_obj not in self._parcellations:
+            if parcellation_obj not in self.parcellations:
                 raise ValueError(
-                    f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
+                    f"Parcellation {str(parcellation_obj)} not supported by atlas {self.name}."
                 )
         return parcellation_obj
 
@@ -148,8 +203,8 @@ class Atlas(
             space: Space, or string specification of a space
         """
         if space is None:
-            space_obj = self._spaces[0]
-            if len(self._spaces) > 1:
+            space_obj = self.spaces[0]
+            if len(self.spaces) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
         else:
             space_obj = self.spaces[space]
@@ -256,7 +311,7 @@ class Atlas(
         list of matching regions
         """
         result = []
-        for p in self._parcellations:
+        for p in self.parcellations:
             if p.is_newest_version or all_versions:
                 match = p.find_regions(
                     regionspec,
