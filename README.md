@@ -18,7 +18,7 @@ Copyright 2020-2021, Forschungszentrum Jülich GmbH
 <!--- Please keep this at line 19, or adjust the line skip in docs/readme.rst accordingly -->
 
 `siibra` is a Python client for working with "multilevel" brain atlas frameworks, and aims to facilitate the programmatic and reproducible incorporation of brain region definitions and multidimensional brain region features into reproducible neuroscience workflows.
-`siibra` provides structured acccess to parcellation schemes in different brain reference spaces, including volumetric reference templates at both macroscopic and microscopic resolutions as well as surface representations. It supports both discretely labelled and continuous (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. Among the datasets anchored to brain regions are many different modalities from in-vivo and post mortem studies, including regional information about cell and transmitter receptor densties, structural and functional connectivity, gene expressions, and more.
+It provides structured acccess to parcellation schemes in different brain reference spaces, including volumetric reference templates at both macroscopic and microscopic resolutions as well as surface representations. It supports both discretely labelled and continuous (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. Among the datasets anchored to brain regions are many different modalities from in-vivo and post mortem studies, including regional information about cell and transmitter receptor densties, structural and functional connectivity, gene expressions, and more.
 
 `siibra` is mainly developed by the [Human Brain Project](https://humanbrainproject.eu) for accessing the [EBRAINS human brain atlas](https://ebrains.eu/service/human-brain-atlas). 
 It stores much of its contents in the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), and is designed to support the [OpenMINDS metadata standards](https://github.com/HumanBrainProject/openMINDS_SANDS).
@@ -31,11 +31,13 @@ Beyond the functionality of `siibra-explorer`, the Python library also supports 
 By encapsulating many aspects of interacting with different maps and reference templates spaces, it also minimizes common errors like misinterpretation of coordinates from different reference spaces, mixing up label indices of brain regions, or utilisation of inconsistent versions of parcellation maps. 
 It aims to provide a safe way of using maps defined across multiple spatial scales for reproducible analysis. 
 
-## Getting started: Installation, setup and first steps
+## Getting started
 
+### Installation
 
 `siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`. In order to work with the latest version from github, use `pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main`. 
 
+### EBRAINS access
 
 `siibra` retrieves much of its data from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), which requires authentication. 
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
@@ -43,13 +45,14 @@ Please make sure that you have a valid EBRAINS user account by [registering to E
 Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.ebrains.eu/develop.html).
 As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`.  Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
 
-`siibra-python`'s documentation is hosted at https://siibra-python.readthedocs.io. It includes a catalogue of well documented code examples that walk you through the different concepts and functionalities. As a new user, it is recommended to go through these examples - it is easy and will quickly provide you with the right code snippets that get you started. Furthermore, a set of jupyter notebooks demonstrating concrete example usecases are maintained in the [siibra-tutorials](https://github.com/FZJ-INM1-BDA/siibra-tutorials) repository. 
+## Documentation, Tutorials & Help
+
+`siibra-python`'s documentation is hosted at https://siibra-python.readthedocs.io. It includes a catalogue of well documented code examples that walk you through the different concepts and functionalities. As a new user, it is recommended to go through these examples - they are easy and will quickly provide you with the right code snippets that get you started. Furthermore, a set of jupyter notebooks demonstrating concrete example usecases are maintained in the [siibra-tutorials](https://github.com/FZJ-INM1-BDA/siibra-tutorials) repository. 
 
 If you run into issues, please open a ticket on [EBRAINS support](https://ebrains.eu/support/) or directly file bugs and feature requests on [github](https://github.com/FZJ-INM1-BDA/siibra-python/issues).
 Please keep in mind that `siibra-python` is still at in development. While care is taken to make everything work reliably, the API of the library is not yet stable, and the software is not yet fully tested. 
 
 ## Acknowledgements
 
-This software code is funded from the European Union’s Horizon 2020 Framework
-Programme for Research and Innovation under the Specific Grant Agreement No.
+This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No.
 945539 (Human Brain Project SGA3).

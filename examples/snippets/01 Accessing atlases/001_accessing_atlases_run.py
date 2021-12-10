@@ -4,15 +4,16 @@
 Accessing predefined atlases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`siibra` provides a registry of predefined atlas objects. 
-These objects will be bootstrapped the first time you load particular version
-of `siibra`, so you need an internet connection before accessing them for the
-first time. After the initial bootstrap, these objects are cached on your
-computer so you can access them offline. 
+`siibra` provides a registry of predefined atlas objects of different species. 
 """
 
 # sphinx_gallery_thumbnail_path = "_static/demo.png"
 
+# %%
+# The predefined atlas objects will be bootstrapped the first time a particular version
+# of `siibra` is loaded, so an internet connection is required before accessing them for the
+# first time. After the initial bootstrap, the atlas definitions are cached on the local
+# disk, so they can be accessed offline.
 import siibra
 
 # %% 
