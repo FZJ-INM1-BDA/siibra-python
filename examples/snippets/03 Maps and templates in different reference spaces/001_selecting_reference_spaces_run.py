@@ -2,7 +2,6 @@
 Selecting predefined brain reference spaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. _spaces:
 
 Just as atlas and parcellation objects, `siibra` provides a registry of predefined
 reference space objects that will be bootstrapped when you load the library for
@@ -11,7 +10,6 @@ spaces are semantic objects which define a brain coordinate system. Associated
 to each reference space are one or more reference templates, representing a
 concrete reference image or surface representation of the brain.
 """
-
 
 # %%
 # As for atlases and parcellations, siibra provides a registry of predefined
