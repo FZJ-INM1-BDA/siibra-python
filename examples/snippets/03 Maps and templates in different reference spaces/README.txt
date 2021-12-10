@@ -1,4 +1,4 @@
-.. _maps:
+.. _parcmaps:
 
 Maps and templates in different reference spaces
 ------------------------------------------------

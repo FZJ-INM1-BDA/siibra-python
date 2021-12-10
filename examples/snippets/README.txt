@@ -17,7 +17,7 @@ Before reading the examples, it helps to understand the main conceptual structur
  4. `Parcellation maps`. A parcellation can be mapped in different reference spaces. Maps take the form of image volumes or surface meshes, and can be of 
 	- "labelled" type, where coordinates or vertices in the reference space have a single unique brain region label, or of 
 	- "continuous" type, where coordinates are linked to one floating point value per brain region, reflecting the weight or probability of each region at the given coordinate.
-	Parcellations are covered in :ref:`parcmaps`.
+	Parcellation maps are covered in :ref:`parcmaps`.
 
 Besides those core concepts, `siibra` defines structures for geometric primitives linked to reference spaces (like points and bounding boxes, covered in :ref:`locations`), as well as structures for multimodal data features which are linked to brain locations or brain regions (covered in :ref:`features`).
 
