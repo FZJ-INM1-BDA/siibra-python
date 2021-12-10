@@ -45,7 +45,15 @@ atlas.get_parcellation('long bundles')
 jubrain = atlas.get_parcellation('julich') # will return the latest version per default
 
 # %%
-# Parcellations have several useful properties. Let's look at some of them.
+# The resulting parcellation is a semantic object, including 
+# 
+# - general information like the parcellation name, a description and related publications
+# - the region hierarchy
+# - functions to access parcellation maps in different reference spaces
+# - functions to find and access regions and region masks
+# 
+# Parcellation maps and brain  regions are covered in the next examples. For now let's
+# just look at a few metadata fields:
 print("Name:    ",jubrain.name)
 print("Id:      ",jubrain.id)
 print("Modality:",jubrain.modality)

@@ -1,13 +1,11 @@
 """
 .. _atlases:
 
-Accessing predefined atlases
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Selecting a predefined atlas
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` provides a registry of predefined atlas objects of different species. 
 """
-
-# sphinx_gallery_thumbnail_path = "_static/demo.png"
 
 # %%
 # The predefined atlas objects will be bootstrapped the first time a particular version
@@ -58,7 +56,7 @@ siibra.atlases['human']
 
 # %%
 # An atlas has a range of properties and functions, for example is linked to a species:
-atlas.species['name']
+atlas.species
 
 # %%
 # Furthermore, an atlas provides its own registries of supported spaces and parcellations. 

@@ -2,7 +2,7 @@
 Accessing parcellation maps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-objects in `siibra`, instantiation of a reference template is lazy: The actual image or mesh is only loaded after explicitely calling a "fetch" method.
+
 """
 
 import siibra
