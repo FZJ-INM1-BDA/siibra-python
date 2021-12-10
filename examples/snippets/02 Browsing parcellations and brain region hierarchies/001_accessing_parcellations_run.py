@@ -53,5 +53,5 @@ print()
 print(jubrain.description)
 print()
 for p in jubrain.publications:
-    print(p['citation'])
+    print(p['cite'])
 
