@@ -1,5 +1,5 @@
 """
-Accessing predefined brain reference spaces
+Selecting predefined brain reference spaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Just as atlas and parcellation objects, `siibra` provides a registry of predefined
@@ -7,7 +7,7 @@ reference space objects that will be bootstrapped when you load the library for
 the first time, and stay in your local file cache for future use. Reference
 spaces are semantic objects which define a brain coordinate system. Associated
 to each reference space are one or more reference templates, representing a
-concrete reference image or surface representation of the brain in the space.
+concrete reference image or surface representation of the brain.
 """
 
 import siibra

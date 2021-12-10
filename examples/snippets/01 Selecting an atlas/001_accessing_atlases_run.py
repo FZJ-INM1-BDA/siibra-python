@@ -21,39 +21,47 @@ import siibra
 type(siibra.atlases)
 
 # %%
-# We can requests the keys of all predefined objects in the registry:
+# siibra uses registries not only for atlases, but also for parcellations
+# (`siibra.parcellations`), reference spaces (`siibra.spaces`) or data
+# modalities (`siibra.modalilities`). These will be adressed in subsequent
+# examples. 
+#
+# Objects stored in a siibra Registry can be accessed in
+# different ways:
+#
+#  1. You can iterate over all objects
+#  2. An integer index gives sequential access to individual elements
+#  3. A string index will be matched against the name of objects
+#  4. Object keys can be tab-completed as attributes of the registry
+#
+# We can print the keys of all predefined atlas objects in the registry:
 dir(siibra.atlases)
 
 # %% 
-# These keys can be used to fetch an atlas object. 
-# Note that in an interpreter and most IDE's, these keys will autocomplete when
-# you hit <TAB>. This makes it convenient to find the right name. 
+# These keys can be used to fetch an atlas object, supported by autocompletion
+# when you hit <TAB>. This makes it convenient to find the right name. 
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 atlas
 
 # %%
-# `siibra` Registry objects also offer the index operator to access their predefined
-# objects. There are basically three ways.
-# 1.) Using the above mentioned keys: 
+# We can also select the atlas by specifying the key as an index:
 siibra.atlases["MULTILEVEL HUMAN ATLAS"]
 
 # %%
-# 2.) Using integer numbers for sequential access:
+# We can fetch the first available atlas:
 siibra.atlases[0]
 
 # %%
-# 3.) Using arbitrary strings that match an object uniquely. The latter is the simplest way
-# to select objects from a Registry.
+# Most importantly, we can use arbitrary strings matching the name of atlas
+# uniquely. This is usually the simplest way to select from a Registry.
 siibra.atlases['human']
 
 # %%
-# An atlas has a range of properties and functions. In fact it can be used to
-# access much of `siibra`'s functionality, which are addressed in other examples.
-# As an example, an atlas is defined for a particular species:
+# An atlas has a range of properties and functions, for example is linked to a species:
 atlas.species['name']
 
 # %%
-# Furthermore, an atlas provides registries of its supported spaces and parcellations. 
+# Furthermore, an atlas provides its own registries of supported spaces and parcellations. 
 # We will cover these in the section :ref:`parcellations`.
 dir(atlas.spaces)
 

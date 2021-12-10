@@ -29,13 +29,11 @@ Beyond the functionality of `siibra-explorer`, the Python library also supports 
 By encapsulating many aspects of interacting with different maps and reference templates spaces, it also minimizes common errors like misinterpretation of coordinates from different reference spaces, mixing up label indices of brain regions, or utilisation of inconsistent versions of parcellation maps. 
 It aims to provide a safe way of using maps defined across multiple spatial scales for reproducible analysis. 
 
-# Getting started
-
-## Installation
+# Installation
 
 `siibra` is available on pypi. To install the latest released version, simply run `pip install siibra`. In order to work with the latest version from github, use `pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main`. 
 
-## Access to EBRAINS
+# Access to EBRAINS
 
 `siibra` retrieves much of its data from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), which requires authentication. 
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
@@ -43,20 +41,20 @@ Please make sure that you have a valid EBRAINS user account by [registering to E
 Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.ebrains.eu/develop.html).
 As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`.  Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
 
-## Documentation & Help
+# Documentation & Help
 
 `siibra-python`'s documentation is hosted at https://siibra-python.readthedocs.io. It includes a catalogue of well documented code examples that walk you through the different concepts and functionalities. As a new user, it is recommended to go through these examples - they are easy and will quickly provide you with the right code snippets that get you started. Furthermore, a set of jupyter notebooks demonstrating concrete example usecases are maintained in the [siibra-tutorials](https://github.com/FZJ-INM1-BDA/siibra-tutorials) repository. 
 
 If you run into issues, please open a ticket on [EBRAINS support](https://ebrains.eu/support/) or directly file bugs and feature requests on [github](https://github.com/FZJ-INM1-BDA/siibra-python/issues).
 Please keep in mind that `siibra-python` is still in development. While care is taken to make everything work reliably, the API of the library is not yet stable, and the software is not yet fully tested. 
 
-## How to contribute
+# How to contribute
 
 If you want to contribute to `siibra`, feel free to fork it and open a pull request with your changes. You are also welcome to contribute to discussion in the issue tracker and of course to report issues you are facing yourself.
 If you find the software useful, please reference this repository URL in publications and derived work.
 You can also star the project to show us that you are using it.
 
-## Acknowledgements
+# Acknowledgements
 
 This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No.
 945539 (Human Brain Project SGA3).
