@@ -3,5 +3,5 @@ Introduction
 ============
 
 .. mdinclude:: ../README.md
-   :start-line: 20
+   :start-line: 16
 

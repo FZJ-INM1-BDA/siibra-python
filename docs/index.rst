@@ -10,8 +10,6 @@
    readme
    core_conceps.ipynb
    examples/index
-   contribute
-   acknowledgements
 
 
 ..

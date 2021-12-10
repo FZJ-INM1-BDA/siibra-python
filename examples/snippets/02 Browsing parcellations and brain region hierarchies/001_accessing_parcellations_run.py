@@ -52,6 +52,6 @@ print("Modality:",jubrain.modality)
 print()
 print(jubrain.description)
 print()
-#for p in jubrain.publications:
-#    print(p['citation'])
+for p in jubrain.publications:
+    print(p['citation'])
 
