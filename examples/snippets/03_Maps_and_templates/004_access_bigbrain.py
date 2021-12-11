@@ -1,6 +1,6 @@
 """
-Accessing BigBrain image data and maps
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Access BigBrain high-resolution data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 siibra provides access to high-resolution image data parcellation maps defined
 for the 20 micrometer BigBrain space. 

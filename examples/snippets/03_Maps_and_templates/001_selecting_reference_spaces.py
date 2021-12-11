@@ -1,6 +1,6 @@
 """
-Selecting predefined brain reference spaces
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Find predefined reference spaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 Just as atlas and parcellation objects, `siibra` provides a registry of predefined

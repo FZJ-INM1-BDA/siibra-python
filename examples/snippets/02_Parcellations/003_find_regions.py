@@ -1,6 +1,6 @@
 """
-Finding brain regions in a parcellation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Find brain regions in a parcellation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We can use Parcellation objects to find individual brain regions.
 """

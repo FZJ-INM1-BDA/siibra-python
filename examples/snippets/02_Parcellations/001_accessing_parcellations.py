@@ -1,5 +1,5 @@
 """
-List predefined parcellations
+Find predefined parcellations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Just as for atlas objects, `siibra` provides a general registry of predefined

@@ -1,8 +1,8 @@
 """
 .. _templates:
 
-Accessing brain reference templates
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Access brain reference templates
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Other than the rerence space itself, a reference template is a spatial object - more precisely an image volume or surface mesh. Since reference templates are directly linked to their corresponding brain reference space, we access templates by specifying the space. Like all image and mesh
 objects in `siibra`, instantiation of a reference template is lazy: The actual image or mesh is only loaded after explicitely calling a "fetch" method.
