@@ -15,9 +15,9 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 # If we query this modality for the whole atlas instead of a particular
 # brain region, all linked receptor density features
 # will be returned.
-features = siibra.get_features( atlas, siibra.modalities.ReceptorDistribution)
+all_features = siibra.get_features( atlas, siibra.modalities.ReceptorDistribution)
 print("Receptor density features found for the following regions:")
-print("\n".join(f.regionspec for f in features))
+print("\n".join(f.regionspec for f in all_features))
 
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly. 
@@ -55,3 +55,4 @@ img = v1_features[0].autoradiographs['AMPA']
 plt.imshow(img)
 plt.axis('off')
 plt.title(f"Sample color-coded autoradiography patch for AMPA in V1")
+
