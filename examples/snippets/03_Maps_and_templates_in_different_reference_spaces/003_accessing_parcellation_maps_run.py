@@ -28,8 +28,6 @@ julich_mpm
 # To access the actual image data, we call the fetch() method. 
 # This gives us a Nifti1Image object defined in the reference space.
 from nilearn import plotting
-import matplotlib
-matplotlib.use('webagg')
 mapimg = julich_mpm.fetch()
 print(type(mapimg))
 plotting.plot_roi(mapimg, title=f"{julich_mpm.parcellation.name}")
