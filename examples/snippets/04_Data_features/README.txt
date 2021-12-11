@@ -1,7 +1,7 @@
 .. _features:
 
-Retrieving region specific multimodal datasets
-----------------------------------------------
+Multimodal data features
+------------------------
 
 ``siibra`` provides access to data features of different modalities using its ``get_features()`` method, which accepts an **anatomical concept** like a brain region, parcellation, or reference space, and a feature modality as listed in the ``siibra.modalities`` registry. Currently available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, high-resolution volumes of interest, gene expressions, and cell distributions. Additional features, including functional activation maps and electrophysiologal recordings, will become available soon. ``siibra`` implements a unified handling for querying different types of features, broadly categorized into
 
