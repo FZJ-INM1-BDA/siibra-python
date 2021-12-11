@@ -28,7 +28,8 @@ for f in v1_features:
 
 # %%
 # Each feature includes a data structure for the fingerprint, with mean and
-# standard values for different receptors.
+# standard values for different receptors. The following table thus gives
+# us the same values as shown in the polar plot above:
 fp = v1_features[0].fingerprint
 for label, mean, std in zip(fp.labels, fp.meanvals, fp.stdvals):
     print(f"{label:20.20} {mean:10.0f} {fp.unit}      +/-{std:4.0f}")
@@ -42,4 +43,15 @@ for label, mean, std in zip(fp.labels, fp.meanvals, fp.stdvals):
 p_ampa = v1_features[0].profiles['AMPA']
 import matplotlib.pyplot as plt
 plt.plot(p_ampa.densities.keys(), p_ampa.densities.values())
+plt.title(f"Cortical profile of AMPA densities in V1")
+plt.xlabel("Cortical depth (%)")
+plt.ylabel(p_ampa.unit)
+plt.grid(True)
 
+# %%
+# Lastly, many receptor features provide a sample 2D cortical patch of the
+# color-coded autoradiograph for illustration.
+img = v1_features[0].autoradiographs['AMPA']
+plt.imshow(img)
+plt.axis('off')
+plt.title(f"Sample color-coded autoradiography patch for AMPA in V1")
