@@ -176,7 +176,6 @@ class RegionalCellDensityExtractor(FeatureQuery):
         ):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
-            print(f"cells for {regionspec}")
             cells = np.array(
                 [
                     tuple(float(w) for w in _.strip().split(" "))
