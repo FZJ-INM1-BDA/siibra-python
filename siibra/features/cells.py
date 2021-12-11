@@ -18,7 +18,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..core.space import Space
+from ..core.space import Space, Point
 from ..retrieval.repositories import GitlabConnector, OwncloudConnector
 
 import numpy as np
@@ -107,12 +107,14 @@ class CorticalCellDistribution(RegionalFeature):
         return self._image_loader.data
 
     @property
-    def coordinate(self):
+    def location(self):
         """
-        Coordinate of this image patch in BigBrain histological space in mm.
+        Location of this image patch in BigBrain histological space in mm.
         """
-        A = self.image.affine
-        return Space.REGISTRY.BIG_BRAIN, np.dot(A, [0, 0, 0, 1])[:3]
+        return Point(
+            np.dot(self.image.affine, [0, 0, 0, 1])[:3], 
+            Space.REGISTRY.BIG_BRAIN,
+        )
 
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
@@ -131,8 +133,7 @@ class CorticalCellDistribution(RegionalFeature):
         from nilearn import plotting
 
         patch = self.image.get_fdata()
-        space, xyz = self.coordinate
-        tpl = space.get_template().fetch()
+        tpl = self.location.space.get_template().fetch()
         fig = pyplot.figure(figsize=(12, 6))
         pyplot.suptitle(str(self))
         ax1 = pyplot.subplot2grid((1, 4), (0, 0))
@@ -148,9 +149,9 @@ class CorticalCellDistribution(RegionalFeature):
             c=self.cells['layer'])
         ax2.axis("off")
         view = plotting.plot_img(
-            tpl, cut_coords=xyz, cmap="gray", axes=ax3, display_mode="tiled"
+            tpl, cut_coords=tuple(self.location), cmap="gray", axes=ax3, display_mode="tiled"
         )
-        view.add_markers([xyz])
+        view.add_markers([tuple(self.location)])
         return fig
 
 
