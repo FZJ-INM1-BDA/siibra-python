@@ -47,10 +47,8 @@ templates_path = ["_templates"]
 
 # example gallery
 sphinx_gallery_conf = {
-     'examples_dirs': [
-         '../examples/snippets',
-     ],
-     'filename_pattern': r'^.*_run.py', # which files to execute and include their outputs
+     'examples_dirs': ['../examples/snippets',],
+     'filename_pattern': r'^.*.py', # which files to execute and include their outputs
      'gallery_dirs': 'examples',  # path to where to save gallery generated output
      'capture_repr': ('_repr_html_', '__repr__'),
      'within_subsection_order': FileNameSortKey,

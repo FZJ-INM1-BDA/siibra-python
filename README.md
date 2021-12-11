@@ -39,7 +39,7 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
 Please make sure that you have a valid EBRAINS user account by [registering to EBRAINS](https://ebrains.eu/register/). 
 Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.ebrains.eu/develop.html).
-As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`.  Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
+As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`. The token is a string sequence with more than 1000 characters, usually starting with with "ey". Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
 
 # Documentation & Help
 

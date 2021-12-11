@@ -78,12 +78,11 @@ plotting.plot_stat_map(pmap)
 # %%
 # Now we might wonder which region this map index actually refers to. 
 # The Parcellation map objects can safely translate
-# indices into regions and vice versa:
-
-# What is the region behind map index 102?
+# indices into regions:
 julich_pmaps.decode_label(mapindex=102)
 
-# Vice versa, what is the index of that region?
+# %%
+# Vice versa, we can find the parcellation index of a given region:
 julich_pmaps.decode_region('hoc5 left')
 
 # %%
