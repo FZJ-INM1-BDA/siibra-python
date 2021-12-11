@@ -30,7 +30,7 @@ plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 # boxes in :ref:`locations`. For now, we just define a volume of interest from
 # two corner points in the histological space. We specify the points with 
 # a string representation, which could be conveniently copy pasted from the
-# interactive viewer "siibra explorer", hosted at https://atlases.ebrains.eu/viewer.
+# interactive viewer `siibra explorer <https://atlases.ebrains.eu/viewer>`_.
 # Of course we can also specify coordinates by a 3-tuple, and in other ways.
 voi = siibra.BoundingBox(
     point1="-30.590mm, 3.270mm, 47.814mm",

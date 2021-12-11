@@ -35,10 +35,9 @@ centroid.space.name
 
 # %% 
 # We can also generate a binary mask of the region in a given space, which
-# gives us a Nifti1Image object as provided by the well established `nibabel
-# <https://nipy.org/nibabel/>` library, and which we can directly visualize
-# using e.g. plotting functions from `nilearn
-# <https://nilearn.github.io/stable/index.html>`:
+# gives us a Nifti1Image object as provided by `nibabel <https://nipy.org/nibabel/>`_, 
+# and which we can directly visualize using plotting functions like the ones in 
+# `nilearn <https://nilearn.github.io/stable/index.html>`_:
 mask = v1_left.build_mask(space)
 from nilearn import plotting
 plotting.plot_roi(mask, title=f"Mask of {v1_left.name} in {space.name}")

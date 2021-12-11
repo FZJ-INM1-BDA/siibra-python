@@ -2,7 +2,6 @@
 Find predefined reference spaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
 Just as atlas and parcellation objects, `siibra` provides a registry of predefined
 reference space objects that will be bootstrapped when you load the library for
 the first time, and stay in your local file cache for future use. Reference

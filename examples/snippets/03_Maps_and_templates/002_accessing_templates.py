@@ -32,7 +32,7 @@ img
 
 # %%
 # We can directly display this template now with common visualization tools.
-# Here we use the plotting tools provided by nilearn.(https://nilearn.github.io)
+# Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
 from nilearn import plotting
 plotting.view_img(img, bg_img=None, cmap='gray')
 

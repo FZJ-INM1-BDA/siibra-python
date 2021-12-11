@@ -2,9 +2,17 @@
 Gene expressions
 ~~~~~~~~~~~~~~~~
 
-Another regional data feature are cortical distributions of cell bodies. The distributions are measured crom cortical image patches that have been extracted from the original cell-body stained histological sections of the Bigbrain (Amunts et al., 2013), scanned at 1 micrometer resolution. These patches come together with manual annotations of cortical layers. The cell segmentations have been performed using the recently proposed Contour Proposal Networks (CPN; E. Upschulte et al.; https://arxiv.org/abs/2104.03393; https://github.com/FZJ-INM1-BDA/celldetection).
-"""
+``siibra`` can query gene expression data from the Allen brain atlas. The gene
+expressions are linked to atlas regions by coordinates of their probes in MNI
+space. When querying feature by a region,  ``siibra`` automatically builds a
+region mask to filter the probes. 
 
+.. note::
+    This feature is used by the `JuGEx toolbox
+    <https://github.com/FZJ-INM1-BDA/siibra-jugex>`_, which provides an
+    implementation for differential gene expression analysis between two
+    different brain regions as proposed by Bludau et al.
+"""
 
 # %%
 # We start by selecting an atlas.
@@ -12,34 +20,24 @@ import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
-# Find cell density features for V1
-v1 = atlas.get_region("v1") 
-features = siibra.get_features(v1, siibra.modalities.CorticalCellDistribution)
-print(f"{len(features)} found for region {v1.name}")
+# We select a brain region and query for expression levels of GABARAPL2.
+region = atlas.get_region("V1")
+features = siibra.get_features(
+    region, siibra.modalities.GeneExpression,
+    gene=siibra.features.gene_names.GABARAPL2)
+print(features[0])
 
 # %%
-# Look at the default visualization the first of them. 
-# This will actually fetch the image and cell segmentation data.
-features[0].plot()
+# Since gene expressions are spatial features,
+# let's check the reference space of the results.
+space = features[0].space
+assert(all(f.space==space for f in features))
 
 # %%
-# The segmented cells are stored in each feature as a numpy array with named columns.  
-# For example, to plot the 2D distribution of the cell locations colored by
-# layers, we can do:
-import matplotlib.pyplot as plt
-c = features[0].cells
-plt.scatter(c['x'], c['y'], c=c['layer'], s=0.1 )
-plt.title(f"Cell distributions in {v1.name}")
-plt.grid(True)
-plt.axis('square')
-
-# %%
-# The features also have location information. We can plot their location in
-# BigBrain space:
-location = features[0].location
-# fetch the template of the location's space
-template = location.space.get_template().fetch()
+# Plot the locations of the probes that were found, together with the region
+# mask of V1.
 from nilearn import plotting
-view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
-view.add_markers([tuple(location)])
-
+all_coords = [tuple(g.location) for g in features]
+mask = region.build_mask(space)
+display = plotting.plot_roi(mask)
+display.add_markers(all_coords,marker_size=5)
