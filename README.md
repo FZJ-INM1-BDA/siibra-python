@@ -38,8 +38,17 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 `siibra` retrieves much of its data from the [EBRAINS Knowledge Graph](https://kg.ebrains.eu), which requires authentication. 
 Therefore you have to provide an EBRAINS authentication token for using all features provided by `siibra`.
 Please make sure that you have a valid EBRAINS user account by [registering to EBRAINS](https://ebrains.eu/register/). 
-Then follow the instructions for [obtaining EBRAINS API auth tokens](https://kg.ebrains.eu/develop.html).
-As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and make it known to `siibra` using either `siibra.set_ebrains_token()` or by storing it in the environment variable `HBP_AUTH_TOKEN`. The token is a string sequence with more than 1000 characters, usually starting with with "ey". Note that as of now, you need to get a new token approximately every day to perform EBRAINS data queries. However, `siibra` implements a local cache on your harddisk, so once retrieved, your data will become usable and accessible without refreshing the token.
+As a last step, you need to fetch a recent token from the [authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize), and To do so, please follow these steps:
+
+ 1. If you do not yet have an EBRAINS account, register [here](https://ebrains.eu/register) to obtain one. 
+ 2. Your EBRAINS account needs to be enabled for programmatic access to the EBRAINS Knowledge Graph to fetch metadata. This is formal step to acknowledge additional terms of use, and done quickly by emailing to the KG team. A link and template email to do so can be found right on top of the [Knowledge Graph developer page](https://kg.humanbrainproject.eu/develop.html).
+ 3. Create an authentication token for EBRAINS by visiting
+[the EBRAINS authorization endpoint](https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize).
+ 4. Copy the token, and either store it in the enviroment variable `$HBP_AUTH_TOKEN` or pass it explicitely to `siibra` using `siibra.set_ebrains_token()`. The token is a string sequence with more than 1000 characters, usually starting with with "ey". 
+
+Note that as of now, you need to to steps 3 and 4 approximately every day to perform EBRAINS data queries. However, `siibra` maintains a local cache on disk, so once retrieved, your data will become usable and accessible without refreshing the token. 
+During 2022, step 2 will become obsolete, and refresh times for tokens will become longer.
+
 
 # Documentation & Help
 
