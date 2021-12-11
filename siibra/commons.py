@@ -95,7 +95,7 @@ class TypedRegistry(Generic[T]):
     def __dir__(self) -> List[str]:
         """List of all object keys in the registry"""
         return [
-            TypedRegistry.process_alias(alias)
+            TypedRegistry.alias_to_attr(alias)
             for key, el in self._elements.items()
             for alias in self._get_aliases(key, el)
         ]
@@ -109,9 +109,11 @@ class TypedRegistry(Generic[T]):
 
     def __contains__(self, key) -> bool:
         """Test wether the given key is defined by the registry."""
-        return (
-            key in self._elements
-        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
+        if key in self._elements:
+            return True
+        if key in self._elements.values():
+            return True
+        return False
 
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
@@ -136,7 +138,7 @@ class TypedRegistry(Generic[T]):
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
                 f"Possible values are:\n - " + "\n - ".join([
-                    self.process_alias(alias)
+                    self.alias_to_attr(alias)
                     for key, value in self._elements.items()
                     for alias in self._get_aliases(key, value) ])
             )
@@ -181,11 +183,19 @@ class TypedRegistry(Generic[T]):
             if spec in self._elements:
                 return [self._elements[spec]]
             
+            # going through all of the elements
+            # return any elements where:
+            # - any one of the returned alias contain all keywords
             found = [
                 el
                 for key, el in self._elements.items()
-                for alias in self._get_aliases(key, el)
-                if spec in TypedRegistry.process_alias(alias)
+                if any(
+                    all(
+                        word.lower() in alias.lower()
+                        for word in spec.split()
+                    )
+                    for alias in self._get_aliases(key, el)
+                )
             ]
             if len(found) > 0:
                 return found
@@ -194,6 +204,7 @@ class TypedRegistry(Generic[T]):
         elif isinstance(spec, int) and (spec < len(self._elements)):
             return [list(self._elements.values())[spec]]
         else:
+            # TODO no longer necessary?
             # string matching on values
             matches = [v for v in self._elements.values() if self._matchfunc(v, spec)]
             if len(matches) == 0:
@@ -201,7 +212,10 @@ class TypedRegistry(Generic[T]):
                 matches = [
                     self._elements[k]
                     for k in self._elements.keys()
-                    if all(w.lower() in k.lower() for w in spec.split())
+                    if all(
+                        w.lower() in k.lower()
+                        for w in spec.split()
+                    )
                 ]
             return matches
 
@@ -210,18 +224,24 @@ class TypedRegistry(Generic[T]):
         Keys are auto-generated from the provided names to be uppercase,
         with words delimited using underscores.
         """
-        try:
-            return self[index]
-        except IndexError:
-            logger.debug(f'attr {index} not found.')
-        
+        found = [
+            el
+            for key, el in self._elements.items()
+            if any(
+                TypedRegistry.alias_to_attr(alias) == index
+                for alias in self._get_aliases(key, el)
+            )
+        ]
+        if len(found) > 0:
+            return found[0]
+            
         hint = ""
         if isinstance(index, str):
             import difflib
 
             closest = difflib.get_close_matches(
                 index, [
-                    TypedRegistry.process_alias(alias)
+                    TypedRegistry.alias_to_attr(alias)
                     for key, el in self._elements.items()
                     for alias in self._get_aliases(key, el)
                 ],
@@ -232,7 +252,7 @@ class TypedRegistry(Generic[T]):
         raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
     @staticmethod
-    def process_alias(alias: str) -> str:
+    def alias_to_attr(alias: str) -> str:
         return re.sub(r'\W+', '_', alias).upper()
 
 class Registry(TypedRegistry[Any]): pass

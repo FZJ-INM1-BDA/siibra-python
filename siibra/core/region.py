@@ -18,7 +18,6 @@ from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
     logger,
-    Registry,
     ParcellationIndex,
     MapType,
     compare_maps,
@@ -31,7 +30,7 @@ from memoization import cached
 import re
 import anytree
 from anytree import NodeMixin
-from typing import Any, Dict, Generic, List, TypeVar, Union
+from typing import Any, Dict, Generic, List, Tuple, TypeVar, Union
 from nibabel import Nifti1Image
 from ..openminds.SANDS.v3.atlas import parcellationEntityVersion, parcellationEntity
 from ..openminds.common import CommonConfig
@@ -73,6 +72,18 @@ class SiibraNode:
     def set_parent(self, value):
         self._node.parent = value and value._node
 
+    def find(self, *arg, **kwargs) -> Tuple[MixedNode, ...]:
+        """
+        Proxy to [anytree.search.findall](https://anytree.readthedocs.io/en/latest/_modules/anytree/search.html)
+
+        filter_: callable
+        
+        """
+        return anytree.search.findall(
+            self._node,
+            *arg,
+            **kwargs
+        )
 
 class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     """
@@ -204,89 +215,6 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         return region._node is self._node or region._node in self._node.descendants
 
     @cached
-    def find(
-        self, regionspec, filter_children=False, build_group=False, groupname=None
-    ):
-        """
-        Find regions that match the given region specification in the subtree
-        headed by this region.
-
-        Parameters
-        ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - a regex applied to region names,
-            - an integer, which is interpreted as a labelindex,
-            - a full ParcellationIndex
-            - a region object
-        filter_children : Boolean
-            If true, children of matched parents will not be returned
-        build_group : Boolean, default: False
-            If true, the result will be a single region object, or None.
-            If needed,a group region of matched elements will be created.
-        groupname : str (optional)
-            Name of the resulting group region, if build_group is True
-
-        Yield
-        -----
-        list of matching regions if build_group==False, else Region
-        """
-        if isinstance(regionspec, str) and regionspec in self.names:
-            # key is given, this gives us an exact region
-            match = anytree.search.find_by_attr(self, regionspec, name="key")
-            if match is None:
-                return []
-            else:
-                return [match]
-
-        result: List['Region'] = [r.ref for r in list(
-            set(anytree.search.findall(self._node, lambda node: node.ref.matches(regionspec)))
-        )]
-        if len(result) > 1 and filter_children:
-
-            # filter regions whose parent is in the list
-            filtered = [r for r in result if r.parent not in result]
-
-            # find any non-matched regions of which all children are matched
-            complete_parents: List['Region'] = list(
-                {
-                    r.parent
-                    for r in filtered
-                    if (r.parent is not None)
-                    and all((c in filtered) for c in r.parent.children)
-                }
-            )
-
-            if len(complete_parents) == 0:
-                result: List['Region'] = [r for r in filtered]
-            else:
-                # filter child regions again
-                filtered += complete_parents
-                result = [r for r in filtered if r.parent not in filtered]
-
-        # ensure the result is a list
-        if result is None:
-            result = []
-        elif isinstance(result, Region):
-            result = [result]
-        else:
-            result = list(result)
-
-        if build_group:
-            # return a single region as the result
-            if len(result) == 1:
-                return result[0]
-            elif len(result) > 1:
-                return Region._build_grouptree(
-                    result, self.parcellation, name=groupname
-                )
-            else:
-                return None
-        else:
-            return result
-
-    @cached
     def matches(self, regionspec):
         """
         Checks wether this region matches the given region specification.
@@ -306,6 +234,9 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         -----
         True or False
         """
+
+        if AtlasConcept.matches(self,regionspec):
+            return True
 
         def splitstr(s):
             return [w for w in re.split(r"[^a-zA-Z0-9.-]", s) if len(w) > 0]

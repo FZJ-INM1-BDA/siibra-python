@@ -362,20 +362,17 @@ class AtlasConcept:
         """
         if isinstance(spec, self.__class__) and (spec == self):
             return True
-        elif isinstance(spec, str):
-            if spec == self.key:
+        if isinstance(spec, str):
+            if hasattr(self, 'id') and spec == self.id:
                 return True
-            elif spec == self.id:
-                return True
-            else:
-                # match the name
-                words = [w for w in re.split("[ -]", spec)]
-                squeezedname = self.name.lower().replace(" ", "")
+
+            if hasattr(self, 'get_aliases') and callable(self.get_aliases):
                 return any(
-                    [
-                        all(w.lower() in squeezedname for w in words),
-                        spec.replace(" ", "") in squeezedname,
-                    ]
+                    all(
+                        word.lower() in alias.lower()
+                        for word in re.split(r"\W+", spec)
+                    )
+                    for alias in self.get_aliases(self.id, self)
                 )
         return False
 

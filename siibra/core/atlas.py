@@ -185,7 +185,7 @@ class Atlas(
             parcellation_obj = self.parcellations[0]
             if len(self.parcellations) > 1:
                 logger.info(
-                    f"No parcellation specified, using default '{parcellation_obj.name}'."
+                    f"No parcellation specified, using default '{str(parcellation_obj)}'."
                 )
         else:
             parcellation_obj = self.parcellations[parcellation]

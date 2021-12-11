@@ -317,8 +317,8 @@ class Parcellation(
         return self._publications + super().publications
 
     def decode_region(
-        self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
-    ):
+        self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=False
+    ) -> Region:
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -341,25 +341,36 @@ class Parcellation(
         ------
         Region object
         """
-        candidates = self.regiontree.find(regionspec, filter_children=True)
+
+        if build_group:
+            # TODO discuss reenable build-group?
+            raise NotImplementedError(f'build_group option has been temporarily diabled')
+        candidates = self.find(lambda node: node.ref.matches(regionspec))
+
         if not candidates:
             raise ValueError(
                 "Regionspec {} could not be decoded under '{}'".format(
-                    regionspec, self.name
+                    regionspec, self.full_name
                 )
             )
         elif len(candidates) == 1:
-            return candidates[0]
-        else:
-            if build_group:
-                logger.debug(
-                    f"The specification '{regionspec}' resulted more than one region. A group region is returned."
+            return candidates[0].ref
+        elif len(candidates) > 1:
+            logger.debug(f"decode_region found multiple matches")
+            common_ancestor_candidates = [
+                c
+                for c in candidates
+                if all(
+                    compare is c or c in compare.ancestors
+                    for compare in candidates
                 )
-                return Region._build_grouptree(candidates, self)
+            ]
+            if len(common_ancestor_candidates) == 1:
+                return common_ancestor_candidates[0].ref
             else:
-                raise RuntimeError(
-                    f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
-                )
+                raise ValueError(f"no common ancestor found: {len(common_ancestor_candidates)} with spec {regionspec}")
+        else:
+            raise ValueError(f'Multiple candidates found for spec {regionspec}: {str(len(candidates))}')
 
     @cached
     def find_regions(

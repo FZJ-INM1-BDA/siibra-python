@@ -162,7 +162,23 @@ def test_atlas_has_spaces(atlas: Atlas):
 def test_atlas_has_parcellations(atlas: Atlas):
     assert len([parc for parc in atlas.parcellations]) > 0
 
+select_regions_param=('atlasspec,parcspec,regspec,ex_regionname,ex_lenchildren', [
+    (
+        'human', '2.9 mni 152', 'v1',
+        'Area hOc1 (V1, 17, CalcS)', 2
+    ),
+    (
+        'human', '2.9 mni 152', 'v1 left',
+        'Area hOc1 (V1, 17, CalcS) left', 0
+    ),
+])
 
-def test_select_brain_regions():
-    pass
+@pytest.mark.parametrize(*select_regions_param)
+def test_select_brain_regions(atlasspec,parcspec,regspec,ex_regionname,ex_lenchildren):
+    atlas = atlases[atlasspec]
+    r = atlas.get_region(parcellation=parcspec, region=regspec)
+    assert r.name == ex_regionname
+    assert len(r.children) == ex_lenchildren
+    
+
 # TODO additional tests
