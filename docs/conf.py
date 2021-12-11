@@ -34,7 +34,7 @@ extensions = [
     "sphinx_gallery.gen_gallery",
     "sphinx.ext.autodoc",
     "autoapi.extension",
-    "nbsphinx",
+    #"nbsphinx",
     "IPython.sphinxext.ipython_console_highlighting",
     "m2r2",
 ]
