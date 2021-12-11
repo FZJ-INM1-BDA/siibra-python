@@ -32,10 +32,10 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data.
     """
 
-    def __init__(self, regionspec, cells, connector, folder):
+    def __init__(self, regionspec, cells, connector, folder, species):
 
         _, section_id, patch_id = folder.split("/")
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec, species=species)
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
@@ -160,17 +160,23 @@ class RegionalCellDensityExtractor(FeatureQuery):
     _JUGIT = GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
     _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
 
+
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         logger.warning(
             f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data."
         )
 
+        species = {
+            '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9', 
+            'name': 'Homo sapiens'
+        }
         for cellfile, loader in self._JUGIT.get_loaders(
             suffix="segments.txt", recursive=True
         ):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
+            print(f"cells for {regionspec}")
             cells = np.array(
                 [
                     tuple(float(w) for w in _.strip().split(" "))
@@ -185,5 +191,5 @@ class RegionalCellDensityExtractor(FeatureQuery):
                 ]
             )
             self.register(
-                CorticalCellDistribution(regionspec, cells, self._SCIEBO, region_folder)
+                CorticalCellDistribution(regionspec, cells, self._SCIEBO, region_folder, species=species)
             )
