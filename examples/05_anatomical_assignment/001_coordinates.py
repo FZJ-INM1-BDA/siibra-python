@@ -46,12 +46,12 @@ assignments.sort_values(by=['MaxValue'], ascending=False)
 point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=5.)
 with siibra.QUIET: # suppress progress output
     assignments = julich_pmaps.assign(point_uncertain)
-assignments[assignments.Contained>=0.5]
+assignments[assignments.Contains>=0.5]
 
 # %%
 # To verify the result, we plot the assigned probability maps at the requested position.
 from nilearn import plotting
-for index, assignment in assignments[assignments.Contained>=0.5].iterrows():
+for index, assignment in assignments[assignments.Contains>=0.5].iterrows():
     pmap = julich_pmaps.fetch(mapindex=assignment.MapIndex)
     plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment.Region)
 
