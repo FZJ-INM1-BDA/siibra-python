@@ -1,16 +1,19 @@
+Introduction
+===============
 
-.. mdinclude:: ../README.md
-   :start-line: 2
-
+.. include:: ../README.rst
+  :start-after: intro-start
+  :end-before: intro-end
 
 .. toctree::
+   :maxdepth: 3
    :hidden:
-   :maxdepth: 2
 
-   readme
-   core_conceps.ipynb
-   examples/index
-
+   start
+   concepts
+   features
+   contribute
+   acknowledgements
 
 ..
     Indices and tables

@@ -18,7 +18,14 @@ dir(siibra.parcellations)
 
 # %%
 # Fetching an object works in the same way as for `siibra.atlases` (see :ref:`atlases`)
-siibra.parcellations['julich']
+julich_brain = siibra.parcellations['julich']
+
+# %%
+# Parcellations typically refer to entities in the EBRAINS knowledge graph,
+# modelled in the MINDS and openMINDS standards. `siibra` stores their
+# identifiers. Note that this holds for spaces and other concepts as well, as
+# will be seen in the next examples.
+print(julich_brain.id)
 
 # %%
 # Typically however, we are only interested in the parcellatioins supported by

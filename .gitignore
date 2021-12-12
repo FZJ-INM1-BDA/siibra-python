@@ -24,5 +24,6 @@ playground
 .env
 docs/examples
 docs/autoapi
+docs/_build
 *.swp
 *.swo

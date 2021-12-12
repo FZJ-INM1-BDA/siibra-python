@@ -8,7 +8,7 @@ Copyright 2020-2021, Forschungszentrum Jülich GmbH
 *Authors: Big Data Analytics Group, Institute of Neuroscience and
 Medicine (INM-1), Forschungszentrum Jülich GmbH*
 
-.. intro-marker
+.. intro-start
 
 ``siibra`` is a Python client for working with brain atlas frameworks
 that integrate multiple brain parcellations and reference spaces across
@@ -66,7 +66,9 @@ inconsistent versions of parcellation maps. It aims to provide a safe
 way of using maps defined across multiple spatial scales for
 reproducible analysis.
 
-.. getting-started-marker
+.. intro-end
+
+.. getting-started-start
 
 Installation
 ------------
@@ -132,7 +134,10 @@ Please keep in mind that ``siibra-python`` is still in development.
 While care is taken to make everything work reliably, the API of the
 library is not yet stable, and the software is not yet fully tested.
 
-.. contribute-marker
+.. getting-started-end
+
+.. contribute-start
+
 
 How to contribute
 -----------------
@@ -144,7 +149,9 @@ facing yourself. If you find the software useful, please reference this
 repository URL in publications and derived work. You can also star the
 project to show us that you are using it.
 
-.. acknowledgments-marker
+.. contribute-end
+
+.. acknowledgments-start
 
 Acknowledgements
 ----------------
@@ -153,7 +160,7 @@ This software code is funded from the European Union’s Horizon 2020
 Framework Programme for Research and Innovation under the Specific Grant
 Agreement No. 945539 (Human Brain Project SGA3).
 
-.. end-marker
+.. acknowledgments-end
 
 .. |License| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
    :target: https://opensource.org/licenses/Apache-2.0

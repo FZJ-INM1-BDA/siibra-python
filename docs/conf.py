@@ -47,9 +47,21 @@ templates_path = ["_templates"]
 
 # example gallery
 sphinx_gallery_conf = {
-     'examples_dirs': ['../examples/snippets',],
+     'examples_dirs': [
+         '../examples/snippets/01_atlases_and_parcellations',
+         '../examples/snippets/02_maps_and_templates',
+         '../examples/snippets/03_data_features',
+         '../examples/snippets/04_locations',
+         '../examples/snippets/05_anatomical_assignment'
+     ],
+     'gallery_dirs': [
+         'examples/01_atlases_and_parcellations',  
+         'examples/02_maps_and_templates',  
+         'examples/03_data_features',  
+         'examples/04_locations',  
+         'examples/05_anatomical_assignment',  
+     ],
      'filename_pattern': r'^.*.py', # which files to execute and include their outputs
-     'gallery_dirs': 'examples',  # path to where to save gallery generated output
      'capture_repr': ('_repr_html_', '__repr__'),
      'within_subsection_order': FileNameSortKey,
 }
@@ -78,4 +90,4 @@ html_css_files = ["siibra.css"]
 
 html_logo = "../images/siibra-python.jpeg"
 
-source_suffix = ['.rst','md']
+source_suffix = ['.rst']

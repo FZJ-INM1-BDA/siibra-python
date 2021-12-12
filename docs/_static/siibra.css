@@ -4,6 +4,10 @@ img.center {
     margin: auto;
 }
 
+h1.logo {
+	display: none;
+}
+
 .sphx-glr-thumbcontainer {
     min-height: 2px !important;
     width: 100% !important;
