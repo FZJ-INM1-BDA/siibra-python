@@ -1,4 +1,4 @@
 .. include:: ../README.rst
-  :start-after: acknowledgements-start
-  :end-before: acknowledgements-end
+  :start-after: acknowledgments-start
+  :end-before: acknowledgments-end
 

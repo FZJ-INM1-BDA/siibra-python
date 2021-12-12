@@ -12,5 +12,5 @@ Main concepts
 Furthermore, the following concepts are essential to work with atlases:
 
  - `Locations in reference space` - different geometric primitives like points and bounding boxes which are explicitely linked to specific brain reference spaces. 
- - ` Multimodal data features` - a hierarchy of data structures describing datasets which are linked to locations in the brain via parcellations, brain regions, or locations in space.
+ - `Multimodal data features` - a hierarchy of data structures describing datasets which are linked to locations in the brain via parcellations, brain regions, or locations in space.
 
