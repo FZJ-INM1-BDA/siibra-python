@@ -15,7 +15,7 @@ def find_version():
         raise RuntimeError("Siibra version cannot be found.")
 
 
-with open(os.path.join(ROOT_DIR, "README.md"), "r", encoding="utf-8") as f:
+with open(os.path.join(ROOT_DIR, "README.rst"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
