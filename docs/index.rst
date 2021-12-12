@@ -1,5 +1,5 @@
-Introduction
-===============
+siibra - Software interface for interacting with brain atlases
+==============================================================
 
 .. include:: ../README.rst
   :start-after: intro-start

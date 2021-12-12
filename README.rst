@@ -1,7 +1,7 @@
 |License| |PyPI version| |Python versions| |Documentation Status|
 
-siibra - Python interface for interacting with brain atlases
-============================================================
+siibra - Software interface for interacting with brain atlases
+==============================================================
 
 Copyright 2020-2021, Forschungszentrum Jülich GmbH
 
