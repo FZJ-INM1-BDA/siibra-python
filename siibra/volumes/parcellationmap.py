@@ -1005,8 +1005,8 @@ class ContinuousParcellationMap(ParcellationMap):
                     W = nib.Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
                     T, _ = self.assign(W)
                     assignments.extend([
-                        (pointindex, mapindex, prob, iou, contained, contains, rho) 
-                        for (_, mapindex, _, prob, iou, contained, contains, rho)
+                        [pointindex, mapindex, maxval, iou, contained, contains, rho]
+                        for (_, mapindex, _, maxval, rho, iou, contains, contained)
                         in T.values
                     ])
 
@@ -1076,16 +1076,16 @@ class ContinuousParcellationMap(ParcellationMap):
                     if intersection == 0:
                         continue
                     iou = intersection / np.maximum(v1, v2).sum()
-                    contained = intersection / v1.sum()
-                    contains = intersection / v2.sum()
+                    contains = intersection / v1.sum()
+                    contained = intersection / v2.sum()
 
                     v1d = v1 - v1.mean()
                     v2d = v2 - v2.mean()
                     rho = (v1d * v2d).sum() / np.sqrt((v1d**2).sum()) / np.sqrt((v2d**2).sum())
 
-                    avg = (v1/v1.sum()) * v2
+                    maxval = v1.max()
 
-                    assignments.append([modeindex, mapindex, avg, iou, contained, contains, rho])
+                    assignments.append([modeindex, mapindex, maxval, iou, contained, contains, rho])
 
         else:
             raise RuntimeError(f"Items of type {item.__class__.__name__} cannot be used for region assignment.")
@@ -1098,11 +1098,11 @@ class ContinuousParcellationMap(ParcellationMap):
             'Component' : result[ind,0].astype('int'),
             'MapIndex': result[ind,1].astype('int'),
             'Region' : [self.decode_label(mapindex=m, labelindex=None).name for m in result[ind,1]],
-            'MapValue' : result[ind,2],
+            'MaxValue' : result[ind,2],
             'Correlation': result[ind,6],
             'IoU': result[ind,3],
-            'Contains': result[ind, 4],
-            'Contained': result[ind, 5]
+            'Contains': result[ind, 5],
+            'Contained': result[ind, 4]
         }).dropna(axis=1, how='all')
 
         if components is None:

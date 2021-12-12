@@ -49,7 +49,7 @@ plotting.view_img(bigbrain_chunk, bg_img=bigbrain_whole, cmap='magma', cut_coord
 # %%
 # Next we select a parcellation which provides a map for BigBrain, and extract
 # labels for the same volume of interest. We choose the cortical layer maps by Wagstyl et al. 
-# Note that by specifyin "-1" as a resolution, `siibra` will fetch the highest
+# Note that by specifying "-1" as a resolution, `siibra` will fetch the highest
 # possible resolution.
 layermap = atlas.get_map(space='bigbrain', parcellation='layers')
 mask = layermap.fetch(resolution_mm=-1, voi=voi)
