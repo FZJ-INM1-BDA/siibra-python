@@ -29,13 +29,18 @@ with siibra.QUIET: # suppress progress output here
         maptype='continuous'
     )
 from nilearn import image
-img = image.threshold_img(difumo_maps.fetch(15), 0.0004)
-region = difumo_maps.decode_label(15)
+img = image.math_img( 
+    "im1+im2",
+    im1 = image.threshold_img(difumo_maps.fetch(15), 0.0003),
+    im2 = image.threshold_img(difumo_maps.fetch(44), 0.0003)
+)
+region1 = difumo_maps.decode_label(15)
+region2 = difumo_maps.decode_label(44)
 
 # let's look at the resulting image
 from nilearn import plotting
 plotting.view_img(img, 
-    title="Thresholded functional map of {region.name}",
+    title="Thresholded functional map",
     colorbar=False
 )
 
@@ -49,6 +54,7 @@ plotting.view_img(img,
 # we filter the result by significant (positive) correlations.
 with siibra.QUIET: # suppress progress output
     assignments, components = julich_pmaps.assign(img)
+print(f"DiFuMo regions used: {region1.name}, {region2.name}")
 assignments[assignments.Correlation>=0.2]
 
 
