@@ -64,7 +64,8 @@ for img in julich_mpm.fetch_iter():
 # once and then convert it to a sparse index format, that is much more
 # efficient to process and store. The sparse index is cached on the local disk,
 # therefore subsequent use of probability maps will be much faster.
-julich_pmaps = atlas.get_map(space="mni152", parcellation="julich", maptype="continuous")
+with siibra.QUIET: # suppress progress output
+    julich_pmaps = atlas.get_map(space="mni152", parcellation="julich", maptype="continuous")
 julich_pmaps
 
 # %%

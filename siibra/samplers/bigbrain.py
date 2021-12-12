@@ -86,7 +86,8 @@ class BigBrainCortexSampler:
         elif isinstance(loc_bb, PointSet):
             for p in tqdm(
                 loc_bb, total=len(loc_bb), unit="locations",
-                desc=f"Sampling from {len(loc_bb)} locations"
+                desc=f"Sampling from {len(loc_bb)} locations",
+                disable=logger.level>20
             ):
                 result.append(self._sample_single_point(p))
         else:

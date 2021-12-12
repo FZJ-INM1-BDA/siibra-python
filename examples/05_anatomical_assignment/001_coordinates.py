@@ -7,7 +7,7 @@ We start by selecting the Julich-Brain probabilistic maps from the human atlas, 
 """
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-with siibra.QUIET:
+with siibra.QUIET: # suppress progress output
     julich_pmaps = atlas.get_map(
         space="mni152",
         parcellation="julich",
@@ -25,7 +25,8 @@ with siibra.QUIET:
 # We can sort the table by these values, to see that the region with highest probability is
 # indeed the expected region. 
 point = siibra.Point((27.75, -32.0, 63.725), space='mni152')
-assignments = julich_pmaps.assign(point)
+with siibra.QUIET: # suppress progress output
+    assignments = julich_pmaps.assign(point)
 assignments.sort_values(by=['MaxValue'], ascending=False)
 
 # %%
@@ -43,7 +44,8 @@ assignments.sort_values(by=['MaxValue'], ascending=False)
 # by correlation coefficient. Here, we filter to show only the rows with 
 # a containedness score of at least 0.5
 point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=5.)
-assignments = julich_pmaps.assign(point_uncertain)
+with siibra.QUIET: # suppress progress output
+    assignments = julich_pmaps.assign(point_uncertain)
 assignments[assignments.Contained>=0.5]
 
 # %%
@@ -52,3 +54,4 @@ from nilearn import plotting
 for index, assignment in assignments[assignments.Contained>=0.5].iterrows():
     pmap = julich_pmaps.fetch(mapindex=assignment.MapIndex)
     plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment.Region)
+

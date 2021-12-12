@@ -185,7 +185,9 @@ class ParcellationMap(ImageProvider):
         logger.info(f"Create 4D array from {N} maps with size {im0.shape + (N,)}")
         out_data = np.empty(out_shape, dtype=im0.dataobj.dtype)
 
-        for mapindex, img in tqdm(enumerate(self.fetch_iter()), total=N):
+        for mapindex, img in tqdm(
+            enumerate(self.fetch_iter()), total=N, disable=logger.level>20
+        ):
             out_data[mapindex] = np.asanyarray(img.dataobj)
 
         return nib.funcs.squeeze_image(
@@ -497,7 +499,10 @@ class LabelledParcellationMap(ParcellationMap):
 
         msg = f"Collecting {len(regions)} regional maps for '{self.space.name}'"
         current_index = 1
-        for region in tqdm(regions, total=len(regions), desc=msg, unit="maps"):
+        for region in tqdm(
+            regions, total=len(regions), desc=msg, unit="maps",
+            disable=logger.level>20
+        ):
 
             # load region mask
             mask_ = self._load_regional_map(
@@ -591,7 +596,8 @@ class LabelledParcellationMap(ParcellationMap):
         msg = f"Assigning {len(coords)} points to {N} maps"
         assignments = [[] for _ in coords]
         for mapindex, loadfnc in tqdm(
-            enumerate(self.maploaders), total=len(self), desc=msg, unit=" maps"
+            enumerate(self.maploaders), total=len(self), desc=msg, unit=" maps",
+            disable=logger.level>20
         ):
             lmap = loadfnc()
             p2v = np.linalg.inv(lmap.affine)
@@ -629,7 +635,7 @@ class LabelledParcellationMap(ParcellationMap):
             return f
 
         def visual_progress(f):
-            return tqdm(f, total=len(self.regions), desc=msg, unit="regions")
+            return tqdm(f, total=len(self.regions), desc=msg, unit="regions", disable=logger.level>20)
 
         progress = plain_progress if quiet else visual_progress
 
@@ -742,7 +748,7 @@ class ContinuousParcellationMap(ParcellationMap):
         with open(probsfile, 'r') as f:
             lines = f.readlines()
             msg = f"Loading spatial index for location assignment"
-            for line in tqdm(lines, total=len(lines), desc=msg, unit="voxels"):
+            for line in tqdm(lines, total=len(lines), desc=msg, unit="voxels", disable=logger.level>20):
                 fields = line.split(' ')
                 mapindices = list(map(int, fields[0::2]))
                 values = list(map(float, fields[1::2]))
@@ -795,7 +801,8 @@ class ContinuousParcellationMap(ParcellationMap):
         self.affine = None
         for mapindex in tqdm(
             range(len(self)), total=len(self), unit="maps", 
-            desc=f"Fetching {len(self)} volumetric maps"
+            desc=f"Fetching {len(self)} volumetric maps",
+            disable=logger.level>20
         ):
             with QUIET:
                 # retrieve the probability map
@@ -1044,7 +1051,9 @@ class ContinuousParcellationMap(ParcellationMap):
                 if bbox2.volume == 0:
                     continue
                 
-                for mapindex in tqdm(range(len(self)), total=len(self), unit=" map", desc=msg):
+                for mapindex in tqdm(
+                    range(len(self)), total=len(self), unit=" map", desc=msg, disable=logger.level>20
+                ):
                     
                     bbox1 = BoundingBox(
                         self.bboxes[mapindex]['minpoint'], 
@@ -1076,8 +1085,8 @@ class ContinuousParcellationMap(ParcellationMap):
                     if intersection == 0:
                         continue
                     iou = intersection / np.maximum(v1, v2).sum()
-                    contains = intersection / v1.sum()
-                    contained = intersection / v2.sum()
+                    contained = intersection / v1.sum()
+                    contains = intersection / v2.sum()
 
                     v1d = v1 - v1.mean()
                     v2d = v2 - v2.mean()
