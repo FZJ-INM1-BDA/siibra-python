@@ -3,8 +3,4 @@
 Anatomical assignment
 ---------------------
 
-coming soon
-
-
-
 

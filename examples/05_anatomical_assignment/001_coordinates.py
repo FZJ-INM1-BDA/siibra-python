@@ -29,7 +29,8 @@ julich_pmaps = atlas.get_map(
 # We assume the point locations to be imprecise, and specify an error tolerance of 5mm.
 # The assignment will then use a 3D Gaussian kernel with this bandwidth instead of 
 # a fixed point. 
-assignments = julich_pmaps.assign_coordinates(points, radius_mm=5.)
+assignments = julich_pmaps.assign_coordinates(points, sigma_mm=5.)
+print(assignments)
 
 # %%
 # The assignment returns a list of regions which matched each coordinate,
