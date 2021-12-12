@@ -17,10 +17,7 @@ data features. It aims to facilitate the programmatic and reproducible
 incorporation of brain region features from different sources into
 reproducible neuroscience workflows.
 
-.. note::
-   ``siibra-python`` is still in development. While care is
-   taken that it works reliably, its API is not yet stable and you may
-   still encounter bugs when using it.
+ **Please note:** ``siibra-python`` is still in development. While care is taken that it works reliably, its API is not yet stable and you may still encounter bugs when using it.
 
 ``siibra`` provides structured acccess to parcellation schemes in
 different brain reference spaces, including volumetric reference
