@@ -68,7 +68,6 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.1, symmetric_cmap=False)
 # Here it automatically warps the centroid of the volume of interst to MNI space
 # for location assignment. 
 julich_pmaps = atlas.get_map(space='mni152', parcellation='julich', maptype='continuous')
-assignments = julich_pmaps.assign_coordinates(voi.center)
-for region, mapindex, probability in assignments:
-    print(f"{region.name:40.40} {probability:4.2f}")
+assignments = julich_pmaps.assign(voi.center)
+assignments
 

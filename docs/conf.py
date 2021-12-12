@@ -48,11 +48,11 @@ templates_path = ["_templates"]
 # example gallery
 sphinx_gallery_conf = {
      'examples_dirs': [
-         '../examples/snippets/01_atlases_and_parcellations',
-         '../examples/snippets/02_maps_and_templates',
-         '../examples/snippets/03_data_features',
-         '../examples/snippets/04_locations',
-         '../examples/snippets/05_anatomical_assignment'
+         '../examples/01_atlases_and_parcellations',
+         '../examples/02_maps_and_templates',
+         '../examples/03_data_features',
+         '../examples/04_locations',
+         '../examples/05_anatomical_assignment'
      ],
      'gallery_dirs': [
          'examples/01_atlases_and_parcellations',  

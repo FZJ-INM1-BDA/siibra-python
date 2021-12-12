@@ -1103,7 +1103,7 @@ class ContinuousParcellationMap(ParcellationMap):
             'IoU': result[ind,3],
             'Contains': result[ind, 4],
             'Contained': result[ind, 5]
-        })
+        }).dropna(axis=1, how='all')
 
         if components is None:
             return df

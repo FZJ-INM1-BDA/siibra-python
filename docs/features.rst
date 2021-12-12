@@ -14,5 +14,5 @@ This section provides a catalogue of documented code examples that is systematic
    examples/02_maps_and_templates/index
    examples/03_data_features/index
    examples/04_locations/index
-   examples/05_anatomical_assignments/index
+   examples/05_anatomical_assignment/index
 

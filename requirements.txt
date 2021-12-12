@@ -9,3 +9,4 @@ cloud-volume
 memoization
 nilearn
 simple-term-menu
+pandas
