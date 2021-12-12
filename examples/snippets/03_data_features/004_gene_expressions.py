@@ -7,7 +7,7 @@ expressions are linked to atlas regions by coordinates of their probes in MNI
 space. When querying feature by a region,  ``siibra`` automatically builds a
 region mask to filter the probes. 
 
-.. note::
+.. hint::
     This feature is used by the `JuGEx toolbox
     <https://github.com/FZJ-INM1-BDA/siibra-jugex>`_, which provides an
     implementation for differential gene expression analysis between two

@@ -60,6 +60,6 @@ atlas.species
 
 # %%
 # Furthermore, an atlas provides its own registries of supported spaces and parcellations. 
-# We will cover these in the section :ref:`parcellations`.
+# We will cover these in the next examples.
 dir(atlas.spaces)
 
