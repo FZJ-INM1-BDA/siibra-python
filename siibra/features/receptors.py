@@ -333,9 +333,6 @@ class DensityFingerprint:
             unit=self.unit,
         )
 
-    def __contains__(self, item):
-        return item in self.labels
-
     def __iter__(self):
         self.n = 0
         return self
