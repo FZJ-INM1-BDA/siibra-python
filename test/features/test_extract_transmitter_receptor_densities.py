@@ -5,8 +5,8 @@ import siibra
 class TestExtractTransmitterReceptorDensities(unittest.TestCase):
     def test_extract_densities(self):
         atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-        region = atlas.get_region("hoc1 left", parcellation="2.9")
-        features = siibra.get_features(region, siibra.modalities.ReceptorDistribution)
+        region = atlas.get_region("hoc1 left", parcellation="2.9 mni 152")
+        features = siibra.get_features(region, siibra.modalities.RECEPTORDISTRIBUTION)
         self.assertTrue(len(features) == 1)
         self.assertEqual(
             features[0].name,
@@ -17,9 +17,9 @@ class TestExtractTransmitterReceptorDensities(unittest.TestCase):
         query = siibra.features.receptors.ReceptorQuery()
         self.assertTrue(len(query.features) >= 42)
         for q in regions:
-            r = atlas.get_region(q)
+            r = atlas.get_region(q, parcellation="2.9 mni 152")
             matched_features = [
-                f for f in query.features if r.matches(f.regionspec)
+                f for f in query.features if r.matches(f._regionspec)
             ]
             self.assertGreater(len(matched_features), 0)
 

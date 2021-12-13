@@ -193,12 +193,12 @@ class RegionalFeature(Feature):
                 f"invalid type {type(regionspec)} provided as region specification"
             )
         Feature.__init__(self)
-        self.regionspec = regionspec
-        self.species = species
+        self._regionspec = regionspec
+        self._species = species
 
     @property
     def species_ids(self):
-        return [s.get('@id') for s in self.species]
+        return [s.get('@id') for s in self._species]
 
     def match(self, concept):
         """
@@ -214,18 +214,19 @@ class RegionalFeature(Feature):
         True, if match was successful, otherwise False
         """
 
-        # first check if any of
         try:
             if isinstance(concept, Region):
-                atlases = concept.parcellation.atlases
+                atlases = concept._parcellation._atlases
             if isinstance(concept, Parcellation):
-                atlases = concept.atlases
+                atlases = concept._atlases
             if isinstance(concept, Atlas):
                 atlases = {concept}
             if atlases:
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
-                if all(atlas.species.get('@id') not in self.species_ids for atlas in atlases):
+                if all( species.get('@id') not in self.species_ids
+                        for atlas in atlases
+                        for species in atlas.species):
                     return False
         # for backwards compatibility. If any attr is not found, pass
         except AttributeError:
@@ -235,16 +236,16 @@ class RegionalFeature(Feature):
 
         # regionspec might be a specific region, then we can
         # directly test for the object.
-        if isinstance(self.regionspec, Region):
+        if isinstance(self._regionspec, Region):
             if isinstance(concept, Parcellation):
-                return self.regionspec in concept
+                return self._regionspec in concept
             elif isinstance(concept, Region):
-                return self.regionspec == concept
+                return self._regionspec == concept
             elif isinstance(concept, Atlas):
-                return any(self.regionspec in p for p in concept.parcellations)
+                return any(self._regionspec in p for p in concept.parcellations)
 
         # otherwise, it is a string and we need to match explicitely.
-        spec = self.regionspec.lower()
+        spec = self._regionspec.lower()
         if isinstance(concept, Parcellation):
             logger.debug(f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}")
             for w in concept.key.split('_'):
@@ -255,10 +256,7 @@ class RegionalFeature(Feature):
                 return True
 
         elif isinstance(concept, Region):
-            for w in concept.parcellation.key.split('_'):
-                spec = spec.replace(w.lower(), '')
             for match in concept.find(spec):
-                # TODO what's with the mutation here?
                 self._match = match
                 return True
 
@@ -318,7 +316,7 @@ class ParcellationFeature(Feature):
             if concept in self.parcellations:
                 self._match = concept
         elif isinstance(concept, Region):
-            if concept.parcellation in self.parcellations:
+            if concept._parcellation in self.parcellations:
                 self._match = concept
         elif isinstance(concept, Atlas):
             logger.debug(

@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 import unittest
 import siibra
 import pytest
@@ -9,14 +9,14 @@ class TestEbrainsQuery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-        region = atlas.get_region("hoc1 left")
-        cls.feat = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+        region = atlas.get_region("hoc1 left", parcellation="2.9 mni 152")
+        cls.feat = siibra.get_features(region, siibra.modalities['ebrains regional dataset'])
 
     def test_some_result_returned(self):
         assert len(self.feat) > 0
 
     def test_no_duplicates_returned(self):
-        ids = [f.id for f in self.feat]
+        ids = [f._id for f in self.feat]
         assert len(self.feat) == len(list(set(ids)))
 
 
@@ -63,15 +63,16 @@ parameter = [
 ]
 
 @pytest.mark.parametrize('atlas_id,parc_id,region_id,inc_exc', parameter)
-def test_species(atlas_id,parc_id,region_id,inc_exc):
+def test_species(atlas_id:str ,parc_id:str, region_id:str, inc_exc: Dict[str, List[str]]):
     atlas:Atlas = siibra.atlases[atlas_id]
     parc:Parcellation = atlas.parcellations[parc_id]
     r:Region = parc.decode_region(region_id)
     features: List[Feature] = siibra.get_features(r, 'ebrains')
-    feature_names = [f.name for f in features]
+    feature_names = [f.full_name for f in features]
 
-    excludes: List[str] = inc_exc.get('exclude')
-    includes: List[str] = inc_exc.get('include')
+    excludes = inc_exc.get('exclude')
+    includes = inc_exc.get('include')
+    
     assert all(exc not in feature_names for exc in excludes)
     assert all(inc in feature_names for inc in includes)
 

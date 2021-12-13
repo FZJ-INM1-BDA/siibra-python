@@ -72,18 +72,23 @@ class SiibraNode:
     def set_parent(self, value):
         self._node.parent = value and value._node
 
-    def find(self, *arg, **kwargs) -> Tuple[MixedNode, ...]:
+    def find(self, *arg, **kwargs) -> List['SiibraNode']:
         """
         Proxy to [anytree.search.findall](https://anytree.readthedocs.io/en/latest/_modules/anytree/search.html)
 
         filter_: callable
         
         """
-        return anytree.search.findall(
+        if len(arg) > 0 and type(arg[0]) == str:
+            region_spec = arg[0]
+            kwargs['filter_'] = lambda node: node.ref.matches(region_spec)
+            arg = arg[1:]
+
+        return [mixed_node.ref for mixed_node in anytree.search.findall(
             self._node,
             *arg,
             **kwargs
-        )
+        )]
 
 class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     """
@@ -109,7 +114,11 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
 
     @property
     def _parcellation(self):
-        return main_openminds_registry[self._parcellation_id] if self._parcellation_id else None
+        try:
+            return main_openminds_registry[self._parcellation_id] if self._parcellation_id else None
+        except IndexError as e:
+            logger.warning(f"cannot find parcellation with parc id {self._parcellation_id}")
+            return None
 
     def __init__(
         self,
@@ -146,7 +155,6 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         index = data.get('labelIndex')
         regionname = __class__._clear_name(name)
         
-        self._parcellation_id = parcellation_id
 
         parcellationEntityVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(
@@ -154,6 +162,8 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         )
         SiibraNode.__init__(self)
         self.set_parent(parent)
+
+        self._parcellation_id = parcellation_id
 
         # TODO check if these properties are used anywhere
 

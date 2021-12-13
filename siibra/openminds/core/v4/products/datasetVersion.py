@@ -7,12 +7,14 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, constr
 
+from siibra.openminds.common import CommonConfig
+
 
 class Copyright(BaseModel):
     holder: List = Field(
         ...,
         description='Legal person in possession of something.',
-        min_items=1,
+        # min_items=1,
         title='holder',
     )
     year: constr(regex=r'([0-9]{4})') = Field(
@@ -27,7 +29,7 @@ class OtherContribution(BaseModel):
         ...,
         alias='contributionType',
         description='Distinct class of what was given or supplied as a part or share.',
-        min_items=1,
+        # min_items=1,
         title='contributionType',
     )
     contributor: Any = Field(
@@ -241,3 +243,4 @@ class Model(BaseModel):
         description='Documentation on what changed in comparison to a previously published form of something.',
         title='versionInnovation',
     )
+    Config = CommonConfig

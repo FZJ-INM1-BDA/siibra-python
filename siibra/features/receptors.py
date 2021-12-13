@@ -356,19 +356,25 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     autoradiograph samples. This implements a lazy loading scheme.
     TODO lazy loading could be more elegant.
     """
+    _match = None
+    _regionspec = None
+    _species = None
+    _fingerprint_loader = None
+    _profile_loaders = None
+    _autoradiograph_loaders = None
 
     def __init__(self, region, kg_result, **kwargs):
 
         RegionalFeature.__init__(self, region, **kwargs)
-        EbrainsDataset.__init__(self, kg_result["identifier"], kg_result["name"])
+        EbrainsDataset.__init__(self, kg_result["@id"])
 
-        self.info = kg_result["description"]
-        self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
-        self.modality = kg_result["modality"]
+        # self.info = kg_result["description"]
+        # self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
+        # self.modality = kg_result["modality"]
 
         urls = kg_result["files"]
         
-        self.files=urls
+        # self.files=urls
 
         def urls_matching(regex):
             return filter(lambda u: re.match(regex, u), urls)

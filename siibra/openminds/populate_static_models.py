@@ -34,9 +34,6 @@ e.g. miscellaneous/coordinatePoint
 OpenmindsSchema = namedtuple('OpenmindsSchema', ['domain', 'schema'])
 openminds_ref = 'dbb4c54'
 openminds_v = 'v3'
-models: List[OpenmindsSchema] = [
-    OpenmindsSchema('SANDS/v3', 'miscellaneous/coordinatePoint'),
-]
 
 def process_schema(model: OpenmindsSchema):
     url = raw_url.format(

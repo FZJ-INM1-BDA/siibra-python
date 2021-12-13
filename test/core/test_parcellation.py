@@ -20,6 +20,10 @@ def test_parcs_can_be_json(parc: Parcellation):
 def test_parcs_has_regions(parc: Parcellation):
     assert len(parc.children) > 0
 
+@pytest.mark.parametrize('parc', all_parcs)
+def test_parcs_has_atlas(parc: Parcellation):
+    assert len(parc._atlases) > 0
+
 all_parcs_xfail_volmes = [
     pytest.param(parc, marks=pytest.mark.xfail(reason='julich 25 has no volume')) if re.search(r'2\.5', parc.full_name) else
     pytest.param(parc, marks=pytest.mark.xfail(reason='julich 29 in big brain has no volume')) if parc.coordinate_space.get('@id') == 'https://openminds.ebrains.eu/instances/CoordinateSpace/a1655b99-82f1-420f-a3c2-fe80fd4c8588' else

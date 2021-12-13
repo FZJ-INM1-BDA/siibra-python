@@ -345,7 +345,7 @@ class Parcellation(
         if build_group:
             # TODO discuss reenable build-group?
             raise NotImplementedError(f'build_group option has been temporarily diabled')
-        candidates = self.find(lambda node: node.ref.matches(regionspec))
+        candidates = self.find(regionspec)
 
         if not candidates:
             raise ValueError(
@@ -354,19 +354,19 @@ class Parcellation(
                 )
             )
         elif len(candidates) == 1:
-            return candidates[0].ref
+            return candidates[0]
         elif len(candidates) > 1:
             logger.debug(f"decode_region found multiple matches")
             common_ancestor_candidates = [
                 c
                 for c in candidates
                 if all(
-                    compare is c or c in compare.ancestors
+                    compare is c or c._node in compare._node.ancestors
                     for compare in candidates
                 )
             ]
             if len(common_ancestor_candidates) == 1:
-                return common_ancestor_candidates[0].ref
+                return common_ancestor_candidates[0]
             else:
                 raise ValueError(f"no common ancestor found: {len(common_ancestor_candidates)} with spec {regionspec}")
         else:

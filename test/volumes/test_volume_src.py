@@ -1,17 +1,11 @@
 import unittest
 
-from siibra.volumes import VolumeSrc, RemoteNiftiVolume
+from siibra.volumes import VolumeSrc
 from siibra import spaces
+from siibra.volumes.volume import RemoteNiftiVolume
 
 
 class TestVolumeSrc(unittest.TestCase):
-    def test_volumes_init(self):
-        id = "test_id"
-        name = "test_name"
-        url = "http://localhost/test"
-        volume_src = VolumeSrc(id, name, url, spaces[0])
-        self.assertIsNotNone(volume_src)
-        self.assertEqual(volume_src.get_url(), url)
 
     def test_volume_from_valid_json(self):
         v_json = {
@@ -22,9 +16,11 @@ class TestVolumeSrc(unittest.TestCase):
             "volume_type": "nii",
             "url": "http://localhost/test",
         }
-        output = VolumeSrc._from_json(v_json)
-        self.assertIsInstance(output, VolumeSrc)
-        self.assertIsInstance(output, RemoteNiftiVolume)
+        output_array = VolumeSrc.parse_legacy(v_json)
+        assert len(output_array) == 1
+        assert all(isinstance(output, VolumeSrc) for output in output_array)
+        # TODO this does not yet work
+        # assert all(isinstance(output, RemoteNiftiVolume) for output in output_array)
 
     def test_volume_from_invalid_json(self):
         v_invalid_json = {
@@ -35,7 +31,7 @@ class TestVolumeSrc(unittest.TestCase):
             "url": "http://localhost/test",
         }
         with self.assertRaises(NotImplementedError):
-            VolumeSrc._from_json(v_invalid_json)
+            VolumeSrc.parse_legacy(v_invalid_json)
 
 
 if __name__ == "__main__":

@@ -204,20 +204,10 @@ class TypedRegistry(Generic[T]):
         elif isinstance(spec, int) and (spec < len(self._elements)):
             return [list(self._elements.values())[spec]]
         else:
-            # TODO no longer necessary?
-            # string matching on values
-            matches = [v for v in self._elements.values() if self._matchfunc(v, spec)]
-            if len(matches) == 0:
-                # string matching on keys
-                matches = [
-                    self._elements[k]
-                    for k in self._elements.keys()
-                    if all(
-                        w.lower() in k.lower()
-                        for w in spec.split()
-                    )
-                ]
-            return matches
+            return [
+                el
+                for el in self._elements.values()
+                if el is spec]
 
     def __getattr__(self, index: str) -> T:
         """Access elements by using their keys as attributes.

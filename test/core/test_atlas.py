@@ -1,5 +1,5 @@
 import pytest
-from siibra.core import atlases
+from siibra.core import atlases, parcellations
 from siibra.core.atlas import Atlas
 
 # class TestAtlas(unittest.TestCase):
@@ -179,6 +179,22 @@ def test_select_brain_regions(atlasspec,parcspec,regspec,ex_regionname,ex_lenchi
     r = atlas.get_region(parcellation=parcspec, region=regspec)
     assert r.name == ex_regionname
     assert len(r.children) == ex_lenchildren
-    
+
+filtered_parc = [p for p in parcellations if p.full_name == 'Julich-Brain Probabilistic Cytoarchitectonic Maps (v2.9)' and  '1ff8e2' in p.coordinate_space.get("@id")]
+julich_29_mni152 = filtered_parc[0]
+
+def test_only_one_julich29():
+    assert len(filtered_parc) == 1
+
+get_parcellation_param = ('atlasspec,parcspec,exp_parc', [
+    ('human', '2.9 mni 152', julich_29_mni152),
+    ('human', julich_29_mni152, julich_29_mni152),
+
+])
+
+@pytest.mark.parametrize(*get_parcellation_param)
+def test_get_parcellation(atlasspec,parcspec,exp_parc):
+    atlas = atlases[atlasspec]
+    assert atlas.get_parcellation(parcspec) is exp_parc
 
 # TODO additional tests

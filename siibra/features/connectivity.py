@@ -14,6 +14,7 @@
 # limitations under the License.
 
 
+from typing import List
 from .feature import RegionalFeature, ParcellationFeature
 from .query import FeatureQuery
 
@@ -57,55 +58,59 @@ class ConnectivityMatrix(ParcellationFeature):
         """
         Build a connectivity matrix from json object
         """
-        parcellation = Parcellation.REGISTRY[data["parcellation id"]]
+        # parcellation = Parcellation.REGISTRY[data["parcellation id"]]
+        parcellations: List[Parcellation] = [p
+            for p in Parcellation.REGISTRY
+            if Parcellation.parse_legacy_id(data["parcellation id"], "") in p.id]
 
         # determine the valid brain regions defined in the file,
         # as well as their indices
         column_names = data["data"]["field names"]
-        valid_regions = {}
-        matchings = defaultdict(list)
-        for i, name in enumerate(column_names):
-            try:
-                region = parcellation.decode_region(name, build_group=False)
-                if region not in valid_regions.values():
-                    valid_regions[i] = region
-                    matchings[region].append(name)
-                else:
-                    logger.debug(
-                        f"Region occured multiple times in connectivity dataset: {region}"
-                    )
-            except ValueError:
-                continue
+        for parcellation in parcellations:
+            valid_regions = {}
+            matchings = defaultdict(list)
+            for i, name in enumerate(column_names):
+                try:
+                    region = parcellation.decode_region(name, build_group=False)
+                    if region not in valid_regions.values():
+                        valid_regions[i] = region
+                        matchings[region].append(name)
+                    else:
+                        logger.debug(
+                            f"Region occured multiple times in connectivity dataset: {region}"
+                        )
+                except ValueError:
+                    continue
 
-        profiles = []
-        for i, region in valid_regions.items():
-            regionname = column_names[i]
-            profile = [region.name] + [
-                data["data"]["profiles"][regionname][j] for j in valid_regions.keys()
+            profiles = []
+            for i, region in valid_regions.items():
+                regionname = column_names[i]
+                profile = [region.name] + [
+                    data["data"]["profiles"][regionname][j] for j in valid_regions.keys()
+                ]
+                profiles.append(tuple(profile))
+            fields = [("sourceregion", "U64")] + [
+                (v.name, "f") for v in valid_regions.values()
             ]
-            profiles.append(tuple(profile))
-        fields = [("sourceregion", "U64")] + [
-            (v.name, "f") for v in valid_regions.values()
-        ]
-        matrix = np.array(profiles, dtype=fields)
-        assert all(N == len(valid_regions) for N in matrix.shape)
+            matrix = np.array(profiles, dtype=fields)
+            assert all(N == len(valid_regions) for N in matrix.shape)
 
-        if "kgId" in data:
-            return EbrainsConnectivityMatrix(
-                data["kgId"],
-                data["parcellation id"],
-                matrix,
-                name=data["name"],
-                description=data["description"],
-            )
-        else:
-            return ExternalConnectivityMatrix(
-                data["@id"],
-                data["parcellation id"],
-                matrix,
-                name=data["name"],
-                description=data["description"],
-            )
+            if "kgId" in data:
+                return EbrainsConnectivityMatrix(
+                    data["kgId"],
+                    parcellation.id,
+                    matrix,
+                    name=data["name"],
+                    description=data["description"],
+                )
+            else:
+                return ExternalConnectivityMatrix(
+                    data["@id"],
+                    parcellation.id,
+                    matrix,
+                    name=data["name"],
+                    description=data["description"],
+                )
 
 
 class ExternalConnectivityMatrix(ConnectivityMatrix, Dataset):

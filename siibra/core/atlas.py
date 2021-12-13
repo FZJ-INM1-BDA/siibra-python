@@ -80,7 +80,8 @@ class MultiLevelAtlas(BaseModel):
             get_aliases=Space.get_aliases
         )
 
-
+    def __hash__(self):
+        return hash(self.id)
 
 @provide_openminds_registry(
     bootstrap_folder="atlases",
@@ -96,15 +97,16 @@ class Atlas(
     spaces, as well as common functionalities of those.
     """
 
-    _speces = None
+    _species = None
 
     def __init__(self, **kwargs):
         """Construct an empty atlas object with a name and identifier."""
         brainAtlas.Model.__init__(self, **kwargs)
         AtlasConcept.__init__(self, self.id, self.name, dataset_specs=[])
-
-        # if species is not None:
-        #     self.species = self.get_species_data(species)
+        for atlas in self.brain_atlases:
+            for ver in atlas.has_version:
+                p: Parcellation = main_openminds_registry[ver]
+                p._atlases.add(self)
 
 
     @staticmethod

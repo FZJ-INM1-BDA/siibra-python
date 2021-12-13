@@ -22,9 +22,13 @@ from ..retrieval.requests import EbrainsRequest
 
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
+
+    _regionspec = None
+    _species = None
+    _match = None
     def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
         RegionalFeature.__init__(self, regionspec, species)
-        EbrainsDataset.__init__(self, kg_id, name, embargo_status)
+        EbrainsDataset.__init__(self, kg_id)
 
     @property
     def url(self):

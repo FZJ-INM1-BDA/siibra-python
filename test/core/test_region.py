@@ -1,5 +1,5 @@
 import pytest
-from siibra import spaces
+from siibra import spaces, atlases, parcellations
 from siibra.core.region import Region
 from siibra.commons import MapType
 
@@ -77,6 +77,15 @@ def test_parent_has_children():
 
 def test_parent_includes_child():
     assert parents[0].includes(children[0])
+
+atlas = atlases['human']
+jba_29_mni152 = parcellations['2.9 mni 152']
+hoc1_right_mni152: Region = atlas.get_region(region='hoc1 right', parcellation=jba_29_mni152)
+def test_actual_region():
+    assert hoc1_right_mni152 is not None
+    assert hoc1_right_mni152.name == 'Area hOc1 (V1, 17, CalcS) right'
+    assert hoc1_right_mni152._parcellation is not None
+    assert hoc1_right_mni152._parcellation is jba_29_mni152
 
 # pydantic does not allow property setter
 # see https://github.com/samuelcolvin/pydantic/issues/1577

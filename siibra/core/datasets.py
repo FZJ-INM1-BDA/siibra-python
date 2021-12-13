@@ -13,9 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime
+from typing import Any, Dict, List
 from ..commons import logger
 from ..retrieval import EbrainsRequest
-
+from ..openminds.core.v4.products import datasetVersion
 import re
 
 
@@ -23,13 +25,14 @@ class Dataset:
     """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
+    _id = None
 
     def __init__(self, identifier, description=""):
-        self.id = identifier
+        self._id = identifier
         self._description_cached = description
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.id}"
+        return f"{self.__class__.__name__}: {self._id}"
 
     def __init_subclass__(cls, type_id=None):
         if type_id in Dataset.REGISTRY:
@@ -101,14 +104,21 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
         )
 
 
-class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
-    def __init__(self, id, name, embargo_status=None):
-        Dataset.__init__(self, id, description=None)
-        self.embargo_status = embargo_status
-        self._name_cached = name
+class EbrainsDataset(datasetVersion.Model):
+    """
+    n.b. the lazy laoding of KG dataset means that datasetVersion.Model.__init__ is called lazily.
+    (when accessing .detail attr). When it is called, it wipes all existing attr.
+    """
+    _id = None
+    _detail = None
+    _detail_loader = None
+    _name_cached = None
+    def __init__(self, id):
         self._detail = None
         if id is None:
             raise TypeError("Dataset id is required")
+        
+        self._id = id
 
         match = re.search(r"([a-f0-9-]+)$", id)
         if not match:
@@ -121,9 +131,41 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
 
+    def dict(self, *arg, **kwarg):
+        """
+        overriding Model.dict method
+        accessing self.detail will lazily load the KG data.
+        
+        """
+        self._lazy_load()
+        return datasetVersion.Model.dict(self, *arg, **kwarg)
+
+    def __getattr__(self, attr: str):
+        """
+        getattr will only be called if attr is not defined the normal way
+        this might be a sign that the dataset hasn't yet been lazy loaded.
+        """
+        self._lazy_load()
+        return getattr(self, attr)
+
+    def _lazy_load(self):
+        if self._detail:
+            return
+        
+        _detail = self._detail_loader.data
+        _dataset = EbrainsDataset.parse_legacy_kg(_detail)
+        datasetVersion.Model.__init__(self, **_dataset.dict())
+        self._detail = _detail
+
     @property
     def detail(self):
-        return self._detail_loader.data
+        """
+        Lazy loading of dataset detail retrieved from Ebrains KG.
+        It will also call datasetVersion.Model.__init__ if it has not yet.
+        This will validate the detail and populate the attributes.
+        """
+        self._lazy_load()
+        return self._detail
 
     @property
     def name(self):
@@ -157,19 +199,85 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
         return self.detail.get("custodians")
 
     def __hash__(self):
-        return hash(self.id)
+        return hash(self._id)
 
     def __eq__(self, o: object) -> bool:
         if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
             return False
-        return self.id == o.id
+        return self._id == o._id
+
+    @staticmethod
+    def parse_legacy_id(legacy_id: str) -> str:
+        return legacy_id
+
+    @staticmethod
+    def parse_legacy_kg(kg_result: Dict[str, Any]) -> datasetVersion.Model:
+        """
+        converts legacy kg result to datasetVersion instance
+        (pass lazily loaded legacy kg result to this method to get openminds (current) datasetVersionModel)
+        """
+
+        dois: List[str] = kg_result.get("kgReference", [])
+        if len(dois) == 0:
+            logger.warning(f"kgReference length == 0, use fallback doi")
+            dois=["UNKNOWN"]
+        if len(dois) > 1:
+            logger.warning(f"kgReference length > 1, has length: {len(dois)}, only using first one.")
+        digital_identifier={
+            "@id": dois[0],
+        }
+
+        licenses: List[Dict[str, str]] = kg_result.get("licenseInfo", [])
+        if len(licenses) == 0:
+            logger.warning(f"kgReference length == 0, use fallback doi")
+            licenses=[{
+                "name": "unknown license",
+                "@id": "UNKNOWN",
+            }]
+        if len(licenses) > 1:
+            logger.warning(f"kgReference length > 1, has length: {len(licenses)}, only using first one.")
+        license=licenses[0]
+
+        release_date = datetime(1970, 1, 1)
+        
+        return datasetVersion.Model(
+            id=EbrainsDataset.parse_legacy_id(kg_result.get("fullId")),
+            type="https://openminds.ebrains.eu/core/DatasetVersion",
+            accessibility={
+                "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess"
+            },
+            author=kg_result.get("contributors"),
+            custodian=kg_result.get("custodians"),
+            data_type=[{
+                "@id": "https://openminds.ebrains.eu/instances/semanticDataType/experimentalData"
+            }],
+            description=kg_result.get("description")[:2000],
+            digital_identifier=digital_identifier,
+
+            # ethnic assessment cannot be directly parsed
+            ethics_assessment={
+                "@id": "https://openminds.ebrains.eu/instances/ethicsAssessment/unknown"
+            },
+            experimental_approach=[{
+                "@id": "https://openminds.ebrains.eu/instance/ExperimentalApproach/unknown"
+            }],
+            full_documentation=digital_identifier,
+            full_name=kg_result.get("name"),
+            license=license,
+            release_date=release_date,
+            short_name=kg_result.get("name")[:30],
+            technique=[{
+                "@id": "unknown technique"
+            }],
+            version_identifier=kg_result.get("id"),
+            version_innovation="Placeholder Innovation"
+        )
 
     @classmethod
-    def _from_json(cls, spec):
-        type_id = cls.extract_type_id(spec)
-        assert type_id == cls.type_id
-        return cls(
-            id=spec.get("kgId"),
-            name=spec.get("name"),
-            embargo_status=spec.get("embargo_status", None),
-        )
+    def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'EbrainsDataset':
+        """
+        parse_legacy may pass only the id (and optionally the schema)
+        detail will only be filled lazily
+        """
+        id = json_input.get("kgId") or json_input.get("id")
+        return Cls(id=id)
