@@ -11,7 +11,7 @@ siibra - Software interface for interacting with brain atlases
 
    start
    concepts
-   features
+   step-by-step
    contribute
    acknowledgements
 
