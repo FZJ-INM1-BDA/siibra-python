@@ -940,6 +940,7 @@ class ContinuousParcellationMap(ParcellationMap):
         item: Union[Point, PointSet, nib.Nifti1Image], 
         msg=None, 
         quiet=False,
+        minsize_voxel=1
         ):
         """ Assign an input image to brain regions.
         
@@ -960,6 +961,8 @@ class ContinuousParcellationMap(ParcellationMap):
             useful if you use assign() in a loop.
         quiet: Bool, default: False
             If True, no outputs will be generated.
+        minsize_voxel: int, default: 1
+            Minimum voxel size of image components to be taken into account.
 
         Return
         ------
@@ -1032,7 +1035,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     target_shape = self.shape,
                     interpolation = interp
                 )
-            img2data = np.asanyarray(img2.dataobj)
+            img2data = np.asanyarray(img2.dataobj).squeeze()
 
             # split input image into multiple 'modes',  ie. connected components
             from skimage import measure
@@ -1046,7 +1049,11 @@ class ContinuousParcellationMap(ParcellationMap):
                 # determine bounding box of the mode
                 mask = components==modeindex
                 XYZ2 = np.array(np.where(mask)).T
+                if XYZ2.shape[0]<=minsize_voxel:
+                    components[mask] == 0
+                    continue
                 X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
+
                 bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0)+1, space=None)
                 if bbox2.volume == 0:
                     continue
