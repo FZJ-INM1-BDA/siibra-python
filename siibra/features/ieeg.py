@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -203,9 +204,10 @@ class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
     _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "master")
 
-    def __init__(self,**kwargs):
-
+    def __init__(self, space=None, **kwargs):
         FeatureQuery.__init__(self)
+        self.space_of_interest = space
+
         dset = IEEG_Dataset._from_json(
             self._CONNECTOR.get_loader("ieeg_contact_points/info.json").data
         )
@@ -222,6 +224,11 @@ class IEEG_SessionQuery(FeatureQuery):
                 for contact_point_id, coord in contact_points.items():
                     electrode.new_contact_point(contact_point_id, coord)
             self.register(session)
+
+
+    def execute(self, concept):
+        matches: List[IEEG_Session] = super().execute(concept)
+        return [m for m in matches if not self.space_of_interest or m.space == self.space_of_interest]
 
 
 if __name__ == "__main__":

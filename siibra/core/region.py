@@ -349,7 +349,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return mask
 
-    def defined_in_space(self, space):
+    def defined_in_space(self, space) -> bool:
         """
         Verifies wether this region is defined by a in the given space.
         """
@@ -365,7 +365,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         for maptype in ["labelled", "continuous"]:
             if self.has_regional_map(space, maptype):
                 return True
-
         return False
 
     @property
@@ -380,7 +379,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Tests wether a specific map of this region is available.
         """
-        return self.get_regional_map(space, maptype) is not None
+        try:
+            return self.get_regional_map(space, maptype) is not None
+        except RuntimeError:
+            return False
 
     # @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
