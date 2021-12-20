@@ -32,6 +32,7 @@ from .core.space import Location as _
 from . import samplers
 from_sands = _.from_sands
 set_ebrains_token = EbrainsRequest.set_token
+fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
 
 

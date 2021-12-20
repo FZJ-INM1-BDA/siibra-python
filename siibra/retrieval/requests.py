@@ -22,6 +22,7 @@ import requests
 import os
 from nibabel import Nifti1Image
 import gzip
+from getpass import getpass
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
@@ -192,6 +193,26 @@ class EbrainsRequest(HttpRequest):
         )
 
     @classmethod
+    def fetch_token(cls):
+        """Fetch an EBRAINS token using commandline-supplied username/password
+        using the data proxy endpoint.
+        """
+        username = input("Your EBRAINS username: ")
+        password = getpass("Your EBRAINS password: ")
+        response = requests.post( 
+            'https://data-proxy.ebrains.eu/api/auth/token', 
+            headers={
+                'accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+            data=f'{{"username": "{username}","password": "{password}"}}'
+        )
+        if response.status_code == 200:
+            cls._KG_API_TOKEN = response.json()
+        else:
+            raise RuntimeError('Could not fetch token. Response was:', response)
+
+    @classmethod
     def set_token(cls, token):
         logger.info(f"Setting EBRAINS Knowledge Graph authentication token: {token}")
         cls._KG_API_TOKEN = token
@@ -239,9 +260,12 @@ class EbrainsRequest(HttpRequest):
             # No success getting the token
             raise RuntimeError(
                 "No access token for EBRAINS Knowledge Graph found. "
-                f"Please set $HBP_AUTH_TOKEN or use '{self.__class__.__name__}.set_token()', "
-                "or configure keycloak access by setting $KEYCLOAK_ENDPOINT, $KEYCLOAK_CLIENT_ID "
-                "and $KEYCLOAK_CLIENT_SECRET."
+                "If you do not have an EBRAINS account, please first register at "
+                "https://ebrains.eu/register. Then, use one of the following option: "
+                "\n 1. Let siibra get you a token by passing your username and password, using siibra.fetch_ebrains_token()"
+                "\n 2. If you know how to get a token yourself, set it as $HBP_AUTH_TOKEN or siibra.set_ebrains_token()"
+                "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_ENDPOINT, "
+                "$KEYCLOAK_CLIENT_ID and $KEYCLOAK_CLIENT_SECRET."
             )
         
         return self.__class__._KG_API_TOKEN
