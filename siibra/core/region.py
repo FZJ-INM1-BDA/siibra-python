@@ -712,7 +712,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             parent=parent,
         )
 
-        Cls._legacy_json = json_input
+        this_region._legacy_json = json_input
 
         # TODO: parse _datasrc properly
         children = [child
@@ -744,9 +744,12 @@ class VersionlessRegion(
         if ('left' in region.name) or ('right' in region.name):
             return
 
+        if region.name == 'overall':
+            return
+
         def get_lookup_label(name: str):
             if name == 'cingulate gyrus, frontal part':
-                return 'frontal-cingulate-gyrus'
+                return 'JBA_frontal-cingulate-gyrus'
             import re
             processed_name = name
             # rule, replace all brackets (and preceding white space)
@@ -757,25 +760,36 @@ class VersionlessRegion(
             processed_name = re.sub(r'\s+', '-', processed_name)
             # rule: remove all 's entirely
             processed_name = re.sub(r'\'', '', processed_name)
+            # rule: uppercase all Op's
+            def sub_ops(match):
+                return match.group(0).replace('Op', 'OP')
+            processed_name = re.sub(r'Op[0-9]+', sub_ops, processed_name)
             return 'JBA_{}'.format(processed_name)
 
         def get_id(name: str):
             return 'https://openminds.ebrains.eu/instances/parcellationEntity/' + get_lookup_label(name)
 
         def get_has_version_from_existing(name:str):
-            import requests
+            from requests import get
             url = 'https://raw.githubusercontent.com/HumanBrainProject/openMINDS_SANDS/v3/instances/atlas/parcellationEntity/JBA/{lookuplabel}.jsonld'.format(
                 lookuplabel=get_lookup_label(name)
             )
-            response = requests.get(url)
-            if response.status_code >= 400:
-                logger.warning('cannot find existing entry for {name}, with url: {url}'.format(
-                    name=name,
-                    url=url))
+
+            try:
+                response = get(url)
+            except RuntimeError:
                 return None
-            return response.json().get('hasVersion', [])
+            import json
+            return json.loads(response).get('hasVersion', [])
         
-        parent_id = region.parent and hasattr(region.parent, 'name') and get_id(region.parent.name)
+        parent_id = get_id(region.parent.name) if region.parent and hasattr(region.parent, 'name') else None
+        
+        if hasattr(region.parent, 'name') and region.parent.name == 'overall':
+            parent_id = 'https://openminds.ebrains.eu/instances/parcellationEntity/JBA_cerebral-cortex'
+
+        if parent_id is None:
+            parent_id = 'https://openminds.ebrains.eu/instances/parcellationEntity/JBA_julich-brain'
+
         has_version = get_has_version_from_existing(region.name) if all([
             ('left' in c.name) or ('right' in c.name)
             for c in region.children or []
