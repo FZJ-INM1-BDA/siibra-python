@@ -15,7 +15,7 @@ def find_version():
         raise RuntimeError("Siibra version cannot be found.")
 
 
-with open(os.path.join(ROOT_DIR, "README.md"), "r", encoding="utf-8") as f:
+with open(os.path.join(ROOT_DIR, "README.rst"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
@@ -25,7 +25,7 @@ setup(
     author_email="inm1-bda@fz-juelich.de",
     description="siibra - Software interfaces for interacting with brain atlases",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,

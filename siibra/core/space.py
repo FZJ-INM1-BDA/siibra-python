@@ -237,7 +237,7 @@ class Location(ABC):
         if self.space is None:
             return (
                 f"{self.__class__.__name__} "
-                "[{','.join(str(l) for l in iter(self))}]"
+                f"[{','.join(str(l) for l in iter(self))}]"
             )
         else:
             return (
@@ -310,6 +310,7 @@ class WholeBrain(Location):
 # pending https://github.com/HumanBrainProject/openMINDS_SANDS/issues/150
 class Point(coordinatePoint.Model, Location):
     """A single 3D point in reference space."""
+    _sigma = 0.
 
     @staticmethod
     def parse(spec, unit="mm") -> Tuple[float, float, float]:
@@ -319,6 +320,8 @@ class Point(coordinatePoint.Model, Location):
         ----------
         spec : Any of str, tuple(float,float,float)
             For string specifications, comma separation with decimal points are expected.
+        unit : str 
+            specification of the unit (only 'mm' supported so far)
 
         Returns
         -------
@@ -349,7 +352,7 @@ class Point(coordinatePoint.Model, Location):
                 f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
             )
 
-    def __init__(self, coordinatespec=None, space: Union[Space, Dict[str, str]]=None, **data):
+    def __init__(self, coordinatespec=None, space: Union[Space, Dict[str, str]]=None, sigma_mm:float=0., **data):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -359,8 +362,12 @@ class Point(coordinatePoint.Model, Location):
             Coordinate in mm of the given space
         space : Space
             (deprecated) The reference space. The **data object should contain reference to space.
+        sigma_mm : float
+            Optional location uncertainy of the point 
+            (will be intrepreded as the isotropic standard deviation of the location)
         """
         coordinatePoint.Model.__init__(self, **data)
+        self._sigma = sigma
 
         space_id = None
         if isinstance(space, Space):
@@ -576,7 +583,7 @@ class PointSet(Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates. """
 
-    def __init__(self, coordinates, space: Space):
+    def __init__(self, coordinates, space: Space, sigma_mm = 0):
         """
         Construct a 3D point set in the given reference space.
 
@@ -586,9 +593,14 @@ class PointSet(Location):
             Coordinates in mm of the given space
         space : Space
             The reference space
+        sigma_mm : float, or list of float
+            Optional standard deviation of point locations.
         """
         Location.__init__(self, space)
-        self.coordinates = [Point(c, space) for c in coordinates]
+        if isinstance(sigma_mm, numbers.Number):
+            self.coordinates = [Point(c, space, sigma_mm) for c in coordinates]
+        else:
+            self.coordinates = [Point(c, space, s) for c, s in zip(coordinates, sigma_mm)]
 
     def intersects_mask(self, mask):
         """Returns true if any of the polyline points lies in the given mask.
@@ -599,10 +611,11 @@ class PointSet(Location):
         return any(c.intersects_mask(mask) for c in self.coordinates)
 
     def warp(self, targetspace):
-        if targetspace == self.space:
+        spaceobj = Space.REGISTRY[targetspace]
+        if spaceobj == self.space:
             return self
         return self.__class__(
-            [c.warp(targetspace) for c in self.coordinates], targetspace
+            [c.warp(spaceobj) for c in self.coordinates], spaceobj
         )
 
     def transform(self, affine: np.ndarray, space: Space = None):
@@ -671,12 +684,15 @@ class PointSet(Location):
 
     @property
     def boundingbox(self):
-        """ Return the bounding box of these points."""
+        """ Return the bounding box of these points.
+
+        TODO inherit sigma of the min and max points
+        """
         XYZ = self.homogeneous[:, :3]
         return BoundingBox(
-            point1=XYZ.min(0),
-            point2=XYZ.max(0),
-            space=self.space
+            point1 = XYZ.min(0),
+            point2 = XYZ.max(0),
+            space = self.space,
         )
 
     @property
@@ -684,6 +700,10 @@ class PointSet(Location):
         return Point(
             self.homogeneous[:, :3].mean(0),
             space=self.space)
+
+    def as_list(self):
+        """ Return the point set as a list of 3D tuples. """
+        return [tuple(p) for p in self]
 
     @property
     def homogeneous(self):
@@ -703,6 +723,8 @@ class BoundingBox(Location):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
+
+        TODO allow to pass sigma for the points, if tuples
 
         Parameters
         ----------
@@ -785,6 +807,8 @@ class BoundingBox(Location):
     def intersection(self, other, dims=[0, 1, 2]):
         """Computes the intersection of this boudning box with another one.
 
+        TODO process the sigma values o the points
+
         Args:
             other (BoundingBox): Another bounding box
             dims (list of int): Dimensions where the intersection should be computed.
@@ -829,6 +853,8 @@ class BoundingBox(Location):
     def union(self, other):
         """Computes the union of this boudning box with another one.
 
+        TODO process the sigma values o the points
+
         Args:
             other (BoundingBox): Another bounding box
         """
@@ -841,7 +867,10 @@ class BoundingBox(Location):
         )
 
     def clip(self, xyzmax, xyzmin=(0, 0, 0)):
-        """ Returns a new bounding box obtained by clippin at the given maximum coordinate. """
+        """ Returns a new bounding box obtained by clippin at the given maximum coordinate. 
+
+        TODO process the sigma values o the points
+        """
         return self.intersection(
             BoundingBox(
                 Point(xyzmin, self.space),
@@ -853,6 +882,8 @@ class BoundingBox(Location):
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
         of the given mask is inside the boundding box.
+
+        TODO process the sigma values o the points
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
@@ -870,7 +901,10 @@ class BoundingBox(Location):
 
     def warp(self, targetspace):
         """Returns a new bounding box obtained by warping the
-        min- and maxpoint of this one into the new targetspace."""
+        min- and maxpoint of this one into the new targetspace.
+
+        TODO process the sigma values o the points
+        """
         if targetspace == self.space:
             return self
         else:
@@ -896,6 +930,8 @@ class BoundingBox(Location):
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new bounding box obtained by transforming the
         min- and maxpoint of this one with the given affine matrix.
+
+        TODO process the sigma values o the points
 
         Parameters
         ----------

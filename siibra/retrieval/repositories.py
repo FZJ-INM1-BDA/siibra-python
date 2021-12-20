@@ -79,7 +79,7 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return tqdm(result, total=len(fnames), desc=progress)
+            return tqdm(result, total=len(fnames), desc=progress, disable=logger.level>20)
 
 
 class GitlabConnector(RepositoryConnector):

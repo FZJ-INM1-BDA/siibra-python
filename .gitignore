@@ -23,3 +23,8 @@ __Tag_List__
 playground
 .env
 .cache
+docs/examples
+docs/autoapi
+docs/_build
+*.swp
+*.swo

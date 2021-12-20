@@ -319,11 +319,12 @@ class DensityFingerprint:
 
     def __getitem__(self, index):
         if isinstance(index, int):
-            assert index < len(self.labels)
+            if index >= len(self.labels):
+                return None
             index_ = index
-
         elif isinstance(index, str):
-            assert index in self.labels
+            if index not in self.labels:
+                return None
             index_ = self.labels.index(index)
         return Density(
             name=self.labels[index_],

@@ -10,3 +10,4 @@ memoization
 nilearn
 simple-term-menu
 pydantic
+pandas
