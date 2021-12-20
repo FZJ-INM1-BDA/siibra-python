@@ -107,6 +107,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     _parcellation = None
     _parcellation_id = None
     _node = None
+    _legacy_json = None
 
     @property
     def index(self) -> str:
@@ -710,6 +711,8 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             version_identifier='12',
             parent=parent,
         )
+
+        Cls._legacy_json = json_input
 
         # TODO: parse _datasrc properly
         children = [child
