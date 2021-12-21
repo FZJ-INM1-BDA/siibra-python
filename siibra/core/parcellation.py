@@ -23,6 +23,7 @@ from ..volumes import ParcellationMap
 import difflib
 from typing import Union
 from memoization import cached
+from difflib import SequenceMatcher
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -284,6 +285,13 @@ class Parcellation(
                 )
                 return Region._build_grouptree(candidates, self)
             else:
+                if isinstance(regionspec, str):
+                    scores = [SequenceMatcher(None, regionspec, region.name).ratio() for region in candidates]
+                    bestmatch = scores.index(max(scores))
+                    logger.info(
+                        f"Decoding of spec {regionspec} resulted in multiple matches: "
+                        f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}")
+                    return candidates[bestmatch]
                 raise RuntimeError(
                     f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
                 )
@@ -323,7 +331,7 @@ class Parcellation(
 
         # Perform ranking of return result, if the spec provided is a string. Otherwise, return the unsorted found_regions
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        return sorted(found_regions,reverse=True, key=lambda region: difflib.SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
+        return sorted(found_regions,        reverse=True, key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
 
     def __str__(self):
         return self.name
