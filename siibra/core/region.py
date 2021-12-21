@@ -266,7 +266,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
 
         def splitstr(s):
-            return [w for w in re.split(r"[^a-zA-Z0-9.-]", s) if len(w) > 0]
+            return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
 
         if isinstance(regionspec, Region):
             return self == regionspec
