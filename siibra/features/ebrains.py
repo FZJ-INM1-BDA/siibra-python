@@ -18,7 +18,7 @@ from .query import FeatureQuery
 
 from .. import logger
 from ..core.datasets import EbrainsDataset
-from ..retrieval.requests import EbrainsRequest
+from ..retrieval.requests import EbrainsKgQuery
 
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
@@ -48,7 +48,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
 
-        loader = EbrainsRequest(
+        loader = EbrainsKgQuery(
             query_id="siibra-kg-feature-summary-0_0_4",
             schema="parcellationregion",
             params={"vocab": "https://schema.hbp.eu/myQuery/"},

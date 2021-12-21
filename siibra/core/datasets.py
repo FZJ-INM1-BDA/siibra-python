@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger
-from ..retrieval import EbrainsRequest
+from ..retrieval import EbrainsKgQuery
 
 import re
 
@@ -115,7 +115,7 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
-        self._detail_loader = EbrainsRequest(
+        self._detail_loader = EbrainsKgQuery(
             query_id="interactiveViewerKgQuery-v1_0",
             instance_id=match.group(1),
             params={"vocab": "https://schema.hbp.eu/myQuery/"},

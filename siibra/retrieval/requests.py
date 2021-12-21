@@ -159,37 +159,17 @@ class EbrainsRequest(HttpRequest):
     }
 
     _KG_API_TOKEN = None
-
-    server = "https://kg.humanbrainproject.eu"
-    org = "minds"
-    domain = "core"
-    version = "v1.0.0"
-
     keycloak_endpoint = "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
 
-    def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
-        inst_tail = "/" + instance_id if instance_id is not None else ""
-        self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-            self.server,
-            self.org,
-            self.domain,
-            self.schema,
-            self.version,
-            query_id,
-            inst_tail,
-        )
-        self.params = params
-        # NOTE: we do not pass params and header, here,
+    def __init__(self, url, decoder=None, params={}, msg_if_not_cached=None ):
+        """ Construct an EBRAINS request. """
+        # NOTE: we do not pass params and header here,
         # since we want to evaluate them late in the get() method.
         # This is nice because it allows to set env. variable KG_TOKEN only when
         # really needed, and not necessarily on package initialization.
+        self.params =  params
         HttpRequest.__init__(
-            self,
-            url,
-            DECODERS[".json"],
-            self.SC_MESSAGES,
-            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}",
+            self, url, decoder, self.SC_MESSAGES, msg_if_not_cached
         )
 
     @classmethod
@@ -280,3 +260,30 @@ class EbrainsRequest(HttpRequest):
         }
         self.kwargs = {"headers": headers, "params": self.params}
         return super().get()
+
+
+class EbrainsKgQuery(EbrainsRequest):
+    """Request outputs from a knowledge graph query."""
+
+    server = "https://kg.humanbrainproject.eu"
+    org = "minds"
+    domain = "core"
+    version = "v1.0.0"
+
+    def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
+        inst_tail = "/" + instance_id if instance_id is not None else ""
+        self.schema = schema
+        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
+            self.server,
+            self.org,
+            self.domain,
+            self.schema,
+            self.version,
+            query_id,
+            inst_tail,
+        )
+        EbrainsRequest.__init__(
+            self, url, decoder=DECODERS['.json'], params=params,
+            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}"
+        )
+
