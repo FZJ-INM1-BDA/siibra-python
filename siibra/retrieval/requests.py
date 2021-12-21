@@ -102,7 +102,6 @@ class HttpRequest:
             if self.msg_if_not_cached is not None:
                 logger.info(self.msg_if_not_cached)
             if self.post:
-                print("running post")
                 r = requests.post(self.url, **self.kwargs)
             else:
                 r = requests.get(self.url, **self.kwargs)
