@@ -96,13 +96,17 @@ and To do so, please follow these steps:
    the KG team. A link and template email to do so can be found right on
    top of the `Knowledge Graph developer
    page <https://kg.humanbrainproject.eu/develop.html>`__.
-3. Create an authentication token for EBRAINS by visiting `the EBRAINS
-   authorization
-   endpoint <https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__.
-4. Copy the token, and either store it in the enviroment variable
-   ``$HBP_AUTH_TOKEN`` or pass it explicitely to ``siibra`` using
-   ``siibra.set_ebrains_token()``. The token is a string sequence with
-   more than 1000 characters, usually starting with with “ey”.
+3. Let siibra fetch an authentication token by using
+   `siibra.fetch_ebrains_token()`. You will be asked for your EBRAINS username
+   and password, which will be transferred encrytped and not be stored.
+
+If you prefer not to pass your username/password on the commandline, you can
+also create your token by visiting `the EBRAINS authorization endpoint
+<https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__. Copy the
+token, and either store it in the enviroment variable ``$HBP_AUTH_TOKEN`` or
+pass it explicitely to ``siibra`` using ``siibra.set_ebrains_token()``. The
+token is a string sequence with more than 1000 characters, usually starting
+with with “ey”.
 
 Note that as of now, you need to to steps 3 and 4 approximately every
 day to perform EBRAINS data queries. However, ``siibra`` maintains a
