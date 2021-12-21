@@ -179,7 +179,7 @@ class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using 
     the Human Data Gateway (HDG) via the data proxy API.
     """
-    endpoint = "https://data-proxy.ebrains.eu/api/datasets"
+    base_url = "https://data-proxy.ebrains.eu/api/datasets"
     maxentries = 1000
 
     def __init__(self, dataset_id ):
@@ -193,6 +193,7 @@ class EbrainsHdgConnector(RepositoryConnector):
         """
 
         self.files = []
+        self.dataset_id = dataset_id
 
         marker = None
         while True: 
@@ -200,16 +201,16 @@ class EbrainsHdgConnector(RepositoryConnector):
             # The endpoint implements basic pagination, using the filenames as markers.
 
             if marker is None:
-                url = f'{self.endpoint}/{dataset_id}?limit={self.maxentries}'
+                url = f'{self.base_url}/{dataset_id}?limit={self.maxentries}'
             else:
-                url = f'{self.endpoint}/{dataset_id}?limit={self.maxentries}&marker={marker}'
+                url = f'{self.base_url}/{dataset_id}?limit={self.maxentries}&marker={marker}'
 
             try:
                 result = EbrainsRequest(url, DECODERS['.json']).get()
             except SiibraHttpRequestError as e:
                 if e.response.status_code in [401, 422]:
                     # Request access to the dataset (401: expired, 422: not yet requested)
-                    EbrainsRequest(f'{self.endpoint}/{dataset_id}', post=True).get()
+                    EbrainsRequest(f'{self.base_url}/{dataset_id}', post=True).get()
                     input(
                         "You should have received an email with a confirmation link - "
                         "please find that email and click on the link, then press enter "
@@ -248,7 +249,14 @@ class EbrainsHdgConnector(RepositoryConnector):
         return result
 
     def _build_url(self, folder, filename):
-        fpath = "" if folder == "" else f"path={quote(folder,safe='')}&"
-        fpath += f"files={quote(filename)}"
-        url = f"{self.base_url}/download?{fpath}"
+        if len(folder)>0:
+            fpath = quote(f"{folder}/{filename}", safe='')
+        else:
+            fpath = quote(f"{filename}", safe='')
+        url = f"{self.base_url}/{self.dataset_id}/{fpath}?redirect=true"
         return url
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """ Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed. """
+        return EbrainsRequest(self._build_url(folder, filename), decode_func)

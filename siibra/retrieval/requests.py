@@ -20,15 +20,22 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image
+from nibabel import Nifti1Image, streamlines
 import gzip
 from getpass import getpass
+from io import BytesIO, StringIO
+import urllib
+import pandas as pd
+
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".txt": lambda b: b.decode(),
+    ".tck": lambda b: streamlines.load(BytesIO(b)),
+    ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
+    ".txt": lambda b: pd.read_csv(StringIO(b), delimiter=" ", header=None)
 }
 
 class SiibraHttpRequestError(Exception):
@@ -71,8 +78,9 @@ class HttpRequest:
         self._set_decoder_func(func, url)
 
     def _set_decoder_func(self, func, fileurl: str):
+        urlpath = urllib.parse.urlsplit(fileurl).path
         if func is None:
-            suitable_decoders = [dec for sfx, dec in DECODERS.items() if fileurl.endswith(sfx)]
+            suitable_decoders = [dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)]
             if len(suitable_decoders) > 0:
                 assert len(suitable_decoders) == 1
                 self.func = suitable_decoders[0]
