@@ -210,7 +210,9 @@ class EbrainsRequest(HttpRequest):
         if response.status_code == 200:
             cls._KG_API_TOKEN = response.json()
         else:
-            raise RuntimeError('Could not fetch token. Response was:', response)
+            if response.status_code == 500:
+                logger.error('Invalid EBRAINS username/password provided for fetching token.')
+            raise RuntimeError(f'Could not fetch token (status code {response.status_code}: {response.reason}).')
 
     @classmethod
     def set_token(cls, token):
