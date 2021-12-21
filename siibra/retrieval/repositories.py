@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, HttpRequest
+from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
@@ -168,6 +168,84 @@ class OwncloudConnector(RepositoryConnector):
         raise NotImplementedError(
             f"File search in folders not implemented for {self.__class__.__name__}."
         )
+
+    def _build_url(self, folder, filename):
+        fpath = "" if folder == "" else f"path={quote(folder,safe='')}&"
+        fpath += f"files={quote(filename)}"
+        url = f"{self.base_url}/download?{fpath}"
+        return url
+
+class EbrainsHdgConnector(RepositoryConnector):
+    """Download sensitive files from EBRAINS using 
+    the Human Data Gateway (HDG) via the data proxy API.
+    """
+    endpoint = "https://data-proxy.ebrains.eu/api/datasets"
+    maxentries = 1000
+
+    def __init__(self, dataset_id ):
+        """Construct a dataset query for the Human Data Gateway.
+        
+        Parameters
+        ----------
+        dataset_id : str
+            EBRAINS dataset id for a dataset that is exposed 
+            via the human data gateway.
+        """
+
+        self.files = []
+
+        marker = None
+        while True: 
+            
+            # The endpoint implements basic pagination, using the filenames as markers.
+
+            if marker is None:
+                url = f'{self.endpoint}/{dataset_id}?limit={self.maxentries}'
+            else:
+                url = f'{self.endpoint}/{dataset_id}?limit={self.maxentries}&marker={marker}'
+
+            try:
+                result = EbrainsRequest(url, DECODERS['.json']).get()
+            except SiibraHttpRequestError as e:
+                if e.response.status_code in [401, 422]:
+                    # Request access to the dataset (401: expired, 422: not yet requested)
+                    EbrainsRequest(f'{self.endpoint}/{dataset_id}', post=True).get()
+                    input(
+                        "You should have received an email with a confirmation link - "
+                        "please find that email and click on the link, then press enter "
+                        "to continue"
+                    )
+                    continue
+                else:
+                    raise RuntimeError(
+                        f"Could not request private file links for dataset {dataset_id}. "
+                        f"Status code was: {e.response.status_code}. "
+                        f"Message was: {e.response.text}. "
+                    )
+
+            newfiles = result["objects"]
+            self.files.extend(newfiles)
+            logger.debug(f"{len(newfiles)} of {self.maxentries} objects returned.") 
+
+            if len(newfiles) == self.maxentries:
+                # there might be more files
+                marker = newfiles[-1]['name']
+            else:
+                logger.info(f"{len(self.files)} objects found for dataset {dataset_id} returned.") 
+                self.container = result["container"]
+                self.prefix = result["prefix"]
+                break
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        result = []
+        for f in self.files:
+            if f['name'].startswith(folder):
+                if suffix is None:
+                    result.append(f['name'])
+                else:
+                    if f['name'].endswith(suffix):
+                        result.append(f['name'])
+        return result
 
     def _build_url(self, folder, filename):
         fpath = "" if folder == "" else f"path={quote(folder,safe='')}&"

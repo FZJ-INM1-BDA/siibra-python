@@ -31,10 +31,14 @@ DECODERS = {
     ".txt": lambda b: b.decode(),
 }
 
+class SiibraHttpRequestError(Exception):
+    def __init__(self, response):
+        self.response = response
+        Exception.__init__(self)
 
 class HttpRequest:
     def __init__(
-        self, url, func=None, status_code_messages={}, msg_if_not_cached=None, refresh=False, **kwargs
+        self, url, func=None, msg_if_not_cached=None, refresh=False, post=False, **kwargs
     ):
         """
         Initialize a cached http data loader.
@@ -52,19 +56,18 @@ class HttpRequest:
         func : function pointer
             Function for constructing the output data
             (called on the data retrieved from `url`, if supplied)
-        status_code_messages : dict
-            Optional dictionary of message strings to output in case of error,
-            where keys are http status code.
         refresh : bool, default: False
             If True, a possibly cached content will be ignored and refreshed
+        post: bool, default: False
+            perform a post instead of get
         """
         assert url is not None
         self.url = url
         self.kwargs = kwargs
-        self.status_code_messages = status_code_messages
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
+        self.post = post
         self._set_decoder_func(func, url)
 
     def _set_decoder_func(self, func, fileurl: str):
@@ -98,19 +101,18 @@ class HttpRequest:
             logger.debug(f"Loading {self.url} to {os.path.basename(self.cachefile)}")
             if self.msg_if_not_cached is not None:
                 logger.info(self.msg_if_not_cached)
-            r = requests.get(self.url, **self.kwargs)
+            if self.post:
+                print("running post")
+                r = requests.post(self.url, **self.kwargs)
+            else:
+                r = requests.get(self.url, **self.kwargs)
             if r.ok:
                 with open(self.cachefile, "wb") as f:
                     f.write(r.content)
                 self.refresh = False
                 return r.content
-            elif r.status_code in self.status_code_messages:
-                raise RuntimeError(self.status_code_messages[r.status_code])
             else:
-                print(self.kwargs)
-                raise RuntimeError(
-                    f"Could not retrieve data.\nhttp status code: {r.status_code}\nURL: {self.url}"
-                )
+                raise SiibraHttpRequestError(r)
 
     def get(self):
         data = self._retrieve()
@@ -151,26 +153,17 @@ class EbrainsRequest(HttpRequest):
     """
     Implements lazy loading of HTTP Knowledge graph queries.
     """
-
-    SC_MESSAGES = {
-        401: "The provided EBRAINS authentication token is not valid",
-        403: "No permission to access the given query",
-        404: "Query with this id not found",
-    }
-
     _KG_API_TOKEN = None
     keycloak_endpoint = "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
 
-    def __init__(self, url, decoder=None, params={}, msg_if_not_cached=None ):
+    def __init__(self, url, decoder=None, params={}, msg_if_not_cached=None, post=False ):
         """ Construct an EBRAINS request. """
         # NOTE: we do not pass params and header here,
         # since we want to evaluate them late in the get() method.
         # This is nice because it allows to set env. variable KG_TOKEN only when
         # really needed, and not necessarily on package initialization.
         self.params =  params
-        HttpRequest.__init__(
-            self, url, decoder, self.SC_MESSAGES, msg_if_not_cached
-        )
+        HttpRequest.__init__(self, url, decoder, msg_if_not_cached, post=post)
 
     @classmethod
     def fetch_token(cls):
@@ -252,13 +245,16 @@ class EbrainsRequest(HttpRequest):
         
         return self.__class__._KG_API_TOKEN
 
-    def get(self):
-        """Evaluate KG Token is evaluated only on executrion of the request."""
-        headers = {
+    @property
+    def auth_headers(self):
+        return {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.kg_token}",
         }
-        self.kwargs = {"headers": headers, "params": self.params}
+
+    def get(self):
+        """Evaluate KG Token is evaluated only on executrion of the request."""
+        self.kwargs = {"headers": self.auth_headers, "params": self.params}
         return super().get()
 
 
@@ -269,6 +265,12 @@ class EbrainsKgQuery(EbrainsRequest):
     org = "minds"
     domain = "core"
     version = "v1.0.0"
+
+    SC_MESSAGES = {
+        401: "The provided EBRAINS authentication token is not valid",
+        403: "No permission to access the given query",
+        404: "Query with this id not found",
+    }
 
     def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
         inst_tail = "/" + instance_id if instance_id is not None else ""
@@ -287,3 +289,17 @@ class EbrainsKgQuery(EbrainsRequest):
             msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}"
         )
 
+    def get(self):
+        try:
+            result = EbrainsRequest.get(self)
+        except SiibraHttpRequestError as e:
+            if e.response.status_code in self.SC_MESSAGES:
+                raise RuntimeError(self.SC_MESSAGES[e.response.status_code])
+            else:
+                raise RuntimeError(
+                    f"Could not process HTTP request (status code: "
+                    f"{e.response.status_code}). Message was: "
+                    f"{e.response.message} "
+                )
+        return result
+            
