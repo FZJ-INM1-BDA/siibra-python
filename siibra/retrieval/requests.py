@@ -23,10 +23,16 @@ import os
 from nibabel import Nifti1Image, streamlines
 import gzip
 from getpass import getpass
-from io import BytesIO, StringIO
+from io import BytesIO
 import urllib
 import pandas as pd
+from tempfile import mktemp
 
+def bytes_to_temporary_zipfile(b):
+    fname = mktemp(suffix='.zip')
+    with open(fname, 'wb') as f:
+        f.write(b)
+    return ZipFile(fname)
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
@@ -35,11 +41,15 @@ DECODERS = {
     ".txt": lambda b: b.decode(),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
-    ".txt": lambda b: pd.read_csv(StringIO(b), delimiter=" ", header=None)
+    ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
+    ".zip": bytes_to_temporary_zipfile
 }
 
 class SiibraHttpRequestError(Exception):
     def __init__(self, response):
+        logger.error("Cannot execute http request.")
+        print(f"    Status code: {response.status_code}")
+        print(f"    Url:         {response.url}")
         self.response = response
         Exception.__init__(self)
 

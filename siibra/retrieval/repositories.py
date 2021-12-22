@@ -192,7 +192,7 @@ class EbrainsHdgConnector(RepositoryConnector):
             via the human data gateway.
         """
 
-        self.files = []
+        self._files = []
         self.dataset_id = dataset_id
 
         marker = None
@@ -225,21 +225,21 @@ class EbrainsHdgConnector(RepositoryConnector):
                     )
 
             newfiles = result["objects"]
-            self.files.extend(newfiles)
+            self._files.extend(newfiles)
             logger.debug(f"{len(newfiles)} of {self.maxentries} objects returned.") 
 
             if len(newfiles) == self.maxentries:
                 # there might be more files
                 marker = newfiles[-1]['name']
             else:
-                logger.info(f"{len(self.files)} objects found for dataset {dataset_id} returned.") 
+                logger.info(f"{len(self._files)} objects found for dataset {dataset_id} returned.") 
                 self.container = result["container"]
                 self.prefix = result["prefix"]
                 break
 
     def search_files(self, folder="", suffix=None, recursive=False):
         result = []
-        for f in self.files:
+        for f in self._files:
             if f['name'].startswith(folder):
                 if suffix is None:
                     result.append(f['name'])
@@ -260,3 +260,63 @@ class EbrainsHdgConnector(RepositoryConnector):
         """ Get a lazy loader for a file, for executing the query
         only once loader.data is accessed. """
         return EbrainsRequest(self._build_url(folder, filename), decode_func)
+
+
+class EbrainsPublicDatasetConnector(RepositoryConnector):
+    """Access files from public EBRAINS datasets via the Knowledge Graph v3 API.
+    """
+
+
+    QUERY_ID = "bebbe365-a0d6-41ea-9ff8-2554c15f70b7"
+    base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
+    maxentries = 1000
+
+    def __init__(self, dataset_id, in_progress=False ):
+        """Construct a dataset query with the dataset id.
+        
+        Parameters
+        ----------
+        dataset_id : str
+            EBRAINS dataset id of a public dataset in KG v3.
+        in_progress: bool (default:False)
+            If true, will request datasets that are still under curation.
+            Will only work when autenticated with an appropriately privileged 
+            user account.
+        """
+        self.dataset_id = dataset_id
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
+        result = EbrainsRequest(url, DECODERS['.json']).get()
+        assert len(result['data']) == 1
+        data = result['data'][0]
+        self.versions = {v['versionIdentifier']:v for v in data['versions']}
+        self.use_version = sorted(list(self.versions.keys()))[-1]
+        logger.info(f"Dataset: '{data['name']}'")
+        logger.info(
+            f"Found {len(self.versions)} versions ({', '.join(self.versions.keys())}). "
+            f"Will use the latest per default: {self.use_version}"
+        )
+
+    @property
+    def _files(self):
+        return {f['name']:f['url'] for f in self.versions[self.use_version]['files']}
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        result = []
+        for fname in self._files:
+            if fname.startswith(folder):
+                if suffix is None:
+                    result.append(fname)
+                else:
+                    if fname.endswith(suffix):
+                        result.append(fname)
+        return result
+
+    def _build_url(self, folder, filename):
+        fpath = f"{folder}/{filename}" if len(folder)>0 else f"{filename}"
+        return self._files[fpath]
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """ Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed. """
+        return HttpRequest(self._build_url(folder, filename), decode_func)
