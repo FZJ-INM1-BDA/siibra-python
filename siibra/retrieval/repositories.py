@@ -291,11 +291,15 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         data = result['data'][0]
         self.versions = {v['versionIdentifier']:v for v in data['versions']}
         self.use_version = sorted(list(self.versions.keys()))[-1]
-        logger.info(f"Dataset: '{data['name']}'")
         logger.info(
-            f"Found {len(self.versions)} versions ({', '.join(self.versions.keys())}). "
-            f"Will use the latest per default: {self.use_version}"
+            f"Found {len(self.versions)} versions for dataset '{data['name']}' "
+            f"({', '.join(self.versions.keys())}). "
+            f"Will use {self.use_version} per default."
         )
+
+    @property
+    def doi(self):
+        return self.versions[self.use_version]['doi']
 
     @property
     def _files(self):

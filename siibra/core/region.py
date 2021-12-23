@@ -492,7 +492,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return group
 
     def __str__(self):
-        return f"{self.parcellation.name}: {self.name}"
+        return f"{self.name}"
 
     def __repr__(self):
         return "\n".join(

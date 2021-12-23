@@ -245,7 +245,7 @@ class Parcellation(
         return self._publications + super().publications
 
     def decode_region(
-        self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=True
+        self, regionspec: Union[str, int, ParcellationIndex, Region]
     ):
         """
         Given a unique specification, return the corresponding region.
@@ -269,6 +269,17 @@ class Parcellation(
         ------
         Region object
         """
+        if isinstance(regionspec, Region) and (regionspec.parcellation==self):
+            return
+            
+        if isinstance(regionspec, str) and ("Group:" in regionspec):
+            # seems to be a group region name - build the group region by recursive decoding.
+            subspecs = regionspec.replace("Group:", "").split(',')
+            return Region._build_grouptree(
+                [self.decode_region(s) for s in subspecs], 
+                parcellation=self
+            )
+
         candidates = self.regiontree.find(regionspec, filter_children=True)
         if not candidates:
             raise ValueError(
@@ -279,22 +290,16 @@ class Parcellation(
         elif len(candidates) == 1:
             return candidates[0]
         else:
-            if build_group:
-                logger.debug(
-                    f"The specification '{regionspec}' resulted more than one region. A group region is returned."
-                )
-                return Region._build_grouptree(candidates, self)
-            else:
-                if isinstance(regionspec, str):
-                    scores = [SequenceMatcher(None, regionspec, region.name).ratio() for region in candidates]
-                    bestmatch = scores.index(max(scores))
-                    logger.info(
-                        f"Decoding of spec {regionspec} resulted in multiple matches: "
-                        f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}")
-                    return candidates[bestmatch]
-                raise RuntimeError(
-                    f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
-                )
+            if isinstance(regionspec, str):
+                scores = [SequenceMatcher(None, regionspec, region.name).ratio() for region in candidates]
+                bestmatch = scores.index(max(scores))
+                logger.info(
+                    f"Decoding of spec {regionspec} resulted in multiple matches: "
+                    f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}")
+                return candidates[bestmatch]
+            raise RuntimeError(
+                f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
+            )
 
     @cached
     def find_regions(

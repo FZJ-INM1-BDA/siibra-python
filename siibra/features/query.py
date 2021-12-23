@@ -30,7 +30,7 @@ class FeatureQuery(ABC):
 
     _FEATURETYPE = Feature
     _instances = {}
-    REGISTRY = Registry()
+    _implementations = defaultdict(list)
 
     def __init__(self, **kwargs):
         logger.debug(f"Initializing query for {self._FEATURETYPE.__name__} features")
@@ -43,7 +43,7 @@ class FeatureQuery(ABC):
         logger.debug(
             f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features"
         )
-        cls.REGISTRY.add(cls._FEATURETYPE.modality(), cls)
+        cls._implementations[cls._FEATURETYPE.modality()].append(cls)
 
     @classmethod
     def get_features(cls, concept, modality, group_by=None, **kwargs):
@@ -63,51 +63,80 @@ class FeatureQuery(ABC):
             Use the latter for example when you query by a parcellation, and want to get
             features grouped by the particular region of that parcellation which they have been attached to.
         """
+        # helper func: convert modality spec into unique modality 
+        mod = lambda modality: cls.get_modalities()[modality]
+
         if isinstance(modality, str) and modality == 'all':
-            querytypes = [FeatureQuery.REGISTRY[m] for m in FeatureQuery.REGISTRY]
+            # use union of all featurequery implementations
+            querytypes = sum(FeatureQuery._implementations.values(), [])
         elif isinstance(modality, (list, tuple)):
-            querytypes = [FeatureQuery.REGISTRY[m] for m in modality]
+            # use union of featurequery implementations from multiple modalities
+            querytypes = sum(
+                [FeatureQuery._implementations[mod(m)] for m in modality], []
+            )
         else:
-            if not FeatureQuery.REGISTRY.provides(modality):
+            if mod(modality) not in cls._implementations:
                 raise RuntimeError(
-                    f"Cannot query features - no feature extractor known for feature type {modality}."
+                    f"No feature query known for feature type {modality}."
                 )
-            querytypes = [FeatureQuery.REGISTRY[modality]]
+            querytypes = cls._implementations[mod(modality)]
 
         result = {}
+        args_hash = hash(tuple(sorted(kwargs.items())))
         for querytype in querytypes:
 
-            hits = []
-            for query in FeatureQuery.queries(querytype.modality(), **kwargs):
-                hits.extend(query.execute(concept))
-            matches = list(set(hits))
+            if (querytype, args_hash) not in cls._instances:
+                logger.debug(f"Building new query {querytype} with args {kwargs}")
+                try:
+                    cls._instances[querytype, args_hash] = querytype(**kwargs)
+                except TypeError as e:
+                    logger.error(f"Cannot initialize {querytype} query: {str(e)}")
+                    raise (e)
+
+            #hits = []
+            #for query in FeatureQuery.queries(querytype.modality(), **kwargs):
+            #    hits.extend(query.execute(concept))
+            query = cls._instances[querytype, args_hash]
+            matches = query.execute(concept)
+            logger.debug(f"{len(matches)} matches from query {query.__class__.__name__}")
 
             if group_by is None:
-                grouped = matches
+                if querytype.modality() not in result:
+                    result[querytype.modality()] = []
+                result[querytype.modality()].extend(matches)
 
             elif group_by == "dataset":
-                grouped = defaultdict(list)
+                if querytype.modality() not in result:
+                    result[querytype.modality()] = defaultdict(list)
                 for m in matches:
                     idf = m.id if isinstance(m, Dataset) else None
-                    grouped[idf].append(m)
+                    result[querytype.modality()][idf].append(m)
 
             elif group_by == "concept":
-                grouped = defaultdict(list)
+                if querytype.modality() not in result:
+                    result[querytype.modality()] = defaultdict(list)
                 for m in matches:
-                    grouped[m._match].append(m)
+                    result[querytype.modality()][m._match].append(m)
 
             else:
                 raise ValueError(
                     f"Invalid parameter '{group_by}' for the 'group_by' attribute of get_features. "
                     "Valid entries are: 'dataset', 'concept', or None.")
 
-            result[querytype.modality()] = grouped
 
         # If only one modality was requested, simplify the dictionary
         if len(result) == 1:
             return next(iter(result.values()))
         else:
             return result
+
+    @classmethod
+    def get_modalities(cls):
+        return Registry(
+            elements={
+                c:c for c in cls._implementations.keys()
+            }
+        )
 
     @classmethod
     def queries(cls, modality: str, **kwargs):
@@ -117,15 +146,16 @@ class FeatureQuery(ABC):
         """
         instances = []
         args_hash = hash(tuple(sorted(kwargs.items())))
-        Querytype = cls.REGISTRY[modality]
-        if (Querytype, args_hash) not in cls._instances:
-            logger.debug(f"Building new query {Querytype} with args {kwargs}")
-            try:
-                cls._instances[Querytype, args_hash] = Querytype(**kwargs)
-            except TypeError as e:
-                logger.error(f"Cannot initialize {Querytype} query: {str(e)}")
-                raise (e)
-        instances.append(cls._instances[Querytype, args_hash])
+        matched_modality = cls.get_modalities()[modality]
+        for Querytype in cls._implementations[matched_modality]:
+            if (Querytype, args_hash) not in cls._instances:
+                logger.debug(f"Building new query {Querytype} with args {kwargs}")
+                try:
+                    cls._instances[Querytype, args_hash] = Querytype(**kwargs)
+                except TypeError as e:
+                    logger.error(f"Cannot initialize {Querytype} query: {str(e)}")
+                    raise (e)
+            instances.append(cls._instances[Querytype, args_hash])
         return instances
 
     def execute(self, concept: AtlasConcept):
