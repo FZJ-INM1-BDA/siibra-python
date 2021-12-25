@@ -548,7 +548,10 @@ class LabelledParcellationMap(ParcellationMap):
         result = None
 
         for region, value in values.items():
-            indices = self.decode_region(region)
+            try:
+                indices = self.decode_region(region)
+            except IndexError:
+                continue
             for index in indices:
                 if index.map not in maps:
                     # load the map
@@ -860,7 +863,7 @@ class ContinuousParcellationMap(ParcellationMap):
         v = [self.probs[i][mapindex] for i in self.spatial_index[x, y, z]]
         return x, y, z, v
 
-    def sample_locations(self, mapindex, numpoints):
+    def sample_locations(self, mapindex, numpoints, lower_threshold=0.):
         """ Sample 3D locations by using one of the maps as probability distributions.
         
         Parameters
@@ -869,6 +872,8 @@ class ContinuousParcellationMap(ParcellationMap):
             Index of the map to be used
         numpoints: int
             Number of samples to draw
+        lower_threshold: float, default: 0
+            Voxels in the map with a value smaller than this threshold will not be considered.
 
         Return
         ------
@@ -881,9 +886,9 @@ class ContinuousParcellationMap(ParcellationMap):
             logger.info(f'Trying to decode map index for region specification "{mapindex}".')
             mapindex = self.decode_region(mapindex)[0].map
         pmap = self.fetch(mapindex, cropped=True)
-        D = np.asanyarray(pmap.dataobj)
-        D /= D.sum()
-        p = D.ravel()
+        D = np.array(pmap.dataobj) # do a real copy so we don't modify the map
+        D[D<lower_threshold] = 0.
+        p = (D/D.sum()).ravel()
         XYZ_ = np.array(np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)).T
         XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3,:].T
         return PointSet(XYZ, space=self.space)
@@ -940,7 +945,9 @@ class ContinuousParcellationMap(ParcellationMap):
         item: Union[Point, PointSet, nib.Nifti1Image], 
         msg=None, 
         quiet=False,
-        minsize_voxel=1
+        minsize_voxel=1,
+        lower_threshold=0.,
+        skip_mapindices=[]
         ):
         """ Assign an input image to brain regions.
         
@@ -963,11 +970,28 @@ class ContinuousParcellationMap(ParcellationMap):
             If True, no outputs will be generated.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
+        lower_threshold: float, default: 0
+            Lower threshold on values in the continuous map. Values smaller than
+            this threshold will be excluded from the assignment computation.
+        skip_mapindices: list, default: []
+            Maps whose index is listed here will not be considered for the assignment
 
         Return
         ------
         assignments : pandas Dataframe
-            A table of associated regions and their scores per component found in the input image
+            A table of associated regions and their scores per component found in the input image,
+            or per coordinate provived.
+            The scores are:
+                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or 
+                  input image signal component.
+                - Pearson correlation coefficient between the brain region map and an input image signal
+                  component (NaN for exact coordinates)
+                - "Contains": Percentage of the brain region map contained in an input image signal component, 
+                  measured from their binarized masks as the ratio between the volume of their interesection 
+                  and the volume of the brain region (NaN for exact coordinates)
+                - "Contained"": Percentage of an input image signal component contained in the brain region map, 
+                  measured from their binary masks as the ratio between the volume of their interesection 
+                  and the volume of the input image signal component (NaN for exact coordinates)
         components: Nifti1Image, or None
             If the input was an image, this is a labelled volume mapping the detected components 
             in the input image, where pixel values correspond to the "component" column of the 
@@ -999,7 +1023,9 @@ class ContinuousParcellationMap(ParcellationMap):
                     logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
                     x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[:3]
                     for mapindex, value in self.probs[self.spatial_index[x,y,z]].items():
-                         if value > 0:
+                        if mapindex in skip_mapindices:
+                            continue
+                        if value > lower_threshold:
                             assignments.append(
                                 (pointindex, mapindex, value, np.NaN, np.NaN, np.NaN, np.NaN)
                             )
@@ -1013,7 +1039,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     # build niftiimage with the Gaussian blob, 
                     # then recurse into this method with the image input
                     W = nib.Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                    T, _ = self.assign(W)
+                    T, _ = self.assign(W, lower_threshold=lower_threshold, skip_mapindices=skip_mapindices)
                     assignments.extend([
                         [pointindex, mapindex, maxval, iou, contained, contains, rho]
                         for (_, mapindex, _, maxval, rho, iou, contains, contained)
@@ -1042,7 +1068,8 @@ class ContinuousParcellationMap(ParcellationMap):
             components = measure.label(img2data>0)
             component_labels = np.unique(components)
             assert component_labels[0] == 0
-            logger.info(f"Detected {len(component_labels)-1} components in the image. Assigning each of them to {len(self)} brain regions.")
+            if len(component_labels)>1:
+                logger.info(f"Detected {len(component_labels)-1} components in the image. Assigning each of them to {len(self)} brain regions.")
 
             for modeindex in component_labels[1:]:
         
@@ -1061,6 +1088,8 @@ class ContinuousParcellationMap(ParcellationMap):
                 for mapindex in tqdm(
                     range(len(self)), total=len(self), unit=" map", desc=msg, disable=logger.level>20
                 ):
+                    if mapindex in skip_mapindices:
+                        continue
                     
                     bbox1 = BoundingBox(
                         self.bboxes[mapindex]['minpoint'], 
@@ -1080,6 +1109,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
                     indices1 = np.ravel_multi_index((X1-x0, Y1-y0, Z1-z0), bbshape)
                     v1[indices1] = [self.probs[i][mapindex] for i in self.spatial_index[X1, Y1, Z1]]
+                    v1[v1<lower_threshold] = 0
 
                     # build flattened vector of input image mode
                     v2 = np.zeros(np.prod(bbshape))
@@ -1088,12 +1118,12 @@ class ContinuousParcellationMap(ParcellationMap):
 
                     assert v1.shape == v2.shape
                     
-                    intersection = np.minimum(v1, v2).sum()
+                    intersection = np.sum((v1 > 0) & (v2 > 0)) #np.minimum(v1, v2).sum()
                     if intersection == 0:
                         continue
-                    iou = intersection / np.maximum(v1, v2).sum()
-                    contained = intersection / v1.sum()
-                    contains = intersection / v2.sum()
+                    iou = intersection / np.sum((v1 > 0) | (v2 > 0)) #np.maximum(v1, v2).sum()
+                    contains = intersection / (v1 > 0).sum()
+                    contained = intersection / (v2 > 0).sum()
 
                     v1d = v1 - v1.mean()
                     v2d = v2 - v2.mean()
@@ -1106,20 +1136,25 @@ class ContinuousParcellationMap(ParcellationMap):
         else:
             raise RuntimeError(f"Items of type {item.__class__.__name__} cannot be used for region assignment.")
 
-        result = np.array(assignments)
-        # sort by component, then by correlation
-        ind = np.lexsort((-result[:,-1], result[:,0]))
+        if len(assignments)==0:
+            df = pd.DataFrame(
+                columns=['Component', 'MapIndex', 'Region', 'MaxValue', 'Correlation', 'IoU', 'Contains', 'Contained']
+            )
+        else:
+            result = np.array(assignments)
+            # sort by component, then by correlation
+            ind = np.lexsort((-result[:,-1], result[:,0]))
 
-        df = pd.DataFrame({
-            'Component' : result[ind,0].astype('int'),
-            'MapIndex': result[ind,1].astype('int'),
-            'Region' : [self.decode_label(mapindex=m, labelindex=None).name for m in result[ind,1]],
-            'MaxValue' : result[ind,2],
-            'Correlation': result[ind,6],
-            'IoU': result[ind,3],
-            'Contains': result[ind, 5],
-            'Contained': result[ind, 4]
-        }).dropna(axis=1, how='all')
+            df = pd.DataFrame({
+                'Component' : result[ind,0].astype('int'),
+                'MapIndex': result[ind,1].astype('int'),
+                'Region' : [self.decode_label(mapindex=m, labelindex=None).name for m in result[ind,1]],
+                'MaxValue' : result[ind,2],
+                'Correlation': result[ind,6],
+                'IoU': result[ind,3],
+                'Contains': result[ind, 5],
+                'Contained': result[ind, 4]
+            }).dropna(axis=1, how='all')
 
         if components is None:
             return df
