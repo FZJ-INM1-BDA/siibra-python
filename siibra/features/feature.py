@@ -54,7 +54,7 @@ class Match:
         self, 
         concept: AtlasConcept, 
         qualification: MatchQualification = MatchQualification.EXACT, 
-        description: str = ""
+        comment: str = None
     ):
         """Construct a feature match description.
 
@@ -64,13 +64,15 @@ class Match:
             The atlas concept to which the feature had been mapped.
         qualification: MatchQualifiction
             Qualification of the match, see siibra.feature.MatchQualification
-        description: str
-            Optional human-readable description of the match
+        comment: str
+            Optional human-readable explanation comment about the way the match
+            was computed
         """
         self.concept = concept
         self.qualification = qualification
-        self.description = description
         self._comments = []
+        if comment is not None:
+            self.add_comment(comment)
 
     @property
     def region(self):
@@ -382,7 +384,7 @@ class RegionalFeature(Feature):
             for region in concept.regiontree.find(spec):
                 self._match = Match(
                     region, MatchQualification.CONTAINED, 
-                    f"Region {region.name} belongs to parcellation {concept.name}."
+                    f"Feature was linked to {region.name}, which belongs to parcellation {concept.name}."
                 )
                 return True
 
@@ -392,7 +394,12 @@ class RegionalFeature(Feature):
                 if not w.isnumeric() and len(w)>2:
                     spec = spec.replace(w.lower(), '')
             for region in concept.find(spec):
-                self._match = Match(region, MatchQualification.EXACT)                
+                if region == concept:
+                    self._match = Match(region, MatchQualification.EXACT) 
+                else:
+                    self._match = Match(concept, MatchQualification.CONTAINED,
+                        f"Feature was linked to child region '{region.name}'"
+                    )               
                 return True
 
         # Feature's region is specified by string, search query is an Atlas 
