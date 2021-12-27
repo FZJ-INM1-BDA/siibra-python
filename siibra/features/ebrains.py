@@ -83,7 +83,8 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                     *dataset.get('s_subject_species', []),
                 ]
 
-                # if the current dataset has species defined, use the current species, else use the general speices
+                # if the current dataset has species defined, use the current species, 
+                # else use the general species
                 species = [*r.get("species", []), *(dataset_species if dataset_species else species_alt)] # list with keys @id, identifier, name
 
                 # filter species by @id attribute

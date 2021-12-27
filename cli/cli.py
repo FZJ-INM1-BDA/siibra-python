@@ -196,7 +196,10 @@ def region(ctx, region, parcellation, tree):
         exit(1)
     for i, m in enumerate(matches):
         txt = m.__repr__() if tree else m.name
-        click.echo(f"{i:5} - {txt}")
+        if parcellation is None:
+            click.echo(f"{i:5} | {m.parcellation.name:30.30} | {txt}")
+        else:
+            click.echo(f"{i:5}  {txt}")
 
 
 @find.command()

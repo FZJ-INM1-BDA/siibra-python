@@ -29,6 +29,7 @@ setup(
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,
+    package_data={'siibra': ['features/region_aliases_human.json']},
     # packages=find_packages(include=['.']),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
