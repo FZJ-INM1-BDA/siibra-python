@@ -93,9 +93,6 @@ class FeatureQuery(ABC):
                     logger.error(f"Cannot initialize {querytype} query: {str(e)}")
                     raise (e)
 
-            #hits = []
-            #for query in FeatureQuery.queries(querytype.modality(), **kwargs):
-            #    hits.extend(query.execute(concept))
             query = cls._instances[querytype, args_hash]
             matches = query.execute(concept)
             logger.debug(f"{len(matches)} matches from query {query.__class__.__name__}")
@@ -165,7 +162,7 @@ class FeatureQuery(ABC):
         matches = []
         for feature in self.features:
             if feature.match(concept):
-                matches.append(feature)
+                matches.append(feature)        
         return matches
 
     def __str__(self):
