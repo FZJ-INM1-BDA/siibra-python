@@ -27,4 +27,5 @@ docs/autoapi
 docs/_build
 *.swp
 *.swo
-.venv
+.venv/
+geckodriver.log
