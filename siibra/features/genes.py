@@ -182,7 +182,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             self._specimen = {
                 spcid: self._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
             }
-            response = json.loads(HttpRequest(self._QUERY["factors"]).get())
+            response = HttpRequest(self._QUERY["factors"]).get()
             self.factors = {
                 item["id"]: {
                     "race": item["race_only"],
@@ -201,9 +201,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
         Retrieves information about a human specimen.
         """
         url = self._QUERY["specimen"].format(specimen_id=specimen_id)
-        response = json.loads(
-            HttpRequest(url).get()
-        )  # ,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
+        response = HttpRequest(url).get()
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving specimen information: {}".format(url)

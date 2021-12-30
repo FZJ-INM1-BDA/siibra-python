@@ -183,7 +183,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
             'name': 'Homo sapiens'
         }
         for cellfile, loader in self._JUGIT.get_loaders(
-            suffix="segments.txt", recursive=True
+            suffix="segments.txt", recursive=True, decode_func=lambda b: b.decode()
         ):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])

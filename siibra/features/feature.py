@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ctypes import ArgumentError
 from ..commons import logger, Registry, QUIET
 from ..core.concept import AtlasConcept
 from ..core.atlas import Atlas
@@ -285,15 +286,17 @@ class RegionalFeature(Feature):
 
     # load region name aliases from data file
     _aliases = {}
-    with resources.open_text(
-        'siibra.features', 'region_aliases_human.json'
-    ) as f:
-        _aliases = {
-            d['Region specification'].lower().strip(): 
-            {k:v for k,v in d.items() if k != 'Region specification'} 
-            for d in json.load(f)
-        }
-    logger.debug(f"Loaded {len(_aliases)} region spec aliases")
+    for species_name in ['human']:
+        species_id = Atlas.get_species_data('human')['@id']
+        with resources.open_text(
+            'siibra.features', f'region_aliases_{species_name}.json'
+        ) as f:
+            _aliases[species_id] = {
+                d['Region specification'].lower().strip(): 
+                {k:v for k,v in d.items() if k != 'Region specification'} 
+                for d in json.load(f)
+            }
+        logger.info(f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}")
 
     def __init__(self, regionspec: Tuple[str, Region], species = [], **kwargs):
         """
@@ -308,7 +311,12 @@ class RegionalFeature(Feature):
             )
         Feature.__init__(self)
         self.regionspec = regionspec
-        self.species = species
+        if isinstance(species, list):
+            self.species = species
+        elif isinstance(species, dict):
+            self.species = [species]
+        else:
+            raise ArgumentError(f"Type {type(species)} not expected for species, should be list or dict.")
 
     @property
     def species_ids(self):
@@ -355,26 +363,29 @@ class RegionalFeature(Feature):
         assert isinstance(self.regionspec, str)
         spec = self.regionspec.lower().strip()
 
-        # Feature's region is specified by string. Check alias table first.
-        if spec in self._aliases:
-            repl = self._aliases[spec]
-            with QUIET:
-                if repl['Matched parcellation'] is not None:
-                    parc = Parcellation.REGISTRY[repl['Matched parcellation']]
-                    spec = repl['Matched region']
-                    msg_alias = f"Original region specification was '{self.regionspec}'."
-                else: 
-                    assert repl['Origin parcellation'] is not None
-                    parc = Parcellation.REGISTRY[repl['Origin parcellation']]
-                    msg_alias = f"Parcellation '{parc}' was used to decode '{spec}'."
-                for r in [parc.decode_region(s) for s in spec.split(',')]:
-                    if self._match_region(r, concept):
-                        break
-            if self._match is not None:
-                self._match.add_comment(msg_alias)
-                if repl['Qualification'] is not None:
-                    self._match.qualification = MatchQualification.from_string(repl['Qualification'])
-            return self.matched
+        # Feature's region is specified by string. Check alias table first.  
+        for species_id in set(self.species_ids) & set(self._aliases.keys()):
+            if spec in self._aliases[species_id]:
+                repl = self._aliases[species_id][spec]
+                with QUIET:
+                    if repl['Matched parcellation'] is not None:
+                        # a matched parcellation is stored in the alias table, this will be preferred.
+                        parc = Parcellation.REGISTRY[repl['Matched parcellation']]
+                        spec = repl['Matched region']
+                        msg_alias = f"Original region specification was '{self.regionspec}'."
+                    else: 
+                        # no matched parcellation, then we use the original one given in the table.
+                        assert repl['Origin parcellation'] is not None
+                        parc = Parcellation.REGISTRY[repl['Origin parcellation']]
+                        msg_alias = f"Parcellation '{parc}' was used to decode '{spec}'."
+                    for r in [parc.decode_region(s) for s in spec.split(',')]:
+                        if self._match_region(r, concept):
+                            break
+                if self._match is not None:
+                    self._match.add_comment(msg_alias)
+                    if repl['Qualification'] is not None:
+                        self._match.qualification = MatchQualification.from_string(repl['Qualification'])
+                return self.matched
 
         # Feature's region is specified by string, search query is a Parcellation 
         if isinstance(concept, Parcellation):
@@ -395,7 +406,7 @@ class RegionalFeature(Feature):
                     spec = spec.replace(w.lower(), '')
             for region in concept.find(spec):
                 if region == concept:
-                    self._match = Match(region, MatchQualification.EXACT) 
+                    self._match = Match(region, MatchQualification.EXACT)
                 else:
                     self._match = Match(concept, MatchQualification.CONTAINED,
                         f"Feature was linked to child region '{region.name}'"
@@ -440,6 +451,14 @@ class RegionalFeature(Feature):
         elif isinstance(concept, Region):
             if region == concept:
                 self._match = Match(concept, MatchQualification.EXACT)
+            elif region.has_parent(concept):
+                self._match = Match(concept, MatchQualification.CONTAINED,
+                    f"Feature was linked to child region '{region.name}'"
+                )
+            elif concept.has_parent(region):
+                self._match = Match(concept, MatchQualification.CONTAINS,
+                    f"Feature was linked to parent region '{region.name}'"
+                )  
         elif isinstance(concept, Atlas):
             if any(region in p for p in concept.parcellations):
                 self._match = Match(

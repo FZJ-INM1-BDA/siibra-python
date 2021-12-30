@@ -63,12 +63,11 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     _FEATURETYPE = EbrainsRegionalDataset
 
     # in EBRAINS knowledge graph prior to v3, versions were modelled 
-    # in dataset names.
-    VERSION_PATTERN = re.compile(r'^(.*?) *\(v(.*?)\) *')
-    RETURN_ALL_DATASET_VERSIONS = False
+    # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
+    VERSION_PATTERN = re.compile(r'^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]')
+    COMPACT_FEATURE_LIST = True
 
     # ids of EBRAINS datasets which represent siibra parcellations
-    SUPPRESS_PARCELLATION_DATASETS = True
     _PARCELLATION_IDS = [
         dset.id
         for parc in Parcellation.REGISTRY
@@ -77,7 +76,6 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     ]
     
     # datasets whose name contains any of these strings will be ignored
-    SUPPRESS_BLACKLISTED_DATASETS = True
     _BLACKLIST = {
         "Whole-brain parcellation of the Julich-Brain Cytoarchitectonic Atlas",
         "whole-brain collections of cytoarchitectonic probabilistic maps",
@@ -113,13 +111,13 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 ds_id = dataset.get("@id")
 
                 if (
-                    self.SUPPRESS_PARCELLATION_DATASETS and 
+                    self.COMPACT_FEATURE_LIST and 
                     any(ds_id.endswith(i) for i in self._PARCELLATION_IDS)
                 ):
                     continue
 
                 if (
-                    self.SUPPRESS_BLACKLISTED_DATASETS and
+                    self.COMPACT_FEATURE_LIST and
                     any(e.lower() in ds_name.lower() for e in self._BLACKLIST)
                 ):
                     continue
@@ -155,7 +153,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 )
 
                 version_match = self.VERSION_PATTERN.search(ds_name)
-                if version_match is None or self.RETURN_ALL_DATASET_VERSIONS:
+                if version_match is None or (not self.COMPACT_FEATURE_LIST):
                     self.register(dset)
                 else:
                     # store version, add only the latest version after the loop

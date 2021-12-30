@@ -113,9 +113,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 if c.index.map is not None:
                     child_has_mapindex = True
 
-        if (self.index.map is None) and (not child_has_mapindex):
-            self.index.map = 0
-
     @staticmethod
     def copy(other):
         """
@@ -242,7 +239,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else:
                 return None
         else:
-            return result
+            return sorted(result, key=lambda r:r.depth)
 
     @cached
     def matches(self, regionspec):
@@ -338,35 +335,46 @@ class Region(anytree.NodeMixin, AtlasConcept):
             parcmap = self.parcellation.get_map(spaceobj,  maptype)
             mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
 
+        if mask is None:
+            logger.warn(f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}.")
+            return None
+
         if threshold_continuous is not None:
             assert(maptype==MapType.CONTINUOUS)
             data = np.asanyarray(mask.dataobj) > threshold_continuous
             assert(any(data)) 
             mask = nib.Nifti1Image(data.astype('uint8').squeeze(), mask.affine)
 
-        if mask is None:
-            logger.warn(f"Could not compute {maptype} mask for {self.name} in {spaceobj.name}.")
-
         return mask
 
     def defined_in_space(self, space):
         """
-        Verifies wether this region is defined by a in the given space.
+        Verifies wether this region is defined by an explicit map in the given space.
         """
-        # the simplest case: the region has a non-empty parcellation index. Then we can assume it is mapped.
+        # the simple case: the region has a non-empty parcellation index,
+        # and its parcellation has a volumetric map in the requested space.
         if (
             self.index != ParcellationIndex(None, None) and
             len([v for v in self.parcellation.volumes if v.space==space])
         ):
-            # Region has a non-empty parcellation index, 
-            # *and* the parcellation provides a volumetric map in the requested space.
+            for v in self.parcellation.volumes:
+                if v.space==space:
             return True
 
+        # Some regions have explicit regional maps
         for maptype in ["labelled", "continuous"]:
             if self.has_regional_map(space, maptype):
                 return True
 
-        return False
+        # The last option is that this region has children, 
+        # and all of them are mapped in the requested space.
+        if self.is_leaf:
+            return False
+        for child in self.leaves:
+            if not child.defined_in_space(space):
+                return False
+        return True
+
 
     @property
     def supported_spaces(self):
