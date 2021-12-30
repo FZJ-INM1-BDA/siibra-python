@@ -27,3 +27,4 @@ docs/autoapi
 docs/_build
 *.swp
 *.swo
+.venv
