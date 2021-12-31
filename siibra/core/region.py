@@ -325,6 +325,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
             continuous maps with the given value.
         """
         spaceobj = Space.REGISTRY[space]
+        if spaceobj.is_surface:
+            raise NotImplementedError("Region masks for surface spaces are not yet supported.")
+
         mask = affine = None
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
@@ -347,7 +350,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return mask
 
-    def defined_in_space(self, space):
+    def mapped_in_space(self, space):
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
@@ -357,9 +360,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             self.index != ParcellationIndex(None, None) and
             len([v for v in self.parcellation.volumes if v.space==space])
         ):
-            for v in self.parcellation.volumes:
-                if v.space==space:
-                    return True
+            return True
 
         # Some regions have explicit regional maps
         for maptype in ["labelled", "continuous"]:
@@ -370,9 +371,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
         # and all of them are mapped in the requested space.
         if self.is_leaf:
             return False
-        for child in self.leaves:
-                if not child.defined_in_space(space):
-                    return False
+        
+        for child in self.children:
+            if not child.mapped_in_space(space):
+                return False
         return True
 
 
@@ -382,7 +384,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         The list of spaces for which a mask could be extracted. 
         Overwrites the corresponding method of AtlasConcept.
         """
-        return [s for s in self.parcellation.spaces if self.defined_in_space(s)]
+        return [s for s in Space.REGISTRY if self.mapped_in_space(s)]
 
     def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
@@ -638,7 +640,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if not isinstance(space, Space):
             space = Space.REGISTRY[space]
 
-        if not self.defined_in_space(space):
+        if not self.mapped_in_space(space):
             raise RuntimeError(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}."
             )
