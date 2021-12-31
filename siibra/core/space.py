@@ -176,7 +176,7 @@ class Location(ABC):
             self.space = Space.REGISTRY[space]
 
     @abstractmethod
-    def intersects_mask(self, mask: Nifti1Image):
+    def intersects(self, mask: Nifti1Image):
         """
         Verifies wether this 3D location intersects the given mask.
 
@@ -264,7 +264,7 @@ class WholeBrain(Location):
         else:
             self.space = Space.REGISTRY[space]
 
-    def intersects_mask(self, mask: Nifti1Image):
+    def intersects(self, mask: Nifti1Image):
         """ Always true for whole brain features """
         return True
 
@@ -356,7 +356,7 @@ class Point(Location):
         obtained by appending '1' to the original 3-tuple. """
         return self.coordinate + (1,)
 
-    def intersects_mask(self, mask: Nifti1Image):
+    def intersects(self, mask: Nifti1Image):
         """Returns true if this point lies in the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
@@ -584,13 +584,21 @@ class PointSet(Location):
         else:
             self.coordinates = [Point(c, space, s) for c, s in zip(coordinates, sigma_mm)]
 
-    def intersects_mask(self, mask):
-        """Returns true if any of the polyline points lies in the given mask.
+    def intersection(self, mask: Nifti1Image):
+        """Return the subset of points that are inside the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        return any(c.intersects_mask(mask) for c in self.coordinates)
+        inside = [p for p in self if p.intersects(mask)]
+        return PointSet(
+            [p.coordinate for p in inside],
+            space = self.space,
+            sigma_mm = [p.sigma for p in inside]
+        )
+
+    def intersects(self, mask: Nifti1Image):
+        return len(self.intersection(mask))>0
 
     def warp(self, targetspace):
         spaceobj = Space.REGISTRY[targetspace]
@@ -688,6 +696,13 @@ class PointSet(Location):
         return Point(
             self.homogeneous[:, :3].mean(0),
             space=self.space)
+
+    @property
+    def volume(self):
+        if len(self)<2:
+            return 0
+        else:
+            return self.boundingbox.volume
 
     def as_list(self):
         """ Return the point set as a list of 3D tuples. """
@@ -805,6 +820,9 @@ class BoundingBox(Location):
                 f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
             )
 
+    def contained_in(self, other):
+        return other.contains(self)
+
     def intersects(self, other):
         return self.intersection(other).volume > 0
 
@@ -815,9 +833,17 @@ class BoundingBox(Location):
 
         Args:
             other (BoundingBox): Another bounding box
-            dims (list of int): Dimensions where the intersection should be computed.
+            dims (list of int): Dimensions where the intersection should be computed (applies only to bounding boxes)
             Default: all three. Along dimensions not listed, the union is applied instead.
         """
+        if isinstance(other, Nifti1Image):
+            return self._intersect_mask(other)
+        elif isinstance(other, BoundingBox):
+            return self._intersect_bbox(other, dims)
+        else:
+            raise NotImplementedError(f"Intersection of bounding box with {type(other)} not implemented.")
+
+    def _intersect_bbox(self, other, dims):
         warped = other.warp(self.space)
 
         # Determine the intersecting bounding box by sorting
@@ -854,6 +880,26 @@ class BoundingBox(Location):
             space=self.space,
         )
 
+    def _intersect_mask(self, mask):
+        """Intersect this bounding box with an image mask.
+
+        TODO process the sigma values o the points
+
+        NOTE: The affine matrix of the image must be set to warp voxels
+        coordinates into the reference space of this Bounding Box.
+        """
+        # nonzero voxel coordinates
+        X, Y, Z = np.where(mask.get_fdata() > 0)
+        h = np.ones(len(X))
+
+        # array of homogenous physical nonzero voxel coordinates
+        coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
+        minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
+        return PointSet(coords[inside,:3], space=self.space)
+
+
     def union(self, other):
         """Computes the union of this boudning box with another one.
 
@@ -883,25 +929,7 @@ class BoundingBox(Location):
             )
         )
 
-    def intersects_mask(self, mask):
-        """Returns true if at least one nonzero voxel
-        of the given mask is inside the bounding box.
 
-        TODO process the sigma values o the points
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        # nonzero voxel coordinates
-        X, Y, Z = np.where(mask.get_fdata() > 0)
-        h = np.ones(len(X))
-
-        # array of homogenous physical nonzero voxel coordinates
-        coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
-        minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
-        maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
-        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
-        return any(inside)
 
     def warp(self, targetspace):
         """Returns a new bounding box obtained by warping the

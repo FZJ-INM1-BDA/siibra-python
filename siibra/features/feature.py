@@ -17,7 +17,7 @@ from ctypes import ArgumentError
 from ..commons import logger, Registry, QUIET
 from ..core.concept import AtlasConcept
 from ..core.atlas import Atlas
-from ..core.space import Location
+from ..core.space import Space, Location, Point, PointSet, BoundingBox
 from ..core.region import Region
 from ..core.parcellation import Parcellation
 
@@ -246,32 +246,68 @@ class SpatialFeature(Feature):
             if tspace.is_surface:
                 continue
             if region.mapped_in_space(tspace):
-                M = region.build_mask(space=tspace)
                 if tspace == self.space:
-                    if self.location.intersects_mask(M):
-                        self._match = Match(
-                            region, MatchQualification.APPROXIMATE, 
-                            f"Location {self.location} intersected mask of {region.name}"
-                        )
-                    return self.matched
+                    return self._test_mask(self.location, region, tspace)
                 else:
                     logger.warning(
                         f"{self.__class__.__name__} cannot be tested for {region.name} "
                         f"in {self.space}, testing in {tspace} instead."
                     )
-                    location = self.location.warp(tspace)
-                    if location.intersects_mask(M):
-                        self._match = Match(
-                            region, MatchQualification.APPROXIMATE, 
-                            f"Location {self.location} intersected mask of {region.name} "
-                            f"after warping from {self.location.space.name} to {tspace.name}."
-                        )
-                    return self.matched
+                    return self._test_mask(self.location.warp(tspace), region, tspace)
         else:
             logger.warning(
                 f"Cannot test overlap of {self.location} with {region}"
             )
 
+        return self.matched
+
+    def _test_mask(self, location: Location, region: Region, space: Space):
+        mask = region.build_mask(space=space)
+        intersection = location.intersection(mask)
+        if intersection.volume == 0:
+            return self.matched
+        elif isinstance(location, Point):
+            self._match = Match(
+                region, MatchQualification.EXACT, 
+                f"Location {location} is inside mask of {region.name}"
+            )
+        elif isinstance(location, PointSet):
+            if len(intersection) == len(location):
+                self._match = Match(
+                    region, MatchQualification.EXACT, 
+                    f"All points of {location} inside mask of {region.name}"
+                )
+            else:
+                self._match = Match(
+                    region, MatchQualification.APPROXIMATE, 
+                    f"{len(intersection)} of {len(location)} points of {location} "
+                    f"were inside mask of {region.name}"
+                )
+        elif isinstance(location, BoundingBox):
+            # the intersection of a bounding box with a mask will be a pointset of the
+            # mask pixels in the bounding box.
+            if location.volume <= intersection.boundingbox.volume:
+                self._match = Match(
+                    region, MatchQualification.EXACT, 
+                    f"{str(location)} is fully located inside mask "
+                    f"of region {region.name}. "
+                )
+            else:
+                self._match = Match(
+                    region, MatchQualification.APPROXIMATE, 
+                    f"{str(location)} is overlaps with mask "
+                    f"of region {region.name}."
+                )    
+        else:
+            self._match = Match(
+                region, MatchQualification.APPROXIMATE, 
+                f"Location {location} intersected mask of {region.name}"
+            )
+        if self.location.space != location.space:
+            self._match.add_comment(
+                f"The {type(location)} has been warped from {self.location.space} "
+                f"to {location.space} for performing the test."
+            )
         return self.matched
 
     def __str__(self):
