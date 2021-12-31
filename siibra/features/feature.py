@@ -295,7 +295,7 @@ class SpatialFeature(Feature):
             else:
                 self._match = Match(
                     region, MatchQualification.APPROXIMATE, 
-                    f"{str(location)} is overlaps with mask "
+                    f"{str(location)} overlaps with mask "
                     f"of region {region.name}."
                 )    
         else:

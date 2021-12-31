@@ -16,8 +16,8 @@
 """
 .. _ebrains_datasets:
 
-Querying any EBRAINS regional datasets
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+EBRAINS regional datasets
+~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 The modalitity "EbrainsRegionalDataset' is different from the others.
 It returns any datasets in the EBRAINS Knowledge Graph which could be linked to the given atlas concept, and provides access to their metadata, as well as the link to the EBRAINS Knowledge Graph. 
@@ -33,6 +33,15 @@ region = atlas.get_region("v2")
 features = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
 for feature in features:
    print(f" - {feature.name}")
+
+# %%
+# Since these features represent EBRAINS datasets which are linked to brain regions, 
+# they are instances of both the "RegionalFeature" class and the "EbrainsDataset" class.
+print(
+   f"The last returned feature was of type '{feature.__class__.__name__}', "
+   f"derived from {' and '.join(b.__name__ for b in feature.__class__.__bases__)}."
+)
+
 
 # %%
 # Each EBRAINS feature provides access to the metadata from the EBRAINS Knowledge Graph.
