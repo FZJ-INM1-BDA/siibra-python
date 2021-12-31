@@ -32,6 +32,7 @@ from typing import Union
 from os import path
 from numbers import Number
 import pandas as pd
+from math import ceil, log10
 
 
 class ParcellationMap(ABC):
@@ -75,11 +76,11 @@ class ParcellationMap(ABC):
         """
         key = (parcellation.key, space.key, maptype)
 
+        # If an instance is already available, return it
         if key in cls._instances:
-            # Instance already available - do not build another object
             return cls._instances[key]
 
-        # create a new object
+        # Otherwise, create a new object
         if space.type=="gii":
             classes = {
                 MapType.LABELLED: LabelledSurface,
@@ -90,23 +91,23 @@ class ParcellationMap(ABC):
                 MapType.LABELLED: LabelledParcellationVolume,
                 MapType.CONTINUOUS: ContinuousParcellationVolume,
             }
-        
         if maptype in classes:
-            obj = classes[maptype](parcellation, space)
+            instance = classes[maptype](parcellation, space)
         elif maptype is None:
             logger.warning(
                 "No maptype provided when requesting the parcellation map. Falling back to MapType.LABELLED"
             )
-            obj = classes[MapType.LABELLED](parcellation, space)
+            instance = classes[MapType.LABELLED](parcellation, space)
         else:
-            raise ValueError(f"Invalid maptype: '{maptype}'")
-        if len(obj) == 0:
+            raise ValueError(f"Cannote create a map of type '{maptype}' - this is an unkown type.")
+
+        if (instance is None) or (len(instance) == 0):
             raise ValueError(
                 f"No data found to construct a {maptype} map for {parcellation.name} in {space.name}."
             )
 
-        cls._instances[key] = obj
-        return obj
+        cls._instances[key] = instance
+        return instance
 
     @property
     def maploaders(self):
@@ -416,7 +417,7 @@ class LabelledParcellationVolume(ParcellationVolume):
         self._maploaders_cached = []
         self._regions_cached = {}
 
-        # determine the map loader functions for each available map
+        # check if the parcellation has any volumes in the requested space
         for volumetype in self.PREFERRED_VOLUMETYPES:
             sources = []
             for vsrc in self.parcellation.get_volumes(self.space.id):
@@ -424,58 +425,52 @@ class LabelledParcellationVolume(ParcellationVolume):
                     sources.append(vsrc)
             if len(sources) > 0:
                 break
-        else:
-            # reached only if for loop was not interrupted by 'break'
-            raise RuntimeError(
-                f"No suitable volume source for {self.parcellation.name} in {self.space.name}"
-            )
 
+        # Try to generate maps from suitable volume sources
         for source in sources:
 
-            # Choose map loader function and populate label-to-region maps
-            if source.volume_type == "detailed maps":
-                self._maploaders_cached.append(
-                    lambda res=None, voi=None, variant=None: self._collect_maps(
-                        resolution_mm=res, voi=voi
-                    )
-                )
-                # collect all available region maps to maps label indices to regions
-                current_index = 1
-                for region in self.parcellation.regiontree:
-                    with QUIET:
-                        regionmap = region.get_regional_map(
-                            self.space, MapType.LABELLED
-                        )
-                    if regionmap is not None:
-                        self._regions_cached[
-                            ParcellationIndex(map=0, label=current_index)
-                        ] = region
-                        current_index += 1
+            if source.volume_type != self.space.type:
+                continue
 
-            elif source.volume_type == self.space.type:
-                self._maploaders_cached.append(
-                    lambda res=None, voi=None, variant=None, s=source: self._load_map(
-                        s, resolution_mm=res, voi=voi
-                    )
+            self._maploaders_cached.append(
+                lambda res=None, voi=None, variant=None, s=source: self._load_map(
+                    s, resolution_mm=res, voi=voi
                 )
-                # load map at lowest resolution to map label indices to regions
-                mapindex = len(self._maploaders_cached) - 1
-                with QUIET:
-                    m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
-                unmatched = []
-                for labelindex in np.unique(m.get_fdata()):
-                    if labelindex != 0:
-                        pindex = ParcellationIndex(map=mapindex, label=labelindex)
-                        try:
-                            region = self.parcellation.decode_region(pindex)
-                            if labelindex > 0:
-                                self._regions_cached[pindex] = region
-                        except ValueError:
-                            unmatched.append(pindex)
-                if unmatched:
-                    logger.warning(
-                        f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}"
-                    )
+            )
+            # load map at lowest resolution to map label indices to regions
+            mapindex = len(self._maploaders_cached) - 1
+            with QUIET:
+                m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
+            unmatched = []
+            for labelindex in np.unique(m.get_fdata()):
+                if labelindex != 0:
+                    pindex = ParcellationIndex(map=mapindex, label=labelindex)
+                    try:
+                        region = self.parcellation.decode_region(pindex)
+                        if labelindex > 0:
+                            self._regions_cached[pindex] = region
+                    except ValueError:
+                        unmatched.append(pindex)
+            if unmatched:
+                logger.warning(
+                    f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}"
+                )
+
+        # If no maps can be generated from volume sources, try to build a collection of regional maps 
+        if len(self)==0:
+            self._maploaders_cached.append(
+                lambda res=None, voi=None, variant=None: self._collect_maps(
+                    resolution_mm=res, voi=voi
+                )
+            )
+            # load map at lowest resolution to map label indices to regions
+            m = self._maploaders_cached[0](res=None, voi=None, variant=None)
+
+        # By now, we should have been able to generate some maps
+        if len(self) == 0:
+            raise RuntimeError(
+                f"No maps found for {self.parcellation.name} in {self.space.name}"
+            )
 
     @cached
     def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
@@ -522,10 +517,14 @@ class LabelledParcellationVolume(ParcellationVolume):
                 f"No regional maps could be collected for {self.parcellation.name} in space {self.space.name}"
             )
 
-        msg = f"Collecting {len(regions)} regional maps for '{self.space.name}'"
-        current_index = 1
+        logger.info(
+            f"Building labelled parcellation volume for {self.parcellation.name} "
+            f"in '{self.space.name}' from {len(regions)} regional maps."
+        )
+        largest_label = max(self.parcellation.labels)
+        next_label = ceil(log10(largest_label))
         for region in tqdm(
-            regions, total=len(regions), desc=msg, unit="maps",
+            regions, total=len(regions), desc=f"Collecting {len(regions)} maps", unit="maps",
             disable=logger.level>20
         ):
 
@@ -547,11 +546,13 @@ class LabelledParcellationVolume(ParcellationVolume):
                 m = Nifti1Image(
                     np.zeros_like(tpl.dataobj, dtype=mask.dataobj.dtype), tpl.affine
                 )
-            m.dataobj[mask.dataobj > 0] = current_index
-            self._regions_cached[
-                ParcellationIndex(map=0, label=current_index)
-            ] = region
-            current_index += 1
+            if region.index.label is None:
+                label = next_label
+                next_label += 1
+            else:
+                label = region.index.label
+            m.dataobj[mask.dataobj > 0] = label
+            self._regions_cached[ParcellationIndex(map=0, label=label)] = region
 
         return m
 
