@@ -15,7 +15,7 @@
 
 from .feature import Feature
 
-from .. import logger
+from .. import logger, QUIET
 from ..commons import Registry
 from ..core import AtlasConcept, Dataset
 

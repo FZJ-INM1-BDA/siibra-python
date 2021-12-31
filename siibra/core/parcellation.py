@@ -223,6 +223,22 @@ class Parcellation(
     def names(self):
         return self.regiontree.names
 
+    def get_colormap(self):
+        """Generate a matplotlib colormap from known rgb values of label indices."""
+        from matplotlib.colors import ListedColormap
+        import numpy as np
+        colors = {
+            r.index.label:r.attrs['rgb'] 
+            for r in self.regiontree 
+            if 'rgb' in r.attrs and r.index.label
+        }
+        pallette = np.array([
+            colors[i]+[1] 
+            if i in colors else [0,0,0,0] 
+            for i in range(max(colors.keys())+1)
+        ]) / [255,255,255,1]
+        return ListedColormap(pallette)
+
     def supports_space(self, space: Space):
         """
         Return true if this parcellation supports the given space, else False.

@@ -53,21 +53,42 @@ class Space(
         self.type = template_type
         self.atlases = set()
 
-    def get_template(self):
+    def get_template(self, variant=None):
         """
-        Get the volumetric reference template image for this space.
+        Get the volumetric reference template for this space.
 
+        Parameters
+        ----------
+        variant: str (optional)
+            Some templates are provided in different variants, e.g. 
+            freesurfer is available as either white matter, pial or 
+            inflated surface for left and right hemispheres (6 variants).
+            This field could be used to request a specific variant. 
+            Per default, the first found variant is returned.        
+        
         Yields
         ------
-        A nibabel Nifti object representing the reference template, or None if not available.
-        TODO Returning None is not ideal, requires to implement a test on the other side.
+        A VolumeSrc object representing the reference template, or None if not available.
         """
-        candidates = [vsrc for vsrc in self.volumes if vsrc.volume_type == self.type]
-        if not len(candidates) == 1:
+        candidates = {d.name:d for d in self.datasets if d.is_volume and d.volume_type==self.type}
+        if variant is None:
+            variant = next(iter(candidates.keys()))
+            if len(candidates)>1:
+                logger.warn(
+                    f"Multiple template variants available for {self.name}. "
+                    f"Returning the first, '{variant}', but you could have chosen "
+                    f"any of {', '.join(candidates.keys())}."
+                )
+        if variant not in candidates.keys():
             raise RuntimeError(
-                f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src."
-            )
-        return candidates[0]
+                f"Template variant '{variant}' not available for {self.name}. "
+                f"Available variants are {', '.join(candidates.keys())}")
+
+        return candidates[variant]
+
+    @property
+    def is_surface(self):
+        return all(d.is_surface for d in self.datasets)
 
     def __getitem__(self, slices):
         """

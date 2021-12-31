@@ -20,7 +20,7 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image, streamlines
+from nibabel import Nifti1Image, GiftiImage, streamlines
 import gzip
 from getpass import getpass
 from io import BytesIO
@@ -37,6 +37,7 @@ def bytes_to_temporary_zipfile(b):
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
+    ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".txt": lambda b: b.decode(),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
@@ -80,6 +81,12 @@ class HttpRequest:
         """
         assert url is not None
         self.url = url
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
+        if (func is None) and (len(suitable_decoders) > 0):
+            assert len(suitable_decoders) == 1
+            self.func = suitable_decoders[0]
+        else:
+            self.func = func
         self.kwargs = kwargs
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached

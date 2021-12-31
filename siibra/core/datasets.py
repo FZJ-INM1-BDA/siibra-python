@@ -42,8 +42,19 @@ class Dataset:
         cls.type_id = type_id
 
     @property
-    def is_image_volume(self):
-        """Overwritten by derived dataset classes in the siibra.volumes"""
+    def is_volume(self):
+        """Return True if this dataset represents a brain volume source.
+
+        This property is overwritten by siibra.volumes.VolumeSrc
+        """
+        return False
+
+    @property
+    def is_surface(self):
+        """Return True if this dataset represents a brain volume surface. 
+        
+        This property is overwritten by siibra.volumes.VolumeSrc
+        """
         return False
 
     @property

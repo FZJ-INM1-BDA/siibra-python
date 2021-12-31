@@ -23,41 +23,26 @@ from ..core.region import Region
 from ..retrieval import CACHE
 
 import numpy as np
-import nibabel as nib
+from nibabel import Nifti1Image, funcs, load
 from nilearn import image
 from memoization import cached
 from tqdm import tqdm
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from typing import Union
 from os import path
 from numbers import Number
 import pandas as pd
 
-# Which types of available volumes should be preferred if multiple choices are available?
-PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed", "detailed maps"]
 
-
-class ParcellationMap(ImageProvider):
+class ParcellationMap(ABC):
     """
     Represents a brain map in a particular reference space, with
     explicit knowledge about the region information per labelindex or channel.
-
-    There are two types:
-        1) Parcellation maps / labelled volumes (MapType.LABELLED)
-            A 3D or 4D volume with integer labels separating different,
-            non-overlapping regions. The number of regions corresponds to the
-            number of nonzero image labels in the volume.
-        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
-            a 4D volume where each "time"-slice is a 3D volume representing
-            a map of a particular brain region. This format is used for
-            probability maps and similar continuous forms. The number of
-            regions correspond to the z dimension of the 4 object.
-
-    ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
-    a feasible downsampled resolution is provided.
     """
 
     _instances = {}
+    _regions_cached = None
+    _maploaders_cached = None
 
     def __init__(self, parcellation, space: Space, maptype=MapType):
         """
@@ -82,7 +67,6 @@ class ParcellationMap(ImageProvider):
         self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
-        self._regions_cached = {}
 
     @classmethod
     def get_instance(cls, parcellation, space: Space, maptype: MapType):
@@ -96,10 +80,17 @@ class ParcellationMap(ImageProvider):
             return cls._instances[key]
 
         # create a new object
-        classes = {
-            MapType.LABELLED: LabelledParcellationMap,
-            MapType.CONTINUOUS: ContinuousParcellationMap,
-        }
+        if space.type=="gii":
+            classes = {
+                MapType.LABELLED: LabelledSurface,
+                MapType.CONTINUOUS: None,
+            }
+        else:
+            classes = {
+                MapType.LABELLED: LabelledParcellationVolume,
+                MapType.CONTINUOUS: ContinuousParcellationVolume,
+            }
+        
         if maptype in classes:
             obj = classes[maptype](parcellation, space)
         elif maptype is None:
@@ -118,18 +109,35 @@ class ParcellationMap(ImageProvider):
         return obj
 
     @property
+    def maploaders(self):
+        if self._maploaders_cached is None:
+            self._define_maps_and_regions()
+        return self._maploaders_cached
+
+    @property
     def regions(self):
         """
         Dictionary of regions associated to the parcellion map, indexed by ParcellationIndex.
         Lazy implementation - self._link_regions() will be called when the regions are accessed for the first time.
         """
+        if self._regions_cached is None:
+            self._define_maps_and_regions()
         return self._regions_cached
 
     @property
     def names(self):
         return self.parcellation.names
 
-    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None):
+    @abstractmethod
+    def _define_maps_and_regions(self):
+        """
+        implemented by derived classes, to produce the lists _regions_cached and _maploaders_cached.
+        The first is a dictionary indexed by ParcellationIndex,
+        the latter a list of functions for loading the different maps.
+        """
+        pass
+
+    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None, variant = None):
         """
         Returns an iterator to fetch all available maps sequentially.
 
@@ -139,17 +147,18 @@ class ParcellationMap(ImageProvider):
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        variant : str
+            Optional specification of variant of the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         """
         logger.debug(f"Iterator for fetching {len(self)} parcellation maps")
-        #return (fnc(res=resolution_mm, voi=voi) for fnc in self.maploaders)
-        return (self.fetch(mapindex, resolution_mm, voi) for mapindex in range(len(self)))
+        return (fnc(res=resolution_mm, voi=voi, variant=variant) for fnc in self.maploaders)
 
-    @abstractmethod
     def fetch(
-        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None
+        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None, variant = None
     ):
         """
-        Fetches one particular map. Implemented in derived classes.
+        Fetches one particular map. 
 
         Parameters
         ----------
@@ -159,101 +168,41 @@ class ParcellationMap(ImageProvider):
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        variant : str
+            Optional specification of a specific variant to use for the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         """
-        pass
-
-    @abstractmethod
-    def __len__(self):
-        """ 
-        The number of 3D maps provided by this parcellation map. 
-        Implemented by derived classes. 
-        """
-        pass
-
-    def fetch_all(self):
-        """Returns a 4D array containing all 3D maps.
-
-        All available maps are stacked along the 4th dimension.
-        Note that this can be quite memory-intensive for continuous maps.
-        If you just want to iterate over maps, prefer using
-            'for img in ParcellationMaps.fetch_iter():'
-        """
-        N = len(self)
-        with QUIET:
-            im0 = self.fetch(mapindex=0)
-        out_shape = (N,) + im0.shape
-        logger.info(f"Create 4D array from {N} maps with size {im0.shape + (N,)}")
-        out_data = np.empty(out_shape, dtype=im0.dataobj.dtype)
-
-        for mapindex, img in tqdm(
-            enumerate(self.fetch_iter()), total=N, disable=logger.level>20
-        ):
-            out_data[mapindex] = np.asanyarray(img.dataobj)
-
-        return nib.funcs.squeeze_image(
-            nib.Nifti1Image(
-                np.rollaxis(out_data, 0, out_data.ndim), im0.affine
-            )
-        )
-        
-    def fetch_regionmap(
-        self,
-        regionspec: Union[str, int, Region],
-        resolution_mm=None,
-        voi: BoundingBox = None,
-    ):
-        """
-        Extract the mask for one particular region. 
-        For multi-regions, returns the voxelwise maximum of their children's masks.
-
-        Parameters
-        ----------
-        regionspec : labelindex, partial region name, or Region
-            The desired region.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-
-        Return
-        ------
-        Nifti1Image, if found, otherwise None
-        """
-        indices = self.decode_region(regionspec)
-        data = None
-        affine = None
-        for index in indices:
-            with QUIET:
-                mapimg = self.fetch(
-                    resolution_mm=resolution_mm, mapindex=index.map, voi=voi
+        if mapindex < len(self):
+            if len(self) > 1:
+                logger.info(
+                    f"Returning map {mapindex+1} of in total {len(self)} available maps."
                 )
-            if index.label is None: # region is defined by the whole map
-                newdata = mapimg.get_fdata()
-            else: # region is defined by a particular label
-                newdata = (mapimg.get_fdata() == index.label).astype(np.uint8)
-            if data is None:
-                data = newdata
-                affine = mapimg.affine
-            else:
-                data = np.maximum(data, newdata)
-
-        return nib.Nifti1Image(data, affine)
-
-    def _load_regional_map(
-        self, region: Region, resolution_mm, voi: BoundingBox = None, clip: bool = False
-    ):
-        logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        with QUIET:
-            rmap = region.get_regional_map(self.space, self.maptype).fetch(
-                resolution_mm=resolution_mm, voi=voi, clip=clip
+            return self.maploaders[mapindex](res=resolution_mm, voi=voi, variant=variant)
+        else:
+            raise ValueError(
+                f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested."
             )
-        return rmap
 
-    def get_shape(self, resolution_mm=None):
-        return list(self.space.get_template().get_shape()) + [len(self)]
+    def __len__(self):
+        """
+        Returns the number of maps available in this parcellation.
+        """
+        return len(self.maploaders)
 
-    def is_float(self):
-        return self.maptype == MapType.CONTINUOUS
+    def __contains__(self, spec):
+        """
+        Test if a map identified by the given specification is included in this parcellation map.
+        For integer values, it is checked wether a corresponding slice along the fourth dimension could be extracted.
+        Alternatively, a region object can be provided, and it will be checked wether the region is mapped.
+        You might find the decode_region() function of Parcellation and Region objects useful for the latter.
+        """
+        if isinstance(spec, int):
+            return spec in range(len(self.maploaders))
+        elif isinstance(spec, Region):
+            for _, region in self.regions.items():
+                if region == spec:
+                    return True
+        return False
 
     def decode_label(self, mapindex=None, labelindex=None):
         """
@@ -310,7 +259,134 @@ class ParcellationMap(ImageProvider):
         return [idx for idx, _ in subregions]
 
 
-class LabelledParcellationMap(ParcellationMap):
+class ParcellationVolume(ParcellationMap, ImageProvider):
+    """
+    Represents a brain map in a particular volumetric reference space, with
+    explicit knowledge about the region information per labelindex or channel.
+
+    There are two types:
+        1) Parcellation maps / labelled volumes (MapType.LABELLED)
+            A 3D or 4D volume with integer labels separating different,
+            non-overlapping regions. The number of regions corresponds to the
+            number of nonzero image labels in the volume.
+        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
+            a 4D volume where each "time"-slice is a 3D volume representing
+            a map of a particular brain region. This format is used for
+            probability maps and similar continuous forms. The number of
+            regions correspond to the z dimension of the 4 object.
+
+    ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
+    a feasible downsampled resolution is provided.
+    """
+    # Which types of available volumes should be preferred if multiple choices are available?
+    PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed"]
+
+    _regions_cached = None
+    _maploaders_cached = None
+
+    def __init__(self, parcellation, space: Space, maptype=MapType):
+        """
+        Construct a ParcellationMap for the given parcellation and space.
+
+        Parameters
+        ----------
+        parcellation : Parcellation
+            The parcellation object used to build the map
+        space : Space
+            The desired template space to build the map
+        maptype : MapType
+            The desired type of the map
+        """
+        ParcellationMap.__init__(self, parcellation, space, maptype)
+
+    def fetch_all(self):
+        """Returns a 4D array containing all 3D maps.
+
+        All available maps are stacked along the 4th dimension.
+        Note that this can be quite memory-intensive for continuous maps.
+        If you just want to iterate over maps, prefer using
+            'for img in ParcellationMaps.fetch_iter():'
+        """
+        N = len(self)
+        with QUIET:
+            im0 = self.fetch(mapindex=0)
+        out_shape = (N,) + im0.shape
+        logger.info(f"Create 4D array from {N} maps with size {im0.shape + (N,)}")
+        out_data = np.empty(out_shape, dtype=im0.dataobj.dtype)
+
+        for mapindex, img in tqdm(
+            enumerate(self.fetch_iter()), total=N, disable=logger.level>20
+        ):
+            out_data[mapindex] = np.asanyarray(img.dataobj)
+
+        return funcs.squeeze_image(
+            Nifti1Image(
+                np.rollaxis(out_data, 0, out_data.ndim), im0.affine
+            )
+        )
+        
+    def fetch_regionmap(
+        self,
+        regionspec: Union[str, int, Region],
+        resolution_mm=None,
+        voi: BoundingBox = None,
+    ):
+        """
+        Extract the mask for one particular region. 
+        For multi-regions, returns the voxelwise maximum of their children's masks.
+
+        Parameters
+        ----------
+        regionspec : labelindex, partial region name, or Region
+            The desired region.
+        resolution_mm : float or None (optional)
+            Physical resolution of the map, used for multi-resolution image volumes.
+            If None, the smallest possible resolution will be chosen.
+            If -1, the largest feasible resolution will be chosen.
+
+        Return
+        ------
+        Nifti1Image, if found, otherwise None
+        """
+        indices = self.decode_region(regionspec)
+        data = None
+        affine = None
+        for index in indices:
+            with QUIET:
+                mapimg = self.fetch(
+                    resolution_mm=resolution_mm, mapindex=index.map, voi=voi
+                )
+            if index.label is None: # region is defined by the whole map
+                newdata = mapimg.get_fdata()
+            else: # region is defined by a particular label
+                newdata = (mapimg.get_fdata() == index.label).astype(np.uint8)
+            if data is None:
+                data = newdata
+                affine = mapimg.affine
+            else:
+                data = np.maximum(data, newdata)
+
+        return Nifti1Image(data, affine)
+
+    def get_shape(self, resolution_mm=None):
+        return list(self.space.get_template().get_shape()) + [len(self)]
+
+    def is_float(self):
+        return self.maptype == MapType.CONTINUOUS
+
+    def _load_regional_map(
+        self, region: Region, resolution_mm, voi: BoundingBox = None, clip: bool = False
+    ):
+        logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
+        with QUIET:
+            rmap = region.get_regional_map(self.space, self.maptype).fetch(
+                resolution_mm=resolution_mm, voi=voi, clip=clip
+            )
+        return rmap
+
+
+
+class LabelledParcellationVolume(ParcellationVolume):
     """
     Represents a brain map in a reference space, with
     explicit knowledge about the region information per labelindex or channel.
@@ -321,9 +397,6 @@ class LabelledParcellationMap(ParcellationMap):
     non-overlapping regions. The number of regions corresponds to the
     number of nonzero image labels in the volume.
     """
-
-    _regions_cached = None
-    _maploaders_cached = None
 
     def __init__(self, parcellation, space: Space):
         """
@@ -338,61 +411,13 @@ class LabelledParcellationMap(ParcellationMap):
         """
         super().__init__(parcellation, space, MapType.LABELLED)
 
-    @property
-    def maploaders(self):
-        if self._maploaders_cached is None:
-            self._define_maps_and_regions()
-        return self._maploaders_cached
-
-    @property
-    def regions(self):
-        """
-        Dictionary of regions associated to the parcellion map, indexed by ParcellationIndex.
-        Lazy implementation - self._link_regions() will be called when the regions are accessed for the first time.
-        """
-        if self._regions_cached is None:
-            self._define_maps_and_regions()
-        return self._regions_cached
-
-    def fetch(
-        self, mapindex: int = 0, resolution_mm: float = None, voi: BoundingBox = None
-    ):
-        """
-        Fetches the actual image data
-
-        Parameters
-        ----------  
-        mapindex : int
-            The index of the available maps to be fetched.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        """
-        if mapindex < len(self):
-            if len(self) > 1:
-                logger.info(
-                    f"Returning map {mapindex+1} of in total {len(self)} available maps."
-                )
-            return self.maploaders[mapindex](res=resolution_mm, voi=voi)
-        else:
-            raise ValueError(
-                f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested."
-            )
-
-    def __len__(self):
-        """
-        Returns the number of maps available in this parcellation.
-        """
-        return len(self.maploaders)
-
     def _define_maps_and_regions(self):
 
         self._maploaders_cached = []
         self._regions_cached = {}
 
         # determine the map loader functions for each available map
-        for volumetype in PREFERRED_VOLUMETYPES:
+        for volumetype in self.PREFERRED_VOLUMETYPES:
             sources = []
             for vsrc in self.parcellation.get_volumes(self.space.id):
                 if vsrc.__class__.volume_type == volumetype:
@@ -410,7 +435,7 @@ class LabelledParcellationMap(ParcellationMap):
             # Choose map loader function and populate label-to-region maps
             if source.volume_type == "detailed maps":
                 self._maploaders_cached.append(
-                    lambda res=None, voi=None: self._collect_maps(
+                    lambda res=None, voi=None, variant=None: self._collect_maps(
                         resolution_mm=res, voi=voi
                     )
                 )
@@ -429,14 +454,14 @@ class LabelledParcellationMap(ParcellationMap):
 
             elif source.volume_type == self.space.type:
                 self._maploaders_cached.append(
-                    lambda res=None, s=source, voi=None: self._load_map(
+                    lambda res=None, voi=None, variant=None, s=source: self._load_map(
                         s, resolution_mm=res, voi=voi
                     )
                 )
                 # load map at lowest resolution to map label indices to regions
                 mapindex = len(self._maploaders_cached) - 1
                 with QUIET:
-                    m = self._maploaders_cached[mapindex](res=None)
+                    m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
                 unmatched = []
                 for labelindex in np.unique(m.get_fdata()):
                     if labelindex != 0:
@@ -464,7 +489,7 @@ class LabelledParcellationMap(ParcellationMap):
             logger.warning(
                 f"Floating point image type encountered when building a labelled volume for {self.parcellation.name}, converting to integer."
             )
-            m = nib.Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine)
+            m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine)
         return m
 
     @cached
@@ -519,7 +544,7 @@ class LabelledParcellationMap(ParcellationMap):
                 mask = mask_
 
             if m is None:
-                m = nib.Nifti1Image(
+                m = Nifti1Image(
                     np.zeros_like(tpl.dataobj, dtype=mask.dataobj.dtype), tpl.affine
                 )
             m.dataobj[mask.dataobj > 0] = current_index
@@ -563,7 +588,7 @@ class LabelledParcellationMap(ParcellationMap):
                     affine = thismap.affine
                 result[thismap.get_fdata()==index.label] = value
                 
-        return nib.Nifti1Image(result, affine)    
+        return Nifti1Image(result, affine)    
 
     @cached
     def assign_coordinates(
@@ -614,7 +639,7 @@ class LabelledParcellationMap(ParcellationMap):
 
         return assignments
 
-    def assign(self, img: nib.Nifti1Image, msg=None, quiet=False):
+    def assign(self, img: Nifti1Image, msg=None, quiet=False):
         """
         Assign the region of interest represented by a given volumetric image to brain regions in this map.
 
@@ -672,8 +697,8 @@ class LabelledParcellationMap(ParcellationMap):
         return assignments
 
 
-class ContinuousParcellationMap(ParcellationMap):
-    """ A sparsely representation of list of continuous (e.g. probabilistic) brain region maps. 
+class ContinuousParcellationVolume(ParcellationVolume):
+    """ A sparse representation of list of continuous (e.g. probabilistic) brain region maps. 
     
     It represents the 3D continuous maps of N brain regions by two data structures: 
         1) 'spatial_index', a 3D volume where non-negative values represent unique 
@@ -695,15 +720,18 @@ class ContinuousParcellationMap(ParcellationMap):
 
         ParcellationMap.__init__(self, parcellation, space, maptype="continuous")
 
+    def _define_maps_and_regions(self):
+
         # Check for available maps and brain regions.
         # First look for a 4D array where the last dimension are the different maps
-        self._maploaders = []
+        self._maploaders_cached = []
+        self._regions_cached = {}
         self._map4d = None
         for v in self.parcellation.volumes:
             if isinstance(v, ImageProvider) and v.is_float() and v.is_4D() and v.get_shape()[3] > 1:
                 self._map4d = v.fetch()
                 for mapindex in range(self._map4d.shape[3]):
-                    self._maploaders.append(lambda m=mapindex: self._map4d.slicer[:,:,:,m])
+                    self._maploaders_cached.append(lambda m=mapindex: self._map4d.slicer[:,:,:,m])
                     # TODO this might not be correct for parcellations other than DifumoXX
                     r = self.parcellation.decode_region(mapindex + 1)
                     self._regions_cached[ParcellationIndex(map=mapindex, label=None)] = r
@@ -716,7 +744,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     continue
                 if r.has_regional_map(self.space, self.maptype):
                     regionmap = r.get_regional_map(self.space, self.maptype)
-                    self._maploaders.append(lambda r=regionmap: r.fetch())
+                    self._maploaders_cached.append(lambda r=regionmap: r.fetch())
                     self._regions_cached[ParcellationIndex(map=mapindex, label=None)] = r
                     mapindex += 1
 
@@ -726,7 +754,6 @@ class ContinuousParcellationMap(ParcellationMap):
             self._store_index()
         assert self.spatial_index.max() == len(self.probs)-1
 
-        logger.info(f"Constructed {self.__class__.__name__} for {self.parcellation.name} with {len(self)} maps.")
 
     def _load_index(self):
 
@@ -744,7 +771,7 @@ class ContinuousParcellationMap(ParcellationMap):
             return False
 
         logger.info(f"Loading continuous map index for {len(self)} brain regions.")
-        indeximg = nib.load(indexfile)
+        indeximg = load(indexfile)
         self.spatial_index = np.asanyarray(indeximg.dataobj)
         self.affine = indeximg.affine
 
@@ -775,7 +802,7 @@ class ContinuousParcellationMap(ParcellationMap):
         bboxfile = CACHE.build_filename(f"{prefix}", suffix = 'bboxes.txt')
         indexfile = CACHE.build_filename(f"{prefix}", suffix = 'index.nii.gz')
 
-        nib.Nifti1Image(self.spatial_index, self.affine).to_filename(indexfile)
+        Nifti1Image(self.spatial_index, self.affine).to_filename(indexfile)
 
         with open(probsfile, 'w') as f:
             for D in self.probs:
@@ -809,7 +836,7 @@ class ContinuousParcellationMap(ParcellationMap):
         ):
             with QUIET:
                 # retrieve the probability map
-                img = self._maploaders[mapindex]()
+                img = self._maploaders_cached[mapindex]()
 
             if self.spatial_index is None:
                 self.spatial_index = np.zeros(img.shape, dtype=np.int32)-1
@@ -838,8 +865,6 @@ class ContinuousParcellationMap(ParcellationMap):
                 'maxpoint' : (X.max(), Y.max(), Z.max())
             })
 
-    def __len__(self):
-        return len(self._maploaders)
 
     @property
     def shape(self):
@@ -934,15 +959,15 @@ class ContinuousParcellationMap(ParcellationMap):
             result[x-x0, y-y0, z-z0] = v
             shift = np.identity(4)
             shift[:3,-1] = bbox[:,0]            
-            return nib.Nifti1Image(result, np.dot(self.affine, shift))
+            return Nifti1Image(result, np.dot(self.affine, shift))
         else:
             result = np.zeros(self.shape, dtype=np.float32)
             result[x, y, z] = v
-            return nib.Nifti1Image(result, self.affine)
+            return Nifti1Image(result, self.affine)
 
     def assign(
         self,
-        item: Union[Point, PointSet, nib.Nifti1Image], 
+        item: Union[Point, PointSet, Nifti1Image], 
         msg=None, 
         quiet=False,
         minsize_voxel=1,
@@ -1038,7 +1063,7 @@ class ContinuousParcellationMap(ParcellationMap):
                     shift[:3, -1] = xyz_vox[:3] - r
                     # build niftiimage with the Gaussian blob, 
                     # then recurse into this method with the image input
-                    W = nib.Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
+                    W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
                     T, _ = self.assign(W, lower_threshold=lower_threshold, skip_mapindices=skip_mapindices)
                     assignments.extend([
                         [pointindex, mapindex, maxval, iou, contained, contains, rho]
@@ -1046,7 +1071,7 @@ class ContinuousParcellationMap(ParcellationMap):
                         in T.values
                     ])
 
-        elif isinstance(item, nib.Nifti1Image):
+        elif isinstance(item, Nifti1Image):
 
             # ensure query image is in parcellation map's voxel space
             if (item.affine-self.affine).sum() == 0:
@@ -1159,5 +1184,85 @@ class ContinuousParcellationMap(ParcellationMap):
         if components is None:
             return df
         else:
-            return df, nib.Nifti1Image(components, self.affine)
+            return df, Nifti1Image(components, self.affine)
+
+class LabelledSurface(ParcellationMap):
+    """
+    Represents a brain map in a surface space, with
+    explicit knowledge about the region information per labelindex or channel.
+    """
+
+    def __init__(self, parcellation, space: Space):
+        """
+        Construct a labelled surface for the given parcellation and space.
+
+        Parameters
+        ----------
+        parcellation : Parcellation
+            The parcellation object used to build the map
+        space : Space
+            The desired template space to build the map
+        """
+        assert(space.type=="gii")
+        super().__init__(parcellation, space, MapType.LABELLED)
+        self.type = "gii-label"
+
+    def _define_maps_and_regions(self):
+        self._maploaders_cached = []
+        self._regions_cached = {}
+
+        with QUIET:
+            tpl = self.space.get_template()
+        for meshindex, meshname in enumerate(tpl.variants):
+
+            labelsets = [
+                v for v in self.parcellation.get_volumes(self.space)
+                if v.volume_type==self.type
+                and v.name == meshname
+            ]
+            assert len(labelsets)==1
+            labels = labelsets[0].fetch()
+            unmatched = []
+            for labelindex in np.unique(labels):
+                if labelindex != 0:
+                    pindex = ParcellationIndex(map=meshindex, label=labelindex)
+                    try:
+                        region = self.parcellation.decode_region(pindex)
+                        if labelindex > 0:
+                            self._regions_cached[pindex] = region
+                    except ValueError:
+                        unmatched.append(pindex)
+            if unmatched:
+                logger.warning(
+                    f"{len(unmatched)} parcellation indices in labelled surface couldn't "
+                    f"be matched to region definitions in {self.parcellation.name}"
+                )
+
+            self._maploaders_cached.append(
+                lambda res=None, voi=None, variant=None, name=meshname, labels=labels: {
+                    **self.space.get_template(variant=variant).fetch(name=name), 
+                    'labels': labels
+                }
+            )
+
+    def fetch_all(self, variant=None):
+        """Get the combined mesh composed of all found submeshes (e.g. both hemispheres).
+
+        Parameters
+        -----------
+        variant : str
+            Optional specification of variant of the maps. For example, 
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+        """
+        vertices = np.empty((0, 3))
+        faces = np.empty((0,3))
+        labels = np.empty((0))
+        for surfmap in self.fetch_iter(variant=variant):
+            npoints = vertices.shape[0]
+            vertices = np.append(vertices, surfmap['verts'], axis = 0)
+            faces = np.append(faces, surfmap['faces']+npoints, axis = 0)
+            labels = np.append(labels, surfmap['labels'], axis = 0)
+
+        return dict(zip(['verts','faces','labels'], [vertices, faces, labels]))
+
 

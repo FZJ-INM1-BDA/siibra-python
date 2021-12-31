@@ -359,7 +359,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         ):
             for v in self.parcellation.volumes:
                 if v.space==space:
-            return True
+                    return True
 
         # Some regions have explicit regional maps
         for maptype in ["labelled", "continuous"]:
@@ -371,8 +371,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if self.is_leaf:
             return False
         for child in self.leaves:
-            if not child.defined_in_space(space):
-                return False
+                if not child.defined_in_space(space):
+                    return False
         return True
 
 

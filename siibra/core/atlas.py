@@ -195,12 +195,23 @@ class Atlas(
         """
         return self.get_parcellation(parcellation).decode_region(region)
 
-    def get_template(self, space: Space = None):
+    def get_template(self, space: Space = None, variant: str = None):
         """
         Returns the reference template in the desired reference space.
         If no reference space is given, the default from `Atlas.space()` is used.
+
+        Parameters
+        ----------
+        space: Space
+            The desired reference space
+        variant: str (optional)
+            Some templates are provided in different variants, e.g.
+            freesurfer is available as either white matter, pial or
+            inflated surface for left and right hemispheres (6 variants).
+            This field could be used to request a specific variant.
+            Per default, the first found variant is returned.
         """
-        return self.get_space(space).get_template()
+        return self.get_space(space).get_template(variant=variant)
 
     def get_voi(self, space: Space, point1: tuple, point2: tuple):
         """Get a volume of interest spanned by two points in the given reference space.
@@ -226,7 +237,7 @@ class Atlas(
         all_versions=False,
         filter_children=True,
         build_groups=False,
-        groupname=None
+        groupname=None,
     ):
         """
         Find regions with the given specification in all
@@ -261,7 +272,7 @@ class Atlas(
                     regionspec,
                     filter_children=filter_children,
                     build_group=build_groups,
-                    groupname=groupname
+                    groupname=groupname,
                 )
                 if build_groups:
                     if match is not None:
