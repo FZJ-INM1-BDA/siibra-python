@@ -55,5 +55,6 @@ setup(
         "cloud-volume",
         "nilearn",
         "simple-term-menu",
+        'importlib-resources; python_version < "3.7"',
     ],
 )

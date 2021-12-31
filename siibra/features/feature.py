@@ -22,14 +22,17 @@ from ..core.region import Region
 from ..core.parcellation import Parcellation
 
 from typing import Tuple
-from abc import ABC, abstractmethod
-from importlib import resources
+from abc import ABC, abstractclass
+try:
+    from importlib import resources
+except:
+    import importlib_resources as resources
 import json
 from enum import Enum
 
 class MatchQualification(Enum):
     # Anatomical location of feature matches atlas concept exactly
-    EXACT = 0  
+    EXACT = 0       
     # Anatomical location of feature matches atlas concept only approximately
     APPROXIMATE = 1
     # Anatomical location of the feature represents a part of the matched atlas concept 
