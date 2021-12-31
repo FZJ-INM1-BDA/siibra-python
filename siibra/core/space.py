@@ -356,6 +356,12 @@ class Point(Location):
         obtained by appending '1' to the original 3-tuple. """
         return self.coordinate + (1,)
 
+    def intersection(self, mask: Nifti1Image):
+        if self.intersects(mask):
+            return self
+        else:
+            return None
+
     def intersects(self, mask: Nifti1Image):
         """Returns true if this point lies in the given mask.
 
@@ -591,11 +597,14 @@ class PointSet(Location):
         coordinates into the reference space of this Bounding Box.
         """
         inside = [p for p in self if p.intersects(mask)]
-        return PointSet(
-            [p.coordinate for p in inside],
-            space = self.space,
-            sigma_mm = [p.sigma for p in inside]
-        )
+        if len(inside) == 0:
+            return None
+        else:
+            return PointSet(
+                [p.coordinate for p in inside],
+                space = self.space,
+                sigma_mm = [p.sigma for p in inside]
+            )
 
     def intersects(self, mask: Nifti1Image):
         return len(self.intersection(mask))>0
@@ -874,11 +883,12 @@ class BoundingBox(Location):
                 result_minpt.append(A[dim])
                 result_maxpt.append(B[dim])
 
-        return BoundingBox(
+        bbox = BoundingBox(
             point1=Point(result_minpt, self.space),
             point2=Point(result_maxpt, self.space),
             space=self.space,
         )
+        return bbox if bbox.volume>0 else None
 
     def _intersect_mask(self, mask):
         """Intersect this bounding box with an image mask.
@@ -897,7 +907,10 @@ class BoundingBox(Location):
         minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
-        return PointSet(coords[inside,:3], space=self.space)
+        if len(inside) > 0:
+            return PointSet(coords[inside,:3], space=self.space)
+        else:
+            return None
 
 
     def union(self, other):

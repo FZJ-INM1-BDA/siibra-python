@@ -264,7 +264,7 @@ class SpatialFeature(Feature):
     def _test_mask(self, location: Location, region: Region, space: Space):
         mask = region.build_mask(space=space)
         intersection = location.intersection(mask)
-        if intersection.volume == 0:
+        if intersection is None:
             return self.matched
         elif isinstance(location, Point):
             self._match = Match(
@@ -280,7 +280,7 @@ class SpatialFeature(Feature):
             else:
                 self._match = Match(
                     region, MatchQualification.APPROXIMATE, 
-                    f"{len(intersection)} of {len(location)} points of {location} "
+                    f"{len(intersection)} of {len(location)} points "
                     f"were inside mask of {region.name}"
                 )
         elif isinstance(location, BoundingBox):
