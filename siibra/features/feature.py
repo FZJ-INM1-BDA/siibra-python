@@ -245,7 +245,9 @@ class SpatialFeature(Feature):
             return False
 
         for tspace in [self.space] + region.supported_spaces:
-            if region.defined_in_space(tspace):
+            if tspace.is_surface:
+                continue
+            if region.mapped_in_space(tspace):
                 M = region.build_mask(space=tspace)
                 if tspace == self.space:
                     if self.location.intersects_mask(M):
