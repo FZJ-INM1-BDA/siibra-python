@@ -389,6 +389,7 @@ class Point(Location):
 
     def warp(self, targetspace: Space):
         """ Creates a new point by warping this point to another space """
+        assert targetspace is not None
         if not isinstance(targetspace, Space):
             targetspace = Space.REGISTRY[targetspace]
         if targetspace == self.space:
@@ -430,15 +431,15 @@ class Point(Location):
             self.space)
 
     def __lt__(self, other):
-        o = other.warp(self.space)
+        o = other if self.space is None else other.warp(self.space)
         return all(self[i]<o[i] for i in range(3))
 
     def __gt__(self, other):
-        o = other.warp(self.space)
+        o = other if self.space is None else other.warp(self.space)
         return all(self[i]>o[i] for i in range(3))
         
     def __eq__(self, other):
-        o = other.warp(self.space)
+        o = other if self.space is None else other.warp(self.space)
         return all(self[i]==o[i] for i in range(3))
 
     def __le__(self, other):
