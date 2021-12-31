@@ -423,6 +423,24 @@ class Point(Location):
                 for i in range(3)],
             self.space)
 
+    def __lt__(self, other):
+        o = other.warp(self.space)
+        return all(self[i]<o[i] for i in range(3))
+
+    def __gt__(self, other):
+        o = other.warp(self.space)
+        return all(self[i]>o[i] for i in range(3))
+        
+    def __eq__(self, other):
+        o = other.warp(self.space)
+        return all(self[i]==o[i] for i in range(3))
+
+    def __le__(self, other):
+        return not self>other
+
+    def __ge__(self, other):
+        return not self<other
+    
     def __add__(self, other):
         """ Add the coordinates of two points to get
         a new point representing. """
@@ -615,6 +633,12 @@ class PointSet(Location):
         """ The number of points in this PointSet. """
         return len(self.coordinates)
 
+    def __str__(self):
+        return (
+            f"Set of points in {self.space.name}: "
+            + ", ".join(f"({','.join(str(v) for v in p)})" for p in self)
+        )
+
     @classmethod
     def from_sands(cls, spec):
         """ Generate a point set from an openMINDS/SANDS specification,
@@ -767,9 +791,25 @@ class BoundingBox(Location):
             return f"Bounding box {tuple(self.minpoint)} -> {tuple(self.maxpoint)}"
         else:
             return f"Bounding box from {tuple(self.minpoint)}mm to {tuple(self.maxpoint)}mm in {self.space.name} space"
+    
+    def contains(self, other: Location):
+        """Returns true if the bounding box contains the given location."""
+        if isinstance(other, Point):
+            return (other >= self.minpoint) and (other <=self.maxpoint)
+        elif isinstance(other, PointSet):
+            return all(self.contains(p) for p in other)
+        elif isinstance(other, BoundingBox):
+            return (other.minpoint >= self.minpoint) and (other.maxpoint <= self.maxpoint)
+        else:
+            raise NotImplementedError(
+                f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
+            )
+
+    def intersects(self, other):
+        return self.intersection(other).volume > 0
 
     def intersection(self, other, dims=[0, 1, 2]):
-        """Computes the intersection of this boudning box with another one.
+        """Computes the intersection of this bounding box with another one.
 
         TODO process the sigma values o the points
 
@@ -845,7 +885,7 @@ class BoundingBox(Location):
 
     def intersects_mask(self, mask):
         """Returns true if at least one nonzero voxel
-        of the given mask is inside the boundding box.
+        of the given mask is inside the bounding box.
 
         TODO process the sigma values o the points
 
