@@ -764,9 +764,9 @@ class BoundingBox(Location):
 
     def __str__(self):
         if self.space is None:
-            return f"Bounding box {self.minpoint} -> {self.maxpoint} in unknown coordinate system"
+            return f"Bounding box {tuple(self.minpoint)} -> {tuple(self.maxpoint)}"
         else:
-            return f"Bounding box {self.minpoint}mm -> {self.maxpoint}mm defined in {self.space.name}"
+            return f"Bounding box from {tuple(self.minpoint)}mm to {tuple(self.maxpoint)}mm in {self.space.name} space"
 
     def intersection(self, other, dims=[0, 1, 2]):
         """Computes the intersection of this boudning box with another one.
