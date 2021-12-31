@@ -95,8 +95,6 @@ class Match:
     def location(self):
         if isinstance(self.concept, Location):
             return self.concept
-        elif isinstance(self.concept, Region):
-            return self.concept.centroids(self.concept.supported_spaces[0])
         else:
             return None
 

@@ -174,7 +174,6 @@ class AllenBrainAtlasQuery(FeatureQuery):
                 # When the Allen site is not available, they still send a status code 200.
                 raise RuntimeError(f"Allen institute site unavailable - please try again later.")
             root = ElementTree.fromstring(response)
-            print(root.attrib.keys())
             num_probes = int(root.attrib["total_rows"])
             probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
 
@@ -193,8 +192,9 @@ class AllenBrainAtlasQuery(FeatureQuery):
             }
 
             # get expression levels and z_scores for the gene
-            for donor_id in self._DONOR_IDS:
-                self._retrieve_microarray(donor_id, probe_ids)
+            if len(probe_ids)>0:
+                for donor_id in self._DONOR_IDS:
+                    self._retrieve_microarray(donor_id, probe_ids)
 
     def _retrieve_specimen(self, specimen_id):
         """
@@ -226,12 +226,14 @@ class AllenBrainAtlasQuery(FeatureQuery):
         152 space to generate a SpatialFeature object for each sample.
         """
 
+        if len(probe_ids)==0:
+            return
+
         # query the microarray data for this donor
         url = self._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
         response = HttpRequest(url, json.loads).get()
-        # response = json.loads(retrieval.cached_get(url))
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving microarray data: {}".format(url)
