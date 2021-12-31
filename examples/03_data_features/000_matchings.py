@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-How data features are linked to anatomical locations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+Understanding links between data features and anatomical locations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 All data features are requested with the same function, ``siibra.get_features()``.
 The type of feature (spatial, regional, or parcellation feature), and thus the way it is linked to an anatomical concept depends on the requested modality.
