@@ -22,7 +22,7 @@ from ..core.region import Region
 from ..core.parcellation import Parcellation
 
 from typing import Tuple
-from abc import ABC, abstractclass
+from abc import ABC, abstractmethod
 try:
     from importlib import resources
 except:
