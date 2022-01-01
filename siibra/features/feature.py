@@ -23,19 +23,21 @@ from ..core.parcellation import Parcellation
 
 from typing import Tuple
 from abc import ABC, abstractmethod
+
 try:
     from importlib import resources
-except:
+except ImportError:
     import importlib_resources as resources
 import json
 from enum import Enum
 
+
 class MatchQualification(Enum):
     # Anatomical location of feature matches atlas concept exactly
-    EXACT = 0       
+    EXACT = 0
     # Anatomical location of feature matches atlas concept only approximately
     APPROXIMATE = 1
-    # Anatomical location of the feature represents a part of the matched atlas concept 
+    # Anatomical location of the feature represents a part of the matched atlas concept
     CONTAINED = 2
     # Anatomical location of the feature inludes the matched atlas concept as a part
     CONTAINS = 3
@@ -50,15 +52,15 @@ class MatchQualification(Enum):
     def __str__(self):
         return self.name.lower()
 
+
 class Match:
-    """Description of how a feature has been mapped to an atlas concept.
-    """
+    """Description of how a feature has been mapped to an atlas concept."""
 
     def __init__(
-        self, 
-        concept: AtlasConcept, 
-        qualification: MatchQualification = MatchQualification.EXACT, 
-        comment: str = None
+        self,
+        concept: AtlasConcept,
+        qualification: MatchQualification = MatchQualification.EXACT,
+        comment: str = None,
     ):
         """Construct a feature match description.
 
@@ -84,7 +86,7 @@ class Match:
             return self.concept
         else:
             return None
-    
+
     @property
     def parcellation(self):
         if isinstance(self.concept, Region):
@@ -112,7 +114,7 @@ class Match:
             f"{self.comments}"
         )
 
-    def add_comment(self, comment:str):
+    def add_comment(self, comment: str):
         self._comments.append(comment)
 
 
@@ -141,11 +143,11 @@ class Feature(ABC):
 
     @property
     def match_qualification(self):
-        """ If this feature was matched agains an atlas concept,
+        """If this feature was matched agains an atlas concept,
         return the qualification rating of the match.
 
         Return
-        ------ 
+        ------
         siibra.features.feature.MatchQualification, if feature was matche
         else None
         """
@@ -208,7 +210,7 @@ class SpatialFeature(Feature):
         location : Location type
             The location, see siibra.core.location
         """
-        assert(location is not None)
+        assert location is not None
         Feature.__init__(self)
         self.location = location
 
@@ -238,11 +240,15 @@ class SpatialFeature(Feature):
 
         if isinstance(concept, Parcellation):
             region = concept.regiontree
-            logger.info(f"{self.__class__} matching against root node {region.name} of {concept.name}")
+            logger.info(
+                f"{self.__class__} matching against root node {region.name} of {concept.name}"
+            )
         elif isinstance(concept, Region):
             region = concept
         else:
-            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            logger.warning(
+                f"{self.__class__} cannot match against {concept.__class__} concepts"
+            )
             return False
 
         for tspace in [self.space] + region.supported_spaces:
@@ -258,9 +264,7 @@ class SpatialFeature(Feature):
                     )
                     return self._test_mask(self.location.warp(tspace), region, tspace)
         else:
-            logger.warning(
-                f"Cannot test overlap of {self.location} with {region}"
-            )
+            logger.warning(f"Cannot test overlap of {self.location} with {region}")
 
         return self.matched
 
@@ -271,41 +275,46 @@ class SpatialFeature(Feature):
             return self.matched
         elif isinstance(location, Point):
             self._match = Match(
-                region, MatchQualification.EXACT, 
-                f"Location {location} is inside mask of {region.name}"
+                region,
+                MatchQualification.EXACT,
+                f"Location {location} is inside mask of {region.name}",
             )
         elif isinstance(location, PointSet):
             npts = 1 if isinstance(intersection, Point) else len(intersection)
             if npts == len(location):
                 self._match = Match(
-                    region, MatchQualification.EXACT, 
-                    f"All points of {location} inside mask of {region.name}"
+                    region,
+                    MatchQualification.EXACT,
+                    f"All points of {location} inside mask of {region.name}",
                 )
             else:
                 self._match = Match(
-                    region, MatchQualification.APPROXIMATE, 
+                    region,
+                    MatchQualification.APPROXIMATE,
                     f"{npts} of {len(location)} points "
-                    f"were inside mask of {region.name}"
+                    f"were inside mask of {region.name}",
                 )
         elif isinstance(location, BoundingBox):
             # the intersection of a bounding box with a mask will be a pointset of the
             # mask pixels in the bounding box.
             if location.volume <= intersection.boundingbox.volume:
                 self._match = Match(
-                    region, MatchQualification.EXACT, 
+                    region,
+                    MatchQualification.EXACT,
                     f"{str(location)} is fully located inside mask "
-                    f"of region {region.name}. "
+                    f"of region {region.name}. ",
                 )
             else:
                 self._match = Match(
-                    region, MatchQualification.APPROXIMATE, 
-                    f"{str(location)} overlaps with mask "
-                    f"of region {region.name}."
-                )    
+                    region,
+                    MatchQualification.APPROXIMATE,
+                    f"{str(location)} overlaps with mask " f"of region {region.name}.",
+                )
         else:
             self._match = Match(
-                region, MatchQualification.APPROXIMATE, 
-                f"Location {location} intersected mask of {region.name}"
+                region,
+                MatchQualification.APPROXIMATE,
+                f"Location {location} intersected mask of {region.name}",
             )
         if self.location.space != location.space:
             self._match.add_comment(
@@ -326,19 +335,22 @@ class RegionalFeature(Feature):
 
     # load region name aliases from data file
     _aliases = {}
-    for species_name in ['human']:
-        species_id = Atlas.get_species_data('human')['@id']
+    for species_name in ["human"]:
+        species_id = Atlas.get_species_data("human")["@id"]
         with resources.open_text(
-            'siibra.features', f'region_aliases_{species_name}.json'
+            "siibra.features", f"region_aliases_{species_name}.json"
         ) as f:
             _aliases[species_id] = {
-                d['Region specification'].lower().strip(): 
-                {k:v for k,v in d.items() if k != 'Region specification'} 
+                d["Region specification"]
+                .lower()
+                .strip(): {k: v for k, v in d.items() if k != "Region specification"}
                 for d in json.load(f)
             }
-        logger.info(f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}")
+        logger.info(
+            f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}"
+        )
 
-    def __init__(self, regionspec: Tuple[str, Region], species = [], **kwargs):
+    def __init__(self, regionspec: Tuple[str, Region], species=[], **kwargs):
         """
         Parameters
         ----------
@@ -356,11 +368,13 @@ class RegionalFeature(Feature):
         elif isinstance(species, dict):
             self.species = [species]
         else:
-            raise ArgumentError(f"Type {type(species)} not expected for species, should be list or dict.")
+            raise ArgumentError(
+                f"Type {type(species)} not expected for species, should be list or dict."
+            )
 
     @property
     def species_ids(self):
-        return [s.get('@id') for s in self.species]
+        return [s.get("@id") for s in self.species]
 
     def match(self, concept):
         """
@@ -389,13 +403,16 @@ class RegionalFeature(Feature):
             if atlases:
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
-                if all(atlas.species.get('@id') not in self.species_ids for atlas in atlases):
+                if all(
+                    atlas.species.get("@id") not in self.species_ids
+                    for atlas in atlases
+                ):
                     return self.matched
         # for backwards compatibility. If any attr is not found, pass
         except AttributeError:
             pass
 
-        # Feature's region is specified as a Region object 
+        # Feature's region is specified as a Region object
         # -> we can apply simple tests for any query object.
         if isinstance(self.regionspec, Region):
             return self._match_region(self.regionspec, concept)
@@ -403,79 +420,94 @@ class RegionalFeature(Feature):
         assert isinstance(self.regionspec, str)
         spec = self.regionspec.lower().strip()
 
-        # Feature's region is specified by string. Check alias table first.  
+        # Feature's region is specified by string. Check alias table first.
         for species_id in set(self.species_ids) & set(self._aliases.keys()):
             if spec in self._aliases[species_id]:
                 repl = self._aliases[species_id][spec]
                 with QUIET:
-                    if repl['Matched parcellation'] is not None:
+                    if repl["Matched parcellation"] is not None:
                         # a matched parcellation is stored in the alias table, this will be preferred.
-                        parc = Parcellation.REGISTRY[repl['Matched parcellation']]
-                        spec = repl['Matched region']
-                        msg_alias = f"Original region specification was '{self.regionspec}'."
-                    else: 
+                        parc = Parcellation.REGISTRY[repl["Matched parcellation"]]
+                        spec = repl["Matched region"]
+                        msg_alias = (
+                            f"Original region specification was '{self.regionspec}'."
+                        )
+                    else:
                         # no matched parcellation, then we use the original one given in the table.
-                        assert repl['Origin parcellation'] is not None
-                        parc = Parcellation.REGISTRY[repl['Origin parcellation']]
-                        msg_alias = f"Parcellation '{parc}' was used to decode '{spec}'."
-                    for r in [parc.decode_region(s) for s in spec.split(',')]:
+                        assert repl["Origin parcellation"] is not None
+                        parc = Parcellation.REGISTRY[repl["Origin parcellation"]]
+                        msg_alias = (
+                            f"Parcellation '{parc}' was used to decode '{spec}'."
+                        )
+                    for r in [parc.decode_region(s) for s in spec.split(",")]:
                         if self._match_region(r, concept):
                             break
                 if self._match is not None:
                     self._match.add_comment(msg_alias)
-                    if repl['Qualification'] is not None:
-                        self._match.qualification = MatchQualification.from_string(repl['Qualification'])
+                    if repl["Qualification"] is not None:
+                        self._match.qualification = MatchQualification.from_string(
+                            repl["Qualification"]
+                        )
                 return self.matched
 
-        # Feature's region is specified by string, search query is a Parcellation 
+        # Feature's region is specified by string, search query is a Parcellation
         if isinstance(concept, Parcellation):
-            logger.debug(f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}")
-            for w in concept.key.split('_'):
-                spec = spec.replace(w.lower(), '')
+            logger.debug(
+                f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}"
+            )
+            for w in concept.key.split("_"):
+                spec = spec.replace(w.lower(), "")
             for region in concept.regiontree.find(spec):
                 self._match = Match(
-                    region, MatchQualification.CONTAINED, 
-                    f"Feature was linked to {region.name}, which belongs to parcellation {concept.name}."
+                    region,
+                    MatchQualification.CONTAINED,
+                    f"Feature was linked to {region.name}, which belongs to parcellation {concept.name}.",
                 )
                 return True
 
-        # Feature's region is specified by string, search query is a Region 
+        # Feature's region is specified by string, search query is a Region
         elif isinstance(concept, Region):
-            for w in concept.parcellation.key.split('_'):
-                if not w.isnumeric() and len(w)>2:
-                    spec = spec.replace(w.lower(), '')
+            for w in concept.parcellation.key.split("_"):
+                if not w.isnumeric() and len(w) > 2:
+                    spec = spec.replace(w.lower(), "")
             for region in concept.find(spec):
                 if region == concept:
                     self._match = Match(region, MatchQualification.EXACT)
                 else:
-                    self._match = Match(concept, MatchQualification.CONTAINED,
-                        f"Feature was linked to child region '{region.name}'"
-                    )               
+                    self._match = Match(
+                        concept,
+                        MatchQualification.CONTAINED,
+                        f"Feature was linked to child region '{region.name}'",
+                    )
                 return True
 
-        # Feature's region is specified by string, search query is an Atlas 
+        # Feature's region is specified by string, search query is an Atlas
         elif isinstance(concept, Atlas):
             logger.debug(
                 "Matching regional features against a complete atlas. "
-                "This is not efficient and the query may take a while.")
-            for w in concept.key.split('_'):
-                spec = spec.replace(w.lower(), '')
+                "This is not efficient and the query may take a while."
+            )
+            for w in concept.key.split("_"):
+                spec = spec.replace(w.lower(), "")
             for p in concept.parcellations:
                 for region in p.regiontree.find(spec):
                     self._match = Match(
-                        concept, MatchQualification.CONTAINED, 
-                        f"Region {region.name} belongs to atlas parcellation {p.name}"
-                    )  
+                        concept,
+                        MatchQualification.CONTAINED,
+                        f"Region {region.name} belongs to atlas parcellation {p.name}",
+                    )
                     return True
         else:
-            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            logger.warning(
+                f"{self.__class__} cannot match against {concept.__class__} concepts"
+            )
 
         return self.matched
 
     def _match_region(self, region: Region, concept: AtlasConcept):
-        """ 
+        """
         Match a decoded region object representing the anatomical location
-        of this feature to a given atlas concept. 
+        of this feature to a given atlas concept.
 
         This is only a convenience function used by match(), and not
         meant for direct evaluation.
@@ -484,27 +516,33 @@ class RegionalFeature(Feature):
         if isinstance(concept, Parcellation):
             if region in concept:
                 self._match = Match(
-                    concept, MatchQualification.CONTAINED, 
+                    concept,
+                    MatchQualification.CONTAINED,
                     f"Feature belongs to {region.name}, which is part of "
-                    f"parcellation {concept.name}."
+                    f"parcellation {concept.name}.",
                 )
         elif isinstance(concept, Region):
             if region == concept:
                 self._match = Match(concept, MatchQualification.EXACT)
             elif region.has_parent(concept):
-                self._match = Match(concept, MatchQualification.CONTAINED,
-                    f"Feature was linked to child region '{region.name}'"
+                self._match = Match(
+                    concept,
+                    MatchQualification.CONTAINED,
+                    f"Feature was linked to child region '{region.name}'",
                 )
             elif concept.has_parent(region):
-                self._match = Match(concept, MatchQualification.CONTAINS,
-                    f"Feature was linked to parent region '{region.name}'"
-                )  
+                self._match = Match(
+                    concept,
+                    MatchQualification.CONTAINS,
+                    f"Feature was linked to parent region '{region.name}'",
+                )
         elif isinstance(concept, Atlas):
             if any(region in p for p in concept.parcellations):
                 self._match = Match(
-                    concept, MatchQualification.CONTAINED, 
+                    concept,
+                    MatchQualification.CONTAINED,
                     f"Feature belongs to {region.name}, which is part of "
-                    f"a parcellation supported by atlas {concept.name}."
+                    f"a parcellation supported by atlas {concept.name}.",
                 )
         return self.matched
 
@@ -554,13 +592,16 @@ class ParcellationFeature(Feature):
             logger.debug(
                 "Matching a parcellation feature against a complete atlas. "
                 "This will return features matching any supported parcellation, "
-                "including different parcellation versions.")
+                "including different parcellation versions."
+            )
             for p in concept.parcellations:
                 if p in self.parcellations:
                     self._match = p
                     return True
         else:
-            logger.warning(f"{self.__class__} cannot match against {concept.__class__} concepts")
+            logger.warning(
+                f"{self.__class__} cannot match against {concept.__class__} concepts"
+            )
 
         return self.matched
 

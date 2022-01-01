@@ -28,23 +28,25 @@ import urllib
 import pandas as pd
 from tempfile import mktemp
 
+
 def bytes_to_temporary_zipfile(b):
-    fname = mktemp(suffix='.zip')
-    with open(fname, 'wb') as f:
+    fname = mktemp(suffix=".zip")
+    with open(fname, "wb") as f:
         f.write(b)
     return ZipFile(fname)
+
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
-    ".txt": lambda b: b.decode(),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
-    ".zip": bytes_to_temporary_zipfile
+    ".zip": bytes_to_temporary_zipfile,
 }
+
 
 class SiibraHttpRequestError(Exception):
     def __init__(self, response):
@@ -52,15 +54,22 @@ class SiibraHttpRequestError(Exception):
         Exception.__init__(self)
 
     def __str__(self):
-       return (
-           "Cannot execute http request.\n"
-           f"    Status code: {self.response.status_code}\n"
-           f"    Url:         {self.response.url}\n"
+        return (
+            "Cannot execute http request.\n"
+            f"    Status code: {self.response.status_code}\n"
+            f"    Url:         {self.response.url}\n"
         )
+
 
 class HttpRequest:
     def __init__(
-        self, url, func=None, msg_if_not_cached=None, refresh=False, post=False, **kwargs
+        self,
+        url,
+        func=None,
+        msg_if_not_cached=None,
+        refresh=False,
+        post=False,
+        **kwargs,
     ):
         """
         Initialize a cached http data loader.
@@ -101,7 +110,9 @@ class HttpRequest:
     def _set_decoder_func(self, func, fileurl: str):
         urlpath = urllib.parse.urlsplit(fileurl).path
         if func is None:
-            suitable_decoders = [dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)]
+            suitable_decoders = [
+                dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
+            ]
             if len(suitable_decoders) > 0:
                 assert len(suitable_decoders) == 1
                 self.func = suitable_decoders[0]
@@ -154,9 +165,10 @@ class HttpRequest:
         # for backward compatibility with old LazyHttpRequest class
         return self.get()
 
+
 class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None):
-        HttpRequest.__init__(self, url, func=func )
+        HttpRequest.__init__(self, url, func=func)
         self.filename = filename
         self._set_decoder_func(func, filename)
 
@@ -177,20 +189,26 @@ class ZipfileRequest(HttpRequest):
             data = f.read()
         return data if self.func is None else self.func(data)
 
+
 class EbrainsRequest(HttpRequest):
     """
     Implements lazy loading of HTTP Knowledge graph queries.
     """
-    _KG_API_TOKEN = None
-    keycloak_endpoint = "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
 
-    def __init__(self, url, decoder=None, params={}, msg_if_not_cached=None, post=False ):
-        """ Construct an EBRAINS request. """
+    _KG_API_TOKEN = None
+    keycloak_endpoint = (
+        "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
+    )
+
+    def __init__(
+        self, url, decoder=None, params={}, msg_if_not_cached=None, post=False
+    ):
+        """Construct an EBRAINS request."""
         # NOTE: we do not pass params and header here,
         # since we want to evaluate them late in the get() method.
         # This is nice because it allows to set env. variable KG_TOKEN only when
         # really needed, and not necessarily on package initialization.
-        self.params =  params
+        self.params = params
         HttpRequest.__init__(self, url, decoder, msg_if_not_cached, post=post)
 
     @classmethod
@@ -200,20 +218,24 @@ class EbrainsRequest(HttpRequest):
         """
         username = input("Your EBRAINS username: ")
         password = getpass("Your EBRAINS password: ")
-        response = requests.post( 
-            'https://data-proxy.ebrains.eu/api/auth/token', 
+        response = requests.post(
+            "https://data-proxy.ebrains.eu/api/auth/token",
             headers={
-                'accept': 'application/json',
-                'Content-Type': 'application/json',
+                "accept": "application/json",
+                "Content-Type": "application/json",
             },
-            data=f'{{"username": "{username}","password": "{password}"}}'
+            data=f'{{"username": "{username}","password": "{password}"}}',
         )
         if response.status_code == 200:
             cls._KG_API_TOKEN = response.json()
         else:
             if response.status_code == 500:
-                logger.error('Invalid EBRAINS username/password provided for fetching token.')
-            raise RuntimeError(f'Could not fetch token (status code {response.status_code}: {response.reason}).')
+                logger.error(
+                    "Invalid EBRAINS username/password provided for fetching token."
+                )
+            raise RuntimeError(
+                f"Could not fetch token (status code {response.status_code}: {response.reason})."
+            )
 
     @classmethod
     def set_token(cls, token):
@@ -229,35 +251,35 @@ class EbrainsRequest(HttpRequest):
 
         # See if a token is directly provided in  $HBP_AUTH_TOKEN
         if "HBP_AUTH_TOKEN" in os.environ:
-            self.__class__._KG_API_TOKEN = os.environ['HBP_AUTH_TOKEN']
+            self.__class__._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
             return self.__class__._KG_API_TOKEN
 
         # try KEYCLOAK. Requires the following environment variables set:
-        # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET  
+        # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
         keycloak = {
-            v:os.environ.get(f'KEYCLOAK_{v.upper()}') 
-            for v in ['client_id','client_secret']
+            v: os.environ.get(f"KEYCLOAK_{v.upper()}")
+            for v in ["client_id", "client_secret"]
         }
         if None not in keycloak.values():
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
                 self.__class__.keycloak_endpoint,
-                data = (
+                data=(
                     f"grant_type=client_credentials&client_id={keycloak['client_id']}"
                     f"&client_secret={keycloak['client_secret']}"
                     "&scope=kg-nexus-role-mapping%20kg-nexus-service-account-mock"
                 ),
-                headers = {'content-type': 'application/x-www-form-urlencoded'}
+                headers={"content-type": "application/x-www-form-urlencoded"},
             )
             try:
                 content = json.loads(result.content.decode("utf-8"))
             except json.JSONDecodeError as error:
                 logger.error(f"Invalid json from keycloak:{error}")
                 self.__class__._KG_API_TOKEN = None
-            if 'error' in content:
-                logger.error(content['error_description'])
+            if "error" in content:
+                logger.error(content["error_description"])
                 self.__class__._KG_API_TOKEN = None
-            self.__class__._KG_API_TOKEN = content['access_token']
+            self.__class__._KG_API_TOKEN = content["access_token"]
 
         if self.__class__._KG_API_TOKEN is None:
             # No success getting the token
@@ -270,7 +292,7 @@ class EbrainsRequest(HttpRequest):
                 "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_ENDPOINT, "
                 "$KEYCLOAK_CLIENT_ID and $KEYCLOAK_CLIENT_SECRET."
             )
-        
+
         return self.__class__._KG_API_TOKEN
 
     @property
@@ -313,8 +335,11 @@ class EbrainsKgQuery(EbrainsRequest):
             inst_tail,
         )
         EbrainsRequest.__init__(
-            self, url, decoder=DECODERS['.json'], params=params,
-            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}"
+            self,
+            url,
+            decoder=DECODERS[".json"],
+            params=params,
+            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}",
         )
 
     def get(self):
@@ -330,4 +355,3 @@ class EbrainsKgQuery(EbrainsRequest):
                     f"{e.response.message} "
                 )
         return result
-            
