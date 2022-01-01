@@ -275,7 +275,8 @@ class SpatialFeature(Feature):
                 f"Location {location} is inside mask of {region.name}"
             )
         elif isinstance(location, PointSet):
-            if len(intersection) == len(location):
+            npts = 1 if isinstance(intersection, Point) else len(intersection)
+            if npts == len(location):
                 self._match = Match(
                     region, MatchQualification.EXACT, 
                     f"All points of {location} inside mask of {region.name}"
@@ -283,7 +284,7 @@ class SpatialFeature(Feature):
             else:
                 self._match = Match(
                     region, MatchQualification.APPROXIMATE, 
-                    f"{len(intersection)} of {len(location)} points "
+                    f"{npts} of {len(location)} points "
                     f"were inside mask of {region.name}"
                 )
         elif isinstance(location, BoundingBox):

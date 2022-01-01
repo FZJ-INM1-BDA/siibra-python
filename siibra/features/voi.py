@@ -42,9 +42,10 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
                 vsrc = VolumeSrc._from_json(vsrc_def)
                 vsrc.space = space
                 with QUIET:
-                    D = vsrc.fetch().get_fdata().squeeze()
+                    img = vsrc.fetch()
+                    D = np.asanyarray(img.dataobj).squeeze()
                     nonzero = np.array(np.where(D > 0))
-                    A = vsrc.build_affine()
+                    A = img.affine
                 minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
                 maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
                 vsrcs.append(vsrc)

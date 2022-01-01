@@ -599,6 +599,8 @@ class PointSet(Location):
         inside = [p for p in self if p.intersects(mask)]
         if len(inside) == 0:
             return None
+        elif len(inside) == 1:
+            return inside[0]
         else:
             return PointSet(
                 [p.coordinate for p in inside],
@@ -720,7 +722,8 @@ class PointSet(Location):
     @property
     def homogeneous(self):
         """ Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        return np.array([c.homogeneous for c in self.coordinates])
+        print("homogoenous", self.coordinates)
+        return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
 
 
 class BoundingBox(Location):
@@ -897,10 +900,13 @@ class BoundingBox(Location):
         minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
-        if len(inside) > 0:
-            return PointSet(coords[inside,:3], space=self.space)
-        else:
+        XYZ = coords[inside, :3]
+        if XYZ.shape[0] == 0:
             return None
+        elif XYZ.shape[0] == 1:
+            return Point(XYZ.flatten(), space=self.space)
+        else:
+            return PointSet(XYZ, space=self.space)
 
 
     def union(self, other):

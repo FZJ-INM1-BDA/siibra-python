@@ -85,8 +85,8 @@ class HcpConnectivityFetcher():
     def __init__(self, filename_keyword ):
         FeatureQuery.__init__(self)
         logger.warn(
-            "This dataset is still under curation, and currently "
-            "only accessible with a privileged EBRAINS account."
+            f"The connectivity dataset {self._DATASET_ID} is still under curation, "
+            "and currently only accessible with a privileged EBRAINS account."
         )
         self._connector = EbrainsPublicDatasetConnector(self._DATASET_ID, in_progress=True)
         self._keyword = filename_keyword
@@ -113,8 +113,12 @@ class HcpConnectivityFetcher():
             if parc != parcellation:
                 continue
 
-            zipfile = self._connector.get(f'{name}.zip')
-
+            try:
+                zipfile = self._connector.get(f'{name}.zip')
+            except RuntimeError as e:
+                logger.error(str(e))
+                continue
+        
             # extract index - regionname mapping
             with zipfile.open(f'{name}/0ImageProcessing/Link.txt') as f:
                 lines = [l.decode().strip().split(' ', maxsplit=1) for l in f.readlines()]
