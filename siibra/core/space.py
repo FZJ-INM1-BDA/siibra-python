@@ -18,7 +18,6 @@ from .concept import AtlasConcept, provide_registry
 from ..commons import logger
 from ..retrieval import HttpRequest
 
-from cloudvolume import Bbox
 import re
 import numpy as np
 from abc import ABC, abstractmethod
@@ -753,16 +752,6 @@ class BoundingBox(Location):
         xyz2 = Point.parse(point2)
         self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
         self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
-
-    @property
-    def _Bbox(self):
-        """
-        Return the bounding box as a cloudvolume Bbox object,
-        with rounded integer coordinates. """
-        return Bbox(
-            [int(v) for v in self.minpoint.coordinate],
-            [int(v+.5) for v in self.maxpoint.coordinate]
-        )
 
     @property
     def volume(self):

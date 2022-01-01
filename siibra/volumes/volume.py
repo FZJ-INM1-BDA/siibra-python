@@ -17,20 +17,16 @@ from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset
 from ..core.space import Space, BoundingBox
-from ..retrieval import HttpRequest, ZipfileRequest, CACHE
+from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 
 from ctypes import ArgumentError
 import numpy as np
-import nibabel
-from cloudvolume.exceptions import OutOfBoundsError
-from cloudvolume import CloudVolume
+import nibabel as nib
 import os
 import json
 from abc import ABC, abstractmethod
-
-gbyte_feasible = 0.1
-
-
+from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
+from neuroglancer_scripts.accessor import get_accessor_for_url
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     _SPECIALISTS = {}
@@ -174,7 +170,7 @@ class LocalNiftiVolume(ImageProvider):
 
     volume_type = 'nii'
 
-    def __init__(self, name: str, img: nibabel.Nifti1Image, space: Space):
+    def __init__(self, name: str, img: nib.Nifti1Image, space: Space):
         """ Create a new local nifti volume from a Nifti1Image object.
 
         Args:
@@ -183,16 +179,16 @@ class LocalNiftiVolume(ImageProvider):
             space (Space): the reference space associated with the Image
         """
         self.name = name
-        if isinstance(img, nibabel.Nifti1Image):
+        if isinstance(img, nib.Nifti1Image):
             self.image = img
         elif isinstance(img, str): 
-            self.image = nibabel.load(img)
+            self.image = nib.load(img)
         else:
             raise ValueError(f"Cannot create local nifti volume from image parameter {img}") 
 
         if np.isnan(self.image.get_fdata()).any():
             logger.warn(f'Replacing NaN by 0 for {self.name}')
-            self.image = nibabel.Nifti1Image(
+            self.image = nib.Nifti1Image(
                 np.nan_to_num(self.image.get_fdata()),
                 self.image.affine
             )
@@ -255,7 +251,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
                 f"Mapindex of {mapindex} provided for fetching from NiftiVolume, but its shape is {shape}."
             )
         else:
-            img = nibabel.Nifti1Image(
+            img = nib.Nifti1Image(
                 dataobj=self.image.dataobj[:, :, :, mapindex], affine=self.image.affine
             )
         assert img is not None
@@ -271,7 +267,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
-            img = nibabel.Nifti1Image(
+            img = nib.Nifti1Image(
                 dataobj=img.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(img.affine, shift),
             )
@@ -294,287 +290,225 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
+
 class NeuroglancerVolume(
     ImageProvider, VolumeSrc, volume_type="neuroglancer/precomputed"
 ):
-
-    # Gigabyte size that is considered feasible for ad-hoc downloads of
-    # neuroglancer volume data. This is used to avoid accidental huge downloads.
-    _cached_volume = None
-
-    def __init__(
-        self,
-        identifier,
-        name,
-        url,
-        space,
-        detail=None,
-        transform_nm=np.identity(4),
-        **kwargs,
-    ):
-        """
-        ngsite: base url of neuroglancer http location
-        transform_nm: optional transform to be applied after scaling voxels to nm
-        """
-        assert isinstance(url,str)
-        super().__init__(identifier, name, url, space, detail)
-        self.transform_nm = transform_nm
-        self.info = HttpRequest(url + "/info", lambda b: json.loads(b.decode())).get()
-        self.nbytes = np.dtype(self.info["data_type"]).itemsize
-        self.num_scales = len(self.info["scales"])
-        self.mip_resolution_mm = {
-            i: np.min(v["resolution"]) / (1000 ** 2)
-            for i, v in enumerate(self.info["scales"])
-        }
-        self.resolutions_available = {
-            np.min(v["resolution"])
-            / (1000 ** 2): {
-                "mip": i,
-                "GBytes": np.prod(v["size"]) * self.nbytes / (1024 ** 3),
-            }
-            for i, v in enumerate(self.info["scales"])
-        }
-        self.helptext = "\n".join(
-            [
-                "{:7.4f} mm {:10.4f} GByte".format(k, v["GBytes"])
-                for k, v in self.resolutions_available.items()
-            ]
-        )
+    # Number of bytes at which an image array is considered to large to fetch
+    MAX_GiB = .2
 
     @property
-    def volume(self):
-        """
-        We implement this as a property so that the CloudVolume constructor is only called lazily.
-        """
-        if not self._cached_volume:
-            self._cached_volume = CloudVolume(
-                self.url, fill_missing=True, progress=False
-            )
-        return self._cached_volume
+    def MAX_BYTES(self):
+        return self.MAX_GiB * 1024**3
+    
+    def __init__(self, identifier, name, url, space, detail, **kwargs):
 
-    def largest_feasible_resolution(self, voi=None):
-        # returns the highest resolution in millimeter that is available and
-        # still below the threshold of downloadable volume sizes.
-        if voi is None:
-            return min(
-                [
-                    res
-                    for res, v in self.resolutions_available.items()
-                    if v["GBytes"] < gbyte_feasible
-                ]
-            )
+        VolumeSrc.__init__(self, identifier, name, url, space, detail)
+        ImageProvider.__init__(self)
+        
+        self.url = url
+        self.space = space
+        
+        accessor = get_accessor_for_url(url)
+        self._io = get_IO_for_existing_dataset(accessor)
+        self.scales = {}
+        self.dtype = np.dtype(self._io.info['data_type'])
+        self.scales = sorted([NeuroglancerScale(self, i) for i in self._io.info['scales']])
+
+        try:
+            res = HttpRequest(f"{self.url}/transform.json").get()
+        except SiibraHttpRequestError:
+            res = None
+        if res is not None:
+            logger.debug("Found global affine transform file, intrepreted in nanometer space.")
+            self.transform_nm = np.array(res)
         else:
-            gbytes = {
-                res_mm: voi.transform(
-                    np.linalg.inv(self.build_affine(res_mm))
-                ).volume
-                * self.nbytes
-                / (1024 ** 3)
-                for res_mm in self.resolutions_available.keys()
-            }
-            return min([res for res, gb in gbytes.items() if gb < gbyte_feasible])
-
-    def _resolution_to_mip(self, resolution_mm, voi):
-        """
-        Given a resolution in millimeter, try to determine the mip that can
-        be applied.
-
-        Parameters
-        ----------
-        resolution_mm : float or None
-            Physical resolution in mm.
-            If None, the smallest availalbe resolution is used (lowest image size)
-            If -1, tha largest feasible resolution is used.
-        """
-        mip = None
-        if resolution_mm is None:
-            mip = self.num_scales - 1
-        elif resolution_mm == -1:
-            maxres = self.largest_feasible_resolution(voi=voi)
-            mip = self.resolutions_available[maxres]["mip"]
-            if mip > 0:
-                logger.info(
-                    f"Due to the size of the volume requested, "
-                    f"a reduced resolution of {maxres}mm is used "
-                    f"(full resolution: {self.mip_resolution_mm[0]}mm).")
-        elif resolution_mm in self.resolutions_available:
-            mip = self.resolutions_available[resolution_mm]["mip"]
-        if mip is None:
-            raise ValueError(
-                f"Requested resolution of {resolution_mm} mm not available.\n{self.helptext}"
-            )
-        return mip
-
-    def build_affine(self, resolution_mm=None, voi=None):
-        """
-        Builds the affine matrix that maps voxels
-        at the given resolution to physical space.
-
-        Parameters:
-        -----------
-        resolution_mm : float, or None
-            desired resolution in mm.
-            If None, the smallest is used.
-            If -1, the largest feasible is used.
-        """
-        loglevel = logger.getEffectiveLevel()
-        logger.setLevel("ERROR")
-        mip = self._resolution_to_mip(resolution_mm=resolution_mm, voi=voi)
-        effective_res_mm = self.mip_resolution_mm[mip]
-        logger.setLevel(loglevel)
-
-        # if a volume of interest is given, apply the offset
-        shift = np.identity(4)
+            self.transform_nm = np.identity(4)
+            
+    def fetch(self, resolution_mm = None, voi: BoundingBox = None):
         if voi is not None:
-            minpoint_vox = voi.minpoint.transform(
-                np.linalg.inv(self.build_affine(effective_res_mm)))
-            logger.debug(f"Affine matrix respects volume of interest shift {voi.minpoint}")
-            shift[:3, -1] = minpoint_vox.coordinate
-
-        # scaling from voxel to nm
-        resolution_nm = self.info["scales"][mip]["resolution"]
-        scaling = np.identity(4)
-        for i in range(3):
-            scaling[i, i] = resolution_nm[i]
-
-        # optional transform in nanometer space
-        affine = np.dot(self.transform_nm, scaling)
-
-        # warp from nm to mm
-        affine[:3, :] /= 1000000.0
-
-        return np.dot(affine, shift)
-
-    def _load_data(self, resolution_mm, voi: BoundingBox):
-        """
-        Actually load image data.
-        TODO: Check amount of data beforehand and raise an Exception if it is over a reasonable threshold.
-        NOTE: this function caches chunks as numpy arrays (*.npy) to the
-        CACHEDIR defined in the retrieval module.
-
-        Parameters:
-        -----------
-        resolution_mm : float, or None
-            desired resolution in mm. If none, the full resolution is used.
-        """
-        mip = self._resolution_to_mip(resolution_mm, voi=voi)
-        effective_res_mm = self.mip_resolution_mm[mip]
-        logger.debug(
-            f"Loading neuroglancer data at a resolution of {effective_res_mm} mm (mip={mip})"
+            assert voi.space == self.space
+        scale = self._select_scale(resolution_mm, voi)
+        logger.info(
+            f"Fetching resolution "
+            f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm "
+            f"to provide resolution {resolution_mm}."
         )
-
-        maxdims = tuple(np.array(self.volume.mip_shape(mip)[:3]) - 1)
-        if voi is None:
-            bbox_vox = BoundingBox([0, 0, 0], maxdims, space=None)
-        else:
-            bbox_vox = voi.transform(
-                np.linalg.inv(self.build_affine(effective_res_mm)),
-            ).clip(maxdims)
-
-        if bbox_vox is None:
-            # zero size bounding box, return empty array
-            return np.empty((0, 0, 0))
-
-        # estimate size and check feasibility
-        gbytes = bbox_vox._Bbox.volume() * self.nbytes / (1024 ** 3)
-        if gbytes > gbyte_feasible:
-            # TODO would better do an estimate of the acutal data size
-            logger.error(
-                "Data request is too large (would result in an ~{:.2f} GByte download, the limit is {}).".format(
-                    gbytes, gbyte_feasible
-                )
-            )
-            print(self.helptext)
-            raise NotImplementedError(
-                f"Request of the whole full-resolution volume in one piece is prohibited as of now due to the estimated size of ~{gbytes:.0f} GByte."
-            )
-
-        # ok, retrieve data now.
-        cachefile = CACHE.build_filename(
-            f"{self.url}{bbox_vox._Bbox.serialize()}{str(mip)}", suffix="npy"
-        )
-        if os.path.exists(cachefile):
-            logger.debug(f"NgVolume loads from cache file {cachefile}")
-            return np.load(cachefile)
-        else:
-            try:
-                logger.debug(f"NgVolume downloads (mip={mip}, bbox={bbox_vox}")
-                data = self.volume.download(bbox=bbox_vox._Bbox, mip=mip)
-                np.save(cachefile, np.array(data))
-                return np.array(data)
-            except OutOfBoundsError as e:
-                logger.error("Bounding box does not match image.")
-                print(str(e))
-                return np.empty((0, 0, 0))
-
-    def fetch(self, resolution_mm=None, voi=None, mapindex=None, clip=False):
-        """
-        Compute and return a spatial image for the given mip.
-
-        Parameters:
-        -----------
-        resolution_mm : desired resolution in mm
-        voi : BoundingBox
-            optional bounding box
-        """
-        if clip:
-            raise NotImplementedError(
-                "Automatic clipping is not yet implemented for neuroglancer volume sources."
-            )
-        if mapindex is not None:
-            raise NotImplementedError(
-                f"NgVolume does not support access by map index (but {mapindex} was given)"
-            )
-        data = self._load_data(resolution_mm=resolution_mm, voi=voi)
-
-        if data.ndim == 4:
-            data = data.squeeze(axis=3)
-        if data.ndim == 2:
-            data = data.reshape(list(data.shape) + [1])
-
-        return nibabel.Nifti1Image(data, self.build_affine(resolution_mm=resolution_mm, voi=voi))
+        return scale.fetch(voi)
 
     def get_shape(self, resolution_mm=None):
-        mip = self._resolution_to_mip(resolution_mm, voi=None)
-        return self.info["scales"][mip]["size"]
+        scale = self._select_scale(resolution_mm)
+        return scale.size 
 
     def is_float(self):
-        return np.dtype(self.info["data_type"]).kind == "f"
+        return self.dtype.kind == "f"
+        
+    def _select_scale(self, resolution_mm, bbox: BoundingBox = None ):
+        if resolution_mm is None:
+            suitable = self.scales
+        else:
+            suitable = sorted(s for s in self.scales if s.resolves(resolution_mm))
+        if len(suitable)>0:
+            scale = suitable[-1]
+        else:
+            scale = self.scales[0]
+            logger.warn(
+                f"Requested resolution {resolution_mm} is not available. "
+                f"Falling back to the highest possible resolution of "
+                f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
+            )
+        while scale._estimate_nbytes(bbox) > self.MAX_BYTES:
+            scale = scale.next()
+            if scale is None:
+                raise RuntimeError(
+                    f"Fetching bounding box {bbox} is infeasible "
+                    f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
+                )
+        return scale
+    
 
-    def __hash__(self):
-        return hash(self.url) + hash(self.transform_nm)
-
-    def _enclosing_chunkgrid(self, mip, bbox_phys):
+class NeuroglancerScale:
+    """One scale of a NeuroglancerVolume.
+    """
+    
+    def __init__(self, volume: NeuroglancerVolume, scaleinfo: dict):
+        self.volume = volume
+        self.chunk_sizes = np.array(scaleinfo['chunk_sizes']).squeeze()
+        self.encoding = scaleinfo['encoding']
+        self.key = scaleinfo['key']
+        self.res_nm = np.array(scaleinfo['resolution']).squeeze()
+        self.size = scaleinfo['size']
+        self.voxel_offset = np.array(scaleinfo['voxel_offset'])
+        
+    @property
+    def res_mm(self):
+        return self.res_nm/1e6
+    
+    @property
+    def space(self):
+        """ forward the corresponding volume's coordinate space. """
+        return self.volume.space
+        
+    def resolves(self, resolution_mm):
+        """ Test wether the resolution of this scale is sufficient to provide the given resolution. """
+        return any(r/1e6<=resolution_mm for r in self.res_nm)
+        
+    def __lt__(self, other):
+        """ Sort scales by resolution. """
+        return all(self.res_nm[i] < other.res_nm[i] for i in range(3))
+    
+    def __repr__(self):
+        return str(self)
+    
+    def __str__(self):
+        return f"{self.__class__.__name__} {self.key}"
+    
+    def _estimate_nbytes(self, bbox: BoundingBox= None):
+        """ Estimate the size image array to be fetched in bytes, given a bounding box."""
+        if bbox is None:
+            bbox_ = BoundingBox(
+                (0, 0, 0), self.size, self.space
+            )
+        else:
+            bbox_ = bbox.transform(np.linalg.inv(self.affine))
+        result = self.volume.dtype.itemsize * bbox_.volume
+        logger.info(
+            f"Approximate size for fetching resolution "
+            f"({', '.join(map('{:.2f}'.format, self.res_mm))}) mm "
+            f"is {result/1024**3:.2f} GiB."
+        )
+        return result
+    
+    def next(self):
+        """ Returns the next scale in this volume, of None if this is the last.
         """
-        Produce grid points representing the chunks of the mip
-        which enclose a given bounding box. The bounding box is given in
-        physical coordinates, but the grid is returned in voxel spaces of the
-        given mip.
+        my_index = self.volume.scales.index(self)
+        print(f"Index of {self.key} is {my_index} of {len(self.volume.scales)}.")
+        if my_index < len(self.volume.scales):
+            return self.volume.scales[my_index+1]
+        else:
+            return None
+            
+    def prev(self):
+        """ Returns the previous scale in this volume, or None if this is the first. 
         """
+        my_index = self.volume.scales.index(self)
+        print(f"Index of {self.key} is {my_index} of {len(self.volume.scales)}.")
+        if my_index > 0:
+            return self.volume.scales[my_index-1]
+        else:
+            return None
 
-        # some helperfunctions to produce the smallest range on a grid enclosing another range
-        def cfloor(x, s):
-            int(np.floor(x / s) * s)
+    @property
+    def affine(self):
+        scaling = np.diag(np.r_[self.res_nm, 1.])
+        affine = np.dot(self.volume.transform_nm, scaling)
+        affine[:3, :] /= 1e6
+        return affine
+    
+    def _chunk_of_point(self, xyz):
+        return np.floor((np.array(xyz) - self.voxel_offset) / self.chunk_sizes).astype('int').ravel()
+    
+    def _read_chunk(self, gx, gy, gz):
+        cachefile = CACHE.build_filename(
+            "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
+            suffix='.npy'
+        )
+        if os.path.isfile(cachefile):
+            return np.load(cachefile)
+                
+        x0 = gx * self.chunk_sizes[0]
+        y0 = gy * self.chunk_sizes[1]
+        z0 = gz * self.chunk_sizes[2]
+        x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
+        chunk_czyx = self.volume._io.read_chunk(
+            self.key, (x0, x1, y0, y1, z0, z1)
+        )
+        if not chunk_czyx.shape[0] == 1:
+            raise NotImplementedError("Color channel data is not yet supported")
+        chunk_zyx = chunk_czyx[0]
+        np.save(cachefile, chunk_zyx)
+        return chunk_zyx
+    
+    def fetch(self, voi: BoundingBox = None):
+        
+        # define the bounding box in this scale's voxel space
+        if voi is None:
+            bbox_ = BoundingBox(
+                (0, 0, 0), self.size, self.space
+            )
+        else:
+            bbox_ = voi.transform(np.linalg.inv(self.affine))        
+        
+        # extract minimum and maximum the chunk indices to be loaded 
+        gx0, gy0, gz0 = self._chunk_of_point(tuple(bbox_.minpoint))
+        gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint))+1
 
-        def cceil(x, s):
-            int(np.ceil(x / s) * s) + 1
-
-        def crange(x0, x1, s):
-            np.arange(cfloor(x0, s), cceil(x1, s), s)
-
-        # project the bounding box to the voxel grid of the selected mip
-        bb = np.dot(
-            np.linalg.inv(self.build_affine(self.mip_resolution_mm[mip])), bbox_phys
+        # create requested data volume, and fill it with the required chunk data
+        shape_zyx = (np.array([gz1-gz0, gy1-gy0, gx1-gx0]) * self.chunk_sizes[::-1])
+        data_zyx = np.zeros(shape_zyx, dtype=self.volume.dtype)
+        for gx in range(gx0, gx1):
+            x0 = (gx-gx0)*self.chunk_sizes[0]
+            for gy in range(gy0, gy1):
+                y0 = (gy-gy0)*self.chunk_sizes[1]
+                for gz in range(gz0, gz1):
+                    z0 = (gz-gz0)*self.chunk_sizes[2]
+                    chunk = self._read_chunk(gx, gy, gz)
+                    z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
+                    data_zyx[z0:z1, y0:y1, x0:x1] = chunk
+                    
+        # determine the remaining offset from the "chunk mosaic" to the
+        # exact bounding box requested, to cut off undesired borders
+        data_min = np.array([gx0, gy0, gz0]) * self.chunk_sizes
+        x0, y0, z0 = (np.array(tuple(bbox_.minpoint)) - data_min).astype('int')
+        xd, yd, zd = np.array(bbox_.shape).astype('int')
+        offset = tuple(bbox_.minpoint)
+                
+        # build the nifti image
+        trans = np.identity(4)[[2,1,0,3], :] # zyx -> xyz
+        shift = np.c_[np.identity(4)[:,:3], np.r_[offset, 1]]
+        return nib.Nifti1Image(
+            data_zyx[z0:z0+zd, y0:y0+yd, x0:x0+xd], 
+            np.dot(self.affine, np.dot(shift, trans))
         )
 
-        # compute the enclosing chunk grid
-        chunksizes = self.volume.scales[mip]["chunk_sizes"][0]
-        x, y, z = [crange(bb[i][0], bb[i][1], chunksizes[i]) for i in range(3)]
-        xx, yy, zz = np.meshgrid(x, y, z)
-        return np.vstack([xx.ravel(), yy.ravel(), zz.ravel(), zz.ravel() * 0 + 1])
-
-
-class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"):
-
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)

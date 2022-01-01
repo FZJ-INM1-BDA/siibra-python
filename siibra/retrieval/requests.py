@@ -48,11 +48,15 @@ DECODERS = {
 
 class SiibraHttpRequestError(Exception):
     def __init__(self, response):
-        logger.error("Cannot execute http request.")
-        print(f"    Status code: {response.status_code}")
-        print(f"    Url:         {response.url}")
         self.response = response
         Exception.__init__(self)
+
+    def __str__(self):
+       return (
+           "Cannot execute http request.\n"
+           f"    Status code: {response.status_code}\n"
+           f"    Url:         {response.url}\n"
+        )
 
 class HttpRequest:
     def __init__(

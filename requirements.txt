@@ -5,7 +5,7 @@ anytree
 appdirs
 scikit-image
 click
-cloud-volume
+neuroglancer-scripts
 memoization
 nilearn
 simple-term-menu

@@ -52,7 +52,7 @@ setup(
         "scikit-image",
         "requests",
         "memoization",
-        "cloud-volume",
+        "neuroglancer-scripts",
         "nilearn",
         "simple-term-menu",
         'importlib-resources; python_version < "3.7"',
