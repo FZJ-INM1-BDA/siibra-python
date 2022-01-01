@@ -54,8 +54,8 @@ class SiibraHttpRequestError(Exception):
     def __str__(self):
        return (
            "Cannot execute http request.\n"
-           f"    Status code: {response.status_code}\n"
-           f"    Url:         {response.url}\n"
+           f"    Status code: {self.response.status_code}\n"
+           f"    Url:         {self.response.url}\n"
         )
 
 class HttpRequest:
