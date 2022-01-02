@@ -44,7 +44,8 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
-REGEX_TYPE=type(re.compile('test'))
+REGEX_TYPE = type(re.compile("test"))
+
 
 class Region(anytree.NodeMixin, AtlasConcept):
     """
@@ -145,9 +146,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __hash__(self):
         """
-        Identify each region by its parcellation and region key.
+        Identify a region by its parcellation key, region key, and parcellation index
         """
-        return hash(self.parcellation.key + self.key)
+        return hash(f"{self.parcellation.key}_{self.key}_{self.index.map}_{self.index.label}")
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
@@ -239,7 +240,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else:
                 return None
         else:
-            return sorted(result, key=lambda r:r.depth)
+            return sorted(result, key=lambda r: r.depth)
 
     @cached
     def matches(self, regionspec):
@@ -326,27 +327,33 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         spaceobj = Space.REGISTRY[space]
         if spaceobj.is_surface:
-            raise NotImplementedError("Region masks for surface spaces are not yet supported.")
+            raise NotImplementedError(
+                "Region masks for surface spaces are not yet supported."
+            )
 
         mask = affine = None
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 
         if self.has_regional_map(spaceobj, maptype):
-            mask = self.get_regional_map(space, maptype).fetch(resolution_mm=resolution_mm)
+            mask = self.get_regional_map(space, maptype).fetch(
+                resolution_mm=resolution_mm
+            )
         else:
-            parcmap = self.parcellation.get_map(spaceobj,  maptype)
+            parcmap = self.parcellation.get_map(spaceobj, maptype)
             mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
 
         if mask is None:
-            logger.warn(f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}.")
+            logger.warn(
+                f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
+            )
             return None
 
         if threshold_continuous is not None:
-            assert(maptype==MapType.CONTINUOUS)
+            assert maptype == MapType.CONTINUOUS
             data = np.asanyarray(mask.dataobj) > threshold_continuous
-            assert(any(data)) 
-            mask = nib.Nifti1Image(data.astype('uint8').squeeze(), mask.affine)
+            assert any(data)
+            mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
         return mask
 
@@ -356,9 +363,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         # the simple case: the region has a non-empty parcellation index,
         # and its parcellation has a volumetric map in the requested space.
-        if (
-            self.index != ParcellationIndex(None, None) and
-            len([v for v in self.parcellation.volumes if v.space==space])
+        if self.index != ParcellationIndex(None, None) and len(
+            [v for v in self.parcellation.volumes if v.space == space]
         ):
             return True
 
@@ -367,21 +373,20 @@ class Region(anytree.NodeMixin, AtlasConcept):
             if self.has_regional_map(space, maptype):
                 return True
 
-        # The last option is that this region has children, 
+        # The last option is that this region has children,
         # and all of them are mapped in the requested space.
         if self.is_leaf:
             return False
-        
+
         for child in self.children:
             if not child.mapped_in_space(space):
                 return False
         return True
 
-
     @property
     def supported_spaces(self):
         """
-        The list of spaces for which a mask could be extracted. 
+        The list of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
         return [s for s in Space.REGISTRY if self.mapped_in_space(s)]
@@ -589,25 +594,28 @@ class Region(anytree.NodeMixin, AtlasConcept):
         from skimage.feature.peak import peak_local_max
 
         img = pmap.fetch()
-        dist = int(min_distance_mm / affine_scaling(img.affine) + .5)
+        dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
         voxels = peak_local_max(
             img.get_fdata(),
             exclude_border=False,
             min_distance=dist,
         )
-        return PointSet(
-            [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
-            space=spaceobj,
-        ), img
+        return (
+            PointSet(
+                [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
+                space=spaceobj,
+            ),
+            img,
+        )
 
     def centroids(self, space: Space):
-        """ Compute the centroids of the region in the given space.
-        
+        """Compute the centroids of the region in the given space.
+
         Note that a region can generally have multiple centroids
         if it has multiple connected components in the map.
         """
         props = self.spatial_props(space)
-        return [c['centroid'] for c in props['components']]
+        return [c["centroid"] for c in props["components"]]
 
     @cached
     def spatial_props(
