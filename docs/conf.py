@@ -46,23 +46,23 @@ templates_path = ["_templates"]
 
 # example gallery
 sphinx_gallery_conf = {
-     'examples_dirs': [
-         '../examples/01_atlases_and_parcellations',
-         '../examples/02_maps_and_templates',
-         '../examples/03_data_features',
-         '../examples/04_locations',
-         '../examples/05_anatomical_assignment'
-     ],
-     'gallery_dirs': [
-         'examples/01_atlases_and_parcellations',  
-         'examples/02_maps_and_templates',  
-         'examples/03_data_features',  
-         'examples/04_locations',  
-         'examples/05_anatomical_assignment',  
-     ],
-     'filename_pattern': r'^.*.py', # which files to execute and include their outputs
-     'capture_repr': ('_repr_html_', '__repr__'),
-     'within_subsection_order': FileNameSortKey,
+    "examples_dirs": [
+        "../examples/01_atlases_and_parcellations",
+        "../examples/02_maps_and_templates",
+        "../examples/03_data_features",
+        "../examples/04_locations",
+        "../examples/05_anatomical_assignment",
+    ],
+    "gallery_dirs": [
+        "examples/01_atlases_and_parcellations",
+        "examples/02_maps_and_templates",
+        "examples/03_data_features",
+        "examples/04_locations",
+        "examples/05_anatomical_assignment",
+    ],
+    "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
+    "capture_repr": ("_repr_html_", "__repr__"),
+    "within_subsection_order": FileNameSortKey,
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -89,4 +89,4 @@ html_css_files = ["siibra.css"]
 
 html_logo = "../images/siibra-python.jpeg"
 
-source_suffix = ['.rst']
+source_suffix = [".rst"]
