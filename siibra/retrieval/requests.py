@@ -49,13 +49,14 @@ DECODERS = {
 
 
 class SiibraHttpRequestError(Exception):
-    def __init__(self, response):
+    def __init__(self, response, msg="Cannot execute http request."):
         self.response = response
+        self.msg = msg
         Exception.__init__(self)
 
     def __str__(self):
         return (
-            "Cannot execute http request.\n"
+            f"{self.msg}\n"
             f"    Status code: {self.response.status_code}\n"
             f"    Url:         {self.response.url}\n"
         )
@@ -233,9 +234,7 @@ class EbrainsRequest(HttpRequest):
                 logger.error(
                     "Invalid EBRAINS username/password provided for fetching token."
                 )
-            raise RuntimeError(
-                f"Could not fetch token (status code {response.status_code}: {response.reason})."
-            )
+            raise SiibraHttpRequestError(response)
 
     @classmethod
     def set_token(cls, token):
