@@ -39,8 +39,8 @@ julich_mpm
 
 # %%
 # As already seen for reference templates, the returned object does not contain
-# any image data yet, since siibra uses a lazy strategy for loading data. 
-# To access the actual image data, we call the fetch() method. 
+# any image data yet, since siibra uses a lazy strategy for loading data.
+# To access the actual image data, we call the fetch() method.
 # This gives us a Nifti1Image object defined in the reference space.
 from nilearn import plotting
 import matplotlib
@@ -79,7 +79,7 @@ for img in julich_mpm.fetch_iter():
 # once and then convert it to a sparse index format, that is much more
 # efficient to process and store. The sparse index is cached on the local disk,
 # therefore subsequent use of probability maps will be much faster.
-with siibra.QUIET: # suppress progress output
+with siibra.QUIET:  # suppress progress output
     julich_pmaps = atlas.get_map(space="mni152", parcellation="julich", maptype="continuous")
 julich_pmaps
 
@@ -94,7 +94,7 @@ pmap = julich_pmaps.fetch(mapindex=102)
 plotting.plot_stat_map(pmap)
 
 # %%
-# Now we might wonder which region this map index actually refers to. 
+# Now we might wonder which region this map index actually refers to.
 # The Parcellation map objects can safely translate
 # indices into regions and vice versa:
 
@@ -109,5 +109,3 @@ julich_pmaps.decode_region('hoc5 left')
 v5l = atlas.get_region('hoc5 left')
 v5l_mask = v5l.build_mask("mni152")
 plotting.plot_roi(v5l_mask)
-
-

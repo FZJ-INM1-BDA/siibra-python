@@ -105,14 +105,11 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self.parent = parent
         # this is only used for regions added by parcellation extension:
         self.extended_from = None
-        child_has_mapindex = False
         if children:
             self.children = children
             for c in self.children:
                 c.parent = self
                 c.parcellation = self.parcellation
-                if c.index.map is not None:
-                    child_has_mapindex = True
 
     @staticmethod
     def copy(other):
@@ -331,7 +328,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 "Region masks for surface spaces are not yet supported."
             )
 
-        mask = affine = None
+        mask = None
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 

@@ -17,9 +17,7 @@ from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestEr
 from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
-import base64
 from tqdm import tqdm
-import json
 
 
 class RepositoryConnector(ABC):
@@ -134,12 +132,7 @@ class GitlabConnector(RepositoryConnector):
         else:
             pathstr = filename if folder == "" else f"{folder}/{filename}"
             filepath = quote(pathstr, safe="")
-            return f"{self.base_url}/files/{filepath}?ref={ref}"
-
-    def _decode_response(self, response, filename):
-        json_response = json.loads(response.decode())
-        content = base64.b64decode(json_response["content"].encode("ascii"))
-        return RepositoryConnector._decode_response(self, content, filename)
+            return f"{self.base_url}/files/{filepath}/raw?ref={ref}"
 
     def search_files(self, folder="", suffix=None, recursive=False):
         page = 1

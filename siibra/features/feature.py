@@ -346,7 +346,7 @@ class RegionalFeature(Feature):
                 .strip(): {k: v for k, v in d.items() if k != "Region specification"}
                 for d in json.load(f)
             }
-        logger.info(
+        logger.debug(
             f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}"
         )
 
