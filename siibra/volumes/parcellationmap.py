@@ -740,7 +740,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
 
     # A gitlab instance with holds precomputed sparse indices
     _GITLAB_SERVER = 'https://jugit.fz-juelich.de'
-    _GITLAB_PROJECT = 5779 
+    _GITLAB_PROJECT = 5779
 
     def __init__(self, parcellation, space):
 
@@ -812,7 +812,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
             if conn is None:
                 conn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, 'main')
                 files = conn.search_files()
-            bname = path.basename(fname) 
+            bname = path.basename(fname)
             if bname in files:
                 logger.debug(f"Retrieving precomputed index for {self.parcellation.name}")
                 raw = conn.get(bname, decode_func=lambda b: b)

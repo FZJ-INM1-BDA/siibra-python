@@ -19,6 +19,8 @@
 import click
 import os
 
+from siibra.retrieval.requests import SiibraHttpRequestError
+
 # ---- Autocompletion
 
 
@@ -143,14 +145,16 @@ def template(ctx, space):
     img.to_filename(fname)
     click.echo(f"Output written to {fname}.")
 
+
 @get.command()
 def ebrainstoken():
     """Retrieve a parcellation map in the given space"""
     import siibra
-    siibra.fetch_ebrains_token()
-    os.environ['HBP_AUTH_TOKEN'] = siibra.EbrainsRequest._KG_API_TOKEN
-    print("Set new EBRAINS KG access token to $HBP_AUTH_TOKEN. The token is:")
-    print(os.environ['HBP_AUTH_TOKEN'])
+    try:
+        siibra.fetch_ebrains_token()
+        print(siibra.EbrainsRequest._KG_API_TOKEN)
+    except SiibraHttpRequestError:
+        exit(1)
 
 
 # ---- Searching for things
