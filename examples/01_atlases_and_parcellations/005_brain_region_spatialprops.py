@@ -20,7 +20,7 @@ space = atlas.spaces.MNI152_2009C_NONL_ASYM
 # Also note that in `siibra`, spatial properties are always represented in
 # millimeter units of the physical coordinate system of the reference space,
 # not in voxel units.
-v1_left = atlas.get_region("v1 left")
+v1_left = atlas.get_region("v1 left", parcellation="2.9 152")
 props = v1_left.spatial_props(space)
 pprint(props)
 

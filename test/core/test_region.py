@@ -84,8 +84,8 @@ hoc1_right_mni152: Region = atlas.get_region(region='hoc1 right', parcellation=j
 def test_actual_region():
     assert hoc1_right_mni152 is not None
     assert hoc1_right_mni152.name == 'Area hOc1 (V1, 17, CalcS) right'
-    assert hoc1_right_mni152._parcellation is not None
-    assert hoc1_right_mni152._parcellation is jba_29_mni152
+    assert hoc1_right_mni152.parcellation is not None
+    assert hoc1_right_mni152.parcellation is jba_29_mni152
 
 # pydantic does not allow property setter
 # see https://github.com/samuelcolvin/pydantic/issues/1577

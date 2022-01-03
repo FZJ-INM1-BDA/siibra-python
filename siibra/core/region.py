@@ -28,9 +28,8 @@ import numpy as np
 import nibabel as nib
 from memoization import cached
 import re
-import anytree
-from anytree import NodeMixin
-from typing import Any, Dict, Generic, List, Tuple, TypeVar, Union
+from anytree import NodeMixin, PreOrderIter, search, RenderTree
+from typing import Any, Dict, List, Union
 from nibabel import Nifti1Image
 from ..openminds.SANDS.v3.atlas import parcellationEntityVersion, parcellationEntity
 from ..openminds.common import CommonConfig
@@ -53,6 +52,9 @@ class MixedNode(NodeMixin):
     def __init__(self, ref):
         self.ref = ref
 
+    def __getattr__(self, attr: str):
+        return getattr(self.ref, attr)
+
 class SiibraNode:
     def __init__(self):
         # if this line raises ValueError: object has no field "_node"
@@ -67,28 +69,36 @@ class SiibraNode:
     def parent(self):
         return self._node.parent and self._node.parent.ref
 
+    @property
+    def leaves(self):
+        return self._node.leaves
+
     # do not use attribute setter
     # see https://github.com/samuelcolvin/pydantic/issues/1577
     def set_parent(self, value):
         self._node.parent = value and value._node
 
-    def find(self, *arg, **kwargs) -> List['SiibraNode']:
+    def find(self, *arg, filter_children=False, build_group=False, groupname=None, **kwargs) -> List['SiibraNode']:
         """
         Proxy to [anytree.search.findall](https://anytree.readthedocs.io/en/latest/_modules/anytree/search.html)
 
         filter_: callable
         
         """
-        if len(arg) > 0 and type(arg[0]) == str:
+        if len(arg) > 0:
             region_spec = arg[0]
             kwargs['filter_'] = lambda node: node.ref.matches(region_spec)
             arg = arg[1:]
 
-        return [mixed_node.ref for mixed_node in anytree.search.findall(
+        return [mixed_node.ref for mixed_node in search.findall(
             self._node,
             *arg,
             **kwargs
         )]
+
+    def __iter__(self):
+        print('iter!')
+        return (node.ref for node in PreOrderIter(self._node))
 
 class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     """
@@ -110,16 +120,24 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
     _legacy_json = None
 
     @property
-    def index(self) -> str:
-        return self.lookup_label
+    def index(self) -> int:
+        return self._legacy_json.get('labelIndex')
 
     @property
-    def _parcellation(self):
+    def parcellation(self):
         try:
             return main_openminds_registry[self._parcellation_id] if self._parcellation_id else None
         except IndexError as e:
             logger.warning(f"cannot find parcellation with parc id {self._parcellation_id}")
             return None
+
+    @property
+    def volumes(self):
+        if not self.has_annotation:
+            return []
+        if not self.has_annotation.inspired_by:
+            return []
+        return [main_openminds_registry[at_id] for at_id in self.has_annotation.inspired_by]
 
     def __init__(
         self,
@@ -173,7 +191,9 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         # self.extended_from = None
         # child_has_mapindex = False
 
-        
+    def __iter__(self):
+        return SiibraNode.__iter__(self)
+
     @staticmethod
     def copy(other: 'Region'):
         """
@@ -343,8 +363,8 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         """
         # the simplest case: the region has a non-empty parcellation index. Then we can assume it is mapped.
         if (
-            self.index != ParcellationIndex(None, None) and
-            len([v for v in self.parcellation.volumes if v.space==space])
+            self.index and
+            len([v for v in self.parcellation.volumes if v.space == space])
         ):
             # Region has a non-empty parcellation index, 
             # *and* the parcellation provides a volumetric map in the requested space.
@@ -487,7 +507,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             "%s%s" % (pre, node.name)
             if hasattr(node, 'extended_from') and node.extended_from is None
             else "%s%s [extension region]" % (pre, node.name)
-            for pre, _, node in anytree.RenderTree(self)
+            for pre, _, node in RenderTree(self)
         )
 
     @cached
@@ -686,21 +706,42 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
         """
         print(self.__repr__())
 
-    def __iter__(self):
-        """
-        Returns an iterator that goes through all regions in this subtree
-        (including this parent region)
-        """
-        return anytree.PreOrderIter(self)
-
     @classmethod
     def parse_legacy(Cls, json_input: Dict[str, Any], parcellation_id=None, parent:'Region'=None) -> List['Region']:
-        regionname = Cls._clear_name(json_input.get('name'))
+        from ..volumes import VolumeSrc
+
+        _name = json_input.get('name')
+        regionname = Cls._clear_name(_name)
         idx=json_input.get('labelIndex')
         
         id = f"{parcellation_id}-{AtlasConcept._create_key((regionname+str(idx))).replace('NONE','X')}"
-        has_annotation=None
-        has_parent=None
+
+        laterality = []
+        if 'left' in _name:
+            laterality.append({
+                "@id": "https://openminds.ebrains.eu/instances/laterality/left"
+            })
+        if "right" in _name:
+            laterality.append({
+                "@id": "https://openminds.ebrains.eu/instances/laterality/right"
+            })
+
+        pms = [ file
+            for dataset in json_input.get('datasets', [])
+            if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
+            for file in VolumeSrc.parse_legacy(dataset) ]
+
+        has_annotation={
+            "criteriaQualityType": {
+                # TODO check criteriaQualityType
+                "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted	"
+            },
+            "internalIdentifier": f"{id}-annotation",
+            "displayColor": "#{0:02x}{1:02x}{2:02x}".format(*json_input.get('rgb')) if json_input.get('rgb') else None,
+            "laterality": laterality if len(laterality) > 0 else None,
+            "inspiredBy": [{ "@id": pm.id } for pm in pms]
+        }
+            
         this_region = Cls(
             id=id,
             name=regionname,
@@ -724,7 +765,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             )
         ]
 
-        return [ this_region, *children ]
+        return [ this_region, *children, *pms ]
 
 
 @provide_openminds_registry(registry_src=RegistrySrc.EMPTY)

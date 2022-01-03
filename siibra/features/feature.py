@@ -216,7 +216,7 @@ class RegionalFeature(Feature):
 
         try:
             if isinstance(concept, Region):
-                atlases = concept._parcellation._atlases
+                atlases = concept.parcellation._atlases
             if isinstance(concept, Parcellation):
                 atlases = concept._atlases
             if isinstance(concept, Atlas):

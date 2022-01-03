@@ -12,7 +12,7 @@ class TestVolumeSrc(unittest.TestCase):
             "@id": "json_id",
             "@type": "fzj/tmp/volume_type/v0.0.1",
             "name": "json_name",
-            "space_id": spaces[0],
+            "space_id": spaces[0].id,
             "volume_type": "nii",
             "url": "http://localhost/test",
         }

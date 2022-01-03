@@ -13,12 +13,12 @@ julich_brain = atlas.get_parcellation('julich 2.9')
 
 # %%
 # The most basic way is to search for all regions matching a particular string:
-julich_brain.regiontree.find('V1')
+# julich_brain.regiontree.find('V1')
 
 # %%
 # For convenience, querying the root node can be done directly from the
 # parcellation object:
-julich_brain.find_regions('V1')
+# julich_brain.find_regions('V1')
 
 # %%
 # For more fine grained searches, powerful regular expressions can be used. Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.

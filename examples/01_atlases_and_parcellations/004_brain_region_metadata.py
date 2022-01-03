@@ -44,8 +44,13 @@ v1l = v1.children[0]
 # In this case we can retrieve more detailed information from the EBRAINS Knowledge Graph.
 
 # print some metadata of the brain region
-for infodata in v1l.infos:
-    print(infodata.description); print()
-    for p in infodata.publications:
-        print(p['cite']); print()
+
+# TODO no longer how to fetch info on region
+# check with lyuba on how it is done
+# see https://humanbrainproject.github.io/openMINDS/v3/
+# and https://humanbrainproject.github.io/openMINDS/v3/SANDS/v3/atlas/parcellationEntityVersion.html
+# for infodata in v1l.infos:
+#     print(infodata.description); print()
+#     for p in infodata.publications:
+#         print(p['cite']); print()
 

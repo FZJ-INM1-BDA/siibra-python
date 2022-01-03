@@ -108,6 +108,13 @@ class Space(
                 for i, v in enumerate(point2)]
         return self.get_bounding_box(point1, point2)
 
+    def __eq__(self, other: Union['Space', str]):
+        if isinstance(other, str):
+            return self.id == other
+        if isinstance(other, Space):
+            return self.id == other.id
+        raise RuntimeError(f'Cannot compare Space with {type(other)}')
+
     def __lt__(self, other):
         return self.type < other.type
 
@@ -367,7 +374,7 @@ class Point(coordinatePoint.Model, Location):
             (will be intrepreded as the isotropic standard deviation of the location)
         """
         coordinatePoint.Model.__init__(self, **data)
-        self._sigma = sigma
+        self._sigma = sigma_mm
 
         space_id = None
         if isinstance(space, Space):

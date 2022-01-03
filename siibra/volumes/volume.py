@@ -21,6 +21,8 @@ from ..commons import MapType
 from ..core.datasets import Dataset
 from ..core.space import Space, BoundingBox
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE
+from ..core.concept import main_openminds_registry
+
 
 from ctypes import ArgumentError
 import numpy as np
@@ -142,9 +144,11 @@ class VolumeSrc(File):
 
     _SPECIALISTS: ClassVar[dict] = {}
     _space = None
+    _space_id = None
     _volume_type = None
     _map_type = None
     _detail = None
+    _legacy_json = None
 
     def __init__(self, space=None, detail=None, **data):
         """
@@ -189,6 +193,14 @@ class VolumeSrc(File):
         return self.url
 
     @property
+    def space(self) -> Space:
+        if self._space:
+            return self._space
+        if self._space_id:
+            return main_openminds_registry[self._space_id]
+        return None
+
+    @property
     def is_image_volume(self):
         return True
     
@@ -209,8 +221,12 @@ class VolumeSrc(File):
         VolumeClass = Cls._SPECIALISTS.get(volume_type, VolumeSrc)
 
         result = super().parse_legacy(json_input)
+        for r in result:
+            r._legacy_json = json_input
+            if json_input.get('space_id'):
+                r._space_id = Space.parse_legacy_id(json_input.get('space_id'))
 
-        if VolumeClass == VolumeSrc:
+        if VolumeClass is VolumeSrc:
             logger.error(f"Volume will be generated as plain VolumeSrc: {json_input}")
             return result
         

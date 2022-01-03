@@ -15,7 +15,6 @@
 
 from datetime import date
 from memoization import cached
-from anytree import Node
 import difflib
 from typing import Any, Dict, List, Optional, Union
 
@@ -176,11 +175,10 @@ class BrainAtlas(brainAtlas.Model):
 class Parcellation(
     brainAtlasVersion.Model,
     AtlasConcept,
-    SiibraNode,
 ):
 
     _atlases = set()
-    _node = None
+    _root_region = None
 
     def __init__(
         self,
@@ -210,11 +208,12 @@ class Parcellation(
         """
         brainAtlasVersion.Model.__init__(self,**data)
         AtlasConcept.__init__(self, self.id, self.full_name, dataset_specs)
-        SiibraNode.__init__(self)
+
         all_regions: List[Region] = [entity for entity in self.has_terminology_version.has_entity_version if isinstance(entity, Region)]
         root_regions = [ r for r in  all_regions if r.parent is None ]
-        for r in root_regions:
-            r.set_parent(self)
+        
+        assert len(root_regions) == 1, f'expecting one and only one root region, but got {len(root_regions)}'
+        self._root_region = root_regions[0]
 
         # self.version = version
         # self.description = ""
@@ -225,14 +224,35 @@ class Parcellation(
         #         self._datasets_cached = []
         #     self._datasets_cached.extend(maps)
 
+    # TODO backwards compat
+    @property
+    def version(self) -> str:
+        return self.version_identifier
+
+    # TODO backwards compat
+    @property
+    def name(self) -> str:
+        return self.full_name
+    
+    # TODO backwards compat
+    @property
+    def publications(self) -> List[str]:
+        return self.related_publication or []
+
     @property
     def space(self) -> Space:
         return main_openminds_registry[self.coordinate_space]
 
     # TODO deprecate?
     @property
-    def regiontree(self) -> Node:
-        return self._node
+    def regiontree(self) -> Region:
+        return self._root_region
+
+    # TODO deprecate
+    # instead have a root region object, and regiontree should return the root region object
+    @property
+    def name(self) -> str:
+        return self.full_name
 
     @property
     def volumes(self):
@@ -345,7 +365,7 @@ class Parcellation(
         if build_group:
             # TODO discuss reenable build-group?
             raise NotImplementedError(f'build_group option has been temporarily diabled')
-        candidates = self.find(regionspec)
+        candidates = self.regiontree.find(regionspec)
 
         if not candidates:
             raise ValueError(
@@ -562,18 +582,51 @@ class Parcellation(
                 if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1' and dataset.get('space_id') == spc_id
                 for file in VolumeSrc.parse_legacy(dataset) ]
 
-            # TODO discuss index the mpms in main registry?
-            # append_openminds_entities.extend(mpms)
+            # append mpms in main openminds registry
+            append_openminds_entities.extend(mpms)
 
             return mpms
 
         def get_has_terminology_version(spc_id: str):
 
             # TODO discuss: register regions at main_openminds_registry?
-            regions_entities = [entity
+
+            # if regions do not have a single root, create a single root here
+            parent = None
+            if len(json_input.get('regions')) != 1:
+                id = f"{parc_id}-root"
+                parent = Region(
+                    id=id,
+                    name='Whole brain',
+                    type='https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
+                    has_annotation=None,
+                    lookup_label=None,
+                    parcellation_id=parc_id,
+                    version_identifier='12',
+                    parent=None
+                )
+
+            parsed_legacy_regions = [entity
                 for r in json_input.get('regions')
-                for entity in Region.parse_legacy(r, parcellation_id=Parcellation.parse_legacy_id(parc_id, spc_id))
+                for entity in Region.parse_legacy(
+                    r,
+                    parcellation_id=Parcellation.parse_legacy_id(parc_id, spc_id),
+                    parent=parent)
             ]
+
+            regions_entities = [ entity
+                for entity in parsed_legacy_regions
+                if isinstance(entity, Region)]
+            
+            # parsed non region entities
+            # e.g. PMs
+            other_parsed_entities = [ entity
+                for entity in parsed_legacy_regions
+                if not isinstance(entity, Region)]
+            append_openminds_entities.extend(other_parsed_entities)
+
+            if parent is not None:
+                regions_entities.append(parent)
 
             mpm_entities = get_mpm(spc_id)
             

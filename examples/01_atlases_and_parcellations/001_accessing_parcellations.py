@@ -18,7 +18,7 @@ dir(siibra.parcellations)
 
 # %%
 # Fetching an object works in the same way as for `siibra.atlases` (see :ref:`atlases`)
-julich_brain = siibra.parcellations['julich']
+julich_brain = siibra.parcellations['julich 1.18 colin']
 
 # %%
 # Parcellations typically refer to entities in the EBRAINS knowledge graph,
@@ -36,22 +36,22 @@ dir(atlas.parcellations)
 
 # %%
 # These can be used like any other registry object:
-atlas.parcellations['julich']
+atlas.parcellations['julich 1.18 colin']
 
 # %%
 # Note that this specification matched multiple objects. Since `siibra` was
 # able to sort them, it returned the first in the list, which is the one with
 # the newest version. We can of course refine the specification to fetch
 # another version.
-print(atlas.parcellations['julich'].version)
-atlas.parcellations['julich 1.18'].version
+print(atlas.parcellations['julich 1.18 colin'].version)
+atlas.parcellations['julich 1.18 colin'].version
 
 # %%
 # We can also explicitely request a supported parcellation object from the
 # atlas, which has the same effect as accessing the Registry.
-atlas.get_parcellation('long bundles')
+atlas.get_parcellation('long bundle')
 
-jubrain = atlas.get_parcellation('julich') # will return the latest version per default
+jubrain = atlas.get_parcellation('julich 2.9 colin') # will return the latest version per default
 
 # %%
 # The resulting parcellation is a semantic object, including 
@@ -65,10 +65,10 @@ jubrain = atlas.get_parcellation('julich') # will return the latest version per 
 # just look at a few metadata fields:
 print("Name:    ",jubrain.name)
 print("Id:      ",jubrain.id)
-print("Modality:",jubrain.modality)
+# print("Modality:",jubrain.modality)
 print()
 print(jubrain.description)
 print()
 for p in jubrain.publications:
-    print(p['cite'])
+    print(p)
 
