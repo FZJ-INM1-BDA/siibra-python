@@ -1,5 +1,11 @@
 # Refactor notes
 
+## TODO
+
+- 01 / 005 -> get_regional_maps breaking change
+- 02 / 001 -> alias with space
+- 02 / 003 +
+
 ## Important conceptual changes
 
 - Each parcellation (BrainAtlasVersion) **must** have an associated space. This means, for example, Julich 2.9 will need to be broken into 6 parcellations
