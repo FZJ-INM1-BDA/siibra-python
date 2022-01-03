@@ -1,0 +1,611 @@
+[
+    {
+        "Region specification":"Supramarginal (SM)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"mesial precentral gyrus",
+        "Qualification":null
+    },
+    {
+        "Region specification":"hMT+\/V5",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc5 (LOC)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Visual Area v3",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc3v (LingG), Area hOc3d (Cuneus)",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"CA (Hippocampus)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"CA1, CA2, CA3",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"Frontal Neocortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"frontal lobe",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Inferior Temporal (IT)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Temporal cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Inferior Parietal (IP)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Inferior Parietal Lobule",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Rostral Anterior Cingulate (RAC)",
+        "Origin parcellation":"Superficial Fibre Bundles",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Cingulate gyrus frontal part",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Transverse Temporal (TT)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Putamen",
+        "Origin parcellation":"DiFuMo 64",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Posterior segment of the  arcuate fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Area i29 (retrosplenial)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"temporal cingulate fibres",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"human occipetal area 1",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc1 (V1, 17, CalcS)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"PreS (Subiculum)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"HC-Subiculum (Hippocampus)",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"medial temporal lobe",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal Lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Area 47",
+        "Origin parcellation":"Brodmann",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Lateral Orbitofrontal",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Insula (Ins)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Insula",
+        "Qualification":null
+    },
+    {
+        "Region specification":"TrS (Transsubiculum)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"HC-Transsubiculum (Hippocampus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Direct segment of the  arcuate fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"primary visual cortex (V1)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc1 (V1, 17, CalcS)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"short cingulate fibres",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Cingulate Neocortex",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Lateral Occipital (LO)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Lateral Occipital Cortex",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Pars Orbitalis (Or)",
+        "Origin parcellation":"Difumo 256",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal Operculum",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"inferior fronto-occipital fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"ProS (Subiculum)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"HC-Subiculum (Hippocampus)",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Superior Temporal (ST)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"STS1, STS2",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"Superior Parietal (SP)",
+        "Origin parcellation":"Julich-Brain",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Superior Parietal Lobule",
+        "Qualification":"close"
+    },
+    {
+        "Region specification":"Precuneus (PrCu)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Parietal Lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Anterior segment of the  arcuate fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Pars Opercularis (Op)",
+        "Origin parcellation":"Difumo 256",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Posterior Cingulate (PoCi)",
+        "Origin parcellation":"Difumo 256",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Area 9",
+        "Origin parcellation":"Brodmann",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"fornix",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"inferior longitudinal fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Middle Temporal (MT)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Caudal Middle Frontal (CMF)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Rostral Middle Frontal (RMF)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"anterior Thalamic nucleus",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Thalamus",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"anterior insular cortex",
+        "Origin parcellation":"Difumo 128",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Insula",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Superior Frontal (SF)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Fusiform (Fu)",
+        "Origin parcellation":"Julich-Brain",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Fusiform Gyrus",
+        "Qualification":null
+    },
+    {
+        "Region specification":"FD (DG)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"DG (Hippocampus)",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"long cingulate fibres",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"Prefrontal cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"medial parietal cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Parietal lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Cuneus (Cu)",
+        "Origin parcellation":"Difumo 64",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"hOc4d, hOc3d",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"corticospinal tract",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"somatosensory cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area 3a (PostCG), Area 3b (PostCG)",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"Whole brain",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Julich-brain",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Isthmus Cingulate (IC)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Auditory Cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Superior temporal gyrus",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Postcetnral (PoC)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"postcentral gyrus",
+        "Qualification":"close"
+    },
+    {
+        "Region specification":"Sub (Subiculum)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"HC-Subiculum (Hippocampus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Pars Triangularis (Tr)",
+        "Origin parcellation":"Difumo128",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Postcentral (PoC)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Postcentral gyrus",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Middle Orbitofrontal (MOF)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Medial orbitofrontal cortex",
+        "Qualification":null
+    },
+    {
+        "Region specification":"dorsal anterior cingulate cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Temporal Neocortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Motor cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area 4a (PreCG), Area 4p (PreCG)",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"Superior Parietal  (SP)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Superior parietal lobule",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Caudal Anterior Cingulate (CAC)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"cingulate gyrus, frontal part",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"human occipetal area 2",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc2 (V2, 18)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Lingual (Li)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Occipital cortex",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Visual Cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Occipital cortex",
+        "Qualification":"approximate"
+    },
+    {
+        "Region specification":"Dentate Gyrus",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"DG (Hippocampus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Corpus geniculatum laterale (CGL, LGB, metathalamus)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"CGL (Metathalamus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"human occipetal area 3",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc3v (LingG), Area hOc3d (Cuneus)",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"uncinate fasciculus",
+        "Origin parcellation":"Long white matter bundles",
+        "Matched parcellation":null,
+        "Matched region":null,
+        "Qualification":null
+    },
+    {
+        "Region specification":"CA4 (DG)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"DG (Hippocampus)",
+        "Qualification":"contains"
+    },
+    {
+        "Region specification":"Area a30 (retrosplenial)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"anterior temporal cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Supramarginal (SP)",
+        "Origin parcellation":"Desikan Killiany",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Mesial precentral gyrus",
+        "Qualification":"?"
+    },
+    {
+        "Region specification":"Precentral (PrC)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Precentral gyrus",
+        "Qualification":"close"
+    },
+    {
+        "Region specification":"Mediodorsal Thalamic Nucleus",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Thalamus",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Brodmann area 21",
+        "Origin parcellation":"Brodmann",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Corpus geniculatum mediale (CGM, MGB, metathalamus)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"CGM (Metathalamus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Visual cortex area 17",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area hOc1 (V1, 17, CalcS)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Area 46",
+        "Origin parcellation":"Brodmann",
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Frontal lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Lateral Orbitofrontal (LOF)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Lateral orbitofrontal cortex",
+        "Qualification":null
+    },
+    {
+        "Region specification":"superior occipital cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Occipital cortex",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"Area a29 (retrosplenial)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Limbic lobe",
+        "Qualification":"contained"
+    },
+    {
+        "Region specification":"PaS (Subiculum)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"HC-Subiculum (Hippocampus)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"Area Ia (Insula)",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Area Ia1 (Insula)",
+        "Qualification":null
+    },
+    {
+        "Region specification":"medial temporal cortex",
+        "Origin parcellation":null,
+        "Matched parcellation":"Julich-Brain",
+        "Matched region":"Temporal lobe",
+        "Qualification":"contained"
+    }
+]

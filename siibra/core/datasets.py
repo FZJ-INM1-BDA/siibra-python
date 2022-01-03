@@ -16,8 +16,9 @@
 from datetime import datetime
 from typing import Any, Dict, List
 from ..commons import logger
-from ..retrieval import EbrainsRequest
 from ..openminds.core.v4.products import datasetVersion
+from ..retrieval import EbrainsKgQuery
+
 import re
 
 
@@ -45,8 +46,19 @@ class Dataset:
         cls.type_id = type_id
 
     @property
-    def is_image_volume(self):
-        """Overwritten by derived dataset classes in the siibra.volumes"""
+    def is_volume(self):
+        """Return True if this dataset represents a brain volume source.
+
+        This property is overwritten by siibra.volumes.VolumeSrc
+        """
+        return False
+
+    @property
+    def is_surface(self):
+        """Return True if this dataset represents a brain volume surface. 
+        
+        This property is overwritten by siibra.volumes.VolumeSrc
+        """
         return False
 
     @property
@@ -125,7 +137,7 @@ class EbrainsDataset(datasetVersion.Model):
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
-        self._detail_loader = EbrainsRequest(
+        self._detail_loader = EbrainsKgQuery(
             query_id="interactiveViewerKgQuery-v1_0",
             instance_id=match.group(1),
             params={"vocab": "https://schema.hbp.eu/myQuery/"},

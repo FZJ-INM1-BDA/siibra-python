@@ -1,4 +1,5 @@
 -r ../requirements.txt
+memory-profiler
 ipykernel
 nbsphinx
 pylint
@@ -7,3 +8,4 @@ sphinx-autoapi
 IPython
 m2r2
 sphinx-gallery
+matplotlib

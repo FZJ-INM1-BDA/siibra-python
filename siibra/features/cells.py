@@ -24,6 +24,7 @@ from ..retrieval.repositories import GitlabConnector, OwncloudConnector
 import numpy as np
 import os
 import importlib
+import pandas as pd
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -32,7 +33,7 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data.
     """
 
-    def __init__(self, regionspec, cells, connector, folder, species):
+    def __init__(self, regionspec: str, cells: pd.DataFrame, connector, folder, species):
 
         _, section_id, patch_id = folder.split("/")
         RegionalFeature.__init__(self, regionspec, species=species)
@@ -42,28 +43,37 @@ class CorticalCellDistribution(RegionalFeature):
 
         # construct lazy data loaders
         self._info_loader = connector.get_loader(
-            "info.txt", folder, CorticalCellDistribution.decode_infotxt
+            "info.txt", folder, CorticalCellDistribution._decode_infotxt
         )
         self._image_loader = connector.get_loader("image.nii.gz", folder)
         self._layerinfo_loader = connector.get_loader(
-            "layerinfo.txt", folder, CorticalCellDistribution.decode_layerinfo
+            "layerinfo.txt", folder, CorticalCellDistribution._decode_layerinfo
         )
         self._connector = connector
 
     @staticmethod
-    def decode_infotxt(b):
+    def _decode_infotxt(b):
         return dict(_.split(" ") for _ in b.decode("utf8").strip().split("\n"))
 
     @staticmethod
-    def decode_layerinfo(b):
-        return np.array(
-            [tuple(_.split(" ")[1:]) for _ in b.decode().strip().split("\n")[1:]],
+    def _decode_layerinfo(b):
+        data =  np.array(
+            [tuple(_.split(" ")) for _ in b.decode().strip().split("\n")[1:]],
             dtype=[
-                ("layer", "U10"),
+                ("index", "i"),
+                ("label", "U10"),
                 ("area (micron^2)", "f"),
                 ("avg. thickness (micron)", "f"),
             ],
         )
+        return pd.DataFrame(data)
+
+    def layer_density(self, layerindex: int):
+        """ Compute density of segmented cells for given layer in cells / mm^2. """
+        assert layerindex in range(1, 7)
+        num_cells = self.cells[self.cells['layer']==layerindex].shape[0]
+        area = self.layers[self.layers['index']==layerindex].iloc[0]['area (micron^2)'] 
+        return num_cells / area * 1e3**2
 
     def load_segmentations(self):
         from PIL import Image
@@ -173,7 +183,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
             'name': 'Homo sapiens'
         }
         for cellfile, loader in self._JUGIT.get_loaders(
-            suffix="segments.txt", recursive=True
+            suffix="segments.txt", recursive=True, decode_func=lambda b: b.decode()
         ):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
@@ -191,5 +201,5 @@ class RegionalCellDensityExtractor(FeatureQuery):
                 ]
             )
             self.register(
-                CorticalCellDistribution(regionspec, cells, self._SCIEBO, region_folder, species=species)
+                CorticalCellDistribution(regionspec, pd.DataFrame(cells), self._SCIEBO, region_folder, species=species)
             )

@@ -304,7 +304,14 @@ class AtlasConcept:
         """
         The list of available datasets representing image volumes.
         """
-        return [d for d in self.datasets if d.is_image_volume]
+        return [d for d in self.datasets if d.is_volume]
+
+    @property
+    def surfaces(self):
+        """
+        The list of available datasets representing surface volumes.
+        """
+        return [d for d in self.datasets if d.is_surface]
 
     @property
     def has_volumes(self):
@@ -312,11 +319,16 @@ class AtlasConcept:
         return len(self.volumes) > 0
 
     @property
+    def has_surfaces(self):
+        """Returns True, if this concept can provide a surface volume."""
+        return len(self.surfaces) > 0
+
+    @property
     def infos(self):
         """
         List of available datasets representing additional information.
         """
-        return [d for d in self.datasets if not d.is_image_volume]
+        return [d for d in self.datasets if not d.is_volume]
 
     @property
     def publications(self):

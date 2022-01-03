@@ -15,7 +15,6 @@
 
 from datetime import date
 from memoization import cached
-import difflib
 from typing import Any, Dict, List, Optional, Union
 
 
@@ -28,6 +27,9 @@ from ..commons import Registry, logger, MapType, ParcellationIndex
 from ..openminds.common import CommonConfig
 from ..openminds.SANDS.v3.atlas import brainAtlasVersion, brainAtlas, parcellationEntityVersion
 
+from typing import Union
+from memoization import cached
+from difflib import SequenceMatcher
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -310,6 +312,33 @@ class Parcellation(
     def names(self):
         return self.regiontree.names
 
+    def get_colormap(self):
+        """Generate a matplotlib colormap from known rgb values of label indices."""
+        from matplotlib.colors import ListedColormap
+        import numpy as np
+
+        colors = {
+            r.index.label: r.attrs["rgb"]
+            for r in self.regiontree
+            if "rgb" in r.attrs and r.index.label
+        }
+        pallette = np.array(
+            [
+                colors[i] + [1] if i in colors else [0, 0, 0, 0]
+                for i in range(max(colors.keys()) + 1)
+            ]
+        ) / [255, 255, 255, 1]
+        return ListedColormap(pallette)
+
+    @property
+    def supported_spaces(self):
+        """Overwrite the method of AtlasConcept.
+        For parcellations, a space is also considered as supported if one of their regions is mapped in the space.
+        """
+        return {
+            space for region in self.regiontree for space in region.supported_spaces
+        }
+
     def supports_space(self, space: Space) -> bool:
         """
         Return true if this parcellation supports the given space, else False.
@@ -336,9 +365,7 @@ class Parcellation(
     def publications(self):
         return self._publications + super().publications
 
-    def decode_region(
-        self, regionspec: Union[str, int, ParcellationIndex, Region], build_group=False
-    ) -> Region:
+    def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region]):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -361,12 +388,17 @@ class Parcellation(
         ------
         Region object
         """
+        if isinstance(regionspec, Region) and (regionspec.parcellation == self):
+            return
 
-        if build_group:
-            # TODO discuss reenable build-group?
-            raise NotImplementedError(f'build_group option has been temporarily diabled')
-        candidates = self.regiontree.find(regionspec)
+        if isinstance(regionspec, str) and ("Group:" in regionspec):
+            # seems to be a group region name - build the group region by recursive decoding.
+            subspecs = regionspec.replace("Group:", "").split(",")
+            return Region._build_grouptree(
+                [self.decode_region(s) for s in subspecs], parcellation=self
+            )
 
+        candidates = self.regiontree.find(regionspec, filter_children=True)
         if not candidates:
             raise ValueError(
                 "Regionspec {} could not be decoded under '{}'".format(
@@ -375,22 +407,21 @@ class Parcellation(
             )
         elif len(candidates) == 1:
             return candidates[0]
-        elif len(candidates) > 1:
-            logger.debug(f"decode_region found multiple matches")
-            common_ancestor_candidates = [
-                c
-                for c in candidates
-                if all(
-                    compare is c or c._node in compare._node.ancestors
-                    for compare in candidates
-                )
-            ]
-            if len(common_ancestor_candidates) == 1:
-                return common_ancestor_candidates[0]
-            else:
-                raise ValueError(f"no common ancestor found: {len(common_ancestor_candidates)} with spec {regionspec}")
         else:
-            raise ValueError(f'Multiple candidates found for spec {regionspec}: {str(len(candidates))}')
+            if isinstance(regionspec, str):
+                scores = [
+                    SequenceMatcher(None, regionspec, region.name).ratio()
+                    for region in candidates
+                ]
+                bestmatch = scores.index(max(scores))
+                logger.info(
+                    f"Decoding of spec {regionspec} resulted in multiple matches: "
+                    f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}"
+                )
+                return candidates[bestmatch]
+            raise RuntimeError(
+                f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
+            )
 
     @cached
     def find_regions(
@@ -422,12 +453,22 @@ class Parcellation(
             regionspec,
             filter_children=filter_children,
             build_group=build_group,
-            groupname=groupname
+            groupname=groupname,
         )
 
         # Perform ranking of return result, if the spec provided is a string. Otherwise, return the unsorted found_regions
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        return sorted(found_regions,reverse=True, key=lambda region: difflib.SequenceMatcher(None, str(region), regionspec).ratio()) if type(regionspec) == str else found_regions
+        return (
+            sorted(
+                found_regions,
+                reverse=True,
+                key=lambda region: SequenceMatcher(
+                    None, str(region), regionspec
+                ).ratio(),
+            )
+            if type(regionspec) == str
+            else found_regions
+        )
 
     def __str__(self):
         return self.full_name

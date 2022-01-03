@@ -19,6 +19,8 @@
 import click
 import os
 
+from siibra.retrieval.requests import SiibraHttpRequestError
+
 # ---- Autocompletion
 
 
@@ -144,6 +146,17 @@ def template(ctx, space):
     click.echo(f"Output written to {fname}.")
 
 
+@get.command()
+def ebrainstoken():
+    """Retrieve a parcellation map in the given space"""
+    import siibra
+    try:
+        siibra.fetch_ebrains_token()
+        print(siibra.EbrainsRequest._KG_API_TOKEN)
+    except SiibraHttpRequestError:
+        exit(1)
+
+
 # ---- Searching for things
 
 
@@ -187,7 +200,10 @@ def region(ctx, region, parcellation, tree):
         exit(1)
     for i, m in enumerate(matches):
         txt = m.__repr__() if tree else m.name
-        click.echo(f"{i:5} - {txt}")
+        if parcellation is None:
+            click.echo(f"{i:5} | {m.parcellation.name:30.30} | {txt}")
+        else:
+            click.echo(f"{i:5}  {txt}")
 
 
 @find.command()

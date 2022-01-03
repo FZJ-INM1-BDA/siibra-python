@@ -16,7 +16,7 @@
 from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__ = "0.3a6"
+__version__ = "0.3a8"
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -32,6 +32,7 @@ from .core.space import Location as _
 from . import samplers
 from_sands = _.from_sands
 set_ebrains_token = EbrainsRequest.set_token
+fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
 
 

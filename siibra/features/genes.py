@@ -174,7 +174,6 @@ class AllenBrainAtlasQuery(FeatureQuery):
                 # When the Allen site is not available, they still send a status code 200.
                 raise RuntimeError(f"Allen institute site unavailable - please try again later.")
             root = ElementTree.fromstring(response)
-            print(root.attrib.keys())
             num_probes = int(root.attrib["total_rows"])
             probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
 
@@ -182,7 +181,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             self._specimen = {
                 spcid: self._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
             }
-            response = json.loads(HttpRequest(self._QUERY["factors"]).get())
+            response = HttpRequest(self._QUERY["factors"]).get()
             self.factors = {
                 item["id"]: {
                     "race": item["race_only"],
@@ -193,17 +192,16 @@ class AllenBrainAtlasQuery(FeatureQuery):
             }
 
             # get expression levels and z_scores for the gene
-            for donor_id in self._DONOR_IDS:
-                self._retrieve_microarray(donor_id, probe_ids)
+            if len(probe_ids)>0:
+                for donor_id in self._DONOR_IDS:
+                    self._retrieve_microarray(donor_id, probe_ids)
 
     def _retrieve_specimen(self, specimen_id):
         """
         Retrieves information about a human specimen.
         """
         url = self._QUERY["specimen"].format(specimen_id=specimen_id)
-        response = json.loads(
-            HttpRequest(url).get()
-        )  # ,msg_if_not_cached="Retrieving specimen information for id {}".format(specimen_id)))
+        response = HttpRequest(url).get()
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving specimen information: {}".format(url)
@@ -228,12 +226,14 @@ class AllenBrainAtlasQuery(FeatureQuery):
         152 space to generate a SpatialFeature object for each sample.
         """
 
+        if len(probe_ids)==0:
+            return
+
         # query the microarray data for this donor
         url = self._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
         response = HttpRequest(url, json.loads).get()
-        # response = json.loads(retrieval.cached_get(url))
         if not response["success"]:
             raise Exception(
                 "Invalid response when retrieving microarray data: {}".format(url)

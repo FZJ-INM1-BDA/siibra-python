@@ -16,7 +16,6 @@
 from datetime import date
 from typing import Any, Dict, Iterable, List, Tuple, Union
 from pydantic import BaseModel
-from cloudvolume import Bbox
 import re
 import numpy as np
 from abc import ABC, abstractmethod
@@ -68,21 +67,47 @@ class Space(
             for img in self.default_image
         ]
 
-    def get_template(self):
+    def get_template(self, variant=None):
         """
-        Get the volumetric reference template image for this space.
+        Get the volumetric reference template for this space.
+
+        Parameters
+        ----------
+        variant: str (optional)
+            Some templates are provided in different variants, e.g.
+            freesurfer is available as either white matter, pial or
+            inflated surface for left and right hemispheres (6 variants).
+            This field could be used to request a specific variant.
+            Per default, the first found variant is returned.
 
         Yields
         ------
-        A nibabel Nifti object representing the reference template, or None if not available.
-        TODO Returning None is not ideal, requires to implement a test on the other side.
+        A VolumeSrc object representing the reference template, or None if not available.
         """
-        candidates = [vsrc for vsrc in self.volumes if vsrc.volume_type == self.type]
-        if not len(candidates) == 1:
+        candidates = {
+            d.name: d
+            for d in self.datasets
+            if d.is_volume and d.volume_type == self.type
+        }
+        if variant is None:
+            variant = next(iter(candidates.keys()))
+            if len(candidates) > 1:
+                logger.warn(
+                    f"Multiple template variants available for {self.name}. "
+                    f"Returning the first, '{variant}', but you could have chosen "
+                    f"any of {', '.join(candidates.keys())}."
+                )
+        if variant not in candidates.keys():
             raise RuntimeError(
-                f"Could not resolve template image for {self.name}. This is most probably due to a misconfiguration of the volume src."
+                f"Template variant '{variant}' not available for {self.name}. "
+                f"Available variants are {', '.join(candidates.keys())}"
             )
-        return candidates[0]
+
+        return candidates[variant]
+
+    @property
+    def is_surface(self):
+        return all(d.is_surface for d in self.datasets)
 
     def __getitem__(self, slices):
         """
@@ -103,9 +128,7 @@ class Space(
             # fill upper bounds with maximum physical coordinates
             T = self.get_template()
             shape = Point(T.get_shape(-1), None).transform(T.build_affine(-1))
-            point2 = [
-                shape[i] if v is None else v
-                for i, v in enumerate(point2)]
+            point2 = [shape[i] if v is None else v for i, v in enumerate(point2)]
         return self.get_bounding_box(point1, point2)
 
     def __eq__(self, other: Union['Space', str]):
@@ -203,7 +226,7 @@ class Location(ABC):
                 self.space = Space.REGISTRY[space]
 
     @abstractmethod
-    def intersects_mask(self, mask: Nifti1Image):
+    def intersects(self, mask: Nifti1Image):
         """
         Verifies wether this 3D location intersects the given mask.
 
@@ -236,8 +259,8 @@ class Location(ABC):
 
     @abstractmethod
     def __iter__(self):
-        """ To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location. """
+        """To be implemented in derived classes to return an iterator
+        over the coordinates associated with the location."""
         pass
 
     def __str__(self):
@@ -254,21 +277,23 @@ class Location(ABC):
 
     @classmethod
     def from_sands(cls, spec):
-        """ Try to build a location object from an openMINDS/SANDS specification. """
+        """Try to build a location object from an openMINDS/SANDS specification."""
         if isinstance(spec, str):
             if path.isfile(spec):
-                with open(spec, 'r') as f:
+                with open(spec, "r") as f:
                     obj = json.load(f)
             else:
                 obj = json.loads(spec)
         elif isinstance(spec, dict):
             obj = spec
         else:
-            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
+            raise NotImplementedError(
+                f"Cannot read openMINDS/SANDS info from {type(spec)} types."
+            )
 
-        if obj['@type'] == "https://openminds.ebrains.eu/sands/CoordinatePoint":
+        if obj["@type"] == "https://openminds.ebrains.eu/sands/CoordinatePoint":
             return Point.from_sands(obj)
-        elif obj['@type'] == "tmp/poly":
+        elif obj["@type"] == "tmp/poly":
             return PointSet.from_sands(obj)
         else:
             raise NotImplementedError(
@@ -291,22 +316,22 @@ class WholeBrain(Location):
         else:
             self.space = Space.REGISTRY[space]
 
-    def intersects_mask(self, mask: Nifti1Image):
-        """ Always true for whole brain features """
+    def intersects(self, mask: Nifti1Image):
+        """Always true for whole brain features"""
         return True
 
     def warp(self, targetspace: Space):
-        """ Generates a new whole brain location
-        in another reference space. """
+        """Generates a new whole brain location
+        in another reference space."""
         return self.__class__(targetspace)
 
     def transform(self, affine: np.ndarray, space: Space = None):
-        """ Does nothing. """
+        """Does nothing."""
         pass
 
     def __iter__(self):
-        """ To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location. """
+        """To be implemented in derived classes to return an iterator
+        over the coordinates associated with the location."""
         yield from ()
 
     def __str__(self):
@@ -327,7 +352,7 @@ class Point(coordinatePoint.Model, Location):
         ----------
         spec : Any of str, tuple(float,float,float)
             For string specifications, comma separation with decimal points are expected.
-        unit : str 
+        unit : str
             specification of the unit (only 'mm' supported so far)
 
         Returns
@@ -343,12 +368,9 @@ class Point(coordinatePoint.Model, Location):
             digits = re.findall(pat, spec)
             if len(digits) == 3:
                 return tuple(float(d) for d in digits)
-        elif (
-            isinstance(spec, (tuple, list))
-            and len(spec) in [3, 4]
-        ):
+        elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
             if len(spec) == 4:
-                assert(spec[3] == 1)
+                assert spec[3] == 1
             return tuple(float(v) for v in spec[:3])
         elif isinstance(spec, np.ndarray) and spec.size == 3:
             return tuple(spec)
@@ -370,7 +392,7 @@ class Point(coordinatePoint.Model, Location):
         space : Space
             (deprecated) The reference space. The **data object should contain reference to space.
         sigma_mm : float
-            Optional location uncertainy of the point 
+            Optional location uncertainy of the point
             (will be intrepreded as the isotropic standard deviation of the location)
         """
         coordinatePoint.Model.__init__(self, **data)
@@ -408,11 +430,17 @@ class Point(coordinatePoint.Model, Location):
 
     @property
     def homogeneous(self):
-        """ The homogenous coordinate of this point as a 4-tuple,
-        obtained by appending '1' to the original 3-tuple. """
+        """The homogenous coordinate of this point as a 4-tuple,
+        obtained by appending '1' to the original 3-tuple."""
         return self.coordinate + (1,)
 
-    def intersects_mask(self, mask: Nifti1Image):
+    def intersection(self, mask: Nifti1Image):
+        if self.intersects(mask):
+            return self
+        else:
+            return None
+
+    def intersects(self, mask: Nifti1Image):
         """Returns true if this point lies in the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
@@ -442,6 +470,7 @@ class Point(coordinatePoint.Model, Location):
         raise RuntimeError(f'wrapping is not yet implemented')
         # TODO properly implement wraping
         # perhaps patch linear xform backend to use space id instead of space name?
+        assert targetspace is not None
         if not isinstance(targetspace, Space):
             targetspace = Space.REGISTRY[targetspace]
         if targetspace == self.space:
@@ -460,8 +489,7 @@ class Point(coordinatePoint.Model, Location):
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
         return self.__class__(
-            coordinatespec=tuple(response["target_point"]),
-            space=targetspace
+            coordinatespec=tuple(response["target_point"]), space=targetspace
         )
 
     def __sub__(self, other: Union[numbers.Number, 'Point']) -> 'Point':
@@ -514,6 +542,25 @@ class Point(coordinatePoint.Model, Location):
             np.array(self.coordinates_tuple) * float(number),
             **self.dict(),
         )
+        
+    def __lt__(self, other):
+        o = other if self.space is None else other.warp(self.space)
+        return all(self[i] < o[i] for i in range(3))
+
+    def __gt__(self, other):
+        o = other if self.space is None else other.warp(self.space)
+        return all(self[i] > o[i] for i in range(3))
+
+    def __eq__(self, other):
+        o = other if self.space is None else other.warp(self.space)
+        return all(self[i] == o[i] for i in range(3))
+
+    def __le__(self, other):
+        return not self > other
+
+    def __ge__(self, other):
+        return not self < other
+
 
     __rmul__ = __mul__
 
@@ -569,28 +616,29 @@ class Point(coordinatePoint.Model, Location):
         which corresponds to this point. If the point is given
         in another space, a warping to BigBrain space will be tried.
         """
-        if self.space == Space.REGISTRY['bigbrain']:
+        if self.space == Space.REGISTRY["bigbrain"]:
             coronal_position = self[1]
         else:
             try:
-                bigbrain_point = self.warp('bigbrain')
+                bigbrain_point = self.warp("bigbrain")
                 coronal_position = bigbrain_point[1]
             except Exception:
                 raise RuntimeError(
                     "BigBrain section numbers can only be determined "
                     "for points in BigBrain space, but the given point "
                     f"is given in '{self.space.name}' and could not "
-                    "be converted.")
-        return int((coronal_position + 70.) / 0.02 + 1.5)
+                    "be converted."
+                )
+        return int((coronal_position + 70.0) / 0.02 + 1.5)
 
     Config = CommonConfig
 
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,
-    defined by a list of coordinates. """
+    defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space: Space, sigma_mm = 0):
+    def __init__(self, coordinates, space: Space, sigma_mm=0):
         """
         Construct a 3D point set in the given reference space.
 
@@ -607,23 +655,36 @@ class PointSet(Location):
         if isinstance(sigma_mm, numbers.Number):
             self.coordinates = [Point(c, space, sigma_mm) for c in coordinates]
         else:
-            self.coordinates = [Point(c, space, s) for c, s in zip(coordinates, sigma_mm)]
+            self.coordinates = [
+                Point(c, space, s) for c, s in zip(coordinates, sigma_mm)
+            ]
 
-    def intersects_mask(self, mask):
-        """Returns true if any of the polyline points lies in the given mask.
+    def intersection(self, mask: Nifti1Image):
+        """Return the subset of points that are inside the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        return any(c.intersects_mask(mask) for c in self.coordinates)
+        inside = [p for p in self if p.intersects(mask)]
+        if len(inside) == 0:
+            return None
+        elif len(inside) == 1:
+            return inside[0]
+        else:
+            return PointSet(
+                [p.coordinate for p in inside],
+                space=self.space,
+                sigma_mm=[p.sigma for p in inside],
+            )
+
+    def intersects(self, mask: Nifti1Image):
+        return len(self.intersection(mask)) > 0
 
     def warp(self, targetspace):
         spaceobj = Space.REGISTRY[targetspace]
         if spaceobj == self.space:
             return self
-        return self.__class__(
-            [c.warp(spaceobj) for c in self.coordinates], spaceobj
-        )
+        return self.__class__([c.warp(spaceobj) for c in self.coordinates], spaceobj)
 
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new PointSet obtained by transforming the
@@ -646,44 +707,52 @@ class PointSet(Location):
         if (index >= self.__len__()) or (index < 0):
             raise IndexError(
                 f"Pointset has only {self.__len__()} points, "
-                f"but index of {index} was requested.")
+                f"but index of {index} was requested."
+            )
         else:
             return self.coordinates[index]
 
     def __iter__(self):
-        """ Return an iterator over the coordinate locations. """
+        """Return an iterator over the coordinate locations."""
         return iter(self.coordinates)
 
     def __len__(self):
-        """ The number of points in this PointSet. """
+        """The number of points in this PointSet."""
         return len(self.coordinates)
+
+    def __str__(self):
+        return f"Set of points in {self.space.name}: " + ", ".join(
+            f"({','.join(str(v) for v in p)})" for p in self
+        )
 
     @classmethod
     def from_sands(cls, spec):
-        """ Generate a point set from an openMINDS/SANDS specification,
-        given as a dictionary, json string, or json filename. """
+        """Generate a point set from an openMINDS/SANDS specification,
+        given as a dictionary, json string, or json filename."""
 
         if isinstance(spec, str):
             if path.isfile(spec):
-                with open(spec, 'r') as f:
+                with open(spec, "r") as f:
                     obj = json.load(f)
             else:
                 obj = json.loads(spec)
         elif isinstance(spec, dict):
             obj = spec
         else:
-            raise NotImplementedError(f'Cannot read openMINDS/SANDS info from {type(spec)} types.')
+            raise NotImplementedError(
+                f"Cannot read openMINDS/SANDS info from {type(spec)} types."
+            )
 
-        assert(obj['@type'] == "tmp/poly")
+        assert obj["@type"] == "tmp/poly"
 
         # require space spec
-        space_id = obj['coordinateSpace']['@id']
-        assert(Space.REGISTRY.provides(space_id))
+        space_id = obj["coordinateSpace"]["@id"]
+        assert Space.REGISTRY.provides(space_id)
 
         # require mulitple 3D point specs
         coords = []
-        for coord in obj['coordinates']:
-            assert(all(c["unit"]["@id"] == "id.link/mm" for c in coord))
+        for coord in obj["coordinates"]:
+            assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
             coords.append(list(np.float16(c["value"]) for c in coord))
 
         # build the Point
@@ -691,31 +760,37 @@ class PointSet(Location):
 
     @property
     def boundingbox(self):
-        """ Return the bounding box of these points.
+        """Return the bounding box of these points.
 
         TODO inherit sigma of the min and max points
         """
         XYZ = self.homogeneous[:, :3]
         return BoundingBox(
-            point1 = XYZ.min(0),
-            point2 = XYZ.max(0),
-            space = self.space,
+            point1=XYZ.min(0),
+            point2=XYZ.max(0),
+            space=self.space,
         )
 
     @property
     def centroid(self):
-        return Point(
-            self.homogeneous[:, :3].mean(0),
-            space=self.space)
+        return Point(self.homogeneous[:, :3].mean(0), space=self.space)
+
+    @property
+    def volume(self):
+        if len(self) < 2:
+            return 0
+        else:
+            return self.boundingbox.volume
 
     def as_list(self):
-        """ Return the point set as a list of 3D tuples. """
+        """Return the point set as a list of 3D tuples."""
         return [tuple(p) for p in self]
 
     @property
     def homogeneous(self):
-        """ Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        return np.array([c.homogeneous for c in self.coordinates])
+        """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
+        print("homogoenous", self.coordinates)
+        return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
 
 
 class BoundingBox(Location):
@@ -747,16 +822,6 @@ class BoundingBox(Location):
         xyz2 = Point.parse(point2)
         self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
         self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
-
-    @property
-    def _Bbox(self):
-        """
-        Return the bounding box as a cloudvolume Bbox object,
-        with rounded integer coordinates. """
-        return Bbox(
-            [int(v) for v in self.minpoint.coordinate],
-            [int(v+.5) for v in self.maxpoint.coordinate]
-        )
 
     @property
     def volume(self):
@@ -794,7 +859,7 @@ class BoundingBox(Location):
 
     @classmethod
     def from_image(cls, image: Nifti1Image, space: Space, ignore_affine=False):
-        """ Construct a bounding box from a nifti image """
+        """Construct a bounding box from a nifti image"""
         bounds = cls._determine_bounds(image.get_fdata())
         if bounds is None:
             return None
@@ -802,25 +867,56 @@ class BoundingBox(Location):
             target_space = None
         else:
             bounds = np.dot(image.affine, bounds)
-            targetspace = space
-        return cls(point1=bounds[:3, 0], point2=bounds[:3, 1], space=space)
+            target_space = space
+        return cls(point1=bounds[:3, 0], point2=bounds[:3, 1], space=target_space)
 
     def __str__(self):
         if self.space is None:
-            return f"Bounding box {self.minpoint} -> {self.maxpoint} in unknown coordinate system"
+            return f"Bounding box {tuple(self.minpoint)} -> {tuple(self.maxpoint)}"
         else:
-            return f"Bounding box {self.minpoint}mm -> {self.maxpoint}mm defined in {self.space.name}"
+            return f"Bounding box from {tuple(self.minpoint)}mm to {tuple(self.maxpoint)}mm in {self.space.name} space"
+
+    def contains(self, other: Location):
+        """Returns true if the bounding box contains the given location."""
+        if isinstance(other, Point):
+            return (other >= self.minpoint) and (other <= self.maxpoint)
+        elif isinstance(other, PointSet):
+            return all(self.contains(p) for p in other)
+        elif isinstance(other, BoundingBox):
+            return (other.minpoint >= self.minpoint) and (
+                other.maxpoint <= self.maxpoint
+            )
+        else:
+            raise NotImplementedError(
+                f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
+            )
+
+    def contained_in(self, other):
+        return other.contains(self)
+
+    def intersects(self, other):
+        return self.intersection(other).volume > 0
 
     def intersection(self, other, dims=[0, 1, 2]):
-        """Computes the intersection of this boudning box with another one.
+        """Computes the intersection of this bounding box with another one.
 
         TODO process the sigma values o the points
 
         Args:
             other (BoundingBox): Another bounding box
-            dims (list of int): Dimensions where the intersection should be computed.
+            dims (list of int): Dimensions where the intersection should be computed (applies only to bounding boxes)
             Default: all three. Along dimensions not listed, the union is applied instead.
         """
+        if isinstance(other, Nifti1Image):
+            return self._intersect_mask(other)
+        elif isinstance(other, BoundingBox):
+            return self._intersect_bbox(other, dims)
+        else:
+            raise NotImplementedError(
+                f"Intersection of bounding box with {type(other)} not implemented."
+            )
+
+    def _intersect_bbox(self, other, dims):
         warped = other.warp(self.space)
 
         # Determine the intersecting bounding box by sorting
@@ -851,11 +947,37 @@ class BoundingBox(Location):
                 result_minpt.append(A[dim])
                 result_maxpt.append(B[dim])
 
-        return BoundingBox(
+        bbox = BoundingBox(
             point1=Point(result_minpt, self.space),
             point2=Point(result_maxpt, self.space),
             space=self.space,
         )
+        return bbox if bbox.volume > 0 else None
+
+    def _intersect_mask(self, mask):
+        """Intersect this bounding box with an image mask.
+
+        TODO process the sigma values o the points
+
+        NOTE: The affine matrix of the image must be set to warp voxels
+        coordinates into the reference space of this Bounding Box.
+        """
+        # nonzero voxel coordinates
+        X, Y, Z = np.where(mask.get_fdata() > 0)
+        h = np.ones(len(X))
+
+        # array of homogenous physical nonzero voxel coordinates
+        coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
+        minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
+        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
+        XYZ = coords[inside, :3]
+        if XYZ.shape[0] == 0:
+            return None
+        elif XYZ.shape[0] == 1:
+            return Point(XYZ.flatten(), space=self.space)
+        else:
+            return PointSet(XYZ, space=self.space)
 
     def union(self, other):
         """Computes the union of this boudning box with another one.
@@ -874,37 +996,15 @@ class BoundingBox(Location):
         )
 
     def clip(self, xyzmax, xyzmin=(0, 0, 0)):
-        """ Returns a new bounding box obtained by clippin at the given maximum coordinate. 
+        """Returns a new bounding box obtained by clippin at the given maximum coordinate.
 
         TODO process the sigma values o the points
         """
         return self.intersection(
             BoundingBox(
-                Point(xyzmin, self.space),
-                Point(xyzmax, self.space),
-                self.space
+                Point(xyzmin, self.space), Point(xyzmax, self.space), self.space
             )
         )
-
-    def intersects_mask(self, mask):
-        """Returns true if at least one nonzero voxel
-        of the given mask is inside the boundding box.
-
-        TODO process the sigma values o the points
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        # nonzero voxel coordinates
-        X, Y, Z = np.where(mask.get_fdata() > 0)
-        h = np.ones(len(X))
-
-        # array of homogenous physical nonzero voxel coordinates
-        coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
-        minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
-        maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
-        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
-        return any(inside)
 
     def warp(self, targetspace):
         """Returns a new bounding box obtained by warping the
@@ -925,12 +1025,12 @@ class BoundingBox(Location):
         """Generate a volumetric binary mask of this
         bounding box in the reference template space."""
         tpl = self.space.get_template().fetch()
-        arr = np.zeros(tpl.shape, dtype='uint8')
+        arr = np.zeros(tpl.shape, dtype="uint8")
         bbvox = self.transform(np.linalg.inv(tpl.affine))
         arr[
-            int(bbvox.minpoint[0]):int(bbvox.maxpoint[0]),
-            int(bbvox.minpoint[1]):int(bbvox.maxpoint[2]),
-            int(bbvox.minpoint[2]):int(bbvox.maxpoint[2]),
+            int(bbvox.minpoint[0]): int(bbvox.maxpoint[0]),
+            int(bbvox.minpoint[1]): int(bbvox.maxpoint[2]),
+            int(bbvox.minpoint[2]): int(bbvox.maxpoint[2]),
         ] = 1
         return Nifti1Image(arr, tpl.affine)
 
@@ -956,5 +1056,5 @@ class BoundingBox(Location):
         )
 
     def __iter__(self):
-        """ Iterate the min- and maxpoint of this bounding box. """
+        """Iterate the min- and maxpoint of this bounding box."""
         return iter((self.minpoint, self.maxpoint))

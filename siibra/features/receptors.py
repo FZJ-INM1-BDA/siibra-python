@@ -17,7 +17,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..retrieval.requests import EbrainsRequest, HttpRequest
+from ..retrieval.requests import EbrainsKgQuery, HttpRequest
 from ..core.datasets import EbrainsDataset
 
 import PIL.Image as Image
@@ -495,7 +495,7 @@ class ReceptorQuery(FeatureQuery):
 
     def __init__(self,**kwargs):
         FeatureQuery.__init__(self)
-        kg_req = EbrainsRequest(
+        kg_req = EbrainsKgQuery(
             query_id="siibra_receptor_densities-0_0_2",
             params={'vocab': 'https://schema.hbp.eu/myQuery/' }
         )

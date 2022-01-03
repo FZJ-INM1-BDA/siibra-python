@@ -1,6 +1,5 @@
 import unittest
 import siibra
-from siibra.features.connectivity import ConnectivityProfile
 
 
 # TODO reenable
