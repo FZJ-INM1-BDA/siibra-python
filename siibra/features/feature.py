@@ -364,9 +364,9 @@ class RegionalFeature(Feature):
         Feature.__init__(self)
         self._regionspec = regionspec
         if isinstance(species, list):
-            self.species = species
+            self._species = species
         elif isinstance(species, dict):
-            self.species = [species]
+            self._species = [species]
 
     @property
     def species_ids(self):
@@ -409,11 +409,11 @@ class RegionalFeature(Feature):
 
         # Feature's region is specified as a Region object
         # -> we can apply simple tests for any query object.
-        if isinstance(self.regionspec, Region):
-            return self._match_region(self.regionspec, concept)
+        if isinstance(self._regionspec, Region):
+            return self._match_region(self._regionspec, concept)
 
-        assert isinstance(self.regionspec, str)
-        spec = self.regionspec.lower().strip()
+        assert isinstance(self._regionspec, str)
+        spec = self._regionspec.lower().strip()
 
         # Feature's region is specified by string. Check alias table first.
         for species_id in set(self.species_ids) & set(self._aliases.keys()):
@@ -425,7 +425,7 @@ class RegionalFeature(Feature):
                         parc = Parcellation.REGISTRY[repl["Matched parcellation"]]
                         spec = repl["Matched region"]
                         msg_alias = (
-                            f"Original region specification was '{self.regionspec}'."
+                            f"Original region specification was '{self._regionspec}'."
                         )
                     else:
                         # no matched parcellation, then we use the original one given in the table.
@@ -462,7 +462,7 @@ class RegionalFeature(Feature):
 
         # Feature's region is specified by string, search query is a Region
         elif isinstance(concept, Region):
-            for w in concept.parcellation.key.split("_"):
+            for w in concept.parcellation.full_name.split(" "):
                 if not w.isnumeric() and len(w) > 2:
                     spec = spec.replace(w.lower(), "")
             for region in concept.find(spec):
@@ -519,13 +519,13 @@ class RegionalFeature(Feature):
         elif isinstance(concept, Region):
             if region == concept:
                 self._match = Match(concept, MatchQualification.EXACT)
-            elif region.has_parent(concept):
+            elif region.has_node_parent(concept):
                 self._match = Match(
                     concept,
                     MatchQualification.CONTAINED,
                     f"Feature was linked to child region '{region.name}'",
                 )
-            elif concept.has_parent(region):
+            elif concept.has_node_parent(region):
                 self._match = Match(
                     concept,
                     MatchQualification.CONTAINS,
@@ -542,7 +542,7 @@ class RegionalFeature(Feature):
         return self.matched
 
     def __str__(self):
-        return f"{self.__class__.__name__} for {self.regionspec}"
+        return f"{self.__class__.__name__} for {self._regionspec}"
 
 
 class ParcellationFeature(Feature):

@@ -181,6 +181,7 @@ class Parcellation(
 
     _atlases = set()
     _root_region = None
+    _legacy_json = None
 
     def __init__(
         self,
@@ -415,12 +416,12 @@ class Parcellation(
                 ]
                 bestmatch = scores.index(max(scores))
                 logger.info(
-                    f"Decoding of spec {regionspec} resulted in multiple matches: "
+                    f"Decoding of spec {regionspec} resulted in multiple ({len(candidates)}) matches: "
                     f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}"
                 )
                 return candidates[bestmatch]
             raise RuntimeError(
-                f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
+                f"Decoding of spec {regionspec} resulted in multiple ({len(candidates)}) matches: {','.join(r.name for r in candidates)}."
             )
 
     @cached
@@ -571,7 +572,9 @@ class Parcellation(
     @staticmethod
     def get_aliases(key: str, parc: 'Parcellation') -> List[str]:
         return [
-            f'{parc.full_name}_{parc.space.full_name}'
+            f'{parc.full_name}_{parc.space.full_name}',
+            parc.full_name,
+            parc.short_name,
         ]
 
     @staticmethod
@@ -603,7 +606,27 @@ class Parcellation(
         }
         author = []
         coordinate_spaces: List[str] = [dataset.get('space_id') for dataset in json_input.get('datasets') if dataset.get('space_id')]
-        
+        def recurse_region(r) -> List[str]:
+            chilren_space_ids = [spc_id
+                for c in r.get("children", [])
+                for spc_id in recurse_region(c)]
+            space_id = [ds.get("space_id")
+                for ds in r.get("datasets", [])
+                if ds.get("space_id")]
+            return list(set([
+                *chilren_space_ids,
+                *space_id,
+            ]))
+        region_spc_ids = [
+            spc_id
+            for r in json_input.get("regions", [])
+            for spc_id in recurse_region(r)
+        ]
+        coordinate_spaces = list(set([
+            *coordinate_spaces,
+            *region_spc_ids,
+        ]))
+
         # remove duplicates
         coordinate_spaces = list(set(coordinate_spaces))
         copyright = None
@@ -638,7 +661,7 @@ class Parcellation(
                 id = f"{parc_id}-root"
                 parent = Region(
                     id=id,
-                    name='Whole brain',
+                    name=json_input.get("name"),
                     type='https://openminds.ebrains.eu/sands/ParcellationEntityVersion',
                     has_annotation=None,
                     lookup_label=None,
@@ -715,27 +738,32 @@ class Parcellation(
         # TODO add ng volumes
         # TODO add nifti volume as file
         # TODO add brainAtlas (parent instance) for each collection
+        parc_instances = [
+            Cls(
+                id=Parcellation.parse_legacy_id(parc_id, spc),
+                type=parc_type,
+                accessibility=accessibility,
+                coordinate_space={
+                    "@id": Space.parse_legacy_id(spc)
+                },
+                copyright=None,
+                full_documentation=full_documentation,
+                full_name=full_name,
+                is_new_version_of=get_is_new_version_of(spc),
+                release_date=release_date,
+                has_terminology_version=get_has_terminology_version(spc),
+                license=license,
+                short_name=short_name,
+                version_identifier=version_identifier,
+                version_innovation=version_innovation,
+            ) for spc in coordinate_spaces
+        ]
+
+        for parc in parc_instances:
+            parc._legacy_json = json_input
+
         return [
-            *[
-                Cls(
-                    id=Parcellation.parse_legacy_id(parc_id, spc),
-                    type=parc_type,
-                    accessibility=accessibility,
-                    coordinate_space={
-                        "@id": Space.parse_legacy_id(spc)
-                    },
-                    copyright=None,
-                    full_documentation=full_documentation,
-                    full_name=full_name,
-                    is_new_version_of=get_is_new_version_of(spc),
-                    release_date=release_date,
-                    has_terminology_version=get_has_terminology_version(spc),
-                    license=license,
-                    short_name=short_name,
-                    version_identifier=version_identifier,
-                    version_innovation=version_innovation,
-                ) for spc in coordinate_spaces
-            ],
+            *parc_instances,
             *append_openminds_entities,
         ]
 

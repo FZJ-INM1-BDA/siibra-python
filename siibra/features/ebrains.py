@@ -31,19 +31,21 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
     _regionspec = None
     _species = None
     _match = None
+    _version = None
+    _next = None
+    _prev = None
+
     def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
         RegionalFeature.__init__(self, regionspec, species)
-        EbrainsDataset.__init__(self, kg_id, name, embargo_status)
-        self.version = None
-        self._next = None
-        self._prev = None
+        EbrainsDataset.__init__(self, kg_id)
+
 
     @property
     def version_history(self):
         if self._prev is None:
-            return [self.version]
+            return [self._version]
         else:
-            return [self.version] + self._prev.version_history
+            return [self._version] + self._prev.version_history
 
     @property
     def url(self):
@@ -71,12 +73,15 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     VERSION_PATTERN = re.compile(r'^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]')
     COMPACT_FEATURE_LIST = True
 
-    # ids of EBRAINS datasets which represent siibra parcellations
     _PARCELLATION_IDS = [
-        dset.id
+        parc.id
         for parc in Parcellation.REGISTRY
-        for dset in parc.datasets 
-        if isinstance(dset, EbrainsDataset)
+    ]
+    _IGNORE_LIST = [
+        f'{ds.get("kgSchema")}/{ds.get("kgId")}'
+        for parc in Parcellation.REGISTRY
+        for ds in parc._legacy_json.get("datasets")
+        if ds.get('@type') == "minds/core/dataset/v1.0.0"
     ]
     
     # datasets whose name contains any of these strings will be ignored
@@ -114,9 +119,10 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 ds_name = dataset.get("name")
                 ds_id = dataset.get("@id")
 
+                # Filter out all datasets related to MPM
                 if (
                     self.COMPACT_FEATURE_LIST and 
-                    any(ds_id.endswith(i) for i in self._PARCELLATION_IDS)
+                    any(ds_id.endswith(i) for i in self._IGNORE_LIST)
                 ):
                     continue
 

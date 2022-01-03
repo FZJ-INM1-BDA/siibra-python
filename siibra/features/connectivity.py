@@ -82,7 +82,7 @@ class HcpConnectivityFetcher():
     _DATASET_ID = '0f1ccc4a-9a11-4697-b43f-9c9c8ac543e6'
     # TODO add other parcellations
     _PARCELLATION_NAMES = {
-        "294-Julich-Brain" : Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
+        "294-Julich-Brain" : Parcellation.REGISTRY['julich 2.9 colin']
     }
 
     def __init__(self, filename_keyword ):

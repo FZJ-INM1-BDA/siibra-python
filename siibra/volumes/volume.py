@@ -89,7 +89,7 @@ class File(file.Model):
         if volume_type == 'neuroglancer/precompmesh':
             is_mesh = True
             content_type = ng_mesh
-        if volume_type == 'gii' or volume_type == 'threesurfer/gii' or volume_type == 'threesurfer/gii-label':
+        if volume_type == 'gii' or volume_type == 'gii' or volume_type == 'gii-label':
             is_mesh = True
             content_type = gii
         
@@ -143,7 +143,6 @@ gbyte_feasible = 0.1
 class VolumeSrc(File):
 
     _SPECIALISTS: ClassVar[dict] = {}
-    _space = None
     _space_id = None
     _volume_type = None
     _map_type = None
@@ -180,7 +179,6 @@ class VolumeSrc(File):
         File.__init__(self, **data)
         
         self._detail = {} if detail is None else detail
-        self._space = space
 
     def __init_subclass__(cls, volume_type=None):
         """Called when this class gets subclassed by cls."""
@@ -201,6 +199,10 @@ class VolumeSrc(File):
     def is_surface(self):
         """Overwrite Dataset's default 'false'"""
         return self._volume_type in self._SURFACE_TYPES
+
+    @property
+    def space(self) -> Space:
+        return main_openminds_registry[self._space_id]
 
     @classmethod
     def parse_legacy(Cls, json_input) -> List['VolumeSrc']:
@@ -641,20 +643,3 @@ class NeuroglancerScale:
             data_zyx[z0:z0+zd, y0:y0+yd, x0:x0+xd], 
             np.dot(self.affine, np.dot(shift, trans))
         )
-
-
-class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
-    """
-    TODO Implement this, surfaces need special handling
-    """
-
-    warning_shown = False
-
-    def __init__(self, **data):
-        if not self.__class__.warning_shown:
-            logger.info(
-                f"A {self.__class__.__name__} object was registered, "
-                "but this type is not yet explicitly supported."
-            )
-            self.__class__.warning_shown = True
-        VolumeSrc.__init__(self, **data)
