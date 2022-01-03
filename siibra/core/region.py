@@ -98,7 +98,6 @@ class SiibraNode:
         )]
 
     def __iter__(self):
-        print('iter!')
         return (node.ref for node in PreOrderIter(self._node))
 
 class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
@@ -122,7 +121,8 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
 
     @property
     def index(self) -> int:
-        return self._legacy_json.get('labelIndex')
+        # TODO this will not be the case for long. lookup_label is not analogous to label index
+        return self.lookup_label and int(self.lookup_label)
 
     @property
     def parcellation(self):
@@ -368,6 +368,13 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
 
         return mask
 
+    def get_volumes(self, space):
+        volumes = super().get_volumes(space)
+        return [
+            *volumes,
+            *[vol for vol in self.parcellation.volumes if vol._map_type == MapType.LABELLED],
+        ]
+
     def mapped_in_space(self, space):
         """
         Verifies wether this region is defined by an explicit map in the given space.
@@ -427,10 +434,10 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             maptype = MapType[maptype.upper()]
 
         def maptype_ok(vsrc, maptype):
-            if vsrc.map_type is None:
-                return (maptype == MapType.CONTINUOUS) == (vsrc.is_float())
+            if vsrc._map_type is None:
+                return (maptype == MapType.CONTINUOUS) == (vsrc.is_float)
             else:
-                return vsrc.map_type == maptype
+                return vsrc._map_type == maptype
 
         available = self.get_volumes(space)
 

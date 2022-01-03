@@ -23,18 +23,10 @@ class GiftiSurface(VolumeSrc, volume_type="gii"):
     """
     A (set of) surface meshes in Gifti format.
     """
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-        if isinstance(url, str):
-            # a single url
-            self._loaders = {name: url}
-        elif isinstance(url, dict):
-            self._loaders = {
-                label: HttpRequest(url)
-                for label, url in url.items()
-            } 
-        else:
-            raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+    _loaders = None
+    def __init__(self, **kwargs):
+        VolumeSrc.__init__(self, **kwargs)
+        self._loaders = {self.name: self.iri}
 
     def fetch(self, name=None):
         """
@@ -73,9 +65,10 @@ class GiftiSurfaceLabeling(VolumeSrc, volume_type="gii-label"):
     """
     A mesh labeling, specified by a gifti file.
     """
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
-        self._loader = HttpRequest(self.url)
+    _loader = None
+    def __init__(self, **kwargs):
+        VolumeSrc.__init__(self, **kwargs)
+        self._loader = HttpRequest(self.iri)
 
     def fetch(self):
         """Returns a 1D numpy array of label indices."""
@@ -88,8 +81,8 @@ class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
     A surface mesh provided as neuroglancer precomputed mesh.     
     """
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+    def __init__(self, **kwargs):
+        VolumeSrc.__init__(self, **kwargs)
 
     def fetch(self):
         raise NotImplementedError(f"Fetching from neuroglancer precomputed mesh is not yet implemented.")

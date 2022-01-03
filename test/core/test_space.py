@@ -26,7 +26,7 @@ def test_space_volumes_jsonable(space: Space):
 
 point_json_1={
     "@id": 'test-id',
-    "@type": "test-type",
+    "@type": "https://openminds.ebrains.eu/sands/CoordinatePoint",
     "https://openminds.ebrains.eu/vocab/coordinateSpace": {
         "@id": Space.parse_legacy_id("minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588")
     },
@@ -41,7 +41,7 @@ point_json_1={
 
 point_json_2={
     "@id": 'test-id-2',
-    "@type": "test-type",
+    "@type": "https://openminds.ebrains.eu/sands/CoordinatePoint",
     "https://openminds.ebrains.eu/vocab/coordinateSpace": {
         "@id": Space.parse_legacy_id("minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992")
     },
@@ -57,6 +57,7 @@ point_json_2={
 def test_point_creation():
     p = Point(**point_json_1)
     assert p.coordinates_tuple == (10, 11, 12)
+    assert p.id == point_json_1.get("@id")
 
 subtraction = ['sub,expected,expect_raise', [
     (1, (9, 10, 11), False),

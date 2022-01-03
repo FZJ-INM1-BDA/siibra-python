@@ -75,14 +75,19 @@ class ParcellationMap(ABC):
         """
         Returns the ParcellationMap object of the requested type.
         """
-        key = (parcellation.key, space.key, maptype)
+        key = (parcellation.id, space.id, maptype)
 
         # If an instance is already available, return it
+        # TODO use proper cache decorator
         if key in cls._instances:
             return cls._instances[key]
 
         # Otherwise, create a new object
-        if space.type == "gii":
+
+        # NB space.type will never be "gii"
+        # space.type is a const with value "https://openminds.ebrains.eu/sands/CoordinateSpace"
+        # use _template_type instead
+        if space._template_type == "gii":
             classes = {
                 MapType.LABELLED: LabelledSurface,
                 MapType.CONTINUOUS: None,
@@ -382,6 +387,7 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
     def get_shape(self, resolution_mm=None):
         return list(self.space.get_template().get_shape()) + [len(self)]
 
+    @property
     def is_float(self):
         return self.maptype == MapType.CONTINUOUS
 
@@ -430,15 +436,14 @@ class LabelledParcellationVolume(ParcellationVolume):
         for volumetype in self.PREFERRED_VOLUMETYPES:
             sources = []
             for vsrc in self.parcellation.get_volumes(self.space.id):
-                if vsrc.__class__.volume_type == volumetype:
+                if vsrc.__class__._volume_type == volumetype:
                     sources.append(vsrc)
             if len(sources) > 0:
                 break
 
         # Try to generate maps from suitable volume sources
         for source in sources:
-
-            if source.volume_type != self.space.type:
+            if source._volume_type != self.space.type:
                 continue
 
             self._maploaders_cached.append(
@@ -756,8 +761,8 @@ class ContinuousParcellationVolume(ParcellationVolume):
         for v in self.parcellation.volumes:
             if (
                 isinstance(v, ImageProvider)
-                and v.is_float()
-                and v.is_4D()
+                and v.is_float
+                and v.is_4D
                 and v.get_shape()[3] > 1
             ):
                 self._map4d = v.fetch()

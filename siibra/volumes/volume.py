@@ -27,8 +27,7 @@ from ctypes import ArgumentError
 import numpy as np
 import nibabel as nib
 import os
-import json
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
 
@@ -150,7 +149,7 @@ class VolumeSrc(File):
     _legacy_json = None
 
     _SPECIALISTS = {}
-    _SURFACE_TYPES = ['gii']
+    _SURFACE_TYPES = ['gii', 'neuroglancer/precompmesh']
 
     def __init__(self, space=None, detail=None, **data):
         """
@@ -220,9 +219,17 @@ class VolumeSrc(File):
         # decide if object shoulc be generated with a specialized derived class
         VolumeClass = Cls._SPECIALISTS.get(volume_type, VolumeSrc)
 
+
+        # if special class exist, return
+        if VolumeClass is not Cls:
+            return VolumeClass.parse_legacy(json_input)
+            
+            
         result = super().parse_legacy(json_input)
+            
         for r in result:
             r._legacy_json = json_input
+            r._volume_type = volume_type
             if json_input.get('space_id'):
                 r._space_id = Space.parse_legacy_id(json_input.get('space_id'))
 
@@ -256,8 +263,8 @@ class ImageProvider(ABC):
             f"{self.__class__.__name__} does not implement get_shape(), use a derived class."
         )
 
-    @abstractmethod
-    def is_float(self):
+    @abstractproperty
+    def is_float(self) -> bool:
         """
         Return True if the data type of the volume is a float type.
         """
@@ -265,7 +272,8 @@ class ImageProvider(ABC):
             f"{self.__class__.__name__} does not implement is_float(), use a derived class."
         )
 
-    def is_4D(self):
+    @property
+    def is_4D(self) -> bool:
         return len(self.get_shape()) == 4
 
 
@@ -303,13 +311,14 @@ class LocalNiftiVolume(ImageProvider):
     def get_shape(self):
         return self.image.shape
 
+    @property
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
 class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
 
     _image_cached = None
-
+    _image_loader = None
     def __init__(
         self, **data
     ):
@@ -391,6 +400,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
             )
             raise (e)
 
+    @property
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
@@ -404,18 +414,17 @@ class NeuroglancerVolume(
     _dtype = None
     _transform_nm = None
     _url = None
+    _io = None
 
     @property
     def MAX_BYTES(self):
         return self._MAX_GiB * 1024**3
     
-    def __init__(self, identifier, name, space, detail, **kwargs):
+    def __init__(self, **kwargs):
 
         VolumeSrc.__init__(self, **kwargs)
         ImageProvider.__init__(self)
-        
-        self.space = space
-        
+
         accessor = get_accessor_for_url(self.iri)
         self._io = get_IO_for_existing_dataset(accessor)
         self._scales = {}
@@ -447,6 +456,7 @@ class NeuroglancerVolume(
         scale = self._select_scale(resolution_mm)
         return scale.size 
 
+    @property
     def is_float(self):
         return self.dtype.kind == "f"
         
@@ -472,9 +482,6 @@ class NeuroglancerVolume(
                     f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
                 )
         return scale
-    
-
-class DetailedMapsVolume(VolumeSrc, volume_type="detailed maps"): pass
 
 
 class GiftiSurfaceLabeling(VolumeSrc, volume_type="threesurfer/gii-label"):
@@ -543,7 +550,7 @@ class NeuroglancerScale:
             )
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
-        result = self.volume.dtype.itemsize * bbox_.volume
+        result = self.volume._dtype.itemsize * bbox_.volume
         logger.info(
             f"Approximate size for fetching resolution "
             f"({', '.join(map('{:.2f}'.format, self.res_mm))}) mm "
@@ -574,7 +581,7 @@ class NeuroglancerScale:
     @property
     def affine(self):
         scaling = np.diag(np.r_[self.res_nm, 1.])
-        affine = np.dot(self.volume.transform_nm, scaling)
+        affine = np.dot(self.volume._transform_nm, scaling)
         affine[:3, :] /= 1e6
         return affine
     
@@ -583,7 +590,7 @@ class NeuroglancerScale:
     
     def _read_chunk(self, gx, gy, gz):
         cachefile = CACHE.build_filename(
-            "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
+            "{}_{}_{}_{}_{}".format(self.volume.iri, self.key, gx, gy, gz),
             suffix='.npy'
         )
         if os.path.isfile(cachefile):
@@ -618,7 +625,7 @@ class NeuroglancerScale:
 
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = (np.array([gz1-gz0, gy1-gy0, gx1-gx0]) * self.chunk_sizes[::-1])
-        data_zyx = np.zeros(shape_zyx, dtype=self.volume.dtype)
+        data_zyx = np.zeros(shape_zyx, dtype=self.volume._dtype)
         for gx in range(gx0, gx1):
             x0 = (gx-gx0)*self.chunk_sizes[0]
             for gy in range(gy0, gy1):

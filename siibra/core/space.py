@@ -25,7 +25,7 @@ import json
 from urllib.parse import quote
 from os import path
 import numbers
-
+from uuid import uuid4
 
 from .concept import AtlasConcept, RegistrySrc, provide_openminds_registry, main_openminds_registry
 from ..openminds.common import CommonConfig
@@ -47,6 +47,7 @@ class Space(
     A particular brain reference space.
     """
     _atlases = set()
+    _template_type = None
 
     def __init__(
         self,
@@ -66,6 +67,10 @@ class Space(
             main_openminds_registry[img.get('@id')]
             for img in self.default_image
         ]
+    
+    @property
+    def name(self):
+        return self.full_name
 
     def get_template(self, variant=None):
         """
@@ -84,10 +89,13 @@ class Space(
         ------
         A VolumeSrc object representing the reference template, or None if not available.
         """
+
+        # TODO if variant == inflated for fsaverage, we would expect 2 (one for left, one for right hemisphere) volumesrc here, no?
+        # also note, the _map_type is not right, currently
         candidates = {
-            d.name: d
-            for d in self.datasets
-            if d.is_volume and d.volume_type == self.type
+            volume._map_type: volume
+            for volume in self.volumes
+            if not volume.is_surface
         }
         if variant is None:
             variant = next(iter(candidates.keys()))
@@ -107,7 +115,10 @@ class Space(
 
     @property
     def is_surface(self):
-        return all(d.is_surface for d in self.datasets)
+        return all(
+            d.is_surface
+            for d in self.volumes
+        )
 
     def __getitem__(self, slices):
         """
@@ -161,6 +172,9 @@ class Space(
         base_id = path.basename(space_id)
         return f'https://openminds.ebrains.eu/instances/CoordinateSpace/{base_id}'
 
+    def __str__(self) -> str:
+        return self.full_name
+
     @classmethod
     def parse_legacy(Cls, json_input: Dict[str, Any]) -> 'Space':
 
@@ -177,7 +191,7 @@ class Space(
                 if dataset.get('@type') == 'fzj/tmp/volume_type/v0.0.1'
                 for vol_src in VolumeSrc.parse_legacy(dataset)
             ]
-        return [Cls(
+        spc = Cls(
             id=Space.parse_legacy_id(json_input.get('@id')),
             type="https://openminds.ebrains.eu/sands/CoordinateSpace",
             anatomical_axes_orientation={
@@ -196,7 +210,9 @@ class Space(
             release_date=date(2015, 1, 1),
             short_name=json_input.get('shortName') or json_input.get('name'),
             version_identifier=json_input.get('name')
-        ), *d]
+        )
+        spc._template_type = json_input.get("templateType")
+        return [spc, *d]
 
     Config = CommonConfig
 
@@ -381,7 +397,7 @@ class Point(coordinatePoint.Model, Location):
                 f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
             )
 
-    def __init__(self, coordinatespec=None, space: Union[Space, Dict[str, str]]=None, sigma_mm:float=0., **data):
+    def __init__(self, coordinatespec=None, space: Union[Space, Dict[str, str]]=None, sigma_mm:float=0., **kwargs):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -390,12 +406,26 @@ class Point(coordinatePoint.Model, Location):
         coordinate : 3-tuple of int/float, or string specification
             Coordinate in mm of the given space
         space : Space
-            (deprecated) The reference space. The **data object should contain reference to space.
+            (deprecated) The reference space. The **kwargs object should contain reference to space.
         sigma_mm : float
             Optional location uncertainy of the point
             (will be intrepreded as the isotropic standard deviation of the location)
         """
-        coordinatePoint.Model.__init__(self, **data)
+        dummy_obj={**{
+            "id": str(uuid4()),
+            "type": "https://openminds.ebrains.eu/sands/CoordinatePoint",
+            "coordinate_space": {
+                "@id": space.id if isinstance(space, Space) else space.get("@id")
+            } if space is not None else None,
+            "coordinates": [{
+                "value": 0
+            },{
+                "value": 0
+            },{
+                "value": 0
+            }]
+        }, **kwargs}
+        coordinatePoint.Model.__init__(self, **dummy_obj)
         self._sigma = sigma_mm
 
         space_id = None

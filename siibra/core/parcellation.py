@@ -307,7 +307,7 @@ class Parcellation(
 
     @property
     def labels(self):
-        return self.regiontree.labels
+        return [r.index for r in self.regiontree if r.index is not None]
 
     @property
     def names(self):
@@ -361,10 +361,6 @@ class Parcellation(
             if parc.is_new_version_of and parc.is_new_version_of.get("@id") == self.id
         ]
         return len(newer) == 0
-
-    @property
-    def publications(self):
-        return self._publications + super().publications
 
     def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region]):
         """
@@ -756,6 +752,8 @@ class Parcellation(
                 short_name=short_name,
                 version_identifier=version_identifier,
                 version_innovation=version_innovation,
+                # TODO fill related _publications
+                related_publication=None,
             ) for spc in coordinate_spaces
         ]
 
