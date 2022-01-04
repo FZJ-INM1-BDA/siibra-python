@@ -121,8 +121,9 @@ class CorticalCellDistribution(RegionalFeature):
         """
         Location of this image patch in BigBrain histological space in mm.
         """
+        center = np.r_[np.array(self.image.shape) // 2, 1]
         return Point(
-            np.dot(self.image.affine, [0, 0, 0, 1])[:3], 
+            np.dot(self.image.affine, center)[:3], 
             Space.REGISTRY.BIG_BRAIN,
         )
 
