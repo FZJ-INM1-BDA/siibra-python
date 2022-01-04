@@ -392,12 +392,12 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
         return self.maptype == MapType.CONTINUOUS
 
     def _load_regional_map(
-        self, region: Region, resolution_mm, voi: BoundingBox = None, clip: bool = False
+        self, region: Region, resolution_mm, voi: BoundingBox = None
     ):
         logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
         with QUIET:
             rmap = region.get_regional_map(self.space, self.maptype).fetch(
-                resolution_mm=resolution_mm, voi=voi, clip=clip
+                resolution_mm=resolution_mm, voi=voi
             )
         return rmap
 
