@@ -351,5 +351,6 @@ class EbrainsKgQuery(EbrainsRequest):
                 raise RuntimeError(
                     f"Could not process HTTP request (status code: "
                     f"{e.response.status_code}). Message was: {e.msg}"
+                    f"URL was: {e.response.url}"
                 )
         return result
