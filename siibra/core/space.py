@@ -496,6 +496,13 @@ class Point(Location):
         so the Point can be easily cast to list or tuple."""
         return iter(self.coordinate)
 
+    def __setitem__(self, index, value):
+        """Write access to the coefficients of this point."""
+        assert 0 <= index < 3
+        values = list(self.coordinate)
+        values[index] = value
+        self.coordinate = tuple(values)
+
     def __getitem__(self, index):
         """Index access to the coefficients of this point."""
         assert 0 <= index < 3
@@ -643,7 +650,8 @@ class PointSet(Location):
         return len(self.coordinates)
 
     def __str__(self):
-        return f"Set of points in {self.space.name}: " + ", ".join(
+        spacelabel = "" if self.space.name is None else f" in {self.space.name}"
+        return f"Set of points{spacelabel}: " + ", ".join(
             f"({','.join(str(v) for v in p)})" for p in self
         )
 
@@ -723,7 +731,7 @@ class BoundingBox(Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space: Space):
+    def __init__(self, point1, point2, space: Space, minsize: float =None):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -738,12 +746,19 @@ class BoundingBox(Location):
             Endpoint given in mm of the given space
         space : Space
             The reference space
+        minsize : float
+            Minimum size along each dimension. If not None, the maxpoint will
+            be adjusted to match the minimum size, if needed.
         """
         Location.__init__(self, space)
         xyz1 = Point.parse(point1)
         xyz2 = Point.parse(point2)
         self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
         self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
+        if minsize is not None:
+            for d in range(3):
+                if self.shape[d] < minsize:
+                    self.maxpoint[d] = self.minpoint[d] + minsize
 
     @property
     def volume(self):
