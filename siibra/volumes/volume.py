@@ -490,6 +490,11 @@ class NeuroglancerScale:
         else:
             bbox_ = voi.transform(np.linalg.inv(self.affine))
 
+        for dim in range(3):
+            if bbox_.shape[dim] < 1:
+                logger.warn(f"Bounding box in voxel space will be enlarged to voxel size 1 along axis {dim}.")
+                bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1
+
         # extract minimum and maximum the chunk indices to be loaded
         gx0, gy0, gz0 = self._chunk_of_point(tuple(bbox_.minpoint))
         gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint)) + 1
