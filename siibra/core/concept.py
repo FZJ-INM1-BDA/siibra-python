@@ -75,7 +75,6 @@ def provide_registry(cls):
     extensions = []
     with QUIET:
         for fname, loader in loaders:
-            logger.info(f"Loading {fname}")
             obj = cls._from_json(loader.data)
             if obj.extends is not None:
                 extensions.append(obj)
