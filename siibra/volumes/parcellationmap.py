@@ -1425,3 +1425,51 @@ class LabelledSurface(ParcellationMap):
             labels = np.append(labels, surfmap["labels"], axis=0)
 
         return dict(zip(["verts", "faces", "labels"], [vertices, faces, labels]))
+
+    def colorize(self, values: dict, name: str = None, variant: str = None):
+        """Colorize the parcellation mesh with the provided regional values.
+
+        Parameters
+        ----------
+        values : dict
+            Dictionary mapping regions to values
+        name : str
+            If specified, only submeshes matching this name are included, otherwise all meshes included.
+        variant : str
+            Optional specification of a specific variant to use for the maps. For example,
+            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+
+        Return
+        ------
+        List of recolored parcellation meshes, each represented as a dictionary
+        with elements
+        - 'verts': An Nx3 array of vertex coordinates,
+        - 'faces': an Mx3 array of face definitions using row indices of the vertex array
+        - 'name': Name of the of the mesh variant
+        NOTE: If a specific name was requested, the single mesh is returned instead of a list.
+        """
+
+        result = []
+        for mapindex, mesh in enumerate(self.fetch_iter(variant=variant)):
+            if (name is not None) and (name != mesh['name']):
+                continue
+            cmesh = {
+                'verts': mesh['verts'],
+                'faces': mesh['faces'],
+                'labels': np.zeros_like(mesh['labels']),
+                'name': mesh['name'],
+            }
+            for region, value in values.items():
+                try:
+                    indices = self.decode_region(region)
+                except IndexError:
+                    continue
+                for index in indices:
+                    if index.map == mapindex:
+                        cmesh['labels'][mesh['labels'] == index.label] = value
+            result.append(cmesh)
+
+        if len(result) == 1:
+            return result[0]
+        else:
+            return result

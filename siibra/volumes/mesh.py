@@ -53,7 +53,7 @@ class GiftiSurface(VolumeSrc, volume_type="gii"):
             vertices = np.append(vertices, loader.data.darrays[0].data, axis = 0)
             faces = np.append(faces, loader.data.darrays[1].data+npoints, axis = 0)
 
-        return dict(zip(['verts','faces'], [vertices, faces]))
+        return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
 
     @property
     def variants(self):
@@ -61,13 +61,14 @@ class GiftiSurface(VolumeSrc, volume_type="gii"):
 
     def fetch_iter(self):
         """
-        Iterator returning all submeshes, each as a tuple consisting of 
-        - their name (string)
-        - the mesh, as a dictionary of two numpy arrays: 
-          An Nx3 array of vertex coordinates, and an Mx3 array 
-          of face definitions using row indices of the vertex array.
+        Iterator returning all submeshes, each represented as a dictionary
+        with elements
+        - 'verts': An Nx3 array of vertex coordinates,
+        - 'faces': an Mx3 array of face definitions using row indices of the vertex array
+        - 'name': Name of the of the mesh variant
         """
-        return ((v,self.fetch(v)) for v in self.variants)
+        return (self.fetch(v) for v in self.variants)
+
 
 class GiftiSurfaceLabeling(VolumeSrc, volume_type="gii-label"):
     """
