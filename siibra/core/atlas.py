@@ -150,6 +150,8 @@ class Atlas(
             space_obj = self._spaces[0]
             if len(self._spaces) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
+        elif isinstance(space, Space):
+            space_obj = space
         else:
             space_obj = self.spaces[space]
 
