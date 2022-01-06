@@ -761,10 +761,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # determine labelindex
         labelindex = jsonstr.get("labelIndex", None)
-        #if labelindex is None and len(children) > 0:
-        #    L = [c.index.label for c in children]
-        #    if (len(L) > 0) and (L.count(L[0]) == len(L)):
-        #        labelindex = L[0]
 
         # Setup the region object
         pindex = ParcellationIndex(label=labelindex, map=jsonstr.get("mapIndex", None))
