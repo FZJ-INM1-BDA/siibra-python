@@ -193,13 +193,33 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else:
                 return [match]
 
-        result = list(
+        candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
-        if len(result) > 1 and filter_children:
+        if len(candidates) > 1 and filter_children:
 
-            # filter regions whose parent is in the list
-            filtered = [r for r in result if r.parent not in result]
+            filtered = []
+            for region in candidates:
+                children_included = [c for c in region.children if c in candidates]
+                # if the parcellation index matches only approximately,
+                # while a child has an exact matching index, use the child.
+                if len(children_included) > 0:
+                    if not (
+                        isinstance(regionspec, ParcellationIndex)
+                        and (region.index != regionspec)
+                        and any(c.index == regionspec for c in children_included)
+                    ):
+                        filtered.append(region)
+                else:
+                    if region.parent not in candidates:
+                        filtered.append(region)
+                    else:
+                        if (
+                            isinstance(regionspec, ParcellationIndex)
+                            and (region.index == regionspec)
+                            and (region.parent.index != regionspec)
+                        ):
+                            filtered.append(region)                                            
 
             # find any non-matched regions of which all children are matched
             complete_parents = list(
@@ -212,32 +232,32 @@ class Region(anytree.NodeMixin, AtlasConcept):
             )
 
             if len(complete_parents) == 0:
-                result = filtered
+                candidates = filtered
             else:
                 # filter child regions again
                 filtered += complete_parents
-                result = [r for r in filtered if r.parent not in filtered]
+                candidates = [r for r in filtered if r.parent not in filtered]
 
         # ensure the result is a list
-        if result is None:
-            result = []
-        elif isinstance(result, Region):
-            result = [result]
+        if candidates is None:
+            candidates = []
+        elif isinstance(candidates, Region):
+            candidates = [candidates]
         else:
-            result = list(result)
+            candidates = list(candidates)
 
         if build_group:
             # return a single region as the result
-            if len(result) == 1:
-                return result[0]
-            elif len(result) > 1:
+            if len(candidates) == 1:
+                return candidates[0]
+            elif len(candidates) > 1:
                 return Region._build_grouptree(
-                    result, self.parcellation, name=groupname
+                    candidates, self.parcellation, name=groupname
                 )
             else:
                 return None
         else:
-            return sorted(result, key=lambda r: r.depth)
+            return sorted(candidates, key=lambda r: r.depth)
 
     @cached
     def matches(self, regionspec):
@@ -741,10 +761,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # determine labelindex
         labelindex = jsonstr.get("labelIndex", None)
-        if labelindex is None and len(children) > 0:
-            L = [c.index.label for c in children]
-            if (len(L) > 0) and (L.count(L[0]) == len(L)):
-                labelindex = L[0]
+        #if labelindex is None and len(children) > 0:
+        #    L = [c.index.label for c in children]
+        #    if (len(L) > 0) and (L.count(L[0]) == len(L)):
+        #        labelindex = L[0]
 
         # Setup the region object
         pindex = ParcellationIndex(label=labelindex, map=jsonstr.get("mapIndex", None))
