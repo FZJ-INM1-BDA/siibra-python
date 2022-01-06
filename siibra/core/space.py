@@ -719,7 +719,6 @@ class PointSet(Location):
     @property
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        print("homogoenous", self.coordinates)
         return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
 
 
