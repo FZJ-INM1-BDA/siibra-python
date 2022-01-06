@@ -46,6 +46,7 @@ class Cache:
 
     _instance = None
     folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
+    SIZE_GIB = 2  # maintenance will delete old files to stay below this limit
 
     def __init__(self):
         raise RuntimeError(
@@ -62,6 +63,7 @@ class Cache:
                 cls.folder = os.environ["SIIBRA_CACHEDIR"]
             cls.folder = assert_folder(cls.folder)
             cls._instance = cls.__new__(cls)
+            cls._instance.run_maintenance()
         return cls._instance
 
     def clear(self):
@@ -71,15 +73,64 @@ class Cache:
         shutil.rmtree(self.folder)
         self.folder = assert_folder(self.folder)
 
-    def build_filename(self, str_rep, suffix=None):
+    def run_maintenance(self):
+        """ Shrinks the cache by deleting oldest files first until the total size 
+        is below cache size (Cache.SIZE) given in GiB."""
+
+        # build sorted list of cache files and their os attributes
+        files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
+        sfiles = sorted([(fn, os.stat(fn)) for fn in files], key = lambda t: t[1].st_atime)
+
+        # determine the first n files that need to be deleted to reach the accepted cache size
+        size_gib = sum(t[1].st_size for t in sfiles)/1024**3
+        targetsize = size_gib
+        index = 0
+        for index, (fn, st) in enumerate(sfiles):
+            if targetsize <= self.SIZE_GIB:
+                break
+            targetsize -= st.st_size / 1024**3
+
+        if index > 0:
+            logger.info(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
+            print()
+            for fn, st in sfiles[:index + 1]:
+                size_gib -= st.st_size / 1024**3
+                print(f"Cache size: {size_gib:5.2f} GiB | Deleting {fn}", end="\r")
+                os.remove(fn)
+
+    @property
+    def size(self):
+        """ Return size of the cache in GiB. """
+        return sum(os.path.getsize(fn) for fn in self)/1024**3
+
+    def __iter__(self):
+        """ Iterate all element names in the cache directory. """
+        return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
+
+    def build_filename(self, str_rep: str, suffix=None, run_maintenance=True):
+        """Generate a filename in the cache.
+
+        Args:
+            str_rep (str): Unique string representation of the item. Will be used to compute a hash.
+            suffix (str, optional): Optional file suffix, in order to allow filetype recognition by the name. Defaults to None.
+            run_maintenance (bool, optional): If true, cache maintenance will be triggered. Defaults to True.
+            protected (bool, optional): If true, returns a filename that will be excluded from maintenance deletion. Defaults to False.
+
+        Returns:
+            filename
+        """
+        if run_maintenance:
+            self.run_maintenance()
         hashfile = os.path.join(
-            self.folder,
-            str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
+            self.folder, str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
         )
         if suffix is None:
             return hashfile
         else:
-            return hashfile + "." + suffix
+            if suffix.startswith("."):
+                return hashfile + suffix
+            else:
+                return hashfile + "." + suffix
 
 
 CACHE = Cache.instance()
