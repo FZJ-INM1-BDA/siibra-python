@@ -325,10 +325,10 @@ class Point(Location):
             return tuple(spec)
         elif isinstance(spec, Point):
             return spec.coordinate
-        else:
-            raise ValueError(
-                f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
-            )
+            
+        raise ValueError(
+            f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
+        )
 
     def __init__(self, coordinatespec, space: Space, sigma_mm: float = 0.0):
         """
