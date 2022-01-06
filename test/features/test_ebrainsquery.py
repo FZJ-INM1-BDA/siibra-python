@@ -22,7 +22,7 @@ class TestEbrainsQuery(unittest.TestCase):
 
 
 parameter = [
-    ('rat', 'v3', 'neocortex', {
+    ('rat', 'v3', 'neocortex hippocampus', {
         'exclude': [
             # buggy. hippocampus + difumo 512 is a big issue
             'DiFuMo atlas (512 dimensions)'
@@ -68,13 +68,20 @@ def test_species(atlas_id,parc_id,region_id,inc_exc):
     atlas:Atlas = siibra.atlases[atlas_id]
     parc:Parcellation = atlas.parcellations[parc_id]
     r:Region = parc.decode_region(region_id)
+    print("ID", region_id, "REGION", r)
     features: List[Feature] = siibra.get_features(r, 'ebrains')
     feature_names = [f.name for f in features]
 
     excludes: List[str] = inc_exc.get('exclude')
     includes: List[str] = inc_exc.get('include')
-    assert all(exc not in feature_names for exc in excludes)
-    assert all(inc in feature_names for inc in includes)
+    print(feature_names)
+    for exc in excludes:
+        print(exc)
+        assert exc not in feature_names
+
+    for inc in includes:
+        print(inc)
+        assert inc in feature_names
 
 if __name__ == "__main__":
     unittest.main()
