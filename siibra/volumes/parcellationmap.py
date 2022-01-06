@@ -34,7 +34,7 @@ from numbers import Number
 import pandas as pd
 from math import ceil, log10
 import gzip
-
+from scipy.ndimage.morphology import distance_transform_edt
 
 class ParcellationMap(ABC):
     """
@@ -451,16 +451,18 @@ class LabelledParcellationVolume(ParcellationVolume):
             with QUIET:
                 m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
             unmatched = []
-            for labelindex in np.unique(m.get_fdata()):
+            for labelindex in np.unique(m.get_fdata()).astype('int'):
                 if labelindex != 0:
                     pindex = ParcellationIndex(map=mapindex, label=labelindex)
                     try:
                         region = self.parcellation.decode_region(pindex)
                         if labelindex > 0:
                             self._regions_cached[pindex] = region
+                        else:
+                            unmatched.append(pindex)
                     except ValueError:
                         unmatched.append(pindex)
-            if unmatched:
+            if len(unmatched) > 0:
                 logger.warning(
                     f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}"
                 )
@@ -484,11 +486,14 @@ class LabelledParcellationVolume(ParcellationVolume):
     @cached
     def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
         m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
-        if len(m.dataobj.shape) == 4 and m.dataobj.shape[3] > 1:
-            logger.info(
-                f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
-            )
-            m = argmax_dim4(m)
+        if len(m.dataobj.shape) == 4:
+            if m.dataobj.shape[3] == 1:
+                m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int).squeeze(), affine=m.affine)
+            else:
+                logger.info(
+                    f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
+                )
+                m = argmax_dim4(m)
         if m.dataobj.dtype.kind == "f":
             logger.warning(
                 f"Floating point image type encountered when building a labelled volume for {self.parcellation.name}, converting to integer."
@@ -654,6 +659,43 @@ class LabelledParcellationVolume(ParcellationVolume):
                     assignments[i].append((region, lmap, None))
 
         return assignments
+
+    def sample_locations(self, regionspec, numpoints: int):
+        """ Sample 3D locations inside a given region.
+        
+        The probability distribution is approximated from the region mask
+        based on the squared distance transform.
+
+        regionspec: valid region specification
+            Region to be used
+        numpoints: int
+            Number of samples to draw
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+
+        """
+        indices = self.decode_region(regionspec)
+        assert len(indices) > 0
+
+        # build region mask
+        B = None
+        lmap = None
+        for index in indices:
+            lmap = self.fetch(index.map)
+            M = np.asanyarray(lmap.dataobj)
+            if B is None:
+                B = np.zeros_like(M)
+            B[M == index.label] = 1
+
+        D = distance_transform_edt(B)**2
+        p = (D / D.sum()).ravel()
+        XYZ_ = np.array(
+            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
+        ).T
+        XYZ = np.dot(lmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
+        return PointSet(XYZ, space=self.space)
 
     def assign(self, img: Nifti1Image, msg=None, quiet=False):
         """
@@ -957,13 +999,13 @@ class ContinuousParcellationVolume(ParcellationVolume):
         v = [self.probs[i][mapindex] for i in self.spatial_index[x, y, z]]
         return x, y, z, v
 
-    def sample_locations(self, mapindex, numpoints, lower_threshold=0.0):
+    def sample_locations(self, regionspec, numpoints, lower_threshold=0.0):
         """Sample 3D locations by using one of the maps as probability distributions.
 
         Parameters
         ----------
-        mapindex: int, or valid region specification
-            Index of the map to be used
+        regionspec: valid region specification
+            Region to be used
         numpoints: int
             Number of samples to draw
         lower_threshold: float, default: 0
@@ -975,12 +1017,10 @@ class ContinuousParcellationVolume(ParcellationVolume):
 
         TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
         """
-        if not isinstance(mapindex, Number):
-            # assume we have some form of unique region specification
-            logger.info(
-                f'Trying to decode map index for region specification "{mapindex}".'
-            )
-            mapindex = self.decode_region(mapindex)[0].map
+        if isinstance(regionspec, Number):
+            mapindex = regionspec
+        else:
+            mapindex = self.decode_region(regionspec)[0].map
         pmap = self.fetch(mapindex, cropped=True)
         D = np.array(pmap.dataobj)  # do a real copy so we don't modify the map
         D[D < lower_threshold] = 0.0
