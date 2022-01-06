@@ -19,6 +19,7 @@ from ..retrieval import HttpRequest
 
 import numpy as np
 
+
 class GiftiSurface(VolumeSrc, volume_type="gii"):
     """
     A (set of) surface meshes in Gifti format.
