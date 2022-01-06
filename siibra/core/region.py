@@ -269,7 +269,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
             # argument is int - a labelindex is expected
             return self.index.label == regionspec
         elif isinstance(regionspec, ParcellationIndex):
-            return self.index == regionspec
+            if self.index.map is None:
+                return self.index.label == regionspec.label
+            else:
+                return self.index == regionspec
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
