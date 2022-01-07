@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic.fields import PrivateAttr
 from .feature import RegionalFeature
 from .query import FeatureQuery
 
@@ -28,8 +29,8 @@ from distutils.version import LooseVersion
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
 
-    _regionspec = None
-    _species = None
+    _regionspec = PrivateAttr()
+    _species = PrivateAttr()
     _match = None
     _version = None
     _next = None
@@ -184,7 +185,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
             prev = None
             for version in sorted_versions:
                 curr = datasets[version]
-                curr.version = version
+                curr._version = version
                 if prev is not None:
                     curr._prev = prev
                     prev._next= curr

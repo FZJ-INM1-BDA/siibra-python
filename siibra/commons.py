@@ -15,7 +15,7 @@
 
 import os
 from enum import Enum
-from typing import Any, Callable, Generic, Iterable, List, TypeVar
+from typing import Any, Callable, Generic, Iterable, List, TypeVar, Union
 from nibabel import Nifti1Image
 import logging
 import numpy as np
@@ -172,8 +172,7 @@ class TypedRegistry(Generic[T]):
         matches = self.find(spec)
         return len(matches) > 0
 
-    # TODO this method hangs in the else block
-    def find(self, spec) -> List[T]:
+    def find(self, spec: Union[str, dict, int]) -> List[T]:
         """
         Return a list of items matching the given specification,
         which could be either the name or a specification that
@@ -191,7 +190,9 @@ class TypedRegistry(Generic[T]):
                 for key, el in self._elements.items()
                 if any(
                     all(
-                        word.lower() in alias.lower()
+                        # remove all spaces when searching
+                        # because colin27 should find colin 27, bigbrain should find bigbrain etc
+                        word.lower() in re.sub(r"\s", "", alias).lower()
                         for word in spec.split()
                     )
                     for alias in self._get_aliases(key, el)
@@ -243,7 +244,9 @@ class TypedRegistry(Generic[T]):
 
     @staticmethod
     def alias_to_attr(alias: str) -> str:
-        return re.sub(r'\W+', '_', alias).upper()
+        sanitized = re.sub(r"\W+", "_", alias)
+        sanitized = re.sub(r"_+$", "", sanitized)
+        return sanitized.upper()
 
 class Registry(TypedRegistry[Any]): pass
 

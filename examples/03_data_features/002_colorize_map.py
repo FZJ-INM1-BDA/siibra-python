@@ -31,7 +31,7 @@ jubrain = atlas.get_parcellation('julich 2.9')
 # %%
 # As in the previous example, we extract all receptor density features linked
 # to Julich-Brain.
-receptor_features = siibra.get_features(jubrain, siibra.modalities.ReceptorDistribution)
+receptor_features = siibra.get_features(jubrain, siibra.modalities.RECEPTORDISTRIBUTION)
 
 # %%
 # Colorizing a map requires a dictionary that maps region objects to numbers.
@@ -39,7 +39,7 @@ receptor_features = siibra.get_features(jubrain, siibra.modalities.ReceptorDistr
 # densities measured for GABAA.
 receptor = 'GABAA'
 mapping = {
-    jubrain.decode_region(f.regionspec) : f.fingerprint[receptor].mean
+    jubrain.decode_region(f._regionspec) : f.fingerprint[receptor].mean
     for f in receptor_features if receptor in f.fingerprint.labels
 }
 

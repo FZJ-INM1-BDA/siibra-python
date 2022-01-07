@@ -32,13 +32,14 @@ region mask to filter the probes.
 # %%
 # We start by selecting an atlas.
 import siibra
+from siibra.core import parcellation
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # We select a brain region and query for expression levels of GABARAPL2.
-region = atlas.get_region("V1")
+region = atlas.get_region("V1", parcellation="julich brain 2.9 colin")
 features = siibra.get_features(
-    region, siibra.modalities.GeneExpression,
+    region, siibra.modalities.GENEEXPRESSION,
     gene=siibra.features.gene_names.GABARAPL2)
 print(features[0])
 

@@ -1369,7 +1369,7 @@ class LabelledSurface(ParcellationMap):
         space : Space
             The desired template space to build the map
         """
-        assert space.type == "gii"
+        # assert space.type == "gii"
         super().__init__(parcellation, space, MapType.LABELLED)
         self.type = "gii-label"
 

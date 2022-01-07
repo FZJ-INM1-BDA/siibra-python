@@ -277,7 +277,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             return self == regionspec
         elif isinstance(regionspec, int):
             # argument is int - a labelindex is expected
-            return self.index.label == regionspec
+            return self.index == regionspec
         elif isinstance(regionspec, ParcellationIndex):
             return self.index == regionspec
         elif isinstance(regionspec, str):
@@ -474,7 +474,7 @@ class Region(parcellationEntityVersion.Model, AtlasConcept, SiibraNode):
             )
 
         # first test this head node
-        if self.index.label == labelindex:
+        if self.index == labelindex:
             return self
 
         # Consider children, and return the one with smallest depth

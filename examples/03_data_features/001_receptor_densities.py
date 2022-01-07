@@ -24,20 +24,21 @@ EBRAINS provides transmitter receptor density measurments linked to a selection 
 # %%
 # We start by selecting an atlas.
 import siibra
+from siibra.core import parcellation
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # If we query this modality for the whole atlas instead of a particular
 # brain region, all linked receptor density features
 # will be returned.
-all_features = siibra.get_features( atlas, siibra.modalities.ReceptorDistribution)
+all_features = siibra.get_features( atlas, siibra.modalities.RECEPTORDISTRIBUTION)
 print("Receptor density features found for the following regions:")
-print("\n".join(f.regionspec for f in all_features))
+print("\n".join(f._regionspec for f in all_features))
 
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly. 
 # So we can directly retrieve densities for the primary visual cortex:
-v1_features = siibra.get_features(atlas.get_region('v1'), 'receptor')
+v1_features = siibra.get_features(atlas.get_region('v1', parcellation="julich 2.9 colin"), 'receptor')
 for f in v1_features:
     fig = f.plot()
 

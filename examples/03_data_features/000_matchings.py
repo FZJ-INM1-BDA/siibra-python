@@ -23,6 +23,7 @@ This example shows how some features are linked to anatomical regions in differe
 """
 
 import siibra
+from siibra.core import parcellation
 
 
 # %%
@@ -39,8 +40,8 @@ for m in siibra.modalities:
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-region = atlas.get_region("v2")
-features = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+region = atlas.get_region("v2", parcellation="julich brain 2 9 colin 27")
+features = siibra.get_features(region, siibra.modalities.EBRAINSREGIONALDATASET)
 for feature in features:
     print(f" - {feature.name}")
 
@@ -68,7 +69,7 @@ selected_ids = [
     "01550c5c-291d-4bfb-a362-875fcaa21724",
     "7269d1a2-c7ad-4745-972c-10dbf5a022b7",
 ]
-occ = atlas.get_region("occipital")
+occ = atlas.get_region("occipital", parcellation="julich brain 2 9 colin 27")
 for feature in siibra.get_features(occ, "ebrains"):
     fid = feature.id.split("/")[-1]
     if fid in selected_ids:
@@ -78,10 +79,10 @@ for feature in siibra.get_features(occ, "ebrains"):
 
 # %%
 # If we query a rather specific region, we get more exact matches.
-v1 = atlas.get_region("v1")
+v1 = atlas.get_region("v1", parcellation="julich brain 2 9 colin 27")
 for f in siibra.get_features(v1, "ebrains"):
     print(f.name)
-    print(f.match_description)
+    print(f.description)
     print()
 
 # %%
@@ -96,19 +97,19 @@ dataset = "https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0
 # (Note that we group the results by dataset, so we can access the selected dataset directly.)
 for f in siibra.get_features(v1, "ebrains", group_by="dataset")[dataset]:
     print(f.name)
-    print(f.match_description)
+    print(f.description)
     print()
 
 # %%
 # When querying for datasets related to only the left hemisphere of v1, the match is qualified as "contains":
-v1l = atlas.get_region("v1 left")
+v1l = atlas.get_region("v1 left", parcellation="julich brain 2.9 colin")
 for f in siibra.get_features(v1l, "ebrains", group_by="dataset")[dataset]:
-    print(f.match_description)
+    print(f.description)
 
 # %%
 # Lastly, when querying for datasets related to the occipial cortex, the match is qualified as "contained":
 for f in siibra.get_features(occ, "ebrains", group_by="dataset")[dataset]:
-    print(f.match_description)
+    print(f.description)
 
 # %%
 # Spatial features
@@ -121,8 +122,8 @@ for f in siibra.get_features(occ, "ebrains", group_by="dataset")[dataset]:
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
 dataset = "Fiber structures of a human hippocampus based on joint DMRI, 3D-PLI, and TPFM acquisitions"
-ca1 = atlas.get_region("ca1")
-features = siibra.get_features(ca1, siibra.modalities.VolumeOfInterest)
+ca1 = atlas.get_region("ca1", parcellation="julich brain v2.9 colin")
+features = siibra.get_features(ca1, siibra.modalities.VOLUMEOFINTEREST)
 for feature in features:
     if feature.name == dataset:
         print(feature.name)
@@ -132,12 +133,12 @@ for feature in features:
 # Another example are gene expressions retrieved from the Allen atlas.
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.get_features(v1, siibra.modalities.GeneExpression, gene="TAC1")
+features = siibra.get_features(v1, siibra.modalities.GENEEXPRESSION, gene="TAC1")
 print(features[0].match_description)
 
 # %%
 # Intracranial recording sessions comprise multiple electrodes with multiple
 # contact points each. Typically, some of the contact points are located inside
 # a requested brain region, resulting in an approximate match.
-features = siibra.get_features(v1, siibra.modalities.IEEG_Session)
+features = siibra.get_features(v1, siibra.modalities.IEEG_SESSION)
 print(features[0].match_description)

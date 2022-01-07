@@ -59,6 +59,10 @@ def test_point_creation():
     assert p.coordinates_tuple == (10, 11, 12)
     assert p.id == point_json_1.get("@id")
 
+def test_point_space():
+    p = Point(**point_json_1)
+    assert p.space is Space.REGISTRY["big brain"]
+
 subtraction = ['sub,expected,expect_raise', [
     (1, (9, 10, 11), False),
     (Point(

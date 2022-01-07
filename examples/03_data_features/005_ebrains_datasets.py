@@ -29,8 +29,8 @@ The returned features can thus actually have different modalities, and might inc
 
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-region = atlas.get_region("v2")
-features = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+region = atlas.get_region("v2", parcellation="julich brain 2.9 colin")
+features = siibra.get_features(region, siibra.modalities.EBRAINSREGIONALDATASET)
 for feature in features:
    print(f" - {feature.name}")
 

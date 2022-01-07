@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic.fields import PrivateAttr
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -26,29 +27,36 @@ import numpy as np
 
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset):
+    _match = PrivateAttr()
+    _location = PrivateAttr()
+    _volumes = PrivateAttr()
+
     def __init__(self, dataset_id, location, name):
         SpatialFeature.__init__(self, location)
-        EbrainsDataset.__init__(self, dataset_id, name)
-        self.volumes = []
+        EbrainsDataset.__init__(self, dataset_id)
+        self._volumes = []
 
     @classmethod
     def _from_json(cls, definition):
         if definition["@type"] == "minds/core/dataset/v1.0.0":
-            space = Space.REGISTRY[definition["space id"]]
+            space = Space.REGISTRY[Space.parse_legacy_id(definition["space id"])]
             vsrcs = []
             minpoints = []
             maxpoints = []
             for vsrc_def in definition["volumeSrc"]:
-                vsrc = VolumeSrc._from_json(vsrc_def)
-                vsrc.space = space
-                with QUIET:
-                    img = vsrc.fetch()
-                    D = np.asanyarray(img.dataobj).squeeze()
-                    nonzero = np.array(np.where(D > 0))
-                    A = img.affine
-                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
-                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
-                vsrcs.append(vsrc)
+                volumes = VolumeSrc.parse_legacy(vsrc_def)
+                for vsrc in volumes:
+                    if not isinstance(vsrc, VolumeSrc):
+                        continue
+                    vsrc._space_id = space.id
+                    with QUIET:
+                        img = vsrc.fetch()
+                        D = np.asanyarray(img.dataobj).squeeze()
+                        nonzero = np.array(np.where(D > 0))
+                        A = img.affine
+                    minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
+                    maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
+                    vsrcs.append(vsrc)
             minpoint = np.array(minpoints).min(0)
             maxpoint = np.array(maxpoints).max(0)
             result = cls(
@@ -56,7 +64,7 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
                 name=definition["name"],
                 location=BoundingBox(minpoint, maxpoint, space),
             )
-            list(map(result.volumes.append, vsrcs))
+            list(map(result._volumes.append, vsrcs))
             return result
         return definition
 

@@ -34,7 +34,7 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 # We select the maximum probability map of Julich-Brain in MNI152 space,
 # which is a parcellation map with discrete labels. The `get_map` method
 # of the atlas assumes maptype='labelled' by default.
-julich_mpm = atlas.get_map(space="mni152", parcellation="julich", maptype="labelled")
+julich_mpm = atlas.get_map(space="mni152", parcellation="julich mni152", maptype="labelled")
 julich_mpm
 
 # %%

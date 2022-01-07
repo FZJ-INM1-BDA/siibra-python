@@ -157,7 +157,10 @@ class EbrainsDataset(datasetVersion.Model):
         getattr will only be called if attr is not defined the normal way
         this might be a sign that the dataset hasn't yet been lazy loaded.
         """
-        self._lazy_load()
+        if not self._detail:
+            self._lazy_load()
+        else:
+            raise AttributeError(f"attribute {attr} does not exist.")
         return getattr(self, attr)
 
     def _lazy_load(self):
@@ -241,7 +244,7 @@ class EbrainsDataset(datasetVersion.Model):
 
         licenses: List[Dict[str, str]] = kg_result.get("licenseInfo", [])
         if len(licenses) == 0:
-            logger.warning(f"kgReference length == 0, use fallback doi")
+            logger.warning(f"license length == 0, use fallback doi")
             licenses=[{
                 "name": "unknown license",
                 "@id": "UNKNOWN",

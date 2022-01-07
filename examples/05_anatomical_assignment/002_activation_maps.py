@@ -22,9 +22,9 @@ If given a ``Nifti1Image`` object as input, the assignment method will interpret
 It will first split the image volume into disconnected components, i.e. any subvolumes which are clearly separated by zeros.
 Then, each component will be compared to each continuous maps in the same way that the Gaussian blobs representing uncertain points are processed in 
 :ref:`sphx_glr_examples_05_anatomical_assignment_001_coordinates.py`.
-
-We start again by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment. 
 """
+# %%
+# We start again by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment. 
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 with siibra.QUIET: # suppress progress output here

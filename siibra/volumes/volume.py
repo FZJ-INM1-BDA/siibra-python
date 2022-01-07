@@ -351,7 +351,7 @@ class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
         img = None
         if resolution_mm is not None:
             raise NotImplementedError(
-                f"NiftiVolume does not support to specify image resolutions (but {resolution_mm} was given)"
+                f"NiftiVolume does not support to specify image resolutions (but {resolution_mm} was given)"
             )
 
         if mapindex is None:
@@ -421,7 +421,7 @@ class NeuroglancerVolume(
         self._transform_nm = np.identity(4)
 
     def _bootstrap(self):
-        accessor = get_accessor_for_url(self.url)
+        accessor = get_accessor_for_url(self.iri)
         self._io = get_IO_for_existing_dataset(accessor)
         self._scales_cached = sorted(
             [NeuroglancerScale(self, i) for i in self._io.info["scales"]]
@@ -470,15 +470,15 @@ class NeuroglancerVolume(
     def _select_scale(self, resolution_mm, bbox: BoundingBox = None):
 
         if resolution_mm is None:
-            suitable = self._scales
+            suitable = self.scales
         elif resolution_mm < 0:
             suitable = [self.scales[0]]
         else:
-            suitable = sorted(s for s in self._scales if s.resolves(resolution_mm))
+            suitable = sorted(s for s in self.scales if s.resolves(resolution_mm))
         if len(suitable)>0:
             scale = suitable[-1]
         else:
-            scale = self._scales[0]
+            scale = self.scales[0]
             logger.warn(
                 f"Requested resolution {resolution_mm} is not available. "
                 f"Falling back to the highest possible resolution of "
@@ -558,8 +558,9 @@ class NeuroglancerScale:
         if bbox is None:
             bbox_ = BoundingBox((0, 0, 0), self.size, self.space)
         else:
+            # TODO 02/004 need space to be defined
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
-        result = self.volume._dtype.itemsize * bbox_.volume
+        result = self.volume.dtype.itemsize * bbox_.volume
         logger.debug(
             f"Approximate size for fetching resolution "
             f"({', '.join(map('{:.2f}'.format, self.res_mm))}) mm "
@@ -570,20 +571,20 @@ class NeuroglancerScale:
     def next(self):
         """ Returns the next scale in this volume, of None if this is the last.
         """
-        my_index = self.volume._scales.index(self)
-        print(f"Index of {self.key} is {my_index} of {len(self.volume._scales)}.")
-        if my_index < len(self.volume._scales):
-            return self.volume._scales[my_index+1]
+        my_index = self.volume.scales.index(self)
+        print(f"Index of {self.key} is {my_index} of {len(self.volume.scales)}.")
+        if my_index < len(self.volume.scales):
+            return self.volume.scales[my_index+1]
         else:
             return None
 
     def prev(self):
         """ Returns the previous scale in this volume, or None if this is the first. 
         """
-        my_index = self.volume._scales.index(self)
-        print(f"Index of {self.key} is {my_index} of {len(self.volume._scales)}.")
+        my_index = self.volume.scales.index(self)
+        print(f"Index of {self.key} is {my_index} of {len(self.volume.scales)}.")
         if my_index > 0:
-            return self.volume._scales[my_index-1]
+            return self.volume.scales[my_index-1]
         else:
             return None
 

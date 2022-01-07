@@ -3,9 +3,31 @@
 ## TODO
 
 - 01 / 005 -> get_regional_maps breaking change
-- 02 / 001 -> alias with space
-- 02 / 003 +
-
+- 02 / 003 -> get regional_maps breaking change (?)
+- 02 / 004 -> search for "TODO 02/004 need space to be defined"
+- 02 / 005 -> some changes to how selections are carried out. 
+    -> assert space.type == "gii" assertion will always be false
+- 03 / 000 atlas.get_region("v2") should raise, if no parcellation is specified.
+    -> alternatively, return all regions satisfy the condition (?)
+    -> chokes on VOI, same as above, get regional maps breaking change
+- 03 / 001
+    - autoradiographs['ampa'] seems to hang... check if it was network issue or...
+- 03 / 002
+    -   File "/home/xiao/dev/projects/siibra-python/siibra/core/parcellation.py", line 300, in get_map
+    f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"'
+- 03 / 003
+    - hangs at 
+```
+    File "/home/xiao/dev/projects/siibra-python/siibra/retrieval/requests.py", line 167, in data
+return self.get()
+File "/home/xiao/dev/projects/siibra-python/siibra/retrieval/requests.py", line 158, in get
+data = self._retrieve()
+File "/home/xiao/dev/projects/siibra-python/siibra/retrieval/requests.py", line 148, in _retrieve
+```
+    check if it's connection issue or else
+- 03 / 004
+    - multiple regional maps found
+    
 ## Important conceptual changes
 
 - Each parcellation (BrainAtlasVersion) **must** have an associated space. This means, for example, Julich 2.9 will need to be broken into 6 parcellations

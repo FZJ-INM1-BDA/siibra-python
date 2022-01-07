@@ -29,8 +29,8 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # Find cell density features for V1
-v1 = atlas.get_region("v1")
-features = siibra.get_features(v1, siibra.modalities.CorticalCellDistribution)
+v1 = atlas.get_region("v1", parcellation="julich 2.9 big brain")
+features = siibra.get_features(v1, siibra.modalities.CORTICALCELLDISTRIBUTION)
 print(f"{len(features)} found for region {v1.name}")
 
 # %%
@@ -53,7 +53,7 @@ plt.axis("square")
 # %%
 # The features also have location information. We can plot their location in
 # BigBrain space:
-location = features[0].location
+location = features[0]._location
 
 # fetch the template of the location's space
 template = location.space.get_template().fetch()

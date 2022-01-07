@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ctypes import ArgumentError
+from pydantic.fields import PrivateAttr
 from ..commons import logger, Registry, QUIET
 from ..core.concept import AtlasConcept
 from ..core.atlas import Atlas
@@ -200,7 +200,6 @@ class SpatialFeature(Feature):
     """
     Base class for coordinate-anchored data features.
     """
-
     def __init__(self, location: Location):
         """
         Initialize a new spatial feature.
@@ -212,11 +211,11 @@ class SpatialFeature(Feature):
         """
         assert location is not None
         Feature.__init__(self)
-        self.location = location
+        self._location = location
 
     @property
     def space(self):
-        return self.location.space
+        return self._location.space
 
     def match(self, concept):
         """
@@ -235,7 +234,7 @@ class SpatialFeature(Feature):
         """
 
         self._match = None
-        if self.location is None:
+        if self._location is None:
             return False
 
         if isinstance(concept, Parcellation):
@@ -256,15 +255,15 @@ class SpatialFeature(Feature):
                 continue
             if region.mapped_in_space(tspace):
                 if tspace == self.space:
-                    return self._test_mask(self.location, region, tspace)
+                    return self._test_mask(self._location, region, tspace)
                 else:
                     logger.warning(
                         f"{self.__class__.__name__} cannot be tested for {region.name} "
                         f"in {self.space}, testing in {tspace} instead."
                     )
-                    return self._test_mask(self.location.warp(tspace), region, tspace)
+                    return self._test_mask(self._location.warp(tspace), region, tspace)
         else:
-            logger.warning(f"Cannot test overlap of {self.location} with {region}")
+            logger.warning(f"Cannot test overlap of {self._location} with {region}")
 
         return self.matched
 
@@ -316,15 +315,15 @@ class SpatialFeature(Feature):
                 MatchQualification.APPROXIMATE,
                 f"Location {location} intersected mask of {region.name}",
             )
-        if self.location.space != location.space:
+        if self._location.space != location.space:
             self._match.add_comment(
-                f"The {type(location)} has been warped from {self.location.space} "
+                f"The {type(location)} has been warped from {self._location.space} "
                 f"to {location.space} for performing the test."
             )
         return self.matched
 
     def __str__(self):
-        return f"{self.__class__.__name__} at {str(self.location)}"
+        return f"{self.__class__.__name__} at {str(self._location)}"
 
 
 class RegionalFeature(Feature):
@@ -370,6 +369,9 @@ class RegionalFeature(Feature):
 
     @property
     def species_ids(self):
+        if self._species is None:
+            import pdb
+            pdb.set_trace()
         return [s.get('@id') for s in self._species]
 
     def match(self, concept):
@@ -450,8 +452,6 @@ class RegionalFeature(Feature):
             logger.debug(
                 f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}"
             )
-            for w in concept.key.split("_"):
-                spec = spec.replace(w.lower(), "")
             for region in concept.regiontree.find(spec):
                 self._match = Match(
                     region,
@@ -482,8 +482,6 @@ class RegionalFeature(Feature):
                 "Matching regional features against a complete atlas. "
                 "This is not efficient and the query may take a while."
             )
-            for w in concept.key.split("_"):
-                spec = spec.replace(w.lower(), "")
             for p in concept.parcellations:
                 for region in p.regiontree.find(spec):
                     self._match = Match(

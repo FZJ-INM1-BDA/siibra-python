@@ -92,6 +92,12 @@ class Space(
 
         # TODO if variant == inflated for fsaverage, we would expect 2 (one for left, one for right hemisphere) volumesrc here, no?
         # also note, the _map_type is not right, currently
+
+        # import pdb
+        # pdb.set_trace()
+
+        # _map_type is None...
+
         candidates = {
             volume._map_type: volume
             for volume in self.volumes
@@ -425,6 +431,9 @@ class Point(coordinatePoint.Model, Location):
                 "value": 0
             }]
         }, **kwargs}
+        # if dummy_obj.get("coordinate_space") is None:
+        #     import pdb
+        #     pdb.set_trace()
         coordinatePoint.Model.__init__(self, **dummy_obj)
         self._sigma = sigma_mm
 
@@ -455,6 +464,10 @@ class Point(coordinatePoint.Model, Location):
                 assert(coordinatespec.space == space)
     
     @property
+    def space(self):
+        return main_openminds_registry[self.coordinate_space.get("@id")]
+
+    @property
     def coordinates_tuple(self) -> Tuple[float, float, float]:
         return tuple(c.value for c in self.coordinates)
 
@@ -462,7 +475,7 @@ class Point(coordinatePoint.Model, Location):
     def homogeneous(self):
         """The homogenous coordinate of this point as a 4-tuple,
         obtained by appending '1' to the original 3-tuple."""
-        return self.coordinate + (1,)
+        return self.coordinates_tuple + (1,)
 
     def intersection(self, mask: Nifti1Image):
         if self.intersects(mask):
