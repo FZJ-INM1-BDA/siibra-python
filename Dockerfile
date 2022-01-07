@@ -1,6 +1,6 @@
 # Inspired from https://www.docker.com/blog/containerized-python-development-part-1/
 
-FROM jupyter/scipy-notebook:lab-3.2.3 as builder
+FROM jupyter/minimal-notebook:lab-3.2.5 as builder
 
 USER root
 RUN apt-get update
@@ -12,7 +12,7 @@ COPY . /siibra-python
 WORKDIR /siibra-python
 RUN pip install .
 
-FROM jupyter/scipy-notebook:lab-3.2.3
+FROM jupyter/minimal-notebook:lab-3.2.5
 
 COPY --from=builder /opt/conda /opt/conda
 
