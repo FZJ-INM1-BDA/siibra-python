@@ -1,0 +1,3 @@
+spack:
+  specs:
+    - siibra-python %gcc@10.3.0
