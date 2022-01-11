@@ -44,7 +44,8 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
-REGEX_TYPE=type(re.compile('test'))
+REGEX_TYPE = type(re.compile("test"))
+
 
 class Region(anytree.NodeMixin, AtlasConcept):
     """
@@ -104,17 +105,11 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self.parent = parent
         # this is only used for regions added by parcellation extension:
         self.extended_from = None
-        child_has_mapindex = False
         if children:
             self.children = children
             for c in self.children:
                 c.parent = self
                 c.parcellation = self.parcellation
-                if c.index.map is not None:
-                    child_has_mapindex = True
-
-        if (self.index.map is None) and (not child_has_mapindex):
-            self.index.map = 0
 
     @staticmethod
     def copy(other):
@@ -148,9 +143,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __hash__(self):
         """
-        Identify each region by its parcellation and region key.
+        Identify a region by its parcellation key, region key, and parcellation index
         """
-        return hash(self.parcellation.key + self.key)
+        return hash(f"{self.parcellation.key}_{self.key}_{self.index.map}_{self.index.label}")
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
@@ -198,13 +193,33 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else:
                 return [match]
 
-        result = list(
+        candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
-        if len(result) > 1 and filter_children:
+        if len(candidates) > 1 and filter_children:
 
-            # filter regions whose parent is in the list
-            filtered = [r for r in result if r.parent not in result]
+            filtered = []
+            for region in candidates:
+                children_included = [c for c in region.children if c in candidates]
+                # if the parcellation index matches only approximately,
+                # while a child has an exact matching index, use the child.
+                if len(children_included) > 0:
+                    if not (
+                        isinstance(regionspec, ParcellationIndex)
+                        and (region.index != regionspec)
+                        and any(c.index == regionspec for c in children_included)
+                    ):
+                        filtered.append(region)
+                else:
+                    if region.parent not in candidates:
+                        filtered.append(region)
+                    else:
+                        if (
+                            isinstance(regionspec, ParcellationIndex)
+                            and (region.index == regionspec)
+                            and (region.parent.index != regionspec)
+                        ):
+                            filtered.append(region)                                            
 
             # find any non-matched regions of which all children are matched
             complete_parents = list(
@@ -217,32 +232,32 @@ class Region(anytree.NodeMixin, AtlasConcept):
             )
 
             if len(complete_parents) == 0:
-                result = filtered
+                candidates = filtered
             else:
                 # filter child regions again
                 filtered += complete_parents
-                result = [r for r in filtered if r.parent not in filtered]
+                candidates = [r for r in filtered if r.parent not in filtered]
 
         # ensure the result is a list
-        if result is None:
-            result = []
-        elif isinstance(result, Region):
-            result = [result]
+        if candidates is None:
+            candidates = []
+        elif isinstance(candidates, Region):
+            candidates = [candidates]
         else:
-            result = list(result)
+            candidates = list(candidates)
 
         if build_group:
             # return a single region as the result
-            if len(result) == 1:
-                return result[0]
-            elif len(result) > 1:
+            if len(candidates) == 1:
+                return candidates[0]
+            elif len(candidates) > 1:
                 return Region._build_grouptree(
-                    result, self.parcellation, name=groupname
+                    candidates, self.parcellation, name=groupname
                 )
             else:
                 return None
         else:
-            return result
+            return sorted(candidates, key=lambda r: r.depth)
 
     @cached
     def matches(self, regionspec):
@@ -266,7 +281,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
 
         def splitstr(s):
-            return [w for w in re.split(r"[^a-zA-Z0-9.-]", s) if len(w) > 0]
+            return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
 
         if isinstance(regionspec, Region):
             return self == regionspec
@@ -274,7 +289,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
             # argument is int - a labelindex is expected
             return self.index.label == regionspec
         elif isinstance(regionspec, ParcellationIndex):
-            return self.index == regionspec
+            if self.index.map is None:
+                return self.index.label == regionspec.label
+            else:
+                return self.index == regionspec
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
@@ -328,53 +346,70 @@ class Region(anytree.NodeMixin, AtlasConcept):
             continuous maps with the given value.
         """
         spaceobj = Space.REGISTRY[space]
-        mask = affine = None
+        if spaceobj.is_surface:
+            raise NotImplementedError(
+                "Region masks for surface spaces are not yet supported."
+            )
+
+        mask = None
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
 
         if self.has_regional_map(spaceobj, maptype):
-            mask = self.get_regional_map(space, maptype).fetch(resolution_mm=resolution_mm)
+            mask = self.get_regional_map(space, maptype).fetch(
+                resolution_mm=resolution_mm
+            )
         else:
-            parcmap = self.parcellation.get_map(spaceobj,  maptype)
+            parcmap = self.parcellation.get_map(spaceobj, maptype)
             mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
 
-        if threshold_continuous is not None:
-            assert(maptype==MapType.CONTINUOUS)
-            data = np.asanyarray(mask.dataobj) > threshold_continuous
-            assert(any(data)) 
-            mask = nib.Nifti1Image(data.astype('uint8').squeeze(), mask.affine)
-
         if mask is None:
-            logger.warn(f"Could not compute {maptype} mask for {self.name} in {spaceobj.name}.")
+            logger.warn(
+                f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
+            )
+            return None
+
+        if threshold_continuous is not None:
+            assert maptype == MapType.CONTINUOUS
+            data = np.asanyarray(mask.dataobj) > threshold_continuous
+            assert any(data)
+            mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
         return mask
 
-    def defined_in_space(self, space):
+    def mapped_in_space(self, space):
         """
-        Verifies wether this region is defined by a in the given space.
+        Verifies wether this region is defined by an explicit map in the given space.
         """
-        # the simplest case: the region has a non-empty parcellation index. Then we can assume it is mapped.
-        if (
-            self.index != ParcellationIndex(None, None) and
-            len([v for v in self.parcellation.volumes if v.space==space])
+        # the simple case: the region has a non-empty parcellation index,
+        # and its parcellation has a volumetric map in the requested space.
+        if self.index != ParcellationIndex(None, None) and len(
+            [v for v in self.parcellation.volumes if v.space == space]
         ):
-            # Region has a non-empty parcellation index, 
-            # *and* the parcellation provides a volumetric map in the requested space.
             return True
 
+        # Some regions have explicit regional maps
         for maptype in ["labelled", "continuous"]:
             if self.has_regional_map(space, maptype):
                 return True
 
-        return False
+        # The last option is that this region has children,
+        # and all of them are mapped in the requested space.
+        if self.is_leaf:
+            return False
+
+        for child in self.children:
+            if not child.mapped_in_space(space):
+                return False
+        return True
 
     @property
     def supported_spaces(self):
         """
-        The list of spaces for which a mask could be extracted. 
+        The list of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
-        return [s for s in self.parcellation.spaces if self.defined_in_space(s)]
+        return [s for s in Space.REGISTRY if self.mapped_in_space(s)]
 
     def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
@@ -492,7 +527,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return group
 
     def __str__(self):
-        return f"{self.parcellation.name}: {self.name}"
+        return f"{self.name}"
 
     def __repr__(self):
         return "\n".join(
@@ -579,25 +614,28 @@ class Region(anytree.NodeMixin, AtlasConcept):
         from skimage.feature.peak import peak_local_max
 
         img = pmap.fetch()
-        dist = int(min_distance_mm / affine_scaling(img.affine) + .5)
+        dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
         voxels = peak_local_max(
             img.get_fdata(),
             exclude_border=False,
             min_distance=dist,
         )
-        return PointSet(
-            [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
-            space=spaceobj,
-        ), img
+        return (
+            PointSet(
+                [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
+                space=spaceobj,
+            ),
+            img,
+        )
 
     def centroids(self, space: Space):
-        """ Compute the centroids of the region in the given space.
-        
+        """Compute the centroids of the region in the given space.
+
         Note that a region can generally have multiple centroids
         if it has multiple connected components in the map.
         """
         props = self.spatial_props(space)
-        return [c['centroid'] for c in props['components']]
+        return [c["centroid"] for c in props["components"]]
 
     @cached
     def spatial_props(
@@ -630,7 +668,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if not isinstance(space, Space):
             space = Space.REGISTRY[space]
 
-        if not self.defined_in_space(space):
+        if not self.mapped_in_space(space):
             raise RuntimeError(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}."
             )
@@ -723,10 +761,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # determine labelindex
         labelindex = jsonstr.get("labelIndex", None)
-        if labelindex is None and len(children) > 0:
-            L = [c.index.label for c in children]
-            if (len(L) > 0) and (L.count(L[0]) == len(L)):
-                labelindex = L[0]
 
         # Setup the region object
         pindex = ParcellationIndex(label=labelindex, map=jsonstr.get("mapIndex", None))

@@ -54,7 +54,7 @@ class TestParcellation(unittest.TestCase):
         }
         parc = Parcellation._from_json(updated_json)
         regions = parc.find_regions('foo')
-        assert len(regions) == 2
+        assert len(regions) == 3
         assert regions[0].name == 'foo'
 
 

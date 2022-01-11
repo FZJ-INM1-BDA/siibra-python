@@ -13,13 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, HttpRequest
+from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
-import base64
 from tqdm import tqdm
-import json
 
 
 class RepositoryConnector(ABC):
@@ -50,19 +48,19 @@ class RepositoryConnector(ABC):
             return response
 
     def get(self, filename, folder="", decode_func=None):
-        """ Get a file right away. """
+        """Get a file right away."""
         return self.get_loader(filename, folder, decode_func).data
 
     def get_loader(self, filename, folder="", decode_func=None):
-        """ Get a lazy loader for a file, for executing the query
-        only once loader.data is accessed. """
+        """Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed."""
+        url = self._build_url(folder, filename)
+        if url is None:
+            raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
         if decode_func is None:
-            return HttpRequest(
-                self._build_url(folder, filename),
-                lambda b: self._decode_response(b, filename),
-            )
+            return HttpRequest(url, lambda b: self._decode_response(b, filename))
         else:
-            return HttpRequest(self._build_url(folder, filename), decode_func)
+            return HttpRequest(url, decode_func)
 
     def get_loaders(
         self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
@@ -79,7 +77,9 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return tqdm(result, total=len(fnames), desc=progress)
+            return tqdm(
+                result, total=len(fnames), desc=progress, disable=logger.level > 20
+            )
 
 
 class GitlabConnector(RepositoryConnector):
@@ -132,12 +132,7 @@ class GitlabConnector(RepositoryConnector):
         else:
             pathstr = filename if folder == "" else f"{folder}/{filename}"
             filepath = quote(pathstr, safe="")
-            return f"{self.base_url}/files/{filepath}?ref={ref}"
-
-    def _decode_response(self, response, filename):
-        json_response = json.loads(response.decode())
-        content = base64.b64decode(json_response["content"].encode("ascii"))
-        return RepositoryConnector._decode_response(self, content, filename)
+            return f"{self.base_url}/files/{filepath}/raw?ref={ref}"
 
     def search_files(self, folder="", suffix=None, recursive=False):
         page = 1
@@ -174,3 +169,171 @@ class OwncloudConnector(RepositoryConnector):
         fpath += f"files={quote(filename)}"
         url = f"{self.base_url}/download?{fpath}"
         return url
+
+
+class EbrainsHdgConnector(RepositoryConnector):
+    """Download sensitive files from EBRAINS using
+    the Human Data Gateway (HDG) via the data proxy API.
+    """
+
+    base_url = "https://data-proxy.ebrains.eu/api/datasets"
+    maxentries = 1000
+
+    def __init__(self, dataset_id):
+        """Construct a dataset query for the Human Data Gateway.
+
+        Parameters
+        ----------
+        dataset_id : str
+            EBRAINS dataset id for a dataset that is exposed
+            via the human data gateway.
+        """
+
+        self._files = []
+        self.dataset_id = dataset_id
+
+        marker = None
+        while True:
+
+            # The endpoint implements basic pagination, using the filenames as markers.
+
+            if marker is None:
+                url = f"{self.base_url}/{dataset_id}?limit={self.maxentries}"
+            else:
+                url = f"{self.base_url}/{dataset_id}?limit={self.maxentries}&marker={marker}"
+
+            try:
+                result = EbrainsRequest(url, DECODERS[".json"]).get()
+            except SiibraHttpRequestError as e:
+                if e.response.status_code in [401, 422]:
+                    # Request access to the dataset (401: expired, 422: not yet requested)
+                    EbrainsRequest(f"{self.base_url}/{dataset_id}", post=True).get()
+                    input(
+                        "You should have received an email with a confirmation link - "
+                        "please find that email and click on the link, then press enter "
+                        "to continue"
+                    )
+                    continue
+                else:
+                    raise RuntimeError(
+                        f"Could not request private file links for dataset {dataset_id}. "
+                        f"Status code was: {e.response.status_code}. "
+                        f"Message was: {e.response.text}. "
+                    )
+
+            newfiles = result["objects"]
+            self._files.extend(newfiles)
+            logger.debug(f"{len(newfiles)} of {self.maxentries} objects returned.")
+
+            if len(newfiles) == self.maxentries:
+                # there might be more files
+                marker = newfiles[-1]["name"]
+            else:
+                logger.info(
+                    f"{len(self._files)} objects found for dataset {dataset_id} returned."
+                )
+                self.container = result["container"]
+                self.prefix = result["prefix"]
+                break
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        result = []
+        for f in self._files:
+            if f["name"].startswith(folder):
+                if suffix is None:
+                    result.append(f["name"])
+                else:
+                    if f["name"].endswith(suffix):
+                        result.append(f["name"])
+        return result
+
+    def _build_url(self, folder, filename):
+        if len(folder) > 0:
+            fpath = quote(f"{folder}/{filename}", safe="")
+        else:
+            fpath = quote(f"{filename}", safe="")
+        url = f"{self.base_url}/{self.dataset_id}/{fpath}?redirect=true"
+        return url
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed."""
+        return EbrainsRequest(self._build_url(folder, filename), decode_func)
+
+
+class EbrainsPublicDatasetConnector(RepositoryConnector):
+    """Access files from public EBRAINS datasets via the Knowledge Graph v3 API."""
+
+    QUERY_ID = "bebbe365-a0d6-41ea-9ff8-2554c15f70b7"
+    base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
+    maxentries = 1000
+
+    def __init__(self, dataset_id, in_progress=False):
+        """Construct a dataset query with the dataset id.
+
+        Parameters
+        ----------
+        dataset_id : str
+            EBRAINS dataset id of a public dataset in KG v3.
+        in_progress: bool (default:False)
+            If true, will request datasets that are still under curation.
+            Will only work when autenticated with an appropriately privileged
+            user account.
+        """
+        self.dataset_id = dataset_id
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
+        result = EbrainsRequest(url, DECODERS[".json"]).get()
+        self.versions = {}
+        self.use_version = None
+        assert len(result["data"]) < 2
+        if len(result["data"]) == 1:
+            data = result["data"][0]
+            self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
+            self.use_version = sorted(list(self.versions.keys()))[-1]
+            if len(self.versions) > 1:
+                logger.info(
+                    f"Found {len(self.versions)} versions for dataset '{data['name']}' "
+                    f"({', '.join(self.versions.keys())}). "
+                    f"Will use {self.use_version} per default."
+                )
+
+    @property
+    def doi(self):
+        if self.use_version in self.versions:
+            return self.versions[self.use_version]["doi"]
+        else:
+            return None
+
+    @property
+    def _files(self):
+        if self.use_version in self.versions:
+            return {
+                f["name"]: f["url"] for f in self.versions[self.use_version]["files"]
+            }
+        else:
+            return {}
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        result = []
+        for fname in self._files:
+            if fname.startswith(folder):
+                if suffix is None:
+                    result.append(fname)
+                else:
+                    if fname.endswith(suffix):
+                        result.append(fname)
+        return result
+
+    def _build_url(self, folder, filename):
+        fpath = f"{folder}/{filename}" if len(folder) > 0 else f"{filename}"
+        if fpath not in self._files:
+            raise RuntimeError(
+                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} cannot be."
+            )
+        return self._files[fpath]
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed."""
+        return HttpRequest(self._build_url(folder, filename), decode_func)

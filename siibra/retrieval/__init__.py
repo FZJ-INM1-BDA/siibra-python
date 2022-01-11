@@ -13,6 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .repositories import GitlabConnector, OwncloudConnector
-from .requests import HttpRequest, ZipfileRequest, EbrainsRequest
+from .repositories import GitlabConnector, OwncloudConnector, EbrainsHdgConnector, EbrainsPublicDatasetConnector
+from .requests import HttpRequest, ZipfileRequest, EbrainsRequest, EbrainsKgQuery, SiibraHttpRequestError
 from .cache import CACHE

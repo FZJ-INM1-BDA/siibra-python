@@ -17,14 +17,29 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from .. import logger
+from ..core.parcellation import Parcellation
 from ..core.datasets import EbrainsDataset
-from ..retrieval.requests import EbrainsRequest
+from ..retrieval.requests import EbrainsKgQuery
 
+from collections import defaultdict
+import re
+# we use this for sorting version strings of EBRAINS datasets
+from distutils.version import LooseVersion 
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
     def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
         RegionalFeature.__init__(self, regionspec, species)
         EbrainsDataset.__init__(self, kg_id, name, embargo_status)
+        self.version = None
+        self._next = None
+        self._prev = None
+
+    @property
+    def version_history(self):
+        if self._prev is None:
+            return [self.version]
+        else:
+            return [self.version] + self._prev.version_history
 
     @property
     def url(self):
@@ -42,17 +57,43 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
         return EbrainsDataset.__eq__(self, o)
 
 
+
 class EbrainsRegionalFeatureQuery(FeatureQuery):
+
     _FEATURETYPE = EbrainsRegionalDataset
+
+    # in EBRAINS knowledge graph prior to v3, versions were modelled 
+    # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
+    VERSION_PATTERN = re.compile(r'^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]')
+    COMPACT_FEATURE_LIST = True
+
+    # ids of EBRAINS datasets which represent siibra parcellations
+    _PARCELLATION_IDS = [
+        dset.id
+        for parc in Parcellation.REGISTRY
+        for dset in parc.datasets 
+        if isinstance(dset, EbrainsDataset)
+    ]
+    
+    # datasets whose name contains any of these strings will be ignored
+    _BLACKLIST = {
+        "Whole-brain parcellation of the Julich-Brain Cytoarchitectonic Atlas",
+        "whole-brain collections of cytoarchitectonic probabilistic maps",
+        "DiFuMo atlas",
+        "Automated Anatomical Labeling (AAL1) atlas",
+    }
+
 
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
 
-        loader = EbrainsRequest(
+        loader = EbrainsKgQuery(
             query_id="siibra-kg-feature-summary-0_0_4",
             schema="parcellationregion",
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
+
+        versioned_datasets = defaultdict(dict)
 
         for r in loader.data.get("results", []):
 
@@ -66,8 +107,21 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 ]
             for dataset in r.get("datasets", []):
 
-                ds_id = dataset.get("@id")
                 ds_name = dataset.get("name")
+                ds_id = dataset.get("@id")
+
+                if (
+                    self.COMPACT_FEATURE_LIST and 
+                    any(ds_id.endswith(i) for i in self._PARCELLATION_IDS)
+                ):
+                    continue
+
+                if (
+                    self.COMPACT_FEATURE_LIST and
+                    any(e.lower() in ds_name.lower() for e in self._BLACKLIST)
+                ):
+                    continue
+
                 ds_embargo_status = dataset.get("embargo_status")
                 if "dataset" not in ds_id:
                     logger.debug(
@@ -83,7 +137,8 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                     *dataset.get('s_subject_species', []),
                 ]
 
-                # if the current dataset has species defined, use the current species, else use the general speices
+                # if the current dataset has species defined, use the current species, 
+                # else use the general species
                 species = [*r.get("species", []), *(dataset_species if dataset_species else species_alt)] # list with keys @id, identifier, name
 
                 # filter species by @id attribute
@@ -93,11 +148,46 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                         continue
                     unique_species.append(sp)
 
-                self.register(
-                    EbrainsRegionalDataset(
-                        alias or regionname, ds_id, ds_name, ds_embargo_status, unique_species
-                    )
+                dset = EbrainsRegionalDataset(
+                    alias or regionname, ds_id, ds_name, ds_embargo_status, unique_species
                 )
+
+                version_match = self.VERSION_PATTERN.search(ds_name)
+                if version_match is None or (not self.COMPACT_FEATURE_LIST):
+                    self.register(dset)
+                else:
+                    # store version, add only the latest version after the loop
+                    name, version = version_match.groups()
+                    versioned_datasets[name][version] = dset
+        
+        # if versioned datasets have been recorded, register only 
+        # the newest one with older ones linked as a version history.
+        for name, datasets in versioned_datasets.items():
+            try:
+                # if possible, sort by version tag
+                sorted_versions = sorted(datasets.keys(), key=LooseVersion)
+            except TypeError:
+                # else sort lexicographically
+                sorted_versions = sorted(datasets.keys())
+
+            # chain the dataset versions
+            prev = None
+            for version in sorted_versions:
+                curr = datasets[version]
+                curr.version = version
+                if prev is not None:
+                    curr._prev = prev
+                    prev._next= curr
+                prev = curr
+
+            # register the last recent one
+            self.register(curr)
+            logger.debug(
+                f"Registered only version {version} of {', '.join(sorted_versions)} for {name}. "
+                f"Its version history is: {curr.version_history}"
+            )
+
+
 
         # NOTE:
         # Potentially, using ebrains_id is a lot quicker, but if user selects region with higher level of hierarchy,

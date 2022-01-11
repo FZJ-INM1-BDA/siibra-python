@@ -17,7 +17,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..retrieval.requests import EbrainsRequest, HttpRequest
+from ..retrieval.requests import EbrainsKgQuery, HttpRequest
 from ..core.datasets import EbrainsDataset
 
 import PIL.Image as Image
@@ -319,11 +319,12 @@ class DensityFingerprint:
 
     def __getitem__(self, index):
         if isinstance(index, int):
-            assert index < len(self.labels)
+            if index >= len(self.labels):
+                return None
             index_ = index
-
         elif isinstance(index, str):
-            assert index in self.labels
+            if index not in self.labels:
+                return None
             index_ = self.labels.index(index)
         return Density(
             name=self.labels[index_],
@@ -488,7 +489,7 @@ class ReceptorQuery(FeatureQuery):
 
     def __init__(self,**kwargs):
         FeatureQuery.__init__(self)
-        kg_req = EbrainsRequest(
+        kg_req = EbrainsKgQuery(
             query_id="siibra_receptor_densities-0_0_2",
             params={'vocab': 'https://schema.hbp.eu/myQuery/' }
         )

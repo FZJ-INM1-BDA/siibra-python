@@ -130,16 +130,16 @@ class TestAtlas(unittest.TestCase):
         features = siibra.get_features(region, modalities.EbrainsRegionalDataset)
         assert(len(features) > 0)
 
-    def test_get_features_connectivity_profile_filter_by_sel_parc(self):
-
-        expected_p_id = 'minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
-        region = self.atlas.get_region(
-            parcellation=parcellations[expected_p_id],
-            region='hoc1 left')
-        conns = siibra.get_features(region, modalities.ConnectivityProfile)
-        assert(len(conns) > 0)
-        assert(all([region.parcellation in conn._matrix.parcellations for conn in conns]))
-        assert(all([region.matches(conn.regionspec) for conn in conns]))
+#    def test_get_features_connectivity_profile_filter_by_sel_parc(self):
+#
+#        expected_p_id = 'minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
+#        region = self.atlas.get_region(
+#            parcellation=parcellations[expected_p_id],
+#            region='hoc1 left')
+#        conns = siibra.get_features(region, modalities.ConnectivityProfile)
+#        assert(len(conns) > 0)
+#        assert(all([region.parcellation in conn._matrix.parcellations for conn in conns]))
+#        assert(all([region.matches(conn.regionspec) for conn in conns]))
 
     def test_regionsprops(self):
         pass

@@ -15,7 +15,7 @@ def find_version():
         raise RuntimeError("Siibra version cannot be found.")
 
 
-with open(os.path.join(ROOT_DIR, "README.md"), "r", encoding="utf-8") as f:
+with open(os.path.join(ROOT_DIR, "README.rst"), "r", encoding="utf-8") as f:
     long_description = f.read()
 
 setup(
@@ -25,10 +25,11 @@ setup(
     author_email="inm1-bda@fz-juelich.de",
     description="siibra - Software interfaces for interacting with brain atlases",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,
+    package_data={'siibra': ['features/region_aliases_human.json']},
     # packages=find_packages(include=['.']),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
@@ -51,8 +52,9 @@ setup(
         "scikit-image",
         "requests",
         "memoization",
-        "cloud-volume",
+        "neuroglancer-scripts",
         "nilearn",
         "simple-term-menu",
+        'importlib-resources; python_version < "3.7"',
     ],
 )

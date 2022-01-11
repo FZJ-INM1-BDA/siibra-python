@@ -1,15 +1,17 @@
+siibra - Software interface for interacting with brain atlases
+==============================================================
 
-.. mdinclude:: ../README.md
-   :start-line: 2
-
+.. include:: ../README.rst
+  :start-after: intro-start
+  :end-before: intro-end
 
 .. toctree::
+   :maxdepth: 3
    :hidden:
-   :maxdepth: 2
 
-   readme
-   core_concepts.ipynb
-   download_maps.ipynb
+   start
+   concepts
+   step-by-step
    contribute
    acknowledgements
 

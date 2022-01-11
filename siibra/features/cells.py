@@ -18,12 +18,13 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..core.space import Space
+from ..core.space import Space, Point
 from ..retrieval.repositories import GitlabConnector, OwncloudConnector
 
 import numpy as np
 import os
 import importlib
+import pandas as pd
 
 
 class CorticalCellDistribution(RegionalFeature):
@@ -32,38 +33,47 @@ class CorticalCellDistribution(RegionalFeature):
     Implements lazy and cached loading of actual data.
     """
 
-    def __init__(self, regionspec, cells, connector, folder):
+    def __init__(self, regionspec: str, cells: pd.DataFrame, connector, folder, species):
 
         _, section_id, patch_id = folder.split("/")
-        RegionalFeature.__init__(self, regionspec)
+        RegionalFeature.__init__(self, regionspec, species=species)
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
 
         # construct lazy data loaders
         self._info_loader = connector.get_loader(
-            "info.txt", folder, CorticalCellDistribution.decode_infotxt
+            "info.txt", folder, CorticalCellDistribution._decode_infotxt
         )
         self._image_loader = connector.get_loader("image.nii.gz", folder)
         self._layerinfo_loader = connector.get_loader(
-            "layerinfo.txt", folder, CorticalCellDistribution.decode_layerinfo
+            "layerinfo.txt", folder, CorticalCellDistribution._decode_layerinfo
         )
         self._connector = connector
 
     @staticmethod
-    def decode_infotxt(b):
+    def _decode_infotxt(b):
         return dict(_.split(" ") for _ in b.decode("utf8").strip().split("\n"))
 
     @staticmethod
-    def decode_layerinfo(b):
-        return np.array(
-            [tuple(_.split(" ")[1:]) for _ in b.decode().strip().split("\n")[1:]],
+    def _decode_layerinfo(b):
+        data =  np.array(
+            [tuple(_.split(" ")) for _ in b.decode().strip().split("\n")[1:]],
             dtype=[
-                ("layer", "U10"),
+                ("index", "i"),
+                ("label", "U10"),
                 ("area (micron^2)", "f"),
                 ("avg. thickness (micron)", "f"),
             ],
         )
+        return pd.DataFrame(data)
+
+    def layer_density(self, layerindex: int):
+        """ Compute density of segmented cells for given layer in cells / mm^2. """
+        assert layerindex in range(1, 7)
+        num_cells = self.cells[self.cells['layer']==layerindex].shape[0]
+        area = self.layers[self.layers['index']==layerindex].iloc[0]['area (micron^2)'] 
+        return num_cells / area * 1e3**2
 
     def load_segmentations(self):
         from PIL import Image
@@ -107,12 +117,15 @@ class CorticalCellDistribution(RegionalFeature):
         return self._image_loader.data
 
     @property
-    def coordinate(self):
+    def location(self):
         """
-        Coordinate of this image patch in BigBrain histological space in mm.
+        Location of this image patch in BigBrain histological space in mm.
         """
-        A = self.image.affine
-        return Space.REGISTRY.BIG_BRAIN, np.dot(A, [0, 0, 0, 1])[:3]
+        center = np.r_[np.array(self.image.shape) // 2, 1]
+        return Point(
+            np.dot(self.image.affine, center)[:3], 
+            Space.REGISTRY.BIG_BRAIN,
+        )
 
     def __str__(self):
         return f"BigBrain cortical cell distribution in {self.regionspec} (section {self.info['section_id']}, patch {self.info['patch_id']})"
@@ -131,8 +144,7 @@ class CorticalCellDistribution(RegionalFeature):
         from nilearn import plotting
 
         patch = self.image.get_fdata()
-        space, xyz = self.coordinate
-        tpl = space.get_template().fetch()
+        tpl = self.location.space.get_template().fetch()
         fig = pyplot.figure(figsize=(12, 6))
         pyplot.suptitle(str(self))
         ax1 = pyplot.subplot2grid((1, 4), (0, 0))
@@ -148,9 +160,9 @@ class CorticalCellDistribution(RegionalFeature):
             c=self.cells['layer'])
         ax2.axis("off")
         view = plotting.plot_img(
-            tpl, cut_coords=xyz, cmap="gray", axes=ax3, display_mode="tiled"
+            tpl, cut_coords=tuple(self.location), cmap="gray", axes=ax3, display_mode="tiled"
         )
-        view.add_markers([xyz])
+        view.add_markers([tuple(self.location)])
         return fig
 
 
@@ -160,14 +172,19 @@ class RegionalCellDensityExtractor(FeatureQuery):
     _JUGIT = GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
     _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
 
+
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         logger.warning(
             f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data."
         )
 
+        species = {
+            '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9', 
+            'name': 'Homo sapiens'
+        }
         for cellfile, loader in self._JUGIT.get_loaders(
-            suffix="segments.txt", recursive=True
+            suffix="segments.txt", recursive=True, decode_func=lambda b: b.decode()
         ):
             region_folder = os.path.dirname(cellfile)
             regionspec = " ".join(region_folder.split(os.path.sep)[0].split("_")[1:])
@@ -185,5 +202,5 @@ class RegionalCellDensityExtractor(FeatureQuery):
                 ]
             )
             self.register(
-                CorticalCellDistribution(regionspec, cells, self._SCIEBO, region_folder)
+                CorticalCellDistribution(regionspec, pd.DataFrame(cells), self._SCIEBO, region_folder, species=species)
             )
