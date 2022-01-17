@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, provide_registry
+from datetime import date
+from .concept import AtlasConcept, JSONSerializable, provide_registry
 
 from ..commons import logger
 from ..retrieval import HttpRequest
+from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
 
 import re
 import numpy as np
@@ -32,6 +34,7 @@ import numbers
 @provide_registry
 class Space(
     AtlasConcept,
+    JSONSerializable,
     bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
@@ -151,6 +154,29 @@ class Space(
         )
 
         return result
+
+    def to_model(self, **kwargs) -> commonCoordinateSpace.Model:
+        return commonCoordinateSpace.Model(
+            id=self.id,
+            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+            anatomical_axes_orientation={
+                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
+            },
+            axes_origin=[
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+            ],
+
+            default_image=[ { '@id': vol.id } for vol in self.volumes],
+            full_name=self.name,
+            native_unit={
+                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
+            },
+            release_date=date(2015, 1, 1),
+            short_name=self.name,
+            version_identifier=self.name,
+        )
 
 
 # backend for transforming coordinates between spaces

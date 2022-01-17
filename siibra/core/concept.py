@@ -21,7 +21,7 @@ from ..commons import logger, Registry
 
 import os
 import re
-
+from abc import ABC, abstractmethod, abstractproperty
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
 GITLAB_PROJECT_TAG = os.getenv(
@@ -271,3 +271,9 @@ class AtlasConcept:
     def match_spec(cls, obj, spec):
         assert isinstance(obj, cls)
         return obj.matches(spec)
+
+class JSONSerializable(ABC):
+
+    @abstractmethod
+    def to_model(self, **kwargs):
+        raise AttributeError("JSONSerializable needs to have to_json overwritten")
