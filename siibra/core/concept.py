@@ -17,7 +17,7 @@ from .datasets import Dataset
 
 from .. import QUIET, __version__
 from ..retrieval import GitlabConnector
-from ..commons import logger, Registry
+from ..commons import logger, TypedRegistry
 
 import os
 import re
@@ -71,7 +71,7 @@ def provide_registry(cls):
             f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
         )
 
-    cls.REGISTRY = Registry(matchfunc=cls.match_spec)
+    cls.REGISTRY = TypedRegistry[cls](matchfunc=cls.match_spec)
     extensions = []
     with QUIET:
         for fname, loader in loaders:
