@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
-from .space import PointSet, Space, Point, BoundingBox
+from .concept import AtlasConcept, JSONSerializable
+from .space import PointSet, Space, Point, BoundingBox, UnitOfMeasurement
 
 from ..commons import (
     logger,
@@ -25,15 +25,22 @@ from ..commons import (
     affine_scaling,
 )
 from ..retrieval.repositories import GitlabConnector
+from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
+    Model as ParcellationEntityVersionModel,
+    Coordinates,
+    BestViewPoint,
+    HasAnnotation,
+)
 
 import numpy as np
 import nibabel as nib
 from memoization import cached
 import re
 import anytree
-from typing import Union
+from typing import List, Union
 from nibabel import Nifti1Image
 
+OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE="https://openminds.ebrains.eu/sands/ParcellationEntityVersion"
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -47,7 +54,7 @@ REMOVE_FROM_NAME = [
 REGEX_TYPE = type(re.compile("test"))
 
 
-class Region(anytree.NodeMixin, AtlasConcept):
+class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     """
     Representation of a region with name and more optional attributes
     """
@@ -628,7 +635,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             img,
         )
 
-    def centroids(self, space: Space):
+    def centroids(self, space: Space) -> List[Point]:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids
@@ -774,6 +781,47 @@ class Region(anytree.NodeMixin, AtlasConcept):
         )
 
         return result
+
+    def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
+        if detail:
+            assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
+        if space:
+            assert isinstance(space, Space), f"space kwarg must be of instance Space"
+            if detail:
+                centroids = self.centroids(space)
+                assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+        
+        return ParcellationEntityVersionModel(
+            id=self.id,
+            type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
+            has_annotation=HasAnnotation(
+                internal_identifier="",
+                criteria_quality_type={
+                    # TODO check criteriaQualityType
+                    "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
+                },
+                best_view_point=BestViewPoint(
+                    coordinate_space={
+                        "@id": space.to_model().id
+                    },
+                    coordinates=[Coordinates(
+                        value=pt,
+                        unit={
+                            "@id": UnitOfMeasurement.MILLIMETER
+                        }
+                    ) for pt in centroids[0]]
+                ) if detail else None,
+                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
+            ) if space else None,
+            has_parent=[{
+                '@id': self.parent.to_model(detail=False).id
+            }] if detail and self.parent else None,
+            name=self.name,
+            ontology_identifier=None,
+            relation_assessment=None,
+            version_identifier=f"{self.parcellation.name} - {self.name}",
+            version_innovation=None
+        )
 
 
 if __name__ == "__main__":

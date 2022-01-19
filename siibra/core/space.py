@@ -31,6 +31,10 @@ from os import path
 import numbers
 
 
+class UnitOfMeasurement:
+    MILLIMETER="https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
+
+
 @provide_registry
 class Space(
     AtlasConcept,

@@ -17,8 +17,6 @@ class Coordinates(SiibraBaseModel):
     uncertainty: Optional[List[float]] = Field(
         None,
         description='Quantitative value range defining the uncertainty of a measurement.',
-        max_items=2,
-        min_items=2,
         title='uncertainty',
     )
     unit: Optional[Any] = Field(
@@ -36,7 +34,7 @@ class BestViewPoint(SiibraBaseModel):
         description='Two or three dimensional geometric setting.',
         title='coordinateSpace',
     )
-    coordinates: 'Coordinates' = Field(
+    coordinates: List['Coordinates'] = Field(
         ..., description='Structured information on a quantitative value.'
     )
 
@@ -68,7 +66,6 @@ class HasAnnotation(SiibraBaseModel):
         None,
         alias='inspiredBy',
         description='Reference to an inspiring element.',
-        min_items=1,
         title='inspiredBy',
     )
     internal_identifier: str = Field(
@@ -80,8 +77,6 @@ class HasAnnotation(SiibraBaseModel):
     laterality: Optional[List] = Field(
         None,
         description='Differentiation between a pair of lateral homologous parts of the body.',
-        max_items=2,
-        min_items=1,
         title='laterality',
     )
     visualized_in: Optional[Any] = Field(
@@ -122,8 +117,6 @@ class QuantitativeOverlapItem(SiibraBaseModel):
     uncertainty: Optional[List[float]] = Field(
         None,
         description='Quantitative value range defining the uncertainty of a measurement.',
-        max_items=2,
-        min_items=2,
         title='uncertainty',
     )
     unit: Optional[Any] = Field(
@@ -182,7 +175,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/hasParent',
         description='Reference to a parent object or legal person.',
-        min_items=1,
         title='hasParent',
     )
     lookup_label: Optional[str] = Field(
@@ -200,7 +192,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
-        min_items=1,
         title='ontologyIdentifier',
     )
     relation_assessment: Optional[
