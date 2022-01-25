@@ -12,7 +12,6 @@ class Copyright(SiibraBaseModel):
     holder: List = Field(
         ...,
         description='Legal person in possession of something.',
-        min_items=1,
         title='holder',
     )
     year: constr(regex=r'([0-9]{4})') = Field(
@@ -27,17 +26,15 @@ class HasTerminologyVersion(SiibraBaseModel):
         None,
         alias='definedIn',
         description='Reference to a file instance in which something is stored.',
-        min_items=1,
         title='definedIn',
     )
     has_entity_version: List = Field(
-        ..., alias='hasEntityVersion', min_items=1, title='hasEntityVersion'
+        ..., alias='hasEntityVersion', title='hasEntityVersion'
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
         alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
-        min_items=1,
         title='ontologyIdentifier',
     )
 
@@ -47,7 +44,6 @@ class OtherContribution(SiibraBaseModel):
         ...,
         alias='contributionType',
         description='Distinct class of what was given or supplied as a part or share.',
-        min_items=1,
         title='contributionType',
     )
     contributor: Any = Field(
@@ -78,7 +74,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/author',
         description='Creator of a literary or creative work, as well as a dataset publication.',
-        min_items=1,
         title='author',
     )
     coordinate_space: Dict[str, Any] = Field(
@@ -96,7 +91,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/custodian',
         description="The 'custodian' is a legal person who is responsible for the content and quality of the data, metadata, and/or code of a research product.",
-        min_items=1,
         title='custodian',
     )
     description: Optional[constr(max_length=2000)] = Field(
@@ -127,7 +121,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/funding',
         description='Money provided by a legal person for a particular purpose.',
-        min_items=1,
         title='funding',
     )
     has_terminology_version: 'HasTerminologyVersion' = Field(
@@ -149,7 +142,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/isAlternativeVersionOf',
         description='Reference to an original form where the essence was preserved, but presented in an alternative form.',
-        min_items=1,
         title='isAlternativeVersionOf',
     )
     is_new_version_of: Optional[Dict[str, Any]] = Field(
@@ -163,7 +155,6 @@ class Model(SiibraBaseModel):
         alias='https://openminds.ebrains.eu/vocab/keyword',
         description='Significant word or concept that are representative of something or someone.',
         max_items=5,
-        min_items=1,
         title='keyword',
     )
     license: Dict[str, Any] = Field(
@@ -176,7 +167,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
-        min_items=1,
         title='ontologyIdentifier',
     )
     other_contribution: Optional['OtherContribution'] = Field(
@@ -188,7 +178,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/relatedPublication',
         description='Reference to something that was made available for the general public to see or buy.',
-        min_items=1,
         title='relatedPublication',
     )
     release_date: date = Field(
@@ -213,7 +202,6 @@ class Model(SiibraBaseModel):
         None,
         alias='https://openminds.ebrains.eu/vocab/supportChannel',
         description='Way of communication used to interact with users or customers.',
-        min_items=1,
         title='supportChannel',
     )
     version_identifier: str = Field(

@@ -62,6 +62,30 @@ def process_schema(model: OpenmindsSchema):
         base_class="siibra.openminds.base.SiibraBaseModel"
     )
 
+def add_init():
+    def process_dir(dirpath: str):
+
+        # ignore directories starts with _
+        if dirpath[:1] == "_":
+            return
+
+        # ignore if path is not directory
+        if not os.path.isdir(dirpath):
+            return
+        
+        # check if __init__.py exists. if not, create it.
+        init_path = os.path.join(dirpath, "__init__.py")
+        if not os.path.exists(init_path):
+            with open(init_path, "w"):
+                pass
+        
+        # iterate all existing items in directory
+        for fname in os.listdir(dirpath):
+            process_dir(path.join(dirpath, fname))
+    
+    for fname in os.listdir(path_to_currdir):
+        process_dir(path.join(path_to_currdir, fname))
+    
 
 def main():
     resp = requests.get(f'https://api.github.com/repos/HumanBrainProject/openMINDS/git/trees/{openminds_ref}?recursive=1')
@@ -86,6 +110,7 @@ def main():
         process_schema(
             OpenmindsSchema(domain, schema)
         )
+    add_init()
     
 
 if __name__ == "__main__":
