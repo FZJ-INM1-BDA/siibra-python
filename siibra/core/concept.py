@@ -16,7 +16,7 @@
 from .datasets import Dataset
 
 from .. import QUIET, __version__
-from ..retrieval import GitlabConnector
+from ..retrieval import GitlabConnector, NoSiibraConfigMirrorsAvailableException, TagNotFoundException
 from ..commons import logger, TypedRegistry
 
 import os
@@ -62,12 +62,15 @@ def provide_registry(cls):
         except Exception as e:
             print(str(e))
             logger.error(
-                f"Cannot connect to configuration server {str(connector)}, trying a different mirror"
+                f"Cannot connect to configuration server {str(connector)}"
             )
-            raise (e)
+            *_, last = _BOOTSTRAP_CONNECTORS
+            if connector is last:
+                raise NoSiibraConfigMirrorsAvailableException(f"Tried alll mirrors, none available.")
+
     else:
         # we get here only if the loop is not broken
-        raise RuntimeError(
+        raise TagNotFoundException(
             f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
         )
 

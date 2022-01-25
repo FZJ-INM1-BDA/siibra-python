@@ -46,6 +46,7 @@ class CorticalCellDistribution(RegionalFeature):
             "info.txt", folder, CorticalCellDistribution._decode_infotxt
         )
         self._image_loader = connector.get_loader("image.nii.gz", folder)
+        self._mask_loader = connector.get_loader("layermask.png", folder)
         self._layerinfo_loader = connector.get_loader(
             "layerinfo.txt", folder, CorticalCellDistribution._decode_layerinfo
         )
@@ -115,6 +116,14 @@ class CorticalCellDistribution(RegionalFeature):
         with an affine matching it to the histological BigBrain space.
         """
         return self._image_loader.data
+
+    @property
+    def layermask(self):
+        """
+        Nifti1Image representation of the layer labeling.
+        """
+        return self._mask_loader.data
+
 
     @property
     def location(self):
