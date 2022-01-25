@@ -14,21 +14,21 @@
 # limitations under the License.
 
 from typing import List
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 from .concept import AtlasConcept, JSONSerializable, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, TypedRegistry, logger, Registry
-from ..openminds.base import SiibraBaseModel, SiibraAtIdModel
+from ..commons import MapType, TypedRegistry, logger
+from ..openminds.base import SiibraAtIdModel
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class SiibraAtlasModel(SiibraBaseModel):
-    id: str
-    type: str = Field("juelich/iav/atlas/v1.0.0", const=True)
+class SiibraAtlasModel(BaseModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field("juelich/iav/atlas/v1.0.0", const=True, alias="@type")
     spaces: List[SiibraAtIdModel]
     parcellations: List[SiibraAtIdModel]
 

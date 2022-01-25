@@ -19,7 +19,6 @@ from .concept import AtlasConcept, JSONSerializable, provide_registry
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import ParcellationMap
-from ..openminds.base import SiibraBaseModel
 from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
     Model as BrainAtlasVersionModel,
     HasTerminologyVersion,
@@ -29,7 +28,7 @@ from datetime import date
 from typing import List, Set, Union
 from memoization import cached
 from difflib import SequenceMatcher
-from pydantic import Field
+from pydantic import BaseModel, Field
 from enum import Enum
 
 
@@ -42,9 +41,9 @@ class AtlasType:
     PROBABILISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
 
 
-class SiibraParcellationModel(SiibraBaseModel):
-    id: str
-    type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True)
+class SiibraParcellationModel(BaseModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
     
 
