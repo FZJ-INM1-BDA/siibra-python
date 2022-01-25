@@ -21,7 +21,7 @@ from .space import Space
 from .parcellation import Parcellation
 
 from ..commons import MapType, TypedRegistry, logger, Registry
-from ..openminds.base import SiibraBaseModel
+from ..openminds.base import SiibraBaseModel, SiibraAtIdModel
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
@@ -29,8 +29,8 @@ VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 class SiibraAtlasModel(SiibraBaseModel):
     id: str
     type: str = Field("juelich/iav/atlas/v1.0.0", const=True)
-    spaces: List[Space.to_model.__annotations__.get("return")]
-    parcellations: List[Parcellation.to_model.__annotations__.get("return")]
+    spaces: List[SiibraAtIdModel]
+    parcellations: List[SiibraAtIdModel]
 
 
 @provide_registry
@@ -136,8 +136,8 @@ class Atlas(
         return SiibraAtlasModel(
             id=self.id,
             type="juelich/iav/atlas/v1.0.0",
-            spaces=[spc.to_model() for spc in self.spaces],
-            parcellations=[parc.to_model() for parc in self.parcellations],
+            spaces=[SiibraAtIdModel(id=spc.to_model().id) for spc in self.spaces],
+            parcellations=[SiibraAtIdModel(id=parc.to_model().id) for parc in self.parcellations],
         )
 
     def get_parcellation(self, parcellation=None):
