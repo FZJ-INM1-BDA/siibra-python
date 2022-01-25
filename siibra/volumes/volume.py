@@ -293,6 +293,9 @@ class NeuroglancerVolume(
     # Number of bytes at which an image array is considered to large to fetch
     MAX_GiB = 0.2
 
+    # Wether to keep fetched data in local cache
+    USE_CACHE = False
+
     @property
     def MAX_BYTES(self):
         return self.MAX_GiB * 1024 ** 3
@@ -464,12 +467,13 @@ class NeuroglancerScale:
         )
 
     def _read_chunk(self, gx, gy, gz):
-        cachefile = CACHE.build_filename(
-            "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
-            suffix=".npy",
-        )
-        if os.path.isfile(cachefile):
-            return np.load(cachefile)
+        if self.volume.USE_CACHE:
+            cachefile = CACHE.build_filename(
+                "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
+                suffix=".npy",
+            )
+            if os.path.isfile(cachefile):
+                return np.load(cachefile)
 
         x0 = gx * self.chunk_sizes[0]
         y0 = gy * self.chunk_sizes[1]
@@ -479,7 +483,9 @@ class NeuroglancerScale:
         if not chunk_czyx.shape[0] == 1:
             raise NotImplementedError("Color channel data is not yet supported")
         chunk_zyx = chunk_czyx[0]
-        np.save(cachefile, chunk_zyx)
+
+        if self.volume.USE_CACHE:
+            np.save(cachefile, chunk_zyx)
         return chunk_zyx
 
     def fetch(self, voi: BoundingBox = None):
