@@ -1,7 +1,8 @@
 import unittest
+import pytest
 import siibra
 from siibra import atlases, parcellations, modalities
-from siibra.core import atlas
+from siibra.core import Atlas
 
 class TestAtlas(unittest.TestCase):
 
@@ -32,7 +33,7 @@ class TestAtlas(unittest.TestCase):
         cls.ATLAS_NAME = 'Multilevel Human Atlas'
 
     def test_atlas_init(self):
-        a = atlas.Atlas('juelich/iav/atlas/v1.0.0/1', self.ATLAS_NAME)#, species='human')
+        a = Atlas('juelich/iav/atlas/v1.0.0/1', self.ATLAS_NAME)#, species='human')
         self.assertEqual(a.name, self.ATLAS_NAME)
         self.assertEqual(a.key, 'MULTILEVEL_HUMAN_ATLAS')
         self.assertEqual(a.id, 'juelich/iav/atlas/v1.0.0/1')
@@ -56,9 +57,9 @@ class TestAtlas(unittest.TestCase):
         self.assertTrue(self.ATLAS_NAME in str(self.atlas))
 
     def test__from_json(self):
-        json_atlas = atlas.Atlas._from_json(self.atlas_as_json)
+        json_atlas = Atlas._from_json(self.atlas_as_json)
 
-        self.assertTrue(type(json_atlas) is atlas.Atlas)
+        self.assertTrue(type(json_atlas) is Atlas)
 
         self.assertEqual(json_atlas.name, self.JSON_ATLAS_NAME)
         self.assertEqual(json_atlas.id, self.JSON_ATLAS_ID)
@@ -72,7 +73,7 @@ class TestAtlas(unittest.TestCase):
             "order": 1,
         }
         with self.assertRaises(ValueError):
-            atlas.Atlas._from_json(invalid_atlas_json)
+            Atlas._from_json(invalid_atlas_json)
 
     def test__from_json_with_invalid_json(self):
         # Error handling for wrong json input
@@ -148,5 +149,10 @@ class TestAtlas(unittest.TestCase):
         pass
 
 
+@pytest.mark.parametrize('atlas', [atlas for atlas in atlases])
+def test_atlas_to_model(atlas: Atlas):
+    atlas.to_model()
+
+    
 if __name__ == "__main__":
     unittest.main()

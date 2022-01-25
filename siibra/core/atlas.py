@@ -13,18 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, provide_registry
+from typing import List
+from pydantic import Field
+
+from .concept import AtlasConcept, JSONSerializable, provide_registry
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, logger, Registry
+from ..commons import MapType, TypedRegistry, logger, Registry
+from ..openminds.base import SiibraBaseModel
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
+class SiibraAtlasModel(SiibraBaseModel):
+    id: str
+    type: str = Field("juelich/iav/atlas/v1.0.0", const=True)
+    spaces: List[Space.to_model.__annotations__.get("return")]
+    parcellations: List[Parcellation.to_model.__annotations__.get("return")]
+
+
 @provide_registry
 class Atlas(
-    AtlasConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    AtlasConcept, JSONSerializable, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
 ):
     """
     Main class for an atlas, providing access to feasible
@@ -81,7 +92,7 @@ class Atlas(
     @property
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
-        return Registry(
+        return TypedRegistry[Space](
             elements={s.key: s for s in self._spaces},
             matchfunc=Space.match_spec,
         )
@@ -89,7 +100,7 @@ class Atlas(
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return Registry(
+        return TypedRegistry[Parcellation](
             elements={p.key: p for p in self._parcellations},
             matchfunc=Parcellation.match_spec,
         )
@@ -120,6 +131,14 @@ class Atlas(
                 atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
             return atlas
         return obj
+
+    def to_model(self, **kwargs) -> SiibraAtlasModel:
+        return SiibraAtlasModel(
+            id=self.id,
+            type="juelich/iav/atlas/v1.0.0",
+            spaces=[spc.to_model() for spc in self.spaces],
+            parcellations=[parc.to_model() for parc in self.parcellations],
+        )
 
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.

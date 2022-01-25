@@ -1,5 +1,7 @@
 import unittest
+import pytest
 import siibra
+from siibra import parcellations
 from siibra.core import Parcellation
 
 class TestParcellationVersion(unittest.TestCase):
@@ -57,6 +59,23 @@ class TestParcellation(unittest.TestCase):
         assert len(regions) == 3
         assert regions[0].name == 'foo'
 
+all_parcs = [p for p in parcellations]
+
+@pytest.mark.parametrize('parc', all_parcs)
+def test_parc_to_model(parc: Parcellation):
+    parc.to_model()
+
+all_parc_models = [parc.to_model() for parc in all_parcs]
+all_regions = [
+    pytest.param(pev, bav, marks=pytest.mark.xfail(reason="Some region ids are duplicated."))
+    for model in all_parc_models
+    for bav in model.brain_atlas_versions
+    for pev in bav.has_terminology_version.has_entity_version]
+
+@pytest.mark.parametrize('pev_id_dict,bav', all_regions)
+def test_parc_regions(pev_id_dict,bav):
+    filtered_pev = [pev for pev in bav.has_terminology_version.has_entity_version if pev.get("@id") == pev_id_dict.get("@id")]
+    assert len(filtered_pev) == 1, f"expect only 1 parcellation entity version has id {pev_id_dict.get('@id')}, but has {len(filtered_pev)}"
 
 if __name__ == "__main__":
     unittest.main()
