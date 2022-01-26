@@ -245,9 +245,10 @@ class Parcellation(
         """Overwrite the method of AtlasConcept.
         For parcellations, a space is also considered as supported if one of their regions is mapped in the space.
         """
-        return {
-            space for region in self.regiontree for space in region.supported_spaces
-        }
+        return list(
+            set(super().supported_spaces) 
+            | {space for region in self.regiontree for space in region.supported_spaces}
+        )
 
     def supports_space(self, space: Space):
         """
