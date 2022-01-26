@@ -120,7 +120,7 @@ class BigBrainCortexSampler:
             - 'center': the physical coordinate of the cube used as a region of interest
             - 'boxsize': sidelenght in mm f the cube used as a region of interest
             - 'space': name of the space (bigbrain)
-            - 'layers': Dict of layer-wise statistics with mean gray value, standard deviation, and volume in mm
+            - 'layers': Dict of layer-wise statistics with mean gray value, standard deviation, and number of voxels
 
         """
         result = {
@@ -156,7 +156,6 @@ class BigBrainCortexSampler:
             voidata,
             interpolation="nearest",
         )
-        scale = np.linalg.det(voimask.affine)
 
         # Get layer mask with possible additional segmentation
         # components at box borders suppressed (e.g. from neighboring
@@ -176,7 +175,7 @@ class BigBrainCortexSampler:
             result["layers"][layer] = {
                 "mean": values.mean(),
                 "std": values.std(),
-                "volume": np.count_nonzero(mask) * scale,
+                "num_voxels": np.count_nonzero(mask),
             }
 
         return result
