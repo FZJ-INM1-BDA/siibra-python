@@ -79,7 +79,8 @@ class HcpConnectivityFetcher():
     _DATASET_ID = '0f1ccc4a-9a11-4697-b43f-9c9c8ac543e6'
     # TODO add other parcellations
     _PARCELLATION_NAMES = {
-        "294-Julich-Brain" : Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
+        "294-Julich-Brain": Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9,
+        "096-HarvardOxfordMaxProbThr0": Parcellation.REGISTRY.HARVARDOXFORD_CORT_MAXPROB_THR0,
     }
 
     def __init__(self, filename_keyword ):
@@ -295,23 +296,3 @@ class PrereleasedRestingStateQuery(FeatureQuery, PrereleasedConnectivityFetcher)
             paradigm = filename[filename.lower().find(keyword.lower()):]
             self.register(self._FEATURETYPE(parc_id, matrixloader, paradigm, srcinfo ))
 
-#class ThousandBrainsStreamlineCountsQuery(FeatureQuery):
-#
-#    _FEATURETYPE = StreamlineCounts
-#    _QUERY = GitlabConnector(
-#        "https://jugit.fz-juelich.de", 3009, "develop"
-#    ) 
-#
-#    def __init__(self, **kwargs):
-#        FeatureQuery.__init__(self)
-#        for _, loader in self._QUERY.get_loaders("connectivity", ".json"):
-#            cm = ConnectivityMatrix._from_json(loader.data)
-#            for parcellation in cm.parcellations:
-#                species = [atlas.species for atlas in parcellation.atlases]
-#                for regionname in cm.regionnames:
-#                    region = parcellation.decode_region(regionname, build_group=False)
-#                    if region is None:
-#                        raise RuntimeError(
-#                            f"Could not decode region name {regionname} in {parcellation}"
-#                        )
-#                    self.register(self._FEATURETYPE(parcellation, matrix))
