@@ -44,6 +44,11 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
+REPLACE_IN_NAME = {
+    "ctx-lh-": "left ",
+    "ctx-rh-": "right ",
+}
+
 REGEX_TYPE = type(re.compile("test"))
 
 
@@ -61,6 +66,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         result = name
         for word in REMOVE_FROM_NAME:
             result = result.replace(word, "")
+        for search, repl in REPLACE_IN_NAME.items():
+            result = result.replace(search, repl)
         return " ".join(w for w in result.split(" ") if len(w))
 
     def __init__(
