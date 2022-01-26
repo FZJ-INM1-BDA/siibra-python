@@ -1,4 +1,4 @@
-name: Siibra testing
+name: '[test] unit test'
 
 on: [push]
 jobs:
