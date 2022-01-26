@@ -75,6 +75,16 @@ simply run ``pip install siibra``. In order to work with the latest
 version from github, use
 ``pip install git+https://github.com/FZJ-INM1-BDA/siibra-python.git@main``.
 
+There is also an image based on jupyter:scipy-notebook, which already includes ``siibra``.
+
+.. code-block:: sh
+
+  docker run -dit \
+        -p 10000:8888 \
+        --rm \
+        --name siibra \
+        docker-registry.ebrains.eu/siibra/siibra-python:latest
+
 Access to EBRAINS
 -----------------
 
