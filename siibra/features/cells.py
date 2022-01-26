@@ -71,7 +71,9 @@ class CorticalCellDistribution(RegionalFeature):
 
     def average_density(self):
         """ Compute average density of the patch in cells / mm^2. """
-        num_cells = self.cells[(self.cells['layer'] > 0) & (self.cells['layer'] < 7)].shape[0]
+        num_cells = self.cells[
+            (self.cells['layer'] > 0) & (self.cells['layer'] < 7)
+        ].shape[0]
         area = self.layers['area (micron^2)'].sum()
         return num_cells / area * 1e3**2
 

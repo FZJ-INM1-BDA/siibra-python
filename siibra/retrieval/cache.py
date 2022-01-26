@@ -91,11 +91,9 @@ class Cache:
             targetsize -= st.st_size / 1024**3
 
         if index > 0:
-            logger.info(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
-            print()
+            logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
             for fn, st in sfiles[:index + 1]:
                 size_gib -= st.st_size / 1024**3
-                print(f"Cache size: {size_gib:5.2f} GiB | Deleting {fn}", end="\r")
                 os.remove(fn)
 
     @property
