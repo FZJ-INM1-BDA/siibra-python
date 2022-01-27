@@ -35,74 +35,74 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     anatomical_axes_orientation: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation',
+        alias='anatomicalAxesOrientation',
         description='Relation between reference planes used in anatomy and mathematics.',
         title='anatomicalAxesOrientation',
     )
     axes_origin: List['AxesOrigin'] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/axesOrigin',
+        alias='axesOrigin',
         description='Structured information on a quantitative value.',
     )
     default_image: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/defaultImage',
+        alias='defaultImage',
         description='Two or three dimensional image that particluarly represents a specific coordinate space.',
         min_items=1,
         title='defaultImage',
     )
     digital_identifier: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/digitalIdentifier',
+        alias='digitalIdentifier',
         description='Digital handle to identify objects or legal persons.',
         title='digitalIdentifier',
     )
     full_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/fullName',
+        alias='fullName',
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/homepage',
+        alias='homepage',
         description='Main website of something or someone.',
         title='homepage',
     )
     how_to_cite: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/howToCite',
+        alias='howToCite',
         description='Preferred format for citing a particular object or legal person.',
         title='howToCite',
     )
     native_unit: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/nativeUnit',
+        alias='nativeUnit',
         description='Determinate quantity used in the original measurement.',
         title='nativeUnit',
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
+        alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
         min_items=1,
         title='ontologyIdentifier',
     )
     release_date: date = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/releaseDate',
+        alias='releaseDate',
         description='Fixed date on which a product is due to become or was made available for the general public to see or buy',
         title='releaseDate',
     )
     short_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/shortName',
+        alias='shortName',
         description='Shortened or fully abbreviated name of something or somebody.',
         title='shortName',
     )
     version_identifier: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/versionIdentifier',
+        alias='versionIdentifier',
         description='Term or code used to identify the version of something.',
         title='versionIdentifier',
     )

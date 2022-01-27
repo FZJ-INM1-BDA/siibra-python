@@ -12,27 +12,27 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     arguments: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/arguments',
+        alias='arguments',
         min_items=1,
         title='arguments',
     )
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     environment_variables: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/environmentVariables',
+        alias='environmentVariables',
         title='environmentVariables',
     )
     executable: str = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/executable', title='executable'
+        ..., alias='executable', title='executable'
     )
     name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )

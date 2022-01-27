@@ -12,25 +12,25 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     full_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/fullName',
+        alias='fullName',
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
     legal_code: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/legalCode',
+        alias='legalCode',
         description='Type of legislation that claims to cover the law system (complete or parts) as it existed at the time the code was enacted.',
         title='legalCode',
     )
     short_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/shortName',
+        alias='shortName',
         description='Shortened or fully abbreviated name of something or somebody.',
         title='shortName',
     )
     webpage: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/webpage',
+        alias='webpage',
         description='Hypertext document (block of information) found on the World Wide Web.',
         min_items=1,
         title='webpage',

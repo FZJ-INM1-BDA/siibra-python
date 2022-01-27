@@ -31,30 +31,30 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     affiliation: Optional['Affiliation'] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/affiliation'
+        None, alias='affiliation'
     )
     contact_information: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/contactInformation',
+        alias='contactInformation',
         description='Any available way used to contact a person or business (e.g., address, phone number, email address, etc.).',
         title='contactInformation',
     )
     digital_identifier: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/digitalIdentifier',
+        alias='digitalIdentifier',
         description='Digital handle to identify objects or legal persons.',
         min_items=1,
         title='digitalIdentifier',
     )
     family_name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/familyName',
+        alias='familyName',
         description='Name borne in common by members of a family.',
         title='familyName',
     )
     given_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/givenName',
+        alias='givenName',
         description='Name given to a person, including all potential middle names, but excluding the family name.',
         title='givenName',
     )

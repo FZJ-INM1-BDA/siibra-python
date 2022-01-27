@@ -58,161 +58,161 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     abbreviation: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/abbreviation',
+        alias='abbreviation',
         title='abbreviation',
     )
     accessibility: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/accessibility',
+        alias='accessibility',
         description='Level to which something is accessible to someone or something.',
         title='accessibility',
     )
     atlas_type: Optional[Dict[str, Any]] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/atlasType', title='atlasType'
+        None, alias='atlasType', title='atlasType'
     )
     author: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/author',
+        alias='author',
         description='Creator of a literary or creative work, as well as a dataset publication.',
         title='author',
     )
     coordinate_space: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/coordinateSpace',
+        alias='coordinateSpace',
         description='Two or three dimensional geometric setting.',
         title='coordinateSpace',
     )
     copyright: Optional['Copyright'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/copyright',
+        alias='copyright',
         description='Structured information on the copyright.',
     )
     custodian: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/custodian',
+        alias='custodian',
         description="The 'custodian' is a legal person who is responsible for the content and quality of the data, metadata, and/or code of a research product.",
         title='custodian',
     )
     description: Optional[constr(max_length=2000)] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     digital_identifier: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/digitalIdentifier',
+        alias='digitalIdentifier',
         description='Digital handle to identify objects or legal persons.',
         title='digitalIdentifier',
     )
     full_documentation: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/fullDocumentation',
+        alias='fullDocumentation',
         description='Non-abridged instructions, comments, and information for using a particular product.',
         title='fullDocumentation',
     )
     full_name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/fullName',
+        alias='fullName',
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
     funding: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/funding',
+        alias='funding',
         description='Money provided by a legal person for a particular purpose.',
         title='funding',
     )
     has_terminology_version: 'HasTerminologyVersion' = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/hasTerminologyVersion'
+        ..., alias='hasTerminologyVersion'
     )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/homepage',
+        alias='homepage',
         description='Main website of something or someone.',
         title='homepage',
     )
     how_to_cite: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/howToCite',
+        alias='howToCite',
         description='Preferred format for citing a particular object or legal person.',
         title='howToCite',
     )
     is_alternative_version_of: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/isAlternativeVersionOf',
+        alias='isAlternativeVersionOf',
         description='Reference to an original form where the essence was preserved, but presented in an alternative form.',
         title='isAlternativeVersionOf',
     )
     is_new_version_of: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/isNewVersionOf',
+        alias='isNewVersionOf',
         description='Reference to a previous (potentially outdated) particular form of something.',
         title='isNewVersionOf',
     )
     keyword: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/keyword',
+        alias='keyword',
         description='Significant word or concept that are representative of something or someone.',
         max_items=5,
         title='keyword',
     )
     license: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/license',
+        alias='license',
         description='Grant by a party to another party as an element of an agreement between those parties that permits to do, use, or own something.',
         title='license',
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
+        alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
         title='ontologyIdentifier',
     )
     other_contribution: Optional['OtherContribution'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/otherContribution',
+        alias='otherContribution',
         description='Structured information on the contribution made to a research product.',
     )
     related_publication: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/relatedPublication',
+        alias='relatedPublication',
         description='Reference to something that was made available for the general public to see or buy.',
         title='relatedPublication',
     )
     release_date: date = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/releaseDate',
+        alias='releaseDate',
         description='Fixed date on which a product is due to become or was made available for the general public to see or buy',
         title='releaseDate',
     )
     repository: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/repository',
+        alias='repository',
         description='Place, room, or container where something is deposited or stored.',
         title='repository',
     )
     short_name: constr(max_length=30) = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/shortName',
+        alias='shortName',
         description='Shortened or fully abbreviated name of something or somebody.',
         title='shortName',
     )
     support_channel: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/supportChannel',
+        alias='supportChannel',
         description='Way of communication used to interact with users or customers.',
         title='supportChannel',
     )
     version_identifier: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/versionIdentifier',
+        alias='versionIdentifier',
         description='Term or code used to identify the version of something.',
         title='versionIdentifier',
     )
     version_innovation: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/versionInnovation',
+        alias='versionInnovation',
         description='Documentation on what changed in comparison to a previously published form of something.',
         title='versionInnovation',
     )

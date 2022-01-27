@@ -72,14 +72,14 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     context: str = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/context', title='context'
+        ..., alias='context', title='context'
     )
     parameter: Union['ParameterItem', 'ParameterItem1'] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/parameter'
+        ..., alias='parameter'
     )
     relevant_for: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/relevantFor',
+        alias='relevantFor',
         description='Reference to what or whom something or someone bears siginificance.',
         title='relevantFor',
     )

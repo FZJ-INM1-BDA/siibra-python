@@ -12,38 +12,38 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     has_parent: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hasParent',
+        alias='hasParent',
         description='Reference to a parent object or legal person.',
         min_items=1,
         title='hasParent',
     )
     has_version: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hasVersion',
+        alias='hasVersion',
         description='Reference to variants of an original.',
         min_items=1,
         title='hasVersion',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
+        alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
         min_items=1,
         title='ontologyIdentifier',
     )
     related_uberon_term: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/relatedUBERONTerm',
+        alias='relatedUBERONTerm',
         title='relatedUBERONTerm',
     )

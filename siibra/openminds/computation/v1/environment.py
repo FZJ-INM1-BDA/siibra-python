@@ -12,28 +12,28 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     configuration: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/configuration',
+        alias='configuration',
         min_items=1,
         title='configuration',
     )
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     hardware: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/hardware', title='hardware'
+        ..., alias='hardware', title='hardware'
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     software: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/software',
+        alias='software',
         min_items=1,
         title='software',
     )

@@ -13,19 +13,19 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     end_date: Optional[date] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/endDate',
+        alias='endDate',
         description='Date in the Gregorian calendar at which something terminates in time.',
         title='endDate',
     )
     organization: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/organization',
+        alias='organization',
         description='Legally accountable, administrative and functional structure.',
         title='organization',
     )
     start_date: Optional[date] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/startDate',
+        alias='startDate',
         description='Date in the Gregorian calendar at which something begins in time',
         title='startDate',
     )

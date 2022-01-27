@@ -12,7 +12,7 @@ class Model(SiibraBaseModel):
         regex=r'^https://archive.softwareheritage.org/swh:1:(cnt|dir|rel|rev|snp):[0-9a-f]{40}(;(origin|visit|anchor|path|lines)=[^ \t\r\n\f]+)*$'
     ) = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/identifier',
+        alias='identifier',
         description='Term or code used to identify something or someone.',
         title='identifier',
     )

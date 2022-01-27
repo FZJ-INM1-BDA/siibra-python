@@ -12,14 +12,14 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     contribution_type: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/contributionType',
+        alias='contributionType',
         description='Distinct class of what was given or supplied as a part or share.',
         min_items=1,
         title='contributionType',
     )
     contributor: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/contributor',
+        alias='contributor',
         description='Legal person that gave or supplied something as a part or share.',
         title='contributor',
     )

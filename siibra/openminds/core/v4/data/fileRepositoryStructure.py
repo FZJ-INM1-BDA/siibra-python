@@ -16,10 +16,10 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     file_path_pattern: 'FilePathPattern' = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/filePathPattern'
+        ..., alias='filePathPattern'
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )

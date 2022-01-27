@@ -12,44 +12,44 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     data_type: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/dataType',
+        alias='dataType',
         min_items=1,
         title='dataType',
     )
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     file_extension: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/fileExtension',
+        alias='fileExtension',
         description='String of characters attached as suffix to the names of files of a particular format.',
         min_items=1,
         title='fileExtension',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     related_media_type: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/relatedMediaType',
+        alias='relatedMediaType',
         description='Reference to an official two-part identifier for file formats and format contents.',
         title='relatedMediaType',
     )
     specification: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/specification',
+        alias='specification',
         description='Detailed and precise presentation of, or proposal for something.',
         title='specification',
     )
     synonym: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/synonym',
+        alias='synonym',
         description='Words or expressions used in the same language that have the same or nearly the same meaning in some or all senses.',
         min_items=1,
         title='synonym',

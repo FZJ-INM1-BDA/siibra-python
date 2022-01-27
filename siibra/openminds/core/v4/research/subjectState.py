@@ -98,43 +98,43 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     additional_remarks: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/additionalRemarks',
+        alias='additionalRemarks',
         description='Mention of what deserves additional attention or notice.',
         title='additionalRemarks',
     )
     age: Optional[Union['AgeItem', 'AgeItem1']] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/age'
+        None, alias='age'
     )
     age_category: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/ageCategory',
+        alias='ageCategory',
         description='Distinct life cycle class that is defined by a similar age or age range (developmental stage) within a group of individual beings.',
         title='ageCategory',
     )
     attribute: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/attribute',
+        alias='attribute',
         min_items=1,
         title='attribute',
     )
     handedness: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/handedness',
+        alias='handedness',
         description='Degree to which an organism prefers one hand or foot over the other hand or foot during the performance of a task.',
         title='handedness',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     pathology: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/pathology',
+        alias='pathology',
         description='Structural and functional deviation from the normal that constitutes a disease or characterizes a particular disease.',
         min_items=1,
         title='pathology',
     )
     weight: Optional[Union['WeightItem', 'WeightItem1']] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/weight'
+        None, alias='weight'
     )

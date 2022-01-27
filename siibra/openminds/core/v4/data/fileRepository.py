@@ -53,48 +53,48 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     iri: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/IRI',
+        alias='IRI',
         description='Stands for Internationalized Resource Identifier which is an internet protocol standard that builds on the URI protocol, extending the set of permitted characters to include Unicode/ISO 10646.',
         title='IRI',
     )
     content_type_pattern: Optional['ContentTypePattern'] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/contentTypePattern'
+        None, alias='contentTypePattern'
     )
     format: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/format',
+        alias='format',
         description='Method of digitally organizing and structuring data or information.',
         title='format',
     )
     hash: Optional['Hash'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hash',
+        alias='hash',
         description='Structured information on a hash.',
     )
     hosted_by: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/hostedBy',
+        alias='hostedBy',
         description='Reference to an organization that provides facilities and services for something.',
         title='hostedBy',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     repository_type: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/repositoryType',
+        alias='repositoryType',
         title='repositoryType',
     )
     storage_size: Optional['StorageSize'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/storageSize',
+        alias='storageSize',
         description='Structured information on a quantitative value.',
     )
     structure_pattern: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/structurePattern',
+        alias='structurePattern',
         title='structurePattern',
     )

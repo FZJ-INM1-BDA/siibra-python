@@ -12,20 +12,20 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     defined_in: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/definedIn',
+        alias='definedIn',
         description='Reference to a file instance in which something is stored.',
         min_items=1,
         title='definedIn',
     )
     has_entity_version: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/hasEntityVersion',
+        alias='hasEntityVersion',
         min_items=1,
         title='hasEntityVersion',
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
+        alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
         min_items=1,
         title='ontologyIdentifier',

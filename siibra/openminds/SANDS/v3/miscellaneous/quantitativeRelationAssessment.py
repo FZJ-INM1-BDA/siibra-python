@@ -55,16 +55,16 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     criteria: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/criteria',
+        alias='criteria',
         description='Aspects or standards on which a judgement or decision is based.',
         title='criteria',
     )
     in_relation_to: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/inRelationTo',
+        alias='inRelationTo',
         description='Reference to a related element.',
         title='inRelationTo',
     )
     quantitative_overlap: Union[
         'QuantitativeOverlapItem', 'QuantitativeOverlapItem1'
-    ] = Field(..., alias='https://openminds.ebrains.eu/vocab/quantitativeOverlap')
+    ] = Field(..., alias='quantitativeOverlap')

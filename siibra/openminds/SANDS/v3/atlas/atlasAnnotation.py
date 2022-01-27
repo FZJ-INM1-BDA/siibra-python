@@ -46,43 +46,43 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     best_view_point: Optional['BestViewPoint'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/bestViewPoint',
+        alias='bestViewPoint',
         description='Structured information on a coordinate point.',
     )
     criteria: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/criteria',
+        alias='criteria',
         description='Aspects or standards on which a judgement or decision is based.',
         title='criteria',
     )
     criteria_quality_type: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/criteriaQualityType',
+        alias='criteriaQualityType',
         description='Distinct class that defines how the judgement or decision was made for a particular criteria.',
         title='criteriaQualityType',
     )
     display_color: Optional[constr(regex=r'^#[0-9A-Fa-f]{6}$')] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/displayColor',
+        alias='displayColor',
         description='Preferred coloring.',
         title='displayColor',
     )
     inspired_by: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/inspiredBy',
+        alias='inspiredBy',
         description='Reference to an inspiring element.',
         min_items=1,
         title='inspiredBy',
     )
     internal_identifier: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/internalIdentifier',
+        alias='internalIdentifier',
         description='Term or code that identifies someone or something within a particular product.',
         title='internalIdentifier',
     )
     laterality: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/laterality',
+        alias='laterality',
         description='Differentiation between a pair of lateral homologous parts of the body.',
         max_items=2,
         min_items=1,
@@ -90,7 +90,7 @@ class Model(SiibraBaseModel):
     )
     visualized_in: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/visualizedIn',
+        alias='visualizedIn',
         description='Reference to an image in which something is visible.',
         title='visualizedIn',
     )

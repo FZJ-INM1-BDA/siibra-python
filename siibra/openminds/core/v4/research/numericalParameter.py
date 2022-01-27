@@ -55,10 +55,10 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     value: Union['ValueItem', 'ValueItem1'] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/value'
+        ..., alias='value'
     )

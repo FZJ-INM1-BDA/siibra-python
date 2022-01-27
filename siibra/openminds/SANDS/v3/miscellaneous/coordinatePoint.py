@@ -34,12 +34,12 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     coordinate_space: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/coordinateSpace',
+        alias='coordinateSpace',
         description='Two or three dimensional geometric setting.',
         title='coordinateSpace',
     )
     coordinates: 'Coordinates' = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/coordinates',
+        alias='coordinates',
         description='Structured information on a quantitative value.',
     )

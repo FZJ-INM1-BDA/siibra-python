@@ -12,16 +12,16 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     version: Optional[str] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/version', title='version'
+        None, alias='version', title='version'
     )

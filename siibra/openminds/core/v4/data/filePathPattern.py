@@ -12,9 +12,9 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     grouping_type: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/groupingType',
+        alias='groupingType',
         title='groupingType',
     )
     regex: str = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/regex', title='regex'
+        ..., alias='regex', title='regex'
     )

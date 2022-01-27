@@ -12,15 +12,15 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     environment: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/environment',
+        alias='environment',
         title='environment',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     software: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/software', title='software'
+        ..., alias='software', title='software'
     )

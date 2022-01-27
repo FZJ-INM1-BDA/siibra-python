@@ -12,18 +12,18 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     data_location: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/dataLocation',
+        alias='dataLocation',
         title='dataLocation',
     )
     name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     open_data_in: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/openDataIn', title='openDataIn'
+        ..., alias='openDataIn', title='openDataIn'
     )
     service: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/service', title='service'
+        ..., alias='service', title='service'
     )

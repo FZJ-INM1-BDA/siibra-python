@@ -169,43 +169,43 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     has_annotation: Optional['HasAnnotation'] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/hasAnnotation'
+        None, alias='hasAnnotation'
     )
     has_parent: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hasParent',
+        alias='hasParent',
         description='Reference to a parent object or legal person.',
         title='hasParent',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     ontology_identifier: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/ontologyIdentifier',
+        alias='ontologyIdentifier',
         description='Term or code used to identify something or someone registered within a particular ontology.',
         title='ontologyIdentifier',
     )
     relation_assessment: Optional[
         Union['RelationAssessmentItem', 'RelationAssessmentItem1']
-    ] = Field(None, alias='https://openminds.ebrains.eu/vocab/relationAssessment')
+    ] = Field(None, alias='relationAssessment')
     version_identifier: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/versionIdentifier',
+        alias='versionIdentifier',
         description='Term or code used to identify the version of something.',
         title='versionIdentifier',
     )
     version_innovation: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/versionInnovation',
+        alias='versionInnovation',
         description='Documentation on what changed in comparison to a previously published form of something.',
         title='versionInnovation',
     )

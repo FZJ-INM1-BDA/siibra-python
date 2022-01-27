@@ -12,14 +12,14 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     holder: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/holder',
+        alias='holder',
         description='Legal person in possession of something.',
         min_items=1,
         title='holder',
     )
     year: constr(regex=r'([0-9]{4})') = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/year',
+        alias='year',
         description='Cycle in the Gregorian calendar specified by a number and comprised of 365 or 366 days divided into 12 months beginning with January and ending with December.',
         title='year',
     )

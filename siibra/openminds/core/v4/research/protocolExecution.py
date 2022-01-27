@@ -84,71 +84,71 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     behavioral_protocol: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/behavioralProtocol',
+        alias='behavioralProtocol',
         min_items=1,
         title='behavioralProtocol',
     )
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     ended_at_time: Optional[Union[Any, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/endedAtTime',
+        alias='endedAtTime',
         title='endedAtTime',
     )
     input: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/input',
+        alias='input',
         description='Something or someone that is put into or participates in a process or machine.',
         min_items=1,
         title='input',
     )
     is_part_of: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/isPartOf',
+        alias='isPartOf',
         description='Reference to the ensemble of multiple things or beings.',
         title='isPartOf',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     output: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/output',
+        alias='output',
         description='Something or someone that comes out of, is delivered or produced by a process or machine.',
         min_items=1,
         title='output',
     )
     parameter_set: Optional['ParameterSet'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/parameterSet',
+        alias='parameterSet',
         description='Structured information on a used parameter set.',
     )
     preparation_design: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/preparationDesign',
+        alias='preparationDesign',
         title='preparationDesign',
     )
     protocol: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/protocol',
+        alias='protocol',
         description='Plan that describes the process of a scientific or medical experiment, treatment, or procedure.',
         min_items=1,
         title='protocol',
     )
     started_at_time: Optional[Union[Any, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/startedAtTime',
+        alias='startedAtTime',
         title='startedAtTime',
     )
     study_target: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/studyTarget',
+        alias='studyTarget',
         description='Structure or function that was targeted within a study.',
         min_items=1,
         title='studyTarget',

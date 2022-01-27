@@ -12,7 +12,7 @@ class Model(SiibraBaseModel):
         regex=r'https://scicrunch.org/resolver/RRID:([A-Za-z]+)[_:]([A-Za-z0-9_:-]+)'
     ) = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/identifier',
+        alias='identifier',
         description='Term or code used to identify something or someone.',
         title='identifier',
     )

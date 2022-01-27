@@ -12,25 +12,25 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     acknowledgement: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/acknowledgement',
+        alias='acknowledgement',
         description='Offical declaration or avowal of appreciation of an act or achievement.',
         title='acknowledgement',
     )
     award_number: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/awardNumber',
+        alias='awardNumber',
         description='Machine-readable identifier for a benefit that is conferred or bestowed on the basis of merit or need.',
         title='awardNumber',
     )
     award_title: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/awardTitle',
+        alias='awardTitle',
         description='Human-readable identifier for a benefit that is conferred or bestowed on the basis of merit or need.',
         title='awardTitle',
     )
     funder: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/funder',
+        alias='funder',
         description='Legal person that provides money for a particular purpose.',
         title='funder',
     )

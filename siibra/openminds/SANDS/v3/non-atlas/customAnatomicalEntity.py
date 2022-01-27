@@ -182,19 +182,19 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     has_annotation: Optional['HasAnnotation'] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/hasAnnotation'
+        None, alias='hasAnnotation'
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     related_uberon_term: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/relatedUBERONTerm',
+        alias='relatedUBERONTerm',
         title='relatedUBERONTerm',
     )
     relation_assessment: Optional[
         Union['RelationAssessmentItem', 'RelationAssessmentItem1']
-    ] = Field(None, alias='https://openminds.ebrains.eu/vocab/relationAssessment')
+    ] = Field(None, alias='relationAssessment')

@@ -12,23 +12,23 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     max_value: float = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/maxValue',
+        alias='maxValue',
         description='Greatest quantity attained or allowed.',
         title='maxValue',
     )
     max_value_unit: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/maxValueUnit',
+        alias='maxValueUnit',
         title='maxValueUnit',
     )
     min_value: float = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/minValue',
+        alias='minValue',
         description='Smallest quantity attained or allowed.',
         title='minValue',
     )
     min_value_unit: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/minValueUnit',
+        alias='minValueUnit',
         title='minValueUnit',
     )

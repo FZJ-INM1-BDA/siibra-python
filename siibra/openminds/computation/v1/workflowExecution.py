@@ -11,8 +11,8 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     stages: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/stages', title='stages'
+        ..., alias='stages', title='stages'
     )
     started_by: Optional[Dict[str, Any]] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/startedBy', title='startedBy'
+        None, alias='startedBy', title='startedBy'
     )

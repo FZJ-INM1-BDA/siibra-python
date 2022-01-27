@@ -10,13 +10,13 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     algorithm: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/algorithm',
+        alias='algorithm',
         description='Procedure for solving a mathematical problem in a finite number of steps. Can involve repetition of an operation.',
         title='algorithm',
     )
     digest: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/digest',
+        alias='digest',
         description='Summation or condensation of a body of information.',
         title='digest',
     )

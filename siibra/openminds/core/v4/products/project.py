@@ -12,39 +12,39 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     coordinator: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/coordinator',
+        alias='coordinator',
         description='Legal person who organizes the collaborative work of people or groups.',
         min_items=1,
         title='coordinator',
     )
     description: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     full_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/fullName',
+        alias='fullName',
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
     has_research_products: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/hasResearchProducts',
+        alias='hasResearchProducts',
         description='Reference to subsidiary research products.',
         min_items=2,
         title='hasResearchProducts',
     )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/homepage',
+        alias='homepage',
         description='Main website of something or someone.',
         title='homepage',
     )
     short_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/shortName',
+        alias='shortName',
         description='Shortened or fully abbreviated name of something or somebody.',
         title='shortName',
     )

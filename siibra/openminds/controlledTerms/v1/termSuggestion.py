@@ -12,55 +12,55 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     add_existing_terminology: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/addExistingTerminology',
+        alias='addExistingTerminology',
         description='Reference to an existing terminology (distinct class to group related terms).',
         title='addExistingTerminology',
     )
     definition: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/definition',
+        alias='definition',
         description='Short, but precise statement of the meaning of a word, word group, sign or a symbol.',
         title='definition',
     )
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     interlex_identifier: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/interlexIdentifier',
+        alias='interlexIdentifier',
         description='Persistent identifier for a term registered in the InterLex project.',
         title='interlexIdentifier',
     )
     knowledge_space_link: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/knowledgeSpaceLink',
+        alias='knowledgeSpaceLink',
         description='Persistent link to an encyclopedia entry in the Knowledge Space project.',
         title='knowledgeSpaceLink',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     preferred_ontology_identifier: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/preferredOntologyIdentifier',
+        alias='preferredOntologyIdentifier',
         description='Persistent identifier of a preferred ontological term.',
         title='preferredOntologyIdentifier',
     )
     suggest_new_terminology: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/suggestNewTerminology',
+        alias='suggestNewTerminology',
         description='Proposal of a new distinct class to group related terms.',
         title='suggestNewTerminology',
     )
     synonym: Optional[List[str]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/synonym',
+        alias='synonym',
         description='Words or expressions used in the same language that have the same or nearly the same meaning in some or all senses.',
         min_items=1,
         title='synonym',

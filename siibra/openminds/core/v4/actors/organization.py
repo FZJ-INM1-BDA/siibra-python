@@ -12,32 +12,32 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     digital_identifier: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/digitalIdentifier',
+        alias='digitalIdentifier',
         description='Digital handle to identify objects or legal persons.',
         min_items=1,
         title='digitalIdentifier',
     )
     full_name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/fullName',
+        alias='fullName',
         description='Whole, non-abbreviated name of something or somebody.',
         title='fullName',
     )
     has_parent: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hasParent',
+        alias='hasParent',
         description='Reference to a parent object or legal person.',
         title='hasParent',
     )
     homepage: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/homepage',
+        alias='homepage',
         description='Main website of something or someone.',
         title='homepage',
     )
     short_name: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/shortName',
+        alias='shortName',
         description='Shortened or fully abbreviated name of something or somebody.',
         title='shortName',
     )

@@ -34,31 +34,31 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     anatomical_axes_orientation: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation',
+        alias='anatomicalAxesOrientation',
         description='Relation between reference planes used in anatomy and mathematics.',
         title='anatomicalAxesOrientation',
     )
     axes_origin: 'AxesOrigin' = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/axesOrigin',
+        alias='axesOrigin',
         description='Structured information on a quantitative value.',
     )
     default_image: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/defaultImage',
+        alias='defaultImage',
         description='Two or three dimensional image that particluarly represents a specific coordinate space.',
         min_items=1,
         title='defaultImage',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     native_unit: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/nativeUnit',
+        alias='nativeUnit',
         description='Determinate quantity used in the original measurement.',
         title='nativeUnit',
     )

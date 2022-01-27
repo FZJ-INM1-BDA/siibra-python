@@ -12,7 +12,7 @@ class Model(SiibraBaseModel):
         regex=r'^([0-9]{3}-|)[0-9]{1}-[0-9]{3}-[0-9]{5}-[0-9]{1}$'
     ) = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/identifier',
+        alias='identifier',
         description='Term or code used to identify something or someone.',
         title='identifier',
     )

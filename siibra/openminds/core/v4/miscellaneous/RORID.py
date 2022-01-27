@@ -12,7 +12,7 @@ class Model(SiibraBaseModel):
         regex=r'^https://ror.org/0([0-9]|[^ILO]|[a-z]){6}[0-9]{2}$'
     ) = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/identifier',
+        alias='identifier',
         description='Term or code used to identify something or someone.',
         title='identifier',
     )

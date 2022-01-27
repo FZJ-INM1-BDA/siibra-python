@@ -61,6 +61,11 @@ def process_schema(model: OpenmindsSchema):
         disable_timestamp=True,
         base_class="siibra.openminds.base.SiibraBaseModel"
     )
+    with open(output_filename, "r") as fp:
+        txt = fp.read()
+    with open(output_filename, "w") as fp:
+        fp.write(txt.replace("https://openminds.ebrains.eu/vocab/", ""))
+
 
 def add_init():
     def process_dir(dirpath: str):

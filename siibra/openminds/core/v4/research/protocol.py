@@ -12,25 +12,25 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     description: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     stimulation: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/stimulation',
+        alias='stimulation',
         min_items=1,
         title='stimulation',
     )
     technique: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/technique',
+        alias='technique',
         description='Method of accomplishing a desired aim.',
         min_items=1,
         title='technique',

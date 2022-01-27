@@ -12,13 +12,13 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     type_of_uncertainty: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/typeOfUncertainty',
+        alias='typeOfUncertainty',
         description='Distinct technique used to quantify the uncertainty of a measurement.',
         title='typeOfUncertainty',
     )
     uncertainty: Optional[List[float]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/uncertainty',
+        alias='uncertainty',
         description='Quantitative value range defining the uncertainty of a measurement.',
         max_items=2,
         min_items=2,
@@ -26,13 +26,13 @@ class Model(SiibraBaseModel):
     )
     unit: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/unit',
+        alias='unit',
         description='Determinate quantity adopted as a standard of measurement.',
         title='unit',
     )
     value: float = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/value',
+        alias='value',
         description='Entry for a property.',
         title='value',
     )

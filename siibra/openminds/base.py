@@ -1,9 +1,7 @@
-
 from pydantic import BaseModel, Field
 
 
-class SiibraAtIdModel(BaseModel):
-    id: str = Field(..., alias="@id")
+class ConfigBaseModel(BaseModel):
 
     def dict(self, *arg, **kwargs):
         kwargs["by_alias"] = True
@@ -13,19 +11,14 @@ class SiibraAtIdModel(BaseModel):
         allow_population_by_field_name = True
 
 
-class SiibraBaseModel(BaseModel):
-    
-    def sanitize_key(self, key: str):
-        return key.replace("https://openminds.ebrains.eu/vocab/", "")
+class VocabModel(ConfigBaseModel):
+    vocab: str = Field(..., alias="@vocab")
 
-    def dict(self, *arg, **kwargs):
-        kwargs["by_alias"] = True
-        json_out = super().dict(*arg, **kwargs)
-        return {
-            "@context": {
-                "@vocab": "https://openminds.ebrains.eu/vocab/"
-            },
-            **{ self.sanitize_key(key): value for key, value in json_out.items()}
-        }
-    class Config:
-        allow_population_by_field_name = True
+
+class SiibraAtIdModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
+
+
+class SiibraBaseModel(ConfigBaseModel):
+    context = VocabModel(vocab="https://openminds.ebrains.eu/vocab/")
+    

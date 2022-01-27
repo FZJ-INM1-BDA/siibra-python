@@ -47,58 +47,58 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     iri: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/IRI',
+        alias='IRI',
         description='Stands for Internationalized Resource Identifier which is an internet protocol standard that builds on the URI protocol, extending the set of permitted characters to include Unicode/ISO 10646.',
         title='IRI',
     )
     content_description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/contentDescription',
+        alias='contentDescription',
         title='contentDescription',
     )
     data_type: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/dataType',
+        alias='dataType',
         min_items=1,
         title='dataType',
     )
     file_repository: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/fileRepository',
+        alias='fileRepository',
         title='fileRepository',
     )
     format: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/format',
+        alias='format',
         description='Method of digitally organizing and structuring data or information.',
         title='format',
     )
     hash: Optional['Hash'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hash',
+        alias='hash',
         description='Structured information on a hash.',
     )
     is_part_of: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/isPartOf',
+        alias='isPartOf',
         description='Reference to the ensemble of multiple things or beings.',
         min_items=1,
         title='isPartOf',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     special_usage_role: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/specialUsageRole',
+        alias='specialUsageRole',
         description='Particular function of something when it is used.',
         title='specialUsageRole',
     )
     storage_size: Optional['StorageSize'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/storageSize',
+        alias='storageSize',
         description='Structured information on a quantitative value.',
     )

@@ -12,22 +12,22 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/description',
+        alias='description',
         description='Longer statement or account giving the characteristics of someone or something.',
         title='description',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     stimulation_approach: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/stimulationApproach',
+        alias='stimulationApproach',
         title='stimulationApproach',
     )
     stimulus_type: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/stimulusType',
+        alias='stimulusType',
         title='stimulusType',
     )

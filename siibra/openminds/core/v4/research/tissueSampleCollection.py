@@ -12,32 +12,32 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     additional_remarks: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/additionalRemarks',
+        alias='additionalRemarks',
         description='Mention of what deserves additional attention or notice.',
         title='additionalRemarks',
     )
     anatomical_location: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/anatomicalLocation',
+        alias='anatomicalLocation',
         min_items=1,
         title='anatomicalLocation',
     )
     biological_sex: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/biologicalSex',
+        alias='biologicalSex',
         description='Differentiation of individuals of most species (animals and plants) based on the type of gametes they produce.',
         min_items=1,
         title='biologicalSex',
     )
     internal_identifier: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/internalIdentifier',
+        alias='internalIdentifier',
         description='Term or code that identifies someone or something within a particular product.',
         title='internalIdentifier',
     )
     laterality: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/laterality',
+        alias='laterality',
         description='Differentiation between a pair of lateral homologous parts of the body.',
         max_items=2,
         min_items=1,
@@ -45,39 +45,39 @@ class Model(SiibraBaseModel):
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     origin: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/origin',
+        alias='origin',
         description='Source at which something begins or rises, or from which something derives.',
         min_items=1,
         title='origin',
     )
     quantity: Optional[int] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/quantity',
+        alias='quantity',
         description='Total amount or number of things or beings.',
         title='quantity',
     )
     species: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/species',
+        alias='species',
         description='Category of biological classification comprising related organisms or populations potentially capable of interbreeding, and being designated by a binomial that consists of the name of a genus followed by a Latin or latinized uncapitalized noun or adjective.',
         min_items=1,
         title='species',
     )
     studied_state: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/studiedState',
+        alias='studiedState',
         description='Reference to a point in time at which something or someone was studied in a particular mode or condition.',
         min_items=1,
         title='studiedState',
     )
     type_1: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/type',
+        alias='type',
         description='Distinct class to which a group of entities or concepts with similar characteristics or attributes belong to.',
         min_items=1,
         title='type',

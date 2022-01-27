@@ -12,10 +12,10 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     identifier: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/identifier',
+        alias='identifier',
         description='Term or code used to identify something or someone.',
         title='identifier',
     )
     vendor: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/vendor', title='vendor'
+        ..., alias='vendor', title='vendor'
     )

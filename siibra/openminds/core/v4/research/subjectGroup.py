@@ -12,44 +12,44 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     additional_remarks: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/additionalRemarks',
+        alias='additionalRemarks',
         description='Mention of what deserves additional attention or notice.',
         title='additionalRemarks',
     )
     biological_sex: Optional[List[Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/biologicalSex',
+        alias='biologicalSex',
         description='Differentiation of individuals of most species (animals and plants) based on the type of gametes they produce.',
         min_items=1,
         title='biologicalSex',
     )
     internal_identifier: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/internalIdentifier',
+        alias='internalIdentifier',
         description='Term or code that identifies someone or something within a particular product.',
         title='internalIdentifier',
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     quantity: Optional[int] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/quantity',
+        alias='quantity',
         description='Total amount or number of things or beings.',
         title='quantity',
     )
     species: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/species',
+        alias='species',
         description='Category of biological classification comprising related organisms or populations potentially capable of interbreeding, and being designated by a binomial that consists of the name of a genus followed by a Latin or latinized uncapitalized noun or adjective.',
         min_items=1,
         title='species',
     )
     studied_state: List[Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/studiedState',
+        alias='studiedState',
         description='Reference to a point in time at which something or someone was studied in a particular mode or condition.',
         min_items=1,
         title='studiedState',

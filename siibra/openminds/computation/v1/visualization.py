@@ -54,39 +54,39 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     environment: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/environment', title='environment'
+        ..., alias='environment', title='environment'
     )
     input: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/input',
+        alias='input',
         description='Something or someone that is put into or participates in a process or machine.',
         title='input',
     )
     launch_configuration: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/launchConfiguration',
+        alias='launchConfiguration',
         title='launchConfiguration',
     )
     output: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/output',
+        alias='output',
         description='Something or someone that comes out of, is delivered or produced by a process or machine.',
         title='output',
     )
     resource_usage: Optional[Union['ResourceUsageItem', 'ResourceUsageItem1']] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/resourceUsage'
+        None, alias='resourceUsage'
     )
     started_by: Optional[Dict[str, Any]] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/startedBy', title='startedBy'
+        None, alias='startedBy', title='startedBy'
     )
     status: Optional[Dict[str, Any]] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/status', title='status'
+        None, alias='status', title='status'
     )
     tags: Optional[List[str]] = Field(
-        None, alias='https://openminds.ebrains.eu/vocab/tags', min_items=1, title='tags'
+        None, alias='tags', min_items=1, title='tags'
     )
     was_informed_by: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/wasInformedBy',
+        alias='wasInformedBy',
         title='wasInformedBy',
     )

@@ -47,44 +47,44 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     content_description: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/contentDescription',
+        alias='contentDescription',
         title='contentDescription',
     )
     descended_from: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/descendedFrom',
+        alias='descendedFrom',
         title='descendedFrom',
     )
     format: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/format',
+        alias='format',
         description='Method of digitally organizing and structuring data or information.',
         title='format',
     )
     grouping_type: Optional[Dict[str, Any]] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/groupingType',
+        alias='groupingType',
         title='groupingType',
     )
     hash: Optional['Hash'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/hash',
+        alias='hash',
         description='Structured information on a hash.',
     )
     is_part_of: Dict[str, Any] = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/isPartOf',
+        alias='isPartOf',
         description='Reference to the ensemble of multiple things or beings.',
         title='isPartOf',
     )
     name: str = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/name',
+        alias='name',
         description='Word or phrase that constitutes the distinctive designation of a being or thing.',
         title='name',
     )
     storage_size: Optional['StorageSize'] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/storageSize',
+        alias='storageSize',
         description='Structured information on a quantitative value.',
     )

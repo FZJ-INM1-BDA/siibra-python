@@ -8,4 +8,4 @@ from siibra.openminds.base import SiibraBaseModel
 class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
-    url: str = Field(..., alias='https://openminds.ebrains.eu/vocab/URL', title='URL')
+    url: str = Field(..., alias='URL', title='URL')

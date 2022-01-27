@@ -11,13 +11,13 @@ class Model(SiibraBaseModel):
     id: str = Field(..., alias='@id', description='Metadata node identifier.')
     type: str = Field(..., alias='@type')
     content_type: Dict[str, Any] = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/contentType', title='contentType'
+        ..., alias='contentType', title='contentType'
     )
     lookup_label: Optional[str] = Field(
         None,
-        alias='https://openminds.ebrains.eu/vocab/lookupLabel',
+        alias='lookupLabel',
         title='lookupLabel',
     )
     regex: str = Field(
-        ..., alias='https://openminds.ebrains.eu/vocab/regex', title='regex'
+        ..., alias='regex', title='regex'
     )

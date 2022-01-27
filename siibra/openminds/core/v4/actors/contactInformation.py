@@ -10,7 +10,7 @@ class Model(SiibraBaseModel):
     type: str = Field(..., alias='@type')
     email: EmailStr = Field(
         ...,
-        alias='https://openminds.ebrains.eu/vocab/email',
+        alias='email',
         description='Address to which or from which an electronic mail can be sent.',
         title='email',
     )
