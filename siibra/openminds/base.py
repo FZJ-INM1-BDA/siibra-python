@@ -20,5 +20,5 @@ class SiibraAtIdModel(ConfigBaseModel):
 
 
 class SiibraBaseModel(ConfigBaseModel):
-    context = VocabModel(vocab="https://openminds.ebrains.eu/vocab/")
+    context: VocabModel = Field(VocabModel(vocab="https://openminds.ebrains.eu/vocab/"), alias="@context")
     
