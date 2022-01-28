@@ -17,11 +17,31 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import logger
-from ..core.datasets import EbrainsDataset
+from ..core.serializable_concept import JSONSerializable
+from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..core.space import Space, Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
+from ..openminds.base import ConfigBaseModel
+from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel
 
+from typing import Dict
 import re
+
+
+class IEEGContactPointModel(ConfigBaseModel):
+    id: str
+    point: CoordinatePointModel
+
+
+class IEEGElectrodeModel(ConfigBaseModel):
+    electrode_id: str
+    contact_points: Dict[str, IEEGContactPointModel]
+
+
+class IEEGSessionModel(ConfigBaseModel):
+    dataset: DatasetJsonModel
+    sub_id: str
+    electrodes: Dict[str, IEEGElectrodeModel]
 
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
@@ -67,7 +87,7 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
         )
 
 
-class IEEG_Session(SpatialFeature):
+class IEEG_Session(SpatialFeature, JSONSerializable):
     """
     An intracranial EEG recording session on a particular subject,
     storing as set of electrodes and linking to an IEEG_Dataset.
@@ -107,8 +127,18 @@ class IEEG_Session(SpatialFeature):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
+    def to_model(self, **kwargs):
+        return IEEGSessionModel(
+            dataset=self.dataset.to_model(),
+            sub_id=self.sub_id,
+            electrodes={
+                key: electrode.to_model(**kwargs)
+                for key, electrode in self.electrodes.items()
+            }
+        )
 
-class IEEG_Electrode(SpatialFeature):
+
+class IEEG_Electrode(SpatialFeature, JSONSerializable):
     """
     EEG Electrode with multiple contact points placed in a reference space,
     linking to a particular IEEG recording session.
@@ -145,8 +175,17 @@ class IEEG_Electrode(SpatialFeature):
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 
+    def to_model(self, **kwargs) -> IEEGElectrodeModel:
+        return IEEGElectrodeModel(
+            electrode_id=self.electrode_id,
+            contact_points={
+                key: contact_pt.to_model(**kwargs)
+                for key, contact_pt in self.contact_points.items()
+            }
+        )
 
-class IEEG_ContactPoint(SpatialFeature):
+
+class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
     """
     Basic regional feature for iEEG contact points.
     """
@@ -156,6 +195,7 @@ class IEEG_ContactPoint(SpatialFeature):
         SpatialFeature.__init__(self, point)
         self.electrode = electrode
         self.id = id
+        self.point = point
         electrode.register_contact_point(self)
 
     def next(self):
@@ -184,6 +224,11 @@ class IEEG_ContactPoint(SpatialFeature):
         else:
             return None
 
+    def to_model(self, **kwargs) -> IEEGContactPointModel:
+        return IEEGContactPointModel(
+            id=self.id,
+            point=self.point.to_model(**kwargs)
+        )
 
 def parse_ptsfile(spec):
     lines = spec.split("\n")

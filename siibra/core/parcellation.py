@@ -15,7 +15,8 @@
 
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept, JSONSerializable, provide_registry
+from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import ParcellationMap

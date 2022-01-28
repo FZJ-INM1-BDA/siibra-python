@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept, JSONSerializable
+from .concept import AtlasConcept
+from .serializable_concept import JSONSerializable
 from .space import PointSet, Space, Point, BoundingBox, UnitOfMeasurement
 
 from ..commons import (

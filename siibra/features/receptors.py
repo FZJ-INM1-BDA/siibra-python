@@ -15,17 +15,21 @@
 
 from .feature import RegionalFeature
 from .query import FeatureQuery
-
 from ..commons import logger
 from ..retrieval.requests import EbrainsKgQuery, HttpRequest
-from ..core.datasets import EbrainsDataset
+from ..core.datasets import EbrainsDataset, DatasetJsonModel, ConfigBaseModel
 
+
+from typing import Dict
+from pydantic import Field
 import PIL.Image as Image
 import numpy as np
 from io import BytesIO
 from collections import namedtuple
 import re
 import importlib
+import zlib
+import base64
 
 
 RECEPTOR_SYMBOLS = {
@@ -291,6 +295,57 @@ class DensityProfile:
 Density = namedtuple("Density", "name, mean, std, unit")
 
 
+class NpArrayDataModel(ConfigBaseModel):
+    
+    content_type: str = "application/octet-stream"
+    content_encoding: str = "gzip; base64"
+    x_width: int = Field(..., alias="x-width")
+    x_height: int = Field(..., alias="x-height")
+    x_channel: int = Field(..., alias="x-channel")
+    dtype: str
+    content: str
+
+    def __init__(self, np_data) -> None:
+        assert type(np_data) is np.ndarray, f"expect input to be numpy array"
+        assert np_data.dtype is np.dtype("uint8") or np_data.dtype is np.dtype("float32"), f"can only serialize uint8 or float32 for now"
+        assert len(np_data.shape) <= 3, f"can only deal np array with up to 3 dimension"
+        
+        x_channel = 1 if len(np_data.shape) < 3 else np_data.shape[2]
+        x_width = np_data.shape[0]
+        x_height = 1 if len(np_data.shape) < 2 else np_data.shape[1]
+        dtype = str(np_data.dtype)
+        content = base64.b64encode(zlib.compress(np_data.tobytes(order="F")))
+
+        super().__init__(
+            x_width=x_width,
+            x_height=x_height,
+            dtype=dtype,
+            content=content,
+            x_channel=x_channel,
+        )
+
+class FingerPrintDataModel(ConfigBaseModel):
+    mean: float
+    std: float
+    unit: str
+
+class ProfileDataModel(ConfigBaseModel):
+    density: NpArrayDataModel
+    unit: str
+
+class AutoradiographyDataModel(NpArrayDataModel):
+    pass
+
+class ReceptorDataModel(ConfigBaseModel):
+    autoradiographs: Dict[str, AutoradiographyDataModel]
+    profiles: Dict[str, ProfileDataModel]
+    fingerprints: Dict[str, FingerPrintDataModel]
+
+
+class ReceptorDatasetModel(DatasetJsonModel):
+    data: ReceptorDataModel
+
+
 class DensityFingerprint:
 
     unit = None
@@ -361,7 +416,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     def __init__(self, region, kg_result, **kwargs):
 
         RegionalFeature.__init__(self, region, **kwargs)
-        EbrainsDataset.__init__(self, kg_result["identifier"], kg_result["name"])
+        EbrainsDataset.__init__(self, kg_result["@id"], kg_result["name"])
 
         self.info = kg_result["description"]
         self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
@@ -399,7 +454,9 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         self._autoradiograph_loaders = {}
 
         def img_from_bytes(b):
-            return np.array(Image.open(BytesIO(b)))
+            # PIL is column major but numpy is row major
+            # see https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
+            return np.transpose(np.array(Image.open(BytesIO(b))), axes=[1,0,2])
 
         for url in urls_matching(".*_ar[._]"):
             rtype, basename = url.split("/")[-2:]
@@ -410,6 +467,31 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                     f"More than one autoradiograph for '{rtype}' in {self.url}"
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
+
+    def to_model(self, **kwargs) -> ReceptorDatasetModel:
+        super_model = super().to_model(**kwargs)
+        data_model=ReceptorDataModel(
+            autoradiographs={
+                key: AutoradiographyDataModel(autoradiograph)
+                for key, autoradiograph in self.autoradiographs.items()},
+            profiles={
+                key: ProfileDataModel(
+                    density=NpArrayDataModel(np.array([val for val in profile.densities.values()], dtype="float32")),
+                    unit=profile.unit
+                ) for key, profile in self.profiles.items()
+            },
+            fingerprints={
+                key: FingerPrintDataModel(
+                    mean=mean,
+                    std=std,
+                    unit=self.fingerprint.unit
+                ) for key, mean, std in zip(self.fingerprint.labels, self.fingerprint.meanvals, self.fingerprint.stdvals)
+            },
+        )
+        return ReceptorDatasetModel(
+            **super_model.dict(),
+            data=data_model
+        )
 
     @property
     def fingerprint(self):

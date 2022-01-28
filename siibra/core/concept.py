@@ -274,9 +274,3 @@ class AtlasConcept:
     def match_spec(cls, obj, spec):
         assert isinstance(obj, cls)
         return obj.matches(spec)
-
-class JSONSerializable(ABC):
-
-    @abstractmethod
-    def to_model(self, **kwargs):
-        raise AttributeError("JSONSerializable needs to have to_json overwritten")

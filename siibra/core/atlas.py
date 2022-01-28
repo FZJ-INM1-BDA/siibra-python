@@ -16,7 +16,8 @@
 from typing import List
 from pydantic import Field
 
-from .concept import AtlasConcept, JSONSerializable, provide_registry
+from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
 from .space import Space
 from .parcellation import Parcellation
 

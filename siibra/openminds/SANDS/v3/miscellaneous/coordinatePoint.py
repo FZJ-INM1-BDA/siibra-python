@@ -38,7 +38,7 @@ class Model(SiibraBaseModel):
         description='Two or three dimensional geometric setting.',
         title='coordinateSpace',
     )
-    coordinates: 'Coordinates' = Field(
+    coordinates: List['Coordinates'] = Field(
         ...,
         alias='coordinates',
         description='Structured information on a quantitative value.',

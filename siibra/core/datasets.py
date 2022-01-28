@@ -13,13 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
+from ..openminds.core.v4.products.datasetVersion import Model as DatasetVersionModel
+from ..openminds.base import ConfigBaseModel
 
 import re
+from datetime import date
+from typing import List, Optional
+from uuid import uuid4
 
+class Url(ConfigBaseModel):
+    doi: str
+    cite: Optional[str]
 
-class Dataset:
+class DatasetJsonModel(ConfigBaseModel):
+    metadata: DatasetVersionModel
+    urls: List[Url]
+
+class Dataset(JSONSerializable):
     """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
@@ -87,6 +100,45 @@ class Dataset:
             if key in spec:
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
+
+    def to_model(self, **kwargs) -> DatasetJsonModel:
+        return DatasetJsonModel(
+            metadata=DatasetVersionModel(
+                id=self.id or str(uuid4()),
+                type="https://openminds.ebrains.eu/core/DatasetVersion",
+                accessibility={
+                    "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
+                },
+                data_type=[{
+                    "@id": "https://openminds.ebrains.eu/instances/semanticDataType/derivedData"
+                }],
+                digital_identifier={
+                    "@id": None
+                },
+                ethics_assessment={
+                    "@id": None
+                },
+                experimental_approach=[{
+                    "@id": None
+                }],
+                full_documentation={
+                    "@id": None
+                },
+                full_name=self.name if hasattr(self, "name") else None,
+                license={
+                    "@id": None
+                },
+                release_date=date(1970,1,1),
+                short_name=self.name[:30] if hasattr(self, "name") else "",
+                technique=[{
+                    "@id": None
+                }],
+                version_identifier="",
+                version_innovation="",
+                description=self.description[:2000] if hasattr(self, "description") else ""
+            ),
+            urls=[Url(**url) for url in self.urls]
+        )
 
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):

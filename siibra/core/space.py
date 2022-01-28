@@ -13,13 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import date
-from .concept import AtlasConcept, JSONSerializable, provide_registry
+from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
 
 from ..commons import logger
 from ..retrieval import HttpRequest
 from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
+from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel, Coordinates as QuantitativeValueModel
 
+
+from datetime import date
+import hashlib
 import re
 import numpy as np
 from abc import ABC, abstractmethod
@@ -205,7 +209,7 @@ class Location(ABC):
             # typically only used for temporary entities, e.g. in individual voxel spaces.
             self.space = None
         else:
-            self.space = Space.REGISTRY[space]
+            self.space: Space = Space.REGISTRY[space]
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):
@@ -320,7 +324,7 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location):
+class Point(Location, JSONSerializable):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -592,6 +596,21 @@ class Point(Location):
                 )
         return int((coronal_position + 70.0) / 0.02 + 1.5)
 
+    def to_model(self, **kwargs) -> CoordinatePointModel:
+        if self.space is None:
+            raise RuntimeError(f"Point.to_model cannot be done on Location entity that does not have space defined!")
+        space_id = self.space.to_model().id
+        point_id = hashlib.md5(f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")).hexdigest()
+        return CoordinatePointModel(
+            id=point_id,
+            type="https://openminds.ebrains.eu/sands/CoordinatePoint",
+            coordinate_space={
+                "@id": space_id
+            },
+            coordinates=[
+                QuantitativeValueModel(value=coord)
+                for coord in self]
+        )
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,
