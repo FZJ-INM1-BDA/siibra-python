@@ -67,7 +67,7 @@ def test_parc_to_model(parc: Parcellation):
 
 all_parc_models = [parc.to_model() for parc in all_parcs]
 all_regions = [
-    pytest.param(pev, bav, marks=pytest.mark.xfail(reason="Some region ids are duplicated."))
+    (pev, bav)
     for model in all_parc_models
     for bav in model.brain_atlas_versions
     for pev in bav.has_terminology_version.has_entity_version]
@@ -75,7 +75,10 @@ all_regions = [
 @pytest.mark.parametrize('pev_id_dict,bav', all_regions)
 def test_parc_regions(pev_id_dict,bav):
     filtered_pev = [pev for pev in bav.has_terminology_version.has_entity_version if pev.get("@id") == pev_id_dict.get("@id")]
-    assert len(filtered_pev) == 1, f"expect only 1 parcellation entity version has id {pev_id_dict.get('@id')}, but has {len(filtered_pev)}"
+    if len(filtered_pev) == 1:
+        assert True
+    else:
+        pytest.xfail(f"PEV with id {pev_id_dict.get('@id')} has multiple instances.")
 
 if __name__ == "__main__":
     unittest.main()
