@@ -298,12 +298,15 @@ class FingerPrintDataModel(ConfigBaseModel):
     std: float
     unit: str
 
+
 class ProfileDataModel(ConfigBaseModel):
     density: NpArrayDataModel
     unit: str
 
+
 class AutoradiographyDataModel(NpArrayDataModel):
     pass
+
 
 class ReceptorDataModel(ConfigBaseModel):
     autoradiographs: Dict[str, AutoradiographyDataModel]
