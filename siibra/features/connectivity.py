@@ -25,9 +25,12 @@ from ..openminds.base import ConfigBaseModel
 import pandas as pd
 import numpy as np
 from typing import Dict, List
+import hashlib
+from pydantic import Field
 
 
 class ConnectivityMatrixDataModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
     name: str
     matrix: NpArrayDataModel
     columns: List[str]
@@ -74,6 +77,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
         assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
 
         return ConnectivityMatrixDataModel(
+            id=hashlib.md5(str(self).encode("utf-8")).hexdigest(),
             name=str(self),
             columns=[name for name in self.matrix.columns.values],
             parcellations=[{

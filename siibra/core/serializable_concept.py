@@ -19,15 +19,18 @@ class JSONSerializable(ABC):
 
 class NpArrayDataModel(ConfigBaseModel):
     
-    content_type: str = "application/octet-stream"
-    content_encoding: str = "gzip; base64"
+    content_type: str = Field("application/octet-stream")
+    content_encoding: str = Field("gzip; base64")
     x_width: int = Field(..., alias="x-width")
     x_height: int = Field(..., alias="x-height")
     x_channel: int = Field(..., alias="x-channel")
     dtype: str
     content: str
 
-    def __init__(self, np_data) -> None:
+    def __init__(self, np_data=None, **data) -> None:
+
+        if np_data is None:
+            return super().__init__(**data)
 
         # try to avoid 64 bit any number
         supported_dtype = [

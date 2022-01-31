@@ -24,6 +24,7 @@ from ..retrieval.repositories import GitlabConnector
 from ..openminds.base import ConfigBaseModel
 from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel
 
+from pydantic import Field
 from typing import Dict
 import re
 
@@ -39,6 +40,7 @@ class IEEGElectrodeModel(ConfigBaseModel):
 
 
 class IEEGSessionModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
     dataset: DatasetJsonModel
     sub_id: str
     electrodes: Dict[str, IEEGElectrodeModel]
@@ -128,8 +130,10 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.dataset._update_location()
 
     def to_model(self, **kwargs) -> IEEGSessionModel:
+        dataset = self.dataset.to_model()
         return IEEGSessionModel(
-            dataset=self.dataset.to_model(),
+            id=f"{dataset.id}:{self.sub_id}",
+            dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
                 key: electrode.to_model(**kwargs)
