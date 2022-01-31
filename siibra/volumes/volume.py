@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from siibra.openminds.base import SiibraAtIdModel
 from .. import logger
 from ..commons import MapType
-from ..core.datasets import Dataset
+from ..core.datasets import Dataset, DatasetJsonModel
 from ..core.space import Space, BoundingBox
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
+from ..core.serializable_concept import ConfigBaseModel
 
 import numpy as np
 import nibabel as nib
@@ -26,6 +28,22 @@ import json
 from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
+from typing import Any, Dict, Optional
+
+
+class VolumeDataModel(ConfigBaseModel):
+    type: str
+    is_volume: bool
+    is_surface: bool
+    detail: Dict[str, Any]
+    space: SiibraAtIdModel
+    url: Optional[str]
+    url_map: Optional[Dict[str, str]]
+    map_type: Optional[str]
+
+
+class VolumeModel(DatasetJsonModel):
+    data: VolumeDataModel
 
 
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
@@ -133,6 +151,24 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         if maptype is not None:
             result.map_type = MapType[maptype.upper()]
         return result
+
+    def to_model(self, **kwargs) -> VolumeModel:
+        super_model = super().to_model(**kwargs)
+        return VolumeModel(
+            data=VolumeDataModel(
+                type=self.volume_type,
+                is_volume=self.is_volume,
+                is_surface=self.is_surface,
+                detail=self.detail or {},
+                space={
+                    "@id": self.space.to_model().id
+                },
+                url=self.url if isinstance(self.url, str) else None,
+                url_map=self.url if isinstance(self.url, dict) else None,
+                map_type=self.map_type.name if hasattr(self, "map_type") and self.map_type is not None else None,
+            ),
+            **super_model.dict(),
+        )
 
 
 class ImageProvider(ABC):
