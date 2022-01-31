@@ -127,7 +127,7 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
-    def to_model(self, **kwargs):
+    def to_model(self, **kwargs) -> IEEGSessionModel:
         return IEEGSessionModel(
             dataset=self.dataset.to_model(),
             sub_id=self.sub_id,
