@@ -18,18 +18,16 @@ from .query import FeatureQuery
 from ..commons import logger
 from ..retrieval.requests import EbrainsKgQuery, HttpRequest
 from ..core.datasets import EbrainsDataset, DatasetJsonModel, ConfigBaseModel
+from ..core.serializable_concept import NpArrayDataModel
 
 
 from typing import Dict
-from pydantic import Field
 import PIL.Image as Image
 import numpy as np
 from io import BytesIO
 from collections import namedtuple
 import re
 import importlib
-import zlib
-import base64
 
 
 RECEPTOR_SYMBOLS = {
@@ -294,35 +292,6 @@ class DensityProfile:
 
 Density = namedtuple("Density", "name, mean, std, unit")
 
-
-class NpArrayDataModel(ConfigBaseModel):
-    
-    content_type: str = "application/octet-stream"
-    content_encoding: str = "gzip; base64"
-    x_width: int = Field(..., alias="x-width")
-    x_height: int = Field(..., alias="x-height")
-    x_channel: int = Field(..., alias="x-channel")
-    dtype: str
-    content: str
-
-    def __init__(self, np_data) -> None:
-        assert type(np_data) is np.ndarray, f"expect input to be numpy array"
-        assert np_data.dtype is np.dtype("uint8") or np_data.dtype is np.dtype("float32"), f"can only serialize uint8 or float32 for now"
-        assert len(np_data.shape) <= 3, f"can only deal np array with up to 3 dimension"
-        
-        x_channel = 1 if len(np_data.shape) < 3 else np_data.shape[2]
-        x_width = np_data.shape[0]
-        x_height = 1 if len(np_data.shape) < 2 else np_data.shape[1]
-        dtype = str(np_data.dtype)
-        content = base64.b64encode(zlib.compress(np_data.tobytes(order="F")))
-
-        super().__init__(
-            x_width=x_width,
-            x_height=x_height,
-            dtype=dtype,
-            content=content,
-            x_channel=x_channel,
-        )
 
 class FingerPrintDataModel(ConfigBaseModel):
     mean: float

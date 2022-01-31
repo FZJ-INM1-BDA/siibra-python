@@ -19,12 +19,22 @@ from .query import FeatureQuery
 from ..commons import logger, QUIET
 from ..core.parcellation import Parcellation
 from ..retrieval.repositories import GitlabConnector, EbrainsPublicDatasetConnector
+from ..core.serializable_concept import NpArrayDataModel, JSONSerializable
+from ..openminds.base import ConfigBaseModel
 
 import pandas as pd
-from typing import List
+import numpy as np
+from typing import Dict, List
 
 
-class ConnectivityMatrix(ParcellationFeature):
+class ConnectivityMatrixDataModel(ConfigBaseModel):
+    name: str
+    matrix: NpArrayDataModel
+    columns: List[str]
+    parcellations: List[Dict[str, str]]
+
+
+class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
     """ Structural connectivity matrix grouped by a parcellation. """
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
@@ -53,6 +63,24 @@ class ConnectivityMatrix(ParcellationFeature):
 
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
+
+    def to_model(self, **kwargs) -> ConnectivityMatrixDataModel:
+        dtype_set = {dtype for dtype in self.matrix.dtypes}
+        
+        assert len(dtype_set) == 1, f"expect only 1 type of data, but got {len(dtype_set)}"
+        dtype, = list(dtype_set)
+        is_int = np.issubdtype(dtype, np.int)
+        is_float = np.issubdtype(dtype, np.float)
+        assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
+
+        return ConnectivityMatrixDataModel(
+            name=str(self),
+            columns=[name for name in self.matrix.columns.values],
+            parcellations=[{
+                "@id": parc.to_model().id,
+            } for parc in self.parcellations],
+            matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="int32" if is_int else "float32")),
+        )
 
 
 class StreamlineCounts(ConnectivityMatrix):
