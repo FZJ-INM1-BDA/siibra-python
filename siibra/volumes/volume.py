@@ -96,6 +96,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         if volume_type is not None:
             assert volume_type not in VolumeSrc._SPECIALISTS
             VolumeSrc._SPECIALISTS[volume_type] = cls
+        return super().__init_subclass__()
 
     def __str__(self):
         return f"{self.volume_type} {self.url}"

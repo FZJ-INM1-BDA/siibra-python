@@ -45,6 +45,7 @@ class FeatureQuery(ABC):
             f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features"
         )
         cls._implementations[cls._FEATURETYPE.modality()].append(cls)
+        return super().__init_subclass__()
 
     @classmethod
     def get_features(cls, concept, modality, group_by=None, **kwargs):

@@ -128,6 +128,7 @@ class AtlasConcept:
         cls.type_id = type_id
         if bootstrap_folder is not None:
             cls._bootstrap_folder = bootstrap_folder
+        return super().__init_subclass__()
 
     def add_dataset(self, dataset: Dataset):
         """ Explictly add another dataset object to this atlas concept. """

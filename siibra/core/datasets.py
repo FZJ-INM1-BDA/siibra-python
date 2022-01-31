@@ -54,6 +54,7 @@ class Dataset(JSONSerializable):
             logger.debug(f"Registering specialist {cls.__name__} for type id {type_id}")
             Dataset.REGISTRY[type_id] = cls
         cls.type_id = type_id
+        return super().__init_subclass__()
 
     @property
     def is_volume(self):

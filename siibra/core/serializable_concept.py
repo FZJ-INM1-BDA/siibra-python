@@ -10,7 +10,11 @@ class JSONSerializable(ABC):
 
     @abstractmethod
     def to_model(self, **kwargs):
-        raise AttributeError("JSONSerializable needs to have to_json overwritten")
+        raise AttributeError("JSONSerializable needs to have to_model overwritten")
+    
+    def __init_subclass__(cls) -> None:
+        assert cls.to_model.__annotations__.get("return"), f"{cls}: JSONSerializable to_model overwritten method needs to be typed."
+        return super().__init_subclass__()
 
 
 class NpArrayDataModel(ConfigBaseModel):

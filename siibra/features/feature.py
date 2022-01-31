@@ -136,6 +136,7 @@ class Feature(ABC):
             f"Registering feature type {cls.__name__} with modality {cls.modality()}"
         )
         cls.REGISTRY.add(cls.modality(), cls)
+        return super().__init_subclass__()
 
     @property
     def matched(self):
