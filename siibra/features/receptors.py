@@ -21,7 +21,7 @@ from ..core.datasets import EbrainsDataset, DatasetJsonModel, ConfigBaseModel
 from ..core.serializable_concept import NpArrayDataModel
 
 
-from typing import Dict
+from typing import Dict, Optional
 import PIL.Image as Image
 import numpy as np
 from io import BytesIO
@@ -315,7 +315,7 @@ class ReceptorDataModel(ConfigBaseModel):
 
 
 class ReceptorDatasetModel(DatasetJsonModel):
-    data: ReceptorDataModel
+    data: Optional[ReceptorDataModel]
 
 
 class DensityFingerprint:
@@ -440,8 +440,14 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
-    def to_model(self, **kwargs) -> ReceptorDatasetModel:
-        super_model = super().to_model(**kwargs)
+    def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
+        super_model = super().to_model(detail=detail, **kwargs)
+        if not detail:
+            return ReceptorDatasetModel(
+                **super_model.dict(),
+                data=None,
+            )
+
         data_model=ReceptorDataModel(
             autoradiographs={
                 key: AutoradiographyDataModel(autoradiograph)

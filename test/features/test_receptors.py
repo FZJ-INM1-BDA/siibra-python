@@ -50,7 +50,10 @@ def test_get_region_receptor(region_spec:str):
 
 @pytest.mark.parametrize('receptor', receptor_query.features)
 def test_receptor_to_model(receptor: ReceptorDistribution):
-    receptor.to_model()
+    model_summary = receptor.to_model(detail=False)
+    assert model_summary.data is None, f"expecting summary model to have None for data attribute"
+    model_detail = receptor.to_model(detail=True)
+    assert model_detail.data is not None, f"expecting detail model to have data attribute"
 
 if __name__ == "__main__":
     unittest.main()
