@@ -72,8 +72,8 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
         
         assert len(dtype_set) == 1, f"expect only 1 type of data, but got {len(dtype_set)}"
         dtype, = list(dtype_set)
-        is_int = np.issubdtype(dtype, np.int)
-        is_float = np.issubdtype(dtype, np.float)
+        is_int = np.issubdtype(dtype, int)
+        is_float = np.issubdtype(dtype, float)
         assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
 
         return ConnectivityMatrixDataModel(

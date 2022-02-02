@@ -816,7 +816,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ) if space else None,
             has_parent=[{
                 '@id': self.parent.to_model(detail=False).id
-            }] if detail and self.parent else None,
+            }] if (detail and self.parent is not None) else None,
             name=self.name,
             ontology_identifier=None,
             relation_assessment=None,
