@@ -795,9 +795,11 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 centroids = self.centroids(space)
                 assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
         
-
+        import hashlib
+        def get_unique_id(id):
+            return hashlib.md5(id.encode("utf-8")).hexdigest()
         pev = ParcellationEntityVersionModel(
-            id=self.id,
+            id=f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}",
             type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
             has_annotation=HasAnnotation(
                 internal_identifier="",
@@ -848,7 +850,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     def to_parcellation_entity(self, **kwargs) -> ParcellationEntityModel:
         import hashlib
         def get_unique_id(id):
-            return  hashlib.md5(id.encode("utf-8")).hexdigest()
+            return hashlib.md5(id.encode("utf-8")).hexdigest()
         pe_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.id)}"
         pe = ParcellationEntityModel(
             id=pe_id,
@@ -856,7 +858,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             has_parent=[{
                 "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
             }],
-            name=self.name
+            name=self.name,
+            has_version=[{
+                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}"
+            }]
         )
 
         from .. import parcellations
