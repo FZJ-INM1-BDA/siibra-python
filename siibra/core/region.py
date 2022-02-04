@@ -838,16 +838,16 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
 
             if is_lh:
-                pev.version_identifier = f"v2018, lh"
+                pev.version_identifier = f"2018, lh"
             if is_rh:
-                pev.version_identifier = f"v2018, rh"
+                pev.version_identifier = f"2018, rh"
             
             pev.id = f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
-            pev.lookup_label = f"SWMA_v2018_{self.name}"
+            pev.lookup_label = f"SWMA_2018_{self.name}"
             pev.has_parent = None
         return pev
 
-    def to_parcellation_entity(self, **kwargs) -> ParcellationEntityModel:
+    def to_parcellation_entities(self, **kwargs) -> List[ParcellationEntityModel]:
         import hashlib
         def get_unique_id(id):
             return hashlib.md5(id.encode("utf-8")).hexdigest()
@@ -863,31 +863,42 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 "@id": self.to_model(**kwargs).id
             }]
         )
+        return_list = [pe]
 
         from .. import parcellations
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
         if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            return_list = []
+
             is_lh = "lh" in self.name
             is_rh = "rh" in self.name
             
             if not is_lh and not is_rh:
                 raise RuntimeError(f"PE for superficial bundle can only be generated for lh/rh")
             
+            def get_pe_model(name:str, parent_ids:List[str]=None, has_versions_ids:List[str]=None) -> ParcellationEntityModel:
+                p = ParcellationEntityModel(**pe.dict())
+                p.name = name
+                p.lookup_label = f"SWMA_{name}"
+                p.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{p.lookup_label}"
+                p.has_parent = [{ "@id": _id } for _id in parent_ids] if parent_ids else None
+                p.has_version = [{ "@id": _id } for _id in has_versions_ids] if has_versions_ids else None
+                return p
 
             # remove lh/rh prefix
-            processed_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
             # remove _[\d] suffix
-            processed_name = re.sub(r"_\d+$", "", processed_name)
+            superstructure_name = re.sub(r"_\d+$", "", superstructure_name)
+            superstructure = get_pe_model(superstructure_name, ["https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"])
 
-            pe.name = processed_name
-            pe.lookup_label = f"SWMA_{processed_name}"
+            substructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            substructure = get_pe_model(substructure_name, [superstructure.id], [self.to_model(**kwargs).id])
+
+            return_list.append(superstructure)
+            return_list.append(substructure)
             
-            pe.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{pe.lookup_label}"
-            pe.has_parent = [{
-                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"
-            }]
-
-        return pe
+        return return_list
 
 if __name__ == "__main__":
 
