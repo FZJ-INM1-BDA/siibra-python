@@ -879,7 +879,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             # remove _[\d] suffix
             processed_name = re.sub(r"_\d+$", "", processed_name)
 
-            pe.name = f"SWMA {processed_name}"
+            pe.name = processed_name
             pe.lookup_label = f"SWMA_{processed_name}"
             
             pe.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{pe.lookup_label}"
