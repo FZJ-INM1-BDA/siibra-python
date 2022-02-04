@@ -860,7 +860,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             }],
             name=self.name,
             has_version=[{
-                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}"
+                "@id": self.to_model(**kwargs).id
             }]
         )
 
