@@ -832,10 +832,11 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         from .. import parcellations
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
+        # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
         if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
             is_lh = "lh" in self.name
             is_rh = "rh" in self.name
-
 
             if is_lh:
                 pev.version_identifier = f"2018, lh"
@@ -844,7 +845,19 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             
             pev.id = f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
             pev.lookup_label = f"SWMA_2018_{self.name}"
-            pev.has_parent = None
+
+
+            # remove lh/rh prefix
+            superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            # remove _[\d] suffix
+            superstructure_name = re.sub(r"_\d+$", "", superstructure_name)
+
+            superstructure_lookup_label = f"SWMA_{superstructure_name}"
+            superstructure_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{superstructure_lookup_label}"
+
+            pev.has_parent = [{
+                "@id": superstructure_id
+            }]
         return pev
 
     def to_parcellation_entities(self, **kwargs) -> List[ParcellationEntityModel]:
@@ -857,7 +870,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             type="https://openminds.ebrains.eu/sands/ParcellationEntity",
             has_parent=[{
                 "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
-            }],
+            }] if self.parent else None,
             name=self.name,
             has_version=[{
                 "@id": self.to_model(**kwargs).id
@@ -868,6 +881,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         from .. import parcellations
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
         # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
+        # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
         if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
             return_list = []
 
