@@ -32,6 +32,9 @@ from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
     BestViewPoint,
     HasAnnotation,
 )
+from ..openminds.SANDS.v3.atlas.parcellationEntity import (
+    Model as ParcellationEntityModel
+)
 
 import numpy as np
 import nibabel as nib
@@ -792,7 +795,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 centroids = self.centroids(space)
                 assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
         
-        return ParcellationEntityVersionModel(
+
+        pev = ParcellationEntityVersionModel(
             id=self.id,
             type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
             has_annotation=HasAnnotation(
@@ -824,6 +828,61 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             version_innovation=None
         )
 
+        from .. import parcellations
+        # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            is_lh = "lh" in self.name
+            is_rh = "rh" in self.name
+
+
+            if is_lh:
+                pev.version_identifier = f"v2018, lh"
+            if is_rh:
+                pev.version_identifier = f"v2018, rh"
+            
+            pev.id = f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
+            pev.lookup_label = f"SWMA_v2018_{self.name}"
+            pev.has_parent = None
+        return pev
+
+    def to_parcellation_entity(self, **kwargs) -> ParcellationEntityModel:
+        import hashlib
+        def get_unique_id(id):
+            return  hashlib.md5(id.encode("utf-8")).hexdigest()
+        pe_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.id)}"
+        pe = ParcellationEntityModel(
+            id=pe_id,
+            type="https://openminds.ebrains.eu/sands/ParcellationEntity",
+            has_parent=[{
+                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
+            }],
+            name=self.name
+        )
+
+        from .. import parcellations
+        # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            is_lh = "lh" in self.name
+            is_rh = "rh" in self.name
+            
+            if not is_lh and not is_rh:
+                raise RuntimeError(f"PE for superficial bundle can only be generated for lh/rh")
+            
+
+            # remove lh/rh prefix
+            processed_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            # remove _[\d] suffix
+            processed_name = re.sub(r"_\d+$", "", processed_name)
+
+            pe.name = f"SWMA {processed_name}"
+            pe.lookup_label = f"SWMA_{processed_name}"
+            
+            pe.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{pe.lookup_label}"
+            pe.has_parent = [{
+                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"
+            }]
+
+        return pe
 
 if __name__ == "__main__":
 
