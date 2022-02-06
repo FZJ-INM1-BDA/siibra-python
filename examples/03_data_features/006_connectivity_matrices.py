@@ -89,7 +89,7 @@ view = plotting.plot_connectome(
     edge_threshold="80%", node_size=10,
 )
 view.title(
-    f"{conn.modality } {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
+    f"{conn.modality()} {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
     size=10
 )
 
