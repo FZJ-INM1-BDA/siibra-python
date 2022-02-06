@@ -216,6 +216,59 @@ class ParcellationMap(ABC):
                     return True
         return False
 
+    def decode_region(self, regionspec: Union[str, Region]):
+        """
+        Given a unique specification, return the corresponding region 
+        that is mapped in this ParcellationMap.
+        The spec could be a label index, a (possibly incomplete) name, or a
+        region object.
+        This method is meant to definitely determine a valid region. Therefore,
+        if no match is found, it raises a ValueError. 
+
+        Parameters
+        ----------
+        regionspec : any of
+            - a string with a possibly inexact name, which is matched both
+              against the name and the identifier key,
+            - an integer, which is interpreted as a labelindex,
+            - a region object
+            - a full ParcellationIndex
+
+        Return
+        ------
+        Region object
+        """
+        # make sure we have a region object that matches the parcellation
+        if isinstance(regionspec, Region):
+            region = regionspec
+        else:
+            region = self.parcellation.decode_region(regionspec)
+            
+        if region in self.regions.values():
+            # a perfect match
+            return region
+        
+        # If the given region is not directly found in the map,
+        # see if there is a unique match among its children.
+        matches = [
+            (r, len(r.path)) for r in region
+            if (r in self.parcellation) and (r in self.regions.values())
+        ]
+        mindepth = min(m[1] for m in matches)
+        candidates = list(filter(lambda v: v[1]== mindepth, matches))
+
+        if len(candidates) == 1:        
+            return candidates[0][0]
+        elif len(candidates) == 0:
+            raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
+        else:
+            raise IndexError(
+                f"Ambiguous assignment of '{region.name}' to parcellation map, "
+                f"it resolves to {', '.join(c.name for c,d in candidates)} "
+                f"in {str(self)}."
+            )
+
+
     def decode_index(self, mapindex=None, labelindex=None):
         """
         Returns the region associated with a particular parcellation index.
