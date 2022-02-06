@@ -73,6 +73,7 @@ region, centroid = next(iter(centroids.items()))
 print(region)
 print(centroid)
 
+# %%
 # We extract a list of coordinate tuples by 
 # decoding each connectivity matrix region into the corresponding region of the parcellation map, 
 # and then fetching the coordinate tuple of its corresponding centroid.
