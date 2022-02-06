@@ -40,11 +40,14 @@ print(f"Found {len(features)} streamline count matrices.")
 # It is a specific `StreamlineCounts` object, but it is derived from the more general `ConnectivityMatrix` class.
 # The `src_info` attribute contains more detailed metadata information about each matrix.
 conn = features[0]
-cls = conn.__class__
-print(f"Matrix is of type '{cls.__name__}'")
-print(f"It is derived from {', '.join(b.__name__ for b in cls.__bases__)}.")
-subject, cohort = conn.src_info['subject'], conn.src_info['cohort']
-print(f"It reflects {conn.modality()} for subject {subject} of {cohort}")
+print(
+    f"Matrix reflects {conn.modality()} for subject {conn.subject} of {conn.cohort}."
+)
+print("\n" + "; ".join(conn.authors))
+print(conn.name)
+print("Dataset id: " + conn.dataset_id)
+print("\n" + conn.description)
+
 
 # %%
 # Connectivity matrix objects provide a pandas DataFrame for the connectivity measures, 
@@ -86,7 +89,7 @@ view = plotting.plot_connectome(
     edge_threshold="80%", node_size=10,
 )
 view.title(
-    f"{conn.modality} {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
+    f"{conn.modality } {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
     size=10
 )
 

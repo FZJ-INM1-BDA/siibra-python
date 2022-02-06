@@ -42,6 +42,21 @@ class ConnectivityMatrix(ParcellationFeature):
         self._matrix_loader = matrixloader
         self.src_info = srcinfo
 
+    def __getattr__(self, name):
+        if name in self.src_info:
+            return self.src_info[name]
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute {name}")
+
+    def __dir__(self):
+        return sorted(
+            set(
+                dir(super(ConnectivityMatrix, self))
+                + list(self.__dict__.keys())
+                + list(self.src_info.keys())
+            )
+        )
+
     @property
     def matrix(self):
         # load and return the matrix
@@ -92,6 +107,12 @@ class HcpConnectivityFetcher:
         self._connector = EbrainsPublicDatasetConnector(
             self._DATASET_ID, in_progress=False
         )
+        if len(self._connector._files) == 0:
+            logger.error(
+                f"EBRAINS knowledge graph query for dataset {self._DATASET_ID} "
+                "did not return any files. It seems that your EBRAINS authentication "
+                "does not provide sufficient privileges to access the connectivity data."
+                )
         self._keyword = filename_keyword
 
     @property
@@ -100,7 +121,13 @@ class HcpConnectivityFetcher:
 
     @property
     def srcinfo(self):
-        return {"dataset_id": self._DATASET_ID, "doi": self.doi, "cohort": "HCP"}
+        return {
+            "name": self._connector.name,
+            "dataset_id": self._DATASET_ID, 
+            "description": self._connector.description,
+            "citation": self._connector.citation,
+            "authors": self._connector.authors,
+            "cohort": "HCP"}
 
     def get_matrixloaders(self, parcellation: Parcellation):
         """Return functions for loading the connectivity matrices

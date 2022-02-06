@@ -254,6 +254,8 @@ class ParcellationMap(ABC):
             (r, len(r.path)) for r in region
             if (r in self.parcellation) and (r in self.regions.values())
         ]
+        if len(matches) == 0:
+            raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
         mindepth = min(m[1] for m in matches)
         candidates = list(filter(lambda v: v[1]== mindepth, matches))
 
