@@ -297,7 +297,7 @@ class Parcellation(
         if isinstance(regionspec, Region) and (regionspec.parcellation == self):
             return
 
-        if isinstance(regionspec, str) and ("Group:" in regionspec):
+        if isinstance(regionspec, str) and regionspec.startswith("Group:"):
             # seems to be a group region name - build the group region by recursive decoding.
             subspecs = regionspec.replace("Group:", "").split(",")
             return Region._build_grouptree(

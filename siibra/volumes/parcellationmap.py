@@ -216,9 +216,9 @@ class ParcellationMap(ABC):
                     return True
         return False
 
-    def decode_label(self, mapindex=None, labelindex=None):
+    def decode_index(self, mapindex=None, labelindex=None):
         """
-        Decode the region associated to a particular index.
+        Returns the region associated with a particular parcellation index.
 
         Parameters
         ----------
@@ -728,7 +728,7 @@ class LabelledParcellationVolume(ParcellationVolume):
                 x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]
                 label = A[x, y, z]
                 if label > 0:
-                    region = self.decode_label(mapindex=mapindex, labelindex=label)
+                    region = self.decode_index(mapindex=mapindex, labelindex=label)
                     assignments[i].append((region, lmap, None))
 
         return assignments
@@ -1443,7 +1443,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
                     "Component": result[ind, 0].astype("int"),
                     "MapIndex": result[ind, 1].astype("int"),
                     "Region": [
-                        self.decode_label(mapindex=m, labelindex=None).name
+                        self.decode_index(mapindex=m, labelindex=None).name
                         for m in result[ind, 1]
                     ],
                     "MaxValue": result[ind, 2],
