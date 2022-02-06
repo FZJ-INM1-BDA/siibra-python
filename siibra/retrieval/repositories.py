@@ -329,7 +329,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         fpath = f"{folder}/{filename}" if len(folder) > 0 else f"{filename}"
         if fpath not in self._files:
             raise RuntimeError(
-                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} cannot be."
+                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} is not available in this repository."
             )
         return self._files[fpath]
 

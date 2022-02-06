@@ -15,7 +15,7 @@
 
 from .feature import Feature
 
-from .. import logger, QUIET
+from .. import logger
 from ..commons import Registry
 from ..core import AtlasConcept, Dataset
 
@@ -119,7 +119,6 @@ class FeatureQuery(ABC):
                 raise ValueError(
                     f"Invalid parameter '{group_by}' for the 'group_by' attribute of get_features. "
                     "Valid entries are: 'dataset', 'concept', or None.")
-
 
         # If only one modality was requested, simplify the dictionary
         if len(result) == 1:

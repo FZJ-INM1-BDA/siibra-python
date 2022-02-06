@@ -51,6 +51,7 @@ REPLACE_IN_NAME = {
 
 REGEX_TYPE = type(re.compile("test"))
 
+THRESHOLD_CONTINUOUS_MAPS = None
 
 class Region(anytree.NodeMixin, AtlasConcept):
     """
@@ -60,6 +61,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     CONNECTOR = GitlabConnector(
         server="https://jugit.fz-juelich.de", project=3009, reftag="master"
     )
+
 
     @staticmethod
     def _clear_name(name):
@@ -374,11 +376,18 @@ class Region(anytree.NodeMixin, AtlasConcept):
             logger.warn(
                 f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
             )
+            for other_maptype in (set(MapType) - {maptype}):
+                mask = self.build_mask(space, resolution_mm, other_maptype, threshold_continuous)
+                if mask is not None:
+                    logger.info(
+                        f"A mask was generated from map type {other_maptype.name.lower()} instead."
+                    )
+                    return mask
             return None
 
-        if threshold_continuous is not None:
-            assert maptype == MapType.CONTINUOUS
+        if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
             data = np.asanyarray(mask.dataobj) > threshold_continuous
+            logger.info(f"Mask built using a continuous map thresholded at {threshold_continuous}.")
             assert any(data)
             mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
@@ -677,7 +686,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         if not self.mapped_in_space(space):
             raise RuntimeError(
-                f"Spatial properties of {self.name} cannot be computed in {space.name}."
+                f"Spatial properties of {self.name} cannot be computed in {space.name}. "
+                "This region is only mapped in these spaces: "
+                ", ".join(s.name for s in self.supported_spaces)
             )
 
         # build binary mask of the image

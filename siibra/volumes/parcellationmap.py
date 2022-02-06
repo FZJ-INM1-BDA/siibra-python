@@ -336,6 +336,76 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
             Nifti1Image(np.rollaxis(out_data, 0, out_data.ndim), im0.affine)
         )
 
+    def fetch_relabelled(self):
+        """
+        Returns a relabelled 3D parcellation volume, obtained by taking the
+        maximum across maps at each voxel and labelling regions sequentially.
+        """
+        result = None
+        maxarr = None
+        regions = {}
+        new_labelindex = 1
+
+        for mapindex in tqdm(
+            range(len(self)), total=len(self), unit='maps'
+        ):
+
+            with QUIET:
+                mapimg = self.fetch(mapindex=mapindex)
+            maparr = np.asanyarray(mapimg.dataobj)
+
+            if result is None:
+                lblarr = np.zeros_like(maparr)
+                maxarr = np.zeros_like(maparr)
+                result = Nifti1Image(lblarr, mapimg.affine)
+
+            if self.maptype == MapType.LABELLED:
+                labels = set(np.unique(maparr)) - {0}
+            else:
+                labels = {None}
+
+            for labelindex in labels:
+                region = self.parcellation.decode_region(ParcellationIndex(mapindex, labelindex))
+                if labelindex is None:
+                    updates = (maparr > maxarr)
+                else:
+                    updates = (maparr == labelindex)
+
+                lblarr[updates] = new_labelindex
+                maxarr[updates] = maparr[updates]
+                regions[new_labelindex]  = region.name
+                new_labelindex += 1
+        
+        return result, regions
+
+    def compute_centroids(self):
+        """Compute a dictionary of the centroids of all regions in this map.
+        """
+        centroids = {}
+        # list of regions sorted by mapindex
+        regions = sorted(self.regions.items(), key=lambda v:(v[0].map, v[0].label))
+        current_mapindex = -1
+        maparr = None
+        for pind, region in tqdm(regions, unit="regions", desc="Computing centroids"):
+            if pind.label == 0:
+                continue
+            if pind.map != current_mapindex:
+                current_mapindex = pind.map
+                with QUIET:
+                    mapimg = self.fetch(pind.map)
+                maparr = np.asanyarray(mapimg.dataobj)
+            if pind.label is None:
+                # should be a continous map then
+                assert self.maptype == MapType.CONTINUOUS
+                centroid_vox = np.array(np.where(maparr > 0)).mean(1)
+            else:
+                centroid_vox = np.array(np.where(maparr == pind.label)).mean(1)
+            assert region not in centroids
+            centroids[region] = Point(
+                np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
+            )
+        return centroids
+
     def fetch_regionmap(
         self,
         regionspec: Union[str, int, Region],
@@ -359,7 +429,10 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
         ------
         Nifti1Image, if found, otherwise None
         """
-        indices = self.decode_region(regionspec)
+        try:
+            indices = self.decode_region(regionspec)
+        except IndexError:
+            return None
         data = None
         affine = None
         for index in indices:

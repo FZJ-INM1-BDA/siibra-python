@@ -89,10 +89,6 @@ class HcpConnectivityFetcher:
 
     def __init__(self, filename_keyword):
         FeatureQuery.__init__(self)
-        #logger.warn(
-        #    f"The connectivity dataset {self._DATASET_ID} is still under curation, "
-        #    "and currently only accessible with a privileged EBRAINS account."
-        #)
         self._connector = EbrainsPublicDatasetConnector(
             self._DATASET_ID, in_progress=False
         )
