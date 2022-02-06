@@ -232,7 +232,7 @@ class ParcellationMap(ABC):
         else:
             return region
 
-    def decode_region(self, regionspec: Union[str, Region]):
+    def get_index(self, regionspec: Union[str, Region]):
         """
         Find the ParcellationIndex for a given region.
 
@@ -430,7 +430,7 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
         Nifti1Image, if found, otherwise None
         """
         try:
-            indices = self.decode_region(regionspec)
+            indices = self.get_index(regionspec)
         except IndexError:
             return None
         data = None
@@ -665,7 +665,7 @@ class LabelledParcellationVolume(ParcellationVolume):
 
         for region, value in values.items():
             try:
-                indices = self.decode_region(region)
+                indices = self.get_index(region)
             except IndexError:
                 continue
             for index in indices:
@@ -749,7 +749,7 @@ class LabelledParcellationVolume(ParcellationVolume):
         samples : PointSet in physcial coordinates corresponding to this parcellationmap.
 
         """
-        indices = self.decode_region(regionspec)
+        indices = self.get_index(regionspec)
         assert len(indices) > 0
 
         # build region mask
@@ -1093,7 +1093,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
         if isinstance(regionspec, Number):
             mapindex = regionspec
         else:
-            mapindex = self.decode_region(regionspec)[0].map
+            mapindex = self.get_index(regionspec)[0].map
         pmap = self.fetch(mapindex, cropped=True)
         D = np.array(pmap.dataobj)  # do a real copy so we don't modify the map
         D[D < lower_threshold] = 0.0
@@ -1143,7 +1143,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
             logger.debug(
                 f'Trying to decode map index for region specification "{mapindex}".'
             )
-            mapindex = self.decode_region(mapindex)[0].map
+            mapindex = self.get_index(mapindex)[0].map
 
         x, y, z, v = self._mapped_voxels(mapindex)
         if cropped:
@@ -1574,7 +1574,7 @@ class LabelledSurface(ParcellationMap):
             }
             for region, value in values.items():
                 try:
-                    indices = self.decode_region(region)
+                    indices = self.get_index(region)
                 except IndexError:
                     continue
                 for index in indices:
