@@ -44,7 +44,7 @@ cls = conn.__class__
 print(f"Matrix is of type '{cls.__name__}'")
 print(f"It is derived from {', '.join(b.__name__ for b in cls.__bases__)}.")
 subject, cohort = conn.src_info['subject'], conn.src_info['cohort']
-print(f"It reflects {str(conn.modality)} for subject {subject} of {cohort}")
+print(f"It reflects {conn.modality()} for subject {subject} of {cohort}")
 
 # %%
 # Connectivity matrix objects provide a pandas DataFrame for the connectivity measures, 
@@ -86,7 +86,7 @@ view = plotting.plot_connectome(
     edge_threshold="80%", node_size=10,
 )
 view.title(
-    f"{conn.modality()} {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
+    f"{conn.modality} {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}", 
     size=10
 )
 
