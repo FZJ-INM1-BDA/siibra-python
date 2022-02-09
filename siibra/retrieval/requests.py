@@ -21,6 +21,7 @@ from zipfile import ZipFile
 import requests
 import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
+from skimage import io
 import gzip
 from getpass import getpass
 from io import BytesIO
@@ -45,6 +46,7 @@ DECODERS = {
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": bytes_to_temporary_zipfile,
+    ".png": lambda b: io.imread(BytesIO(b))
 }
 
 

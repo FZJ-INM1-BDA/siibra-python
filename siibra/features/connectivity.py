@@ -39,10 +39,11 @@ class ConnectivityMatrixDataModel(ConfigBaseModel):
 
 class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
-    """ Structural connectivity matrix grouped by a parcellation. """
+    """Structural connectivity matrix grouped by a parcellation."""
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         """Construct a parcellation-averaged connectivty matrix.
-        
+
         Arguments
         ---------
         parcellation_id : str
@@ -53,6 +54,21 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
         ParcellationFeature.__init__(self, parcellation_id)
         self._matrix_loader = matrixloader
         self.src_info = srcinfo
+
+    def __getattr__(self, name):
+        if name in self.src_info:
+            return self.src_info[name]
+        else:
+            raise AttributeError(f"{self.__class__} has no attribute {name}")
+
+    def __dir__(self):
+        return sorted(
+            set(
+                dir(super(ConnectivityMatrix, self))
+                + list(self.__dict__.keys())
+                + list(self.src_info.keys())
+            )
+        )
 
     @property
     def matrix(self):
@@ -88,39 +104,47 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
 
 class StreamlineCounts(ConnectivityMatrix):
-    """ Structural connectivity matrix of streamline counts grouped by a parcellation. """
+    """Structural connectivity matrix of streamline counts grouped by a parcellation."""
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class StreamlineLengths(ConnectivityMatrix):
-    """ Structural connectivity matrix of streamline lengths grouped by a parcellation. """
+    """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class FunctionalConnectivity(ConnectivityMatrix):
-    """ Functional connectivity matrix, grouped by a parcellation. """
+    """Functional connectivity matrix, grouped by a parcellation."""
+
     def __init__(self, parcellation_id: str, matrixloader, paradigm: str, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
         self.paradigm = paradigm
 
 
-class HcpConnectivityFetcher():
+class HcpConnectivityFetcher:
 
-    _DATASET_ID = '0f1ccc4a-9a11-4697-b43f-9c9c8ac543e6'
+    _DATASET_ID = "0f1ccc4a-9a11-4697-b43f-9c9c8ac543e6"
     # TODO add other parcellations
     _PARCELLATION_NAMES = {
-        "294-Julich-Brain" : Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
+        "294-Julich-Brain": Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9,
+        "096-HarvardOxfordMaxProbThr0": Parcellation.REGISTRY.HARVARDOXFORD_CORT_MAXPROB_THR0,
     }
 
-    def __init__(self, filename_keyword ):
+    def __init__(self, filename_keyword):
         FeatureQuery.__init__(self)
-        logger.warn(
-            f"The connectivity dataset {self._DATASET_ID} is still under curation, "
-            "and currently only accessible with a privileged EBRAINS account."
+        self._connector = EbrainsPublicDatasetConnector(
+            self._DATASET_ID, in_progress=False
         )
-        self._connector = EbrainsPublicDatasetConnector(self._DATASET_ID, in_progress=True)
+        if len(self._connector._files) == 0:
+            logger.error(
+                f"EBRAINS knowledge graph query for dataset {self._DATASET_ID} "
+                "did not return any files. It seems that your EBRAINS authentication "
+                "does not provide sufficient privileges to access the connectivity data."
+                )
         self._keyword = filename_keyword
 
     @property
@@ -130,14 +154,16 @@ class HcpConnectivityFetcher():
     @property
     def srcinfo(self):
         return {
-            'dataset_id': self._DATASET_ID, 
-            'doi': self.doi,
-            'cohort': 'HCP'
-        }
+            "name": self._connector.name,
+            "dataset_id": self._DATASET_ID, 
+            "description": self._connector.description,
+            "citation": self._connector.citation,
+            "authors": self._connector.authors,
+            "cohort": "HCP"}
 
     def get_matrixloaders(self, parcellation: Parcellation):
-        """ Return functions for loading the connectivity matrices 
-        matching the given parcellation as pandas DataFrames. """
+        """Return functions for loading the connectivity matrices
+        matching the given parcellation as pandas DataFrames."""
 
         loaders = []
         for name, parc in self._PARCELLATION_NAMES.items():
@@ -146,58 +172,86 @@ class HcpConnectivityFetcher():
                 continue
 
             try:
-                zipfile = self._connector.get(f'{name}.zip')
+                zipfile = self._connector.get(f"{name}.zip")
             except RuntimeError as e:
                 logger.error(str(e))
                 continue
-        
+
             # extract index - regionname mapping
-            with zipfile.open(f'{name}/0ImageProcessing/Link.txt') as f:
-                lines = [l.decode().strip().split(' ', maxsplit=1) for l in f.readlines()]
+            with zipfile.open(f"{name}/0ImageProcessing/Link.txt") as f:
+                lines = [
+                    line.decode().strip().split(" ", maxsplit=1)
+                    for line in f.readlines()
+                ]
                 with QUIET:
                     indexmap = {
-                        int(l[0]):parc.decode_region(l[1]) 
-                        for l in lines 
-                        if len(l)==2 and l[0].isnumeric()
-                    } 
-    
+                        int(line[0]): parc.decode_region(line[1])
+                        for line in lines
+                        if len(line) == 2 and line[0].isnumeric()
+                    }
+
             # create a dict of the csv files by subject id
             csvfiles = [
-                f for f in zipfile.namelist() 
-                if f.endswith('.csv') and (self._keyword in f)
+                f
+                for f in zipfile.namelist()
+                if f.endswith(".csv") and (self._keyword in f)
             ]
 
             for fn in csvfiles:
-                subject_id = fn.split('/')[-2]
+                subject_id = fn.split("/")[-2]
                 # define the lazy loader function
-                loaders.append((
-                    fn,
-                    subject_id, 
-                    lambda z=f'{name}.zip', c=fn, m=indexmap: self._load_matrix(z, c, m)
-                ))
-                
+                loaders.append(
+                    (
+                        fn,
+                        subject_id,
+                        lambda z=f"{name}.zip", c=fn, m=indexmap, p=parc: self._load_matrix(
+                            z, c, m, p
+                        ),
+                    )
+                )
+
         return loaders
 
-    def _load_matrix(self, zip_filename, csv_filename, indexmap, separators=", ;"):
-        """Extract connectivity matrix from a csv file inside a zip file 
-        known to the dataset connector, and return it as a dataframe with 
+    def _load_matrix(self, zip_filename, csv_filename, indexmap, parcellation):
+        """Extract connectivity matrix from a csv file inside a zip file
+        known to the dataset connector, and return it as a dataframe with
         region objects as row and column indices.
-        """ 
+        """
         logger.debug(f"Loading {csv_filename} from {zip_filename}.")
         zipfile = self._connector.get(zip_filename)
-        for sep in separators:
-            try:
-                matrix = pd.read_csv(
-                    zipfile.open(csv_filename), sep=sep,
-                    header=0, names=list(indexmap.values()), index_col=False
+        try:
+            matrix = pd.read_csv(
+                zipfile.open(csv_filename),
+                delimiter=r"\s+|,|;", engine='python',
+                header=None,
+                index_col=False,
+            )
+            l = matrix.shape[0]
+            if matrix.shape[1] != l:
+                raise RuntimeError(
+                    f"Non-quadratic connectivity matrix {l}x{matrix.shape[1]} "
+                    f"from {csv_filename} in {zip_filename}"
                 )
-                # set row indices to region names as well
-                remapper = {l-1:region for l, region in indexmap.items()}
-                matrix.rename(index=remapper, inplace=True)
-                return matrix
-            except pd.errors.ParserError:
-                continue
-        logger.error(f"Could not parse connectivity matrix from file {csv_filename} in {zip_filename}.")
+            if len(indexmap) == l:
+                remapper = {label - min(indexmap.keys()): region for label, region in indexmap.items()}
+                matrix = matrix.rename(index=remapper).rename(columns=remapper)
+            else:
+                labels = {r.index.label for r in parcellation.regiontree} - {None} 
+                if max(labels) - min(labels) + 1 == l:
+                    indexmap = {
+                        r.index.label - min(labels): r for r in parcellation.regiontree
+                        if r.index.label is not None
+                    }
+                    matrix = matrix.rename(index=indexmap).rename(columns=indexmap)
+                else:
+                    logger.warn("Could not decode connectivity matrix regions.")
+
+        except pd.errors.ParserError:
+            logger.error(
+                f"Could not parse connectivity matrix from file {csv_filename} in {zip_filename}."
+            )
+        return matrix
+
 
     @property
     def parcellations(self):
@@ -214,8 +268,8 @@ class HcpStreamlineCountQuery(HcpConnectivityFetcher, FeatureQuery):
         for parc in self.parcellations:
             for filename, subject_id, loader in self.get_matrixloaders(parc):
                 srcinfo = self.srcinfo
-                srcinfo['subject'] = subject_id
-                srcinfo['filename'] = filename
+                srcinfo["subject"] = subject_id
+                srcinfo["filename"] = filename
                 self.register(self._FEATURETYPE(parc, loader, srcinfo))
 
 
@@ -229,8 +283,8 @@ class HcpStreamlineLengthQuery(HcpConnectivityFetcher, FeatureQuery):
         for parc in self.parcellations:
             for filename, subject_id, loader in self.get_matrixloaders(parc):
                 srcinfo = self.srcinfo
-                srcinfo['subject'] = subject_id
-                srcinfo['filename'] = filename
+                srcinfo["subject"] = subject_id
+                srcinfo["filename"] = filename
                 self.register(self._FEATURETYPE(parc, loader, srcinfo))
 
 
@@ -244,21 +298,20 @@ class HcpRestingStateQuery(HcpConnectivityFetcher, FeatureQuery):
         for parc in self.parcellations:
             for filename, subject_id, loader in self.get_matrixloaders(parc):
                 paradigm = "Resting state ({})".format(
-                    filename.split('/')[-1].replace('.csv','')
+                    filename.split("/")[-1].replace(".csv", "")
                 )
                 srcinfo = self.srcinfo
-                srcinfo['subject'] = subject_id
-                srcinfo['filename'] = filename
+                srcinfo["subject"] = subject_id
+                srcinfo["filename"] = filename
                 self.register(self._FEATURETYPE(parc, loader, paradigm, srcinfo))
 
 
 class PrereleasedConnectivityFetcher(GitlabConnector):
 
-    _COHORTS = ['1000brains', 'hcp', 'enki']
+    _COHORTS = ["1000brains", "hcp", "enki"]
 
-    def __init__(self, keywords: List[str] ):
-        """Gitlab connector for accessing some pre-released connectivity matrices.
-        """
+    def __init__(self, keywords: List[str]):
+        """Gitlab connector for accessing some pre-released connectivity matrices."""
         GitlabConnector.__init__(self, "https://jugit.fz-juelich.de", 3009, "develop")
         self._keywords = keywords
 
@@ -269,12 +322,14 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
                 continue
             parc_id = jsonloader.data["parcellation id"]
             matrixloader = lambda l=jsonloader: self._matrixloader(l)
-            srcinfo = {k:v for k, v in jsonloader.data.items() if k!='data'}
-            srcinfo['filename'] = filename
-            matched_cohorts = [c for c in self._COHORTS if filename.lower().find(c.lower())>=0]
-            if len(matched_cohorts)>0:
-                srcinfo['cohort'] = matched_cohorts[0].upper()
-                srcinfo['subject'] = 'average'
+            srcinfo = {k: v for k, v in jsonloader.data.items() if k != "data"}
+            srcinfo["filename"] = filename
+            matched_cohorts = [
+                c for c in self._COHORTS if filename.lower().find(c.lower()) >= 0
+            ]
+            if len(matched_cohorts) > 0:
+                srcinfo["cohort"] = matched_cohorts[0].upper()
+                srcinfo["subject"] = "average"
             results.append((parc_id, matrixloader, srcinfo))
         return results
 
@@ -283,13 +338,14 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
         Load connectivity matrix from json object
         """
         data = jsonloader.data
-        assert 'data' in data
-        col_names = data['data']['field names']
-        row_names = list(data['data']['profiles'].keys())
+        assert "data" in data
+        col_names = data["data"]["field names"]
+        row_names = list(data["data"]["profiles"].keys())
         assert col_names == row_names
         matrix = pd.DataFrame(
-            data=[data['data']['profiles'][r] for r in col_names], 
-            columns=col_names, index=col_names
+            data=[data["data"]["profiles"][r] for r in col_names],
+            columns=col_names,
+            index=col_names,
         )
         return matrix
 
@@ -302,7 +358,8 @@ class PrereleasedStreamlineCountQuery(FeatureQuery, PrereleasedConnectivityFetch
         FeatureQuery.__init__(self)
         PrereleasedConnectivityFetcher.__init__(self, ["count", "1000brains"])
         for parc_id, matrixloader, srcinfo in self.get_data():
-            self.register(self._FEATURETYPE(parc_id, matrixloader, srcinfo ))
+            self.register(self._FEATURETYPE(parc_id, matrixloader, srcinfo))
+
 
 class PrereleasedStreamlineLengthQuery(FeatureQuery, PrereleasedConnectivityFetcher):
 
@@ -312,7 +369,8 @@ class PrereleasedStreamlineLengthQuery(FeatureQuery, PrereleasedConnectivityFetc
         FeatureQuery.__init__(self)
         PrereleasedConnectivityFetcher.__init__(self, ["length"])
         for parc_id, matrixloader, srcinfo in self.get_data():
-            self.register(self._FEATURETYPE(parc_id, matrixloader, srcinfo ))
+            self.register(self._FEATURETYPE(parc_id, matrixloader, srcinfo))
+
 
 class PrereleasedRestingStateQuery(FeatureQuery, PrereleasedConnectivityFetcher):
 
@@ -323,27 +381,6 @@ class PrereleasedRestingStateQuery(FeatureQuery, PrereleasedConnectivityFetcher)
         keyword = "rest_fix"
         PrereleasedConnectivityFetcher.__init__(self, [keyword])
         for parc_id, matrixloader, srcinfo in self.get_data():
-            filename = srcinfo['filename']
+            filename = srcinfo["filename"]
             paradigm = filename[filename.lower().find(keyword.lower()):]
-            self.register(self._FEATURETYPE(parc_id, matrixloader, paradigm, srcinfo ))
-
-#class ThousandBrainsStreamlineCountsQuery(FeatureQuery):
-#
-#    _FEATURETYPE = StreamlineCounts
-#    _QUERY = GitlabConnector(
-#        "https://jugit.fz-juelich.de", 3009, "develop"
-#    ) 
-#
-#    def __init__(self, **kwargs):
-#        FeatureQuery.__init__(self)
-#        for _, loader in self._QUERY.get_loaders("connectivity", ".json"):
-#            cm = ConnectivityMatrix._from_json(loader.data)
-#            for parcellation in cm.parcellations:
-#                species = [atlas.species for atlas in parcellation.atlases]
-#                for regionname in cm.regionnames:
-#                    region = parcellation.decode_region(regionname, build_group=False)
-#                    if region is None:
-#                        raise RuntimeError(
-#                            f"Could not decode region name {regionname} in {parcellation}"
-#                        )
-#                    self.register(self._FEATURETYPE(parcellation, matrix))
+            self.register(self._FEATURETYPE(parc_id, matrixloader, paradigm, srcinfo))

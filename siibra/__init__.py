@@ -16,7 +16,7 @@
 from .commons import logger, QUIET, VERBOSE
 
 # __version__ is parsed by setup.py
-__version__ = "0.3a11"
+__version__ = "0.3a16"
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -29,6 +29,7 @@ from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
 from .core import Point, PointSet, BoundingBox
 from .core.space import Location as _
+from .core.region import THRESHOLD_CONTINUOUS_MAPS
 from . import samplers
 from os import environ
 
@@ -50,5 +51,5 @@ def set_cache_size(maxsize_gbyte: int):
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
 
-if "SIIBRA_CACHE_SIZE_GIB" in environ:  
+if "SIIBRA_CACHE_SIZE_GIB" in environ:
     set_cache_size(float(environ.get("SIIBRA_CACHE_SIZE_GIB")))

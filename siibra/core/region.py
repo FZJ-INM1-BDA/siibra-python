@@ -55,8 +55,14 @@ REMOVE_FROM_NAME = [
     "Both",
 ]
 
+REPLACE_IN_NAME = {
+    "ctx-lh-": "left ",
+    "ctx-rh-": "right ",
+}
+
 REGEX_TYPE = type(re.compile("test"))
 
+THRESHOLD_CONTINUOUS_MAPS = None
 
 class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     """
@@ -67,11 +73,14 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         server="https://jugit.fz-juelich.de", project=3009, reftag="master"
     )
 
+
     @staticmethod
     def _clear_name(name):
         result = name
         for word in REMOVE_FROM_NAME:
             result = result.replace(word, "")
+        for search, repl in REPLACE_IN_NAME.items():
+            result = result.replace(search, repl)
         return " ".join(w for w in result.split(" ") if len(w))
 
     def __init__(
@@ -378,11 +387,18 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             logger.warn(
                 f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
             )
+            for other_maptype in (set(MapType) - {maptype}):
+                mask = self.build_mask(space, resolution_mm, other_maptype, threshold_continuous)
+                if mask is not None:
+                    logger.info(
+                        f"A mask was generated from map type {other_maptype.name.lower()} instead."
+                    )
+                    return mask
             return None
 
-        if threshold_continuous is not None:
-            assert maptype == MapType.CONTINUOUS
+        if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
             data = np.asanyarray(mask.dataobj) > threshold_continuous
+            logger.info(f"Mask built using a continuous map thresholded at {threshold_continuous}.")
             assert any(data)
             mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
@@ -681,7 +697,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         if not self.mapped_in_space(space):
             raise RuntimeError(
-                f"Spatial properties of {self.name} cannot be computed in {space.name}."
+                f"Spatial properties of {self.name} cannot be computed in {space.name}. "
+                "This region is only mapped in these spaces: "
+                ", ".join(s.name for s in self.supported_spaces)
             )
 
         # build binary mask of the image

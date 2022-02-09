@@ -231,7 +231,7 @@ class LocalNiftiVolume(ImageProvider):
             self.image = nib.Nifti1Image(
                 np.nan_to_num(self.image.get_fdata()), self.image.affine
             )
-        self.space = space
+        self.space = space if isinstance(space, Space) else Space.REGISTRY[space]
 
     def fetch(self, **kwargs):
         return self.image
@@ -241,6 +241,10 @@ class LocalNiftiVolume(ImageProvider):
 
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
+
+    @property
+    def is_volume(self):
+        return True
 
 
 class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):

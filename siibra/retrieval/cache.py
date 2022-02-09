@@ -91,11 +91,9 @@ class Cache:
             targetsize -= st.st_size / 1024**3
 
         if index > 0:
-            logger.info(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
-            print()
+            logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
             for fn, st in sfiles[:index + 1]:
                 size_gib -= st.st_size / 1024**3
-                print(f"Cache size: {size_gib:5.2f} GiB | Deleting {fn}", end="\r")
                 os.remove(fn)
 
     @property
@@ -107,20 +105,16 @@ class Cache:
         """ Iterate all element names in the cache directory. """
         return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
 
-    def build_filename(self, str_rep: str, suffix=None, run_maintenance=True):
+    def build_filename(self, str_rep: str, suffix=None):
         """Generate a filename in the cache.
 
         Args:
             str_rep (str): Unique string representation of the item. Will be used to compute a hash.
             suffix (str, optional): Optional file suffix, in order to allow filetype recognition by the name. Defaults to None.
-            run_maintenance (bool, optional): If true, cache maintenance will be triggered. Defaults to True.
-            protected (bool, optional): If true, returns a filename that will be excluded from maintenance deletion. Defaults to False.
-
+            
         Returns:
             filename
         """
-        if run_maintenance:
-            self.run_maintenance()
         hashfile = os.path.join(
             self.folder, str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())
         )

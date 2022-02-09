@@ -99,10 +99,10 @@ plotting.plot_stat_map(pmap)
 # indices into regions and vice versa:
 
 # What is the region behind map index 102?
-julich_pmaps.decode_label(mapindex=102)
+julich_pmaps.decode_index(mapindex=102)
 
 # Vice versa, what is the index of that region?
-julich_pmaps.decode_region('hoc5 left')
+julich_pmaps.get_index('hoc5 left')
 
 # %%
 # Besides parcellation maps, `siibra` can also produce binary masks of brain regions.
