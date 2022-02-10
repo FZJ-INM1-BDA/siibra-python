@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import PointSet, Space, Point, BoundingBox
+from .serializable_concept import JSONSerializable
+from .space import PointSet, Space, Point, BoundingBox, UnitOfMeasurement
 
 from ..commons import (
     logger,
@@ -25,15 +26,25 @@ from ..commons import (
     affine_scaling,
 )
 from ..retrieval.repositories import GitlabConnector
+from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
+    Model as ParcellationEntityVersionModel,
+    Coordinates,
+    BestViewPoint,
+    HasAnnotation,
+)
+from ..openminds.SANDS.v3.atlas.parcellationEntity import (
+    Model as ParcellationEntityModel
+)
 
 import numpy as np
 import nibabel as nib
 from memoization import cached
 import re
 import anytree
-from typing import Union
+from typing import List, Union
 from nibabel import Nifti1Image
 
+OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE="https://openminds.ebrains.eu/sands/ParcellationEntityVersion"
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -53,7 +64,7 @@ REGEX_TYPE = type(re.compile("test"))
 
 THRESHOLD_CONTINUOUS_MAPS = None
 
-class Region(anytree.NodeMixin, AtlasConcept):
+class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     """
     Representation of a region with name and more optional attributes
     """
@@ -644,7 +655,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             img,
         )
 
-    def centroids(self, space: Space):
+    def centroids(self, space: Space) -> List[Point]:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids
@@ -793,6 +804,133 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         return result
 
+    def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
+        if detail:
+            assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
+        if space:
+            assert isinstance(space, Space), f"space kwarg must be of instance Space"
+            if detail:
+                centroids = self.centroids(space)
+                assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+        
+        import hashlib
+        def get_unique_id(id):
+            return hashlib.md5(id.encode("utf-8")).hexdigest()
+        pev = ParcellationEntityVersionModel(
+            id=f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}",
+            type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
+            has_annotation=HasAnnotation(
+                internal_identifier="",
+                criteria_quality_type={
+                    # TODO check criteriaQualityType
+                    "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
+                },
+                best_view_point=BestViewPoint(
+                    coordinate_space={
+                        "@id": space.to_model().id
+                    },
+                    coordinates=[Coordinates(
+                        value=pt,
+                        unit={
+                            "@id": UnitOfMeasurement.MILLIMETER
+                        }
+                    ) for pt in centroids[0]]
+                ) if detail else None,
+                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
+            ) if space else None,
+            has_parent=[{
+                '@id': self.parent.to_model(detail=False).id
+            }] if (detail and self.parent is not None) else None,
+            name=self.name,
+            ontology_identifier=None,
+            relation_assessment=None,
+            version_identifier=f"{self.parcellation.name} - {self.name}",
+            version_innovation=None
+        )
+
+        from .. import parcellations
+        # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
+        # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
+        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            is_lh = "lh" in self.name
+            is_rh = "rh" in self.name
+
+            if is_lh:
+                pev.version_identifier = f"2018, lh"
+            if is_rh:
+                pev.version_identifier = f"2018, rh"
+            
+            pev.id = f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
+            pev.lookup_label = f"SWMA_2018_{self.name}"
+
+
+            # remove lh/rh prefix
+            superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            # remove _[\d] suffix
+            superstructure_name = re.sub(r"_\d+$", "", superstructure_name)
+
+            superstructure_lookup_label = f"SWMA_{superstructure_name}"
+            superstructure_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{superstructure_lookup_label}"
+
+            pev.has_parent = [{
+                "@id": superstructure_id
+            }]
+        return pev
+
+    def to_parcellation_entities(self, **kwargs) -> List[ParcellationEntityModel]:
+        import hashlib
+        def get_unique_id(id):
+            return hashlib.md5(id.encode("utf-8")).hexdigest()
+        pe_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.id)}"
+        pe = ParcellationEntityModel(
+            id=pe_id,
+            type="https://openminds.ebrains.eu/sands/ParcellationEntity",
+            has_parent=[{
+                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
+            }] if self.parent else None,
+            name=self.name,
+            has_version=[{
+                "@id": self.to_model(**kwargs).id
+            }]
+        )
+        return_list = [pe]
+
+        from .. import parcellations
+        # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
+        # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
+        # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
+        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            return_list = []
+
+            is_lh = "lh" in self.name
+            is_rh = "rh" in self.name
+            
+            if not is_lh and not is_rh:
+                raise RuntimeError(f"PE for superficial bundle can only be generated for lh/rh")
+            
+            def get_pe_model(name:str, parent_ids:List[str]=None, has_versions_ids:List[str]=None) -> ParcellationEntityModel:
+                p = ParcellationEntityModel(**pe.dict())
+                p.name = name
+                p.lookup_label = f"SWMA_{name}"
+                p.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{p.lookup_label}"
+                p.has_parent = [{ "@id": _id } for _id in parent_ids] if parent_ids else None
+                p.has_version = [{ "@id": _id } for _id in has_versions_ids] if has_versions_ids else None
+                return p
+
+            # remove lh/rh prefix
+            superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            # remove _[\d] suffix
+            superstructure_name = re.sub(r"_\d+$", "", superstructure_name)
+            superstructure = get_pe_model(superstructure_name, ["https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"])
+
+            substructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
+            substructure = get_pe_model(substructure_name, [superstructure.id], [self.to_model(**kwargs).id])
+
+            return_list.append(superstructure)
+            return_list.append(substructure)
+            
+        return return_list
 
 if __name__ == "__main__":
 

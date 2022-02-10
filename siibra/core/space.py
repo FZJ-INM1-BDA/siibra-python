@@ -14,10 +14,16 @@
 # limitations under the License.
 
 from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
 
 from ..commons import logger
 from ..retrieval import HttpRequest
+from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
+from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel, Coordinates as QuantitativeValueModel
 
+
+from datetime import date
+import hashlib
 import re
 import numpy as np
 from abc import ABC, abstractmethod
@@ -29,9 +35,14 @@ from os import path
 import numbers
 
 
+class UnitOfMeasurement:
+    MILLIMETER="https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
+
+
 @provide_registry
 class Space(
     AtlasConcept,
+    JSONSerializable,
     bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
@@ -152,6 +163,29 @@ class Space(
 
         return result
 
+    def to_model(self, **kwargs) -> commonCoordinateSpace.Model:
+        return commonCoordinateSpace.Model(
+            id=self.id,
+            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+            anatomical_axes_orientation={
+                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
+            },
+            axes_origin=[
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+                commonCoordinateSpace.AxesOrigin(value=0),
+            ],
+
+            default_image=[ { '@id': vol.id } for vol in self.volumes],
+            full_name=self.name,
+            native_unit={
+                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
+            },
+            release_date=date(2015, 1, 1),
+            short_name=self.name,
+            version_identifier=self.name,
+        )
+
 
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
@@ -175,7 +209,7 @@ class Location(ABC):
             # typically only used for temporary entities, e.g. in individual voxel spaces.
             self.space = None
         else:
-            self.space = Space.REGISTRY[space]
+            self.space: Space = Space.REGISTRY[space]
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):
@@ -290,7 +324,7 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location):
+class Point(Location, JSONSerializable):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -562,6 +596,21 @@ class Point(Location):
                 )
         return int((coronal_position + 70.0) / 0.02 + 1.5)
 
+    def to_model(self, **kwargs) -> CoordinatePointModel:
+        if self.space is None:
+            raise RuntimeError(f"Point.to_model cannot be done on Location entity that does not have space defined!")
+        space_id = self.space.to_model().id
+        point_id = hashlib.md5(f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")).hexdigest()
+        return CoordinatePointModel(
+            id=point_id,
+            type="https://openminds.ebrains.eu/sands/CoordinatePoint",
+            coordinate_space={
+                "@id": space_id
+            },
+            coordinates=[
+                QuantitativeValueModel(value=coord)
+                for coord in self]
+        )
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,

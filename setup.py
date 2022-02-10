@@ -56,5 +56,6 @@ setup(
         "nilearn",
         "simple-term-menu",
         'importlib-resources; python_version < "3.7"',
+        "pydantic==1.8.2",
     ],
 )

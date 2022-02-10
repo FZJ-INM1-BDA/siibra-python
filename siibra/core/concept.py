@@ -17,11 +17,11 @@ from .datasets import Dataset
 
 from .. import QUIET, __version__
 from ..retrieval import GitlabConnector, NoSiibraConfigMirrorsAvailableException, TagNotFoundException
-from ..commons import logger, Registry
+from ..commons import logger, TypedRegistry
 
 import os
 import re
-
+from abc import ABC, abstractmethod, abstractproperty
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
 GITLAB_PROJECT_TAG = os.getenv(
@@ -74,7 +74,7 @@ def provide_registry(cls):
             f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
         )
 
-    cls.REGISTRY = Registry(matchfunc=cls.match_spec)
+    cls.REGISTRY = TypedRegistry[cls](matchfunc=cls.match_spec)
     extensions = []
     with QUIET:
         for fname, loader in loaders:
@@ -128,6 +128,7 @@ class AtlasConcept:
         cls.type_id = type_id
         if bootstrap_folder is not None:
             cls._bootstrap_folder = bootstrap_folder
+        return super().__init_subclass__()
 
     def add_dataset(self, dataset: Dataset):
         """ Explictly add another dataset object to this atlas concept. """

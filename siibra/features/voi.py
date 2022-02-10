@@ -17,15 +17,21 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import QUIET
-from ..volumes.volume import VolumeSrc
+from ..volumes.volume import VolumeSrc, VolumeModel
 from ..core.space import Space, BoundingBox
-from ..core.datasets import EbrainsDataset
+from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
+from ..core.serializable_concept import JSONSerializable
 
 import numpy as np
+from typing import List
 
 
-class VolumeOfInterest(SpatialFeature, EbrainsDataset):
+class VOIDataModel(DatasetJsonModel):
+    data: List[VolumeModel]
+
+
+class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
     def __init__(self, dataset_id, location, name):
         SpatialFeature.__init__(self, location)
         EbrainsDataset.__init__(self, dataset_id, name)
@@ -59,6 +65,13 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset):
             list(map(result.volumes.append, vsrcs))
             return result
         return definition
+
+    def to_model(self, **kwargs) -> VOIDataModel:
+        super_model = super().to_model(**kwargs)
+        return VOIDataModel(
+            data=[vol.to_model(**kwargs) for vol in self.volumes],
+            **super_model.dict()
+        )
 
 
 class VolumeOfInterestQuery(FeatureQuery):
