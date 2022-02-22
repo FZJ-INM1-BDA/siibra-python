@@ -407,7 +407,7 @@ class RegionalFeature(Feature):
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
                 if all(
-                    atlas.species.get("@id") not in self.species_ids
+                    atlas.species.kg_v1_id not in self.species_ids
                     for atlas in atlases
                 ):
                     return self.matched
