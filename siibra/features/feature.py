@@ -337,7 +337,9 @@ class RegionalFeature(Feature):
     # load region name aliases from data file
     _aliases = {}
     for species_name in ["human"]:
-        species_id = Atlas.get_species_data("human")["@id"]
+        # TODO temporary solution
+        # when fully migrated to kg v3 query, change .kg_v1_id to .id
+        species_id = Atlas.get_species_data("human").kg_v1_id
         with resources.open_text(
             "siibra.features", f"region_aliases_{species_name}.json"
         ) as f:

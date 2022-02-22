@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic import Field
 from .feature import RegionalFeature
 from .query import FeatureQuery
 from ..commons import logger
@@ -316,6 +317,7 @@ class ReceptorDataModel(ConfigBaseModel):
 
 class ReceptorDatasetModel(DatasetJsonModel):
     data: Optional[ReceptorDataModel]
+    type: str = Field("siibra/receptor", const=True)
 
 
 class DensityFingerprint:

@@ -819,25 +819,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         pev = ParcellationEntityVersionModel(
             id=f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}",
             type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
-            has_annotation=HasAnnotation(
-                internal_identifier="",
-                criteria_quality_type={
-                    # TODO check criteriaQualityType
-                    "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
-                },
-                best_view_point=BestViewPoint(
-                    coordinate_space={
-                        "@id": space.to_model().id
-                    },
-                    coordinates=[Coordinates(
-                        value=pt,
-                        unit={
-                            "@id": UnitOfMeasurement.MILLIMETER
-                        }
-                    ) for pt in centroids[0]]
-                ) if detail else None,
-                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
-            ) if space else None,
             has_parent=[{
                 '@id': self.parent.to_model(detail=False).id
             }] if (detail and self.parent is not None) else None,
@@ -849,6 +830,66 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         )
 
         from .. import parcellations
+        from ..volumes import VolumeSrc
+        from .datasets import EbrainsDataset
+
+        if space is not None:
+            def vol_to_id_dict(vol: VolumeSrc):
+                if vol.volume_type == "neuroglancer/precomputed":
+                    return {
+                        "@id": f"precomputed://{vol.url}"
+                    }
+                return {
+                    "@id": vol.url
+                }
+            pev.has_annotation = HasAnnotation(
+                internal_identifier=self.index.label or "unknown",
+                criteria_quality_type={
+                    # TODO check criteriaQualityType
+                    "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
+                },
+                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
+            )
+            self_volumes = [vol for vol in self.volumes if vol.space is space]
+            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
+            # seems to be the only way to convey link between PEV and dataset
+            ebrains_ds = [{ "@id": "https://doi.org/{}".format(url.get("doi")) }
+                for ds in self.datasets
+                if isinstance(ds, EbrainsDataset)
+                for url in ds.urls
+                if url.get("doi")]
+
+            pev.has_annotation.inspired_by = [
+                *[vol_to_id_dict(vol) for vol in parc_volumes],
+                *[vol_to_id_dict(vol) for vol in self_volumes],
+                *ebrains_ds
+            ]
+            
+            try:
+                ng_parc_volumes = [parcvol
+                    for parcvol in parc_volumes
+                    if parcvol.volume_type == "neuroglancer/precomputed"
+                    and parcvol.space is space]
+                map_idx = self.index.map
+                if map_idx is not None:
+                    pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[map_idx])
+            except IndexError:
+                pass
+                
+
+            if detail:
+                pev.has_annotation.best_view_point = BestViewPoint(
+                    coordinate_space={
+                        "@id": space.to_model().id
+                    },
+                    coordinates=[Coordinates(
+                        value=pt,
+                        unit={
+                            "@id": UnitOfMeasurement.MILLIMETER
+                        }
+                    ) for pt in centroids[0]]
+                )
+
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
         # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
         # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
