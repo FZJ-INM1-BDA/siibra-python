@@ -40,6 +40,7 @@ class VolumeDataModel(ConfigBaseModel):
     url: Optional[str]
     url_map: Optional[Dict[str, str]]
     map_type: Optional[str]
+    volume_type: Optional[str]
 
 
 class VolumeModel(DatasetJsonModel):
@@ -167,6 +168,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 url=self.url if isinstance(self.url, str) else None,
                 url_map=self.url if isinstance(self.url, dict) else None,
                 map_type=self.map_type.name if hasattr(self, "map_type") and self.map_type is not None else None,
+                volume_type=self.volume_type,
             ),
             **super_model.dict(),
         )

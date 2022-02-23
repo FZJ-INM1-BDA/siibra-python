@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic import Field
 from .feature import RegionalFeature
 from .query import FeatureQuery
 from ..commons import logger
@@ -316,6 +317,7 @@ class ReceptorDataModel(ConfigBaseModel):
 
 class ReceptorDatasetModel(DatasetJsonModel):
     data: Optional[ReceptorDataModel]
+    type: str = Field("siibra/receptor", const=True)
 
 
 class DensityFingerprint:
@@ -441,10 +443,11 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
     def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
-        super_model = super().to_model(detail=detail, **kwargs)
+        base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
+        base_dict["type"] = "siibra/receptor"
         if not detail:
             return ReceptorDatasetModel(
-                **super_model.dict(),
+                **base_dict,
                 data=None,
             )
 
@@ -467,7 +470,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
             },
         )
         return ReceptorDatasetModel(
-            **super_model.dict(),
+            **base_dict,
             data=data_model
         )
 

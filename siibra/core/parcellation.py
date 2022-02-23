@@ -17,6 +17,7 @@ from .space import Space
 from .region import Region
 from .concept import AtlasConcept, provide_registry
 from .serializable_concept import JSONSerializable
+from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import ParcellationMap
@@ -45,6 +46,8 @@ class AtlasType:
 class SiibraParcellationModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
+    name: str
+    datasets: List[DatasetJsonModel]
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
     
 
@@ -531,6 +534,8 @@ class Parcellation(
         return SiibraParcellationModel(
             id=self.id,
             type=SIIBRA_PARCELLATION_MODEL_TYPE,
+            name=self.name,
+            datasets=[ds.to_model() for ds in self.datasets if isinstance(ds, OriginDescription) or isinstance(ds, EbrainsDataset)],
             brain_atlas_versions=[BrainAtlasVersionModel(
                 id=self.get_brain_atlas_version_id(spc),
                 type=BRAIN_ATLAS_VERSION_TYPE,

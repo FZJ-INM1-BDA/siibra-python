@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import hashlib
 from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
@@ -30,6 +31,7 @@ class Url(ConfigBaseModel):
 
 class DatasetJsonModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
+    type: str = Field("siibra/base-dataset", const=True)
     metadata: DatasetVersionModel
     urls: List[Url]
 
@@ -105,7 +107,7 @@ class Dataset(JSONSerializable):
 
     def to_model(self, **kwargs) -> DatasetJsonModel:
         metadata=DatasetVersionModel(
-            id=self.id,
+            id=self.id or hashlib.md5(f"{str(self)}{self.description}".encode("utf-8")).hexdigest(),
             type="https://openminds.ebrains.eu/core/DatasetVersion",
             accessibility={
                 "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
@@ -136,7 +138,7 @@ class Dataset(JSONSerializable):
             }],
             version_identifier="",
             version_innovation="",
-            description=self.description[:2000] if hasattr(self, "description") else ""
+            description=(self.description or "")[:2000] if hasattr(self, "description") else ""
         )
         return DatasetJsonModel(
             id=metadata.id,
