@@ -502,9 +502,16 @@ class NeuroglancerScale:
         affine[:3, :] /= 1e6
         return affine
 
-    def _chunk_of_point(self, xyz):
+    def _point_to_lower_chunk_idx(self, xyz):
         return (
             np.floor((np.array(xyz) - self.voxel_offset) / self.chunk_sizes)
+            .astype("int")
+            .ravel()
+        )
+    
+    def _point_to_upper_chunk_idx(self, xyz):
+        return (
+            np.ceil((np.array(xyz) - self.voxel_offset) / self.chunk_sizes)
             .astype("int")
             .ravel()
         )
@@ -545,8 +552,8 @@ class NeuroglancerScale:
                 bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1
 
         # extract minimum and maximum the chunk indices to be loaded
-        gx0, gy0, gz0 = self._chunk_of_point(tuple(bbox_.minpoint))
-        gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint))
+        gx0, gy0, gz0 = self._point_to_lower_chunk_idx(tuple(bbox_.minpoint))
+        gx1, gy1, gz1 = self._point_to_upper_chunk_idx(tuple(bbox_.maxpoint))
 
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = np.array([gz1 - gz0, gy1 - gy0, gx1 - gx0]) * self.chunk_sizes[::-1]
