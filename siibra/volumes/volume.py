@@ -546,7 +546,7 @@ class NeuroglancerScale:
 
         # extract minimum and maximum the chunk indices to be loaded
         gx0, gy0, gz0 = self._chunk_of_point(tuple(bbox_.minpoint))
-        gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint)) + 1
+        gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint))
 
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = np.array([gz1 - gz0, gy1 - gy0, gx1 - gx0]) * self.chunk_sizes[::-1]
