@@ -80,5 +80,19 @@ def test_parc_regions(pev_id_dict,bav):
     else:
         pytest.xfail(f"PEV with id {pev_id_dict.get('@id')} has multiple instances.")
 
+fetch_map_param = [
+    ('rat', 'waxholm', 'v4', 'labelled')
+]
+
+@pytest.mark.parametrize('atlas_id,space_id,parc_id,map_type', fetch_map_param)
+def test_should_be_able_to_fetch_map(atlas_id,space_id,parc_id,map_type):
+    
+    atlas = siibra.atlases[atlas_id]
+    space = atlas.spaces[space_id]
+    parc = atlas.parcellations[parc_id]
+
+    parc.get_map(space, map_type)
+
+
 if __name__ == "__main__":
     unittest.main()
