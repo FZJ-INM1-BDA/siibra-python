@@ -18,7 +18,7 @@ from .query import FeatureQuery
 
 from .. import QUIET
 from ..volumes.volume import VolumeSrc, VolumeModel
-from ..core.space import Space, BoundingBox
+from ..core.space import BoundingBoxModel, Space, BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
 from ..core.serializable_concept import JSONSerializable
@@ -28,7 +28,8 @@ from typing import List
 
 
 class VOIDataModel(DatasetJsonModel):
-    data: List[VolumeModel]
+    volumes: List[VolumeModel]
+    location: BoundingBoxModel
 
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
@@ -69,7 +70,8 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
     def to_model(self, **kwargs) -> VOIDataModel:
         super_model = super().to_model(**kwargs)
         return VOIDataModel(
-            data=[vol.to_model(**kwargs) for vol in self.volumes],
+            location=self.location.to_model(**kwargs),
+            volumes=[vol.to_model(**kwargs) for vol in self.volumes],
             **super_model.dict()
         )
 

@@ -309,10 +309,26 @@ class AutoradiographyDataModel(NpArrayDataModel):
     pass
 
 
+class ReceptorMarkupModel(ConfigBaseModel):
+    latex: str
+    markdown: str
+    name: str
+
+
+class NeurotransmitterMarkupModel(ReceptorMarkupModel):
+    label: str
+
+
+class SymbolMarkupClass(ConfigBaseModel):
+    receptor: ReceptorMarkupModel
+    neurotransmitter: NeurotransmitterMarkupModel
+
+
 class ReceptorDataModel(ConfigBaseModel):
     autoradiographs: Dict[str, AutoradiographyDataModel]
     profiles: Dict[str, ProfileDataModel]
     fingerprints: Dict[str, FingerPrintDataModel]
+    receptor_symbols: Dict[str, SymbolMarkupClass]
 
 
 class ReceptorDatasetModel(DatasetJsonModel):
@@ -468,6 +484,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                     unit=self.fingerprint.unit
                 ) for key, mean, std in zip(self.fingerprint.labels, self.fingerprint.meanvals, self.fingerprint.stdvals)
             },
+            receptor_symbols=RECEPTOR_SYMBOLS
         )
         return ReceptorDatasetModel(
             **base_dict,
