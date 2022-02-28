@@ -13,6 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, List
+from siibra.openminds.base import ConfigBaseModel
 from .concept import AtlasConcept, provide_registry
 from .serializable_concept import JSONSerializable
 
@@ -198,8 +200,10 @@ SPACEWARP_IDS = {
     Space.REGISTRY.BIG_BRAIN: "Big Brain (Histology)",
 }
 
+class LocationModel(ConfigBaseModel):
+    space: Dict[str, str]
 
-class Location(ABC):
+class Location(JSONSerializable, ABC):
     """
     Abstract base class for locations in a given reference space.
     """
@@ -210,6 +214,9 @@ class Location(ABC):
             self.space = None
         else:
             self.space: Space = Space.REGISTRY[space]
+
+    def to_model(self, **kwargs) -> LocationModel:
+        return LocationModel(space={ "@id": self.space.to_model().id })
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):
@@ -771,6 +778,14 @@ class PointSet(Location):
         return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
 
 
+class BoundingBoxModel(LocationModel):
+    center: CoordinatePointModel
+    minpoint: CoordinatePointModel
+    maxpoint: CoordinatePointModel
+    shape: List[float]
+    is_planar: bool
+
+
 class BoundingBox(Location):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
@@ -807,6 +822,17 @@ class BoundingBox(Location):
             for d in range(3):
                 if self.shape[d] < minsize:
                     self.maxpoint[d] = self.minpoint[d] + minsize
+
+    def to_model(self, **kwargs) -> BoundingBoxModel:
+        super_model = super().to_model(**kwargs)
+        return BoundingBoxModel(
+            **super_model.dict(),
+            center=self.center.to_model(**kwargs),
+            minpoint=self.minpoint.to_model(**kwargs),
+            maxpoint=self.maxpoint.to_model(**kwargs),
+            shape=self.shape,
+            is_planar=self.is_planar
+        )
 
     @property
     def volume(self):
