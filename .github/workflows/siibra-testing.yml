@@ -33,7 +33,7 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
-      run: pytest
+      run: pytest -rx
 
   coverage:
     runs-on: ubuntu-latest
