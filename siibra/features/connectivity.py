@@ -83,6 +83,10 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
+    @property
+    def model_id(self):
+        return hashlib.md5(str(self).encode("utf-8")).hexdigest()
+
     def to_model(self, **kwargs) -> ConnectivityMatrixDataModel:
         from ..core import Region
         dtype_set = {dtype for dtype in self.matrix.dtypes}
@@ -109,7 +113,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
             raise TypeError(f"matrix column value {col} of instance {col.__class__} can be be converted to str.")
             
         return ConnectivityMatrixDataModel(
-            id=hashlib.md5(str(self).encode("utf-8")).hexdigest(),
+            id=self.model_id,
             name=str(self),
             columns=[get_column_name(name) for name in self.matrix.columns.values],
             parcellations=[{

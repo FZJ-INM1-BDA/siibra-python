@@ -150,9 +150,13 @@ class Atlas(
             return atlas
         return obj
 
+    @property
+    def model_id(self):
+        return self.id
+
     def to_model(self, **kwargs) -> SiibraAtlasModel:
         return SiibraAtlasModel(
-            id=self.id,
+            id=self.model_id,
             type="juelich/iav/atlas/v1.0.0",
             name=self.name,
             spaces=[SiibraAtIdModel(id=spc.to_model().id) for spc in self.spaces],

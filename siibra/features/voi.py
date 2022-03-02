@@ -67,6 +67,10 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
             return result
         return definition
 
+    @property
+    def model_id(self):
+        return super().model_id
+
     def to_model(self, **kwargs) -> VOIDataModel:
         super_model = super().to_model(**kwargs)
         return VOIDataModel(
