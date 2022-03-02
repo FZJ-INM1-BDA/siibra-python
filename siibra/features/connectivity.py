@@ -124,7 +124,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
             raise TypeError(f"matrix column value {col} of instance {col.__class__} can be be converted to str.")
 
         base_model.columns = [get_column_name(name) for name in self.matrix.columns.values]
-        base_model.matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32")),
+        base_model.matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32"))
         return base_model
 
 
