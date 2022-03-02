@@ -24,7 +24,7 @@ from ..openminds.base import ConfigBaseModel
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 import hashlib
 from pydantic import Field
 
@@ -32,9 +32,9 @@ from pydantic import Field
 class ConnectivityMatrixDataModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     name: str
-    matrix: NpArrayDataModel
-    columns: List[str]
     parcellations: List[Dict[str, str]]
+    matrix: Optional[NpArrayDataModel]
+    columns: Optional[List[str]]
 
 
 class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
@@ -87,7 +87,18 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def model_id(self):
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
 
-    def to_model(self, **kwargs) -> ConnectivityMatrixDataModel:
+    def to_model(self, detail=False, **kwargs) -> ConnectivityMatrixDataModel:
+
+        base_model = ConnectivityMatrixDataModel(
+            id=self.model_id,
+            name=str(self),
+            parcellations=[{
+                "@id": parc.to_model().id,
+            } for parc in self.parcellations],
+        )
+        if detail is False:
+            return base_model
+
         from ..core import Region
         dtype_set = {dtype for dtype in self.matrix.dtypes}
         
@@ -111,16 +122,10 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
             if isinstance(col, Region):
                 return col.name
             raise TypeError(f"matrix column value {col} of instance {col.__class__} can be be converted to str.")
-            
-        return ConnectivityMatrixDataModel(
-            id=self.model_id,
-            name=str(self),
-            columns=[get_column_name(name) for name in self.matrix.columns.values],
-            parcellations=[{
-                "@id": parc.to_model().id,
-            } for parc in self.parcellations],
-            matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32")),
-        )
+
+        base_model.columns = [get_column_name(name) for name in self.matrix.columns.values]
+        base_model.matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32")),
+        return base_model
 
 
 class StreamlineCounts(ConnectivityMatrix):
