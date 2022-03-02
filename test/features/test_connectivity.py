@@ -8,6 +8,10 @@ from siibra.features.connectivity import (
     PrereleasedStreamlineLengthQuery,
 
     PrereleasedRestingStateQuery,
+
+    HcpStreamlineCountQuery,
+    HcpStreamlineLengthQuery,
+    HcpRestingStateQuery,
 )
 
 
@@ -15,6 +19,10 @@ queries_tuple = (
     PrereleasedStreamlineCountQuery,
     PrereleasedStreamlineLengthQuery,
     PrereleasedRestingStateQuery,
+
+    HcpStreamlineCountQuery,
+    HcpStreamlineLengthQuery,
+    HcpRestingStateQuery,
 )
 
 queries_features_tuple = (

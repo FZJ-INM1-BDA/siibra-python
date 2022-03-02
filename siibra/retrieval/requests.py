@@ -27,15 +27,6 @@ from getpass import getpass
 from io import BytesIO
 import urllib
 import pandas as pd
-from tempfile import mktemp
-
-
-def bytes_to_temporary_zipfile(b):
-    fname = mktemp(suffix=".zip")
-    with open(fname, "wb") as f:
-        f.write(b)
-    return ZipFile(fname)
-
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
@@ -45,7 +36,7 @@ DECODERS = {
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
-    ".zip": bytes_to_temporary_zipfile,
+    ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: io.imread(BytesIO(b))
 }
 
