@@ -1,25 +1,43 @@
 import unittest
 import pytest
 
-from siibra.features.connectivity import PrereleasedStreamlineCountQuery, StreamlineCounts, ConnectivityMatrixDataModel
+from siibra.features.connectivity import (
+    PrereleasedStreamlineCountQuery,
+    ConnectivityMatrixDataModel,
 
-con_query = PrereleasedStreamlineCountQuery()
+    PrereleasedStreamlineLengthQuery,
 
-def test_some_conn_data():
-    assert len(con_query.features) > 0, f"expect at least 1 connectivity data, but got {len(con_query.features)}"
+    PrereleasedRestingStateQuery,
+
+    HcpStreamlineCountQuery,
+    HcpStreamlineLengthQuery,
+    HcpRestingStateQuery,
+)
 
 
-@pytest.mark.parametrize('conn_feat', con_query.features)
-def test_conn_to_model(conn_feat: StreamlineCounts):
+queries_tuple = (
+    PrereleasedStreamlineCountQuery,
+    PrereleasedStreamlineLengthQuery,
+    PrereleasedRestingStateQuery,
+
+    HcpStreamlineCountQuery,
+    HcpStreamlineLengthQuery,
+    HcpRestingStateQuery,
+)
+
+queries_features_tuple = (
+    feat
+    for Query in queries_tuple
+    for feat in Query().features
+)
+
+@pytest.mark.parametrize('conn_feat', queries_features_tuple)
+def test_conn_to_model(conn_feat):
     model = None
     try:
         model = conn_feat.to_model()
-
-    except AssertionError as e:
-        # TODO
-        # two connectivity sources xfail here
-        pytest.xfail(str(e))
-
+    except Exception as err:
+        pytest.xfail(str(err))
     if model:
         ConnectivityMatrixDataModel(**model.dict())
 

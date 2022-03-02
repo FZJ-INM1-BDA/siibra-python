@@ -129,10 +129,14 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
+    @property
+    def model_id(self):
+        return f"{self.dataset.model_id}:{self.sub_id}"
+
     def to_model(self, **kwargs) -> IEEGSessionModel:
         dataset = self.dataset.to_model()
         return IEEGSessionModel(
-            id=f"{dataset.id}:{self.sub_id}",
+            id=self.model_id,
             dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
@@ -179,6 +183,10 @@ class IEEG_Electrode(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 
+    @property
+    def model_id(self):
+        return f"{self.session.model_id}:{self.electrode_id}"
+
     def to_model(self, **kwargs) -> IEEGElectrodeModel:
         return IEEGElectrodeModel(
             electrode_id=self.electrode_id,
@@ -197,7 +205,7 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
     def __init__(self, electrode, id, coord):
         point = Point(coord, electrode.space)
         SpatialFeature.__init__(self, point)
-        self.electrode = electrode
+        self.electrode: IEEG_Electrode = electrode
         self.id = id
         self.point = point
         electrode.register_contact_point(self)
@@ -228,9 +236,13 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
         else:
             return None
 
+    @property
+    def model_id(self):
+        return f"{self.electrode.model_id}:{self.id}"
+
     def to_model(self, **kwargs) -> IEEGContactPointModel:
         return IEEGContactPointModel(
-            id=self.id,
+            id=self.model_id,
             point=self.point.to_model(**kwargs)
         )
 

@@ -804,6 +804,16 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         return result
 
+    @property
+    def model_id(self):
+        from .. import parcellations
+        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+            return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
+        import hashlib
+        def get_unique_id(id):
+            return hashlib.md5(id.encode("utf-8")).hexdigest()
+        return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}"
+
     def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
         if detail:
             assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
@@ -813,11 +823,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 centroids = self.centroids(space)
                 assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
         
-        import hashlib
-        def get_unique_id(id):
-            return hashlib.md5(id.encode("utf-8")).hexdigest()
         pev = ParcellationEntityVersionModel(
-            id=f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}",
+            id=self.model_id,
             type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
             has_parent=[{
                 '@id': self.parent.to_model(detail=False).id
@@ -902,7 +909,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             if is_rh:
                 pev.version_identifier = f"2018, rh"
             
-            pev.id = f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
             pev.lookup_label = f"SWMA_2018_{self.name}"
 
 

@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractproperty
 import numpy as np
 import zlib
 import base64
@@ -7,6 +7,24 @@ from pydantic import Field
 from ..openminds.base import ConfigBaseModel
 
 class JSONSerializable(ABC):
+
+    @abstractproperty
+    def model_id(self):
+        """
+        The model_id abstract property should populate the @id attribute of the model returned by to_model
+        It should also allow unified indexing of a list of JSONSerializable without first calling to_model method (which could be expensive)
+
+        e.g.
+
+        without model_id abstract property:
+        # finding a feature based on feature_id
+        found_feature = [feat for feat in features if feat.to_model().id == feature_id]
+
+        with model_id abstract property:
+        # finding a feature based on feature_id
+        found_feature = [feat for feat in features if feat.model_id == feature_id]
+        """
+        raise AttributeError("model_id property needs to be overwritten by subclass!")
 
     @abstractmethod
     def to_model(self, **kwargs):

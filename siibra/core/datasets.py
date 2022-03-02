@@ -105,9 +105,13 @@ class Dataset(JSONSerializable):
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
+    @property
+    def model_id(self):
+        return self.id or hashlib.md5(f"{str(self)}{self.description}".encode("utf-8")).hexdigest()
+
     def to_model(self, **kwargs) -> DatasetJsonModel:
         metadata=DatasetVersionModel(
-            id=self.id or hashlib.md5(f"{str(self)}{self.description}".encode("utf-8")).hexdigest(),
+            id=self.model_id,
             type="https://openminds.ebrains.eu/core/DatasetVersion",
             accessibility={
                 "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",

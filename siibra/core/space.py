@@ -165,9 +165,13 @@ class Space(
 
         return result
 
+    @property
+    def model_id(self):
+        return self.id
+
     def to_model(self, **kwargs) -> commonCoordinateSpace.Model:
         return commonCoordinateSpace.Model(
-            id=self.id,
+            id=self.model_id,
             type="https://openminds.ebrains.eu/sands/CoordinateSpace",
             anatomical_axes_orientation={
                 "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
@@ -215,8 +219,12 @@ class Location(JSONSerializable, ABC):
         else:
             self.space: Space = Space.REGISTRY[space]
 
+    @property
+    def model_id(self):
+        return f"spy/location/space:{self.space.model_id if self.space is not None else 'None'}"
+
     def to_model(self, **kwargs) -> LocationModel:
-        return LocationModel(space={ "@id": self.space.to_model().id })
+        return LocationModel(space={ "@id": self.space.model_id })
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):
@@ -329,7 +337,6 @@ class WholeBrain(Location):
 
     def __str__(self):
         return f"{self.__class__.__name__} in {self.space.name}"
-
 
 class Point(Location, JSONSerializable):
     """A single 3D point in reference space."""
@@ -603,13 +610,19 @@ class Point(Location, JSONSerializable):
                 )
         return int((coronal_position + 70.0) / 0.02 + 1.5)
 
+    @property
+    def model_id(self):
+        space_id = self.space.model_id
+        return hashlib.md5(f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")).hexdigest()
+        
+
     def to_model(self, **kwargs) -> CoordinatePointModel:
         if self.space is None:
             raise RuntimeError(f"Point.to_model cannot be done on Location entity that does not have space defined!")
-        space_id = self.space.to_model().id
-        point_id = hashlib.md5(f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")).hexdigest()
+        space_id = self.space.model_id
+        
         return CoordinatePointModel(
-            id=point_id,
+            id=self.model_id,
             type="https://openminds.ebrains.eu/sands/CoordinatePoint",
             coordinate_space={
                 "@id": space_id
@@ -822,11 +835,16 @@ class BoundingBox(Location):
             for d in range(3):
                 if self.shape[d] < minsize:
                     self.maxpoint[d] = self.minpoint[d] + minsize
+    @property
+    def model_id(self):
+        import hashlib
+        return hashlib.md5(str(self).encode("utf-8")).hexdigest()
 
     def to_model(self, **kwargs) -> BoundingBoxModel:
         super_model = super().to_model(**kwargs)
         return BoundingBoxModel(
             **super_model.dict(),
+            id=self.model_id,
             center=self.center.to_model(**kwargs),
             minpoint=self.minpoint.to_model(**kwargs),
             maxpoint=self.maxpoint.to_model(**kwargs),

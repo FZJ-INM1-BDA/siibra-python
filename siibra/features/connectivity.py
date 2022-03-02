@@ -24,7 +24,7 @@ from ..openminds.base import ConfigBaseModel
 
 import pandas as pd
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Union
 import hashlib
 from pydantic import Field
 
@@ -83,23 +83,43 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
+    @property
+    def model_id(self):
+        return hashlib.md5(str(self).encode("utf-8")).hexdigest()
+
     def to_model(self, **kwargs) -> ConnectivityMatrixDataModel:
+        from ..core import Region
         dtype_set = {dtype for dtype in self.matrix.dtypes}
         
-        assert len(dtype_set) == 1, f"expect only 1 type of data, but got {len(dtype_set)}"
-        dtype, = list(dtype_set)
-        is_int = np.issubdtype(dtype, int)
-        is_float = np.issubdtype(dtype, float)
-        assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
+        if len(dtype_set) == 0:
+            raise TypeError(f"dtype is an empty set!")
 
+        force_float = False
+        if len(dtype_set) == 1:
+            dtype, = list(dtype_set)
+            is_int = np.issubdtype(dtype, int)
+            is_float = np.issubdtype(dtype, float)
+            assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
+
+        if len(dtype_set) > 1:
+            logger.warning(f"expect only 1 type of data, but got {len(dtype_set)}, will cast everything to float")
+            force_float = True
+        
+        def get_column_name(col: Union[str, Region]) -> str:
+            if isinstance(col, str):
+                return col
+            if isinstance(col, Region):
+                return col.name
+            raise TypeError(f"matrix column value {col} of instance {col.__class__} can be be converted to str.")
+            
         return ConnectivityMatrixDataModel(
-            id=hashlib.md5(str(self).encode("utf-8")).hexdigest(),
+            id=self.model_id,
             name=str(self),
-            columns=[name for name in self.matrix.columns.values],
+            columns=[get_column_name(name) for name in self.matrix.columns.values],
             parcellations=[{
                 "@id": parc.to_model().id,
             } for parc in self.parcellations],
-            matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="int32" if is_int else "float32")),
+            matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32")),
         )
 
 
@@ -341,7 +361,7 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
         assert "data" in data
         col_names = data["data"]["field names"]
         row_names = list(data["data"]["profiles"].keys())
-        assert col_names == row_names
+        assert col_names == row_names, f"{data['name']} assertion error: expected col_names == row_names"
         matrix = pd.DataFrame(
             data=[data["data"]["profiles"][r] for r in col_names],
             columns=col_names,

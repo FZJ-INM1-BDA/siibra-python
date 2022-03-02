@@ -530,9 +530,13 @@ class Parcellation(
     def get_brain_atlas_version_name(self, space: Space) -> str:
         return f"{self.name} in {space.to_model().full_name}"
 
+    @property
+    def model_id(self):
+        return self.id
+
     def to_model(self, **kwargs) -> SiibraParcellationModel:
         return SiibraParcellationModel(
-            id=self.id,
+            id=self.model_id,
             type=SIIBRA_PARCELLATION_MODEL_TYPE,
             name=self.name,
             datasets=[ds.to_model() for ds in self.datasets if isinstance(ds, OriginDescription) or isinstance(ds, EbrainsDataset)],

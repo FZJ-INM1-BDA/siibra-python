@@ -154,6 +154,10 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             result.map_type = MapType[maptype.upper()]
         return result
 
+    @property
+    def model_id(self):
+        return super().model_id
+
     def to_model(self, **kwargs) -> VolumeModel:
         super_model = super().to_model(**kwargs)
         return VolumeModel(

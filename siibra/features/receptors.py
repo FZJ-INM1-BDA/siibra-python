@@ -458,6 +458,10 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
+    @property
+    def model_id(self):
+        return super().model_id
+
     def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
         base_dict["type"] = "siibra/receptor"
