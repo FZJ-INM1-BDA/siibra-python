@@ -13,18 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import List
+from pydantic import Field
+
 from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, logger, Registry
+from ..commons import MapType, TypedRegistry, logger
+from ..openminds.base import SiibraAtIdModel, ConfigBaseModel
+from ..openminds.controlledTerms.v1.species import Model as _SpeciesModel
+
+class SpeciesModel(_SpeciesModel):
+    kg_v1_id: str = Field(..., alias="kgV1Id")
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
+class SiibraAtlasModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
+    name: str
+    type: str = Field("juelich/iav/atlas/v1.0.0", const=True, alias="@type")
+    spaces: List[SiibraAtIdModel]
+    parcellations: List[SiibraAtIdModel]
+    species: SpeciesModel
+
+
 @provide_registry
 class Atlas(
-    AtlasConcept, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    AtlasConcept, JSONSerializable, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
 ):
     """
     Main class for an atlas, providing access to feasible
@@ -33,29 +51,40 @@ class Atlas(
     """
 
     @staticmethod
-    def get_species_data(species_str: str):
+    def get_species_data(species_str: str) -> SpeciesModel:
         if species_str == 'human':
-            return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9',
-                'name': 'Homo sapiens'
-            }
+            return SpeciesModel(
+                type="https://openminds.ebrains.eu/controlledTerms/Species",
+                name="Homo sapiens",
+                kg_v1_id="https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
+                id="https://openminds.ebrains.eu/instances/species/homoSapiens",
+                preferred_ontology_identifier="http://purl.obolibrary.org/obo/NCBITaxon_9606"
+            )
         if species_str == 'rat':
-            return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412',
-                'name': 'Rattus norvegicus'
-            }
+            return SpeciesModel(
+                type="https://openminds.ebrains.eu/controlledTerms/Species",
+                name="Rattus norvegicus",
+                kg_v1_id="https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412",
+                id="https://openminds.ebrains.eu/instances/species/rattusNorvegicus",
+                preferred_ontology_identifier="http://purl.obolibrary.org/obo/NCBITaxon_10116"
+            )
         if species_str == 'mouse':
-            return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c',
-                'name': 'Mus musculus'
-            }
+            return SpeciesModel(
+                type="https://openminds.ebrains.eu/controlledTerms/Species",
+                name="Mus musculus",
+                kg_v1_id="https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c",
+                id="https://openminds.ebrains.eu/instances/species/musMusculus",
+                preferred_ontology_identifier="http://purl.obolibrary.org/obo/NCBITaxon_10090"
+            )
         # TODO this may not be correct. Wait for feedback and get more accurate
         if species_str == 'monkey':
-            return {
-                '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/3f75b0ad-dbcd-464e-b614-499a1b9ae86b',
-                'name': 'Primates'
-            }
-
+            return SpeciesModel(
+                type="https://openminds.ebrains.eu/controlledTerms/Species",
+                name="Macaca fascicularis",
+                kg_v1_id="https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/c541401b-69f4-4809-b6eb-82594fc90551",
+                id="https://openminds.ebrains.eu/instances/species/macacaFascicularis",
+                preferred_ontology_identifier="http://purl.obolibrary.org/obo/NCBITaxon_9541"
+            )
         raise ValueError(f'species with spec {species_str} cannot be decoded')
 
     def __init__(self, identifier, name, species = None):
@@ -81,7 +110,7 @@ class Atlas(
     @property
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
-        return Registry(
+        return TypedRegistry[Space](
             elements={s.key: s for s in self._spaces},
             matchfunc=Space.match_spec,
         )
@@ -89,7 +118,7 @@ class Atlas(
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return Registry(
+        return TypedRegistry[Parcellation](
             elements={p.key: p for p in self._parcellations},
             matchfunc=Parcellation.match_spec,
         )
@@ -120,6 +149,20 @@ class Atlas(
                 atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
             return atlas
         return obj
+
+    @property
+    def model_id(self):
+        return self.id
+
+    def to_model(self, **kwargs) -> SiibraAtlasModel:
+        return SiibraAtlasModel(
+            id=self.model_id,
+            type="juelich/iav/atlas/v1.0.0",
+            name=self.name,
+            spaces=[SiibraAtIdModel(id=spc.to_model().id) for spc in self.spaces],
+            parcellations=[SiibraAtIdModel(id=parc.to_model().id) for parc in self.parcellations],
+            species=self.species,
+        )
 
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.

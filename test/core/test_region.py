@@ -1,9 +1,12 @@
 import unittest
 from unittest.mock import MagicMock
+import pytest
 
 from siibra import parcellations, spaces, retrieval
 from siibra.core.region import Region
+from siibra import parcellations
 from siibra.commons import MapType
+import siibra
 
 
 class TestRegions(unittest.TestCase):
@@ -121,6 +124,42 @@ class TestRegions(unittest.TestCase):
         result = self.child_region.get_regional_map(spaces.BIG_BRAIN, MapType.CONTINUOUS)
         self.assertIsNone(result)
 
+all_regions = [
+    pytest.param(r, marks=pytest.mark.xfail(reason="Parent is not Region, xfail for now")) if not isinstance(r.parent, Region) else
+    r
+    for parc in parcellations
+    for r in parc]
+
+@pytest.mark.parametrize('region', all_regions)
+def test_region_to_model(region: Region):
+    region.to_model()
+
+detailed_region=[
+    ("julich 2.9", "hoc1 left", "mni152", False),
+    ("julich 2.9", "hoc1 right", "mni152", False),
+    ("julich 2.9", "hoc1 left", "colin 27", False),
+    ("julich 2.9", "hoc1 right", "colin 27", False),
+    pytest.param(
+        "julich 2.9", "hoc1", "bigbrain", False,
+        marks=pytest.mark.xfail(reason="big brain returning 2 centoids... what?"),
+    ),
+    ("julich 2.9", "hoc1 right", "bigbrain", True),
+]
+
+@pytest.mark.parametrize('parc_spec,region_spec,space_spec,expect_raise', detailed_region)
+def test_detail_region(parc_spec,region_spec,space_spec,expect_raise):
+    p = siibra.parcellations[parc_spec]
+    r = p.decode_region(region_spec)
+    s = siibra.spaces[space_spec]
+    if expect_raise:
+        with pytest.raises(RuntimeError):
+            model = r.to_model(detail=True, space=s)
+        return
+    
+    model = r.to_model(detail=True, space=s)
+    assert model.has_parent is not None
+    assert model.has_annotation is not None
+    assert model.has_annotation.best_view_point is not None
 
 if __name__ == "__main__":
     unittest.main()

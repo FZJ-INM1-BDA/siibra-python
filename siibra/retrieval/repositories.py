@@ -285,10 +285,14 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
         result = EbrainsRequest(url, DECODERS[".json"]).get()
         self.versions = {}
+        self._description = ""
+        self._name = ""
         self.use_version = None
         assert len(result["data"]) < 2
         if len(result["data"]) == 1:
             data = result["data"][0]
+            self._description += data.get("description", "")
+            self._name += data.get("name", "")
             self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
             self.use_version = sorted(list(self.versions.keys()))[-1]
             if len(self.versions) > 1:
@@ -299,9 +303,32 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
                 )
 
     @property
-    def doi(self):
+    def name(self):
         if self.use_version in self.versions:
-            return self.versions[self.use_version]["doi"]
+            if "name" in self.versions[self.use_version]:
+                if len(self.versions[self.use_version]["name"])>0:
+                    return self.versions[self.use_version]["name"]
+        return self._name
+
+    @property
+    def description(self):
+        result = self._description
+        if self.use_version in self.versions:
+            result += "\n" + self.versions[self.use_version].get("description", "")
+        return result
+
+    @property
+    def authors(self):
+        result = []
+        if self.use_version in self.versions:
+            for author_info in self.versions[self.use_version]["authors"]:
+                result.append(f"{author_info['familyName']}, {author_info['givenName']}")
+        return result
+
+    @property
+    def citation(self):
+        if self.use_version in self.versions:
+            return self.versions[self.use_version].get("cite", "")
         else:
             return None
 
@@ -329,7 +356,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         fpath = f"{folder}/{filename}" if len(folder) > 0 else f"{filename}"
         if fpath not in self._files:
             raise RuntimeError(
-                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} cannot be."
+                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} is not available in this repository."
             )
         return self._files[fpath]
 

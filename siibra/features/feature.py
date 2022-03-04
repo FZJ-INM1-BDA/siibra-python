@@ -136,6 +136,7 @@ class Feature(ABC):
             f"Registering feature type {cls.__name__} with modality {cls.modality()}"
         )
         cls.REGISTRY.add(cls.modality(), cls)
+        return super().__init_subclass__()
 
     @property
     def matched(self):
@@ -336,7 +337,9 @@ class RegionalFeature(Feature):
     # load region name aliases from data file
     _aliases = {}
     for species_name in ["human"]:
-        species_id = Atlas.get_species_data("human")["@id"]
+        # TODO temporary solution
+        # when fully migrated to kg v3 query, change .kg_v1_id to .id
+        species_id = Atlas.get_species_data("human").kg_v1_id
         with resources.open_text(
             "siibra.features", f"region_aliases_{species_name}.json"
         ) as f:
@@ -404,7 +407,7 @@ class RegionalFeature(Feature):
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
                 if all(
-                    atlas.species.get("@id") not in self.species_ids
+                    atlas.species.kg_v1_id not in self.species_ids
                     for atlas in atlases
                 ):
                     return self.matched

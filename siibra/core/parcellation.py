@@ -16,13 +16,40 @@
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept, provide_registry
+from .serializable_concept import JSONSerializable
+from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import ParcellationMap
+from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
+    Model as BrainAtlasVersionModel,
+    HasTerminologyVersion,
+)
+from ..openminds.base import ConfigBaseModel
 
-from typing import Union
+from datetime import date
+from typing import List, Set, Union
 from memoization import cached
 from difflib import SequenceMatcher
+from pydantic import Field
+
+
+SIIBRA_PARCELLATION_MODEL_TYPE="minds/core/parcellationatlas/v1.0.0"
+BRAIN_ATLAS_VERSION_TYPE="https://openminds.ebrains.eu/sands/BrainAtlasVersion"
+
+class AtlasType:
+    DETERMINISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/deterministicAtlas"
+    PARCELLATION_SCHEME="https://openminds.ebrains.eu/instances/atlasType/parcellationScheme"
+    PROBABILISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
+
+
+class SiibraParcellationModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
+    name: str
+    datasets: List[DatasetJsonModel]
+    brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
+    
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -110,6 +137,7 @@ class ParcellationVersion:
 @provide_registry
 class Parcellation(
     AtlasConcept,
+    JSONSerializable,
     bootstrap_folder="parcellations",
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
@@ -241,13 +269,14 @@ class Parcellation(
         return ListedColormap(pallette)
 
     @property
-    def supported_spaces(self):
+    def supported_spaces(self) -> Set[Space]:
         """Overwrite the method of AtlasConcept.
         For parcellations, a space is also considered as supported if one of their regions is mapped in the space.
         """
-        return {
-            space for region in self.regiontree for space in region.supported_spaces
-        }
+        return list(
+            set(super().supported_spaces) 
+            | {space for region in self.regiontree for space in region.supported_spaces}
+        )
 
     def supports_space(self, space: Space):
         """
@@ -296,7 +325,7 @@ class Parcellation(
         if isinstance(regionspec, Region) and (regionspec.parcellation == self):
             return
 
-        if isinstance(regionspec, str) and ("Group:" in regionspec):
+        if isinstance(regionspec, str) and regionspec.startswith("Group:"):
             # seems to be a group region name - build the group region by recursive decoding.
             subspecs = regionspec.replace("Group:", "").split(",")
             return Region._build_grouptree(
@@ -494,3 +523,55 @@ class Parcellation(
             result.extends = obj["@extends"]
 
         return result
+
+    def get_brain_atlas_version_id(self, space: Space) -> str:
+        return f"{self.id}/{space.to_model().id}"
+
+    def get_brain_atlas_version_name(self, space: Space) -> str:
+        return f"{self.name} in {space.to_model().full_name}"
+
+    @property
+    def model_id(self):
+        return self.id
+
+    def to_model(self, **kwargs) -> SiibraParcellationModel:
+        return SiibraParcellationModel(
+            id=self.model_id,
+            type=SIIBRA_PARCELLATION_MODEL_TYPE,
+            name=self.name,
+            datasets=[ds.to_model() for ds in self.datasets if isinstance(ds, OriginDescription) or isinstance(ds, EbrainsDataset)],
+            brain_atlas_versions=[BrainAtlasVersionModel(
+                id=self.get_brain_atlas_version_id(spc),
+                type=BRAIN_ATLAS_VERSION_TYPE,
+                atlas_type={
+                    # TODO fix
+                    "@id": AtlasType.PROBABILISTIC_ATLAS
+                },
+                accessibility={
+                    # TODO fix
+                    "@id": ""
+                },
+                coordinate_space={
+                    "@id": spc.to_model().id
+                },
+                description=self.description[:2000],
+                full_documentation={
+                    # TODO fix
+                    "@id": ""
+                },
+                full_name=self.get_brain_atlas_version_name(spc),
+                has_terminology_version=HasTerminologyVersion(
+                    has_entity_version=[{
+                        "@id": r.to_model().id
+                    } for r in self]
+                ),
+                license={
+                    # TODO fix
+                    "@id": ""
+                },
+                release_date=date(1970,1,1),
+                short_name=self.name[:30],
+                version_identifier=f"{self.version} in {spc.to_model().full_name}",
+                version_innovation="",
+            ) for spc in self.supported_spaces]
+        )

@@ -15,12 +15,13 @@
 
 from .feature import Feature
 
-from .. import logger, QUIET
-from ..commons import Registry
+from .. import logger
+from ..commons import TypedRegistry
 from ..core import AtlasConcept, Dataset
 
 from abc import ABC
 from collections import defaultdict
+from typing import Dict, List
 
 
 class FeatureQuery(ABC):
@@ -30,7 +31,7 @@ class FeatureQuery(ABC):
 
     _FEATURETYPE = Feature
     _instances = {}
-    _implementations = defaultdict(list)
+    _implementations: Dict[str, List['FeatureQuery']] = defaultdict(list)
 
     def __init__(self, **kwargs):
         logger.debug(f"Initializing query for {self._FEATURETYPE.__name__} features")
@@ -44,6 +45,7 @@ class FeatureQuery(ABC):
             f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features"
         )
         cls._implementations[cls._FEATURETYPE.modality()].append(cls)
+        return super().__init_subclass__()
 
     @classmethod
     def get_features(cls, concept, modality, group_by=None, **kwargs):
@@ -120,7 +122,6 @@ class FeatureQuery(ABC):
                     f"Invalid parameter '{group_by}' for the 'group_by' attribute of get_features. "
                     "Valid entries are: 'dataset', 'concept', or None.")
 
-
         # If only one modality was requested, simplify the dictionary
         if len(result) == 1:
             return next(iter(result.values()))
@@ -129,7 +130,7 @@ class FeatureQuery(ABC):
 
     @classmethod
     def get_modalities(cls):
-        return Registry(
+        return TypedRegistry[str](
             elements={
                 c:c for c in cls._implementations.keys()
             }

@@ -1,8 +1,10 @@
 from siibra.retrieval.requests import HttpRequest, ZipfileRequest
 import unittest
+import pytest
 
-from siibra import atlases
+from siibra import atlases, spaces
 from siibra.core import Space
+from pydantic import BaseModel
 
 
 class TestSpaces(unittest.TestCase):
@@ -77,6 +79,19 @@ class TestSpaces(unittest.TestCase):
         spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces
         self.assertEqual(len(spaces), 4)
 
+all_spaces = [space for space in spaces]
+
+@pytest.mark.parametrize('spc', all_spaces)
+def test_json_serializable(spc: Space):
+    assert issubclass(
+        spc.to_model.__annotations__.get("return"),
+        BaseModel,
+    )
+    spc.to_model()
+    import json
+    json.loads(
+        spc.to_model().json()
+    )
 
 if __name__ == "__main__":
     unittest.main()

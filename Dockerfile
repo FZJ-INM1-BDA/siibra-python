@@ -1,22 +1,19 @@
-FROM python:3.8
+# Inspired from https://www.docker.com/blog/containerized-python-development-part-1/
 
-# Command to run a build and all tests in docker.
-# A test coverage report will be created at the end of the build.
-# docker build --progress=plain -t siibra-python -f Dockerfile --build-arg JUGEX_CLIENT_ID={...} --build-arg JUGEX_CLIENT_SECRET={...} --build-arg JUGEX_REFRESH_TOKEN={...} .
+FROM jupyter/minimal-notebook:lab-3.2.5 as builder
 
-ARG JUGEX_CLIENT_ID
-ARG JUGEX_CLIENT_SECRET
-ARG JUGEX_REFRESH_TOKEN
-ARG HBP_OIDC_ENDPOINT='https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token'
+USER root
+RUN apt-get update
+RUN apt-get install -y build-essential
 
-RUN python -m pip install --upgrade pip
+RUN pip install -U pip
 
-ADD . /siibra-python
+COPY . /siibra-python
 WORKDIR /siibra-python
+RUN pip install .
 
-RUN pip install -r requirements.txt
-RUN pip install pytest pytest-cov coverage
+FROM jupyter/minimal-notebook:lab-3.2.5
 
-RUN python -m unittest
-RUN coverage run -m unittest
-RUN coverage report
+COPY --from=builder /opt/conda /opt/conda
+
+# HBP_AUTH_TOKEN

@@ -15,6 +15,7 @@
 
 import os
 from enum import Enum
+from typing import Any, Generic, Iterable, Iterator, List, TypeVar
 from nibabel import Nifti1Image
 import logging
 import numpy as np
@@ -46,8 +47,9 @@ set_log_level(os.getenv("SIIBRA_LOG_LEVEL", "INFO"))
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
+T = TypeVar('T')
 
-class Registry:
+class TypedRegistry(Generic[T], Iterable):
     """
     Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
@@ -72,7 +74,7 @@ class Registry:
             self._elements = elements
         self._matchfunc = matchfunc
 
-    def add(self, key, value):
+    def add(self, key: str, value: T) -> None:
         """Add a key/value pair to the registry.
 
         Args:
@@ -86,28 +88,28 @@ class Registry:
             )
         self._elements[key] = value
 
-    def __dir__(self):
+    def __dir__(self) -> Iterable[str]:
         """List of all object keys in the registry"""
         return self._elements.keys()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         """Test wether the given key is defined by the registry."""
         return (
             key in self._elements
         )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Return the number of elements in the registry"""
         return len(self._elements)
 
-    def __getitem__(self, spec):
+    def __getitem__(self, spec) -> T:
         """Give access to objects in the registry by sequential index,
         exact key, or keyword matching. If the keywords match multiple objects,
         the first in sorted order is returned. If the specification does not match,
@@ -139,18 +141,18 @@ class Registry:
             logger.debug(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
             return largest
 
-    def __sub__(self, obj):
+    def __sub__(self, obj) -> 'TypedRegistry[T]':
         """
         remove an object from the registry
         """
         if obj in self._elements.values():
-            return Registry(
+            return TypedRegistry[T](
                 self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
             )
         else:
             return self
 
-    def provides(self, spec):
+    def provides(self, spec) -> bool:
         """
         Returns True if an element that matches the given specification can be found
         (using find(), thus going beyond the matching of names only as __contains__ does)
@@ -158,7 +160,7 @@ class Registry:
         matches = self.find(spec)
         return len(matches) > 0
 
-    def find(self, spec):
+    def find(self, spec) -> List[T]:
         """
         Return a list of items matching the given specification,
         which could be either the name or a specification that
@@ -180,7 +182,7 @@ class Registry:
                 ]
             return matches
 
-    def __getattr__(self, index):
+    def __getattr__(self, index) -> T:
         """Access elements by using their keys as attributes.
         Keys are auto-generated from the provided names to be uppercase,
         with words delimited using underscores.
@@ -199,6 +201,8 @@ class Registry:
                     hint = f"Did you mean {' or '.join(closest)}?"
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
+
+class Registry(TypedRegistry[Any]): pass
 
 class ParcellationIndex:
     """

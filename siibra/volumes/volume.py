@@ -13,11 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from siibra.openminds.base import SiibraAtIdModel
 from .. import logger
 from ..commons import MapType
-from ..core.datasets import Dataset
+from ..core.datasets import Dataset, DatasetJsonModel
 from ..core.space import Space, BoundingBox
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
+from ..core.serializable_concept import ConfigBaseModel
 
 import numpy as np
 import nibabel as nib
@@ -26,6 +28,23 @@ import json
 from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
+from typing import Any, Dict, Optional
+
+
+class VolumeDataModel(ConfigBaseModel):
+    type: str
+    is_volume: bool
+    is_surface: bool
+    detail: Dict[str, Any]
+    space: SiibraAtIdModel
+    url: Optional[str]
+    url_map: Optional[Dict[str, str]]
+    map_type: Optional[str]
+    volume_type: Optional[str]
+
+
+class VolumeModel(DatasetJsonModel):
+    data: VolumeDataModel
 
 
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
@@ -78,6 +97,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         if volume_type is not None:
             assert volume_type not in VolumeSrc._SPECIALISTS
             VolumeSrc._SPECIALISTS[volume_type] = cls
+        return super().__init_subclass__()
 
     def __str__(self):
         return f"{self.volume_type} {self.url}"
@@ -133,6 +153,29 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         if maptype is not None:
             result.map_type = MapType[maptype.upper()]
         return result
+
+    @property
+    def model_id(self):
+        return super().model_id
+
+    def to_model(self, **kwargs) -> VolumeModel:
+        super_model = super().to_model(**kwargs)
+        return VolumeModel(
+            data=VolumeDataModel(
+                type=self.volume_type,
+                is_volume=self.is_volume,
+                is_surface=self.is_surface,
+                detail=self.detail or {},
+                space={
+                    "@id": self.space.to_model().id
+                },
+                url=self.url if isinstance(self.url, str) else None,
+                url_map=self.url if isinstance(self.url, dict) else None,
+                map_type=self.map_type.name if hasattr(self, "map_type") and self.map_type is not None else None,
+                volume_type=self.volume_type,
+            ),
+            **super_model.dict(),
+        )
 
 
 class ImageProvider(ABC):
@@ -194,7 +237,7 @@ class LocalNiftiVolume(ImageProvider):
             self.image = nib.Nifti1Image(
                 np.nan_to_num(self.image.get_fdata()), self.image.affine
             )
-        self.space = space
+        self.space = space if isinstance(space, Space) else Space.REGISTRY[space]
 
     def fetch(self, **kwargs):
         return self.image
@@ -204,6 +247,10 @@ class LocalNiftiVolume(ImageProvider):
 
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
+
+    @property
+    def is_volume(self):
+        return True
 
 
 class RemoteNiftiVolume(ImageProvider, VolumeSrc, volume_type="nii"):
@@ -459,9 +506,16 @@ class NeuroglancerScale:
         affine[:3, :] /= 1e6
         return affine
 
-    def _chunk_of_point(self, xyz):
+    def _point_to_lower_chunk_idx(self, xyz):
         return (
             np.floor((np.array(xyz) - self.voxel_offset) / self.chunk_sizes)
+            .astype("int")
+            .ravel()
+        )
+    
+    def _point_to_upper_chunk_idx(self, xyz):
+        return (
+            np.ceil((np.array(xyz) - self.voxel_offset) / self.chunk_sizes)
             .astype("int")
             .ravel()
         )
@@ -502,8 +556,8 @@ class NeuroglancerScale:
                 bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1
 
         # extract minimum and maximum the chunk indices to be loaded
-        gx0, gy0, gz0 = self._chunk_of_point(tuple(bbox_.minpoint))
-        gx1, gy1, gz1 = self._chunk_of_point(tuple(bbox_.maxpoint)) + 1
+        gx0, gy0, gz0 = self._point_to_lower_chunk_idx(tuple(bbox_.minpoint))
+        gx1, gy1, gz1 = self._point_to_upper_chunk_idx(tuple(bbox_.maxpoint))
 
         # create requested data volume, and fill it with the required chunk data
         shape_zyx = np.array([gz1 - gz0, gy1 - gy0, gx1 - gx0]) * self.chunk_sizes[::-1]

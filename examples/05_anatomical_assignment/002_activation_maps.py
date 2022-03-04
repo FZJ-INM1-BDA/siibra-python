@@ -49,8 +49,8 @@ img = image.math_img(
     im1 = image.threshold_img(difumo_maps.fetch(15), 0.0003),
     im2 = image.threshold_img(difumo_maps.fetch(44), 0.0003)
 )
-region1 = difumo_maps.decode_label(15)
-region2 = difumo_maps.decode_label(44)
+region1 = difumo_maps.decode_index(15)
+region2 = difumo_maps.decode_index(44)
 
 # let's look at the resulting image
 from nilearn import plotting

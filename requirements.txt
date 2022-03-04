@@ -10,3 +10,4 @@ memoization
 nilearn
 simple-term-menu
 pandas
+pydantic==1.8.2

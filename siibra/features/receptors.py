@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic import Field
 from .feature import RegionalFeature
 from .query import FeatureQuery
-
 from ..commons import logger
 from ..retrieval.requests import EbrainsKgQuery, HttpRequest
-from ..core.datasets import EbrainsDataset
+from ..core.datasets import EbrainsDataset, DatasetJsonModel, ConfigBaseModel
+from ..core.serializable_concept import NpArrayDataModel
 
+
+from typing import Dict, Optional
 import PIL.Image as Image
 import numpy as np
 from io import BytesIO
@@ -291,6 +294,48 @@ class DensityProfile:
 Density = namedtuple("Density", "name, mean, std, unit")
 
 
+class FingerPrintDataModel(ConfigBaseModel):
+    mean: float
+    std: float
+    unit: str
+
+
+class ProfileDataModel(ConfigBaseModel):
+    density: NpArrayDataModel
+    unit: str
+
+
+class AutoradiographyDataModel(NpArrayDataModel):
+    pass
+
+
+class ReceptorMarkupModel(ConfigBaseModel):
+    latex: str
+    markdown: str
+    name: str
+
+
+class NeurotransmitterMarkupModel(ReceptorMarkupModel):
+    label: str
+
+
+class SymbolMarkupClass(ConfigBaseModel):
+    receptor: ReceptorMarkupModel
+    neurotransmitter: NeurotransmitterMarkupModel
+
+
+class ReceptorDataModel(ConfigBaseModel):
+    autoradiographs: Dict[str, AutoradiographyDataModel]
+    profiles: Dict[str, ProfileDataModel]
+    fingerprints: Dict[str, FingerPrintDataModel]
+    receptor_symbols: Dict[str, SymbolMarkupClass]
+
+
+class ReceptorDatasetModel(DatasetJsonModel):
+    data: Optional[ReceptorDataModel]
+    type: str = Field("siibra/receptor", const=True)
+
+
 class DensityFingerprint:
 
     unit = None
@@ -361,7 +406,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     def __init__(self, region, kg_result, **kwargs):
 
         RegionalFeature.__init__(self, region, **kwargs)
-        EbrainsDataset.__init__(self, kg_result["identifier"], kg_result["name"])
+        EbrainsDataset.__init__(self, kg_result["@id"], kg_result["name"])
 
         self.info = kg_result["description"]
         self.url = "https://search.kg.ebrains.eu/instances/Dataset/{}".format(self.id)
@@ -399,7 +444,9 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         self._autoradiograph_loaders = {}
 
         def img_from_bytes(b):
-            return np.array(Image.open(BytesIO(b)))
+            # PIL is column major but numpy is row major
+            # see https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
+            return np.transpose(np.array(Image.open(BytesIO(b))), axes=[1,0,2])
 
         for url in urls_matching(".*_ar[._]"):
             rtype, basename = url.split("/")[-2:]
@@ -410,6 +457,43 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                     f"More than one autoradiograph for '{rtype}' in {self.url}"
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
+
+    @property
+    def model_id(self):
+        return super().model_id
+
+    def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
+        base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
+        base_dict["type"] = "siibra/receptor"
+        if not detail:
+            return ReceptorDatasetModel(
+                **base_dict,
+                data=None,
+            )
+
+        data_model=ReceptorDataModel(
+            autoradiographs={
+                key: AutoradiographyDataModel(autoradiograph)
+                for key, autoradiograph in self.autoradiographs.items()},
+            profiles={
+                key: ProfileDataModel(
+                    density=NpArrayDataModel(np.array([val for val in profile.densities.values()], dtype="float32")),
+                    unit=profile.unit
+                ) for key, profile in self.profiles.items()
+            },
+            fingerprints={
+                key: FingerPrintDataModel(
+                    mean=mean,
+                    std=std,
+                    unit=self.fingerprint.unit
+                ) for key, mean, std in zip(self.fingerprint.labels, self.fingerprint.meanvals, self.fingerprint.stdvals)
+            },
+            receptor_symbols=RECEPTOR_SYMBOLS
+        )
+        return ReceptorDatasetModel(
+            **base_dict,
+            data=data_model
+        )
 
     @property
     def fingerprint(self):
