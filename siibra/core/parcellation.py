@@ -28,7 +28,7 @@ from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
 from ..openminds.base import ConfigBaseModel
 
 from datetime import date
-from typing import List, Set, Union
+from typing import List, Optional, Set, Union
 from memoization import cached
 from difflib import SequenceMatcher
 from pydantic import Field
@@ -47,6 +47,7 @@ class SiibraParcellationModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
     name: str
+    modality: Optional[str]
     datasets: List[DatasetJsonModel]
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
     
@@ -525,7 +526,7 @@ class Parcellation(
         return result
 
     def get_brain_atlas_version_id(self, space: Space) -> str:
-        return f"{self.id}/{space.to_model().id}"
+        return f"{self.id}/{space.model_id}"
 
     def get_brain_atlas_version_name(self, space: Space) -> str:
         return f"{self.name} in {space.to_model().full_name}"
@@ -539,6 +540,7 @@ class Parcellation(
             id=self.model_id,
             type=SIIBRA_PARCELLATION_MODEL_TYPE,
             name=self.name,
+            modality=self.modality,
             datasets=[ds.to_model() for ds in self.datasets if isinstance(ds, OriginDescription) or isinstance(ds, EbrainsDataset)],
             brain_atlas_versions=[BrainAtlasVersionModel(
                 id=self.get_brain_atlas_version_id(spc),
