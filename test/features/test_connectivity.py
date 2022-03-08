@@ -35,7 +35,7 @@ queries_features_tuple = (
 def test_conn_to_model(conn_feat):
     model = None
     try:
-        model = conn_feat.to_model()
+        model = conn_feat.to_model(detail=True)
     except Exception as err:
         pytest.xfail(str(err))
     if model:
