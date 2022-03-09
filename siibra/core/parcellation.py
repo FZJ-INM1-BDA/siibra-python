@@ -25,7 +25,7 @@ from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
     Model as BrainAtlasVersionModel,
     HasTerminologyVersion,
 )
-from ..openminds.base import ConfigBaseModel
+from ..openminds.base import ConfigBaseModel, SiibraAtIdModel
 
 from datetime import date
 from typing import List, Optional, Set, Union
@@ -43,6 +43,13 @@ class AtlasType:
     PROBABILISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
 
 
+class SiibraParcellationVersionModel(ConfigBaseModel):
+    name: str
+    deprecated: Optional[bool]
+    prev: Optional[SiibraAtIdModel]
+    next: Optional[SiibraAtIdModel]
+
+
 class SiibraParcellationModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
@@ -50,6 +57,7 @@ class SiibraParcellationModel(ConfigBaseModel):
     modality: Optional[str]
     datasets: List[DatasetJsonModel]
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
+    version: Optional[SiibraParcellationVersionModel]
     
 
 # NOTE : such code could be used to automatically resolve
@@ -62,7 +70,7 @@ class SiibraParcellationModel(ConfigBaseModel):
 #                    pass
 
 
-class ParcellationVersion:
+class ParcellationVersion(JSONSerializable):
     def __init__(
         self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False
     ):
@@ -132,6 +140,24 @@ class ParcellationVersion:
             prev_id=obj.get("@prev", None),
             next_id=obj.get("@next", None),
             deprecated=obj.get("deprecated", False),
+        )
+    
+    @property
+    def model_id(self):
+        return self.name
+
+    def to_model(self, **kwargs) -> SiibraParcellationVersionModel:
+        assert self.prev is None or isinstance(self.prev, Parcellation), f"parcellationVersion to_model failed. expected .prev, if defined, to be instance of Parcellation, but is {self.prev.__class__} instead"
+        assert self.next is None or isinstance(self.next, Parcellation), f"parcellationVersion to_model failed. expected .next, if defined, to be instance of Parcellation, but is {self.next.__class__} instead"
+        return SiibraParcellationVersionModel(
+            name=self.name,
+            deprecated=self.deprecated,
+            prev=SiibraAtIdModel(
+                id=self.prev.model_id
+            ) if self.prev is not None else None,
+            next=SiibraAtIdModel(
+                id=self.next.model_id
+            ) if self.next is not None else None,
         )
 
 
@@ -575,5 +601,6 @@ class Parcellation(
                 short_name=self.name[:30],
                 version_identifier=f"{self.version} in {spc.to_model().full_name}",
                 version_innovation="",
-            ) for spc in self.supported_spaces]
+            ) for spc in self.supported_spaces],
+            version=self.version.to_model(**kwargs) if self.version is not None else None
         )
