@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic import Field
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -28,6 +29,7 @@ from typing import List
 
 
 class VOIDataModel(DatasetJsonModel):
+    type: str = Field('siibra/features/voi', const=True)
     volumes: List[VolumeModel]
     location: BoundingBoxModel
 

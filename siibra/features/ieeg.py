@@ -41,6 +41,7 @@ class IEEGElectrodeModel(ConfigBaseModel):
 
 class IEEGSessionModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
+    type: str = Field('siibra/features/ieegSession', const=True)
     dataset: DatasetJsonModel
     sub_id: str
     electrodes: Dict[str, IEEGElectrodeModel]
