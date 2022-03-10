@@ -129,6 +129,16 @@ class FeatureQuery(ABC):
             return result
 
     @classmethod
+    def get_feature_by_id(cls, feature_id):
+        querytypes = sum(FeatureQuery._implementations.values(), [])
+        for querytype in querytypes:
+            for feature in querytype().features:
+                if hasattr(feature, 'id'):
+                    if feature.id == feature_id:
+                        return feature
+        return None
+
+    @classmethod
     def get_modalities(cls):
         return TypedRegistry[str](
             elements={
