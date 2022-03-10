@@ -333,7 +333,7 @@ class ReceptorDataModel(ConfigBaseModel):
 
 class ReceptorDatasetModel(DatasetJsonModel):
     data: Optional[ReceptorDataModel]
-    type: str = Field("siibra/receptor", const=True)
+    type: str = Field("siibra/features/receptor", const=True)
 
 
 class DensityFingerprint:
@@ -464,7 +464,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
 
     def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
-        base_dict["type"] = "siibra/receptor"
+        base_dict["type"] = "siibra/features/receptor"
         if not detail:
             return ReceptorDatasetModel(
                 **base_dict,
