@@ -878,7 +878,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                     if parcvol.volume_type == "neuroglancer/precomputed"
                     and parcvol.space is space]
                 map_idx = self.index.map
-                if map_idx is not None:
+                if map_idx is None:
+                    assert len(ng_parc_volumes) == 1, f"if region.index.map is None, expecting only one neuroglancer map, but got {len(ng_parc_volumes)}"
+                    pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[0])
+                else:
                     pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[map_idx])
             except IndexError:
                 pass

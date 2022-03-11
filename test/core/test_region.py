@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 import pytest
+import re
 
 from siibra import parcellations, spaces, retrieval
 from siibra.core.region import Region
@@ -160,6 +161,20 @@ def test_detail_region(parc_spec,region_spec,space_spec,expect_raise):
     assert model.has_parent is not None
     assert model.has_annotation is not None
     assert model.has_annotation.best_view_point is not None
+
+has_inspired_by = [
+    ("julich 2.9", "hoc1 left", "mni152"),
+    ("long bundle", "Left short cingulate fibres", "mni152")
+]
+
+@pytest.mark.parametrize('parc_spec, region_spec, space_spec', has_inspired_by)
+def test_has_inspired_by(parc_spec, region_spec, space_spec):
+    p = siibra.parcellations[parc_spec]
+    r = p.decode_region(region_spec)
+    model = r.to_model(space=siibra.spaces[space_spec])
+    assert model.has_annotation.visualized_in is not None, f"expecting has_annotation.visualized_in is defined"
+    assert re.match(r"^precomputed:\/\/", model.has_annotation.visualized_in["@id"]), f"expecting has_annotation.visualized_in starts with precomputed://"
+
 
 if __name__ == "__main__":
     unittest.main()
