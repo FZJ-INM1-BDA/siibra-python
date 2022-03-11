@@ -28,7 +28,7 @@ queries_tuple = (
 queries_features_tuple = (
     feat
     for Query in queries_tuple
-    for feat in Query().features
+    for feat in Query().features[:10]
 )
 
 @pytest.mark.parametrize('conn_feat', queries_features_tuple)
