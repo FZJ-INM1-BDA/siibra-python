@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from pydantic import Field
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -28,6 +29,7 @@ from typing import List
 
 
 class VOIDataModel(DatasetJsonModel):
+    type: str = Field('siibra/features/voi', const=True)
     volumes: List[VolumeModel]
     location: BoundingBoxModel
 
@@ -73,10 +75,12 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
 
     def to_model(self, **kwargs) -> VOIDataModel:
         super_model = super().to_model(**kwargs)
+        super_model_dict = super_model.dict()
+        super_model_dict["type"] = "siibra/features/voi"
         return VOIDataModel(
             location=self.location.to_model(**kwargs),
             volumes=[vol.to_model(**kwargs) for vol in self.volumes],
-            **super_model.dict()
+            **super_model_dict,
         )
 
 

@@ -31,7 +31,7 @@ from pydantic import Field
 
 class ConnectivityMatrixDataModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field("siibra/connectivity", const=True)
+    type: str = Field("siibra/features/connectivity", const=True)
     name: str
     parcellations: List[Dict[str, str]]
     matrix: Optional[NpArrayDataModel]
