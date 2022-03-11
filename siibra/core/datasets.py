@@ -31,7 +31,7 @@ class Url(ConfigBaseModel):
 
 class DatasetJsonModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field("siibra/base-dataset", const=True)
+    type: str = Field("siibra/core/dataset", const=True)
     metadata: DatasetVersionModel
     urls: List[Url]
 
