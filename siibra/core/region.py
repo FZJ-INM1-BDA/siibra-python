@@ -877,9 +877,21 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                     for parcvol in parc_volumes
                     if parcvol.volume_type == "neuroglancer/precomputed"
                     and parcvol.space is space]
-                map_idx = self.index.map
-                if map_idx is not None:
-                    pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[map_idx])
+
+                # self.index.label can sometimes be None. e.g. "basal forebrain"
+                # in such a case, do not populate visualized in
+                if self.index.label is not None:
+
+                    # self.index.map can sometimes be None, but label is defined
+                    if self.index.map is None:
+
+                        # In rare instances, e.g. julich brain 2.9, "Ch 123 (Basal Forebrain)"
+                        # self.index.map is undefined (expect a single volume?)
+                        # but there exist multiple volumes (in the example, one for left/ one for right hemisphere)
+                        if len(ng_parc_volumes) == 1:
+                            pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[0])
+                    else:
+                        pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[self.index.map])
             except IndexError:
                 pass
                 
