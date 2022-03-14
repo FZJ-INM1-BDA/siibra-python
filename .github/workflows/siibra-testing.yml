@@ -3,7 +3,7 @@ name: '[test] unit test'
 on: [push]
 jobs:
   tests:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
@@ -12,7 +12,6 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.8', '3.7', '3.6' ]
-        os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v2
