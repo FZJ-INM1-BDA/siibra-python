@@ -25,11 +25,6 @@ jobs:
         python -m pip install -U .
         pip install flake8 pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" == *"feat"* ]]
-        then
-          export FAST_RUN=1
-        fi
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -39,7 +34,13 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
-      run: pytest -rx
+      run: |
+        echo "Using github.ref: $GITHUB_REF"
+        if [[ "$GITHUB_REF" == *"feat"* ]]
+        then
+          export FAST_RUN=1
+        fi
+        pytest -rx
 
   coverage:
     runs-on: ubuntu-latest
