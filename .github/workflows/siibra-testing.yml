@@ -63,7 +63,13 @@ jobs:
         pip install pytest pytest-cov coverage
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Generate coverage
-      run: pytest --cov=siibra --cov-report=xml
+      run: |
+        echo "Using github.ref: $GITHUB_REF"
+        if [[ "$GITHUB_REF" == *"feat"* ]]
+        then
+          export FAST_RUN=1
+        fi
+        pytest --cov=siibra --cov-report=xml
     - name: Upload coverage report to codecov
       uses: codecov/codecov-action@v2
       with:
