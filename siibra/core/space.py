@@ -35,7 +35,10 @@ import json
 from urllib.parse import quote
 from os import path
 import numbers
-
+import ebrains_drive
+import os
+from io import StringIO
+from uuid import uuid1, UUID
 
 class UnitOfMeasurement:
     MILLIMETER="https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
@@ -378,7 +381,7 @@ class Point(Location, JSONSerializable):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
-    def __init__(self, coordinatespec, space: Space, sigma_mm: float = 0.0):
+    def __init__(self, coordinatespec=None, space: Space = None, sigma_mm: float = 0.0, token=None, drive_id=None):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -391,7 +394,18 @@ class Point(Location, JSONSerializable):
         sigma_mm : float
             Optional location uncertainy of the point
             (will be intrepreded as the isotropic standard deviation of the location)
+        drive_id : string
+            Optional id to load poinstset from ebrains drive
         """
+
+        self.token = token
+        self.drive_id = drive_id
+        self.drive_file = None
+
+        if drive_id:
+            self.fetch(drive_id)
+            return
+
         Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
         self.sigma = sigma_mm
@@ -589,6 +603,30 @@ class Point(Location, JSONSerializable):
             space=Space.REGISTRY[space_id],
         )
 
+    def to_sands(self):
+        return {
+            '@id': self.drive_id if self.drive_id else uuid1(),
+            '@type': 'https://openminds.ebrains.eu/sands/CoordinatePoint',
+            'coordinateSpace': {
+                '@id': self.space.id
+            },
+            'coordinates': [self._get_coord(self.coordinate[0]),
+                            self._get_coord(self.coordinate[1]),
+                            self._get_coord(self.coordinate[2])]
+        }
+
+    @staticmethod
+    def _get_coord(value):
+        coord = {
+            '@id': uuid1(),
+            '@type': 'https://openminds.ebrains.eu/core/QuantitativeValue',
+            'value': value,
+            'unit': {
+                '@id': 'id.link/mm'
+            }
+        }
+        return coord
+
     def bigbrain_section(self):
         """
         Estimate the histological section number of BigBraing
@@ -632,11 +670,36 @@ class Point(Location, JSONSerializable):
                 for coord in self]
         )
 
+    def fetch(self, drive_id):
+        self.drive_id = drive_id
+        self.drive_file = DriveFile(drive_id=drive_id, token=self.token)
+
+        drive_data = self.drive_file.load()
+        point = self.from_sands(drive_data)
+        self.space = point.space
+        self.coordinate = point.coordinate
+        self.sigma = point.sigma
+        Location.__init__(self, self.space)
+
+    def store(self, name=None):
+        if not self.drive_file:
+            self.drive_file = DriveFile(token=self.token)
+        self.drive_file.save(obj=self.to_sands(), name=name)
+
+
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, UUID):
+            return obj.hex
+        return json.JSONEncoder.default(self, obj)
+
+
 class PointSet(Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space: Space, sigma_mm=0):
+
+    def __init__(self, coordinates=None, space: Space=None, sigma_mm=0, token=None, drive_id=None):
         """
         Construct a 3D point set in the given reference space.
 
@@ -648,7 +711,21 @@ class PointSet(Location):
             The reference space
         sigma_mm : float, or list of float
             Optional standard deviation of point locations.
+        drive_id : string
+            Optional id to load poinstset from ebrains drive
         """
+
+        self.token = token
+        self.drive_id = drive_id
+        self.drive_file = None
+
+        # ToDo how to fetch from drive ...?
+        self.sigma_mm = sigma_mm
+
+        if drive_id:
+            self.fetch(drive_id)
+            return
+
         Location.__init__(self, space)
         if isinstance(sigma_mm, numbers.Number):
             self.coordinates = [Point(c, space, sigma_mm) for c in coordinates]
@@ -757,6 +834,73 @@ class PointSet(Location):
         # build the Point
         return cls(coords, space=Space.REGISTRY[space_id])
 
+    def to_sands(self, file_type):
+        if file_type == "tmp/line":
+            return {
+                '@id': self.drive_id if self.drive_id else uuid1(),
+                '@type': file_type,
+                'coordinateSpace': {
+                    '@id': self.space.id
+                },
+                'coordinatesFrom': [self._get_coord(self.coordinates[0][0]),
+                                    self._get_coord(self.coordinates[0][1]),
+                                    self._get_coord(self.coordinates[0][2])],
+                'coordinatesTo': [self._get_coord(self.coordinates[1][0]),
+                                  self._get_coord(self.coordinates[1][1]),
+                                  self._get_coord(self.coordinates[1][2])],
+            }
+        elif file_type == 'tmp/poly':
+            return {
+                '@id': self.drive_id if self.drive_id else uuid1(),
+                '@type': file_type,
+                'coordinateSpace': {
+                    '@id': self.space.id
+                },
+                'coordinates': [[self._get_coord(coord[0]),
+                                 self._get_coord(coord[1]),
+                                 self._get_coord(coord[2])] for coord in self.coordinates]
+            }
+
+    @staticmethod
+    def _get_coord(value):
+        coord = {
+            '@id': uuid1(),
+            '@type': 'https://openminds.ebrains.eu/core/QuantitativeValue',
+            'value': value,
+            'unit': {
+                '@id': 'id.link/mm'
+            }
+        }
+        return coord
+
+    def fetch(self, drive_id):
+        self.drive_id = drive_id
+        self.drive_file = DriveFile(drive_id=drive_id, token=self.token)
+
+        drive_data = self.drive_file.load()
+        data = self.from_sands(drive_data)
+        Location.__init__(self, data.space)
+
+        # ToDo load sigma_mm from drive ...?
+        if isinstance(self.sigma_mm, numbers.Number):
+            self.coordinates = [Point(c, data.space, self.sigma_mm) for c in data.coordinates]
+        else:
+            self.coordinates = [
+                Point(c, data.space, s) for c, s in zip(data.coordinates, self.sigma_mm)
+            ]
+
+    def store(self, name=None, file_type='tmp/poly'):
+        if file_type == 'line':
+            file_type = 'tmp/line'
+        if not self.drive_file:
+            self.drive_file = DriveFile(token=self.token)
+        name = name if name \
+            else self.drive_file.file_name if self.drive_file.file_name \
+            else "Unnamed line" if file_type == 'tmp/line' \
+            else "Unnamed poly" if file_type == 'tmp/poly' \
+            else "Unnamed"
+        self.drive_file.save(obj=self.to_sands(file_type), name=name),
+
     @property
     def boundingbox(self):
         """Return the bounding box of these points.
@@ -789,6 +933,101 @@ class PointSet(Location):
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
         return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
+
+
+class DriveFile:
+    drive_directory = 'Siibra annotations'
+    drive_connected = False
+    file_type = None
+    repo_obj = None
+    drive_dir = None
+    file_name = None
+
+    def __init__(self, token=None, drive_id=None, file_type=None, file_name=None):
+        self.token = token
+        self.drive_id = drive_id
+        self.file_type = file_type
+        self.file_name = file_name
+
+        self.connect_drive()
+
+    def connect_drive(self):
+        if not self.token:
+            self.token = input('Please enter the token to access collab drive: ')
+
+        client = ebrains_drive.connect(token=self.token)
+        list_repos = client.repos.list_repos()
+        self.repo_obj = client.repos.get_repo(list_repos[0].id)
+
+        root_dir = self.repo_obj.get_dir('/')
+        if not root_dir.check_exists(self.drive_directory):
+            root_dir.mkdir(self.drive_directory)
+
+        self.drive_dir = self.repo_obj.get_dir(f'/{self.drive_directory}')
+        self.drive_connected = True
+
+    def load(self, file_id=None):
+        """Load annotations from ebrains drive
+        """
+        if self.drive_connected is False:
+            self.connect_drive()
+
+        if not file_id:
+            if not self.drive_id:
+                return
+            file_id = self.drive_id
+
+        stored_files = [f for f in self.drive_dir.ls()
+                        if isinstance(f, ebrains_drive.files.SeafFile)]
+
+        if not stored_files:
+            return
+
+        for file in stored_files:
+            file = self.repo_obj.get_file(file.path)
+            obj = json.loads(file.get_content())
+            if obj['@id'] == file_id:
+                self.file_name = os.path.splitext(file.name)[0]
+                return obj
+                
+    def save(self, obj, name=None):
+        if not self.drive_connected:
+            self.connect_drive()
+
+        if self.drive_id and self.file_name and (not name or self.file_name == name):
+            self.remove_from_drive()
+
+        if name:
+            self.file_name = name
+
+        if not self.file_name:
+            self.file_name = 'Unnamed'
+
+        annotation_file = StringIO(json.dumps(obj, indent=4, sort_keys=True, cls=UUIDEncoder))
+        self.drive_dir.upload(annotation_file, f'{self.file_name}.json')
+
+
+    """Remove file from ebrains drive
+    anno_id : str
+        Id of the file
+    """
+    def remove_from_drive(self):
+
+        if self.drive_connected is False:
+            self.connect_drive()
+
+        if not self.drive_id:
+            return
+        else:
+            anno_files = [anno for anno in self.drive_dir.ls()
+                          if isinstance(anno, ebrains_drive.files.SeafFile)]
+
+            for file in anno_files:
+                stored_file = self.repo_obj.get_file(file.path)
+                file_id = json.loads(stored_file.get_content())['@id']
+                if file_id == self.drive_id:
+                    stored_file.delete()
+                    break
 
 
 class BoundingBoxModel(LocationModel):
