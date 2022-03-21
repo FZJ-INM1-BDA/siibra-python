@@ -35,6 +35,7 @@ import json
 from urllib.parse import quote
 from os import path
 import numbers
+from uuid import uuid1
 
 
 class UnitOfMeasurement:
@@ -742,7 +743,7 @@ class PointSet(Location):
                 f"Cannot read openMINDS/SANDS info from {type(spec)} types."
             )
 
-        assert obj["@type"] == "tmp/poly"
+        assert obj["@type"] == "tmp/poly" or obj["@type"] == "tmp/line"
 
         # require space spec
         space_id = obj["coordinateSpace"]["@id"]
@@ -750,9 +751,15 @@ class PointSet(Location):
 
         # require mulitple 3D point specs
         coords = []
-        for coord in obj["coordinates"]:
-            assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
-            coords.append(list(np.float16(c["value"]) for c in coord))
+        if obj["@type"] == "tmp/poly":
+            for coord in obj["coordinates"]:
+                assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
+                coords.append(list(np.float16(c["value"]) for c in coord))
+        if obj["@type"] == "tmp/line":
+            assert all(c["unit"]["@id"] == "id.link/mm" for c in obj['coordinatesFrom'])
+            assert all(c["unit"]["@id"] == "id.link/mm" for c in obj['coordinatesTo'])
+            coords.append(list(np.float16(c["value"]) for c in obj['coordinatesFrom']))
+            coords.append(list(np.float16(c["value"]) for c in obj['coordinatesTo']))
 
         # build the Point
         return cls(coords, space=Space.REGISTRY[space_id])
