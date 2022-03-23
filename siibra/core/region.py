@@ -853,16 +853,58 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 return {
                     "@id": vol.url
                 }
+            
+            """
+            TODO
+            It is not exactly clear, given space, if or not self.index is relevant.
+            for e.g.
+
+            ```python
+            import siibra
+            p = siibra.parcellations['2.9']
+            
+            fp1 = p.decode_region('fp1')
+            fp1_left = p.decode_region('fp1 left')
+            print(fp1.index) # prints (None/212)
+            print(fp1_left.index) # prints (0/212)
+
+            hoc1 = p.decode_region('hoc1')
+            hoc1_left = p.decode_region('hoc1 left')
+            print(hoc1.index) # prints (None/8)
+            print(hoc1_left.index) # prints (0/8)
+            ```
+
+            The only way (without getting the whole map), that I can think of, is:
+            
+            ```python
+            volumes_in_correct_space = [v for v in [*parcellation.volumes, *self.volumes] if v.space is space]
+            if (
+                (len(volumes_in_correct_space) == 1 and self.index.map is None)
+                or (len(volumes_in_correct_space) > 1 and self.index.map is not None)
+            ):
+                pass # label_index is relevant
+            ```
+            """
+
+            self_volumes = [vol for vol in self.volumes if vol.space is space]
+            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
+
+            len_vol_in_space = len(self_volumes) + len(parc_volumes)
+            internal_identifier = "unknown"
+            if (
+                (len_vol_in_space == 1 and self.index.map is None)
+                or (len_vol_in_space > 1 and self.index.map is not None)
+            ):
+                internal_identifier = self.index.label or "unknown"
+
             pev.has_annotation = HasAnnotation(
-                internal_identifier=self.index.label or "unknown",
+                internal_identifier=internal_identifier,
                 criteria_quality_type={
                     # TODO check criteriaQualityType
                     "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
                 },
                 display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
             )
-            self_volumes = [vol for vol in self.volumes if vol.space is space]
-            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
             # seems to be the only way to convey link between PEV and dataset
             ebrains_ds = [{ "@id": "https://doi.org/{}".format(url.get("doi")) }
                 for ds in self.datasets

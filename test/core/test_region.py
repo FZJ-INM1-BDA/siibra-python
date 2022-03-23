@@ -175,6 +175,22 @@ def test_has_inspired_by(parc_spec, region_spec, space_spec):
     assert model.has_annotation.visualized_in is not None, f"expecting has_annotation.visualized_in is defined"
     assert re.match(r"^precomputed:\/\/", model.has_annotation.visualized_in["@id"]), f"expecting has_annotation.visualized_in starts with precomputed://"
 
+has_internal_identifier = [
+    ('julich 2.9', "hoc1", "big brain", True),
+    ('julich 2.9', "hoc1", "mni152", False),
+    ('julich 2.9', "hoc1 left", "mni152", True),
+
+    ('julich 2.9', "fp1", "big brain", False),
+    ('julich 2.9', "fp1", "mni152", False),
+    ('julich 2.9', "fp1 left", "mni152", True),
+]
+@pytest.mark.parametrize('parc_spec, region_spec, space_spec, expect_id_defined', has_internal_identifier)
+def test_has_inspired_by(parc_spec, region_spec, space_spec, expect_id_defined):
+    p = siibra.parcellations[parc_spec]
+    r = p.decode_region(region_spec)
+    model = r.to_model(space=siibra.spaces[space_spec])
+    assert model.has_annotation.internal_identifier is not None, f"expecting has_annotation.internal_identifier is defined"
+    assert (model.has_annotation.internal_identifier != "unknown") == expect_id_defined, f"expect_id_defined: {expect_id_defined}, but id: {model.has_annotation.internal_identifier}"
 
 if __name__ == "__main__":
     unittest.main()
