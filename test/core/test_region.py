@@ -183,6 +183,9 @@ has_internal_identifier = [
     ('julich 2.9', "fp1", "big brain", False),
     ('julich 2.9', "fp1", "mni152", False),
     ('julich 2.9', "fp1 left", "mni152", True),
+
+    ('difumo 64', "cuneus", "mni152", True),
+    ('Short Fiber Bundles - HCP', "rh_Tr-Tr_1", "mni152", True),
 ]
 @pytest.mark.parametrize('parc_spec, region_spec, space_spec, expect_id_defined', has_internal_identifier)
 def test_has_inspired_by(parc_spec, region_spec, space_spec, expect_id_defined):

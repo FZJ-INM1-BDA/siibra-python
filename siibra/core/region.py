@@ -841,7 +841,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         )
 
         from .. import parcellations
-        from ..volumes import VolumeSrc
+        from ..volumes import VolumeSrc, NeuroglancerVolume
         from .datasets import EbrainsDataset
 
         if space is not None:
@@ -884,12 +884,16 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ):
                 pass # label_index is relevant
             ```
+
+            addendum:
+            In parcellations such as difumo, both nifti & neuroglancer volumes will be present.
+            As a result, parc_volumes are filtered for NeuroglancerVolume.
             """
 
             self_volumes = [vol for vol in self.volumes if vol.space is space]
             parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
 
-            len_vol_in_space = len(self_volumes) + len(parc_volumes)
+            len_vol_in_space = len([v for v in [*self_volumes, *parc_volumes] if isinstance(v, NeuroglancerVolume)])
             internal_identifier = "unknown"
             if (
                 (len_vol_in_space == 1 and self.index.map is None)

@@ -368,7 +368,7 @@ class NeuroglancerVolume(
     @map_type.setter
     def map_type(self, val):
         if val is not None:
-            logger.warn(f"NeuroglancerVolume can determine its own maptype from self._io.info.get('type')")
+            logger.debug(f"NeuroglancerVolume can determine its own maptype from self._io.info.get('type')")
 
     def _bootstrap(self):
         accessor = get_accessor_for_url(self.url)
