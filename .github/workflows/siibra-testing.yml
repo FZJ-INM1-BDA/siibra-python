@@ -36,7 +36,7 @@ jobs:
     - name: Run test with pytest
       run: |
         echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" != *"main"* ]]
+        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
         then
           export FAST_RUN=1
         fi
