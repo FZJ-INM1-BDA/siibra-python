@@ -148,10 +148,12 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             detail=detail,
             **kwargs,
         )
-        # result.volume_type = obj.get('volume_type',None)
-        maptype = obj.get("map_type", None)
-        if maptype is not None:
-            result.map_type = MapType[maptype.upper()]
+        
+        # only populate map_type if the VolumeClass does not populate the map_type property itself
+        if result.map_type is not None:
+            maptype = obj.get("map_type", None)
+            if maptype is not None:
+                result.map_type = MapType[maptype.upper()]
         return result
 
     @property
@@ -356,6 +358,17 @@ class NeuroglancerVolume(
         self._scales_cached = None
         self._io = None
         self.transform_nm = np.identity(4)
+    
+    @property
+    def map_type(self):
+        if self._io is None:
+            self._bootstrap()
+        return MapType.LABELLED if self._io.info.get("type") == "segmentation" else MapType.CONTINUOUS
+
+    @map_type.setter
+    def map_type(self, val):
+        if val is not None:
+            logger.warn(f"NeuroglancerVolume can determine its own maptype from self._io.info.get('type')")
 
     def _bootstrap(self):
         accessor = get_accessor_for_url(self.url)
