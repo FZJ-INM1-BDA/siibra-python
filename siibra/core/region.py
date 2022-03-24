@@ -812,7 +812,11 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         import hashlib
         def get_unique_id(id):
             return hashlib.md5(id.encode("utf-8")).hexdigest()
-        return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}"
+        # there exists several instances where same region, with same sub region exist in jba2.9
+        # (e.g. ch123)
+        # this is so that these regions can be distinguished from each other (ie decend from magnocellular group within septum or magnocellular group within horizontal limb of diagnoal band)
+        # if not distinguished, one cannot uniquely identify the parent with parent_id
+        return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id + str(self.parent or 'None') + str(self.children))}"
 
     def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
         if detail:
@@ -827,8 +831,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             id=self.model_id,
             type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
             has_parent=[{
-                '@id': self.parent.to_model(detail=False).id
-            }] if (detail and self.parent is not None) else None,
+                '@id': self.parent.model_id
+            }] if (self.parent is not None) else None,
             name=self.name,
             ontology_identifier=None,
             relation_assessment=None,
@@ -877,9 +881,21 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                     for parcvol in parc_volumes
                     if parcvol.volume_type == "neuroglancer/precomputed"
                     and parcvol.space is space]
-                map_idx = self.index.map
-                if map_idx is not None:
-                    pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[map_idx])
+
+                # self.index.label can sometimes be None. e.g. "basal forebrain"
+                # in such a case, do not populate visualized in
+                if self.index.label is not None:
+
+                    # self.index.map can sometimes be None, but label is defined
+                    if self.index.map is None:
+
+                        # In rare instances, e.g. julich brain 2.9, "Ch 123 (Basal Forebrain)"
+                        # self.index.map is undefined (expect a single volume?)
+                        # but there exist multiple volumes (in the example, one for left/ one for right hemisphere)
+                        if len(ng_parc_volumes) == 1:
+                            pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[0])
+                    else:
+                        pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[self.index.map])
             except IndexError:
                 pass
                 
