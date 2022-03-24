@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [ '3.8', '3.6' ]
+        python-version: [ '3.8', '3.7', '3.6' ]
 
     steps:
     - uses: actions/checkout@v2
@@ -36,7 +36,7 @@ jobs:
     - name: Run test with pytest
       run: |
         echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" == *"feat"* ]]
+        if [[ "$GITHUB_REF" != *"main"* ]]
         then
           export FAST_RUN=1
         fi
@@ -64,11 +64,7 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Generate coverage
       run: |
-        echo "Using github.ref: $GITHUB_REF"
-        if [[ "$GITHUB_REF" == *"feat"* ]]
-        then
-          export FAST_RUN=1
-        fi
+        export FAST_RUN=1
         pytest --cov=siibra --cov-report=xml
     - name: Upload coverage report to codecov
       uses: codecov/codecov-action@v2
