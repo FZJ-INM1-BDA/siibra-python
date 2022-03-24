@@ -12,6 +12,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [ '3.8', '3.7', '3.6' ]
+
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -33,7 +34,13 @@ jobs:
     - name: Install test dependencies
       run:  pip install pytest pytest-cov coverage
     - name: Run test with pytest
-      run: pytest -rx
+      run: |
+        echo "Using github.ref: $GITHUB_REF"
+        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
+        then
+          export FAST_RUN=1
+        fi
+        pytest -rx
 
   coverage:
     runs-on: ubuntu-latest
@@ -56,7 +63,9 @@ jobs:
         pip install pytest pytest-cov coverage
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Generate coverage
-      run: pytest --cov=siibra --cov-report=xml
+      run: |
+        export FAST_RUN=1
+        pytest --cov=siibra --cov-report=xml
     - name: Upload coverage report to codecov
       uses: codecov/codecov-action@v2
       with:
