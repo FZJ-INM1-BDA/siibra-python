@@ -179,6 +179,7 @@ has_internal_identifier = [
     ('julich 2.9', "hoc1", "big brain", True),
     ('julich 2.9', "hoc1", "mni152", False),
     ('julich 2.9', "hoc1 left", "mni152", True),
+    ('julich 2.9', "hoc1 left", "fsaverage", True),
 
     ('julich 2.9', "fp1", "big brain", False),
     ('julich 2.9', "fp1", "mni152", False),
