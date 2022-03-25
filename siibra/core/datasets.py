@@ -29,9 +29,11 @@ class Url(ConfigBaseModel):
     doi: str
     cite: Optional[str]
 
+DATASET_JSON_MODEL_TYPE = "siibra/core/dataset"
+
 class DatasetJsonModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field("siibra/core/dataset", const=True)
+    type: str = Field(DATASET_JSON_MODEL_TYPE, alias="@type", const=True)
     metadata: DatasetVersionModel
     urls: List[Url]
 
@@ -105,6 +107,10 @@ class Dataset(JSONSerializable):
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
+    @classmethod
+    def get_model_type(Cls):
+        return DATASET_JSON_MODEL_TYPE
+
     @property
     def model_id(self):
         return self.id or hashlib.md5(f"{str(self)}{self.description}".encode("utf-8")).hexdigest()
@@ -146,6 +152,7 @@ class Dataset(JSONSerializable):
         )
         return DatasetJsonModel(
             id=metadata.id,
+            type=self.get_model_type(),
             metadata=metadata,
             urls=[Url(**url) for url in self.urls]
         )

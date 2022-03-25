@@ -41,7 +41,7 @@ class IEEGElectrodeModel(ConfigBaseModel):
 
 class IEEGSessionModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field('siibra/features/ieegSession', const=True)
+    type: str = Field(..., alias="@type")
     dataset: DatasetJsonModel
     sub_id: str
     electrodes: Dict[str, IEEGElectrodeModel]
@@ -130,6 +130,10 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/ieegSession"
+
     @property
     def model_id(self):
         return f"{self.dataset.model_id}:{self.sub_id}"
@@ -138,6 +142,7 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
         dataset = self.dataset.to_model()
         return IEEGSessionModel(
             id=self.model_id,
+            type=self.get_model_type(),
             dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
@@ -183,6 +188,10 @@ class IEEG_Electrode(SpatialFeature, JSONSerializable):
         if len(points) > 0:
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
+
+    @classmethod
+    def get_model_type(Cls):
+        raise AttributeError
 
     @property
     def model_id(self):
@@ -236,6 +245,10 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
             return self.electrode.contact_points[prev_id]
         else:
             return None
+
+    @classmethod
+    def get_model_type(Cls):
+        raise AttributeError
 
     @property
     def model_id(self):

@@ -31,7 +31,7 @@ from pydantic import Field
 
 class ConnectivityMatrixDataModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field("siibra/features/connectivity", const=True)
+    type: str = Field(..., alias="@type")
     name: str
     parcellations: List[Dict[str, str]]
     matrix: Optional[NpArrayDataModel]
@@ -84,6 +84,12 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
+    MODEL_TYPE = "siibra/features/connectivity"
+
+    @classmethod
+    def get_model_type(Cls):
+        return Cls.MODEL_TYPE
+
     @property
     def model_id(self):
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
@@ -92,6 +98,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
+            type=self.get_model_type(),
             name=str(self),
             parcellations=[{
                 "@id": parc.to_model().id,
@@ -132,19 +139,25 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 class StreamlineCounts(ConnectivityMatrix):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
+    MODEL_TYPE = "siibra/features/connectivity/streamlineCounts"
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-
+    
+    MODEL_TYPE = "siibra/features/connectivity/streamlineLengths"
+    
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class FunctionalConnectivity(ConnectivityMatrix):
     """Functional connectivity matrix, grouped by a parcellation."""
+
+    MODEL_TYPE = "siibra/features/connectivity/functional"
 
     def __init__(self, parcellation_id: str, matrixloader, paradigm: str, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
