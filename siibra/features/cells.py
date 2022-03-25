@@ -198,6 +198,10 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         view.add_markers([tuple(self.location)])
         return fig
 
+    @property
+    def model_id(self):
+        return super().model_id
+
     def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
         base_dict["type"] = "siibra/features/cells"
