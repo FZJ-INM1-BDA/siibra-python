@@ -18,16 +18,28 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
+from ..core import Dataset
 from ..core.space import Space, Point
 from ..retrieval.repositories import GitlabConnector, OwncloudConnector
+from ..openminds.base import ConfigBaseModel
 
 import numpy as np
 import os
 import importlib
 import pandas as pd
 import nibabel as nib
+from pydantic import Field
 
-class CorticalCellDistribution(RegionalFeature):
+
+class CorticalCellDistributionModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field('siibra/features/cells', const=True)
+    cells: str
+    section: str
+    patch: str
+
+
+class CorticalCellDistribution(RegionalFeature, Dataset):
     """
     Represents a cortical cell distribution dataset.
     Implements lazy and cached loading of actual data.
@@ -37,6 +49,7 @@ class CorticalCellDistribution(RegionalFeature):
 
         _, section_id, patch_id = folder.split("/")
         RegionalFeature.__init__(self, regionspec, species=species)
+        Dataset.__init__(self, identifier="")
         self.cells = cells
         self.section = section_id
         self.patch = patch_id
@@ -184,6 +197,17 @@ class CorticalCellDistribution(RegionalFeature):
         )
         view.add_markers([tuple(self.location)])
         return fig
+
+    def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:
+        base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
+        base_dict["type"] = "siibra/features/cells"
+        # if not detail:
+        return CorticalCellDistributionModel(
+            **base_dict,
+            cells=self.cells.to_json(),
+            section=self.section,
+            patch=self.patch
+        )
 
 
 class RegionalCellDensityExtractor(FeatureQuery):
