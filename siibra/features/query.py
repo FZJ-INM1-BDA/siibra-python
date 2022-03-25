@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from siibra.core.serializable_concept import JSONSerializable
 from .feature import Feature
 
 from .. import logger
@@ -133,9 +134,8 @@ class FeatureQuery(ABC):
         querytypes = sum(FeatureQuery._implementations.values(), [])
         for querytype in querytypes:
             for feature in querytype().features:
-                if hasattr(feature, 'id'):
-                    if feature.id == feature_id:
-                        return feature
+                if isinstance(feature, JSONSerializable) and feature.model_id == feature_id:
+                    return feature
         return None
 
     @classmethod

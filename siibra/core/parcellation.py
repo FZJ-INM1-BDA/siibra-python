@@ -142,9 +142,13 @@ class ParcellationVersion(JSONSerializable):
             deprecated=obj.get("deprecated", False),
         )
     
+    @classmethod
+    def get_model_type(Cls):
+        return super().get_model_type()
+
     @property
     def model_id(self):
-        return self.name
+        return super().model_id
 
     def to_model(self, **kwargs) -> SiibraParcellationVersionModel:
         assert self.prev is None or isinstance(self.prev, Parcellation), f"parcellationVersion to_model failed. expected .prev, if defined, to be instance of Parcellation, but is {self.prev.__class__} instead"
@@ -556,6 +560,10 @@ class Parcellation(
 
     def get_brain_atlas_version_name(self, space: Space) -> str:
         return f"{self.name} in {space.to_model().full_name}"
+
+    @classmethod
+    def get_model_type(Cls):
+        return SIIBRA_PARCELLATION_MODEL_TYPE
 
     @property
     def model_id(self):

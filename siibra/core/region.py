@@ -804,6 +804,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         return result
 
+    @classmethod
+    def get_model_type(Cls):
+        return OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE
+
     @property
     def model_id(self):
         from .. import parcellations
@@ -829,7 +833,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         
         pev = ParcellationEntityVersionModel(
             id=self.model_id,
-            type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
+            type=self.get_model_type(),
             has_parent=[{
                 '@id': self.parent.model_id
             }] if (self.parent is not None) else None,
@@ -945,7 +949,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             if detail:
                 pev.has_annotation.best_view_point = BestViewPoint(
                     coordinate_space={
-                        "@id": space.to_model().id
+                        "@id": space.model_id
                     },
                     coordinates=[Coordinates(
                         value=pt,
