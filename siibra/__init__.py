@@ -30,7 +30,6 @@ from .retrieval import EbrainsRequest, CACHE
 from .core import Point, PointSet, BoundingBox
 from .core.space import Location as _
 from .core.region import THRESHOLD_CONTINUOUS_MAPS
-from .user import User, EbrainsDrive
 from . import samplers
 from os import environ
 

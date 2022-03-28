@@ -18,7 +18,12 @@ from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
-
+import getpass
+import ebrains_drive
+import json
+import os
+from io import StringIO
+from uuid import UUID
 
 class RepositoryConnector(ABC):
     """
@@ -63,7 +68,7 @@ class RepositoryConnector(ABC):
             return HttpRequest(url, decode_func)
 
     def get_loaders(
-        self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
+            self, folder="", suffix=None, progress=None, recursive=False, decode_func=None
     ):
         """
         Returns an iterator with lazy loaders for the files in a given folder.
@@ -127,7 +132,7 @@ class GitlabConnector(RepositoryConnector):
     def _build_url(self, folder="", filename=None, recursive=False, page=1):
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
         if filename is None:
-            pathstr = "" if len(folder) == 0 else f"&path={quote(folder,safe='')}"
+            pathstr = "" if len(folder) == 0 else f"&path={quote(folder, safe='')}"
             return f"{self.base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
         else:
             pathstr = filename if folder == "" else f"{folder}/{filename}"
@@ -165,11 +170,159 @@ class OwncloudConnector(RepositoryConnector):
         )
 
     def _build_url(self, folder, filename):
-        fpath = "" if folder == "" else f"path={quote(folder,safe='')}&"
+        fpath = "" if folder == "" else f"path={quote(folder, safe='')}&"
         fpath += f"files={quote(filename)}"
         url = f"{self.base_url}/download?{fpath}"
         return url
 
+
+class EbrainsDriveConnector(RepositoryConnector):
+
+    connected = False
+    default_repo = None
+    drive_dir = None
+
+    def __init__(self, folder='Siibra annotations', auth_token=None, username=None, password=None):
+        """
+        :param folder: str (default: 'Siibra annotations')
+            Ebrains drive folder name
+        :param auth_token: str (optional)
+            Auth token should contain Ebrains drive scope
+        :param username: str (optional)
+            Ebrains username
+        :param password: str (optional)
+            Ebrains password
+        """
+        if not auth_token or not (username and password):
+            user_action = input('Kg token or username/password is not defined. \n Press:'
+                                ' \n 1. To input access token \n 2. To input username and password')
+
+            if user_action == '1':
+                auth_token = input('Input access token: \n')
+            elif user_action == '2':
+                username = input('Username: \n')
+                password = getpass.getpass('Password: \n')
+            else:
+                raise Exception('Authentication credentials are mandatory to connect ebrains drive')
+
+        self.folder = folder
+
+        self.connect(auth_token, username, password)
+
+    def connect(self, auth_token=None, username=None, password=None):
+        """
+        :param auth_token: str (optional)
+            Auth token should contain Ebrains drive scope
+        :param username: str (optional)
+            Ebrains username
+        :param password: str (optional)
+            Ebrains password
+        """
+        assert auth_token or (username and password)
+
+        if auth_token:
+            client = ebrains_drive.connect(token=auth_token)
+        if username and password:
+            client = ebrains_drive.connect(username=username, password=password)
+
+        if not client:
+            print('Credentials invalid')
+
+        list_repos = client.repos.list_repos()
+        self.default_repo = client.repos.get_repo(list_repos[0].id)
+
+        root_dir = self.default_repo.get_dir('/')
+        if not root_dir.check_exists(self.folder):
+            root_dir.mkdir(self.folder)
+
+        self.drive_dir = self.default_repo.get_dir(f'/{self.folder}')
+        self.connected = True
+
+    # ToDo Question `@id` and `@type` filters are too specific??
+    def search_files(self, id_f=None, type_f=None):
+        """
+        :param id_f: str (optional)
+            Returns specific file content by '@id'
+        :param type_f:  str (optional)
+            Filters files by '@type' parameter
+        :return: list
+            Returns list of the file contents
+        """
+        if not self.connected:
+            self.connect()
+
+        stored_files = [f for f in self.drive_dir.ls()
+                        if isinstance(f, ebrains_drive.files.SeafFile)]
+
+        if not stored_files:
+            return
+
+        files = []
+        for file in stored_files:
+            file = self.default_repo.get_file(file.path)
+            obj = json.loads(file.get_content())
+            obj['name'] = os.path.splitext(file.name)[0]
+            if id_f:
+                if obj['@id'] == id_f:
+                    return obj
+            else:
+                files.append(obj)
+
+        if type_f:
+            files = list(filter(lambda c: c['@type'] == type_f, files))
+
+        return files
+
+    def _build_url(self, folder: str, filename: str):
+        pass
+
+    def save(self, obj, name='Unnamed'):
+        """
+        :param obj: JSON object
+            file content
+        :param name: (default: unnamed)
+        """
+        if not self.connected:
+            self.connect()
+
+        ##### ToDo check if file exists with same id and remove?
+        #      Or check if file exists with same id and name and then remove?
+        #      Or do not remove at all?
+        # if self.drive_id and self.file_name and (not name or self.file_name == name):
+        #     self.remove_from_drive()
+
+        if not name:
+            name = 'Unnamed'
+
+        file = StringIO(json.dumps(json.loads(obj), indent=4, sort_keys=True, cls=self.UUIDEncoder))
+        self.drive_dir.upload(file, f'{name}.json')
+
+    def remove(self, id_f):
+        """
+        :param id_f: str
+             Removes file by '@id'
+        """
+        assert id_f
+        if self.connected is False:
+            self.connect()
+
+        files = [file for file in self.drive_dir.ls()
+                 if isinstance(file, ebrains_drive.files.SeafFile)]
+
+        for file in files:
+            stored_file = self.default_repo.get_file(file.path)
+            file_id = json.loads(stored_file.get_content())['@id']
+            if file_id == id_f:
+                stored_file.delete()
+                return
+
+        print('File not found')
+
+    class UUIDEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, UUID):
+                return obj.hex
+            return json.JSONEncoder.default(self, obj)
 
 class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
@@ -306,7 +459,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     def name(self):
         if self.use_version in self.versions:
             if "name" in self.versions[self.use_version]:
-                if len(self.versions[self.use_version]["name"])>0:
+                if len(self.versions[self.use_version]["name"]) > 0:
                     return self.versions[self.use_version]["name"]
         return self._name
 

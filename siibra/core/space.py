@@ -35,7 +35,6 @@ import json
 from urllib.parse import quote
 from os import path
 import numbers
-from uuid import uuid1
 
 
 class UnitOfMeasurement:
