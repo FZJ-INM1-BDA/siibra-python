@@ -38,10 +38,11 @@ class IEEGElectrodeModel(ConfigBaseModel):
     electrode_id: str
     contact_points: Dict[str, IEEGContactPointModel]
 
+IEEG_MODEL_TYPE = "siibra/features/ieegSession"
 
 class IEEGSessionModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field(..., alias="@type")
+    type: str = Field(IEEG_MODEL_TYPE, alias="@type", const=True)
     dataset: DatasetJsonModel
     sub_id: str
     electrodes: Dict[str, IEEGElectrodeModel]
@@ -132,7 +133,7 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
 
     @classmethod
     def get_model_type(Cls):
-        return "siibra/features/ieegSession"
+        return IEEG_MODEL_TYPE
 
     @property
     def model_id(self):
