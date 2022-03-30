@@ -202,9 +202,13 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
     def model_id(self):
         return super().model_id
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/cells"
+
     def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
-        base_dict["type"] = "siibra/features/cells"
+        base_dict['@type'] = self.get_model_type()
         # if not detail:
         return CorticalCellDistributionModel(
             **base_dict,
