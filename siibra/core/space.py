@@ -810,7 +810,7 @@ class BoundingBoxModel(LocationModel):
     minpoint: CoordinatePointModel
     maxpoint: CoordinatePointModel
     shape: List[float]
-    is_planar: bool
+    is_planar: bool = Field(..., alias="isPlanar")
 
 
 class BoundingBox(Location):

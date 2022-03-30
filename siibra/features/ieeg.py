@@ -31,7 +31,7 @@ import re
 
 
 class InRoiModel(ConfigBaseModel):
-    in_roi: Optional[bool] = Field(..., alias="inRoi")
+    in_roi: Optional[bool] = Field(None, alias="inRoi")
     def process_in_roi(self, sf: SpatialFeature, detail=False, roi:AtlasConcept=None, **kwargs):
         if not detail:
             return
