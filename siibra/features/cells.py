@@ -33,7 +33,7 @@ from pydantic import Field
 
 class CorticalCellDistributionModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field('siibra/features/cells', const=True)
+    type: str = Field('siibra/features/cells', const=True, alias="@type")
     cells: str
     section: str
     patch: str
