@@ -827,9 +827,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
         if space:
             assert isinstance(space, Space), f"space kwarg must be of instance Space"
-            if detail:
-                centroids = self.centroids(space)
-                assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
         
         pev = ParcellationEntityVersionModel(
             id=self.model_id,
@@ -845,7 +842,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         )
 
         from .. import parcellations
-        from ..volumes import VolumeSrc
+        from ..volumes import VolumeSrc, NeuroglancerVolume, GiftiSurfaceLabeling
         from .datasets import EbrainsDataset
 
         if space is not None:
@@ -888,12 +885,20 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ):
                 pass # label_index is relevant
             ```
+
+            addendum:
+            In parcellations such as difumo, both nifti & neuroglancer volumes will be present.
+            As a result, parc_volumes are filtered for NeuroglancerVolume.
             """
 
             self_volumes = [vol for vol in self.volumes if vol.space is space]
             parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
 
-            len_vol_in_space = len(self_volumes) + len(parc_volumes)
+            len_vol_in_space = len([v
+                                for v in [*self_volumes, *parc_volumes]
+                                if isinstance(v, NeuroglancerVolume)
+                                or isinstance(v, GiftiSurfaceLabeling)
+                            ])
             internal_identifier = "unknown"
             if (
                 (len_vol_in_space == 1 and self.index.map is None)
@@ -947,17 +952,23 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 
 
             if detail:
-                pev.has_annotation.best_view_point = BestViewPoint(
-                    coordinate_space={
-                        "@id": space.model_id
-                    },
-                    coordinates=[Coordinates(
-                        value=pt,
-                        unit={
-                            "@id": UnitOfMeasurement.MILLIMETER
-                        }
-                    ) for pt in centroids[0]]
-                )
+                try:
+                    centroids = self.centroids(space)
+                    assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+                    pev.has_annotation.best_view_point = BestViewPoint(
+                        coordinate_space={
+                            "@id": space.model_id
+                        },
+                        coordinates=[Coordinates(
+                            value=pt,
+                            unit={
+                                "@id": UnitOfMeasurement.MILLIMETER
+                            }
+                        ) for pt in centroids[0]]
+                    )
+                except NotImplementedError:
+                    # Region masks for surface spaces are not yet supported. for surface-based spaces
+                    pass
 
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
         # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
