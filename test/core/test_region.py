@@ -188,14 +188,16 @@ has_internal_identifier = [
 
     ('difumo 64', "cuneus", "mni152", True),
     ('Short Fiber Bundles - HCP', "rh_Tr-Tr_1", "mni152", True),
+    # ('isocortex', 'Isocortex', 'big brain', True),
 ]
 @pytest.mark.parametrize('parc_spec, region_spec, space_spec, expect_id_defined', has_internal_identifier)
-def test_has_inspired_by(parc_spec, region_spec, space_spec, expect_id_defined):
+def test_has_internal_identifier(parc_spec, region_spec, space_spec, expect_id_defined):
     p = siibra.parcellations[parc_spec]
     r = p.decode_region(region_spec)
     model = r.to_model(space=siibra.spaces[space_spec])
     assert model.has_annotation.internal_identifier is not None, f"expecting has_annotation.internal_identifier is defined"
     assert (model.has_annotation.internal_identifier != "unknown") == expect_id_defined, f"expect_id_defined: {expect_id_defined}, but id: {model.has_annotation.internal_identifier}"
+    # assert (model.has_annotation.visualized_in is not None) == expect_id_defined
 
 if __name__ == "__main__":
     unittest.main()
