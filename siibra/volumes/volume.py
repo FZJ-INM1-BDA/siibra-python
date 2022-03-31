@@ -357,7 +357,38 @@ class NeuroglancerVolume(
         self.space = space
         self._scales_cached = None
         self._io = None
-        self.transform_nm = np.identity(4)
+    
+    _transform_nm = None
+    @property
+    def transform_nm(self):
+        if self._transform_nm is not None:
+            return self._transform_nm
+        transform_in_detail = self.detail.get("neuroglancer/precomputed", {}).get("transform")
+        if transform_in_detail:
+            logger.debug(f"transform defined in detail attribute, using detail to set transform")
+            self._transform_nm = np.array(transform_in_detail)
+            return self._transform_nm
+
+        try:
+            res = HttpRequest(f"{self.url}/transform.json").get()
+        except SiibraHttpRequestError:
+            res = None
+        if res is not None:
+            logger.debug(
+                "Found global affine transform file, intrepreted in nanometer space."
+            )
+            self._transform_nm = np.array(res)
+            return self._transform_nm
+        
+        self._transform_nm = np.identity(1)
+        logger.debug(
+            "Fall back, using identity"
+        )
+        return self._transform_nm
+
+    @transform_nm.setter
+    def transform_nm(self, val):
+        self._transform_nm = val
     
     @property
     def map_type(self):
@@ -376,16 +407,6 @@ class NeuroglancerVolume(
         self._scales_cached = sorted(
             [NeuroglancerScale(self, i) for i in self._io.info["scales"]]
         )
-
-        try:
-            res = HttpRequest(f"{self.url}/transform.json").get()
-        except SiibraHttpRequestError:
-            res = None
-        if res is not None:
-            logger.debug(
-                "Found global affine transform file, intrepreted in nanometer space."
-            )
-            self.transform_nm = np.array(res)
 
     @property
     def dtype(self):

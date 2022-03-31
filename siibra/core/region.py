@@ -894,11 +894,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             self_volumes = [vol for vol in self.volumes if vol.space is space]
             parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
 
-            len_vol_in_space = len([v
-                                for v in [*self_volumes, *parc_volumes]
-                                if isinstance(v, NeuroglancerVolume)
-                                or isinstance(v, GiftiSurfaceLabeling)
-                            ])
+            vol_in_space = [v for v in [*self_volumes, *parc_volumes]
+                            if isinstance(v, NeuroglancerVolume)
+                            or isinstance(v, GiftiSurfaceLabeling) ]
+            len_vol_in_space = len(vol_in_space)
             internal_identifier = "unknown"
             if (
                 (len_vol_in_space == 1 and self.index.map is None)
@@ -928,10 +927,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ]
             
             try:
-                ng_parc_volumes = [parcvol
-                    for parcvol in parc_volumes
-                    if parcvol.volume_type == "neuroglancer/precomputed"
-                    and parcvol.space is space]
 
                 # self.index.label can sometimes be None. e.g. "basal forebrain"
                 # in such a case, do not populate visualized in
@@ -943,10 +938,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                         # In rare instances, e.g. julich brain 2.9, "Ch 123 (Basal Forebrain)"
                         # self.index.map is undefined (expect a single volume?)
                         # but there exist multiple volumes (in the example, one for left/ one for right hemisphere)
-                        if len(ng_parc_volumes) == 1:
-                            pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[0])
+                        if len(vol_in_space) == 1:
+                            pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[0])
                     else:
-                        pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[self.index.map])
+                        pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[self.index.map])
             except IndexError:
                 pass
                 
