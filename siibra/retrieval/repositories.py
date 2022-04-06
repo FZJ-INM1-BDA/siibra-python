@@ -182,7 +182,7 @@ class EbrainsDriveConnector(RepositoryConnector):
     default_repo = None
     drive_dir = None
 
-    def __init__(self, folder='Siibra annotations', auth_token=None, username=None, password=None):
+    def __init__(self, folder=None, auth_token=None, username=None, password=None):
         """
         :param folder: str (default: 'Siibra annotations')
             Ebrains drive folder name
@@ -193,7 +193,20 @@ class EbrainsDriveConnector(RepositoryConnector):
         :param password: str (optional)
             Ebrains password
         """
-        if not auth_token or not (username and password):
+        self.folder = folder.removeprefix('/').removesuffix('/')
+        self._connect(auth_token, username, password)
+
+    def _connect(self, auth_token=None, username=None, password=None):
+        """
+        :param auth_token: str (optional)
+            Auth token should contain Ebrains drive scope
+        :param username: str (optional)
+            Ebrains username
+        :param password: str (optional)
+            Ebrains password
+        """
+
+        if not auth_token and not (username and password):
             user_action = input('Kg token or username/password is not defined. \n Press:'
                                 ' \n 1. To input access token \n 2. To input username and password')
 
@@ -205,19 +218,6 @@ class EbrainsDriveConnector(RepositoryConnector):
             else:
                 raise Exception('Authentication credentials are mandatory to connect ebrains drive')
 
-        self.folder = folder
-
-        self.connect(auth_token, username, password)
-
-    def connect(self, auth_token=None, username=None, password=None):
-        """
-        :param auth_token: str (optional)
-            Auth token should contain Ebrains drive scope
-        :param username: str (optional)
-            Ebrains username
-        :param password: str (optional)
-            Ebrains password
-        """
         assert auth_token or (username and password)
 
         if auth_token:
@@ -232,10 +232,11 @@ class EbrainsDriveConnector(RepositoryConnector):
         self.default_repo = client.repos.get_repo(list_repos[0].id)
 
         root_dir = self.default_repo.get_dir('/')
-        if not root_dir.check_exists(self.folder):
+        if self.folder and not root_dir.check_exists(self.folder):
             root_dir.mkdir(self.folder)
 
-        self.drive_dir = self.default_repo.get_dir(f'/{self.folder}')
+        self.drive_dir = self.default_repo.get_dir(f'/{self.folder}') if self.folder else root_dir
+
         self.connected = True
 
     # ToDo Question `@id` and `@type` filters are too specific??
@@ -249,7 +250,7 @@ class EbrainsDriveConnector(RepositoryConnector):
             Returns list of the file contents
         """
         if not self.connected:
-            self.connect()
+            self._connect()
 
         stored_files = [f for f in self.drive_dir.ls()
                         if isinstance(f, ebrains_drive.files.SeafFile)]
@@ -257,21 +258,16 @@ class EbrainsDriveConnector(RepositoryConnector):
         if not stored_files:
             return
 
-        files = []
-        for file in stored_files:
-            file = self.default_repo.get_file(file.path)
-            obj = json.loads(file.get_content())
-            obj['name'] = os.path.splitext(file.name)[0]
-            if id_f:
-                if obj['@id'] == id_f:
-                    return obj
-            else:
-                files.append(obj)
+        return list(map((lambda file: file.path.rsplit('/', 1)[1]), stored_files))
 
-        if type_f:
-            files = list(filter(lambda c: c['@type'] == type_f, files))
+    def load_file(self, file):
+        file_obj = self.default_repo.get_file(f"/{self.folder}/{file}")
+        file_content = file_obj.get_content()
 
-        return files
+        if file.rsplit('.', 1)[1] == 'json':
+            return json.loads(file_content)
+
+        return file_content
 
     def _build_url(self, folder: str, filename: str):
         pass
@@ -283,7 +279,7 @@ class EbrainsDriveConnector(RepositoryConnector):
         :param name: (default: unnamed)
         """
         if not self.connected:
-            self.connect()
+            self._connect()
 
         ##### ToDo check if file exists with same id and remove?
         #      Or check if file exists with same id and name and then remove?
@@ -304,7 +300,7 @@ class EbrainsDriveConnector(RepositoryConnector):
         """
         assert id_f
         if self.connected is False:
-            self.connect()
+            self._connect()
 
         files = [file for file in self.drive_dir.ls()
                  if isinstance(file, ebrains_drive.files.SeafFile)]
