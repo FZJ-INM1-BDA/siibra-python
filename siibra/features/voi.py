@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import Field
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -26,12 +25,8 @@ from ..core.serializable_concept import JSONSerializable
 
 import numpy as np
 from typing import List
-
-
-class VOIDataModel(DatasetJsonModel):
-    type: str = Field('siibra/features/voi', const=True, alias="@type")
-    volumes: List[VolumeModel]
-    location: BoundingBoxModel
+import hashlib
+from pydantic import Field
 
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
@@ -69,19 +64,30 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
             return result
         return definition
 
+    @staticmethod
+    def get_model_type():
+        return "siibra/features/voi"
+
     @property
     def model_id(self):
-        return super().model_id
+        _id = hashlib.md5(super().model_id.encode("utf-8"))
+        return f"{self.get_model_type()}/{_id}"
 
-    def to_model(self, **kwargs) -> VOIDataModel:
+    def to_model(self, **kwargs) -> 'VOIDataModel':
         super_model = super().to_model(**kwargs)
         super_model_dict = super_model.dict()
-        super_model_dict["@type"] = "siibra/features/voi"
+        super_model_dict["@type"] = self.get_model_type()
         return VOIDataModel(
             location=self.location.to_model(**kwargs),
             volumes=[vol.to_model(**kwargs) for vol in self.volumes],
             **super_model_dict,
         )
+
+
+class VOIDataModel(DatasetJsonModel):
+    type: str = Field(VolumeOfInterest.get_model_type(), const=True, alias="@type")
+    volumes: List[VolumeModel]
+    location: BoundingBoxModel
 
 
 class VolumeOfInterestQuery(FeatureQuery):

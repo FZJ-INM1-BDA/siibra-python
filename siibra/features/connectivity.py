@@ -84,15 +84,13 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
-    MODEL_TYPE = "siibra/features/connectivity"
-
-    @classmethod
-    def get_model_type(Cls):
-        return Cls.MODEL_TYPE
+    @staticmethod
+    def get_model_type():
+        return "siibra/features/connectivity"
 
     @property
     def model_id(self):
-        return hashlib.md5(str(self).encode("utf-8")).hexdigest()
+        return f"{self.get_model_type()}/{hashlib.md5(str(self).encode('utf-8')).hexdigest()}"
 
     def to_model(self, detail=False, **kwargs) -> ConnectivityMatrixDataModel:
 
@@ -139,7 +137,9 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 class StreamlineCounts(ConnectivityMatrix):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
-    MODEL_TYPE = "siibra/features/connectivity/streamlineCounts"
+    @staticmethod
+    def get_model_type():
+        return "siibra/features/connectivity/streamlineCounts"
 
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
@@ -148,7 +148,9 @@ class StreamlineCounts(ConnectivityMatrix):
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
     
-    MODEL_TYPE = "siibra/features/connectivity/streamlineLengths"
+    @staticmethod
+    def get_model_type():
+        return "siibra/features/connectivity/streamlineLengths"
     
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
@@ -157,7 +159,9 @@ class StreamlineLengths(ConnectivityMatrix):
 class FunctionalConnectivity(ConnectivityMatrix):
     """Functional connectivity matrix, grouped by a parcellation."""
 
-    MODEL_TYPE = "siibra/features/connectivity/functional"
+    @staticmethod
+    def get_model_type():
+        return "siibra/features/connectivity/functional"
 
     def __init__(self, parcellation_id: str, matrixloader, paradigm: str, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)

@@ -150,8 +150,8 @@ class Atlas(
             return atlas
         return obj
 
-    @classmethod
-    def get_model_type(Cls):
+    @staticmethod
+    def get_model_type():
         return "juelich/iav/atlas/v1.0.0"
 
     @property

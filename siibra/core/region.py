@@ -804,8 +804,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         return result
 
-    @classmethod
-    def get_model_type(Cls):
+    @staticmethod
+    def get_model_type():
         return OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE
 
     @property

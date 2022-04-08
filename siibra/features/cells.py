@@ -202,8 +202,8 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
     def model_id(self):
         return super().model_id
 
-    @classmethod
-    def get_model_type(Cls):
+    @staticmethod
+    def get_model_type():
         return "siibra/features/cells"
 
     def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:

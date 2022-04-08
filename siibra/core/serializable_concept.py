@@ -1,4 +1,4 @@
-from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod, abstractproperty, abstractstaticmethod
 import numpy as np
 import zlib
 import base64
@@ -8,8 +8,8 @@ from ..openminds.base import ConfigBaseModel
 
 class JSONSerializable(ABC):
 
-    @abstractclassmethod
-    def get_model_type(Cls) -> str:
+    @abstractstaticmethod
+    def get_model_type() -> str:
         """
         The get_modal_type abstract class method should populate the @type attribute of the model returned by to_model
         It should also allow unified indexing of a list of JSONSerializable according to types without first calling to_model method (which could be expensive)

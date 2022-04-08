@@ -167,8 +167,8 @@ class Space(
 
         return result
 
-    @classmethod
-    def get_model_type(Cls) -> str:
+    @staticmethod
+    def get_model_type() -> str:
         return "https://openminds.ebrains.eu/sands/CoordinateSpace"
 
     @property
@@ -226,8 +226,8 @@ class Location(JSONSerializable, ABC):
         else:
             self.space: Space = Space.REGISTRY[space]
 
-    @classmethod
-    def get_model_type(Cls):
+    @staticmethod
+    def get_model_type():
         return "spy/location"
 
     @property
