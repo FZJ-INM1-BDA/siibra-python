@@ -64,19 +64,19 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
             return result
         return definition
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/voi"
 
     @property
     def model_id(self):
         _id = hashlib.md5(super().model_id.encode("utf-8"))
-        return f"{self.get_model_type()}/{_id}"
+        return f"{VolumeOfInterest.get_model_type()}/{_id}"
 
     def to_model(self, **kwargs) -> 'VOIDataModel':
         super_model = super().to_model(**kwargs)
         super_model_dict = super_model.dict()
-        super_model_dict["@type"] = self.get_model_type()
+        super_model_dict["@type"] = VolumeOfInterest.get_model_type()
         return VOIDataModel(
             location=self.location.to_model(**kwargs),
             volumes=[vol.to_model(**kwargs) for vol in self.volumes],

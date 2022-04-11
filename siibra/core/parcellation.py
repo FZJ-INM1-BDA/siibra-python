@@ -142,8 +142,8 @@ class ParcellationVersion(JSONSerializable):
             deprecated=obj.get("deprecated", False),
         )
     
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         raise AttributeError("ParcellationVersion.@type cannot be determined")
 
     @property
@@ -561,8 +561,8 @@ class Parcellation(
     def get_brain_atlas_version_name(self, space: Space) -> str:
         return f"{self.name} in {space.to_model().full_name}"
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return SIIBRA_PARCELLATION_MODEL_TYPE
 
     @property

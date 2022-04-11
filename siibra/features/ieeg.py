@@ -133,20 +133,20 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/ieegSession"
 
     @property
     def model_id(self):
         _id = hashlib.md5(self.dataset.model_id.encode("utf-8")).hexdigest() + f':{self.sub_id}'
-        return f"{self.get_model_type()}/{_id}"
+        return f"{IEEG_Session.get_model_type()}/{_id}"
 
     def to_model(self, **kwargs) -> 'IEEGSessionModel':
         dataset = self.dataset.to_model(**kwargs)
         model = IEEGSessionModel(
             id=self.model_id,
-            type=self.get_model_type(),
+            type=IEEG_Session.get_model_type(),
             dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
@@ -202,8 +202,8 @@ class IEEG_Electrode(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         raise AttributeError
 
     @property
@@ -261,8 +261,8 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
         else:
             return None
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         raise AttributeError
 
     @property

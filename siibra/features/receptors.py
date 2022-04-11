@@ -454,17 +454,17 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/receptor"
 
     @property
     def model_id(self):
-        return f'{self.get_model_type()}/{hashlib.md5(super().model_id.encode("utf-8")).hexdigest()}'
+        return f'{ReceptorDistribution.get_model_type()}/{hashlib.md5(super().model_id.encode("utf-8")).hexdigest()}'
 
     def to_model(self, detail=False, **kwargs) -> 'ReceptorDatasetModel':
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
-        base_dict["@type"] = self.get_model_type()
+        base_dict["@type"] = ReceptorDistribution.get_model_type()
         if not detail:
             return ReceptorDatasetModel(
                 **base_dict,

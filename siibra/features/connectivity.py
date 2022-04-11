@@ -84,8 +84,8 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/connectivity"
 
     @property
@@ -96,7 +96,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
-            type=self.get_model_type(),
+            type=ConnectivityMatrix.get_model_type(),
             name=str(self),
             parcellations=[{
                 "@id": parc.to_model().id,
@@ -137,8 +137,8 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 class StreamlineCounts(ConnectivityMatrix):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/connectivity/streamlineCounts"
 
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
@@ -148,8 +148,8 @@ class StreamlineCounts(ConnectivityMatrix):
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
     
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/connectivity/streamlineLengths"
     
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
@@ -159,8 +159,8 @@ class StreamlineLengths(ConnectivityMatrix):
 class FunctionalConnectivity(ConnectivityMatrix):
     """Functional connectivity matrix, grouped by a parcellation."""
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "siibra/features/connectivity/functional"
 
     def __init__(self, parcellation_id: str, matrixloader, paradigm: str, srcinfo):

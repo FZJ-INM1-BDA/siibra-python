@@ -226,8 +226,8 @@ class Location(JSONSerializable, ABC):
         else:
             self.space: Space = Space.REGISTRY[space]
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "spy/location"
 
     @property

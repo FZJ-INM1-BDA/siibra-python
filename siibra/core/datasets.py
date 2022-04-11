@@ -99,8 +99,8 @@ class Dataset(JSONSerializable):
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
-    @staticmethod
-    def get_model_type():
+    @classmethod
+    def get_model_type(Cls):
         return "https://openminds.ebrains.eu/core/DatasetVersion"
 
     @property
@@ -110,7 +110,7 @@ class Dataset(JSONSerializable):
                 self.id if self.id else f"{str(self)}{self.description}"
             ).encode("utf-8")
         ).hexdigest()
-        return f'{self.get_model_type()}/{_id}'
+        return f'{Dataset.get_model_type()}/{_id}'
 
     def to_model(self, **kwargs) -> 'DatasetJsonModel':
         metadata=DatasetVersionModel(
