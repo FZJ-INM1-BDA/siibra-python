@@ -99,7 +99,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
             type=ConnectivityMatrix.get_model_type(),
             name=str(self),
             parcellations=[{
-                "@id": parc.to_model().id,
+                "@id": parc.model_id,
             } for parc in self.parcellations],
         )
         if detail is False:

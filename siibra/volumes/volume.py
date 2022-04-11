@@ -169,7 +169,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 is_surface=self.is_surface,
                 detail=self.detail or {},
                 space={
-                    "@id": self.space.to_model().id
+                    "@id": self.space.model_id
                 },
                 url=self.url if isinstance(self.url, str) else None,
                 url_map=self.url if isinstance(self.url, dict) else None,

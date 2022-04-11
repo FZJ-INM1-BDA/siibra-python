@@ -36,7 +36,7 @@ class JSONSerializable(ABC):
 
         without model_id abstract property:
         # finding a feature based on feature_id
-        found_feature = [feat for feat in features if feat.to_model().id == feature_id]
+        found_feature = [feat for feat in features if feat.model_id == feature_id]
 
         with model_id abstract property:
         # finding a feature based on feature_id
