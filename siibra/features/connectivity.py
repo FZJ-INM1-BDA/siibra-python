@@ -96,7 +96,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
-            type=ConnectivityMatrix.get_model_type(),
+            type=self.get_model_type(),
             name=str(self),
             parcellations=[{
                 "@id": parc.model_id,
