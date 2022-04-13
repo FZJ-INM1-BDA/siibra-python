@@ -144,7 +144,7 @@ class ParcellationVersion(JSONSerializable):
     
     @classmethod
     def get_model_type(Cls):
-        return super().get_model_type()
+        raise AttributeError("ParcellationVersion.@type cannot be determined")
 
     @property
     def model_id(self):
@@ -588,7 +588,7 @@ class Parcellation(
                     "@id": ""
                 },
                 coordinate_space={
-                    "@id": spc.to_model().id
+                    "@id": spc.model_id
                 },
                 description=self.description[:2000],
                 full_documentation={
@@ -598,7 +598,7 @@ class Parcellation(
                 full_name=self.get_brain_atlas_version_name(spc),
                 has_terminology_version=HasTerminologyVersion(
                     has_entity_version=[{
-                        "@id": r.to_model().id
+                        "@id": r.model_id
                     } for r in self]
                 ),
                 license={

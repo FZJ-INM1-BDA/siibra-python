@@ -29,14 +29,6 @@ class Url(ConfigBaseModel):
     doi: str
     cite: Optional[str]
 
-DATASET_JSON_MODEL_TYPE = "siibra/core/dataset"
-
-class DatasetJsonModel(ConfigBaseModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field(DATASET_JSON_MODEL_TYPE, alias="@type", const=True)
-    metadata: DatasetVersionModel
-    urls: List[Url]
-
 class Dataset(JSONSerializable):
     """Parent class for datasets. Each dataset has an identifier."""
 
@@ -109,16 +101,21 @@ class Dataset(JSONSerializable):
 
     @classmethod
     def get_model_type(Cls):
-        return DATASET_JSON_MODEL_TYPE
+        return "https://openminds.ebrains.eu/core/DatasetVersion"
 
     @property
     def model_id(self):
-        return self.id or hashlib.md5(f"{str(self)}{self.description}".encode("utf-8")).hexdigest()
+        _id = hashlib.md5(
+            str(
+                self.id if self.id else f"{str(self)}{self.description}"
+            ).encode("utf-8")
+        ).hexdigest()
+        return f'{Dataset.get_model_type()}/{_id}'
 
-    def to_model(self, **kwargs) -> DatasetJsonModel:
+    def to_model(self, **kwargs) -> 'DatasetJsonModel':
         metadata=DatasetVersionModel(
             id=self.model_id,
-            type="https://openminds.ebrains.eu/core/DatasetVersion",
+            type=Dataset.get_model_type(),
             accessibility={
                 "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
             },
@@ -152,11 +149,16 @@ class Dataset(JSONSerializable):
         )
         return DatasetJsonModel(
             id=metadata.id,
-            type=self.get_model_type(),
+            type=Dataset.get_model_type(),
             metadata=metadata,
             urls=[Url(**url) for url in self.urls]
         )
 
+class DatasetJsonModel(ConfigBaseModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field(Dataset.get_model_type(), alias="@type", const=True)
+    metadata: DatasetVersionModel
+    urls: List[Url]
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
     def __init__(self, name, description, urls):

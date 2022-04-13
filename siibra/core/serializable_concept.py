@@ -24,7 +24,7 @@ class JSONSerializable(ABC):
         # finding a feature based on feature_id
         found_feature = [feat for feat in features if feat.get_modal_type() == feature_id]
         """
-        raise AttributeError("modal_type property needs to be overwritten by subclass!")
+        raise AttributeError("get_model_type class method needs to be overwritten by subclass!")
 
     @abstractproperty
     def model_id(self) -> str:
@@ -36,7 +36,7 @@ class JSONSerializable(ABC):
 
         without model_id abstract property:
         # finding a feature based on feature_id
-        found_feature = [feat for feat in features if feat.to_model().id == feature_id]
+        found_feature = [feat for feat in features if feat.model_id == feature_id]
 
         with model_id abstract property:
         # finding a feature based on feature_id

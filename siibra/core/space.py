@@ -167,8 +167,8 @@ class Space(
 
         return result
 
-    @classmethod
-    def get_model_type(Cls) -> str:
+    @staticmethod
+    def get_model_type() -> str:
         return "https://openminds.ebrains.eu/sands/CoordinateSpace"
 
     @property

@@ -163,8 +163,8 @@ class Atlas(
             id=self.model_id,
             type=self.get_model_type(),
             name=self.name,
-            spaces=[SiibraAtIdModel(id=spc.to_model().id) for spc in self.spaces],
-            parcellations=[SiibraAtIdModel(id=parc.to_model().id) for parc in self.parcellations],
+            spaces=[SiibraAtIdModel(id=spc.model_id) for spc in self.spaces],
+            parcellations=[SiibraAtIdModel(id=parc.model_id) for parc in self.parcellations],
             species=self.species,
         )
 

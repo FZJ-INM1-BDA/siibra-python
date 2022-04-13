@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pydantic import Field
 from .feature import RegionalFeature
 from .query import FeatureQuery
 from ..commons import logger
@@ -29,6 +28,8 @@ from io import BytesIO
 from collections import namedtuple
 import re
 import importlib
+import hashlib
+from pydantic import Field
 
 
 RECEPTOR_SYMBOLS = {
@@ -331,11 +332,6 @@ class ReceptorDataModel(ConfigBaseModel):
     receptor_symbols: Dict[str, SymbolMarkupClass]
 
 
-class ReceptorDatasetModel(DatasetJsonModel):
-    data: Optional[ReceptorDataModel]
-    type: str = Field("siibra/features/receptor", const=True, alias="@type")
-
-
 class DensityFingerprint:
 
     unit = None
@@ -458,13 +454,17 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 )
             self._autoradiograph_loaders[rtype] = HttpRequest(url, img_from_bytes)
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/receptor"
+
     @property
     def model_id(self):
-        return super().model_id
+        return f'{ReceptorDistribution.get_model_type()}/{hashlib.md5(super().model_id.encode("utf-8")).hexdigest()}'
 
-    def to_model(self, detail=False, **kwargs) -> ReceptorDatasetModel:
+    def to_model(self, detail=False, **kwargs) -> 'ReceptorDatasetModel':
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
-        base_dict["@type"] = "siibra/features/receptor"
+        base_dict["@type"] = ReceptorDistribution.get_model_type()
         if not detail:
             return ReceptorDatasetModel(
                 **base_dict,
@@ -565,6 +565,11 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         ax.tick_params(pad=9, labelsize=10)
         ax.tick_params(axis="y", labelsize=8)
         return fig
+
+
+class ReceptorDatasetModel(DatasetJsonModel):
+    data: Optional[ReceptorDataModel]
+    type: str = Field(ReceptorDistribution.get_model_type(), const=True, alias="@type")
 
 
 class ReceptorQuery(FeatureQuery):

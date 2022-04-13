@@ -14,12 +14,14 @@
 # limitations under the License.
 
 
+from typing import List, Optional
 from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from ..commons import logger
 from ..core import Dataset
 from ..core.space import Space, Point
+from ..core.datasets import DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector, OwncloudConnector
 from ..openminds.base import ConfigBaseModel
 
@@ -30,13 +32,20 @@ import pandas as pd
 import nibabel as nib
 from pydantic import Field
 
+class CorticalCellModel(ConfigBaseModel):
+    x: float
+    y: float
+    area: float
+    layer: int
+    instance_label: int = Field(..., alias="instance label")
 
-class CorticalCellDistributionModel(ConfigBaseModel):
+
+class CorticalCellDistributionModel(DatasetJsonModel):
     id: str = Field(..., alias="@id")
     type: str = Field('siibra/features/cells', const=True, alias="@type")
-    cells: str
-    section: str
-    patch: str
+    cells: Optional[List[CorticalCellModel]]
+    section: Optional[str]
+    patch: Optional[str]
 
 
 class CorticalCellDistribution(RegionalFeature, Dataset):
@@ -200,19 +209,26 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
 
     @property
     def model_id(self):
-        return super().model_id
+        return f"{CorticalCellDistribution.get_model_type()}/{super().model_id}"
 
     @classmethod
     def get_model_type(Cls):
         return "siibra/features/cells"
 
     def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:
+        super_model = super().to_model(detail=detail, **kwargs).dict()
+        super_model['@type'] = CorticalCellDistribution.get_model_type()
+        super_model['@id'] = self.model_id
+        extra = {}
+        if detail:
+            d = self.cells.to_dict('index')
+            extra['cells'] = [ value for value in d.values() ]
+            extra['section'] = self.section
+            extra['patch'] = self.patch
+
         return CorticalCellDistributionModel(
-            id=self.model_id,
-            type=self.get_model_type(),
-            cells=self.cells.to_json(),
-            section=self.section,
-            patch=self.patch
+            **extra,
+            **super_model,
         )
 
 

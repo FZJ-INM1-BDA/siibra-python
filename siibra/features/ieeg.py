@@ -25,6 +25,7 @@ from ..retrieval.repositories import GitlabConnector
 from ..openminds.base import ConfigBaseModel
 from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel
 
+import hashlib
 from pydantic import Field
 from typing import Dict, Optional
 import re
@@ -47,15 +48,6 @@ class IEEGContactPointModel(InRoiModel):
 class IEEGElectrodeModel(InRoiModel):
     electrode_id: str
     contact_points: Dict[str, IEEGContactPointModel]
-
-IEEG_MODEL_TYPE = "siibra/features/ieegSession"
-
-class IEEGSessionModel(InRoiModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field(IEEG_MODEL_TYPE, alias="@type", const=True)
-    dataset: DatasetJsonModel
-    sub_id: str
-    electrodes: Dict[str, IEEGElectrodeModel]
 
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
@@ -143,17 +135,18 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
 
     @classmethod
     def get_model_type(Cls):
-        return IEEG_MODEL_TYPE
+        return "siibra/features/ieegSession"
 
     @property
     def model_id(self):
-        return f"{self.dataset.model_id}:{self.sub_id}"
+        _id = hashlib.md5(self.dataset.model_id.encode("utf-8")).hexdigest() + f':{self.sub_id}'
+        return f"{IEEG_Session.get_model_type()}/{_id}"
 
-    def to_model(self, **kwargs) -> IEEGSessionModel:
+    def to_model(self, **kwargs) -> 'IEEGSessionModel':
         dataset = self.dataset.to_model(**kwargs)
         model = IEEGSessionModel(
             id=self.model_id,
-            type=self.get_model_type(),
+            type=IEEG_Session.get_model_type(),
             dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
@@ -164,6 +157,13 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
         model.process_in_roi(self, **kwargs)
         return model
 
+
+class IEEGSessionModel(InRoiModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field(IEEG_Session.get_model_type(), alias="@type", const=True)
+    dataset: DatasetJsonModel
+    sub_id: str
+    electrodes: Dict[str, IEEGElectrodeModel]
 
 class IEEG_Electrode(SpatialFeature, JSONSerializable):
     """
