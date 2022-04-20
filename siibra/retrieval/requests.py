@@ -35,6 +35,7 @@ DECODERS = {
     ".json": lambda b: json.loads(b.decode()),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
+    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: io.imread(BytesIO(b))
@@ -218,7 +219,7 @@ class EbrainsRequest(HttpRequest):
                 "accept": "application/json",
                 "Content-Type": "application/json",
             },
-            data=f'{{"username": "{username}","password": "{password}"}}',
+            data=f'{{"username": "{username}", "password": "{password}"}}',
         )
         if response.status_code == 200:
             cls._KG_API_TOKEN = response.json()
@@ -295,7 +296,7 @@ class EbrainsRequest(HttpRequest):
         }
 
     def get(self):
-        """Evaluate KG Token is evaluated only on executrion of the request."""
+        """Evaluate KG Token is evaluated only on execution of the request."""
         self.kwargs = {"headers": self.auth_headers, "params": self.params}
         return super().get()
 
