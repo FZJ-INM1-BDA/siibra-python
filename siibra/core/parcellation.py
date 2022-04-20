@@ -142,9 +142,13 @@ class ParcellationVersion(JSONSerializable):
             deprecated=obj.get("deprecated", False),
         )
     
+    @classmethod
+    def get_model_type(Cls):
+        raise AttributeError("ParcellationVersion.@type cannot be determined")
+
     @property
     def model_id(self):
-        return self.name
+        return super().model_id
 
     def to_model(self, **kwargs) -> SiibraParcellationVersionModel:
         assert self.prev is None or isinstance(self.prev, Parcellation), f"parcellationVersion to_model failed. expected .prev, if defined, to be instance of Parcellation, but is {self.prev.__class__} instead"
@@ -557,6 +561,10 @@ class Parcellation(
     def get_brain_atlas_version_name(self, space: Space) -> str:
         return f"{self.name} in {space.to_model().full_name}"
 
+    @classmethod
+    def get_model_type(Cls):
+        return SIIBRA_PARCELLATION_MODEL_TYPE
+
     @property
     def model_id(self):
         return self.id
@@ -580,7 +588,7 @@ class Parcellation(
                     "@id": ""
                 },
                 coordinate_space={
-                    "@id": spc.to_model().id
+                    "@id": spc.model_id
                 },
                 description=self.description[:2000],
                 full_documentation={
@@ -590,7 +598,7 @@ class Parcellation(
                 full_name=self.get_brain_atlas_version_name(spc),
                 has_terminology_version=HasTerminologyVersion(
                     has_entity_version=[{
-                        "@id": r.to_model().id
+                        "@id": r.model_id
                     } for r in self]
                 ),
                 license={

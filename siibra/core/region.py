@@ -804,6 +804,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         return result
 
+    @classmethod
+    def get_model_type(Cls):
+        return OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE
+
     @property
     def model_id(self):
         from .. import parcellations
@@ -812,23 +816,24 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         import hashlib
         def get_unique_id(id):
             return hashlib.md5(id.encode("utf-8")).hexdigest()
-        return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id)}"
+        # there exists several instances where same region, with same sub region exist in jba2.9
+        # (e.g. ch123)
+        # this is so that these regions can be distinguished from each other (ie decend from magnocellular group within septum or magnocellular group within horizontal limb of diagnoal band)
+        # if not distinguished, one cannot uniquely identify the parent with parent_id
+        return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id + str(self.parent or 'None') + str(self.children))}"
 
     def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
         if detail:
             assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
         if space:
             assert isinstance(space, Space), f"space kwarg must be of instance Space"
-            if detail:
-                centroids = self.centroids(space)
-                assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
         
         pev = ParcellationEntityVersionModel(
             id=self.model_id,
-            type=OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE,
+            type=self.get_model_type(),
             has_parent=[{
-                '@id': self.parent.to_model(detail=False).id
-            }] if (detail and self.parent is not None) else None,
+                '@id': self.parent.model_id
+            }] if (self.parent is not None) else None,
             name=self.name,
             ontology_identifier=None,
             relation_assessment=None,
@@ -837,7 +842,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         )
 
         from .. import parcellations
-        from ..volumes import VolumeSrc
+        from ..volumes import VolumeSrc, NeuroglancerVolume, GiftiSurfaceLabeling
         from .datasets import EbrainsDataset
 
         if space is not None:
@@ -849,16 +854,65 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 return {
                     "@id": vol.url
                 }
+            
+            """
+            TODO
+            It is not exactly clear, given space, if or not self.index is relevant.
+            for e.g.
+
+            ```python
+            import siibra
+            p = siibra.parcellations['2.9']
+            
+            fp1 = p.decode_region('fp1')
+            fp1_left = p.decode_region('fp1 left')
+            print(fp1.index) # prints (None/212)
+            print(fp1_left.index) # prints (0/212)
+
+            hoc1 = p.decode_region('hoc1')
+            hoc1_left = p.decode_region('hoc1 left')
+            print(hoc1.index) # prints (None/8)
+            print(hoc1_left.index) # prints (0/8)
+            ```
+
+            The only way (without getting the whole map), that I can think of, is:
+            
+            ```python
+            volumes_in_correct_space = [v for v in [*parcellation.volumes, *self.volumes] if v.space is space]
+            if (
+                (len(volumes_in_correct_space) == 1 and self.index.map is None)
+                or (len(volumes_in_correct_space) > 1 and self.index.map is not None)
+            ):
+                pass # label_index is relevant
+            ```
+
+            addendum:
+            In parcellations such as difumo, both nifti & neuroglancer volumes will be present.
+            As a result, parc_volumes are filtered for NeuroglancerVolume.
+            """
+
+            self_volumes = [vol for vol in self.volumes if vol.space is space]
+            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
+
+            vol_in_space = [v for v in [*self_volumes, *parc_volumes]
+                            if isinstance(v, NeuroglancerVolume)
+                            or isinstance(v, GiftiSurfaceLabeling) ]
+            len_vol_in_space = len(vol_in_space)
+            internal_identifier = "unknown"
+            if (
+                (len_vol_in_space == 1 and self.index.map is None)
+                or (len_vol_in_space > 1 and self.index.map is not None)
+            ):
+                internal_identifier = self.index.label or "unknown"
+
             pev.has_annotation = HasAnnotation(
-                internal_identifier=self.index.label or "unknown",
+                internal_identifier=internal_identifier,
                 criteria_quality_type={
                     # TODO check criteriaQualityType
                     "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
                 },
                 display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
             )
-            self_volumes = [vol for vol in self.volumes if vol.space is space]
-            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
             # seems to be the only way to convey link between PEV and dataset
             ebrains_ds = [{ "@id": "https://doi.org/{}".format(url.get("doi")) }
                 for ds in self.datasets
@@ -873,29 +927,43 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ]
             
             try:
-                ng_parc_volumes = [parcvol
-                    for parcvol in parc_volumes
-                    if parcvol.volume_type == "neuroglancer/precomputed"
-                    and parcvol.space is space]
-                map_idx = self.index.map
-                if map_idx is not None:
-                    pev.has_annotation.visualized_in = vol_to_id_dict(ng_parc_volumes[map_idx])
+
+                # self.index.label can sometimes be None. e.g. "basal forebrain"
+                # in such a case, do not populate visualized in
+                if self.index.label is not None:
+
+                    # self.index.map can sometimes be None, but label is defined
+                    if self.index.map is None:
+
+                        # In rare instances, e.g. julich brain 2.9, "Ch 123 (Basal Forebrain)"
+                        # self.index.map is undefined (expect a single volume?)
+                        # but there exist multiple volumes (in the example, one for left/ one for right hemisphere)
+                        if len(vol_in_space) == 1:
+                            pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[0])
+                    else:
+                        pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[self.index.map])
             except IndexError:
                 pass
                 
 
             if detail:
-                pev.has_annotation.best_view_point = BestViewPoint(
-                    coordinate_space={
-                        "@id": space.to_model().id
-                    },
-                    coordinates=[Coordinates(
-                        value=pt,
-                        unit={
-                            "@id": UnitOfMeasurement.MILLIMETER
-                        }
-                    ) for pt in centroids[0]]
-                )
+                try:
+                    centroids = self.centroids(space)
+                    assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+                    pev.has_annotation.best_view_point = BestViewPoint(
+                        coordinate_space={
+                            "@id": space.model_id
+                        },
+                        coordinates=[Coordinates(
+                            value=pt,
+                            unit={
+                                "@id": UnitOfMeasurement.MILLIMETER
+                            }
+                        ) for pt in centroids[0]]
+                    )
+                except NotImplementedError:
+                    # Region masks for surface spaces are not yet supported. for surface-based spaces
+                    pass
 
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
         # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218

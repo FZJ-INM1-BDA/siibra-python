@@ -14,6 +14,8 @@
 # limitations under the License.
 
 from typing import Dict, List
+
+from pydantic import Field
 from siibra.openminds.base import ConfigBaseModel
 from .concept import AtlasConcept, provide_registry
 from .serializable_concept import JSONSerializable
@@ -165,6 +167,10 @@ class Space(
 
         return result
 
+    @staticmethod
+    def get_model_type() -> str:
+        return "https://openminds.ebrains.eu/sands/CoordinateSpace"
+
     @property
     def model_id(self):
         return self.id
@@ -172,7 +178,7 @@ class Space(
     def to_model(self, **kwargs) -> commonCoordinateSpace.Model:
         return commonCoordinateSpace.Model(
             id=self.model_id,
-            type="https://openminds.ebrains.eu/sands/CoordinateSpace",
+            type=self.get_model_type(),
             anatomical_axes_orientation={
                 "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
             },
@@ -205,6 +211,7 @@ SPACEWARP_IDS = {
 }
 
 class LocationModel(ConfigBaseModel):
+    type: str = Field(..., alias="@type")
     space: Dict[str, str]
 
 class Location(JSONSerializable, ABC):
@@ -219,12 +226,19 @@ class Location(JSONSerializable, ABC):
         else:
             self.space: Space = Space.REGISTRY[space]
 
+    @classmethod
+    def get_model_type(Cls):
+        return "spy/location"
+
     @property
     def model_id(self):
         return f"spy/location/space:{self.space.model_id if self.space is not None else 'None'}"
 
     def to_model(self, **kwargs) -> LocationModel:
-        return LocationModel(space={ "@id": self.space.model_id })
+        return LocationModel(
+            space={ "@id": self.space.model_id },
+            type=self.get_model_type(),
+        )
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):
@@ -796,7 +810,7 @@ class BoundingBoxModel(LocationModel):
     minpoint: CoordinatePointModel
     maxpoint: CoordinatePointModel
     shape: List[float]
-    is_planar: bool
+    is_planar: bool = Field(..., alias="isPlanar")
 
 
 class BoundingBox(Location):

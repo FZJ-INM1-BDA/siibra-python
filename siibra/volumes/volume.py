@@ -148,10 +148,12 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             detail=detail,
             **kwargs,
         )
-        # result.volume_type = obj.get('volume_type',None)
-        maptype = obj.get("map_type", None)
-        if maptype is not None:
-            result.map_type = MapType[maptype.upper()]
+        
+        # only populate map_type if the VolumeClass does not populate the map_type property itself
+        if result.map_type is not None:
+            maptype = obj.get("map_type", None)
+            if maptype is not None:
+                result.map_type = MapType[maptype.upper()]
         return result
 
     @property
@@ -167,7 +169,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 is_surface=self.is_surface,
                 detail=self.detail or {},
                 space={
-                    "@id": self.space.to_model().id
+                    "@id": self.space.model_id
                 },
                 url=self.url if isinstance(self.url, str) else None,
                 url_map=self.url if isinstance(self.url, dict) else None,
@@ -387,14 +389,17 @@ class NeuroglancerVolume(
         self.space = space
         self._scales_cached = None
         self._io = None
-        self.transform_nm = np.identity(4)
-
-    def _bootstrap(self):
-        accessor = get_accessor_for_url(self.url)
-        self._io = get_IO_for_existing_dataset(accessor)
-        self._scales_cached = sorted(
-            [NeuroglancerScale(self, i) for i in self._io.info["scales"]]
-        )
+    
+    _transform_nm = None
+    @property
+    def transform_nm(self):
+        if self._transform_nm is not None:
+            return self._transform_nm
+        transform_in_detail = self.detail.get("neuroglancer/precomputed", {}).get("transform")
+        if transform_in_detail:
+            logger.debug(f"transform defined in detail attribute, using detail to set transform")
+            self._transform_nm = np.array(transform_in_detail)
+            return self._transform_nm
 
         try:
             res = HttpRequest(f"{self.url}/transform.json").get()
@@ -404,7 +409,36 @@ class NeuroglancerVolume(
             logger.debug(
                 "Found global affine transform file, intrepreted in nanometer space."
             )
-            self.transform_nm = np.array(res)
+            self._transform_nm = np.array(res)
+            return self._transform_nm
+        
+        self._transform_nm = np.identity(1)
+        logger.debug(
+            "Fall back, using identity"
+        )
+        return self._transform_nm
+
+    @transform_nm.setter
+    def transform_nm(self, val):
+        self._transform_nm = val
+    
+    @property
+    def map_type(self):
+        if self._io is None:
+            self._bootstrap()
+        return MapType.LABELLED if self._io.info.get("type") == "segmentation" else MapType.CONTINUOUS
+
+    @map_type.setter
+    def map_type(self, val):
+        if val is not None:
+            logger.debug(f"NeuroglancerVolume can determine its own maptype from self._io.info.get('type')")
+
+    def _bootstrap(self):
+        accessor = get_accessor_for_url(self.url)
+        self._io = get_IO_for_existing_dataset(accessor)
+        self._scales_cached = sorted(
+            [NeuroglancerScale(self, i) for i in self._io.info["scales"]]
+        )
 
     @property
     def dtype(self):

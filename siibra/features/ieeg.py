@@ -17,6 +17,7 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import logger
+from ..core.concept import AtlasConcept
 from ..core.serializable_concept import JSONSerializable
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..core.space import Space, Point, PointSet, WholeBrain
@@ -24,27 +25,29 @@ from ..retrieval.repositories import GitlabConnector
 from ..openminds.base import ConfigBaseModel
 from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel
 
+import hashlib
 from pydantic import Field
-from typing import Dict
+from typing import Dict, Optional
 import re
 
 
-class IEEGContactPointModel(ConfigBaseModel):
+class InRoiModel(ConfigBaseModel):
+    in_roi: Optional[bool] = Field(None, alias="inRoi")
+    def process_in_roi(self, sf: SpatialFeature, detail=False, roi:AtlasConcept=None, **kwargs):
+        if not detail:
+            return
+        if not roi:
+            return
+        self.in_roi = sf.match(roi)
+
+class IEEGContactPointModel(InRoiModel):
     id: str
     point: CoordinatePointModel
 
 
-class IEEGElectrodeModel(ConfigBaseModel):
+class IEEGElectrodeModel(InRoiModel):
     electrode_id: str
     contact_points: Dict[str, IEEGContactPointModel]
-
-
-class IEEGSessionModel(ConfigBaseModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field('siibra/features/ieegSession', const=True)
-    dataset: DatasetJsonModel
-    sub_id: str
-    electrodes: Dict[str, IEEGElectrodeModel]
 
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
@@ -130,22 +133,37 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, points[0].space)
             self.dataset._update_location()
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/ieegSession"
+
     @property
     def model_id(self):
-        return f"{self.dataset.model_id}:{self.sub_id}"
+        _id = hashlib.md5(self.dataset.model_id.encode("utf-8")).hexdigest() + f':{self.sub_id}'
+        return f"{IEEG_Session.get_model_type()}/{_id}"
 
-    def to_model(self, **kwargs) -> IEEGSessionModel:
-        dataset = self.dataset.to_model()
-        return IEEGSessionModel(
+    def to_model(self, **kwargs) -> 'IEEGSessionModel':
+        dataset = self.dataset.to_model(**kwargs)
+        model = IEEGSessionModel(
             id=self.model_id,
+            type=IEEG_Session.get_model_type(),
             dataset=dataset,
             sub_id=self.sub_id,
             electrodes={
                 key: electrode.to_model(**kwargs)
                 for key, electrode in self.electrodes.items()
-            }
+            },
         )
+        model.process_in_roi(self, **kwargs)
+        return model
 
+
+class IEEGSessionModel(InRoiModel):
+    id: str = Field(..., alias="@id")
+    type: str = Field(IEEG_Session.get_model_type(), alias="@type", const=True)
+    dataset: DatasetJsonModel
+    sub_id: str
+    electrodes: Dict[str, IEEGElectrodeModel]
 
 class IEEG_Electrode(SpatialFeature, JSONSerializable):
     """
@@ -184,18 +202,24 @@ class IEEG_Electrode(SpatialFeature, JSONSerializable):
             self.location = PointSet(points, self.session.space)
             self.session._update_location()
 
+    @classmethod
+    def get_model_type(Cls):
+        raise AttributeError
+
     @property
     def model_id(self):
         return f"{self.session.model_id}:{self.electrode_id}"
 
     def to_model(self, **kwargs) -> IEEGElectrodeModel:
-        return IEEGElectrodeModel(
+        model = IEEGElectrodeModel(
             electrode_id=self.electrode_id,
             contact_points={
                 key: contact_pt.to_model(**kwargs)
                 for key, contact_pt in self.contact_points.items()
             }
         )
+        model.process_in_roi(self, **kwargs)
+        return model
 
 
 class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
@@ -237,15 +261,21 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
         else:
             return None
 
+    @classmethod
+    def get_model_type(Cls):
+        raise AttributeError
+
     @property
     def model_id(self):
         return f"{self.electrode.model_id}:{self.id}"
 
     def to_model(self, **kwargs) -> IEEGContactPointModel:
-        return IEEGContactPointModel(
+        model = IEEGContactPointModel(
             id=self.model_id,
             point=self.point.to_model(**kwargs)
         )
+        model.process_in_roi(self, **kwargs)
+        return model
 
 def parse_ptsfile(spec):
     lines = spec.split("\n")

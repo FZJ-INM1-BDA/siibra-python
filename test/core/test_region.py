@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 import pytest
+import re
 
 from siibra import parcellations, spaces, retrieval
 from siibra.core.region import Region
@@ -135,19 +136,20 @@ def test_region_to_model(region: Region):
     region.to_model()
 
 detailed_region=[
-    ("julich 2.9", "hoc1 left", "mni152", False),
-    ("julich 2.9", "hoc1 right", "mni152", False),
-    ("julich 2.9", "hoc1 left", "colin 27", False),
-    ("julich 2.9", "hoc1 right", "colin 27", False),
+    ("julich 2.9", "hoc1 left", "mni152", False, True),
+    ("julich 2.9", "hoc1 right", "mni152", False, True),
+    ("julich 2.9", "hoc1 left", "colin 27", False, True),
+    ("julich 2.9", "hoc1 right", "colin 27", False, True),
+    ("julich 2.9", "hoc1 right", "fsaverage", False, False),
     pytest.param(
-        "julich 2.9", "hoc1", "bigbrain", False,
+        "julich 2.9", "hoc1", "bigbrain", False, True,
         marks=pytest.mark.xfail(reason="big brain returning 2 centoids... what?"),
     ),
-    ("julich 2.9", "hoc1 right", "bigbrain", True),
+    ("julich 2.9", "hoc1 right", "bigbrain", True, None),
 ]
 
-@pytest.mark.parametrize('parc_spec,region_spec,space_spec,expect_raise', detailed_region)
-def test_detail_region(parc_spec,region_spec,space_spec,expect_raise):
+@pytest.mark.parametrize('parc_spec,region_spec,space_spec,expect_raise,expect_best_view_point', detailed_region)
+def test_detail_region(parc_spec,region_spec,space_spec,expect_raise,expect_best_view_point):
     p = siibra.parcellations[parc_spec]
     r = p.decode_region(region_spec)
     s = siibra.spaces[space_spec]
@@ -159,7 +161,43 @@ def test_detail_region(parc_spec,region_spec,space_spec,expect_raise):
     model = r.to_model(detail=True, space=s)
     assert model.has_parent is not None
     assert model.has_annotation is not None
-    assert model.has_annotation.best_view_point is not None
+    assert (model.has_annotation.best_view_point is not None) == expect_best_view_point
+
+has_inspired_by = [
+    ("julich 2.9", "hoc1 left", "mni152"),
+    ("long bundle", "Left short cingulate fibres", "mni152")
+]
+
+@pytest.mark.parametrize('parc_spec, region_spec, space_spec', has_inspired_by)
+def test_has_inspired_by(parc_spec, region_spec, space_spec):
+    p = siibra.parcellations[parc_spec]
+    r = p.decode_region(region_spec)
+    model = r.to_model(space=siibra.spaces[space_spec])
+    assert model.has_annotation.visualized_in is not None, f"expecting has_annotation.visualized_in is defined"
+    assert re.match(r"^precomputed:\/\/", model.has_annotation.visualized_in["@id"]), f"expecting has_annotation.visualized_in starts with precomputed://"
+
+has_internal_identifier = [
+    ('julich 2.9', "hoc1", "big brain", True),
+    ('julich 2.9', "hoc1", "mni152", False),
+    ('julich 2.9', "hoc1 left", "mni152", True),
+    ('julich 2.9', "hoc1 left", "fsaverage", True),
+
+    ('julich 2.9', "fp1", "big brain", False),
+    ('julich 2.9', "fp1", "mni152", False),
+    ('julich 2.9', "fp1 left", "mni152", True),
+
+    ('difumo 64', "cuneus", "mni152", True),
+    ('Short Fiber Bundles - HCP', "rh_Tr-Tr_1", "mni152", True),
+    # ('isocortex', 'Isocortex', 'big brain', True),
+]
+@pytest.mark.parametrize('parc_spec, region_spec, space_spec, expect_id_defined', has_internal_identifier)
+def test_has_internal_identifier(parc_spec, region_spec, space_spec, expect_id_defined):
+    p = siibra.parcellations[parc_spec]
+    r = p.decode_region(region_spec)
+    model = r.to_model(space=siibra.spaces[space_spec])
+    assert model.has_annotation.internal_identifier is not None, f"expecting has_annotation.internal_identifier is defined"
+    assert (model.has_annotation.internal_identifier != "unknown") == expect_id_defined, f"expect_id_defined: {expect_id_defined}, but id: {model.has_annotation.internal_identifier}"
+    # assert (model.has_annotation.visualized_in is not None) == expect_id_defined
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,7 +31,7 @@ from pydantic import Field
 
 class ConnectivityMatrixDataModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
-    type: str = Field("siibra/features/connectivity", const=True)
+    type: str = Field(..., alias="@type")
     name: str
     parcellations: List[Dict[str, str]]
     matrix: Optional[NpArrayDataModel]
@@ -84,17 +84,22 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
     def __str__(self):
         return ParcellationFeature.__str__(self) + " " + str(self.src_info)
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/connectivity"
+
     @property
     def model_id(self):
-        return hashlib.md5(str(self).encode("utf-8")).hexdigest()
+        return f"{self.get_model_type()}/{hashlib.md5(str(self).encode('utf-8')).hexdigest()}"
 
     def to_model(self, detail=False, **kwargs) -> ConnectivityMatrixDataModel:
 
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
+            type=self.get_model_type(),
             name=str(self),
             parcellations=[{
-                "@id": parc.to_model().id,
+                "@id": parc.model_id,
             } for parc in self.parcellations],
         )
         if detail is False:
@@ -132,19 +137,31 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 class StreamlineCounts(ConnectivityMatrix):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/connectivity/streamlineCounts"
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-
+    
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/connectivity/streamlineLengths"
+    
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
 
 class FunctionalConnectivity(ConnectivityMatrix):
     """Functional connectivity matrix, grouped by a parcellation."""
+
+    @classmethod
+    def get_model_type(Cls):
+        return "siibra/features/connectivity/functional"
 
     def __init__(self, parcellation_id: str, matrixloader, paradigm: str, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)

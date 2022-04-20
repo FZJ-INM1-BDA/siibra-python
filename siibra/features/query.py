@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from siibra.core.serializable_concept import JSONSerializable
 from .feature import Feature
 
 from .. import logger
@@ -129,13 +130,25 @@ class FeatureQuery(ABC):
             return result
 
     @classmethod
-    def get_feature_by_id(cls, feature_id):
-        querytypes = sum(FeatureQuery._implementations.values(), [])
-        for querytype in querytypes:
+    def get_feature_by_id(cls, feature_id: str) -> Feature:
+        applicable_queries = [query
+            for queries in FeatureQuery._implementations.values()
+            for query in queries
+            if issubclass(query._FEATURETYPE, JSONSerializable)]
+
+        queries_matched = [
+            q for q in applicable_queries if feature_id.startswith(q._FEATURETYPE.get_model_type())
+        ]
+
+        if len(queries_matched) == 0:
+            logger.warn(f"feature_id {feature_id} cannot be properly matched, bruteforce get feature")
+
+        use_queries = queries_matched if len(queries_matched) > 0 else applicable_queries
+        for querytype in use_queries:
             for feature in querytype().features:
-                if hasattr(feature, 'id'):
-                    if feature.id == feature_id:
-                        return feature
+                assert isinstance(feature, JSONSerializable), f"feature should be an instance of JSONSerializable, but is not"
+                if feature.model_id == feature_id:
+                    return feature
         return None
 
     @classmethod

@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
 import numpy as np
 import zlib
 import base64
@@ -8,8 +8,26 @@ from ..openminds.base import ConfigBaseModel
 
 class JSONSerializable(ABC):
 
+    @abstractclassmethod
+    def get_model_type(Cls) -> str:
+        """
+        The get_modal_type abstract class method should populate the @type attribute of the model returned by to_model
+        It should also allow unified indexing of a list of JSONSerializable according to types without first calling to_model method (which could be expensive)
+
+        e.g.
+
+        without get_modal_type abstract class method:
+        # filter features based on type
+        found_feature = [feat for feat in features if feat.to_model().type == feature_id]
+
+        with get_modal_type abstract class method:
+        # finding a feature based on feature_id
+        found_feature = [feat for feat in features if feat.get_modal_type() == feature_id]
+        """
+        raise AttributeError("get_model_type class method needs to be overwritten by subclass!")
+
     @abstractproperty
-    def model_id(self):
+    def model_id(self) -> str:
         """
         The model_id abstract property should populate the @id attribute of the model returned by to_model
         It should also allow unified indexing of a list of JSONSerializable without first calling to_model method (which could be expensive)
@@ -18,7 +36,7 @@ class JSONSerializable(ABC):
 
         without model_id abstract property:
         # finding a feature based on feature_id
-        found_feature = [feat for feat in features if feat.to_model().id == feature_id]
+        found_feature = [feat for feat in features if feat.model_id == feature_id]
 
         with model_id abstract property:
         # finding a feature based on feature_id
