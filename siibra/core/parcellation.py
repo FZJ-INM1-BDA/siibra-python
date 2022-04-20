@@ -350,7 +350,7 @@ class Parcellation(
         Region object
         """
         if isinstance(regionspec, Region) and (regionspec.parcellation == self):
-            return
+            return regionspec
 
         if isinstance(regionspec, str) and regionspec.startswith("Group:"):
             # seems to be a group region name - build the group region by recursive decoding.
