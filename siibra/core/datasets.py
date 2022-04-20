@@ -226,6 +226,10 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
         return self.detail.get("contributors")
 
     @property
+    def ebrains_page(self):
+        return f"https://search.kg.ebrains.eu/instances/{self.id}"
+
+    @property
     def custodians(self):
         return self.detail.get("custodians")
 
