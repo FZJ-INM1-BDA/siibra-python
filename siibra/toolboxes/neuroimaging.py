@@ -86,7 +86,7 @@ class AnatomicalAssignment:
         arr = np.asanyarray(compimg.dataobj)
         for component in tqdm(
             assignments.component.unique(),
-            desc="Generating component plots...",
+            desc="Plotting component masks...",
             unit="components",
         ):
             component_plots[component] = self._plot_component(
@@ -96,7 +96,9 @@ class AnatomicalAssignment:
         # plot relevant probability maps
         pmap_plots = {}
         for regionname in tqdm(
-            assignments.region.unique(), desc="Generating pmap plots...", unit="maps"
+            assignments.region.unique(),
+            desc="Plotting probability maps...",
+            unit="maps",
         ):
             pmap_plots[regionname] = self._plot_pmap(regionname, outdir)
 
@@ -104,7 +106,7 @@ class AnatomicalAssignment:
         profile_plots = {}
         for regionname in tqdm(
             assignments.region.unique(),
-            desc="Generating profile plots...",
+            desc="Plotting connectivity profiles...",
             unit="profiles",
         ):
             profile_plots[regionname] = self._plot_profile(
@@ -272,7 +274,7 @@ class AnatomicalAssignment:
         # one page per analyzed component
 
         outfile = os.path.join(outdir, "report.pdf")
-        logger.info(f'Building pdf report {outfile}...')
+        logger.info(f"Building pdf report {outfile}...")
         for component in assignments.component.unique():
 
             pdf.add_page()
@@ -286,7 +288,8 @@ class AnatomicalAssignment:
 
             for i, (index, row) in tqdm(
                 enumerate(selection.iterrows()),
-                desc=f"- Component #{component}",
+                total=len(selection),
+                desc=f"- Page for component #{component}",
                 unit="assignments",
             ):
 
