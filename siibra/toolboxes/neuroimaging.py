@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .. import QUIET, __version__, logger
 from ..core.atlas import Atlas
-from .. import QUIET, __version__
 from ..features import get_features, modalities
 
 import matplotlib.pyplot as plt
@@ -36,13 +36,13 @@ class AnatomicalAssignment:
         self,
         min_correlation: float = 0.3,
         min_entries: int = 4,
-        DPI: float = 300,
+        resolution_dpi: float = 300,
         max_conn: int = 30,
     ):
 
         self.min_correlation = min_correlation
         self.min_entries = min_entries
-        self.dpi = DPI
+        self.dpi = resolution_dpi
         self.max_conn = max_conn
 
         atlas = Atlas.REGISTRY.MULTILEVEL_HUMAN_ATLAS
@@ -62,7 +62,7 @@ class AnatomicalAssignment:
 
             outdir = mkdtemp()
 
-        print(f"New analysis of {niftifile} with results stored to {outdir}")
+        logger.info(f"New analysis of {niftifile} with results stored to {outdir}")
         img = nib.load(niftifile)
         input_plot = self._plot_input(img, niftifile, outdir)
 
@@ -86,7 +86,7 @@ class AnatomicalAssignment:
         arr = np.asanyarray(compimg.dataobj)
         for component in tqdm(
             assignments.component.unique(),
-            desc="Exporting component plots...",
+            desc="Generating component plots...",
             unit="components",
         ):
             component_plots[component] = self._plot_component(
@@ -96,7 +96,7 @@ class AnatomicalAssignment:
         # plot relevant probability maps
         pmap_plots = {}
         for regionname in tqdm(
-            assignments.region.unique(), desc="Exporting pmap plots...", unit="maps"
+            assignments.region.unique(), desc="Generating pmap plots...", unit="maps"
         ):
             pmap_plots[regionname] = self._plot_pmap(regionname, outdir)
 
@@ -104,7 +104,7 @@ class AnatomicalAssignment:
         profile_plots = {}
         for regionname in tqdm(
             assignments.region.unique(),
-            desc="Exporting profile plots...",
+            desc="Generating profile plots...",
             unit="profiles",
         ):
             profile_plots[regionname] = self._plot_profile(
@@ -196,7 +196,7 @@ class AnatomicalAssignment:
         plotting.plot_glass_brain(
             pmap, axes=ax, colorbar=False, alpha=0.3, cmap="magma"
         )
-        fig.tight_layout(pad=0.0)
+        # fig.tight_layout(pad=0.0)
         plt.ioff()
         fig.savefig(outfile, dpi=self.dpi)
         return outfile
@@ -271,6 +271,8 @@ class AnatomicalAssignment:
 
         # one page per analyzed component
 
+        outfile = os.path.join(outdir, "report.pdf")
+        logger.info(f'Building pdf report {outfile}...')
         for component in assignments.component.unique():
 
             pdf.add_page()
@@ -284,8 +286,8 @@ class AnatomicalAssignment:
 
             for i, (index, row) in tqdm(
                 enumerate(selection.iterrows()),
-                desc=f"Building report page for component #{component}",
-                unit="assigned regions"
+                desc=f"- Component #{component}",
+                unit="assignments",
             ):
 
                 pdf.set_xy(left, 14 + text_height + (i + 1) * cell_height)
@@ -308,6 +310,5 @@ class AnatomicalAssignment:
                 )
                 pdf.multi_cell(0, text_height, txt)
 
-        outfile = os.path.join(outdir, "report.pdf")
-        print(outfile)
+        logger.info(f"Report written to {outfile}")
         pdf.output(outfile, "F")
