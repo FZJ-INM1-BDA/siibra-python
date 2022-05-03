@@ -16,7 +16,7 @@
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
-from .. import QUIET
+from .. import QUIET, logger
 from ..volumes.volume import VolumeSrc, VolumeModel
 from ..core.space import BoundingBoxModel, Space, BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
@@ -97,5 +97,8 @@ class VolumeOfInterestQuery(FeatureQuery):
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         for _, loader in self._QUERY.get_loaders(folder="vois", suffix=".json"):
-            voi = VolumeOfInterest._from_json(loader.data)  # json.loads(data))
-            self.register(voi)
+            try:
+                voi = VolumeOfInterest._from_json(loader.data)  # json.loads(data))
+                self.register(voi)
+            except Exception as e:
+                logger.warn(f"some VOI cannot be loaded: {str(e)}")
