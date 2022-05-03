@@ -375,4 +375,3 @@ def scan(ctx, niftifiles, space, parcellation, labelled, outdir):
 
     for niftifile in niftifiles:
         report = analysis.run(niftifile, outdir=outdir)
-        logger.info(f"Result stored as {report}.")

@@ -67,11 +67,25 @@ class AnatomicalAssignment:
 
         if outdir is None:
             from tempfile import mkdtemp
+
             outdir = mkdtemp()
 
-        logger.info(f"Analyzing {niftifile}. Results will be stored in folder {outdir}.")
+        plotdir = os.path.join(outdir, "plots")
+        if not os.path.isdir(plotdir):
+            os.makedirs(plotdir)
+
+        reportfile = f"{os.path.join(outdir,os.path.basename(niftifile))}.pdf"
+        if os.path.isfile(reportfile):
+            logger.warn(
+                f"File {reportfile} exists - skipping analysis for {niftifile}."
+            )
+            return reportfile
+
+        logger.info(
+            f"Analyzing {niftifile}. Results will be stored in folder {outdir}."
+        )
         img = nib.load(niftifile)
-        input_plot = self._plot_input(img, niftifile, outdir)
+        input_plot = self._plot_input(img, niftifile, plotdir)
 
         # get initial assignments and detected components
         initial_assignments, compimg = self.pmaps.assign(img)
@@ -85,7 +99,9 @@ class AnatomicalAssignment:
         plotting.plot_glass_brain(compimg, axes=ax, alpha=0.3, cmap="Set1")
         # fig.tight_layout(pad=0.0)
         plt.ioff()
-        components_plot = f"{os.path.join(outdir,'components')}.png"
+        components_plot = (
+            f"{os.path.join(plotdir, os.path.basename(niftifile))}.components.png"
+        )
         fig.savefig(components_plot, dpi=self.dpi)
 
         # plot masks of individual components
@@ -97,7 +113,7 @@ class AnatomicalAssignment:
             unit="components",
         ):
             component_plots[component] = self._plot_component(
-                arr, component, compimg.affine, outdir
+                arr, component, compimg.affine, niftifile, plotdir
             )
 
         # plot relevant probability maps
@@ -107,7 +123,7 @@ class AnatomicalAssignment:
             desc="Plotting probability maps...",
             unit="maps",
         ):
-            pmap_plots[regionname] = self._plot_pmap(regionname, outdir)
+            pmap_plots[regionname] = self._plot_pmap(regionname, plotdir)
 
         # plot relevant connectivity profiles
         profile_plots = {}
@@ -117,7 +133,7 @@ class AnatomicalAssignment:
             unit="profiles",
         ):
             profile_plots[regionname] = self._plot_profile(
-                self.conn, regionname, outdir
+                self.conn, regionname, plotdir
             )
         not_found = [k for k, v in profile_plots.items() if v is None]
         if not_found:
@@ -127,7 +143,6 @@ class AnatomicalAssignment:
             )
 
         # build the actual pdf report
-        outfile = f"{os.path.join(outdir,os.path.basename(niftifile))}.pdf"
         self._build_pdf(
             assignments,
             niftifile,
@@ -136,10 +151,9 @@ class AnatomicalAssignment:
             component_plots,
             pmap_plots,
             profile_plots,
-            outfile
+            reportfile,
         )
-
-        return outfile
+        return reportfile
 
     def _select_assignments(self, initial_assignments, compimg, img):
 
@@ -181,7 +195,7 @@ class AnatomicalAssignment:
 
     def _plot_input(self, img, niftifile, outdir):
         """plot  image to file"""
-        filename = f"{os.path.join(outdir,os.path.basename(niftifile))}.png"
+        filename = f"{os.path.join(outdir, os.path.basename(niftifile))}.png"
         if not os.path.isfile(filename):
             plt.ion()
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
@@ -191,9 +205,11 @@ class AnatomicalAssignment:
             fig.savefig(filename, dpi=self.dpi)
         return filename
 
-    def _plot_component(self, arr, component, affine, outdir):
+    def _plot_component(self, arr, component, affine, niftifile, outdir):
         """Plot component to file"""
-        filename = f"{os.path.join(outdir,str(component))}.png"
+        filename = (
+            f"{os.path.join(outdir, os.path.basename(niftifile))}.{str(component)}.png"
+        )
         if not os.path.isfile(filename):
             mask = nib.Nifti1Image((arr == component).astype("uint8"), affine)
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
@@ -209,7 +225,7 @@ class AnatomicalAssignment:
             region = self.pmaps.decode_region(regionname)
             pindices = self.pmaps.get_index(regionname)
         assert len(pindices) == 1
-        filename = f"{os.path.join(outdir,region.key)}_pmap.png"
+        filename = f"{os.path.join(outdir, region.key)}_pmap.png"
         if not os.path.isfile(filename):
             pmap = self.pmaps.fetch(pindices[0].map)
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
@@ -227,7 +243,7 @@ class AnatomicalAssignment:
             region = self.pmaps.decode_region(regionname)
         if region not in conn.matrix:
             return None
-        filename = f"{os.path.join(outdir,region.key)}_profile.png"
+        filename = f"{os.path.join(outdir, region.key)}_profile.png"
         if not os.path.isfile(filename):
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
             plt.ion()
