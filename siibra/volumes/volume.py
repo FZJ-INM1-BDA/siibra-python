@@ -149,11 +149,12 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             **kwargs,
         )
         
-        # only populate map_type if the VolumeClass does not populate the map_type property itself
-        if result.map_type is not None:
-            maptype = obj.get("map_type", None)
-            if maptype is not None:
-                result.map_type = MapType[maptype.upper()]
+        # for volumes where map_type can be inferred from metadata
+        # setter is provided, but result in noop
+        # noop message will be printed if logging level is set to debug
+        maptype = obj.get("map_type", None)
+        if maptype is not None:
+            result.map_type = MapType[maptype.upper()]
         return result
 
     @property
