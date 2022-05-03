@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import QUIET, __version__, logger
-from ..core.atlas import Atlas
+from ..core import Atlas, Parcellation, Space
 from ..features import get_features, modalities
 
 import matplotlib.pyplot as plt
@@ -28,17 +28,25 @@ import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
 
+from typing import Union
+
 matplotlib.use("Agg")
 
 
 class AnatomicalAssignment:
     def __init__(
         self,
+        parcellation: Union[str, Parcellation] = "julich 2.9",
+        space: Union[str, Space] = "mni152",
+        maptype="continuous",
         min_correlation: float = 0.3,
         min_entries: int = 4,
         resolution_dpi: float = 300,
         max_conn: int = 30,
     ):
+
+        parcobj = Parcellation.REGISTRY[parcellation]
+        spaceobj = Space.REGISTRY[space]
 
         self.min_correlation = min_correlation
         self.min_entries = min_entries
@@ -47,7 +55,7 @@ class AnatomicalAssignment:
 
         atlas = Atlas.REGISTRY.MULTILEVEL_HUMAN_ATLAS
         self.pmaps = atlas.get_map(
-            parcellation="julich 2.9", space="mni152", maptype="continuous"
+            parcellation=parcobj, space=spaceobj, maptype=maptype
         )
 
         # TODO do not just fetch the first connectivity source - choose one explicitly
@@ -59,10 +67,9 @@ class AnatomicalAssignment:
 
         if outdir is None:
             from tempfile import mkdtemp
-
             outdir = mkdtemp()
 
-        logger.info(f"New analysis of {niftifile} with results stored to {outdir}")
+        logger.info(f"Analyzing {niftifile}. Results will be stored in folder {outdir}.")
         img = nib.load(niftifile)
         input_plot = self._plot_input(img, niftifile, outdir)
 
@@ -76,7 +83,7 @@ class AnatomicalAssignment:
         plt.ion()
         fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
         plotting.plot_glass_brain(compimg, axes=ax, alpha=0.3, cmap="Set1")
-        fig.tight_layout(pad=0.0)
+        # fig.tight_layout(pad=0.0)
         plt.ioff()
         components_plot = f"{os.path.join(outdir,'components')}.png"
         fig.savefig(components_plot, dpi=self.dpi)
@@ -112,8 +119,15 @@ class AnatomicalAssignment:
             profile_plots[regionname] = self._plot_profile(
                 self.conn, regionname, outdir
             )
+        not_found = [k for k, v in profile_plots.items() if v is None]
+        if not_found:
+            logger.warning(
+                "No profiles found in connectivity matrix for regions "
+                f"{', '.join(not_found)}"
+            )
 
         # build the actual pdf report
+        outfile = f"{os.path.join(outdir,os.path.basename(niftifile))}.pdf"
         self._build_pdf(
             assignments,
             niftifile,
@@ -122,8 +136,10 @@ class AnatomicalAssignment:
             component_plots,
             pmap_plots,
             profile_plots,
-            outdir,
+            outfile
         )
+
+        return outfile
 
     def _select_assignments(self, initial_assignments, compimg, img):
 
@@ -166,59 +182,65 @@ class AnatomicalAssignment:
     def _plot_input(self, img, niftifile, outdir):
         """plot  image to file"""
         filename = f"{os.path.join(outdir,os.path.basename(niftifile))}.png"
-        plt.ion()
-        fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
-        plotting.plot_glass_brain(img, axes=ax, alpha=0.3)
-        fig.tight_layout(pad=0.0)
-        plt.ioff()
-        fig.savefig(filename, dpi=self.dpi)
+        if not os.path.isfile(filename):
+            plt.ion()
+            fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
+            plotting.plot_glass_brain(img, axes=ax, alpha=0.3)
+            fig.tight_layout(pad=0.0)
+            plt.ioff()
+            fig.savefig(filename, dpi=self.dpi)
         return filename
 
     def _plot_component(self, arr, component, affine, outdir):
         """Plot component to file"""
-        outfile = f"{os.path.join(outdir,str(component))}.png"
-        mask = nib.Nifti1Image((arr == component).astype("uint8"), affine)
-        fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
-        plt.ion()
-        plotting.plot_glass_brain(mask, axes=ax, colorbar=False, alpha=0.3)
-        fig.tight_layout(pad=0.0)
-        plt.ioff()
-        fig.savefig(outfile, dpi=self.dpi)
-        return outfile
+        filename = f"{os.path.join(outdir,str(component))}.png"
+        if not os.path.isfile(filename):
+            mask = nib.Nifti1Image((arr == component).astype("uint8"), affine)
+            fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
+            plt.ion()
+            plotting.plot_glass_brain(mask, axes=ax, colorbar=False, alpha=0.3)
+            # fig.tight_layout(pad=0.0)
+            plt.ioff()
+            fig.savefig(filename, dpi=self.dpi)
+        return filename
 
     def _plot_pmap(self, regionname, outdir):
         with QUIET:
             region = self.pmaps.decode_region(regionname)
             pindices = self.pmaps.get_index(regionname)
         assert len(pindices) == 1
-        outfile = f"{os.path.join(outdir,region.key)}_pmap.png"
-        pmap = self.pmaps.fetch(pindices[0].map)
-        fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
-        plt.ion()
-        plotting.plot_glass_brain(
-            pmap, axes=ax, colorbar=False, alpha=0.3, cmap="magma"
-        )
-        # fig.tight_layout(pad=0.0)
-        plt.ioff()
-        fig.savefig(outfile, dpi=self.dpi)
-        return outfile
+        filename = f"{os.path.join(outdir,region.key)}_pmap.png"
+        if not os.path.isfile(filename):
+            pmap = self.pmaps.fetch(pindices[0].map)
+            fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
+            plt.ion()
+            plotting.plot_glass_brain(
+                pmap, axes=ax, colorbar=False, alpha=0.3, cmap="magma"
+            )
+            # fig.tight_layout(pad=0.0)
+            plt.ioff()
+            fig.savefig(filename, dpi=self.dpi)
+        return filename
 
     def _plot_profile(self, conn, regionname, outdir):
         with QUIET:
             region = self.pmaps.decode_region(regionname)
-        outfile = f"{os.path.join(outdir,region.key)}_profile.png"
-        fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
-        plt.ion()
-        profile = conn.matrix[region].sort_values(ascending=False)[: self.max_conn]
-        profile.plot.bar(grid=True, ax=ax).set_xticklabels(
-            [str(_)[:40] for _ in profile.index]
-        )
-        plt.xticks(rotation=45, fontsize=5, ha="right")
-        ax.set_title(f"Streamline counts (top {self.max_conn})", fontsize=10)
-        fig.tight_layout(pad=0.2)
-        plt.ioff()
-        fig.savefig(outfile, dpi=self.dpi)
-        return outfile
+        if region not in conn.matrix:
+            return None
+        filename = f"{os.path.join(outdir,region.key)}_profile.png"
+        if not os.path.isfile(filename):
+            fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
+            plt.ion()
+            profile = conn.matrix[region].sort_values(ascending=False)[: self.max_conn]
+            profile.plot.bar(grid=True, ax=ax).set_xticklabels(
+                [str(_)[:40] for _ in profile.index]
+            )
+            plt.xticks(rotation=45, fontsize=5, ha="right")
+            ax.set_title(f"Streamline counts (top {self.max_conn})", fontsize=10)
+            fig.tight_layout(pad=0.2)
+            plt.ioff()
+            fig.savefig(filename, dpi=self.dpi)
+        return filename
 
     def _build_pdf(
         self,
@@ -229,7 +251,7 @@ class AnatomicalAssignment:
         component_plots,
         pmap_plots,
         profile_plots,
-        outdir,
+        outfile,
     ):
 
         pdf = FPDF()
@@ -272,10 +294,9 @@ class AnatomicalAssignment:
         pdf.image(components_plot, w=180)
 
         # one page per analyzed component
-
-        outfile = os.path.join(outdir, "report.pdf")
-        logger.info(f"Building pdf report {outfile}...")
-        for component in assignments.component.unique():
+        components = assignments.component.unique()
+        logger.info(f"Building pdf report {outfile} for {len(components)} components.")
+        for component in components:
 
             pdf.add_page()
             pdf.set_font("Arial", "BU", 12)
@@ -289,15 +310,16 @@ class AnatomicalAssignment:
             for i, (index, row) in tqdm(
                 enumerate(selection.iterrows()),
                 total=len(selection),
-                desc=f"- Page for component #{component}",
+                desc=f"- Page #{component}",
                 unit="assignments",
             ):
 
                 pdf.set_xy(left, 14 + text_height + (i + 1) * cell_height)
                 pdf.image(pmap_plots[row.region], h=plot_height)
 
-                pdf.set_xy(100, 14 + (i + 1) * cell_height)
-                pdf.image(profile_plots[row.region], h=cell_height)
+                if profile_plots[row.region] is not None:
+                    pdf.set_xy(100, 14 + (i + 1) * cell_height)
+                    pdf.image(profile_plots[row.region], h=cell_height)
 
                 pdf.set_font("Arial", "B", 10)
                 pdf.set_xy(left, 14 + (i + 1) * cell_height)

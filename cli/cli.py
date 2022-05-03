@@ -48,7 +48,7 @@ def complete_spaces(ctx, args, incomplete):
 )
 def siibra(ctx, species):
     """Command line interface to the siibra atlas toolsuite"""
-    ctx.obj = {'species': species}
+    ctx.obj = {"species": species}
 
 
 # ---- download files
@@ -79,7 +79,8 @@ def map(ctx, parcellation, space):
     """Retrieve a parcellation map in the given space"""
 
     import siibra as siibra
-    atlas = siibra.atlases[ctx.obj['species']]
+
+    atlas = siibra.atlases[ctx.obj["species"]]
     siibra.logger.info(f"Using atlas '{atlas.name}'.")
     try:
         parcobj = atlas.get_parcellation(parcellation)
@@ -92,14 +93,11 @@ def map(ctx, parcellation, space):
     except IndexError:
         click.echo("Space specification invalid.")
         exit(1)
-    click.echo(
-        f"Loading map of {parcobj.name} in {spaceobj.name} space."
-    )
+    click.echo(f"Loading map of {parcobj.name} in {spaceobj.name} space.")
     try:
         parcmap = atlas.get_map(
-            space=spaceobj,
-            parcellation=parcobj,
-            maptype=siibra.MapType.LABELLED)
+            space=spaceobj, parcellation=parcobj, maptype=siibra.MapType.LABELLED
+        )
     except ValueError as e:
         click.echo(str(e) + ".")
         exit(1)
@@ -132,7 +130,8 @@ def template(ctx, space):
     """Retrieve the template image for a given space"""
     outfile = ctx.obj["outfile"]
     import siibra
-    atlas = siibra.atlases[ctx.obj['species']]
+
+    atlas = siibra.atlases[ctx.obj["species"]]
     siibra.logger.info(f"Using atlas '{atlas.name}'.")
     spaceobj = atlas.get_space(space)
     tpl = atlas.get_template(spaceobj)
@@ -150,6 +149,7 @@ def template(ctx, space):
 def ebrainstoken():
     """Retrieve a parcellation map in the given space"""
     import siibra
+
     try:
         siibra.fetch_ebrains_token()
         print(siibra.EbrainsRequest._KG_API_TOKEN)
@@ -184,7 +184,8 @@ def find(ctx):
 def region(ctx, region, parcellation, tree):
     """Find brain regions by name"""
     import siibra
-    atlas = siibra.atlases[ctx.obj['species']]
+
+    atlas = siibra.atlases[ctx.obj["species"]]
     siibra.logger.info(f"Using atlas '{atlas.name}'.")
     regionspec = " ".join(region)
     if parcellation is None:
@@ -229,8 +230,9 @@ def features(ctx, region, parcellation, match):
     # init siibra
     os.environ["SIIBRA_LOG_LEVEL"] = "WARN"
     import siibra
+
     siibra.commons.set_log_level("INFO")
-    atlas = siibra.atlases[ctx.obj['species']]
+    atlas = siibra.atlases[ctx.obj["species"]]
     siibra.logger.info(f"Using atlas '{atlas.name}'.")
     parcobj = atlas.get_parcellation(parcellation)
 
@@ -238,7 +240,9 @@ def features(ctx, region, parcellation, match):
     try:
         regionobj = atlas.get_region(regionspec, parcellation=parcobj)
     except ValueError:
-        click.echo(f'Cannot decode region specification "{regionspec}" for {parcobj.name}.')
+        click.echo(
+            f'Cannot decode region specification "{regionspec}" for {parcobj.name}.'
+        )
         exit(1)
 
     features = siibra.get_features(regionobj, "ebrains")
@@ -255,6 +259,7 @@ def features(ctx, region, parcellation, match):
 
     if len(features) > 1:
         from simple_term_menu import TerminalMenu
+
         menu = TerminalMenu(f.name for f in features)
         index = menu.show()
     else:
@@ -299,7 +304,8 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
     Note: To provide negative numbers, add "--" as the first argument after all options, ie. `siibra assign coordinate -- -3.2 4.6 -12.12`
     """
     import siibra
-    atlas = siibra.atlases[ctx.obj['species']]
+
+    atlas = siibra.atlases[ctx.obj["species"]]
     siibra.logger.info(f"Using atlas '{atlas.name}'.")
     parcobj = atlas.get_parcellation(parcellation)
     maptype = siibra.MapType.LABELLED if labelled else siibra.MapType.CONTINUOUS
@@ -309,7 +315,9 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
     assignments = []
     for spaceobj in [requested_space] + list(atlas.spaces - requested_space):
         try:
-            parcmap = atlas.get_map(parcellation=parcobj, space=spaceobj, maptype=maptype)
+            parcmap = atlas.get_map(
+                parcellation=parcobj, space=spaceobj, maptype=maptype
+            )
             new = parcmap.assign_coordinates(location, sigma_mm=sigma_mm)
             assignments.extend(new[0])
         except (RuntimeError, ValueError):
@@ -331,3 +339,40 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
             click.echo(f"{region.name:40.40} {values}")
         else:
             click.echo(region.name)
+
+
+@assign.command()
+@click.argument("niftifiles", type=click.STRING, nargs=-1)
+@click.option(
+    "-s", "--space", type=click.STRING, default="mni152", autocompletion=complete_spaces
+)
+@click.option(
+    "-p",
+    "--parcellation",
+    type=click.STRING,
+    default="julich 2.9",
+    autocompletion=complete_parcellations,
+)
+@click.option(
+    "--labelled/--probabilistic",
+    is_flag=True,
+    default=True,
+    help="Wether to use labelled maps or continuous (e.g. probabilistic) maps to perform the assignment (default:labelled)",
+)
+@click.option(
+    "-o",
+    "--outdir",
+    type=click.STRING,
+    default=None,
+)
+@click.pass_context
+def scan(ctx, niftifiles, space, parcellation, labelled, outdir):
+    """Assign a signals from a whole brain scans to anatomical brain regions."""
+    from siibra.toolboxes.neuroimaging import AnatomicalAssignment
+    from siibra import logger
+
+    analysis = AnatomicalAssignment(parcellation, space)
+
+    for niftifile in niftifiles:
+        report = analysis.run(niftifile, outdir=outdir)
+        logger.info(f"Result stored as {report}.")
