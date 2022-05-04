@@ -34,6 +34,7 @@ matplotlib.use("Agg")
 
 
 class AnatomicalAssignment:
+
     def __init__(
         self,
         parcellation: Union[str, Parcellation] = "julich 2.9",
@@ -43,6 +44,7 @@ class AnatomicalAssignment:
         min_entries: int = 4,
         resolution_dpi: float = 300,
         max_conn: int = 30,
+        force_overwrite=False
     ):
 
         parcobj = Parcellation.REGISTRY[parcellation]
@@ -52,6 +54,7 @@ class AnatomicalAssignment:
         self.min_entries = min_entries
         self.dpi = resolution_dpi
         self.max_conn = max_conn
+        self.overwrite = force_overwrite
 
         atlas = Atlas.REGISTRY.MULTILEVEL_HUMAN_ATLAS
         self.pmaps = atlas.get_map(
@@ -75,7 +78,7 @@ class AnatomicalAssignment:
             os.makedirs(plotdir)
 
         reportfile = f"{os.path.join(outdir,os.path.basename(niftifile))}.pdf"
-        if os.path.isfile(reportfile):
+        if os.path.isfile(reportfile) and not self.overwrite:
             logger.warn(
                 f"File {reportfile} exists - skipping analysis for {niftifile}."
             )
@@ -196,7 +199,7 @@ class AnatomicalAssignment:
     def _plot_input(self, img, niftifile, outdir):
         """plot  image to file"""
         filename = f"{os.path.join(outdir, os.path.basename(niftifile))}.png"
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or self.overwrite:
             plt.ion()
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
             plotting.plot_glass_brain(img, axes=ax, alpha=0.3)
@@ -210,7 +213,7 @@ class AnatomicalAssignment:
         filename = (
             f"{os.path.join(outdir, os.path.basename(niftifile))}.{str(component)}.png"
         )
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or self.overwrite:
             mask = nib.Nifti1Image((arr == component).astype("uint8"), affine)
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
             plt.ion()
@@ -226,7 +229,7 @@ class AnatomicalAssignment:
             pindices = self.pmaps.get_index(regionname)
         assert len(pindices) == 1
         filename = f"{os.path.join(outdir, region.key)}_pmap.png"
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or self.overwrite:
             pmap = self.pmaps.fetch(pindices[0].map)
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
             plt.ion()
@@ -244,7 +247,7 @@ class AnatomicalAssignment:
         if region not in conn.matrix:
             return None
         filename = f"{os.path.join(outdir, region.key)}_profile.png"
-        if not os.path.isfile(filename):
+        if not os.path.isfile(filename) or self.overwrite:
             fig, ax = plt.subplots(1, 1, figsize=(6, 3), dpi=self.dpi)
             plt.ion()
             profile = conn.matrix[region].sort_values(ascending=False)[: self.max_conn]

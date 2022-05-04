@@ -369,9 +369,8 @@ def coordinate(ctx, coordinate, space, parcellation, labelled, sigma_mm):
 def scan(ctx, niftifiles, space, parcellation, labelled, outdir):
     """Assign a signals from a whole brain scans to anatomical brain regions."""
     from siibra.toolboxes.neuroimaging import AnatomicalAssignment
-    from siibra import logger
 
     analysis = AnatomicalAssignment(parcellation, space)
 
     for niftifile in niftifiles:
-        report = analysis.run(niftifile, outdir=outdir)
+        analysis.run(niftifile, outdir=outdir)
