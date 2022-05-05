@@ -399,7 +399,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
             data = np.asanyarray(mask.dataobj) > threshold_continuous
             logger.info(f"Mask built using a continuous map thresholded at {threshold_continuous}.")
-            assert any(data)
+            # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+            assert np.any(data > 0)
             mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
         return mask
