@@ -39,7 +39,9 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 region = atlas.get_region("V1")
 features = siibra.get_features(
     region, siibra.modalities.GeneExpression,
-    gene=siibra.features.gene_names.GABARAPL2)
+    gene=siibra.features.gene_names.GABARAPL2,
+    maptype=siibra.commons.MapType.CONTINUOUS,
+    threshold_continuous=0.2)
 print(features[0])
 
 # %%
