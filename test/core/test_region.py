@@ -174,7 +174,9 @@ def test_has_inspired_by(parc_spec, region_spec, space_spec):
     r = p.decode_region(region_spec)
     model = r.to_model(space=siibra.spaces[space_spec])
     assert model.has_annotation.visualized_in is not None, f"expecting has_annotation.visualized_in is defined"
-    assert re.match(r"^precomputed:\/\/", model.has_annotation.visualized_in["@id"]), f"expecting has_annotation.visualized_in starts with precomputed://"
+
+    # has_annotation.visualized_in is either in region.volumes or parcellation.volumes
+    assert any(vol.model_id == model.has_annotation.visualized_in["@id"] for vol in [*r.volumes, *p.volumes])
 
 has_internal_identifier = [
     ('julich 2.9', "hoc1", "big brain", True),
@@ -198,6 +200,32 @@ def test_has_internal_identifier(parc_spec, region_spec, space_spec, expect_id_d
     assert model.has_annotation.internal_identifier is not None, f"expecting has_annotation.internal_identifier is defined"
     assert (model.has_annotation.internal_identifier != "unknown") == expect_id_defined, f"expect_id_defined: {expect_id_defined}, but id: {model.has_annotation.internal_identifier}"
     # assert (model.has_annotation.visualized_in is not None) == expect_id_defined
+
+jba29_bigbrain = [
+    ("hoc1", 1),
+    ("hoc2", 1),
+    ("hoc5", 1),
+    ("hIP7", 18),
+    ("MGB-MGBd (CGM, Metathalamus)", 1),
+]
+big_brain = siibra.spaces['big brain']
+get_labelidx = re.compile(r'\#([1-9]+)$')
+
+@pytest.mark.parametrize("region_spec,expected_labelindex", jba29_bigbrain)
+def test_bigbrain_jba29_has_labelindex(region_spec: str, expected_labelindex: int):
+    p = siibra.parcellations['2.9']
+    r: Region = p.find_regions(region_spec)[0]
+    model = r.to_model(space=big_brain)
+
+    assert model.has_annotation.visualized_in is not None, f"expect visualized_in to be defined"
+
+    found = [insp
+        for insp in model.has_annotation.inspired_by
+        if "siibra_python_ng_precomputed_labelindex://" in insp.get("@id")]
+    assert len(found) == 1, f"expecting one and only 1 labelindex metadata"
+    label = get_labelidx.search(found[0].get("@id"))
+    assert label is not None, f"regex should match"
+    assert label[1] == str(expected_labelindex), f"expected label index: {expected_labelindex}, actual: {get_labelidx[1]}"
 
 if __name__ == "__main__":
     unittest.main()

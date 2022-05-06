@@ -110,12 +110,12 @@ class Dataset(JSONSerializable):
                 self.id if self.id else f"{str(self)}{self.description}"
             ).encode("utf-8")
         ).hexdigest()
-        return f'{Dataset.get_model_type()}/{_id}'
+        return f'{self.get_model_type()}/{_id}'
 
     def to_model(self, **kwargs) -> 'DatasetJsonModel':
         metadata=DatasetVersionModel(
             id=self.model_id,
-            type=Dataset.get_model_type(),
+            type=self.get_model_type(),
             accessibility={
                 "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
             },
