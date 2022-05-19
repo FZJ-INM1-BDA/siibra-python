@@ -32,7 +32,16 @@ from pydantic import Field
 class ConnectivityMatrixDataModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     type: str = Field(..., alias="@type")
-    name: str
+    name: Optional[str]
+    description: Optional[str]
+    citation: Optional[str]
+    authors: Optional[List[str]]
+    cohort: Optional[str]
+    subject: Optional[str]
+
+    filename: Optional[str]
+    dataset_id: Optional[str]
+
     parcellations: List[Dict[str, str]]
     matrix: Optional[NpArrayDataModel]
     columns: Optional[List[str]]
@@ -94,13 +103,27 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
     def to_model(self, detail=False, **kwargs) -> ConnectivityMatrixDataModel:
 
+        # these properties do not exist on ConnectivityMatrix, but may be populated from ConnectivityMatrix.src_info via __getattr__
+        model_dict_from_getattr = {
+            key: getattr(self, key) if hasattr(self, key) else None
+            for key in [
+                "name",
+                "description",
+                "citation",
+                "authors",
+                "cohort",
+                "subject",
+                "filename",
+                "dataset_id",
+            ]
+        }
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
             type=self.get_model_type(),
-            name=self.name,
             parcellations=[{
                 "@id": parc.model_id,
             } for parc in self.parcellations],
+            **model_dict_from_getattr,
         )
         if detail is False:
             return base_model

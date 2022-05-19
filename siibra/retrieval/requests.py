@@ -153,7 +153,17 @@ class HttpRequest:
         if data is None:
             with open(self.cachefile, "rb") as f:
                 data = f.read()
-        return data if self.func is None else self.func(data)
+        try:
+            return data if self.func is None else self.func(data)
+        except Exception as e:
+            # if network error results in bad cache, it may get raised here
+            # e.g. BadZipFile("File is not a zip file")
+            # if that happens, remove cachefile and
+            try:
+                os.unlink(self.cachefile)
+            except:
+                pass
+            raise e
 
     @property
     def data(self):
