@@ -105,7 +105,7 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
         # these properties do not exist on ConnectivityMatrix, but may be populated from ConnectivityMatrix.src_info via __getattr__
         model_dict_from_getattr = {
-            key: self[key] if hasattr(self, key) else None
+            key: getattr(self, key) if hasattr(self, key) else None
             for key in [
                 "name",
                 "description",
