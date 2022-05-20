@@ -23,6 +23,7 @@ from ..core.parcellation import Parcellation
 
 from typing import Tuple
 from abc import ABC, abstractmethod
+import pandas as pd
 
 try:
     from importlib import resources
@@ -219,7 +220,14 @@ class SpatialFeature(Feature):
     def space(self):
         return self.location.space
 
-    def match(self, concept, *, maptype:MapType=MapType.LABELLED, threshold_continuous:float=None, **kwargs):
+    def match(
+        self,
+        concept,
+        *,
+        maptype: MapType = MapType.LABELLED,
+        threshold_continuous: float = None,
+        **kwargs,
+    ):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
@@ -259,7 +267,13 @@ class SpatialFeature(Feature):
                 continue
             if region.mapped_in_space(tspace):
                 if tspace == self.space:
-                    return self._test_mask(self.location, region, tspace, maptype=maptype, threshold_continuous=threshold_continuous)
+                    return self._test_mask(
+                        self.location,
+                        region,
+                        tspace,
+                        maptype=maptype,
+                        threshold_continuous=threshold_continuous,
+                    )
                 else:
                     logger.warning(
                         f"{self.__class__.__name__} cannot be tested for {region.name} "
@@ -271,8 +285,18 @@ class SpatialFeature(Feature):
 
         return self.matched
 
-    def _test_mask(self, location: Location, region: Region, space: Space, *, maptype: MapType = MapType.LABELLED, threshold_continuous=None):
-        mask = region.build_mask(space=space, maptype=maptype, threshold_continuous=threshold_continuous)
+    def _test_mask(
+        self,
+        location: Location,
+        region: Region,
+        space: Space,
+        *,
+        maptype: MapType = MapType.LABELLED,
+        threshold_continuous=None,
+    ):
+        mask = region.build_mask(
+            space=space, maptype=maptype, threshold_continuous=threshold_continuous
+        )
         intersection = location.intersection(mask)
         if intersection is None:
             return self.matched
@@ -409,8 +433,7 @@ class RegionalFeature(Feature):
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
                 if all(
-                    atlas.species.kg_v1_id not in self.species_ids
-                    for atlas in atlases
+                    atlas.species.kg_v1_id not in self.species_ids for atlas in atlases
                 ):
                     return self.matched
         # for backwards compatibility. If any attr is not found, pass
@@ -612,3 +635,53 @@ class ParcellationFeature(Feature):
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.spec}"
+
+
+class CorticalProfile(RegionalFeature):
+    """
+    Base class for profiles along cortical depth.
+
+    Derived classes need to implement the unit property as well as the _depths and _values properties.
+    The latter need to be lists of equal lenght.
+    """
+
+    def __init__(self, species: dict, regionname: str, description: str):
+        RegionalFeature.__init__(self, regionspec=regionname, species=species)
+        self._description = description
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def unit(self):
+        """To be implementeds in derived class."""
+        raise NotImplementedError(
+            f"'unit' not implemented for {self.__class__.__name__}."
+        )
+
+    @property
+    def data(self):
+        """return a pandas Series representing the profile."""
+        assert isinstance(self._depths, list)
+        assert isinstance(self._values, list)
+        assert len(self._depths) == len(self._values)
+        assert min(self._depths) >= 0
+        assert max(self._depths) <= 1
+        return pd.Series(self._values, index=self._depths)
+
+    @property
+    def _depths(self):
+        """Returns a list of the relative cortical depths of the measured values in the range [0..1].
+        To be implemented in derived class."""
+        raise NotImplementedError(
+            f"'_depths' not implemented for {self.__class__.__name__}."
+        )
+
+    @property
+    def _values(self):
+        """Returns a list of the measured values per depth.
+        To be implemented in derived class."""
+        raise NotImplementedError(
+            f"'_values' not implemented for {self.__class__.__name__}."
+        )

@@ -249,9 +249,9 @@ class EbrainsHdgConnector(RepositoryConnector):
 
     def _build_url(self, folder, filename):
         if len(folder) > 0:
-            fpath = quote(f"{folder}/{filename}") #, safe="")
+            fpath = quote(f"{folder}/{filename}")
         else:
-            fpath = quote(f"{filename}") #, safe="")
+            fpath = quote(f"{filename}")
         url = f"{self.base_url}/{self.dataset_id}/{fpath}?redirect=true"
         return url
 
@@ -306,7 +306,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     def name(self):
         if self.use_version in self.versions:
             if "name" in self.versions[self.use_version]:
-                if len(self.versions[self.use_version]["name"])>0:
+                if len(self.versions[self.use_version]["name"]) > 0:
                     return self.versions[self.use_version]["name"]
         return self._name
 
@@ -364,7 +364,6 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         """Get a lazy loader for a file, for executing the query
         only once loader.data is accessed."""
         return HttpRequest(self._build_url(folder, filename), decode_func)
-
 
 
 class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):

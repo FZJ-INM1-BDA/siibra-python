@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import RegionalFeature
+from .feature import RegionalFeature, CorticalProfile
 from .query import FeatureQuery
 from ..commons import logger
 from ..retrieval.requests import EbrainsKgQuery, HttpRequest
@@ -254,7 +254,7 @@ def unify_stringlist(L: list):
     return [L[i] + "*" * L[:i].count(L[i]) for i in range(len(L))]
 
 
-def decode_tsv(bytearray):
+def decode_receptor_tsv(bytearray):
     bytestream = BytesIO(bytearray)
     header = bytestream.readline()
     lines = [_.strip() for _ in bytestream.readlines() if len(_.strip()) > 0]
@@ -409,8 +409,8 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         self.modality = kg_result["modality"]
 
         urls = kg_result["files"]
-        
-        self.files=urls
+
+        self.files = urls
 
         def urls_matching(regex):
             return filter(lambda u: re.match(regex, u), urls)
@@ -421,7 +421,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
             if self._fingerprint_loader is not None:
                 logger.warning(f"More than one fingerprint found for {self}")
             self._fingerprint_loader = HttpRequest(
-                url, lambda u: DensityFingerprint(decode_tsv(u))
+                url, lambda u: DensityFingerprint(decode_receptor_tsv(u))
             )
 
         # add any cortical profiles
@@ -433,7 +433,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
             if rtype in self._profile_loaders:
                 logger.warning(f"More than one profile for '{rtype}' in {self.url}")
             self._profile_loaders[rtype] = HttpRequest(
-                url, lambda u: DensityProfile(decode_tsv(u))
+                url, lambda u: DensityProfile(decode_receptor_tsv(u))
             )
 
         # add autoradiograph
@@ -442,7 +442,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
         def img_from_bytes(b):
             # PIL is column major but numpy is row major
             # see https://stackoverflow.com/questions/19016144/conversion-between-pillow-image-object-and-numpy-array-changes-dimension
-            return np.transpose(np.array(Image.open(BytesIO(b))), axes=[1,0,2])
+            return np.transpose(np.array(Image.open(BytesIO(b))), axes=[1, 0, 2])
 
         for url in urls_matching(".*_ar[._]"):
             rtype, basename = url.split("/")[-2:]
@@ -462,7 +462,7 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
     def model_id(self):
         return f'{ReceptorDistribution.get_model_type()}/{hashlib.md5(super().model_id.encode("utf-8")).hexdigest()}'
 
-    def to_model(self, detail=False, **kwargs) -> 'ReceptorDatasetModel':
+    def to_model(self, detail=False, **kwargs) -> "ReceptorDatasetModel":
         base_dict = dict(super().to_model(detail=detail, **kwargs).dict())
         base_dict["@type"] = ReceptorDistribution.get_model_type()
         if not detail:
@@ -471,29 +471,35 @@ class ReceptorDistribution(RegionalFeature, EbrainsDataset):
                 data=None,
             )
 
-        data_model=ReceptorDataModel(
+        data_model = ReceptorDataModel(
             autoradiographs={
                 key: AutoradiographyDataModel(autoradiograph)
-                for key, autoradiograph in self.autoradiographs.items()},
+                for key, autoradiograph in self.autoradiographs.items()
+            },
             profiles={
                 key: ProfileDataModel(
-                    density=NpArrayDataModel(np.array([val for val in profile.densities.values()], dtype="float32")),
-                    unit=profile.unit
-                ) for key, profile in self.profiles.items()
+                    density=NpArrayDataModel(
+                        np.array(
+                            [val for val in profile.densities.values()], dtype="float32"
+                        )
+                    ),
+                    unit=profile.unit,
+                )
+                for key, profile in self.profiles.items()
             },
             fingerprints={
                 key: FingerPrintDataModel(
-                    mean=mean,
-                    std=std,
-                    unit=self.fingerprint.unit
-                ) for key, mean, std in zip(self.fingerprint.labels, self.fingerprint.meanvals, self.fingerprint.stdvals)
+                    mean=mean, std=std, unit=self.fingerprint.unit
+                )
+                for key, mean, std in zip(
+                    self.fingerprint.labels,
+                    self.fingerprint.meanvals,
+                    self.fingerprint.stdvals,
+                )
             },
-            receptor_symbols=RECEPTOR_SYMBOLS
+            receptor_symbols=RECEPTOR_SYMBOLS,
         )
-        return ReceptorDatasetModel(
-            **base_dict,
-            data=data_model
-        )
+        return ReceptorDatasetModel(**base_dict, data=data_model)
 
     @property
     def fingerprint(self):
@@ -576,24 +582,138 @@ class ReceptorQuery(FeatureQuery):
 
     _FEATURETYPE = ReceptorDistribution
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         kg_req = EbrainsKgQuery(
             query_id="siibra_receptor_densities-0_0_2",
-            params={'vocab': 'https://schema.hbp.eu/myQuery/' }
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
         )
         kg_query = kg_req.get()
-        
+
         not_used = 0
         for kg_result in kg_query["results"]:
-            region_names = [p_region["name"] for p_region in kg_result["parcellationRegion"]]
-            species = kg_result.get('species', [])
+            region_names = [
+                p_region["name"] for p_region in kg_result["parcellationRegion"]
+            ]
+            species = kg_result.get("species", [])
             for region_name in region_names:
                 f = ReceptorDistribution(region_name, kg_result, species=species)
                 if f.fingerprint is None:
                     not_used += 1
                 else:
                     self.register(f)
-        
+
         if not_used > 0:
-            logger.info(f'{not_used} receptor datasets skipped due to unsupported format.')
+            logger.info(
+                f"{not_used} receptor datasets skipped due to unsupported format."
+            )
+
+
+class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
+
+    DESCRIPTION = (
+        "Cortical profile of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
+        "obtained by means of quantitative in vitro autoradiography. The profiles provide, for a "
+        "single tissue sample, an exemplary density distribution for a single receptor from the pial surface "
+        "to the border between layer VI and the white matter."
+    )
+
+    def __init__(
+        self,
+        dataset_id: str,
+        species: dict,
+        regionname: str,
+        receptor_type: str,
+        url: str,
+    ):
+        """Generate a receptor density profile from a URL to a .tsv file
+        formatted according to the structure used by Palomero-Gallagher et al.
+        """
+        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
+        EbrainsDataset.__init__(self, dataset_id, f"Receptor density for {regionname}")
+        self.type = receptor_type
+        self._data_cached = None
+        self._loader = HttpRequest(
+            url,
+            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
+        )
+        self._unit_cached = None
+
+    @property
+    def receptor(self):
+        return "{} ({})".format(
+            self.type,
+            RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
+        )
+
+    @property
+    def neurotransmitter(self):
+        return "{} ({})".format(
+            RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['label'],
+            RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['name'],
+        )
+
+    @property
+    def unit(self):
+        # triggers lazy loading of the HttpRequest
+        return self._loader.data["unit"]
+
+    @property
+    def _values(self):
+        # triggers lazy loading of the HttpRequest
+        return self._loader.data["density"]
+
+    @property
+    def _depths(self):
+        return self._loader.data["depth"]
+
+    @classmethod
+    def parse_tsv_data(self, data):
+        units = {list(v.values())[3] for v in data.values()}
+        assert len(units) == 1
+        return {
+            "depth": [float(k) / 100.0 for k in data.keys() if k.isnumeric()],
+            "density": [
+                float(list(v.values())[2]) for k, v in data.items() if k.isnumeric()
+            ],
+            "unit": next(iter(units)),
+        }
+
+
+class ReceptorProfileQuery(FeatureQuery):
+
+    _FEATURETYPE = ReceptorDensityProfile
+
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+        query_result = EbrainsKgQuery(
+            query_id="siibra_receptor_densities-0_0_2",
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
+        ).get()
+
+        not_used = 0
+        for kg_result in query_result["results"]:
+            region_names = [
+                p_region["name"] for p_region in kg_result["parcellationRegion"]
+            ]
+            species = kg_result.get("species", [])
+            for region_name in region_names:
+                for url in kg_result["files"]:
+                    if re.match(r".*_pr[._].*\.tsv", url):
+                        receptor_type, basename = url.split("/")[-2:]
+                        if receptor_type in basename:
+                            f = ReceptorDensityProfile(
+                                kg_result["@id"].split("/")[-1],
+                                species,
+                                region_name,
+                                receptor_type,
+                                url,
+                            )
+                            self.register(f)
+                            continue
+                    not_used += 1
+
+        if not_used > 0:
+            logger.info(
+                f"{not_used} receptor datasets skipped due to unsupported format."
+            )
