@@ -36,6 +36,7 @@ from math import ceil, log10
 import gzip
 from scipy.ndimage.morphology import distance_transform_edt
 
+
 class ParcellationMap(ABC):
     """
     Represents a brain map in a particular reference space, with
@@ -218,12 +219,12 @@ class ParcellationMap(ABC):
 
     def decode_region(self, regionspec: Union[str, Region]):
         """
-        Given a unique specification, return the corresponding region 
+        Given a unique specification, return the corresponding region
         that is mapped in this ParcellationMap.
         The spec could be a label index, a (possibly incomplete) name, or a
         region object.
         This method is meant to definitely determine a valid region. Therefore,
-        if no match is found, it raises a ValueError. 
+        if no match is found, it raises a ValueError.
 
         Parameters
         ----------
@@ -243,11 +244,11 @@ class ParcellationMap(ABC):
             region = regionspec
         else:
             region = self.parcellation.decode_region(regionspec)
-            
+
         if region in self.regions.values():
             # a perfect match
             return region
-        
+
         # If the given region is not directly found in the map,
         # see if there is a unique match among its children.
         matches = [
@@ -257,9 +258,9 @@ class ParcellationMap(ABC):
         if len(matches) == 0:
             raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
         mindepth = min(m[1] for m in matches)
-        candidates = list(filter(lambda v: v[1]== mindepth, matches))
+        candidates = list(filter(lambda v: v[1] == mindepth, matches))
 
-        if len(candidates) == 1:        
+        if len(candidates) == 1:
             return candidates[0][0]
         elif len(candidates) == 0:
             raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
@@ -269,7 +270,6 @@ class ParcellationMap(ABC):
                 f"it resolves to {', '.join(c.name for c,d in candidates)} "
                 f"in {str(self)}."
             )
-
 
     def decode_index(self, mapindex=None, labelindex=None):
         """
@@ -318,7 +318,7 @@ class ParcellationMap(ABC):
 
         # if we found maps of child regions, we want the mapped leaves to be identical to the leaves of the requested region.
         children_found = {c for _, r in subregions for c in r.leaves}
-        children_requested = set(region.leaves)
+        children_requested = {c for c in region.leaves}
         if children_found != children_requested:
             raise IndexError(
                 f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there."
@@ -428,9 +428,9 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
 
                 lblarr[updates] = new_labelindex
                 maxarr[updates] = maparr[updates]
-                regions[new_labelindex]  = region.name
+                regions[new_labelindex] = region.name
                 new_labelindex += 1
-        
+
         return result, regions
 
     def compute_centroids(self):
@@ -438,7 +438,7 @@ class ParcellationVolume(ParcellationMap, ImageProvider):
         """
         centroids = {}
         # list of regions sorted by mapindex
-        regions = sorted(self.regions.items(), key=lambda v:(v[0].map, v[0].label))
+        regions = sorted(self.regions.items(), key=lambda v: (v[0].map, v[0].label))
         current_mapindex = -1
         maparr = None
         for pind, region in tqdm(regions, unit="regions", desc="Computing centroids"):
@@ -616,7 +616,7 @@ class LabelledParcellationVolume(ParcellationVolume):
         m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
         if len(m.dataobj.shape) == 4:
             if m.dataobj.shape[3] == 1:
-                m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int).squeeze(), affine=m.affine)
+                m = Nifti1Image(dataobj=np.asarray(m.dataobj).astype(int).squeeze(), affine=m.affine)
             else:
                 logger.info(
                     f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
@@ -790,7 +790,7 @@ class LabelledParcellationVolume(ParcellationVolume):
 
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
-        
+
         The probability distribution is approximated from the region mask
         based on the squared distance transform.
 
