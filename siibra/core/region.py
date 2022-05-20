@@ -426,7 +426,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             return False
 
         for child in self.children:
-            if not child.mapped_in_space(space):
+            if (child.extended_from is None) and not child.mapped_in_space(space):
                 return False
         return True
 

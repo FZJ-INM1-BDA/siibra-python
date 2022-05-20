@@ -30,7 +30,6 @@ setup(
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,
     package_data={'siibra': ['features/region_aliases_human.json']},
-    # packages=find_packages(include=['.']),
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python :: 3.6",
@@ -39,24 +38,17 @@ setup(
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
     ],
-    entry_points="""
-        [console_scripts]
-        siibra=cli.cli:siibra
-    """,
     python_requires=">=3.6",
     install_requires=[
         "anytree",
         "nibabel",
-        "click",
         "appdirs",
         "scikit-image",
         "requests",
         "memoization",
         "neuroglancer-scripts",
         "nilearn",
-        "simple-term-menu",
         'importlib-resources; python_version < "3.7"',
         "pydantic==1.8.2",
-        "fpdf"
     ],
 )
