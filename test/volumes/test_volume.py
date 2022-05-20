@@ -2,7 +2,7 @@ import unittest
 import pytest
 from siibra.commons import MapType
 
-from siibra.volumes import VolumeSrc, RemoteNiftiVolume
+from siibra.volumes.volume import VolumeSrc, RemoteNiftiVolume, Dataset
 from siibra import spaces, parcellations
 from siibra.volumes.volume import NeuroglancerVolume
 
@@ -58,7 +58,9 @@ parcs_volumes = [volume
 
 @pytest.mark.parametrize("volume", parcs_volumes)
 def test_parc_volumes(volume: VolumeSrc):
-    volume.to_model()
+    model = volume.to_model()
+    assert model.type != Dataset.get_model_type()
+    assert Dataset.get_model_type() not in model.id
 
 
 region_volmes = [volume
@@ -68,7 +70,10 @@ region_volmes = [volume
 
 @pytest.mark.parametrize("volume", region_volmes)
 def test_region_volumes(volume: VolumeSrc):
-    volume.to_model()
+    model = volume.to_model()
+
+    assert model.type != Dataset.get_model_type()
+    assert Dataset.get_model_type() not in model.id
 
 
 fetch_ng_volume_fetchable_params=[

@@ -399,7 +399,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
             data = np.asanyarray(mask.dataobj) > threshold_continuous
             logger.info(f"Mask built using a continuous map thresholded at {threshold_continuous}.")
-            assert any(data)
+            # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
+            assert np.any(data > 0)
             mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
 
         return mask
@@ -841,18 +842,14 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             version_innovation=None
         )
 
-        from .. import parcellations
+        from .. import parcellations, spaces
         from ..volumes import VolumeSrc, NeuroglancerVolume, GiftiSurfaceLabeling
         from .datasets import EbrainsDataset
 
         if space is not None:
             def vol_to_id_dict(vol: VolumeSrc):
-                if vol.volume_type == "neuroglancer/precomputed":
-                    return {
-                        "@id": f"precomputed://{vol.url}"
-                    }
                 return {
-                    "@id": vol.url
+                    "@id": vol.model_id
                 }
             
             """
@@ -920,12 +917,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 for url in ds.urls
                 if url.get("doi")]
 
-            pev.has_annotation.inspired_by = [
-                *[vol_to_id_dict(vol) for vol in parc_volumes],
-                *[vol_to_id_dict(vol) for vol in self_volumes],
-                *ebrains_ds
-            ]
-            
             try:
 
                 # self.index.label can sometimes be None. e.g. "basal forebrain"
@@ -946,6 +937,37 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 pass
                 
 
+
+            # temporary workaround to https://github.com/FZJ-INM1-BDA/siibra-python/issues/185
+            # in big brain jba29, without probing region.volumes, it is impossible to tell the labelindex of the region
+            # adding a custom dataset, in the format of:
+            # siibra_python_ng_precomputed_labelindex://{VOLUME_ID}#{LABEL_INDEX}
+
+            # also, it appears extension regions such as MGB-MGBd (CGM, Metathalamus) do not have index defined
+            # see https://github.com/FZJ-INM1-BDA/siibra-python/issues/185#issuecomment-1119317697
+            BIG_BRAIN_SPACE = spaces['big brain']
+            precomputed_labels = []
+            if space is BIG_BRAIN_SPACE:
+                big_brain_volume = [vol
+                    for vol in self.volumes
+                    if isinstance(vol, NeuroglancerVolume)
+                    and vol.space is BIG_BRAIN_SPACE]
+
+                precomputed_labels = [{ "@id": f"siibra_python_ng_precomputed_labelindex://{vol.model_id}#{vol.detail.get('neuroglancer/precomputed', {}).get('labelIndex')}" }
+                    for vol in self.volumes
+                    if isinstance(vol, NeuroglancerVolume)
+                    and vol.space is BIG_BRAIN_SPACE]
+
+                if len(big_brain_volume) == 1:
+                    pev.has_annotation.visualized_in = vol_to_id_dict(big_brain_volume[0])
+
+            pev.has_annotation.inspired_by = [
+                *[vol_to_id_dict(vol) for vol in parc_volumes],
+                *[vol_to_id_dict(vol) for vol in self_volumes],
+                *ebrains_ds,
+                *precomputed_labels,
+            ]
+            
             if detail:
                 try:
                     centroids = self.centroids(space)

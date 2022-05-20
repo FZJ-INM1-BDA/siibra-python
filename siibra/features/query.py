@@ -36,7 +36,7 @@ class FeatureQuery(ABC):
 
     def __init__(self, **kwargs):
         logger.debug(f"Initializing query for {self._FEATURETYPE.__name__} features")
-        self.features = []
+        self.features: List[Feature] = []
 
     def __init_subclass__(cls):
         """
@@ -97,7 +97,7 @@ class FeatureQuery(ABC):
                     raise (e)
 
             query = cls._instances[querytype, args_hash]
-            matches = query.execute(concept)
+            matches = query.execute(concept, **kwargs)
             logger.debug(f"{len(matches)} matches from query {query.__class__.__name__}")
 
             if group_by is None:
@@ -179,20 +179,20 @@ class FeatureQuery(ABC):
             instances.append(cls._instances[Querytype, args_hash])
         return instances
 
-    def execute(self, concept: AtlasConcept):
+    def execute(self, concept: AtlasConcept, **kwargs):
         """
         Executes a query for features associated with an atlas object.
         """
         matches = []
         for feature in self.features:
-            if feature.match(concept):
+            if feature.match(concept, **kwargs):
                 matches.append(feature)        
         return matches
 
     def __str__(self):
         return "\n".join([str(f) for f in self.features])
 
-    def register(self, feature):
+    def register(self, feature: Feature):
         assert isinstance(feature, self._FEATURETYPE)
         self.features.append(feature)
 

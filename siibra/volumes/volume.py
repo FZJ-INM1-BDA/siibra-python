@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from siibra.openminds.base import SiibraAtIdModel
+from ..openminds.base import SiibraAtIdModel
 from .. import logger
 from ..commons import MapType
 from ..core.datasets import Dataset, DatasetJsonModel
@@ -29,7 +29,8 @@ from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
 from typing import Any, Dict, Optional
-
+from pydantic import Field
+import hashlib
 
 class VolumeDataModel(ConfigBaseModel):
     type: str
@@ -44,6 +45,7 @@ class VolumeDataModel(ConfigBaseModel):
 
 
 class VolumeModel(DatasetJsonModel):
+    type: str = Field(..., alias="@type")
     data: VolumeDataModel
 
 
@@ -159,10 +161,23 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     @property
     def model_id(self):
-        return super().model_id
+        hashed_url = hashlib.md5(
+            str(self.url).encode("utf-8")
+        ).hexdigest()
+        return f"{self.get_model_type()}/{hashed_url}"
+
+    def get_model_type(self):
+        return f'spy/volume/{self.volume_type}'
 
     def to_model(self, **kwargs) -> VolumeModel:
         super_model = super().to_model(**kwargs)
+        super_dict = {
+            **super_model.dict(),
+            **{
+                '@id': self.model_id,
+                '@type': self.get_model_type()
+            }
+        }
         return VolumeModel(
             data=VolumeDataModel(
                 type=self.volume_type,
@@ -177,7 +192,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 map_type=self.map_type.name if hasattr(self, "map_type") and self.map_type is not None else None,
                 volume_type=self.volume_type,
             ),
-            **super_model.dict(),
+            **super_dict
         )
 
 

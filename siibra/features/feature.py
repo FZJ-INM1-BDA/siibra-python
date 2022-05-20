@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ctypes import ArgumentError
-from ..commons import logger, Registry, QUIET
+from ..commons import MapType, logger, Registry, QUIET
 from ..core.concept import AtlasConcept
 from ..core.atlas import Atlas
 from ..core.space import Space, Location, Point, PointSet, BoundingBox
@@ -171,7 +171,7 @@ class Feature(ABC):
         return self._match.location if self.matched else None
 
     @abstractmethod
-    def match(self, concept):
+    def match(self, concept, **kwargs):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
@@ -219,16 +219,18 @@ class SpatialFeature(Feature):
     def space(self):
         return self.location.space
 
-    def match(self, concept):
+    def match(self, concept, *, maptype:MapType=MapType.LABELLED, threshold_continuous:float=None, **kwargs):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
 
-        TODO this could use parameters for continuous maps, thresholding and resolution
+        TODO this could use parameters for resolution
 
         Parameters:
         -----------
         concept : AtlasConcept
+        maptype : MapType
+        threshold_continuous : float
 
         Returns:
         -------
@@ -257,7 +259,7 @@ class SpatialFeature(Feature):
                 continue
             if region.mapped_in_space(tspace):
                 if tspace == self.space:
-                    return self._test_mask(self.location, region, tspace)
+                    return self._test_mask(self.location, region, tspace, maptype=maptype, threshold_continuous=threshold_continuous)
                 else:
                     logger.warning(
                         f"{self.__class__.__name__} cannot be tested for {region.name} "
@@ -269,8 +271,8 @@ class SpatialFeature(Feature):
 
         return self.matched
 
-    def _test_mask(self, location: Location, region: Region, space: Space):
-        mask = region.build_mask(space=space)
+    def _test_mask(self, location: Location, region: Region, space: Space, *, maptype: MapType = MapType.LABELLED, threshold_continuous=None):
+        mask = region.build_mask(space=space, maptype=maptype, threshold_continuous=threshold_continuous)
         intersection = location.intersection(mask)
         if intersection is None:
             return self.matched
@@ -379,7 +381,7 @@ class RegionalFeature(Feature):
     def species_ids(self):
         return [s.get("@id") for s in self.species]
 
-    def match(self, concept):
+    def match(self, concept, **kwargs):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
@@ -571,7 +573,7 @@ class ParcellationFeature(Feature):
         self.spec = parcellationspec
         self.parcellations = Parcellation.REGISTRY.find(parcellationspec)
 
-    def match(self, concept):
+    def match(self, concept, **kwargs):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
