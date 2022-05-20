@@ -249,9 +249,9 @@ class EbrainsHdgConnector(RepositoryConnector):
 
     def _build_url(self, folder, filename):
         if len(folder) > 0:
-            fpath = quote(f"{folder}/{filename}", safe="")
+            fpath = quote(f"{folder}/{filename}") #, safe="")
         else:
-            fpath = quote(f"{filename}", safe="")
+            fpath = quote(f"{filename}") #, safe="")
         url = f"{self.base_url}/{self.dataset_id}/{fpath}?redirect=true"
         return url
 
@@ -331,6 +331,76 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
             return self.versions[self.use_version].get("cite", "")
         else:
             return None
+
+    @property
+    def _files(self):
+        if self.use_version in self.versions:
+            return {
+                f["name"]: f["url"] for f in self.versions[self.use_version]["files"]
+            }
+        else:
+            return {}
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        result = []
+        for fname in self._files:
+            if fname.startswith(folder):
+                if suffix is None:
+                    result.append(fname)
+                else:
+                    if fname.endswith(suffix):
+                        result.append(fname)
+        return result
+
+    def _build_url(self, folder, filename):
+        fpath = f"{folder}/{filename}" if len(folder) > 0 else f"{filename}"
+        if fpath not in self._files:
+            raise RuntimeError(
+                f"The file {fpath} requested from EBRAINS dataset {self.dataset_id} is not available in this repository."
+            )
+        return self._files[fpath]
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for executing the query
+        only once loader.data is accessed."""
+        return HttpRequest(self._build_url(folder, filename), decode_func)
+
+
+
+class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
+    """Access files from public EBRAINS datasets via the Knowledge Graph v3 API."""
+
+    QUERY_ID = "siibra-dataset-by-id-minds"
+    base_url = "https://kg.humanbrainproject.eu/query/minds/core/dataset/v1.0.0"
+    maxentries = 1000
+
+    def __init__(self, dataset_id, in_progress=False):
+        """Construct a dataset query with the dataset id.
+
+        Parameters
+        ----------
+        dataset_id : str
+            EBRAINS dataset id of a public dataset in KG v3.
+        in_progress: bool (default:False)
+            If true, will request datasets that are still under curation.
+            Will only work when autenticated with an appropriately privileged
+            user account.
+        """
+        self.dataset_id = dataset_id
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
+        response = EbrainsRequest(url, DECODERS[".json"]).get()
+        results = response.get('results', [])
+        assert len(results) == 1
+        data = results[0]
+        self.name = data['name']
+        self.description = data['description']
+        self.id = data['@id']
+        self._container = data['container_url_2']
+
+    def __getattr__(self, name):
+        if name in self._data:
+            return self._data[name]
 
     @property
     def _files(self):
