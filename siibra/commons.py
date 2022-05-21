@@ -49,6 +49,7 @@ VERBOSE = LoggingContext("DEBUG")
 
 T = TypeVar('T')
 
+
 class TypedRegistry(Generic[T], Iterable):
     """
     Provide attribute-access and iteration to a set of named elements,
@@ -202,7 +203,9 @@ class TypedRegistry(Generic[T], Iterable):
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
-class Registry(TypedRegistry[Any]): pass
+class Registry(TypedRegistry[Any]):
+    pass
+
 
 class ParcellationIndex:
     """
@@ -332,7 +335,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     x0 = x - mu_x
     y0 = y - mu_y
     dem = np.sqrt(np.sum(x0 ** 2) * np.sum(y0 ** 2))
-    if dem==0:
+    if dem == 0:
         r = 0
     else:
         r = np.sum(np.multiply(x0, y0)) / dem
