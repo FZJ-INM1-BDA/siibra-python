@@ -24,6 +24,7 @@ from ..core.parcellation import Parcellation
 from typing import Tuple
 from abc import ABC, abstractmethod
 import pandas as pd
+import numpy as np
 
 try:
     from importlib import resources
@@ -663,8 +664,8 @@ class CorticalProfile(RegionalFeature):
     @property
     def data(self):
         """return a pandas Series representing the profile."""
-        assert isinstance(self._depths, list)
-        assert isinstance(self._values, list)
+        assert isinstance(self._depths, (list, np.ndarray))
+        assert isinstance(self._values, (list, np.ndarray))
         assert len(self._depths) == len(self._values)
         assert min(self._depths) >= 0
         assert max(self._depths) <= 1

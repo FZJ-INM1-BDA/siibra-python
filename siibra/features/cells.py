@@ -15,14 +15,14 @@
 
 
 from typing import List, Optional
-from .feature import RegionalFeature
+from .feature import RegionalFeature, CorticalProfile
 from .query import FeatureQuery
 
-from ..commons import logger
+from ..commons import logger, QUIET
 from ..core import Dataset
 from ..core.space import Space, Point
-from ..core.datasets import DatasetJsonModel
-from ..retrieval.repositories import GitlabConnector, OwncloudConnector
+from ..core.datasets import DatasetJsonModel, EbrainsDataset
+from ..retrieval import HttpRequest, GitlabConnector, OwncloudConnector, EbrainsKgQuery
 from ..openminds.base import ConfigBaseModel
 
 import numpy as np
@@ -31,6 +31,8 @@ import importlib
 import pandas as pd
 import nibabel as nib
 from pydantic import Field
+from io import BytesIO
+
 
 class CorticalCellModel(ConfigBaseModel):
     x: float
@@ -42,7 +44,7 @@ class CorticalCellModel(ConfigBaseModel):
 
 class CorticalCellDistributionModel(DatasetJsonModel):
     id: str = Field(..., alias="@id")
-    type: str = Field('siibra/features/cells', const=True, alias="@type")
+    type: str = Field("siibra/features/cells", const=True, alias="@type")
     cells: Optional[List[CorticalCellModel]]
     section: Optional[str]
     patch: Optional[str]
@@ -54,7 +56,9 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
     Implements lazy and cached loading of actual data.
     """
 
-    def __init__(self, regionspec: str, cells: pd.DataFrame, connector, folder, species):
+    def __init__(
+        self, regionspec: str, cells: pd.DataFrame, connector, folder, species
+    ):
 
         _, section_id, patch_id = folder.split("/")
         RegionalFeature.__init__(self, regionspec, species=species)
@@ -80,7 +84,7 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
 
     @staticmethod
     def _decode_layerinfo(b):
-        data =  np.array(
+        data = np.array(
             [tuple(_.split(" ")) for _ in b.decode().strip().split("\n")[1:]],
             dtype=[
                 ("index", "i"),
@@ -92,19 +96,21 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         return pd.DataFrame(data)
 
     def average_density(self):
-        """ Compute average density of the patch in cells / mm^2. """
+        """Compute average density of the patch in cells / mm^2."""
         num_cells = self.cells[
-            (self.cells['layer'] > 0) & (self.cells['layer'] < 7)
+            (self.cells["layer"] > 0) & (self.cells["layer"] < 7)
         ].shape[0]
-        area = self.layers['area (micron^2)'].sum()
-        return num_cells / area * 1e3**2
+        area = self.layers["area (micron^2)"].sum()
+        return num_cells / area * 1e3 ** 2
 
     def layer_density(self, layerindex: int):
-        """ Compute density of segmented cells for given layer in cells / mm^2. """
+        """Compute density of segmented cells for given layer in cells / mm^2."""
         assert layerindex in range(1, 7)
-        num_cells = self.cells[self.cells['layer']==layerindex].shape[0]
-        area = self.layers[self.layers['index']==layerindex].iloc[0]['area (micron^2)'] 
-        return num_cells / area * 1e3**2
+        num_cells = self.cells[self.cells["layer"] == layerindex].shape[0]
+        area = self.layers[self.layers["index"] == layerindex].iloc[0][
+            "area (micron^2)"
+        ]
+        return num_cells / area * 1e3 ** 2
 
     def load_segmentations(self):
         from PIL import Image
@@ -152,11 +158,7 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         """
         Nifti1Image representation of the layer labeling.
         """
-        return nib.Nifti1Image(
-            self._mask_loader.data,
-            self.image.affine
-        )
-
+        return nib.Nifti1Image(self._mask_loader.data, self.image.affine)
 
     @property
     def location(self):
@@ -165,7 +167,7 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         """
         center = np.r_[np.array(self.image.shape) // 2, 1]
         return Point(
-            np.dot(self.image.affine, center)[:3], 
+            np.dot(self.image.affine, center)[:3],
             Space.REGISTRY.BIG_BRAIN,
         )
 
@@ -196,13 +198,18 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         ax2.axis("off")
         ax2.imshow(patch, cmap="gray")
         ax2.scatter(
-            self.cells['x'],
-            self.cells['y'],
-            s=np.sqrt(self.cells['area']),
-            c=self.cells['layer'])
+            self.cells["x"],
+            self.cells["y"],
+            s=np.sqrt(self.cells["area"]),
+            c=self.cells["layer"],
+        )
         ax2.axis("off")
         view = plotting.plot_img(
-            tpl, cut_coords=tuple(self.location), cmap="gray", axes=ax3, display_mode="tiled"
+            tpl,
+            cut_coords=tuple(self.location),
+            cmap="gray",
+            axes=ax3,
+            display_mode="tiled",
         )
         view.add_markers([tuple(self.location)])
         return fig
@@ -217,14 +224,14 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
 
     def to_model(self, detail=False, **kwargs) -> CorticalCellDistributionModel:
         super_model = super().to_model(detail=detail, **kwargs).dict()
-        super_model['@type'] = CorticalCellDistribution.get_model_type()
-        super_model['@id'] = self.model_id
+        super_model["@type"] = CorticalCellDistribution.get_model_type()
+        super_model["@id"] = self.model_id
         extra = {}
         if detail:
-            d = self.cells.to_dict('index')
-            extra['cells'] = [ value for value in d.values() ]
-            extra['section'] = self.section
-            extra['patch'] = self.patch
+            d = self.cells.to_dict("index")
+            extra["cells"] = [value for value in d.values()]
+            extra["section"] = self.section
+            extra["patch"] = self.patch
 
         return CorticalCellDistributionModel(
             **extra,
@@ -238,7 +245,6 @@ class RegionalCellDensityExtractor(FeatureQuery):
     _JUGIT = GitlabConnector("https://jugit.fz-juelich.de", 4790, "v1.0a1")
     _SCIEBO = OwncloudConnector("https://fz-juelich.sciebo.de", "yDZfhxlXj6YW7KO")
 
-
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
         logger.warning(
@@ -246,8 +252,8 @@ class RegionalCellDensityExtractor(FeatureQuery):
         )
 
         species = {
-            '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9', 
-            'name': 'Homo sapiens'
+            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
+            "name": "Homo sapiens",
         }
         for cellfile, loader in self._JUGIT.get_loaders(
             suffix="segments.txt", recursive=True, decode_func=lambda b: b.decode()
@@ -265,8 +271,110 @@ class RegionalCellDensityExtractor(FeatureQuery):
                     ("area", "f"),
                     ("layer", "<i8"),
                     ("instance label", "<i"),
-                ]
+                ],
             )
             self.register(
-                CorticalCellDistribution(regionspec, pd.DataFrame(cells), self._SCIEBO, region_folder, species=species)
+                CorticalCellDistribution(
+                    regionspec,
+                    pd.DataFrame(cells),
+                    self._SCIEBO,
+                    region_folder,
+                    species=species,
+                )
             )
+
+
+class CellDensityProfile(CorticalProfile, EbrainsDataset):
+
+    DESCRIPTION = (
+        "Cortical profile of estimated densities of detected cell bodies (in detected cells per 0.1 cube millimeter) "
+        "obtained by applying a Deep Learning based instance segmentation algorithm (Contour Proposal Network; Upschulte "
+        "et al., Neuroimage 2022) to a 1 micron resolution cortical image patch prepared with modified Silver staining. "
+        "Densities have been computed per cortical layer after manual layer segmentation, by dividing the number of "
+        "detected cells in that layer with the area covered by the layer. Therefore, each profile contains 6 measurement points. "
+        "The cortical depth is estimated from the measured layer thicknesses."
+    )
+
+    @staticmethod
+    def CELL_READER(b):
+        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype({'layer': int, 'label': int})
+
+    @staticmethod
+    def LAYER_READER(b):
+        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
+
+    def __init__(
+        self,
+        dataset_id: str,
+        species: dict,
+        regionname: str,
+        url: str,
+    ):
+        """Generate a receptor density profile from a URL to a .tsv file
+        formatted according to the structure used by Palomero-Gallagher et al.
+        """
+        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
+        EbrainsDataset.__init__(self, dataset_id, f"Cell density profile for {regionname}")
+
+        self._cell_loader = HttpRequest(url, self.CELL_READER)
+        self._layer_loader = HttpRequest(url.replace('segments', 'layerinfo'), self.LAYER_READER)
+
+    @property
+    def cells(self):
+        return self._cell_loader.get()
+
+    @property
+    def layers(self):
+        return self._layer_loader.get()
+
+    @property
+    def _values(self):
+        cellcounts = self.cells.layer.value_counts()
+        return [
+            cellcounts[layer] / self.layers['Area(micron**2)'][layer] * 1e3**2
+            for layer in self.layers.index[::-1]
+        ]
+
+    @property
+    def _depths(self):
+        cortical_thickness = self.layers['AvgThickness(micron)'].sum()
+        return np.cumsum([
+            self.layers['AvgThickness(micron)'][layer] / cortical_thickness
+            for layer in self.layers.index[::-1]])
+
+    @property
+    def unit(self):
+        return "# detected cells / 0.1 cubic millimeter"
+
+
+class CellDensityProfileQuery(FeatureQuery):
+
+    _FEATURETYPE = CellDensityProfile
+
+    SPECIES = [
+        {
+            'name': 'Homo sapiens',
+            '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9'
+        }
+    ]
+
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+
+        query_result = EbrainsKgQuery(
+            query_id="siibra-cell-densities-0",
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
+        ).get()
+
+        for result in query_result.get('results', []):
+            dataset_id = result['@id'].split('/')[-1]
+            segment_files = [
+                fileinfo['url']
+                for fileinfo in result['files']
+                if fileinfo['name'] == 'segments.txt'
+            ]
+            for regionspec in result['regionspec']:
+                for fileurl in segment_files:
+                    with QUIET:
+                        f = CellDensityProfile(dataset_id, self.SPECIES, regionspec, fileurl)
+                    self.register(f)
