@@ -629,7 +629,6 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
         EbrainsDataset.__init__(self, dataset_id, f"Receptor density for {regionname}")
         self.type = receptor_type
         self._data_cached = None
@@ -638,6 +637,7 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
             lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
         )
         self._unit_cached = None
+        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
 
     @property
     def receptor(self):
@@ -711,7 +711,8 @@ class ReceptorProfileQuery(FeatureQuery):
                             )
                             self.register(f)
                             continue
-                    not_used += 1
+                        else:
+                            not_used += 1
 
         if not_used > 0:
             logger.info(

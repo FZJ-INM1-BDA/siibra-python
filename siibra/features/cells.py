@@ -32,6 +32,8 @@ import pandas as pd
 import nibabel as nib
 from pydantic import Field
 from io import BytesIO
+from skimage.transform import resize
+from skimage.draw import polygon
 
 
 class CorticalCellModel(ConfigBaseModel):
@@ -284,6 +286,49 @@ class RegionalCellDensityExtractor(FeatureQuery):
             )
 
 
+class PolyLine:
+    """Simple polyline representation which allows equidistant sampling.."""
+
+    def __init__(self, pts):
+        self.pts = pts
+        self.lengths = [
+            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
+            for i in range(1, pts.shape[0])
+        ]
+
+    def length(self):
+        return sum(self.lengths)
+
+    def sample(self, d):
+
+        # if d is interable, we assume a list of sample positions
+        try:
+            iter(d)
+        except TypeError:
+            positions = [d]
+        else:
+            positions = d
+
+        samples = []
+        for s in positions:
+            assert 0 <= s <= 1
+            target_distance = s * self.length()
+            current_distance = 0
+            for i, length in enumerate(self.lengths):
+                current_distance += length
+                if current_distance >= target_distance:
+                    p1 = self.pts[i, :]
+                    p2 = self.pts[i + 1, :]
+                    r = (target_distance - current_distance + length) / length
+                    samples.append(p1 + (p2 - p1) * r)
+                    break
+
+        if len(samples) == 1:
+            return samples[0]
+        else:
+            return np.array(samples)
+
+
 class CellDensityProfile(CorticalProfile, EbrainsDataset):
 
     DESCRIPTION = (
@@ -295,9 +340,21 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
         "The cortical depth is estimated from the measured layer thicknesses."
     )
 
+    BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
+
+    @staticmethod
+    def poly_srt(poly):
+        return poly[poly[:, 0].argsort(), :]
+
+    @staticmethod
+    def poly_rev(poly):
+        return poly[poly[:, 0].argsort()[::-1], :]
+
     @staticmethod
     def CELL_READER(b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype({'layer': int, 'label': int})
+        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
+            {"layer": int, "label": int}
+        )
 
     @staticmethod
     def LAYER_READER(b):
@@ -313,11 +370,144 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
-        EbrainsDataset.__init__(self, dataset_id, f"Cell density profile for {regionname}")
+        EbrainsDataset.__init__(
+            self, dataset_id, f"Cell density profile for {regionname}"
+        )
 
+        self._step = 0.01
+        self._url = url
         self._cell_loader = HttpRequest(url, self.CELL_READER)
-        self._layer_loader = HttpRequest(url.replace('segments', 'layerinfo'), self.LAYER_READER)
+        self._layer_loader = HttpRequest(
+            url.replace("segments", "layerinfo"), self.LAYER_READER
+        )
+        self._density_image = None
+        self._layer_mask = None
+        self._depth_image = None
+
+        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
+
+    @property
+    def shape(self):
+        return tuple(self.cells[["y", "x"]].max().astype("int") + 1)
+
+    def boundary_annotation(self, boundary):
+        """Returns the annotation of a specific layer boundary."""
+        y1, x1 = self.shape
+
+        # start of image patch
+        if boundary == (-1, 0):
+            return np.array([[0, 0], [x1, 0]])
+
+        # end of image patch
+        if boundary == (7, 8):
+            return np.array([[0, y1], [x1, y1]])
+
+        # retrieve polygon
+        basename = "{}_{}.json".format(
+            *(self.LAYERS[layer] for layer in boundary)
+        ).replace("0_I", "0")
+        url = self._url.replace("segments.txt", basename)
+        poly = self.poly_srt(np.array(HttpRequest(url).get()["segments"]))
+
+        # ensure full width
+        poly[0, 0] = 0
+        poly[-1, 0] = x1
+
+        return poly
+
+    def layer_annotation(self, layer):
+        return np.vstack(
+            (
+                self.boundary_annotation((layer - 1, layer)),
+                self.poly_rev(self.boundary_annotation((layer, layer + 1))),
+                self.boundary_annotation((layer - 1, layer))[0, :],
+            )
+        )
+
+    @property
+    def layer_mask(self):
+        """Generates a layer mask from boundary annotations."""
+        if self._layer_mask is None:
+            self._layer_mask = np.zeros(np.array(self.shape).astype("int") + 1)
+            for layer in range(1, 8):
+                pl = self.layer_annotation(layer)
+                X, Y = polygon(pl[:, 0], pl[:, 1])
+                self._layer_mask[Y, X] = layer
+        return self._layer_mask
+
+    @property
+    def depth_image(self):
+        """ Cortical depth image from layer boundary polygons by equidistant sampling. """
+
+        if self._depth_image is None:
+
+            # compute equidistant cortical depth image from inner and outer contour
+            scale = 0.1
+            D = np.zeros(
+                (np.array(self.density_image.shape) * scale).astype("int") + 1
+            )
+
+            # determine sufficient stepwidth for profile sampling
+            # to match downscaled image resolution
+            vstep, hstep = 1.0 / np.array(D.shape) / 2.0
+            vsteps = np.arange(0, 1 + vstep, vstep)
+            hsteps = np.arange(0, 1 + vstep, hstep)
+
+            # build straight profiles between outer and inner cortical boundary
+            s0 = PolyLine(self.boundary_annotation((0, 1)) * scale).sample(hsteps)
+            s1 = PolyLine(self.boundary_annotation((6, 7)) * scale).sample(hsteps)
+            profiles = [PolyLine(_.reshape(2, 2)) for _ in np.hstack((s0, s1))]
+
+            # write sample depths to their location in the depth image
+            for prof in profiles:
+                XY = prof.sample(vsteps).astype("int")
+                D[XY[:, 1], XY[:, 0]] = vsteps
+
+            # fix wm region, account for rounding error
+            XY = self.layer_annotation(7) * scale
+            D[polygon(XY[:, 1] - 1, XY[:, 0])] = 1
+            D[-1, :] = 1
+
+            # rescale depth image to original patch size
+            self._depth_image = resize(D, self.density_image.shape)
+
+        return self._depth_image
+
+    @property
+    def boundary_positions(self):
+        if self._boundary_positions is None:
+            self._boundary_positions = {}
+            for b in self.BOUNDARIES:
+                XY = self.boundary_annotation(b).astype('int')
+                self._boundary_positions[b] = self.depth_image[XY[:, 1], XY[:, 0]].mean()
+        return self._boundary_positions
+
+    @property
+    def density_image(self):
+        if self._density_image is None:
+            logger.debug("Computing density image for", self._url)
+            # we integrate cell counts into 2D bins
+            # of square shape with a fixed sidelength
+            pixel_size_micron = 100
+            counts, xedges, yedges = np.histogram2d(
+                self.cells.y,
+                self.cells.x,
+                bins=(np.array(self.layer_mask.shape) / pixel_size_micron + 0.5).astype(
+                    "int"
+                ),
+            )
+
+            # rescale the counts from count / pixel_size**2  to count / 0.1mm^3,
+            # assuming 20 micron section thickness.
+            counts = counts / pixel_size_micron ** 2 / 20 * 100 ** 3
+
+            # apply the Bigbrain shrinkage factor
+            counts /= self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR
+
+            # to go to 0.1 millimeter cube, we multiply by 0.1 / 0.0002 = 500
+            self._density_image = resize(counts, self.layer_mask.shape, order=2)
+
+        return self._density_image
 
     @property
     def cells(self):
@@ -328,19 +518,20 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
         return self._layer_loader.get()
 
     @property
-    def _values(self):
-        cellcounts = self.cells.layer.value_counts()
-        return [
-            cellcounts[layer] / self.layers['Area(micron**2)'][layer] * 1e3**2
-            for layer in self.layers.index[::-1]
-        ]
+    def _depths(self):
+        return [d + self._step / 2 for d in np.arange(0, 1, self._step)]
 
     @property
-    def _depths(self):
-        cortical_thickness = self.layers['AvgThickness(micron)'].sum()
-        return np.cumsum([
-            self.layers['AvgThickness(micron)'][layer] / cortical_thickness
-            for layer in self.layers.index[::-1]])
+    def _values(self):
+        densities = []
+        delta = self._step / 2.0
+        for d in self._depths:
+            mask = (self.depth_image >= d - delta) & (self.depth_image < d + delta)
+            if np.sum(mask) > 0:
+                densities.append(self.density_image[mask].mean())
+            else:
+                densities.append(np.NaN)
+        return densities
 
     @property
     def unit(self):
@@ -353,8 +544,8 @@ class CellDensityProfileQuery(FeatureQuery):
 
     SPECIES = [
         {
-            'name': 'Homo sapiens',
-            '@id': 'https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9'
+            "name": "Homo sapiens",
+            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
         }
     ]
 
@@ -366,15 +557,17 @@ class CellDensityProfileQuery(FeatureQuery):
             params={"vocab": "https://schema.hbp.eu/myQuery/"},
         ).get()
 
-        for result in query_result.get('results', []):
-            dataset_id = result['@id'].split('/')[-1]
+        for result in query_result.get("results", []):
+            dataset_id = result["@id"].split("/")[-1]
             segment_files = [
-                fileinfo['url']
-                for fileinfo in result['files']
-                if fileinfo['name'] == 'segments.txt'
+                fileinfo["url"]
+                for fileinfo in result["files"]
+                if fileinfo["name"] == "segments.txt"
             ]
-            for regionspec in result['regionspec']:
+            for regionspec in result["regionspec"]:
                 for fileurl in segment_files:
                     with QUIET:
-                        f = CellDensityProfile(dataset_id, self.SPECIES, regionspec, fileurl)
+                        f = CellDensityProfile(
+                            dataset_id, self.SPECIES, regionspec, fileurl
+                        )
                     self.register(f)

@@ -21,7 +21,7 @@ from ..core.space import Space, Location, Point, PointSet, BoundingBox
 from ..core.region import Region
 from ..core.parcellation import Parcellation
 
-from typing import Tuple
+from typing import Tuple, Union
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
@@ -640,15 +640,83 @@ class ParcellationFeature(Feature):
 
 class CorticalProfile(RegionalFeature):
     """
-    Base class for profiles along cortical depth.
+    Represents a 1-dimensional profile of measurements along cortical depth,
+    measured at relative depths between 0 representing the pial surface,
+    and 1 corresponding to the gray/white matter boundary.
 
-    Derived classes need to implement the unit property as well as the _depths and _values properties.
-    The latter need to be lists of equal lenght.
+    Mandatory attributes are the list of depth coordinates and the list of
+    corresponding measurement values, which have to be of equal length,
+    as well as a unit and description of the measurements.
+
+    Optionally, the depth coordinates of layer boundaries can be specified.
+
+    Most attributes are modelled as properties, so dervide classes are able
+    to implement lazy loading instead of direct initialiation.
+
     """
 
-    def __init__(self, species: dict, regionname: str, description: str):
+    LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
+    BOUNDARIES = list(
+        zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:])
+    )
+
+    def __init__(
+        self,
+        species: dict,
+        regionname: str,
+        description: str,
+        depths: Union[list, np.ndarray] = None,
+        values: Union[list, np.ndarray] = None,
+        unit: str = None,
+        boundary_positions: dict = None,
+    ):
+        """Initialize profile.
+
+        Args:
+            species (dict):
+                Species specification; dictionary with keys 'name', 'id'
+            regionname (str):
+                Textual description of the brain region
+            description (str):
+                Human-readable of the modality of the measurements.
+            depths (list, optional):
+                List of cortical depthh positions corresponding to each
+                measurement, all in the range [0..1].
+                Defaults to None.
+            values (list, optional):
+                List of the actual measurements at each depth position.
+                Length must correspond to 'depths'.
+                Defaults to None.
+            unit (str, optional):
+                Textual identifier for the unit of measurements.
+                Defaults to None.
+            boundary_positions (dict, optional):
+                Dictionary of depths at which layer boundaries were identified.
+                Keys are tuples of layer numbers, e.g. (1,2), values are cortical
+                depth positions in the range [0..1].
+                Defaults to None.
+        """
         RegionalFeature.__init__(self, regionspec=regionname, species=species)
+
+        # cached properties will be revealed as property functions,
+        # so derived classes may choose to override for lazy loading.
         self._description = description
+        self._unit = unit
+        self._depths_cached = depths
+        self._values_cached = values
+        self._boundary_positions = boundary_positions
+
+    def _assert_consistency(self):
+        # check plausibility of the profile
+        assert isinstance(self._depths, (list, np.ndarray))
+        assert isinstance(self._values, (list, np.ndarray))
+        assert len(self._values) == len(self._depths)
+        assert all(0 <= d <= 1 for d in self._depths)
+        assert all(0 <= d <= 1 for d in self.boundary_positions.values())
+        assert all(
+            layerpair in self.BOUNDARIES
+            for layerpair in self.boundary_positions.keys()
+        )
 
     @property
     def description(self):
@@ -656,33 +724,91 @@ class CorticalProfile(RegionalFeature):
 
     @property
     def unit(self):
-        """To be implementeds in derived class."""
-        raise NotImplementedError(
-            f"'unit' not implemented for {self.__class__.__name__}."
+        """Optionally overridden in derive classes to enable lazy loading."""
+        if self._unit is None:
+            raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")
+        return self._unit
+
+    @property
+    def boundary_positions(self):
+        if self._boundary_positions is None:
+            return {}
+        else:
+            return self._boundary_positions
+
+    def assign_layer(self, depth: float):
+        """ Compute the cortical layer for a given depth from the
+        layer boundary positions. If no positions are available
+        for this profile, return None. """
+        assert 0 <= depth <= 1
+        if len(self.boundary_positions) == 0:
+            return None
+        else:
+            return max([
+                l2 for (l1, l2), d in self.boundary_positions.items()
+                if d < depth
+            ])
+
+    @property
+    def boundaries_mapped(self):
+        return all(
+            (b in self.boundary_positions)
+            for b in self.BOUNDARIES
         )
 
     @property
+    def _layers(self):
+        """ List of layers assigned to each measurments,
+        if layer boundaries are available for this features.
+        """
+        if self.boundaries_mapped:
+            return [self.assign_layer(d) for d in self._depths]
+        else:
+            return None
+
+    @property
     def data(self):
-        """return a pandas Series representing the profile."""
-        assert isinstance(self._depths, (list, np.ndarray))
-        assert isinstance(self._values, (list, np.ndarray))
-        assert len(self._depths) == len(self._values)
-        assert min(self._depths) >= 0
-        assert max(self._depths) <= 1
-        return pd.Series(self._values, index=self._depths)
+        """Return a pandas Series representing the profile."""
+        self._assert_consistency()
+        return pd.Series(
+            self._values, index=self._depths, name=f"{self.modality()} ({self.unit})"
+        )
+
+    def plot(self, ax=None):
+        """Plot the profile. If given, the axes `ax` will be used."""
+        axs = self.data.plot(
+            grid=True,
+            ylim=(0, max(self._values)),
+            ylabel=self.unit,
+            xlabel="Cortical depth",
+            ax=ax,
+        )
+
+        if self.boundaries_mapped:
+            bvals = list(self.boundary_positions.values())
+            for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
+                axs.text(d1 + (d2 - d1) / 2., 10, self.LAYERS[i + 1], weight='normal', ha='center')
+                if i % 2 == 0:
+                    axs.axvspan(d1, d2, color="black", alpha=0.1)
+
+        return axs
 
     @property
     def _depths(self):
         """Returns a list of the relative cortical depths of the measured values in the range [0..1].
         To be implemented in derived class."""
-        raise NotImplementedError(
-            f"'_depths' not implemented for {self.__class__.__name__}."
-        )
+        if self._depths_cached is None:
+            raise NotImplementedError(
+                f"'_depths' not available for {self.__class__.__name__}."
+            )
+        return self._depths_cached
 
     @property
     def _values(self):
         """Returns a list of the measured values per depth.
         To be implemented in derived class."""
-        raise NotImplementedError(
-            f"'_values' not implemented for {self.__class__.__name__}."
-        )
+        if self._values_cached is None:
+            raise NotImplementedError(
+                f"'_values' not available for {self.__class__.__name__}."
+            )
+        return self._values_cached
