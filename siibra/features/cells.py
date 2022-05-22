@@ -310,8 +310,8 @@ class PolyLine:
             positions = d
 
         samples = []
-        for s in positions:
-            assert 0 <= s <= 1
+        for s_ in positions:
+            s = min(max(s_, 0), 1)
             target_distance = s * self.length()
             current_distance = 0
             for i, length in enumerate(self.lengths):
