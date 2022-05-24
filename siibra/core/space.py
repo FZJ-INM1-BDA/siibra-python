@@ -23,7 +23,10 @@ from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import HttpRequest
 from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
-from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel, Coordinates as QuantitativeValueModel
+from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import (
+    Model as CoordinatePointModel,
+    Coordinates as QuantitativeValueModel,
+)
 
 
 from datetime import date
@@ -40,7 +43,7 @@ import numbers
 
 
 class UnitOfMeasurement:
-    MILLIMETER="https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
+    MILLIMETER = "https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
 
 
 @provide_registry
@@ -187,11 +190,10 @@ class Space(
                 commonCoordinateSpace.AxesOrigin(value=0),
                 commonCoordinateSpace.AxesOrigin(value=0),
             ],
-
-            default_image=[ { '@id': vol.id } for vol in self.volumes],
+            default_image=[{"@id": vol.id} for vol in self.volumes],
             full_name=self.name,
             native_unit={
-                '@id': 'https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um'
+                "@id": "https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um"
             },
             release_date=date(2015, 1, 1),
             short_name=self.name,
@@ -210,9 +212,11 @@ SPACEWARP_IDS = {
     Space.REGISTRY.BIG_BRAIN: "Big Brain (Histology)",
 }
 
+
 class LocationModel(ConfigBaseModel):
     type: str = Field(..., alias="@type")
     space: Dict[str, str]
+
 
 class Location(JSONSerializable, ABC):
     """
@@ -236,7 +240,7 @@ class Location(JSONSerializable, ABC):
 
     def to_model(self, **kwargs) -> LocationModel:
         return LocationModel(
-            space={ "@id": self.space.model_id },
+            space={"@id": self.space.model_id},
             type=self.get_model_type(),
         )
 
@@ -352,6 +356,7 @@ class WholeBrain(Location):
     def __str__(self):
         return f"{self.__class__.__name__} in {self.space.name}"
 
+
 class Point(Location, JSONSerializable):
     """A single 3D point in reference space."""
 
@@ -384,10 +389,10 @@ class Point(Location, JSONSerializable):
                 assert spec[3] == 1
             return tuple(float(v) for v in spec[:3])
         elif isinstance(spec, np.ndarray) and spec.size == 3:
-            return tuple(spec)
+            return tuple(float(v) for v in spec[:3])
         elif isinstance(spec, Point):
             return spec.coordinate
-            
+
         raise ValueError(
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
@@ -627,24 +632,24 @@ class Point(Location, JSONSerializable):
     @property
     def model_id(self):
         space_id = self.space.model_id
-        return hashlib.md5(f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")).hexdigest()
-        
+        return hashlib.md5(
+            f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")
+        ).hexdigest()
 
     def to_model(self, **kwargs) -> CoordinatePointModel:
         if self.space is None:
-            raise RuntimeError(f"Point.to_model cannot be done on Location entity that does not have space defined!")
+            raise RuntimeError(
+                "Point.to_model cannot be done on Location entity that does not have space defined!"
+            )
         space_id = self.space.model_id
-        
+
         return CoordinatePointModel(
             id=self.model_id,
             type="https://openminds.ebrains.eu/sands/CoordinatePoint",
-            coordinate_space={
-                "@id": space_id
-            },
-            coordinates=[
-                QuantitativeValueModel(value=coord)
-                for coord in self]
+            coordinate_space={"@id": space_id},
+            coordinates=[QuantitativeValueModel(value=coord) for coord in self],
         )
+
 
 class PointSet(Location):
     """A set of 3D points in the same reference space,
@@ -692,11 +697,38 @@ class PointSet(Location):
     def intersects(self, mask: Nifti1Image):
         return len(self.intersection(mask)) > 0
 
-    def warp(self, targetspace):
-        spaceobj = Space.REGISTRY[targetspace]
-        if spaceobj == self.space:
+    def warp(self, targetspace: Space):
+        """Creates a new point set by warping its points to another space"""
+        assert targetspace is not None
+        if not isinstance(targetspace, Space):
+            targetspace = Space.REGISTRY[targetspace]
+        if targetspace == self.space:
             return self
-        return self.__class__([c.warp(spaceobj) for c in self.coordinates], spaceobj)
+        if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
+            raise ValueError(
+                f"Cannot convert coordinates between {self.space} and {targetspace}"
+            )
+
+        data = json.dumps({
+            "source_space": SPACEWARP_IDS[Space.REGISTRY[self.space]],
+            "target_space": SPACEWARP_IDS[Space.REGISTRY[targetspace]],
+            "source_points": self.as_list()
+        })
+
+        response = HttpRequest(
+            url=f"{SPACEWARP_SERVER}/transform-points",
+            post=True,
+            headers={
+                "accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            data=data,
+            func=lambda b: json.loads(b.decode()),
+        ).data
+
+        return self.__class__(
+            coordinates=tuple(response["target_points"]), space=targetspace
+        )
 
     def transform(self, affine: np.ndarray, space: Space = None):
         """Returns a new PointSet obtained by transforming the
@@ -821,7 +853,7 @@ class BoundingBox(Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space: Space, minsize: float =None):
+    def __init__(self, point1, point2, space: Space, minsize: float = None):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -849,9 +881,11 @@ class BoundingBox(Location):
             for d in range(3):
                 if self.shape[d] < minsize:
                     self.maxpoint[d] = self.minpoint[d] + minsize
+
     @property
     def model_id(self):
         import hashlib
+
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
 
     def to_model(self, **kwargs) -> BoundingBoxModel:
@@ -863,7 +897,7 @@ class BoundingBox(Location):
             minpoint=self.minpoint.to_model(**kwargs),
             maxpoint=self.maxpoint.to_model(**kwargs),
             shape=self.shape,
-            is_planar=self.is_planar
+            is_planar=self.is_planar,
         )
 
     @property
