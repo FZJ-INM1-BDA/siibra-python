@@ -21,10 +21,11 @@ from .genes import AllenBrainAtlasQuery
 from .connectivity import HcpStreamlineCountQuery, HcpRestingStateQuery, HcpStreamlineLengthQuery
 from .connectivity import PrereleasedStreamlineLengthQuery, PrereleasedRestingStateQuery, PrereleasedStreamlineCountQuery
 from .ebrains import EbrainsRegionalFeatureQuery
-from .cells import RegionalCellDensityExtractor
+from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery, CellDensityFingerprintQuery
 from .ieeg import IEEG_SessionQuery
 from .voi import VolumeOfInterestQuery
-#from .morphologies import NeuroMorphoQuery
+from .bigbrain import WagstylBigBrainProfileQuery
+# from .morphologies import NeuroMorphoQuery
 
 from .query import FeatureQuery
 get_features = FeatureQuery.get_features
@@ -32,4 +33,4 @@ get_features = FeatureQuery.get_features
 __all__ = []
 from .genes import GENE_NAMES as gene_names
 modalities = FeatureQuery.get_modalities()
-__all__ += ['gene_names','modalities']
+__all__ += ['gene_names', 'modalities']

@@ -15,13 +15,14 @@
 
 
 from typing import List, Optional
-from .feature import RegionalFeature, CorticalProfile
+from .feature import RegionalFeature, CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 
 from ..commons import logger, QUIET
 from ..core import Dataset
 from ..core.space import Space, Point
 from ..core.datasets import DatasetJsonModel, EbrainsDataset
+from ..core.atlas import Atlas
 from ..retrieval import HttpRequest, GitlabConnector, OwncloudConnector, EbrainsKgQuery
 from ..openminds.base import ConfigBaseModel
 
@@ -30,6 +31,7 @@ import os
 import importlib
 import pandas as pd
 import nibabel as nib
+from collections import defaultdict
 from pydantic import Field
 from io import BytesIO
 from skimage.transform import resize
@@ -253,10 +255,7 @@ class RegionalCellDensityExtractor(FeatureQuery):
             f"PREVIEW DATA! {self._FEATURETYPE.__name__} data is only a pre-release snapshot. Contact support@ebrains.eu if you intend to use this data."
         )
 
-        species = {
-            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
-            "name": "Homo sapiens",
-        }
+        species = Atlas.get_species_data("human").dict()
         for cellfile, loader in self._JUGIT.get_loaders(
             suffix="segments.txt", recursive=True, decode_func=lambda b: b.decode()
         ):
@@ -329,6 +328,16 @@ class PolyLine:
             return np.array(samples)
 
 
+def CELL_READER(b):
+    return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
+        {"layer": int, "label": int}
+    )
+
+
+def LAYER_READER(b):
+    return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
+
+
 class CellDensityProfile(CorticalProfile, EbrainsDataset):
 
     DESCRIPTION = (
@@ -350,16 +359,6 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
     def poly_rev(poly):
         return poly[poly[:, 0].argsort()[::-1], :]
 
-    @staticmethod
-    def CELL_READER(b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
-            {"layer": int, "label": int}
-        )
-
-    @staticmethod
-    def LAYER_READER(b):
-        return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
-
     def __init__(
         self,
         dataset_id: str,
@@ -376,15 +375,22 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
 
         self._step = 0.01
         self._url = url
-        self._cell_loader = HttpRequest(url, self.CELL_READER)
+        self._cell_loader = HttpRequest(url, CELL_READER)
         self._layer_loader = HttpRequest(
-            url.replace("segments", "layerinfo"), self.LAYER_READER
+            url.replace("segments", "layerinfo"), LAYER_READER
         )
         self._density_image = None
         self._layer_mask = None
         self._depth_image = None
 
-        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
+        CorticalProfile.__init__(
+            self,
+            measuretype="cell density",
+            species=species,
+            regionname=regionname,
+            description=self.DESCRIPTION,
+            unit="detected cells / 0.1mm3",
+        )
 
     @property
     def shape(self):
@@ -437,15 +443,13 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
 
     @property
     def depth_image(self):
-        """ Cortical depth image from layer boundary polygons by equidistant sampling. """
+        """Cortical depth image from layer boundary polygons by equidistant sampling."""
 
         if self._depth_image is None:
 
             # compute equidistant cortical depth image from inner and outer contour
             scale = 0.1
-            D = np.zeros(
-                (np.array(self.density_image.shape) * scale).astype("int") + 1
-            )
+            D = np.zeros((np.array(self.density_image.shape) * scale).astype("int") + 1)
 
             # determine sufficient stepwidth for profile sampling
             # to match downscaled image resolution
@@ -478,8 +482,10 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
         if self._boundary_positions is None:
             self._boundary_positions = {}
             for b in self.BOUNDARIES:
-                XY = self.boundary_annotation(b).astype('int')
-                self._boundary_positions[b] = self.depth_image[XY[:, 1], XY[:, 0]].mean()
+                XY = self.boundary_annotation(b).astype("int")
+                self._boundary_positions[b] = self.depth_image[
+                    XY[:, 1], XY[:, 0]
+                ].mean()
         return self._boundary_positions
 
     @property
@@ -502,7 +508,9 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
             counts = counts / pixel_size_micron ** 2 / 20 * 100 ** 3
 
             # apply the Bigbrain shrinkage factor
-            counts /= self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR
+            # TODO The planar correction factor was used for the datasets, but should
+            # clarify if the full volumetric correction factor is not more correct.
+            counts /= np.cbrt(self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR) ** 2
 
             # to go to 0.1 millimeter cube, we multiply by 0.1 / 0.0002 = 500
             self._density_image = resize(counts, self.layer_mask.shape, order=2)
@@ -533,21 +541,10 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
                 densities.append(np.NaN)
         return densities
 
-    @property
-    def unit(self):
-        return "# detected cells / 0.1 cubic millimeter"
-
 
 class CellDensityProfileQuery(FeatureQuery):
 
     _FEATURETYPE = CellDensityProfile
-
-    SPECIES = [
-        {
-            "name": "Homo sapiens",
-            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
-        }
-    ]
 
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
@@ -568,6 +565,108 @@ class CellDensityProfileQuery(FeatureQuery):
                 for fileurl in segment_files:
                     with QUIET:
                         f = CellDensityProfile(
-                            dataset_id, self.SPECIES, regionspec, fileurl
+                            dataset_id,
+                            Atlas.get_species_data("human").dict(),
+                            regionspec,
+                            fileurl,
                         )
                     self.register(f)
+
+
+class CellDensityFingerprint(RegionalFingerprint):
+
+    DESCRIPTION = (
+        "Layerwise estimated densities of detected cell bodies  (in detected cells per 0.1 cube millimeter) "
+        "obtained by applying a Deep Learning based instance segmentation algorithm (Contour Proposal Network; Upschulte "
+        "et al., Neuroimage 2022) to a 1 micron resolution cortical image patch prepared with modified Silver staining. "
+        "Densities have been computed per cortical layer after manual layer segmentation, by dividing the number of "
+        "detected cells in that layer with the area covered by the layer. Therefore, each profile contains 6 measurement points. "
+        "The cortical depth is estimated from the measured layer thicknesses."
+    )
+
+    def __init__(
+        self,
+        species: dict,
+        regionname: str,
+        filepairs: str,
+    ):
+        self._filepairs = filepairs
+        self._densities = None
+        RegionalFingerprint.__init__(
+            self,
+            measuretype="Layerwise cell density",
+            species=species,
+            regionname=regionname,
+            description=self.DESCRIPTION,
+            unit="detected cells / 0.1mm3",
+        )
+
+    @property
+    def densities(self):
+        if self._densities is None:
+            density_dict = {}
+            for i, (cellfile, layerfile) in enumerate(self._filepairs):
+                cells = HttpRequest(cellfile, CELL_READER).data
+                layers = HttpRequest(layerfile, LAYER_READER).data
+                counts = cells.layer.value_counts()
+                areas = layers["Area(micron**2)"]
+                density_dict[i] = counts[areas.index] / areas * 100 ** 2 * 5
+            self._densities = pd.DataFrame(density_dict)
+            self._densities.index.names = ["Layer"]
+        return self._densities
+
+    @property
+    def _labels(self):
+        return [CorticalProfile.LAYERS[_] for _ in self.densities.index]
+
+    @property
+    def _means(self):
+        return self.densities.mean(axis=1).to_numpy()
+
+    @property
+    def _stds(self):
+        return self.densities.std(axis=1).to_numpy()
+
+
+class CellDensityFingerprintQuery(FeatureQuery):
+
+    _FEATURETYPE = CellDensityFingerprint
+
+    SPECIES = [
+        {
+            "name": "Homo sapiens",
+            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
+        }
+    ]
+
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+
+        query_result = EbrainsKgQuery(
+            query_id="siibra-cell-densities-0",
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
+        ).get()
+
+        # collect names of corresponding cell segmenation and layerinfo files per region
+        filepairs = defaultdict(list)
+        for result in query_result.get("results", []):
+            # dataset_id = result["@id"].split("/")[-1]
+            segment_files = [
+                fileinfo["url"]
+                for fileinfo in result["files"]
+                if fileinfo["name"] == "segments.txt"
+            ]
+            for regionname in result["regionspec"]:
+                for file_url in segment_files:
+                    filepairs[regionname].append(
+                        (file_url, file_url.replace("segments", "layerinfo"))
+                    )
+
+        # construct one fingerprint per region
+        for regionname, pairs in filepairs.items():
+            f = CellDensityFingerprint(
+                species=self.SPECIES,
+                regionname=regionname,
+                filepairs=pairs,
+            )
+            self.register(f)

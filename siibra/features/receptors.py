@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import RegionalFeature, CorticalProfile
+from .feature import RegionalFeature, CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 from ..commons import logger
 from ..retrieval.requests import EbrainsKgQuery, HttpRequest
@@ -629,7 +629,7 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        EbrainsDataset.__init__(self, dataset_id, f"Receptor density for {regionname}")
+        EbrainsDataset.__init__(self, dataset_id, f"Receptor density for {receptor_type} in {regionname}")
         self.type = receptor_type
         self._data_cached = None
         self._loader = HttpRequest(
@@ -637,7 +637,7 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
             lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
         )
         self._unit_cached = None
-        CorticalProfile.__init__(self, species, regionname, self.DESCRIPTION)
+        CorticalProfile.__init__(self, f"{receptor_type} receptor density", species, regionname, self.DESCRIPTION)
 
     @property
     def receptor(self):
@@ -713,6 +713,121 @@ class ReceptorProfileQuery(FeatureQuery):
                             continue
                         else:
                             not_used += 1
+
+        if not_used > 0:
+            logger.info(
+                f"{not_used} receptor datasets skipped due to unsupported format."
+            )
+
+
+class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
+    DESCRIPTION = (
+        "Fingerprint of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
+        "obtained by means of quantitative in vitro autoradiography. The fingerprint provides average "
+        "density measurments for different receptors measured in tissue samples from different subjects "
+        "together with the corresponding standard deviations. "
+    )
+
+    def __init__(
+        self,
+        dataset_id: str,
+        species: dict,
+        regionname: str,
+        url: str,
+    ):
+        """ Generate a receptor fingerprint from a URL to a .tsv file
+        formatted according to the structure used by Palomero-Gallagher et al.
+        """
+        self._data_cached = None
+        self._loader = HttpRequest(
+            url,
+            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
+        )
+        RegionalFingerprint.__init__(
+            self,
+            measuretype="Neurotransmitter receptor density",
+            species=species,
+            regionname=regionname,
+            description=self.DESCRIPTION,
+        )
+        EbrainsDataset.__init__(self, dataset_id, self.name)
+
+    @property
+    def unit(self):
+        return self._loader.data['unit']
+
+    @property
+    def receptors(self):
+        return self._loader.data['labels']
+
+    @property
+    def neurotransmitters(self):
+        return [
+            "{} ({})".format(
+                RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
+                RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
+            )
+            for t in self.receptors
+        ]
+
+    @property
+    def _labels(self):
+        return self.receptors
+
+    @property
+    def _means(self):
+        return self._loader.data['means']
+
+    @property
+    def _stds(self):
+        return self._loader.data['stds']
+
+    @classmethod
+    def parse_tsv_data(cls, data: dict):
+        units = {list(v.values())[3] for v in data.values()}
+        labels = list(data.keys())
+        assert len(units) == 1
+        try:
+            mean = [data[_]["density (mean)"] for _ in labels]
+            std = [data[_]["density (sd)"] for _ in labels]
+        except KeyError as e:
+            print(str(e))
+            logger.error("Could not parse fingerprint from this dictionary")
+        return {
+            'unit': next(iter(units)),
+            'labels': labels,
+            'means': [float(m) if m.isnumeric() else 0 for m in mean],
+            'stds': [float(s) if s.isnumeric() else 0 for s in std],
+        }
+
+
+class ReceptorFingerprintQuery(FeatureQuery):
+
+    _FEATURETYPE = ReceptorFingerprint
+
+    def __init__(self, **kwargs):
+        FeatureQuery.__init__(self)
+        query_result = EbrainsKgQuery(
+            query_id="siibra_receptor_densities-0_0_2",
+            params={"vocab": "https://schema.hbp.eu/myQuery/"},
+        ).get()
+
+        not_used = 0
+        for kg_result in query_result["results"]:
+            region_names = [
+                p_region["name"] for p_region in kg_result["parcellationRegion"]
+            ]
+            species = kg_result.get("species", [])
+            for region_name in region_names:
+                for url in kg_result["files"]:
+                    if re.match(r".*_fp[._].*\.tsv", url):
+                        f = ReceptorFingerprint(
+                            kg_result["@id"].split("/")[-1],
+                            species,
+                            region_name,
+                            url,
+                        )
+                        self.register(f)
 
         if not_used > 0:
             logger.info(

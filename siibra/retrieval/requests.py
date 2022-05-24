@@ -27,6 +27,7 @@ from getpass import getpass
 from io import BytesIO
 import urllib
 import pandas as pd
+import numpy as np
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
@@ -38,7 +39,8 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: io.imread(BytesIO(b))
+    ".png": lambda b: io.imread(BytesIO(b)),
+    ".npy": lambda b: np.load(BytesIO(b)),
 }
 
 

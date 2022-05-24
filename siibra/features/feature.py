@@ -25,6 +25,8 @@ from typing import Tuple, Union
 from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
+import importlib
+from textwrap import wrap
 
 try:
     from importlib import resources
@@ -434,7 +436,7 @@ class RegionalFeature(Feature):
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
                 if all(
-                    atlas.species.kg_v1_id not in self.species_ids for atlas in atlases
+                    atlas.species.id not in self.species_ids for atlas in atlases
                 ):
                     return self.matched
         # for backwards compatibility. If any attr is not found, pass
@@ -662,6 +664,7 @@ class CorticalProfile(RegionalFeature):
 
     def __init__(
         self,
+        measuretype: str,
         species: dict,
         regionname: str,
         description: str,
@@ -673,6 +676,8 @@ class CorticalProfile(RegionalFeature):
         """Initialize profile.
 
         Args:
+            measuretype (str):
+                Short textual description of the modaility of measurements
             species (dict):
                 Species specification; dictionary with keys 'name', 'id'
             regionname (str):
@@ -697,6 +702,7 @@ class CorticalProfile(RegionalFeature):
                 Defaults to None.
         """
         RegionalFeature.__init__(self, regionspec=regionname, species=species)
+        self.measuretype = measuretype
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
@@ -712,11 +718,12 @@ class CorticalProfile(RegionalFeature):
         assert isinstance(self._values, (list, np.ndarray))
         assert len(self._values) == len(self._depths)
         assert all(0 <= d <= 1 for d in self._depths)
-        assert all(0 <= d <= 1 for d in self.boundary_positions.values())
-        assert all(
-            layerpair in self.BOUNDARIES
-            for layerpair in self.boundary_positions.keys()
-        )
+        if self.boundaries_mapped:
+            assert all(0 <= d <= 1 for d in self.boundary_positions.values())
+            assert all(
+                layerpair in self.BOUNDARIES
+                for layerpair in self.boundary_positions.keys()
+            )
 
     @property
     def description(self):
@@ -724,10 +731,15 @@ class CorticalProfile(RegionalFeature):
 
     @property
     def unit(self):
-        """Optionally overridden in derive classes to enable lazy loading."""
+        """ Optionally overridden in derived classes. """
         if self._unit is None:
             raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")
         return self._unit
+
+    @property
+    def name(self):
+        """ Returns a short human-readable name of this feature. """
+        return f"{self.measuretype} for {self.regionspec}"
 
     @property
     def boundary_positions(self):
@@ -751,10 +763,13 @@ class CorticalProfile(RegionalFeature):
 
     @property
     def boundaries_mapped(self):
-        return all(
-            (b in self.boundary_positions)
-            for b in self.BOUNDARIES
-        )
+        if self.boundary_positions is None:
+            return False
+        else:
+            return all(
+                (b in self.boundary_positions)
+                for b in self.BOUNDARIES
+            )
 
     @property
     def _layers(self):
@@ -774,22 +789,32 @@ class CorticalProfile(RegionalFeature):
             self._values, index=self._depths, name=f"{self.modality()} ({self.unit})"
         )
 
-    def plot(self, ax=None):
-        """Plot the profile. If given, the axes `ax` will be used."""
-        axs = self.data.plot(
-            grid=True,
-            ylim=(0, max(self._values)),
-            ylabel=self.unit,
-            xlabel="Cortical depth",
-            ax=ax,
+    def plot(self, **kwargs):
+        """Plot the profile.
+        Keyword arguments are passed on to the plot command.
+        'layercolor' can be used to specify a color for cortical layer shading.
+        """
+        wrapwidth = kwargs.pop('textwrap') if 'textwrap' in kwargs else 40
+
+        kwargs['title'] = kwargs.get(
+            'title',
+            "\n".join(wrap(self.name, wrapwidth))
         )
+        kwargs['xlabel'] = kwargs.get('xlabel', "Cortical depth")
+        kwargs['ylabel'] = kwargs.get('ylabel', self.unit)
+        kwargs['grid'] = kwargs.get('grid', True)
+        kwargs['ylim'] = kwargs.get('ylim', (0, max(self._values)))
+        layercolor = kwargs.pop('layercolor') if 'layercolor' in kwargs else 'black'
+        axs = self.data.plot(**kwargs)
 
         if self.boundaries_mapped:
             bvals = list(self.boundary_positions.values())
             for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
                 axs.text(d1 + (d2 - d1) / 2., 10, self.LAYERS[i + 1], weight='normal', ha='center')
                 if i % 2 == 0:
-                    axs.axvspan(d1, d2, color="black", alpha=0.1)
+                    axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
+
+        axs.set_title(axs.get_title(), fontsize='medium')
 
         return axs
 
@@ -812,3 +837,111 @@ class CorticalProfile(RegionalFeature):
                 f"'_values' not available for {self.__class__.__name__}."
             )
         return self._values_cached
+
+
+class RegionalFingerprint(RegionalFeature):
+    """Represents a fingerprint of multiple variants of averaged measures in a brain region."""
+
+    def __init__(
+        self,
+        measuretype: str,
+        species: dict,
+        regionname: str,
+        description: str = None,
+        means: Union[list, np.ndarray] = None,
+        labels: Union[list, np.ndarray] = None,
+        stds: Union[list, np.ndarray] = None,
+        unit: str = None,
+    ):
+        self._description = description
+        self.measuretype = measuretype
+        self._means_cached = means
+        self._labels_cached = labels
+        self._stds_cached = stds
+        self._unit = unit
+        RegionalFeature.__init__(self, regionname, species)
+
+    @property
+    def description(self):
+        """ Optionally overridden in derived class to allow lazy loading. """
+        return self._description
+
+    @property
+    def unit(self):
+        """ Optionally overridden in derived class to allow lazy loading. """
+        return self._unit
+
+    @property
+    def _labels(self):
+        """ Optionally overridden in derived class to allow lazy loading. """
+        return self._labels_cached
+
+    @property
+    def _means(self):
+        """ Optionally overridden in derived class to allow lazy loading. """
+        return self._means_cached
+
+    @property
+    def _values(self):
+        """ Optionally overridden in derived class to allow lazy loading. """
+        return self._stds_cached
+
+    @property
+    def name(self):
+        """ Returns a short human-readable name of this feature. """
+        return f"{self.measuretype} for {self.regionspec}"
+
+    @property
+    def data(self):
+        return pd.DataFrame(
+            {
+                'mean': self._means,
+                'std': self._stds,
+            }, index=self._labels
+        )
+
+    def barplot(self, **kwargs):
+        """ Create a bar plot of the fingerprint. """
+
+        wrapwidth = kwargs.pop('textwrap') if 'textwrap' in kwargs else 40
+
+        # default kwargs
+        kwargs['width'] = kwargs.get('width', 0.95)
+        kwargs['ylabel'] = kwargs.get('ylabel', self.unit)
+        kwargs['title'] = kwargs.get('title', "\n".join(wrap(self.name, wrapwidth)))
+        kwargs['grid'] = kwargs.get('grid', True)
+        kwargs['legend'] = kwargs.get('legend', False)
+        ax = self.data.plot(kind='bar', y='mean', yerr='std', **kwargs)
+        ax.set_title(ax.get_title(), fontsize='medium')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right')
+
+    def plot(self, ax=None):
+        """ Create a polar plot of the fingerprint. """
+        if importlib.util.find_spec("matplotlib") is None:
+            logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+            return None
+
+        import matplotlib.pyplot as plt
+        from collections import deque
+
+        if ax is None:
+            ax = plt.subplot(111, projection="polar")
+        angles = deque(
+            np.linspace(0, 2 * np.pi, len(self._labels) + 1)[:-1][::-1]
+        )
+        angles.rotate(5)
+        angles = list(angles)
+        # for the values, repeat the first element to have a closed plot
+        indices = list(range(len(self._means))) + [0]
+        means = self.data['mean'].iloc[indices]
+        stds0 = means - self.data['std'].iloc[indices]
+        stds1 = means + self.data['std'].iloc[indices]
+        plt.plot(angles + [angles[0]], means, "k-", lw=3)
+        plt.plot(angles + [angles[0]], stds0, "k", lw=0.5)
+        plt.plot(angles + [angles[0]], stds1, "k", lw=0.5)
+        ax.set_xticks(angles)
+        ax.set_xticklabels([_ for _ in self._labels])
+        ax.set_title("\n".join(wrap(self.name, 40)))
+        ax.tick_params(pad=9, labelsize=10)
+        ax.tick_params(axis="y", labelsize=8)
+        return ax
