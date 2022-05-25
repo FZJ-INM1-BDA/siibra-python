@@ -882,7 +882,7 @@ class RegionalFingerprint(RegionalFeature):
         return self._means_cached
 
     @property
-    def _values(self):
+    def _stds(self):
         """ Optionally overridden in derived class to allow lazy loading. """
         return self._stds_cached
 
