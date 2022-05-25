@@ -128,6 +128,10 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         return result
 
     @property
+    def name(self):
+        return f"Cortical cell distribution for {self.info.get('brain_area')}"
+
+    @property
     def info(self):
         return self._info_loader.data
 
