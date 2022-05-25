@@ -43,7 +43,8 @@ class BigBrainIntensityProfile(CorticalProfile):
         self,
         regionname: str,
         depths: list,
-        values: list
+        values: list,
+        boundaries: list
     ):
         CorticalProfile.__init__(
             self,
@@ -53,12 +54,12 @@ class BigBrainIntensityProfile(CorticalProfile):
             description=self.DESCRIPTION,
             unit="staining intensity",
             depths=depths,
-            values=values
+            values=values,
+            boundary_positions={
+                b: boundaries[b[0]]
+                for b in CorticalProfile.BOUNDARIES
+            }
         )
-
-    @property
-    def boundary_positions(self):
-        pass
 
 
 class WagstylBigBrainProfileQuery(FeatureQuery):
@@ -68,20 +69,29 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
     REPO = "https://github.com/kwagstyl/cortical_layers_tutorial"
     BRANCH = "main"
     PROFILES_FILE = "data/profiles_left.npy"
+    THICKNESSES_FILE = "data/thicknesses_left.npy"
     MESH_FILE = "data/gray_left_327680.surf.gii"
 
     def __init__(self):
 
         FeatureQuery.__init__(self)
 
+        # read thicknesses, in mm, and normalize by their last columsn which is the total thickness
+        mesh_left = HttpRequest(f"{self.REPO}/raw/{self.BRANCH}/{self.MESH_FILE}").data
+        T = HttpRequest(f"{self.REPO}/raw/{self.BRANCH}/{self.THICKNESSES_FILE}").data.T
+        total = T[:, :-1].sum(1)
+        valid = np.where(total > 0)[0]
+        boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
+        boundary_depths[:, -1] = 1
+
+        # read profiles with valid thickenss
         req = HttpRequest(
             f"{self.REPO}/raw/{self.BRANCH}/{self.PROFILES_FILE}",
             msg_if_not_cached="First request to BigBrain profiles. Downloading and preprocessing the data now. This may take a little."
         )
+        profiles_left = req.data[valid, :]
 
-        profiles_left = req.data
-        mesh_left = HttpRequest(f"{self.REPO}/raw/{self.BRANCH}/{self.MESH_FILE}").data
-        vertices = mesh_left.darrays[0].data
+        vertices = mesh_left.darrays[0].data[valid, :]
         assert vertices.shape[0] == profiles_left.shape[0]
 
         # we cache the assignments of profiles to regions as well
@@ -98,11 +108,12 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
             logger.info(f"Assigning {len(vertices)} profile locations to Julich-Brain regions...")
             pmaps = jubrain.get_map(space="mni152", maptype="continuous")
             # keep only the unique matches with maximum probability
-            ass = (
-                pmaps.assign(pts_mni)
-                .sort_values("MaxValue", ascending=False)
-                .drop_duplicates(["Component"])
-            )
+            with QUIET:
+                ass = (
+                    pmaps.assign(pts_mni)
+                    .sort_values("MaxValue", ascending=False)
+                    .drop_duplicates(["Component"])
+                )
 
             ass.to_csv(cachefile)
 
@@ -115,5 +126,6 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
                 regionname=assignment.Region,
                 depths=depths,
                 values=profiles_left[assignment.Component, :],
+                boundaries=boundary_depths[assignment.Component, :]
             )
             self.register(p)
