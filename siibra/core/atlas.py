@@ -25,8 +25,10 @@ from ..commons import MapType, TypedRegistry, logger
 from ..openminds.base import SiibraAtIdModel, ConfigBaseModel
 from ..openminds.controlledTerms.v1.species import Model as _SpeciesModel
 
+
 class SpeciesModel(_SpeciesModel):
     kg_v1_id: str = Field(..., alias="kgV1Id")
+
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
@@ -87,7 +89,7 @@ class Atlas(
             )
         raise ValueError(f'species with spec {species_str} cannot be decoded')
 
-    def __init__(self, identifier, name, species = None):
+    def __init__(self, identifier, name, species=None):
         """Construct an empty atlas object with a name and identifier."""
 
         AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
