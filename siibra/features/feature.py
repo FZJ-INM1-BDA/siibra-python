@@ -406,7 +406,7 @@ class RegionalFeature(Feature):
 
     @property
     def species_ids(self):
-        return [s.get("@id") for s in self.species]
+        return [s.get("@id") for s in self.species] + [s.get("kg_v1_id") for s in self.species]
 
     def match(self, concept, **kwargs):
         """
@@ -435,8 +435,8 @@ class RegionalFeature(Feature):
             if atlases:
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
-                if all(
-                    atlas.species.id not in self.species_ids for atlas in atlases
+                if not any(
+                    [any(_ in self.species_ids for _ in [a.species.kg_v1_id, a.species.id]) for a in atlases]
                 ):
                     return self.matched
         # for backwards compatibility. If any attr is not found, pass
