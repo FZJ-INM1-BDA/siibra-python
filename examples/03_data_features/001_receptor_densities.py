@@ -37,7 +37,7 @@ print("\n".join(f.regionspec for f in all_features))
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly. 
 # So we can directly retrieve densities for the primary visual cortex:
-v1_features = siibra.get_features(atlas.get_region('v1'), 'receptor')
+v1_features = siibra.get_features(atlas.get_region('v1'), siibra.modalities.ReceptorDistribution)
 for f in v1_features:
     fig = f.plot()
 

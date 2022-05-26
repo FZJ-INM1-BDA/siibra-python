@@ -36,8 +36,8 @@ regions = [jubrain.decode_region(spec) for spec in specs]
 
 # %%
 # Next, we choose a set of feature modalities that we're interested in.
-# We start with "fingerprint" style features for cell and receptor densities, 
-# which provide average measurements across multiple 
+# We start with "fingerprint" style features for cell and receptor densities,
+# which provide average measurements across multiple
 # samples, and can be easily compared visually.
 modalities = [
     siibra.modalities.ReceptorFingerprint,
@@ -60,7 +60,7 @@ f.tight_layout()
 # %%
 # For the same measurment types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. For the receptor measurments, we 
+# boundary in individual tissue samples. For the receptor measurments, we
 # supply now an additional filter to choose only GABAB profiles.
 modalities = [
     (siibra.modalities.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
