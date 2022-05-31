@@ -7,7 +7,9 @@ query = VolumeOfInterestQuery()
 
 @pytest.mark.parametrize('feature', query.features)
 def test_voi_features(feature: VolumeOfInterest):
-    feature.to_model()
+    model = feature.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 def test_pli_volume_transform():
     feat = [f for f in query.features if "3D-PLI" in f.name]
