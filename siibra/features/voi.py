@@ -70,8 +70,8 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
 
     @property
     def model_id(self):
-        _id = hashlib.md5(super().model_id.encode("utf-8"))
-        return f"{VolumeOfInterest.get_model_type()}/{_id}"
+        _id = hashlib.md5(super().model_id.encode("utf-8")).hexdigest()
+        return f"{VolumeOfInterest.get_model_type()}/{str(_id)}"
 
     def to_model(self, **kwargs) -> 'VOIDataModel':
         super_model = super().to_model(**kwargs)

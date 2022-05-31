@@ -6,7 +6,9 @@ ieeg_query = IEEG_SessionQuery()
 
 @pytest.mark.parametrize('ieeg', ieeg_query.features)
 def test_ieeg_to_model(ieeg: IEEG_Session):
-    ieeg.to_model()
+    model = ieeg.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 hoc1right = parcellations['2.9'].decode_region('hoc1 right')
 models = [f.to_model(roi=hoc1right, detail=True) for f in ieeg_query.features]

@@ -17,4 +17,6 @@ def test_all_feat_has_correct_id(feature_query: Type[FeatureQuery]):
     assert len(features) > 0, f"expecting to have at least 1 feature, but got 0"
     feature = features[0]
     model = feature.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
     assert model.id.startswith(model.type)
