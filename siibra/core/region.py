@@ -839,7 +839,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ontology_identifier=None,
             relation_assessment=None,
             version_identifier=f"{self.parcellation.name} - {self.name}",
-            version_innovation=None
+            version_innovation=self.descriptions[0] if hasattr(self, 'descriptions') and len(self.descriptions) > 0 else None
         )
 
         from .. import parcellations, spaces

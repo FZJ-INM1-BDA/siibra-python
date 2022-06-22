@@ -167,6 +167,7 @@ def test_detail_region(parc_spec,region_spec,space_spec,expect_raise,expect_best
     assert model.has_parent is not None
     assert model.has_annotation is not None
     assert (model.has_annotation.best_view_point is not None) == expect_best_view_point
+    assert model.version_innovation is not None
 
 has_inspired_by = [
     ("julich 2.9", "hoc1 left", "mni152"),
