@@ -6,9 +6,11 @@ ieeg_query = IEEG_SessionQuery()
 
 @pytest.mark.parametrize('ieeg', ieeg_query.features)
 def test_ieeg_to_model(ieeg: IEEG_Session):
-    model = ieeg.to_model()
+    model: IEEGSessionModel = ieeg.to_model()
     import re
     assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
+    assert model.dataset.metadata.accessibility is not None, f"expecting model.dataset.metadata.accessibility is defined"
+    assert model.dataset.metadata.accessibility.get("@id") == "https://nexus.humanbrainproject.org/v0/data/minds/core/embargostatus/v1.0.0/3054f80d-96a8-4dce-9b92-55c68a8b5efd", f"expecting the accessibility of the dataset to be restricted access"
 
 hoc1right = parcellations['2.9'].decode_region('hoc1 right')
 models = [f.to_model(roi=hoc1right, detail=True) for f in ieeg_query.features]
