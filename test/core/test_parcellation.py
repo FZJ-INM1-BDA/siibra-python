@@ -95,6 +95,22 @@ def test_should_be_able_to_fetch_map(atlas_id,space_id,parc_id,map_type):
 
     parc.get_map(space, map_type)
 
+parc_has_ebrains_doi = [
+    ("human", "julich brain 2.9")
+]
+
+@pytest.mark.parametrize('atlas_id,parc_id', parc_has_ebrains_doi)
+def test_should_have_ebrains_doi(atlas_id,parc_id):
+    
+    atlas = siibra.atlases[atlas_id]
+    parc = atlas.parcellations[parc_id]
+    model = parc.to_model()
+    all(
+        ver.digital_identifier is not None
+        and ver.digital_identifier.get("@type") == "https://openminds.ebrains.eu/core/DOI"
+        and ver.digital_identifier.get("@id").startswith("https://doi.org")
+        for ver in model.brain_atlas_versions
+    )
 
 if __name__ == "__main__":
     unittest.main()

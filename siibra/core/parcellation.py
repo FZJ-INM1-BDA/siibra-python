@@ -570,6 +570,13 @@ class Parcellation(
         return self.id
 
     def to_model(self, **kwargs) -> SiibraParcellationModel:
+
+        dois = [url.get("doi") if url.get("doi").startswith("http") else f"https://doi.org/{url.get('doi')}"
+            for info in self.infos
+            if hasattr(info, 'urls')
+            for url in info.urls
+            if url.get("doi")]
+        ebrains_doi = dois[0] if len(dois) > 0 else None
         return SiibraParcellationModel(
             id=self.model_id,
             type=SIIBRA_PARCELLATION_MODEL_TYPE,
@@ -608,7 +615,11 @@ class Parcellation(
                 release_date=date(1970,1,1),
                 short_name=self.name[:30],
                 version_identifier=f"{self.version} in {spc.to_model().full_name}",
-                version_innovation="",
+                version_innovation=self.description,
+                digital_identifier={
+                    "@id": ebrains_doi,
+                    "@type": "https://openminds.ebrains.eu/core/DOI"
+                } if ebrains_doi is not None else None
             ) for spc in self.supported_spaces],
             version=self.version.to_model(**kwargs) if self.version is not None else None
         )
