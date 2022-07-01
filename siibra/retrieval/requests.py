@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .base import LazyLoader
 from .cache import CACHE
 from ..commons import logger
 from .. import __version__
@@ -28,6 +29,7 @@ from getpass import getpass
 from io import BytesIO
 import urllib
 import pandas as pd
+from ebrains_drive import BucketApiClient
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -58,8 +60,7 @@ class SiibraHttpRequestError(Exception):
             f"    Url:         {self.response.url}\n"
         )
 
-
-class HttpRequest:
+class HttpRequest(LazyLoader):
     def __init__(
         self,
         url,
@@ -257,17 +258,17 @@ class EbrainsRequest(HttpRequest):
         logger.info(f"Setting EBRAINS Knowledge Graph authentication token: {token}")
         cls._KG_API_TOKEN = token
 
-    @property
-    def kg_token(self):
-
+    @classmethod
+    def get_kg_token(cls) -> str:
+    
         # token is available, return it
-        if self.__class__._KG_API_TOKEN is not None:
-            return self.__class__._KG_API_TOKEN
+        if cls._KG_API_TOKEN is not None:
+            return cls._KG_API_TOKEN
 
         # See if a token is directly provided in  $HBP_AUTH_TOKEN
         if "HBP_AUTH_TOKEN" in os.environ:
-            self.__class__._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
-            return self.__class__._KG_API_TOKEN
+            cls._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
+            return cls._KG_API_TOKEN
 
         # try KEYCLOAK. Requires the following environment variables set:
         # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
@@ -278,7 +279,7 @@ class EbrainsRequest(HttpRequest):
         if None not in keycloak.values():
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
-                self.__class__.keycloak_endpoint,
+                cls.keycloak_endpoint,
                 data=(
                     f"grant_type=client_credentials&client_id={keycloak['client_id']}"
                     f"&client_secret={keycloak['client_secret']}"
@@ -293,13 +294,13 @@ class EbrainsRequest(HttpRequest):
                 content = json.loads(result.content.decode("utf-8"))
             except json.JSONDecodeError as error:
                 logger.error(f"Invalid json from keycloak:{error}")
-                self.__class__._KG_API_TOKEN = None
+                cls._KG_API_TOKEN = None
             if "error" in content:
                 logger.error(content["error_description"])
-                self.__class__._KG_API_TOKEN = None
-            self.__class__._KG_API_TOKEN = content["access_token"]
+                cls._KG_API_TOKEN = None
+            cls._KG_API_TOKEN = content["access_token"]
 
-        if self.__class__._KG_API_TOKEN is None:
+        if cls._KG_API_TOKEN is None:
             # No success getting the token
             raise RuntimeError(
                 "No access token for EBRAINS Knowledge Graph found. "
@@ -311,13 +312,13 @@ class EbrainsRequest(HttpRequest):
                 "$KEYCLOAK_CLIENT_ID and $KEYCLOAK_CLIENT_SECRET."
             )
 
-        return self.__class__._KG_API_TOKEN
+        return cls._KG_API_TOKEN
 
     @property
     def auth_headers(self):
         return {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.kg_token}",
+            "Authorization": f"Bearer {self.get_kg_token()}",
         }
 
     def get(self):
@@ -373,3 +374,28 @@ class EbrainsKgQuery(EbrainsRequest):
                     f"URL was: {e.response.url}"
                 )
         return result
+
+
+class DataproxyRequest(LazyLoader):
+
+    def __init__(self, bucket_name: str, filename: str) -> None:
+        ebrains_token = EbrainsRequest.get_kg_token()
+
+        if ebrains_token is None:
+            raise RuntimeError(f"ebrains token needs to be set to use dataproxy-request")
+
+        self.client = BucketApiClient(token=ebrains_token)
+        self.bucket = self.client.buckets.get_bucket(bucket_name)
+        self.filename = filename
+
+    def get(self):
+        return self.bucket.get_file(self.filename).get_content()
+
+    @property
+    def cached(self):
+        # TODO implement lazy load (?)
+        return False
+
+    @property
+    def data(self):
+        return self.get()

@@ -13,11 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from typing import Iterable
+
+from .base import LazyLoader
+from .requests import DECODERS, DataproxyRequest, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
+from ebrains_drive import BucketApiClient
 
 
 class RepositoryConnector(ABC):
@@ -29,11 +33,11 @@ class RepositoryConnector(ABC):
         self.base_url = base_url
 
     @abstractmethod
-    def search_files(folder: str, suffix: str, recursive: bool = False):
+    def search_files(self, folder: str, suffix: str, recursive: bool = False) -> Iterable[str]:
         pass
 
     @abstractmethod
-    def _build_url(self, folder: str, filename: str):
+    def _build_url(self, folder: str, filename: str) -> str:
         pass
 
     def _decode_response(self, response, filename):
@@ -51,7 +55,7 @@ class RepositoryConnector(ABC):
         """Get a file right away."""
         return self.get_loader(filename, folder, decode_func).data
 
-    def get_loader(self, filename, folder="", decode_func=None):
+    def get_loader(self, filename, folder="", decode_func=None) -> LazyLoader:
         """Get a lazy loader for a file, for executing the query
         only once loader.data is accessed."""
         url = self._build_url(folder, filename)
@@ -434,3 +438,40 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
         """Get a lazy loader for a file, for executing the query
         only once loader.data is accessed."""
         return HttpRequest(self._build_url(folder, filename), decode_func)
+
+
+class DataproxyConnector(RepositoryConnector):
+    BUCKET_NAME = "siibra-configurations"
+    def __init__(self, base_url=None):
+        token = EbrainsRequest.get_kg_token()
+        if token is None:
+            raise RuntimeError(f"ebrains token needs to be set to search for files!")
+        self.client = BucketApiClient(token=token)
+        self.bucket = self.client.buckets.get_bucket(self.BUCKET_NAME)
+        pass
+
+    def _build_url(self):
+        raise NotImplementedError
+
+    def search_files(self, folder: str=None, suffix: str = None, recursive: bool = False):
+
+        cursor = self.bucket.ls(prefix=folder.lstrip("/") if folder else None)
+        while True:
+            try:
+                value = next(cursor)
+                if suffix is not None:
+                    if value.name.endswith(suffix):
+                        yield value.name
+                else:
+                    yield value.name
+            except StopIteration:
+                break
+        return
+
+    def get_loader(self, filename:str, folder="", decode_func=None) -> LazyLoader:
+        filename=folder.rstrip("/") + "/" + filename.lstrip("/")
+        return DataproxyRequest(self.bucket.name, filename)
+
+    def get(self, filename, folder="") -> bytes:
+        file = self.bucket.get_file(filename)
+        return file.get_content()

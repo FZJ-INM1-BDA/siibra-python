@@ -163,7 +163,7 @@ class DatasetJsonModel(ConfigBaseModel):
     urls: List[Url]
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
-    def __init__(self, name, description, urls):
+    def __init__(self, name, description, urls=[], **kwargs):
         Dataset.__init__(self, None, description=description)
         # we model the following as property functions,
         # so derived classes may replace them with a lazy loading mechanism.
@@ -186,7 +186,7 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
 
 
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
-    def __init__(self, id, name, embargo_status=None):
+    def __init__(self, id, name, embargo_status=None, **kwargs):
         Dataset.__init__(self, id, description=None)
         self.embargo_status = embargo_status
         self._name_cached = name
