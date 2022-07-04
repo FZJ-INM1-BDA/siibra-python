@@ -17,7 +17,7 @@
 Neurotransmitter receptor densities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-EBRAINS provides transmitter receptor density measurments linked to a selection of cytoarchitectonic brain regions in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the ``siibra.get_features()`` method with the ``siibra.modalities.ReceptorDistribution`` modality (or the shorthand 'receptor'), and by specifying a cytoarchitectonic region. Receptor densities come as a structured datatype which includes a regional fingerprint with average densities for different transmitters, as well as often an additional cortical density profile and a sample autoradiograph patch. They bring their own `plot()` method to produce a quick illustration.
+EBRAINS provides transmitter receptor density measurments linked to a selection of cytoarchitectonic brain regions in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the ``siibra.get_features()`` method with the ``siibra.modalities.ReceptorDistribution`` modality, and by specifying a cytoarchitectonic region. Receptor densities come as a structured datatype which includes a regional fingerprint with average densities for different transmitters, as well as often an additional cortical density profile and a sample autoradiograph patch. They bring their own `plot()` method to produce a quick illustration.
 """
 
 
@@ -30,7 +30,7 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 # If we query this modality for the whole atlas instead of a particular
 # brain region, all linked receptor density features
 # will be returned.
-all_features = siibra.get_features( atlas, siibra.modalities.ReceptorDistribution)
+all_features = siibra.get_features(atlas, siibra.modalities.ReceptorDistribution)
 print("Receptor density features found for the following regions:")
 print("\n".join(f.regionspec for f in all_features))
 

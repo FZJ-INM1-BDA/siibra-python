@@ -17,7 +17,7 @@ from .feature import CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 
 from ..commons import logger, QUIET
-from ..core.space import PointSet
+from ..core.space import PointSet, Point, Space
 from ..core.atlas import Atlas
 from ..core.parcellation import Parcellation
 from ..retrieval import HttpRequest
@@ -56,9 +56,10 @@ def load_wagstyl_profiles():
     # we cache the assignments of profiles to regions as well
     with QUIET:
         jubrain = Parcellation.REGISTRY["julich"]
-    cachefile = f"{req.cachefile}_{jubrain.key}_assignments.csv"
+    assfile = f"{req.cachefile}_{jubrain.key}_assignments.csv"
+    ptsfile = assfile.replace('assignments.csv', 'bbcoords.txt')
 
-    if not os.path.isfile(cachefile):
+    if not os.path.isfile(assfile):
 
         logger.info(f"Warping locations of {len(vertices)} BigBrain profiles to MNI space...")
         pts_bb = PointSet(vertices, space="bigbrain")
@@ -74,11 +75,13 @@ def load_wagstyl_profiles():
                 .drop_duplicates(["Component"])
             )
 
-        ass.to_csv(cachefile)
+        ass.to_csv(assfile)
+        np.savetxt(ptsfile, pts_bb.as_list())
 
-    assignments = pd.read_csv(cachefile)
+    assignments = pd.read_csv(assfile)
+    bbcoords = np.loadtxt(ptsfile)
 
-    return profiles_left, boundary_depths, assignments
+    return profiles_left, boundary_depths, assignments, bbcoords
 
 
 class BigBrainIntensityProfile(CorticalProfile):
@@ -98,7 +101,8 @@ class BigBrainIntensityProfile(CorticalProfile):
         regionname: str,
         depths: list,
         values: list,
-        boundaries: list
+        boundaries: list,
+        location: Point
     ):
         CorticalProfile.__init__(
             self,
@@ -114,6 +118,7 @@ class BigBrainIntensityProfile(CorticalProfile):
                 for b in CorticalProfile.BOUNDARIES
             }
         )
+        self.location = location
 
 
 class WagstylBigBrainProfileQuery(FeatureQuery):
@@ -123,15 +128,17 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
     def __init__(self):
 
         FeatureQuery.__init__(self)
-        profiles_left, boundary_depths, assignments = load_wagstyl_profiles()
+        profiles_left, boundary_depths, assignments, bbcoords = load_wagstyl_profiles()
         logger.debug(f"{profiles_left.shape[0]} BigBrain intensity profiles...")
         depths = np.arange(0, 1, 1 / profiles_left.shape[1])
         for assignment in assignments.itertuples():
+            idx = assignment.Component
             p = BigBrainIntensityProfile(
                 regionname=assignment.Region,
                 depths=depths,
-                values=profiles_left[assignment.Component, :],
-                boundaries=boundary_depths[assignment.Component, :]
+                values=profiles_left[idx, :],
+                boundaries=boundary_depths[idx, :],
+                location=Point(bbcoords[idx, :], Space.REGISTRY['bigbrain'])
             )
             self.register(p)
 
@@ -164,7 +171,7 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
             unit="staining intensity",
             means=means,
             stds=stds,
-            labels=list(CorticalProfile.LAYERS.values())[1: -1]
+            labels=list(CorticalProfile.LAYERS.values())[1: -1],
         )
 
 
@@ -175,7 +182,7 @@ class WagstylBigBrainIntensityFingerprintQuery(FeatureQuery):
     def __init__(self):
 
         FeatureQuery.__init__(self)
-        profiles_left, boundary_positions, assignments = load_wagstyl_profiles()
+        profiles_left, boundary_positions, assignments, bbcoords = load_wagstyl_profiles()
 
         # compute array of layer labels for all coefficients in profiles_left
         N = profiles_left.shape[1]
