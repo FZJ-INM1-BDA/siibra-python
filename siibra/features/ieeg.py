@@ -55,9 +55,9 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
     A Dataset of intracranial EEG measurements retrieved from EBRAINS,
     composed of different sessions on different subjects.
     """
-    def __init__(self, dataset_id, name, space):
+    def __init__(self, dataset_id, name, space, embargo_status=None):
         SpatialFeature.__init__(self, WholeBrain(space))
-        EbrainsDataset.__init__(self, dataset_id, name)
+        EbrainsDataset.__init__(self, dataset_id, name, embargo_status)
         self.sessions = {}
 
     def new_session(self, subject_id):
@@ -90,6 +90,7 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
             dataset_id=spec["kgId"],
             name=spec["name"],
             space=Space.REGISTRY[spec["space id"]],
+            embargo_status=spec.get("embargoStatus")
         )
 
 

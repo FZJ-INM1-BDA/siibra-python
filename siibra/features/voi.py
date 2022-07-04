@@ -17,7 +17,7 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import QUIET, logger
-from ..volumes.volume import VolumeSrc, VolumeModel
+from ..volumes.volume import VolumeSrc, VolumeModel, ColorVolumeNotSupported
 from ..core.space import BoundingBoxModel, Space, BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
@@ -43,16 +43,23 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
             minpoints = []
             maxpoints = []
             for vsrc_def in definition["volumeSrc"]:
-                vsrc = VolumeSrc._from_json(vsrc_def)
-                vsrc.space = space
-                with QUIET:
-                    img = vsrc.fetch()
-                    D = np.asanyarray(img.dataobj).squeeze()
-                    nonzero = np.array(np.where(D > 0))
-                    A = img.affine
-                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
-                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
-                vsrcs.append(vsrc)
+                try:
+                    vsrc = VolumeSrc._from_json(vsrc_def)
+                    vsrc.space = space
+                    with QUIET:
+                        img = vsrc.fetch()
+                        D = np.asanyarray(img.dataobj).squeeze()
+                        nonzero = np.array(np.where(D > 0))
+                        A = img.affine
+                    minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
+                    maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
+                    vsrcs.append(vsrc)
+                    
+                except ColorVolumeNotSupported:
+                    # If multi channel volume exists rather than short circuit, try to use other volumes to determine the ROI
+                    # See PLI hippocampus data feature
+                    vsrcs.append(vsrc)
+                    
             minpoint = np.array(minpoints).min(0)
             maxpoint = np.array(maxpoints).max(0)
             result = cls(
@@ -70,8 +77,8 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
 
     @property
     def model_id(self):
-        _id = hashlib.md5(super().model_id.encode("utf-8"))
-        return f"{VolumeOfInterest.get_model_type()}/{_id}"
+        _id = hashlib.md5(super().model_id.encode("utf-8")).hexdigest()
+        return f"{VolumeOfInterest.get_model_type()}/{str(_id)}"
 
     def to_model(self, **kwargs) -> 'VOIDataModel':
         super_model = super().to_model(**kwargs)

@@ -87,7 +87,9 @@ def test_json_serializable(spc: Space):
         spc.to_model.__annotations__.get("return"),
         BaseModel,
     )
-    spc.to_model()
+    import re
+    model = spc.to_model()
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
     import json
     json.loads(
         spc.to_model().json()

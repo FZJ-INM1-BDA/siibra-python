@@ -49,6 +49,7 @@ setup(
         "neuroglancer-scripts",
         "nilearn",
         'importlib-resources; python_version < "3.7"',
+        'typing-extensions; python_version < "3.8"',
         "pydantic==1.8.2",
     ],
 )

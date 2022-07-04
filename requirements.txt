@@ -1,14 +1,11 @@
-numpy
-requests
-nibabel
 anytree
+nibabel
 appdirs
 scikit-image
-click
-neuroglancer-scripts
+requests
 memoization
+neuroglancer-scripts
 nilearn
-simple-term-menu
-pandas
+importlib-resources; python_version < "3.7"
+typing-extensions; python_version < "3.8"
 pydantic==1.8.2
-fpdf
