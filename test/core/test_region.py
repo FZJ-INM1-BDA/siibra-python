@@ -140,6 +140,20 @@ def test_region_to_model(region: Region):
     # import re
     # assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
+
+detailed_region_in_space = [
+    ("minds/core/parcellationatlas/v1.0.0/ebb923ba-b4d5-4b82-8088-fa9215c2e1fe-v4", "stria medullaris thalami", "minds/core/referencespace/v1.0.0/d5717c4a-0fa1-46e6-918c-b8003069ade8")
+]
+@pytest.mark.parametrize('parc_id,region_id,space_id', detailed_region_in_space)
+def test_detailed_region_in_space(parc_id,region_id,space_id):
+    p = siibra.parcellations[parc_id]
+    assert p is not None
+    r = p.decode_region(region_id)
+    assert r is not None
+    s = siibra.spaces[space_id]
+    assert s is not None
+    r.to_model(detail=True, space=s)
+
 detailed_region=[
     ("julich 2.9", "hoc1 left", "mni152", False, True),
     ("julich 2.9", "hoc1 right", "mni152", False, True),
