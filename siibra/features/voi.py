@@ -147,10 +147,7 @@ class VolumeOfInterestQuery(FeatureQuery):
                 try:
                     json_content = DECODERS['.json'](loader.data)
                     
-                    json_output = json_content.get("output", {}).get("siibra-python")
-                    assert json_output is not None, f"dataproxy connector fetched feature/volume/.json should contain '.output.siibra-python', but does not. {loader.data}"
-                    
-                    voi = VolumeOfInterest._from_json(json_output)
+                    voi = VolumeOfInterest._from_json(json_content)
                     self.register(voi)
                 except AssertionError as e:
                     logger.warn(f"Assertion error: {str(e)}")

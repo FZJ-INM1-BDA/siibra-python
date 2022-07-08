@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Iterable
-
 from .base import LazyLoader
 from .requests import DECODERS, DataproxyRequest, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .. import logger
 from abc import ABC, abstractmethod
+from os import path
+from typing import Iterable
 from urllib.parse import quote
 from tqdm import tqdm
 from ebrains_drive import BucketApiClient
@@ -454,15 +454,17 @@ class DataproxyConnector(RepositoryConnector):
         raise NotImplementedError
 
     def search_files(self, folder: str=None, suffix: str = None, recursive: bool = False):
-
         cursor = self.bucket.ls(prefix=folder.lstrip("/") if folder else None)
         while True:
             try:
                 value = next(cursor)
-                if suffix is not None:
-                    if value.name.endswith(suffix):
-                        yield value.name
-                else:
+                basename = path.basename(value.name)
+                if not basename.startswith("spy-"):
+                    continue
+                if suffix is None:
+                    yield value.name
+                    continue
+                if value.name.endswith(suffix):
                     yield value.name
             except StopIteration:
                 break
