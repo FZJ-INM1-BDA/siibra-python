@@ -67,7 +67,10 @@ class ParcellationMap(ABC):
                 )
             )
 
-        self.maptype = maptype
+        if isinstance(maptype, str):
+            self.maptype = MapType[maptype.upper()]
+        else:
+            self.maptype = maptype
         self.parcellation = parcellation
         self.space = space
 
