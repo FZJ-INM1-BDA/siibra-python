@@ -343,7 +343,7 @@ class EbrainsKgQuery(EbrainsRequest):
     def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
         inst_tail = "/" + instance_id if instance_id is not None else ""
         self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?stage=RELEASED".format(
+        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
             self.server,
             self.org,
             self.domain,

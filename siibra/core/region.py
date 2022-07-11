@@ -1021,7 +1021,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             if detail:
                 try:
                     centroids = self.centroids(space)
-                    assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+                    assert len(centroids) > 0, f"Region.to_model detailed flag set, expect a single centroid as return for centroid(space) call, but got none."
+                    if len(centroids) != 1:
+                        logger.warn(f"Region.to_model detailed flag set. Can only handle one and only one centroid, but got {len(centroids)}. Using the first one, if available, or return None")
                     pev.has_annotation.best_view_point = BestViewPoint(
                         coordinate_space={
                             "@id": space.model_id
@@ -1033,6 +1035,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                             }
                         ) for pt in centroids[0]]
                     )
+                except AssertionError as e:
+                    # no centroids found. Log warning, but do not raise.
+                    logger.warn(e)
                 except NotImplementedError:
                     # Region masks for surface spaces are not yet supported. for surface-based spaces
                     pass
