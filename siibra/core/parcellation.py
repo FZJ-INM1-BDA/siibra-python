@@ -330,7 +330,7 @@ class Parcellation(
     def publications(self):
         return self._publications + super().publications
 
-    def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region]):
+    def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region], find_topmost=True):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -348,6 +348,8 @@ class Parcellation(
             - an integer, which is interpreted as a labelindex,
             - a region object
             - a full ParcellationIndex
+        find_topmost : Bool, default: True
+            If True, will automatically return the parent of a decoded region the decoded region is its only child.
 
         Return
         ------
@@ -358,12 +360,22 @@ class Parcellation(
 
         if isinstance(regionspec, str) and regionspec.startswith("Group:"):
             # seems to be a group region name - build the group region by recursive decoding.
-            subspecs = regionspec.replace("Group:", "").split(",")
-            return Region._build_grouptree(
-                [self.decode_region(s) for s in subspecs], parcellation=self
-            )
+            logger.info(f"Decoding group region: {regionspec}")
+            regions = [
+                self.decode_region(s) for s in regionspec.replace("Group:", "").split(",")
+            ]
+            # refuse to group regions with any of their existing children
+            cleaned_regions = [
+                r for r in regions 
+                if not any(r in r2.descendants for r2 in regions)
+            ]
+            if len(cleaned_regions) == 1:
+                logger.debug(f"Group reduced to a single parent: {cleaned_regions[0].name}")
+                return cleaned_regions[0]
+            else:
+                return Region._build_grouptree(cleaned_regions, parcellation=self)
 
-        candidates = self.regiontree.find(regionspec, filter_children=True)
+        candidates = self.regiontree.find(regionspec, filter_children=True, find_topmost=find_topmost)
         if not candidates:
             raise ValueError(
                 "Regionspec {} could not be decoded under '{}'".format(
@@ -488,8 +500,11 @@ class Parcellation(
         assert isinstance(other, self.__class__)
         for region in other.regiontree:
 
+            if region.parent is None:
+                continue
+    
             try:
-                matched_parent = self.decode_region(region.parent.name)
+                matched_parent = self.decode_region(region.parent.name, find_topmost=False)
             except (ValueError, AttributeError):
                 continue
 
@@ -508,7 +523,7 @@ class Parcellation(
 
             elif len(conflicts) == 0:
                 logger.debug(
-                    f"Extending '{matched_parent}' with '{region.name}' from '{other.name}'."
+                    f"Extending '{matched_parent}' in '{self.name}' with '{region.name}' from '{other.name}'."
                 )
                 new_child = Region.copy(region)
                 new_child.parcellation = matched_parent.parcellation
