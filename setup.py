@@ -52,6 +52,6 @@ setup(
         'typing-extensions; python_version < "3.8"',
         "pydantic==1.8.2",
         # pending PR at https://github.com/HumanBrainProject/ebrains-drive/pull/15
-        "git+https://github.com/xgui3783/ebrains-drive.git@feat_dataproxyMVP",
+        # ebrains-drive
     ],
 )
