@@ -13,12 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from siibra.core.serializable_concept import JSONSerializable
 from .feature import Feature
-
 from .. import logger
 from ..commons import TypedRegistry
 from ..core import AtlasConcept, Dataset
+from ..core.serializable_concept import JSONSerializable
 
 from abc import ABC
 from collections import defaultdict

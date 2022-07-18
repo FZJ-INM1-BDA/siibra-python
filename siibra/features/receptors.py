@@ -16,7 +16,7 @@
 from .feature import RegionalFeature
 from .query import FeatureQuery
 from ..commons import logger
-from ..retrieval.requests import EbrainsKgQuery, HttpRequest
+from ..retrieval.requests import EbrainsKgCachedQuery as EbrainsKgQuery, HttpRequest
 from ..core.datasets import EbrainsDataset, DatasetJsonModel, ConfigBaseModel
 from ..core.serializable_concept import NpArrayDataModel
 

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .cache import CACHE
+from .exceptions import RepositoryGetNotFound
 from ..commons import logger
 from .. import __version__
 
@@ -373,3 +374,58 @@ class EbrainsKgQuery(EbrainsRequest):
                     f"URL was: {e.response.url}"
                 )
         return result
+
+class EbrainsKgCachedQuery(EbrainsKgQuery):
+    """
+    Middleware to capture EbrainsKgQuery.get calls
+    EbrainsKgQuery.get call require KG token. If we would like to cache the result
+    and capture in static repo (git, obj storage etc), it **should** occur before calling EbrainsKgQuery.get
+    Also allows different cache method to be used. 
+    (We have LocalFile cache, but can be git, obj storage etc)
+
+    Proposal: rename EbrainsKgQuery to EbrainsKgAuthedQuery, and make it clear that:
+    - **only** use authed query to query for private dataset
+    - for dev purposes (e.g. populating cache)
+    - remove usage of CachedHttpRequest in EbrainsKgQuery (since caching is already done on this level)
+    
+    """
+    def __init__(self, *args, cache=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        from .repositories import WritableRepositoryConnector, LocalWritableRepository, GitlabSnippetWritableRepository
+        from .. import __version__
+
+        if cache is None:
+            cache = GitlabSnippetWritableRepository(
+                base_url="https://jugit.fz-juelich.de",
+                project="t.dickscheid/brainscapes-configurations",
+                token=os.environ.get("GITLAB_WRITE_TOKEN")
+            )
+        assert isinstance(cache, WritableRepositoryConnector)
+
+        self.local_cache = cache
+        basename = os.path.basename(CACHE.build_filename(self.url + json.dumps(self.kwargs)))
+        self.cache_id = f'{__version__}_ebkgquerycache_{basename}'
+
+        if self.local_cache.writable:
+            meta = {
+                'wrapped_class': 'EbrainsKgQuery',
+                'args': args,
+                'kwargs': kwargs,
+            }
+            self.local_cache.set(f"{self.cache_id}.meta", str.encode(json.dumps(meta), 'utf-8'))
+
+    def get(self):
+        try:
+            cached_content = self.local_cache.get(self.cache_id)
+            logger.debug(f"Cache found, returning cached content.")
+            return json.loads(cached_content)
+        except RepositoryGetNotFound:
+            logger.debug(f"Cache not found, fallback to super.get")
+            content = super().get()
+            if self.local_cache.writable:
+                self.local_cache.set(self.cache_id, str.encode(json.dumps(content), "utf-8"))
+            return content
+        except Exception as e:
+            logger.warn(f"Unexpected exception, fallback to super.get: {str(e)}")
+            return super().get()
