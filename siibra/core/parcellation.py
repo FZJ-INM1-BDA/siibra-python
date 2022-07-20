@@ -17,7 +17,7 @@ from .space import Space
 from .region import Region
 from .concept import AtlasConcept, provide_registry
 from .serializable_concept import JSONSerializable
-from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
+from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset, EbrainsKgV3DatasetVersion, EbrainsKgV3Dataset
 
 from ..commons import logger, MapType, ParcellationIndex, Registry
 from ..volumes import ParcellationMap
@@ -208,7 +208,7 @@ class Parcellation(
         """
         AtlasConcept.__init__(self, identifier, name, dataset_specs)
         self.version = version
-        self.description = ""
+        self._description = ""
         self.modality = modality
         self._regiondefs = regiondefs
         if maps is not None:
@@ -216,6 +216,24 @@ class Parcellation(
                 self._datasets_cached = []
             self._datasets_cached.extend(maps)
         self.atlases = set()
+    
+    @property
+    def description(self):
+
+        metadata_datasets = [info
+            for info in self.infos
+            if isinstance(info, EbrainsDataset)
+            or isinstance(info, EbrainsKgV3DatasetVersion)
+            or isinstance(info, EbrainsKgV3Dataset)
+            or isinstance(info, OriginDescription)]
+
+        if len(metadata_datasets) == 0:
+            return self._description
+        
+        if len(metadata_datasets) > 1:
+            logger.debug(f"Parcellation.description multiple metadata_datasets found. Using the first one.")
+        
+        return metadata_datasets[0].description
 
     @property
     def regiontree(self):
@@ -560,7 +578,7 @@ class Parcellation(
             result.modality = obj["modality"]
 
         if "description" in obj:
-            result.description = obj["description"]
+            result._description = obj["description"]
 
         if "publications" in obj:
             result._publications = obj["publications"]

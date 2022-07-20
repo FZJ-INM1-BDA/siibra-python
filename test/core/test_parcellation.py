@@ -114,3 +114,28 @@ def test_should_have_ebrains_doi(atlas_id,parc_id):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+parc_has_desc = [
+    ("human", "julich brain 2.9"),
+
+    ("rat", "v4"),
+    ("rat", "v3"),
+    ("rat", "v2"),
+    ("rat", "v1"),
+
+    ("mouse", "2015"),
+    ("mouse", "2017"),
+]
+
+@pytest.mark.parametrize("atlas_id,parc_id", parc_has_desc)
+def test_should_have_desc(atlas_id,parc_id):
+
+    atlas = siibra.atlases[atlas_id]
+    parc = atlas.parcellations[parc_id]
+    model = parc.to_model()
+    
+    all(
+        len(ver.description) > 20
+        for ver in model.brain_atlas_versions
+    )

@@ -13,16 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import hashlib
 from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
+from ..retrieval.requests import DECODERS, EbrainsRequest
 from ..openminds.core.v4.products.datasetVersion import Model as DatasetVersionModel
 from ..openminds.base import ConfigBaseModel
 
+import hashlib
 import re
 from datetime import date
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import Field
 
 class Url(ConfigBaseModel):
@@ -183,6 +184,108 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
             description=spec.get("description"),
             urls=spec.get("url", []),
         )
+
+
+class _EbrainsKgV3Base:
+    BASE_URL = "https://core.kg.ebrains.eu/v3-beta/queries"
+    QUERY_ID = None
+    STAGE = "RELEASED"
+
+    def __init__(self, _id_spec: Dict[str, Any]) -> None:
+        self._id_spec = _id_spec
+        self._spec = None
+        
+
+    @classmethod
+    def _query(cls, spec: Dict[str, Any]=None):
+        
+        # for easy compatibility with data returned by KG
+        # KG no longer uses @id for key, but instead id (by default)
+        # also id prepends domain information (e.g. https://kg.ebrains.eu/api/instances/{uuid})
+        # therefore, also extract the uuid protion
+
+        if spec is not None:
+            at_id=spec.get("@id")
+            kg_id = spec.get("id")
+            kg_id_search = kg_id and re.search(r'[a-f0-9-]+$', kg_id)
+        
+            assert at_id is not None or kg_id_search is not None
+            uuid = at_id or kg_id_search.group()
+
+        assert hasattr(cls, 'type_id')
+        
+        # for easy compatibility with data returned by KG
+        # KG no longer uses @type for key, but type
+        # also type is List[str]
+        assert spec.get("@type") == cls.type_id or any ([t == cls.type_id for t in spec.get("type", [])])
+        
+        
+        url=f"{cls.BASE_URL}/{cls.QUERY_ID}/instances?stage={cls.STAGE}"
+        if spec is not None:
+            url += f"&instanceId={uuid}"
+
+        result = EbrainsRequest(url, DECODERS['.json']).get()
+
+        assert 'data' in result
+
+        if spec is not None:
+            assert result.get('total') == 1
+            assert result.get('size') == 1
+            return result.get("data")[0]
+
+        return result.get('data', [])
+        
+
+class EbrainsKgV3Dataset(Dataset, _EbrainsKgV3Base, type_id="https://openminds.ebrains.eu/core/Dataset"):
+    BASE_URL = "https://core.kg.ebrains.eu/v3-beta/queries"
+    QUERY_ID = "138111f9-1aa4-43f5-8e0a-6e6ed085fa3e"
+
+    def __init__(self, spec: Dict[str, Any]):
+        super().__init__(None)
+        found = re.search(r'[a-f0-9-]+$', spec.get('id'))
+        assert found
+        self.id = found.group()
+        self._description_cached = spec.get("description")
+        self._spec = spec
+
+    @classmethod
+    def _from_json(cls, spec: Dict[str, Any]):
+        json_obj = cls._query(spec)
+        return cls(json_obj)
+
+
+class EbrainsKgV3DatasetVersion(Dataset, _EbrainsKgV3Base, type_id="https://openminds.ebrains.eu/core/DatasetVersion"):
+    
+    BASE_URL = "https://core.kg.ebrains.eu/v3-beta/queries"
+    QUERY_ID = "f7489d01-2f90-410c-9812-9ee7d10cc5be"
+
+    def __init__(self, _id_spec: Dict[str, Any]):
+        _EbrainsKgV3Base.__init__(self, _id_spec)
+        Dataset.__init__(self, None)
+
+    @classmethod
+    def _from_json(cls, spec: Dict[str, Any]):
+        return cls(spec)
+    
+    @property
+    def description(self):
+        if self._spec is None:
+            self._spec = self._query(self._id_spec)
+        
+        self._description_cached = self._spec.get("description")
+        
+        if self._description_cached is not None and self._description_cached != '':
+            return self._description_cached
+
+        parent_datasets = self._spec.get("belongsTo", [])
+        if len(parent_datasets) == 0:
+            return None
+        if len(parent_datasets) > 1:
+            logger.warn(f"EbrainsKgV3DatasetVersion.description: more than one parent dataset found. Using the first one...")
+
+        parent = EbrainsKgV3Dataset._from_json(parent_datasets[0])
+        return parent.description
+
 
 
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
