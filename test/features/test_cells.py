@@ -41,6 +41,7 @@ class TestCorticalCellDistribution(unittest.TestCase):
         feature = features[0]
         model = feature.to_model(detail=False)
         assert isinstance(model, CorticalCellDistributionModel)
+        assert getattr(model.metadata, 'short_name') is not None and model.metadata.short_name != ""
 
 
 if __name__ == "__main__":

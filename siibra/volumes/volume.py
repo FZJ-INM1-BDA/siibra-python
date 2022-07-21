@@ -32,6 +32,8 @@ from typing import Any, Dict, Optional
 from pydantic import Field
 import hashlib
 
+class ColorVolumeNotSupported(NotImplementedError): pass
+
 class VolumeDataModel(ConfigBaseModel):
     type: str
     is_volume: bool
@@ -617,7 +619,7 @@ class NeuroglancerScale:
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
         if not chunk_czyx.shape[0] == 1:
-            raise NotImplementedError("Color channel data is not yet supported")
+            raise ColorVolumeNotSupported("Color channel data is not yet supported")
         chunk_zyx = chunk_czyx[0]
 
         if self.volume.USE_CACHE:

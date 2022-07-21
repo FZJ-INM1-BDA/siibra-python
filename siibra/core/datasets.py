@@ -116,9 +116,11 @@ class Dataset(JSONSerializable):
         metadata=DatasetVersionModel(
             id=self.model_id,
             type=self.get_model_type(),
-            accessibility={
-                "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess",
-            },
+            accessibility={ "@id": self.embargo_status[0].get("@id") } \
+                if hasattr(self, 'embargo_status') \
+                and self.embargo_status is not None \
+                and len(self.embargo_status) == 1 \
+                else { "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess" },
             data_type=[{
                 "@id": "https://openminds.ebrains.eu/instances/semanticDataType/derivedData"
             }],
@@ -145,7 +147,7 @@ class Dataset(JSONSerializable):
             }],
             version_identifier="",
             version_innovation="",
-            description=(self.description or "")[:2000] if hasattr(self, "description") else ""
+            description=(self.description or "")[:2000] if hasattr(self, "description") else "",
         )
         return DatasetJsonModel(
             id=metadata.id,

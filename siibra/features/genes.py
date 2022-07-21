@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from typing import Dict, List
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
@@ -25,10 +26,28 @@ from xml.etree import ElementTree
 import numpy as np
 import json
 import siibra
+try:
+    # python 3.8+
+    from typing import TypedDict
+except ImportError:
+    # python 3.7 and below
+    from typing_extensions import TypedDict
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
+class DonorDict(TypedDict):
+    id: int
+    name: str
+    race: str
+    age: int
+    gender: str
+
+class SampleStructure(TypedDict):
+    id: int
+    name: str
+    abbreviation: str
+    color: str
 
 class GeneExpression(SpatialFeature):
     """
@@ -37,13 +56,15 @@ class GeneExpression(SpatialFeature):
 
     def __init__(
         self,
-        gene,
+        gene: str,
         location: Point,
-        expression_levels,
-        z_scores,
-        probe_ids,
-        donor_info,
-        mri_coord=None,
+        expression_levels: List[float],
+        z_scores: List[float],
+        probe_ids: List[int],
+        donor_info: DonorDict,
+        mri_coord: List[int]=None,
+        structure: SampleStructure=None,
+        top_level_structure: SampleStructure=None,
     ):
         """
         Construct the spatial feature for gene expressions measured in a sample.
@@ -72,6 +93,8 @@ class GeneExpression(SpatialFeature):
         self.gene = gene
         self.probe_ids = probe_ids
         self.mri_coord = mri_coord
+        self.structure = structure
+        self.top_level_structure = top_level_structure
 
     def __repr__(self):
         return " ".join(
@@ -263,6 +286,8 @@ class AllenBrainAtlasQuery(FeatureQuery):
                     probe_ids=[p["id"] for p in probes],
                     donor_info={**self.factors[donor["id"]], **donor},
                     mri_coord=sample["sample"]["mri"],
+                    structure=sample['structure'],
+                    top_level_structure=sample['top_level_structure'],
                 )
             )
 

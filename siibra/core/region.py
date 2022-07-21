@@ -73,7 +73,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         server="https://jugit.fz-juelich.de", project=3009, reftag="master"
     )
 
-
     @staticmethod
     def _clear_name(name):
         result = name
@@ -178,7 +177,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
     @cached
     def find(
-        self, regionspec, filter_children=False, build_group=False, groupname=None
+        self, regionspec, filter_children=False, build_group=False, groupname=None, find_topmost=True
     ):
         """
         Find regions that match the given region specification in the subtree
@@ -200,6 +199,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             If needed,a group region of matched elements will be created.
         groupname : str (optional)
             Name of the resulting group region, if build_group is True
+        find_topmost : Bool, default: True
+            If True, will return parent structures if all children are matched, 
+            even though the parent itself might not match the specification.
 
         Yield
         -----
@@ -242,21 +244,24 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                             filtered.append(region)                                            
 
             # find any non-matched regions of which all children are matched
-            complete_parents = list(
-                {
-                    r.parent
-                    for r in filtered
-                    if (r.parent is not None)
-                    and all((c in filtered) for c in r.parent.children)
-                }
-            )
+            if find_topmost:
+                complete_parents = list(
+                    {
+                        r.parent
+                        for r in filtered
+                        if (r.parent is not None)
+                        and all((c in filtered) for c in r.parent.children)
+                    }
+                )
 
-            if len(complete_parents) == 0:
-                candidates = filtered
+                if len(complete_parents) == 0:
+                    candidates = filtered
+                else:
+                    # filter child regions again
+                    filtered += complete_parents
+                    candidates = [r for r in filtered if r.parent not in filtered]
             else:
-                # filter child regions again
-                filtered += complete_parents
-                candidates = [r for r in filtered if r.parent not in filtered]
+                candidates = filtered
 
         # ensure the result is a list
         if candidates is None:
@@ -337,6 +342,17 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
 
+    @property
+    def is_custom_group(self):
+        """ 
+        Determine wether this region object is a custom group, 
+        thus not part of the actual region hierarchy. 
+        """
+        return (
+            self not in self.parcellation 
+            and all(c in self.parcellation for c in self.descendants)
+        )
+
     @cached
     def build_mask(
         self,
@@ -344,6 +360,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         resolution_mm=None,
         maptype: MapType = MapType.LABELLED,
         threshold_continuous=None,
+        consider_other_types=True
     ):
         """
         Returns a mask where nonzero values denote
@@ -364,6 +381,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         threshold_continuous: float, or None
             if not None, masks will be preferably constructed by thresholding
             continuous maps with the given value.
+        consider_other_types: Boolean, default: True
+            If a mask for the requested maptype cannot be created, try other maptypes.
         """
         spaceobj = Space.REGISTRY[space]
         if spaceobj.is_surface:
@@ -376,24 +395,55 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             maptype = MapType[maptype.upper()]
 
         if self.has_regional_map(spaceobj, maptype):
+            # the region has itself a map of that type linked
             mask = self.get_regional_map(space, maptype).fetch(
                 resolution_mm=resolution_mm
             )
         else:
+            # retrieve  map of that type from the region's corresponding parcellation map
             parcmap = self.parcellation.get_map(spaceobj, maptype)
             mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
 
         if mask is None:
+            # Attempt to produce a map from the child regions.
+            # We only accept this if all child regions produce valid masks.
+            # NOTE We ignore extension regions here, since this is a complex case currently (e.g. iam regions in BigBrain)
+            logger.debug(f"Merging child regions to build mask for their parent {self.name}:")
+            maskdata = None
+            affine = None
+            for c in self.children:
+                if c.extended_from is not None:
+                    continue
+                childmask = c.build_mask(space, resolution_mm, maptype, threshold_continuous)
+                if childmask is None:
+                    logger.warning(f"No success getting mask for child {c.name}")
+                    break
+                if maskdata is None:
+                    affine = childmask.affine
+                    maskdata = np.asanyarray(childmask.dataobj)
+                else:
+                    assert (childmask.affine == affine).all()
+                    maskdata = np.maximum(maskdata, np.asanyarray(childmask.dataobj))
+            else:
+                # we get here only if the for loop was not interrupted by 'break'
+                if maskdata is not None:
+                    return Nifti1Image(maskdata, affine)
+
+        if mask is None:
+            # No map of the requested type found for the region.
             logger.warn(
                 f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
             )
-            for other_maptype in (set(MapType) - {maptype}):
-                mask = self.build_mask(space, resolution_mm, other_maptype, threshold_continuous)
-                if mask is not None:
-                    logger.info(
-                        f"A mask was generated from map type {other_maptype.name.lower()} instead."
+            if consider_other_types:
+                for other_maptype in (set(MapType) - {maptype}):
+                    mask = self.build_mask(
+                        space, resolution_mm, other_maptype, threshold_continuous, consider_other_types=False
                     )
-                    return mask
+                    if mask is not None:
+                        logger.info(
+                            f"A mask was generated from map type {other_maptype.name.lower()} instead."
+                        )
+                        return mask
             return None
 
         if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
@@ -704,7 +754,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             )
 
         # build binary mask of the image
-        pimg = self.build_mask(space)
+        pimg = self.build_mask(space, maptype=maptype, threshold_continuous=threshold_continuous)
 
         # determine scaling factor from voxels to cube mm
         scale = affine_scaling(pimg.affine)
@@ -839,7 +889,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ontology_identifier=None,
             relation_assessment=None,
             version_identifier=f"{self.parcellation.name} - {self.name}",
-            version_innovation=None
+            version_innovation=self.descriptions[0] if hasattr(self, 'descriptions') and len(self.descriptions) > 0 else None
         )
 
         from .. import parcellations, spaces

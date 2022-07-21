@@ -7,7 +7,9 @@ query = VolumeOfInterestQuery()
 
 @pytest.mark.parametrize('feature', query.features)
 def test_voi_features(feature: VolumeOfInterest):
-    feature.to_model()
+    model = feature.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 def test_pli_volume_transform():
     feat = [f for f in query.features if "3D-PLI" in f.name]
@@ -17,3 +19,11 @@ def test_pli_volume_transform():
         (np.array(vol.detail.get('neuroglancer/precomputed').get('transform')) == vol.transform_nm).all()
         for vol in feat.volumes
     ), f"expecting transform in neuroglance/precomputed be adopted as transform_nm, but was not."
+
+    assert any(
+        vol.url == "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo/HSV-FOM"
+        for vol in feat.volumes
+    ), f"Expect RGB PLI volume to be present"
+
+    assert len(feat.volumes) > 1, f"expecting more than 1 volume (incl. blockface, MRS label etc)"
+    

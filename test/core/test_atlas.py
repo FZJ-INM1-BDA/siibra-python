@@ -151,7 +151,9 @@ class TestAtlas(unittest.TestCase):
 
 @pytest.mark.parametrize('atlas', [atlas for atlas in atlases])
 def test_atlas_to_model(atlas: Atlas):
-    atlas.to_model()
+    model = atlas.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
     
 if __name__ == "__main__":

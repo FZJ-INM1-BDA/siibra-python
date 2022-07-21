@@ -15,6 +15,7 @@
 
 from .cache import CACHE
 from ..commons import logger
+from .. import __version__
 
 import json
 from zipfile import ZipFile
@@ -28,6 +29,8 @@ from io import BytesIO
 import urllib
 import pandas as pd
 import numpy as np
+
+USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 DECODERS = {
     ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
@@ -138,10 +141,18 @@ class HttpRequest:
             logger.debug(f"Loading {self.url} to {os.path.basename(self.cachefile)}")
             if self.msg_if_not_cached is not None:
                 logger.info(self.msg_if_not_cached)
+            headers = self.kwargs.get('headers', {})
+            other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
             if self.post:
-                r = requests.post(self.url, **self.kwargs)
+                r = requests.post(self.url, headers={
+                    **USER_AGENT_HEADER,
+                    **headers,
+                }, **other_kwargs)
             else:
-                r = requests.get(self.url, **self.kwargs)
+                r = requests.get(self.url, headers={
+                    **USER_AGENT_HEADER,
+                    **headers,
+                }, **other_kwargs)
             if r.ok:
                 with open(self.cachefile, "wb") as f:
                     f.write(r.content)
@@ -230,6 +241,7 @@ class EbrainsRequest(HttpRequest):
             headers={
                 "accept": "application/json",
                 "Content-Type": "application/json",
+                **USER_AGENT_HEADER,
             },
             data=f'{{"username": "{username}", "password": "{password}"}}',
         )
@@ -274,7 +286,10 @@ class EbrainsRequest(HttpRequest):
                     f"&client_secret={keycloak['client_secret']}"
                     "&scope=kg-nexus-role-mapping%20kg-nexus-service-account-mock"
                 ),
-                headers={"content-type": "application/x-www-form-urlencoded"},
+                headers={
+                    "content-type": "application/x-www-form-urlencoded",
+                    **USER_AGENT_HEADER,
+                },
             )
             try:
                 content = json.loads(result.content.decode("utf-8"))
@@ -330,7 +345,7 @@ class EbrainsKgQuery(EbrainsRequest):
     def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
         inst_tail = "/" + instance_id if instance_id is not None else ""
         self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
+        url = "{}/query/{}/{}/{}/{}/{}/instances{}?stage=RELEASED".format(
             self.server,
             self.org,
             self.domain,

@@ -48,7 +48,9 @@ space_volumes = [ volume
 
 @pytest.mark.parametrize("volume", space_volumes)
 def test_space_volumes(volume: VolumeSrc):
-    volume.to_model()
+    model = volume.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 
 parcs_volumes = [volume
@@ -59,6 +61,8 @@ parcs_volumes = [volume
 @pytest.mark.parametrize("volume", parcs_volumes)
 def test_parc_volumes(volume: VolumeSrc):
     model = volume.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
     assert model.type != Dataset.get_model_type()
     assert Dataset.get_model_type() not in model.id
 
@@ -71,6 +75,8 @@ region_volmes = [volume
 @pytest.mark.parametrize("volume", region_volmes)
 def test_region_volumes(volume: VolumeSrc):
     model = volume.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
     assert model.type != Dataset.get_model_type()
     assert Dataset.get_model_type() not in model.id

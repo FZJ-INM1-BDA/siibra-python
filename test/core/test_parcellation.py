@@ -63,7 +63,9 @@ all_parcs = [p for p in parcellations]
 
 @pytest.mark.parametrize('parc', all_parcs)
 def test_parc_to_model(parc: Parcellation):
-    parc.to_model()
+    model = parc.to_model()
+    import re
+    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 all_parc_models = [parc.to_model() for parc in all_parcs]
 all_regions = [

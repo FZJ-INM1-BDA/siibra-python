@@ -133,7 +133,12 @@ all_regions = [
 
 @pytest.mark.parametrize('region', all_regions)
 def test_region_to_model(region: Region):
-    region.to_model()
+    model = region.to_model()
+
+    # TODO some region have space in their id...
+    # Please sanitize then uncomment this test
+    # import re
+    # assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 detailed_region=[
     ("julich 2.9", "hoc1 left", "mni152", False, True),
@@ -162,6 +167,7 @@ def test_detail_region(parc_spec,region_spec,space_spec,expect_raise,expect_best
     assert model.has_parent is not None
     assert model.has_annotation is not None
     assert (model.has_annotation.best_view_point is not None) == expect_best_view_point
+    assert model.version_innovation is not None
 
 has_inspired_by = [
     ("julich 2.9", "hoc1 left", "mni152"),
