@@ -196,8 +196,8 @@ class HcpConnectivityFetcher:
     _DATASET_ID = "0f1ccc4a-9a11-4697-b43f-9c9c8ac543e6"
     # TODO add other parcellations
     _PARCELLATION_NAMES = {
-        "294-Julich-Brain": Parcellation.REGISTRY.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9,
-        "096-HarvardOxfordMaxProbThr0": Parcellation.REGISTRY.HARVARDOXFORD_CORT_MAXPROB_THR0,
+        "294-Julich-Brain": "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290",
+        "096-HarvardOxfordMaxProbThr0": "https://identifiers.org/neurovault.image:1702",
     }
 
     def __init__(self, filename_keyword):
@@ -232,9 +232,9 @@ class HcpConnectivityFetcher:
         matching the given parcellation as pandas DataFrames."""
 
         loaders = []
-        for name, parc in self._PARCELLATION_NAMES.items():
+        for name, parc_id in self._PARCELLATION_NAMES.items():
 
-            if parc != parcellation:
+            if parc_id != parcellation.id:
                 continue
 
             try:

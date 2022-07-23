@@ -16,12 +16,14 @@
 from typing import List
 from pydantic import Field
 
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
 from .space import Space
 from .parcellation import Parcellation
 
-from ..commons import MapType, TypedRegistry, logger
+from ..registry import Preconfigure, REGISTRY
+from ..commons import MapType, logger
+from ..registry import TypedRegistry
 from ..openminds.base import SiibraAtIdModel, ConfigBaseModel
 from ..openminds.controlledTerms.v1.species import Model as _SpeciesModel
 
@@ -42,9 +44,9 @@ class SiibraAtlasModel(ConfigBaseModel):
     species: SpeciesModel
 
 
-@provide_registry
+@Preconfigure('atlases')
 class Atlas(
-    AtlasConcept, JSONSerializable, bootstrap_folder="atlases", type_id="juelich/iav/atlas/v1.0.0"
+    AtlasConcept, JSONSerializable, type_id="juelich/iav/atlas/v1.0.0"
 ):
     """
     Main class for an atlas, providing access to feasible
@@ -138,17 +140,17 @@ class Atlas(
         if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
             atlas = cls(obj["@id"], obj["name"], species=obj["species"])
             for space_id in obj["spaces"]:
-                if not Space.REGISTRY.provides(space_id):
+                if not REGISTRY[Space].provides(space_id):
                     raise ValueError(
                         f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known"
                     )
-                atlas._register_space(Space.REGISTRY[space_id])
+                atlas._register_space(REGISTRY[Space][space_id])
             for parcellation_id in obj["parcellations"]:
-                if not Parcellation.REGISTRY.provides(parcellation_id):
+                if not REGISTRY[Parcellation].provides(parcellation_id):
                     raise ValueError(
                         f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known"
                     )
-                atlas._register_parcellation(Parcellation.REGISTRY[parcellation_id])
+                atlas._register_parcellation(REGISTRY[Parcellation][parcellation_id])
             return atlas
         return obj
 

@@ -14,86 +14,9 @@
 # limitations under the License.
 
 from .datasets import Dataset
+from ..commons import logger
 
-from .. import QUIET, __version__
-from ..retrieval import GitlabConnector, NoSiibraConfigMirrorsAvailableException, TagNotFoundException
-from ..commons import logger, TypedRegistry
-
-import os
 import re
-from abc import ABC, abstractmethod, abstractproperty
-
-# Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
-GITLAB_PROJECT_TAG = os.getenv(
-    "SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__)
-)
-USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
-
-
-_BOOTSTRAP_CONNECTORS = (
-    # we use an iterator to only instantiate the one[s] used
-    GitlabConnector(
-        "https://jugit.fz-juelich.de",
-        3484,
-        GITLAB_PROJECT_TAG,
-        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-    ),
-    GitlabConnector(
-        "https://gitlab.ebrains.eu",
-        93,
-        GITLAB_PROJECT_TAG,
-        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-    ),
-)
-
-
-def provide_registry(cls):
-    """Used for decorating derived classes - will add a registry of bootstrapped instances then."""
-
-    # find a suitable connector that is reachable
-    for connector in _BOOTSTRAP_CONNECTORS:
-        try:
-            loaders = connector.get_loaders(
-                cls._bootstrap_folder,
-                ".json",
-                progress=f"Bootstrap: {cls.__name__:15.15}",
-            )
-            break
-        except Exception as e:
-            print(str(e))
-            logger.error(
-                f"Cannot connect to configuration server {str(connector)}"
-            )
-            *_, last = _BOOTSTRAP_CONNECTORS
-            if connector is last:
-                raise NoSiibraConfigMirrorsAvailableException(f"Tried alll mirrors, none available.")
-
-    else:
-        # we get here only if the loop is not broken
-        raise TagNotFoundException(
-            f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-        )
-
-    cls.REGISTRY = TypedRegistry[cls](matchfunc=cls.match_spec)
-    extensions = []
-    with QUIET:
-        for fname, loader in loaders:
-            obj = cls._from_json(loader.data)
-            if obj.extends is not None:
-                extensions.append(obj)
-                continue
-            if isinstance(obj, cls):
-                cls.REGISTRY.add(obj.key, obj)
-            else:
-                raise RuntimeError(
-                    f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
-                )
-
-    for e in extensions:
-        target = cls.REGISTRY[e.extends]
-        target._extend(e)
-
-    return cls
 
 
 class AtlasConcept:
@@ -103,10 +26,6 @@ class AtlasConcept:
     Typically, they are linked with one or more datasets that can be retrieved from the same or another online resource,
     providing data files or additional metadata descriptions on request.
     """
-
-    logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
-    _bootstrap_folder = None
-
     def __init__(self, identifier, name, dataset_specs):
         self.id = identifier
         self.name = name
@@ -117,17 +36,12 @@ class AtlasConcept:
         # this attribute can be used to mark a concept as an extension of another one
         self.extends = None
 
-    def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
+    def __init_subclass__(cls, type_id=None):
         """
-        This method is called whenever SiibraConcept gets subclassed
+        This method is called whenever AtlasConcept gets subclassed
         (see https://docs.python.org/3/reference/datamodel.html)
         """
-        logger.debug(
-            f"New subclass to {__class__.__name__}: {cls.__name__} (config folder: {bootstrap_folder})"
-        )
         cls.type_id = type_id
-        if bootstrap_folder is not None:
-            cls._bootstrap_folder = bootstrap_folder
         return super().__init_subclass__()
 
     def add_dataset(self, dataset: Dataset):

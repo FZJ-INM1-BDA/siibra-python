@@ -16,12 +16,13 @@
 from typing import Dict, List
 
 from pydantic import Field
-from siibra.openminds.base import ConfigBaseModel
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
 
+from ..registry import Preconfigure
 from ..commons import logger
 from ..retrieval import HttpRequest
+from ..openminds.base import ConfigBaseModel
 from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
 from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import (
     Model as CoordinatePointModel,
@@ -46,11 +47,10 @@ class UnitOfMeasurement:
     MILLIMETER = "https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
 
 
-@provide_registry
+@Preconfigure('spaces')
 class Space(
     AtlasConcept,
     JSONSerializable,
-    bootstrap_folder="spaces",
     type_id="minds/core/referencespace/v1.0.0",
 ):
     """
@@ -207,9 +207,9 @@ SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
 
 # lookup of space identifiers to be used by SPACEWARP_SERVER
 SPACEWARP_IDS = {
-    Space.REGISTRY.MNI152_2009C_NONL_ASYM: "MNI 152 ICBM 2009c Nonlinear Asymmetric",
-    Space.REGISTRY.MNI_COLIN_27: "MNI Colin 27",
-    Space.REGISTRY.BIG_BRAIN: "Big Brain (Histology)",
+    "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2": "MNI 152 ICBM 2009c Nonlinear Asymmetric",
+    "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992": "MNI Colin 27",
+    "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588": "Big Brain (Histology)",
 }
 
 
@@ -462,14 +462,14 @@ class Point(Location, JSONSerializable):
             targetspace = Space.REGISTRY[targetspace]
         if targetspace == self.space:
             return self
-        if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
+        if any(s.id not in SPACEWARP_IDS for s in [self.space, targetspace]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space} and {targetspace}"
             )
         url = "{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}".format(
             server=SPACEWARP_SERVER,
-            src=quote(SPACEWARP_IDS[Space.REGISTRY[self.space]]),
-            tgt=quote(SPACEWARP_IDS[Space.REGISTRY[targetspace]]),
+            src=quote(SPACEWARP_IDS[self.space.id]),
+            tgt=quote(SPACEWARP_IDS[targetspace.id]),
             x=self.coordinate[0],
             y=self.coordinate[1],
             z=self.coordinate[2],
@@ -704,14 +704,14 @@ class PointSet(Location):
             targetspace = Space.REGISTRY[targetspace]
         if targetspace == self.space:
             return self
-        if any(s not in SPACEWARP_IDS for s in [self.space, targetspace]):
+        if any(s.id not in SPACEWARP_IDS for s in [self.space, targetspace]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space} and {targetspace}"
             )
 
         data = json.dumps({
-            "source_space": SPACEWARP_IDS[Space.REGISTRY[self.space]],
-            "target_space": SPACEWARP_IDS[Space.REGISTRY[targetspace]],
+            "source_space": SPACEWARP_IDS[self.space.id],
+            "target_space": SPACEWARP_IDS[targetspace.id],
             "source_points": self.as_list()
         })
 

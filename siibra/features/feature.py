@@ -14,7 +14,9 @@
 # limitations under the License.
 
 from ctypes import ArgumentError
-from ..commons import MapType, logger, Registry, QUIET
+from .. import __version__
+from ..commons import MapType, logger, QUIET
+from ..registry import TypedRegistry
 from ..core.concept import AtlasConcept
 from ..core.atlas import Atlas
 from ..core.space import Space, Location, Point, PointSet, BoundingBox
@@ -22,11 +24,13 @@ from ..core.region import Region
 from ..core.parcellation import Parcellation
 
 from typing import Tuple, Union
-from abc import ABC, abstractmethod
 import pandas as pd
 import numpy as np
 import importlib
 from textwrap import wrap
+from appdirs import user_config_dir
+from os import path, makedirs, listdir
+from datetime import datetime
 
 try:
     from importlib import resources
@@ -122,24 +126,31 @@ class Match:
         self._comments.append(comment)
 
 
-class Feature(ABC):
+class Feature:
     """
-    Abstract base class for all data features.
+    Base class for all data features.
     """
 
-    REGISTRY = Registry()
+    REGISTRY = TypedRegistry()
+    CONFDIR = path.join(
+        user_config_dir(appname=__name__.split(".")[0], version=__version__), "features"
+    )
 
     def __init__(self):
         self._match = None
 
     def __init_subclass__(cls):
         """
-        Registers all subclasses of Feature.
+        Registers all subclasses of Feature, and bootstrape configuration directories with feature specs.
         """
-        logger.debug(
-            f"Registering feature type {cls.__name__} with modality {cls.modality()}"
-        )
-        cls.REGISTRY.add(cls.modality(), cls)
+        # populate configuration with default feature specs.
+        cls.CONFDIR = path.join(Feature.CONFDIR, cls.modality())
+        if not path.isdir(cls.CONFDIR):
+            makedirs(cls.CONFDIR)
+            cls._bootstrap()
+        if len(listdir(cls.CONFDIR)) > 0:
+            if not cls.modality() in Feature.REGISTRY:
+                Feature.REGISTRY.add(cls.modality(), cls)
         return super().__init_subclass__()
 
     @property
@@ -148,7 +159,7 @@ class Feature(ABC):
 
     @property
     def match_qualification(self):
-        """If this feature was matched agains an atlas concept,
+        """If this feature was matched against an atlas concept,
         return the qualification rating of the match.
 
         Return
@@ -174,7 +185,6 @@ class Feature(ABC):
     def matched_location(self):
         return self._match.location if self.matched else None
 
-    @abstractmethod
     def match(self, concept, **kwargs):
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
@@ -199,6 +209,117 @@ class Feature(ABC):
     def modality(cls):
         """Returns a string representing the modality of a feature."""
         return str(cls).split("'")[1].split(".")[-1]
+
+    @classmethod
+    def _bootstrap(cls):
+        """
+        All derived classes need to define a bootstrap method 
+        to populate siibra's local configuration with features.
+        """
+        pass
+
+    @classmethod
+    def import_spec(cls, filename):
+        """
+        Import a custom data feature from a json file.
+        """
+        with open(filename, 'r') as f:
+            spec = json.load(f)
+            fname = "{}_import_{}.json".format(
+                datetime.now().strftime("%Y%m%d%H%M%S"),
+                path.splitext(path.basename(filename))[0]
+            )
+            cls._add_spec(spec, fname)
+
+    @classmethod
+    def _add_spec(cls, json_spec, basename):
+        """
+        Adds a new feature specification to the local configuration directory for this feature type.
+        This is called by bootstrap() methods of feature implementations.
+        """
+        filename = path.join(cls.CONFDIR, basename)
+        if path.isfile(filename):
+            logger.warn(
+                f"Specification file already exists for {cls.__name__}, will NOT overwrite {filename}"
+            )
+        else:
+            with open(filename, "w") as f:
+                json.dump(json_spec, f, indent="\t")
+        if not cls.modality() in Feature.REGISTRY:
+            Feature.REGISTRY.add(cls.modality(), cls)
+
+    @classmethod
+    def get_features(cls, concept, modality, **kwargs):
+        """
+        Retrieve data features of the desired modality.
+        """
+
+        if isinstance(modality, str) and modality == 'all':
+            requested_modalities = cls.REGISTRY.values()
+        elif isinstance(modality, (list, tuple)):
+            requested_modalities = [cls.REGISTRY[_] for _ in modality]
+        else:
+            try:
+                requested_modalities = [cls.REGISTRY[modality]]
+            except IndexError:
+                logger.error(f"No modalities found for specification '{modality}' which have any features.")
+                requested_modalities = []
+
+        result = []
+        for modality in requested_modalities:
+            features = modality.query(concept)
+            result.extend(features)
+        return result
+
+    @classmethod
+    def get_feature_by_id(cls, feature_id: str):
+        for subclass in cls.REGISTRY.values():
+            result = subclass._by_id(feature_id)
+            if result is not None:
+                return result
+        return None
+
+    @classmethod
+    def get_modalities(cls):
+        return [modality.__name__ for modality in cls.REGISTRY]
+
+    @classmethod
+    def query(cls, concept, **kwargs):
+        """
+        Queries features associated with a given atlas concept.
+        """
+        matches = []
+        for jsonfile in listdir(cls.CONFDIR):
+            try:
+                with open(path.join(cls.CONFDIR, jsonfile), "r") as f:
+                    spec = json.load(f)
+                feature = cls._from_json(spec)
+            except Exception as e:
+                logger.error(f"Cannot generate {cls.__name__} from {jsonfile}")
+                print(str(e))
+                continue
+            if feature.match(concept, **kwargs):
+                matches.append(feature)
+        return matches
+
+    @classmethod
+    def _by_id(cls, id):
+        """
+        Return feature with given id, if any, else return None.
+        """
+        for jsonfile in listdir(cls.CONFDIR):
+            try:
+                with open(path.join(cls.CONFDIR, jsonfile), "r") as f:
+                    spec = json.load(f)
+                if spec['@id'] == id:
+                    return cls._from_json(spec)
+                else:
+                    continue
+            except Exception as e:
+                logger.error(f"Cannot generate {cls.__name__} from {jsonfile}")
+                print(str(e))
+                continue
+        return None
 
 
 class SpatialFeature(Feature):
@@ -252,7 +373,9 @@ class SpatialFeature(Feature):
         if self.location is None:
             return False
 
-        if isinstance(concept, Parcellation):
+        if isinstance(concept, Space):
+            return concept == self.space
+        elif isinstance(concept, Parcellation):
             region = concept.regiontree
             logger.info(
                 f"{self.__class__} matching against root node {region.name} of {concept.name}"
@@ -406,7 +529,9 @@ class RegionalFeature(Feature):
 
     @property
     def species_ids(self):
-        return [s.get("@id") for s in self.species] + [s.get("kg_v1_id") for s in self.species]
+        return [s.get("@id") for s in self.species] + [
+            s.get("kg_v1_id") for s in self.species
+        ]
 
     def match(self, concept, **kwargs):
         """
@@ -428,15 +553,23 @@ class RegionalFeature(Feature):
         try:
             if isinstance(concept, Region):
                 atlases = concept.parcellation.atlases
-            if isinstance(concept, Parcellation):
+            elif isinstance(concept, Parcellation):
                 atlases = concept.atlases
-            if isinstance(concept, Atlas):
+            elif isinstance(concept, Space):
+                atlases = concept.atlases
+            elif isinstance(concept, Atlas):
                 atlases = {concept}
             if atlases:
                 # if self.species_ids is defined, and the concept is explicitly not in
                 # return False
                 if not any(
-                    [any(_ in self.species_ids for _ in [a.species.kg_v1_id, a.species.id]) for a in atlases]
+                    [
+                        any(
+                            _ in self.species_ids
+                            for _ in [a.species.kg_v1_id, a.species.id]
+                        )
+                        for a in atlases
+                    ]
                 ):
                     return self.matched
         # for backwards compatibility. If any attr is not found, pass
@@ -658,9 +791,7 @@ class CorticalProfile(RegionalFeature):
     """
 
     LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
-    BOUNDARIES = list(
-        zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:])
-    )
+    BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
     def __init__(
         self,
@@ -731,14 +862,14 @@ class CorticalProfile(RegionalFeature):
 
     @property
     def unit(self):
-        """ Optionally overridden in derived classes. """
+        """Optionally overridden in derived classes."""
         if self._unit is None:
             raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")
         return self._unit
 
     @property
     def name(self):
-        """ Returns a short human-readable name of this feature. """
+        """Returns a short human-readable name of this feature."""
         return f"{self.measuretype} for {self.regionspec}"
 
     @property
@@ -749,31 +880,27 @@ class CorticalProfile(RegionalFeature):
             return self._boundary_positions
 
     def assign_layer(self, depth: float):
-        """ Compute the cortical layer for a given depth from the
+        """Compute the cortical layer for a given depth from the
         layer boundary positions. If no positions are available
-        for this profile, return None. """
+        for this profile, return None."""
         assert 0 <= depth <= 1
         if len(self.boundary_positions) == 0:
             return None
         else:
-            return max([
-                l2 for (l1, l2), d in self.boundary_positions.items()
-                if d < depth
-            ])
+            return max(
+                [l2 for (l1, l2), d in self.boundary_positions.items() if d < depth]
+            )
 
     @property
     def boundaries_mapped(self):
         if self.boundary_positions is None:
             return False
         else:
-            return all(
-                (b in self.boundary_positions)
-                for b in self.BOUNDARIES
-            )
+            return all((b in self.boundary_positions) for b in self.BOUNDARIES)
 
     @property
     def _layers(self):
-        """ List of layers assigned to each measurments,
+        """List of layers assigned to each measurments,
         if layer boundaries are available for this features.
         """
         if self.boundaries_mapped:
@@ -794,27 +921,30 @@ class CorticalProfile(RegionalFeature):
         Keyword arguments are passed on to the plot command.
         'layercolor' can be used to specify a color for cortical layer shading.
         """
-        wrapwidth = kwargs.pop('textwrap') if 'textwrap' in kwargs else 40
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
-        kwargs['title'] = kwargs.get(
-            'title',
-            "\n".join(wrap(self.name, wrapwidth))
-        )
-        kwargs['xlabel'] = kwargs.get('xlabel', "Cortical depth")
-        kwargs['ylabel'] = kwargs.get('ylabel', self.unit)
-        kwargs['grid'] = kwargs.get('grid', True)
-        kwargs['ylim'] = kwargs.get('ylim', (0, max(self._values)))
-        layercolor = kwargs.pop('layercolor') if 'layercolor' in kwargs else 'black'
+        kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
+        kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
+        kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
+        kwargs["grid"] = kwargs.get("grid", True)
+        kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
+        layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
         axs = self.data.plot(**kwargs)
 
         if self.boundaries_mapped:
             bvals = list(self.boundary_positions.values())
             for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
-                axs.text(d1 + (d2 - d1) / 2., 10, self.LAYERS[i + 1], weight='normal', ha='center')
+                axs.text(
+                    d1 + (d2 - d1) / 2.0,
+                    10,
+                    self.LAYERS[i + 1],
+                    weight="normal",
+                    ha="center",
+                )
                 if i % 2 == 0:
                     axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
 
-        axs.set_title(axs.get_title(), fontsize='medium')
+        axs.set_title(axs.get_title(), fontsize="medium")
 
         return axs
 
@@ -863,60 +993,61 @@ class RegionalFingerprint(RegionalFeature):
 
     @property
     def description(self):
-        """ Optionally overridden in derived class to allow lazy loading. """
+        """Optionally overridden in derived class to allow lazy loading."""
         return self._description
 
     @property
     def unit(self):
-        """ Optionally overridden in derived class to allow lazy loading. """
+        """Optionally overridden in derived class to allow lazy loading."""
         return self._unit
 
     @property
     def _labels(self):
-        """ Optionally overridden in derived class to allow lazy loading. """
+        """Optionally overridden in derived class to allow lazy loading."""
         return self._labels_cached
 
     @property
     def _means(self):
-        """ Optionally overridden in derived class to allow lazy loading. """
+        """Optionally overridden in derived class to allow lazy loading."""
         return self._means_cached
 
     @property
     def _stds(self):
-        """ Optionally overridden in derived class to allow lazy loading. """
+        """Optionally overridden in derived class to allow lazy loading."""
         return self._stds_cached
 
     @property
     def name(self):
-        """ Returns a short human-readable name of this feature. """
+        """Returns a short human-readable name of this feature."""
         return f"{self.measuretype} for {self.regionspec}"
 
     @property
     def data(self):
         return pd.DataFrame(
             {
-                'mean': self._means,
-                'std': self._stds,
-            }, index=self._labels
+                "mean": self._means,
+                "std": self._stds,
+            },
+            index=self._labels,
         )
 
     def barplot(self, **kwargs):
-        """ Create a bar plot of the fingerprint. """
+        """Create a bar plot of the fingerprint."""
 
-        wrapwidth = kwargs.pop('textwrap') if 'textwrap' in kwargs else 40
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
         # default kwargs
-        kwargs['width'] = kwargs.get('width', 0.95)
-        kwargs['ylabel'] = kwargs.get('ylabel', self.unit)
-        kwargs['title'] = kwargs.get('title', "\n".join(wrap(self.name, wrapwidth)))
-        kwargs['grid'] = kwargs.get('grid', True)
-        kwargs['legend'] = kwargs.get('legend', False)
-        ax = self.data.plot(kind='bar', y='mean', yerr='std', **kwargs)
-        ax.set_title(ax.get_title(), fontsize='medium')
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha='right')
+        kwargs["width"] = kwargs.get("width", 0.95)
+        kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
+        kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
+        kwargs["grid"] = kwargs.get("grid", True)
+        kwargs["legend"] = kwargs.get("legend", False)
+        ax = self.data.plot(kind="bar", y="mean", yerr="std", **kwargs)
+        ax.set_title(ax.get_title(), fontsize="medium")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
 
     def plot(self, ax=None):
-        """ Create a polar plot of the fingerprint. """
+        """Create a polar plot of the fingerprint."""
         if importlib.util.find_spec("matplotlib") is None:
             logger.error("matplotlib not available. Plotting of fingerprints disabled.")
             return None
@@ -926,16 +1057,14 @@ class RegionalFingerprint(RegionalFeature):
 
         if ax is None:
             ax = plt.subplot(111, projection="polar")
-        angles = deque(
-            np.linspace(0, 2 * np.pi, len(self._labels) + 1)[:-1][::-1]
-        )
+        angles = deque(np.linspace(0, 2 * np.pi, len(self._labels) + 1)[:-1][::-1])
         angles.rotate(5)
         angles = list(angles)
         # for the values, repeat the first element to have a closed plot
         indices = list(range(len(self._means))) + [0]
-        means = self.data['mean'].iloc[indices]
-        stds0 = means - self.data['std'].iloc[indices]
-        stds1 = means + self.data['std'].iloc[indices]
+        means = self.data["mean"].iloc[indices]
+        stds0 = means - self.data["std"].iloc[indices]
+        stds1 = means + self.data["std"].iloc[indices]
         plt.plot(angles + [angles[0]], means, "k-", lw=3)
         plt.plot(angles + [angles[0]], stds0, "k", lw=0.5)
         plt.plot(angles + [angles[0]], stds1, "k", lw=0.5)

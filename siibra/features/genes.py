@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List
 from .feature import SpatialFeature
 from .query import FeatureQuery
 
-from ..commons import logger, Registry
+from ..commons import logger
+from ..registry import Registry
 from ..core.space import Space, Point
 from ..retrieval import HttpRequest
 
+from typing import List
 from os import path
 from xml.etree import ElementTree
 import numpy as np

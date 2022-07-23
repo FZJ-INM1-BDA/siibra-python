@@ -13,24 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import Registry
 
 # Want to include these queries with their features into the pre-populated lists
-from .receptors import ReceptorQuery
+from .receptors import ReceptorDensityProfile, ReceptorFingerprint
+from .voi import VolumeOfInterest
 from .genes import AllenBrainAtlasQuery
 from .connectivity import HcpStreamlineCountQuery, HcpRestingStateQuery, HcpStreamlineLengthQuery
 from .connectivity import PrereleasedStreamlineLengthQuery, PrereleasedRestingStateQuery, PrereleasedStreamlineCountQuery
 from .ebrains import EbrainsRegionalFeatureQuery
 from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery, CellDensityFingerprintQuery
 from .ieeg import IEEG_SessionQuery
-from .voi import VolumeOfInterestQuery
 from .bigbrain import WagstylBigBrainProfileQuery
 # from .morphologies import NeuroMorphoQuery
 
-from .query import FeatureQuery
-get_features = FeatureQuery.get_features
+from .feature import Feature
+get_features = Feature.get_features
 
 __all__ = []
 from .genes import GENE_NAMES as gene_names
-modalities = FeatureQuery.get_modalities()
+modalities = Feature.get_modalities()
 __all__ += ['gene_names', 'modalities']

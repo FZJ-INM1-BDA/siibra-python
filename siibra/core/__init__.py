@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from siibra.commons import TypedRegistry
 from .concept import AtlasConcept
 from .atlas import Atlas
 from .space import Space, Point, PointSet, BoundingBox
@@ -21,7 +20,4 @@ from .region import Region
 from .parcellation import Parcellation
 from .datasets import Dataset, OriginDescription, EbrainsDataset
 
-# initialize the core concepts and their bootstrapped registries
-spaces: TypedRegistry[Space] = Space.REGISTRY
-parcellations: TypedRegistry[Parcellation] = Parcellation.REGISTRY
-atlases: TypedRegistry[Atlas] = Atlas.REGISTRY
+from ..registry import TypedRegistry

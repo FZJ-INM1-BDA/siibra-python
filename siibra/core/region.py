@@ -19,12 +19,12 @@ from .space import PointSet, Space, Point, BoundingBox, UnitOfMeasurement
 
 from ..commons import (
     logger,
-    Registry,
     ParcellationIndex,
     MapType,
     compare_maps,
     affine_scaling,
 )
+from ..registry import Registry
 from ..retrieval.repositories import GitlabConnector
 from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
     Model as ParcellationEntityVersionModel,

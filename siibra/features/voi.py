@@ -14,9 +14,8 @@
 # limitations under the License.
 
 from .feature import SpatialFeature
-from .query import FeatureQuery
 
-from .. import QUIET, logger
+from .. import QUIET
 from ..volumes.volume import VolumeSrc, VolumeModel, ColorVolumeNotSupported
 from ..core.space import BoundingBoxModel, Space, BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
@@ -27,6 +26,7 @@ import numpy as np
 from typing import List
 import hashlib
 from pydantic import Field
+from os import path
 
 
 class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
@@ -54,12 +54,12 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
                     minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
                     maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
                     vsrcs.append(vsrc)
-                    
+
                 except ColorVolumeNotSupported:
                     # If multi channel volume exists rather than short circuit, try to use other volumes to determine the ROI
                     # See PLI hippocampus data feature
                     vsrcs.append(vsrc)
-                    
+
             minpoint = np.array(minpoints).min(0)
             maxpoint = np.array(maxpoints).max(0)
             result = cls(
@@ -80,7 +80,7 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
         _id = hashlib.md5(super().model_id.encode("utf-8")).hexdigest()
         return f"{VolumeOfInterest.get_model_type()}/{str(_id)}"
 
-    def to_model(self, **kwargs) -> 'VOIDataModel':
+    def to_model(self, **kwargs) -> "VOIDataModel":
         super_model = super().to_model(**kwargs)
         super_model_dict = super_model.dict()
         super_model_dict["@type"] = VolumeOfInterest.get_model_type()
@@ -90,22 +90,18 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
             **super_model_dict,
         )
 
+    @classmethod
+    def _bootstrap(cls):
+        """
+        Load default feature specifications for feature modality.
+        """
+        conn = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
+        for _, loader in conn.get_loaders(folder="vois", suffix=".json"):
+            basename = f"{hashlib.md5(loader.url.encode('utf8')).hexdigest()}_{path.basename(_)}"
+            cls._add_spec(loader.data, basename)
+
 
 class VOIDataModel(DatasetJsonModel):
     type: str = Field(VolumeOfInterest.get_model_type(), const=True, alias="@type")
     volumes: List[VolumeModel]
     location: BoundingBoxModel
-
-
-class VolumeOfInterestQuery(FeatureQuery):
-    _FEATURETYPE = VolumeOfInterest
-    _QUERY = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
-
-    def __init__(self, **kwargs):
-        FeatureQuery.__init__(self)
-        for _, loader in self._QUERY.get_loaders(folder="vois", suffix=".json"):
-            try:
-                voi = VolumeOfInterest._from_json(loader.data)  # json.loads(data))
-                self.register(voi)
-            except Exception as e:
-                logger.warn(f"some VOI cannot be loaded: {str(e)}")

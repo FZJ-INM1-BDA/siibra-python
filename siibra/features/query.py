@@ -17,7 +17,7 @@ from siibra.core.serializable_concept import JSONSerializable
 from .feature import Feature
 
 from .. import logger
-from ..commons import TypedRegistry
+from ..registry import TypedRegistry
 from ..core import AtlasConcept, Dataset
 
 from abc import ABC
@@ -146,7 +146,7 @@ class FeatureQuery(ABC):
         use_queries = queries_matched if len(queries_matched) > 0 else applicable_queries
         for querytype in use_queries:
             for feature in querytype().features:
-                assert isinstance(feature, JSONSerializable), f"feature should be an instance of JSONSerializable, but is not"
+                assert isinstance(feature, JSONSerializable), "feature should be an instance of JSONSerializable, but is not"
                 if feature.model_id == feature_id:
                     return feature
         return None
@@ -155,7 +155,7 @@ class FeatureQuery(ABC):
     def get_modalities(cls):
         return TypedRegistry[str](
             elements={
-                c:c for c in cls._implementations.keys()
+                c: c for c in cls._implementations.keys()
             }
         )
 

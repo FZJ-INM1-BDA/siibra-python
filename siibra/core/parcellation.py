@@ -15,11 +15,12 @@
 
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept, provide_registry
+from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
 from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
-from ..commons import logger, MapType, ParcellationIndex, Registry
+from ..registry import Preconfigure, Registry
+from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
 from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
     Model as BrainAtlasVersionModel,
@@ -34,13 +35,14 @@ from difflib import SequenceMatcher
 from pydantic import Field
 
 
-SIIBRA_PARCELLATION_MODEL_TYPE="minds/core/parcellationatlas/v1.0.0"
-BRAIN_ATLAS_VERSION_TYPE="https://openminds.ebrains.eu/sands/BrainAtlasVersion"
+SIIBRA_PARCELLATION_MODEL_TYPE = "minds/core/parcellationatlas/v1.0.0"
+BRAIN_ATLAS_VERSION_TYPE = "https://openminds.ebrains.eu/sands/BrainAtlasVersion"
+
 
 class AtlasType:
-    DETERMINISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/deterministicAtlas"
-    PARCELLATION_SCHEME="https://openminds.ebrains.eu/instances/atlasType/parcellationScheme"
-    PROBABILISTIC_ATLAS="https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
+    DETERMINISTIC_ATLAS = "https://openminds.ebrains.eu/instances/atlasType/deterministicAtlas"
+    PARCELLATION_SCHEME = "https://openminds.ebrains.eu/instances/atlasType/parcellationScheme"
+    PROBABILISTIC_ATLAS = "https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
 
 
 class SiibraParcellationVersionModel(ConfigBaseModel):
@@ -58,7 +60,7 @@ class SiibraParcellationModel(ConfigBaseModel):
     datasets: List[DatasetJsonModel]
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
     version: Optional[SiibraParcellationVersionModel]
-    
+
 
 # NOTE : such code could be used to automatically resolve
 # multiple matching parcellations for a short spec to the newset version:
@@ -141,7 +143,7 @@ class ParcellationVersion(JSONSerializable):
             next_id=obj.get("@next", None),
             deprecated=obj.get("deprecated", False),
         )
-    
+
     @classmethod
     def get_model_type(Cls):
         raise AttributeError("ParcellationVersion.@type cannot be determined")
@@ -165,11 +167,10 @@ class ParcellationVersion(JSONSerializable):
         )
 
 
-@provide_registry
+@Preconfigure("parcellations")
 class Parcellation(
     AtlasConcept,
     JSONSerializable,
-    bootstrap_folder="parcellations",
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
 
@@ -305,7 +306,7 @@ class Parcellation(
         For parcellations, a space is also considered as supported if one of their regions is mapped in the space.
         """
         return list(
-            set(super().supported_spaces) 
+            set(super().supported_spaces)
             | {space for region in self.regiontree for space in region.supported_spaces}
         )
 
@@ -366,7 +367,7 @@ class Parcellation(
             ]
             # refuse to group regions with any of their existing children
             cleaned_regions = [
-                r for r in regions 
+                r for r in regions
                 if not any(r in r2.descendants for r2 in regions)
             ]
             if len(cleaned_regions) == 1:
@@ -502,7 +503,7 @@ class Parcellation(
 
             if region.parent is None:
                 continue
-    
+
             try:
                 matched_parent = self.decode_region(region.parent.name, find_topmost=False)
             except (ValueError, AttributeError):
@@ -620,7 +621,7 @@ class Parcellation(
                     # TODO fix
                     "@id": ""
                 },
-                release_date=date(1970,1,1),
+                release_date=date(1970, 1, 1),
                 short_name=self.name[:30],
                 version_identifier=f"{self.version} in {spc.to_model().full_name}",
                 version_innovation="",

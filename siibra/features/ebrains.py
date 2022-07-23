@@ -17,6 +17,7 @@ from .feature import RegionalFeature
 from .query import FeatureQuery
 
 from .. import logger
+from ..registry import REGISTRY
 from ..core.parcellation import Parcellation
 from ..core.datasets import EbrainsDataset
 from ..retrieval.requests import EbrainsKgQuery
@@ -67,13 +68,6 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     VERSION_PATTERN = re.compile(r'^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]')
     COMPACT_FEATURE_LIST = True
 
-    # ids of EBRAINS datasets which represent siibra parcellations
-    _PARCELLATION_IDS = [
-        dset.id
-        for parc in Parcellation.REGISTRY
-        for dset in parc.datasets 
-        if isinstance(dset, EbrainsDataset)
-    ]
     
     # datasets whose name contains any of these strings will be ignored
     _BLACKLIST = {
@@ -95,6 +89,14 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
         versioned_datasets = defaultdict(dict)
 
+        # ids of EBRAINS datasets which represent siibra parcellations
+        parcellations_ids = [
+            dset.id
+            for parc in REGISTRY['Parcellation']
+            for dset in parc.datasets
+            if isinstance(dset, EbrainsDataset)
+        ]
+
         for r in loader.data.get("results", []):
 
             species_alt = []
@@ -112,7 +114,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
                 if (
                     self.COMPACT_FEATURE_LIST and 
-                    any(ds_id.endswith(i) for i in self._PARCELLATION_IDS)
+                    any(ds_id.endswith(i) for i in parcellations_ids)
                 ):
                     continue
 

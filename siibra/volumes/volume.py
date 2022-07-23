@@ -32,7 +32,10 @@ from typing import Any, Dict, Optional
 from pydantic import Field
 import hashlib
 
-class ColorVolumeNotSupported(NotImplementedError): pass
+
+class ColorVolumeNotSupported(NotImplementedError):
+    pass
+
 
 class VolumeDataModel(ConfigBaseModel):
     type: str
@@ -152,7 +155,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
             detail=detail,
             **kwargs,
         )
-        
+
         # for volumes where map_type can be inferred from metadata
         # setter is provided, but result in noop
         # noop message will be printed if logging level is set to debug
@@ -163,22 +166,17 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     @property
     def model_id(self):
-        hashed_url = hashlib.md5(
-            str(self.url).encode("utf-8")
-        ).hexdigest()
+        hashed_url = hashlib.md5(str(self.url).encode("utf-8")).hexdigest()
         return f"{self.get_model_type()}/{hashed_url}"
 
     def get_model_type(self):
-        return f'spy/volume/{self.volume_type}'
+        return f"spy/volume/{self.volume_type}"
 
     def to_model(self, **kwargs) -> VolumeModel:
         super_model = super().to_model(**kwargs)
         super_dict = {
             **super_model.dict(),
-            **{
-                '@id': self.model_id,
-                '@type': self.get_model_type()
-            }
+            **{"@id": self.model_id, "@type": self.get_model_type()},
         }
         return VolumeModel(
             data=VolumeDataModel(
@@ -186,15 +184,15 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 is_volume=self.is_volume,
                 is_surface=self.is_surface,
                 detail=self.detail or {},
-                space={
-                    "@id": self.space.model_id
-                },
+                space={"@id": self.space.model_id},
                 url=self.url if isinstance(self.url, str) else None,
                 url_map=self.url if isinstance(self.url, dict) else None,
-                map_type=self.map_type.name if hasattr(self, "map_type") and self.map_type is not None else None,
+                map_type=self.map_type.name
+                if hasattr(self, "map_type") and self.map_type is not None
+                else None,
                 volume_type=self.volume_type,
             ),
-            **super_dict
+            **super_dict,
         )
 
 
@@ -407,15 +405,20 @@ class NeuroglancerVolume(
         self.space = space
         self._scales_cached = None
         self._io = None
-    
+
     _transform_nm = None
+
     @property
     def transform_nm(self):
         if self._transform_nm is not None:
             return self._transform_nm
-        transform_in_detail = self.detail.get("neuroglancer/precomputed", {}).get("transform")
+        transform_in_detail = self.detail.get("neuroglancer/precomputed", {}).get(
+            "transform"
+        )
         if transform_in_detail:
-            logger.debug(f"transform defined in detail attribute, using detail to set transform")
+            logger.debug(
+                "transform defined in detail attribute, using detail to set transform"
+            )
             self._transform_nm = np.array(transform_in_detail)
             return self._transform_nm
 
@@ -429,27 +432,31 @@ class NeuroglancerVolume(
             )
             self._transform_nm = np.array(res)
             return self._transform_nm
-        
+
         self._transform_nm = np.identity(1)
-        logger.debug(
-            "Fall back, using identity"
-        )
+        logger.debug("Fall back, using identity")
         return self._transform_nm
 
     @transform_nm.setter
     def transform_nm(self, val):
         self._transform_nm = val
-    
+
     @property
     def map_type(self):
         if self._io is None:
             self._bootstrap()
-        return MapType.LABELLED if self._io.info.get("type") == "segmentation" else MapType.CONTINUOUS
+        return (
+            MapType.LABELLED
+            if self._io.info.get("type") == "segmentation"
+            else MapType.CONTINUOUS
+        )
 
     @map_type.setter
     def map_type(self, val):
         if val is not None:
-            logger.debug(f"NeuroglancerVolume can determine its own maptype from self._io.info.get('type')")
+            logger.debug(
+                "NeuroglancerVolume can determine its own maptype from self._io.info.get('type')"
+            )
 
     def _bootstrap(self):
         accessor = get_accessor_for_url(self.url)
@@ -596,7 +603,7 @@ class NeuroglancerScale:
             .astype("int")
             .ravel()
         )
-    
+
     def _point_to_upper_chunk_idx(self, xyz):
         return (
             np.ceil((np.array(xyz) - self.voxel_offset) / self.chunk_sizes)
@@ -619,7 +626,9 @@ class NeuroglancerScale:
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
         if not chunk_czyx.shape[0] == 1:
-            raise ColorVolumeNotSupported("Color channel data is not yet supported")
+            logger.warn(
+                "Color channel data is not yet supported. Returning first channel only."
+            )
         chunk_zyx = chunk_czyx[0]
 
         if self.volume.USE_CACHE:
@@ -636,7 +645,9 @@ class NeuroglancerScale:
 
         for dim in range(3):
             if bbox_.shape[dim] < 1:
-                logger.warn(f"Bounding box in voxel space will be enlarged to voxel size 1 along axis {dim}.")
+                logger.warn(
+                    f"Bounding box in voxel space will be enlarged to voxel size 1 along axis {dim}."
+                )
                 bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1
 
         # extract minimum and maximum the chunk indices to be loaded

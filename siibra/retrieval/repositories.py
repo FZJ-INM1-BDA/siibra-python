@@ -18,6 +18,7 @@ from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
+from os import path, walk
 
 
 class RepositoryConnector(ABC):
@@ -80,6 +81,52 @@ class RepositoryConnector(ABC):
             return tqdm(
                 result, total=len(fnames), desc=progress, disable=logger.level > 20
             )
+
+
+class LocalFileRepositoryConnector(RepositoryConnector):
+
+    def __init__(self, folder: str):
+        assert path.isdir(folder)
+        self._folder = folder
+
+    def _build_url(self, folder: str, filename: str):
+        return path.join(self._folder, folder, filename)
+
+    class FileLoader:
+        def __init__(self, file_url, decode_func):
+            self.file_url = file_url
+            self.func = decode_func
+
+        @property
+        def data(self):
+            with open(self.file_url, 'rb') as f:
+                return self.func(f.read())
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for loading data
+        only once loader.data is accessed."""
+        url = self._build_url(folder, filename)
+        if url is None:
+            raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
+        if decode_func is None:
+            decode_func = lambda b: self._decode_response(b, filename)
+        return self.FileLoader(url, decode_func)
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        exclude = ['.', '~']
+        result = []
+        for root, dirs, files in walk(self._folder):
+            subfolder = root.replace(self._folder, '')
+            if not subfolder.startswith(folder):
+                continue
+            dirs[:] = [d for d in dirs if d[0] not in exclude]
+            if subfolder.replace(folder, '') != "" and not recursive:
+                continue
+            for f in files:
+                if f[0] in exclude:
+                    continue
+                result.append(path.join(root.replace(self._folder, ''), f))
+        return result
 
 
 class GitlabConnector(RepositoryConnector):
