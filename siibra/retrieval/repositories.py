@@ -83,11 +83,13 @@ class RepositoryConnector(ABC):
             )
 
 
-class LocalFileRepositoryConnector(RepositoryConnector):
+class LocalFolder(RepositoryConnector):
 
     def __init__(self, folder: str):
         assert path.isdir(folder)
         self._folder = folder
+        if folder[-1] != path.sep:
+            self._folder += path.sep
 
     def _build_url(self, folder: str, filename: str):
         return path.join(self._folder, folder, filename)
@@ -125,7 +127,8 @@ class LocalFileRepositoryConnector(RepositoryConnector):
             for f in files:
                 if f[0] in exclude:
                     continue
-                result.append(path.join(root.replace(self._folder, ''), f))
+                if any([suffix is None, f.endswith(suffix)]):
+                    result.append(path.join(root.replace(self._folder, ''), f))
         return result
 
 
