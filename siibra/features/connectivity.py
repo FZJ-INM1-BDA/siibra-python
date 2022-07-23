@@ -410,7 +410,10 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
             if not any(kw.lower() in filename.lower() for kw in self._keywords):
                 continue
             parc_id = jsonloader.data["parcellation id"]
-            matrixloader = lambda _=jsonloader: self._matrixloader(_)
+
+            def matrixloader(loader=jsonloader):
+                return self._matrixloader(loader)
+
             srcinfo = {k: v for k, v in jsonloader.data.items() if k != "data"}
             srcinfo["filename"] = filename
             matched_cohorts = [

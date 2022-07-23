@@ -239,7 +239,7 @@ class Feature:
         matches = []
         instances = REGISTRY[cls]
         for feature in tqdm(
-            instances, total=len(instances), msg=f"Matching {cls.__name__}", unit="features"
+            instances, total=len(instances), desc=f"Matching {cls.__name__}", unit="features"
         ):
             if feature.match(concept, **kwargs):
                 matches.append(feature)
