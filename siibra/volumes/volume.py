@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..openminds.base import SiibraAtIdModel
 from .. import logger
 from ..commons import MapType
+from ..registry import REGISTRY
+from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.datasets import Dataset, DatasetJsonModel
 from ..core.space import Space, BoundingBox, PointSet
-from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.serializable_concept import ConfigBaseModel
+from ..openminds.base import SiibraAtIdModel
 
 import numpy as np
 import nibabel as nib
@@ -130,10 +131,15 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
                 f"Cannot build VolumeSrc from this json spec: {obj}"
             )
 
-        volume_type = obj.get("volume_type")
+        try:
+            volume_type = obj["volume_type"]
+            url = obj["url"]
+            space_id = obj["space_id"]
+        except KeyError:
+            print(obj)
+            raise KeyError("Malformed volumeSrc specification")
         detail = obj.get("detail")
-        url = obj.get("url")
-        space = Space.REGISTRY[obj.get("space_id")]
+        space = REGISTRY.Space[space_id]
         transform_nm = np.identity(4)
         if detail is not None and "neuroglancer/precomputed" in detail:
             if "transform" in detail["neuroglancer/precomputed"]:
@@ -255,7 +261,7 @@ class LocalNiftiVolume(ImageProvider):
             self.image = nib.Nifti1Image(
                 np.nan_to_num(self.image.get_fdata()), self.image.affine
             )
-        self.space = space if isinstance(space, Space) else Space.REGISTRY[space]
+        self.space = space if isinstance(space, Space) else REGISTRY.Space[space]
 
     def fetch(self, **kwargs):
         return self.image

@@ -19,7 +19,7 @@ from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
 from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
-from ..registry import Preconfigure, Registry
+from ..registry import Preconfigure, Registry, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
 from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
@@ -111,7 +111,7 @@ class ParcellationVersion(JSONSerializable):
         if self.next_id is None:
             return None
         try:
-            return Parcellation.REGISTRY[self.next_id]
+            return REGISTRY.Parcellation[self.next_id]
         except IndexError:
             return None
         except NameError:
@@ -122,7 +122,7 @@ class ParcellationVersion(JSONSerializable):
         if self.prev_id is None:
             return None
         try:
-            return Parcellation.REGISTRY[self.prev_id]
+            return REGISTRY.Parcellation[self.prev_id]
         except IndexError:
             return None
         except NameError:
@@ -266,7 +266,7 @@ class Parcellation(
                     f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified ({",".join(s.name for s in spaces)})'
                 )
         else:
-            spaceobj = Space.REGISTRY[space]
+            spaceobj = REGISTRY.Space[space]
             if not self.supports_space(spaceobj):
                 raise ValueError(
                     f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"'

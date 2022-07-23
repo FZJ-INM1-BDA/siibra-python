@@ -18,9 +18,10 @@ from typing import List, Optional
 from .feature import RegionalFeature, CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 
+from ..registry import REGISTRY
 from ..commons import logger, QUIET
 from ..core import Dataset
-from ..core.space import Space, Point
+from ..core.space import Point
 from ..core.datasets import DatasetJsonModel, EbrainsDataset
 from ..core.atlas import Atlas
 from ..retrieval import HttpRequest, GitlabConnector, OwncloudConnector, EbrainsKgQuery
@@ -176,7 +177,7 @@ class CorticalCellDistribution(RegionalFeature, Dataset):
         center = np.r_[np.array(self.image.shape) // 2, 1]
         return Point(
             np.dot(self.image.affine, center)[:3],
-            Space.REGISTRY.BIG_BRAIN,
+            REGISTRY.Space["BIG_BRAIN"],
         )
 
     def __str__(self):

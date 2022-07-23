@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .datasets import Dataset
-from ..commons import logger
+from ..commons import logger, create_key
 
 import re
 
@@ -29,7 +29,7 @@ class AtlasConcept:
     def __init__(self, identifier, name, dataset_specs):
         self.id = identifier
         self.name = name
-        self.key = __class__._create_key(name)
+        self.key = create_key(name)
         # objects for datasets wil only be generated lazily on request
         self._dataset_specs = dataset_specs
         self._datasets_cached = None
@@ -77,18 +77,6 @@ class AtlasConcept:
         if self._datasets_cached is None:
             self._populate_datasets()
         return self._datasets_cached
-
-    @staticmethod
-    def _create_key(name):
-        """
-        Creates an uppercase identifier string that includes only alphanumeric
-        characters and underscore from a natural language name.
-        """
-        return re.sub(
-            r" +",
-            "_",
-            "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
-        )
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.name}"
@@ -186,6 +174,7 @@ class AtlasConcept:
         return False
 
     @classmethod
-    def match_spec(cls, obj, spec):
+    def match(cls, obj, spec):
+        """Match a given object specification. """
         assert isinstance(obj, cls)
         return obj.matches(spec)

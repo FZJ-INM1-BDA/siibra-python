@@ -32,7 +32,7 @@ class FeatureQuery(ABC):
 
     _FEATURETYPE = Feature
     _instances = {}
-    _implementations: Dict[str, List['FeatureQuery']] = defaultdict(list)
+    _implementations: Dict[str, List["FeatureQuery"]] = defaultdict(list)
 
     def __init__(self, **kwargs):
         logger.debug(f"Initializing query for {self._FEATURETYPE.__name__} features")
@@ -66,10 +66,10 @@ class FeatureQuery(ABC):
             Use the latter for example when you query by a parcellation, and want to get
             features grouped by the particular region of that parcellation which they have been attached to.
         """
-        # helper func: convert modality spec into unique modality 
+        # helper func: convert modality spec into unique modality
         mod = lambda modality: cls.get_modalities()[modality]
 
-        if isinstance(modality, str) and modality == 'all':
+        if isinstance(modality, str) and modality == "all":
             # use union of all featurequery implementations
             querytypes = sum(FeatureQuery._implementations.values(), [])
         elif isinstance(modality, (list, tuple)):
@@ -98,7 +98,9 @@ class FeatureQuery(ABC):
 
             query = cls._instances[querytype, args_hash]
             matches = query.execute(concept, **kwargs)
-            logger.debug(f"{len(matches)} matches from query {query.__class__.__name__}")
+            logger.debug(
+                f"{len(matches)} matches from query {query.__class__.__name__}"
+            )
 
             if group_by is None:
                 if querytype.modality() not in result:
@@ -121,7 +123,8 @@ class FeatureQuery(ABC):
             else:
                 raise ValueError(
                     f"Invalid parameter '{group_by}' for the 'group_by' attribute of get_features. "
-                    "Valid entries are: 'dataset', 'concept', or None.")
+                    "Valid entries are: 'dataset', 'concept', or None."
+                )
 
         # If only one modality was requested, simplify the dictionary
         if len(result) == 1:
@@ -131,33 +134,39 @@ class FeatureQuery(ABC):
 
     @classmethod
     def get_feature_by_id(cls, feature_id: str) -> Feature:
-        applicable_queries = [query
+        applicable_queries = [
+            query
             for queries in FeatureQuery._implementations.values()
             for query in queries
-            if issubclass(query._FEATURETYPE, JSONSerializable)]
+            if issubclass(query._FEATURETYPE, JSONSerializable)
+        ]
 
         queries_matched = [
-            q for q in applicable_queries if feature_id.startswith(q._FEATURETYPE.get_model_type())
+            q
+            for q in applicable_queries
+            if feature_id.startswith(q._FEATURETYPE.get_model_type())
         ]
 
         if len(queries_matched) == 0:
-            logger.warn(f"feature_id {feature_id} cannot be properly matched, bruteforce get feature")
+            logger.warn(
+                f"feature_id {feature_id} cannot be properly matched, bruteforce get feature"
+            )
 
-        use_queries = queries_matched if len(queries_matched) > 0 else applicable_queries
+        use_queries = (
+            queries_matched if len(queries_matched) > 0 else applicable_queries
+        )
         for querytype in use_queries:
             for feature in querytype().features:
-                assert isinstance(feature, JSONSerializable), "feature should be an instance of JSONSerializable, but is not"
+                assert isinstance(
+                    feature, JSONSerializable
+                ), "feature should be an instance of JSONSerializable, but is not"
                 if feature.model_id == feature_id:
                     return feature
         return None
 
     @classmethod
     def get_modalities(cls):
-        return TypedRegistry[str](
-            elements={
-                c: c for c in cls._implementations.keys()
-            }
-        )
+        return TypedRegistry[str](elements={c: c for c in cls._implementations.keys()})
 
     @classmethod
     def queries(cls, modality: str, **kwargs):
@@ -186,7 +195,7 @@ class FeatureQuery(ABC):
         matches = []
         for feature in self.features:
             if feature.match(concept, **kwargs):
-                matches.append(feature)        
+                matches.append(feature)
         return matches
 
     def __str__(self):

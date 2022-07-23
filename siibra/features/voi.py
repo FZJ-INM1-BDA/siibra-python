@@ -16,8 +16,9 @@
 from .feature import SpatialFeature
 
 from .. import QUIET
+from ..registry import Preconfigure
 from ..volumes.volume import VolumeSrc, VolumeModel, ColorVolumeNotSupported
-from ..core.space import BoundingBoxModel, Space, BoundingBox
+from ..core.space import BoundingBoxModel, BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
 from ..core.serializable_concept import JSONSerializable
@@ -29,44 +30,63 @@ from pydantic import Field
 from os import path
 
 
-class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
-    def __init__(self, dataset_id, location, name):
+@Preconfigure("features/volumes")
+class VolumeOfInterest(SpatialFeature, JSONSerializable):
+
+    def __init__(self, location, name):
         SpatialFeature.__init__(self, location)
-        EbrainsDataset.__init__(self, dataset_id, name)
+        if not hasattr(self, 'name'):
+            self.name = name
         self.volumes = []
 
     @classmethod
     def _from_json(cls, definition):
-        if definition["@type"] == "minds/core/dataset/v1.0.0":
-            space = Space.REGISTRY[definition["space id"]]
-            vsrcs = []
-            minpoints = []
-            maxpoints = []
-            for vsrc_def in definition["volumeSrc"]:
-                try:
-                    vsrc = VolumeSrc._from_json(vsrc_def)
-                    vsrc.space = space
-                    with QUIET:
-                        img = vsrc.fetch()
-                        D = np.asanyarray(img.dataobj).squeeze()
-                        nonzero = np.array(np.where(D > 0))
-                        A = img.affine
-                    minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
-                    maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
-                    vsrcs.append(vsrc)
+        spectype = "siibra/feature/volume/v1.0.0"
+        if not definition.get("@type") == spectype:
+            raise TypeError(
+                f"Received specification of type '{definition.get('@type')}', "
+                f"but expected '{spectype}'"
+            )
 
-                except ColorVolumeNotSupported:
-                    # If multi channel volume exists rather than short circuit, try to use other volumes to determine the ROI
-                    # See PLI hippocampus data feature
-                    vsrcs.append(vsrc)
+        space = None
+        vsrcs = []
+        minpoints = []
+        maxpoints = []
+        for vsrc_def in definition["volumeSrc"]:
+            try:
+                vsrc = VolumeSrc._from_json(vsrc_def)
+                if space is None:
+                    space = vsrc.space
+                else:
+                    assert vsrc.space == space
+                with QUIET:
+                    img = vsrc.fetch()
+                    D = np.asanyarray(img.dataobj).squeeze()
+                    nonzero = np.array(np.where(D > 0))
+                    A = img.affine
+                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
+                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
+                vsrcs.append(vsrc)
+
+            except ColorVolumeNotSupported:
+                # If multi channel volume exists rather than short circuit, try to use other volumes to determine the ROI
+                # See PLI hippocampus data feature
+                vsrcs.append(vsrc)
 
             minpoint = np.array(minpoints).min(0)
             maxpoint = np.array(maxpoints).max(0)
-            result = cls(
-                dataset_id=definition["kgId"],
-                name=definition["name"],
-                location=BoundingBox(minpoint, maxpoint, space),
-            )
+            kgId = definition.get("kgId")
+            if kgId is None:
+                result = VolumeOfInterest(
+                    name=definition["name"],
+                    location=BoundingBox(minpoint, maxpoint, space),
+                )
+            else:
+                result = EbrainsVolumeOfInterest(
+                    dataset_id=definition["kgId"],
+                    name=definition["name"],
+                    location=BoundingBox(minpoint, maxpoint, space),
+                )
             list(map(result.volumes.append, vsrcs))
             return result
         return definition
@@ -99,6 +119,12 @@ class VolumeOfInterest(SpatialFeature, EbrainsDataset, JSONSerializable):
         for _, loader in conn.get_loaders(folder="vois", suffix=".json"):
             basename = f"{hashlib.md5(loader.url.encode('utf8')).hexdigest()}_{path.basename(_)}"
             cls._add_spec(loader.data, basename)
+
+
+class EbrainsVolumeOfInterest(VolumeOfInterest, EbrainsDataset):
+    def __init__(self, dataset_id, location, name):
+        EbrainsDataset.__init__(self, dataset_id, name)
+        VolumeOfInterest.__init__(self, location, name)
 
 
 class VOIDataModel(DatasetJsonModel):

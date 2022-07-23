@@ -18,17 +18,18 @@ from .query import FeatureQuery
 
 from .. import logger
 from ..registry import REGISTRY
-from ..core.parcellation import Parcellation
 from ..core.datasets import EbrainsDataset
 from ..retrieval.requests import EbrainsKgQuery
 
 from collections import defaultdict
 import re
+
 # we use this for sorting version strings of EBRAINS datasets
-from distutils.version import LooseVersion 
+from distutils.version import LooseVersion
+
 
 class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
-    def __init__(self, regionspec, kg_id, name, embargo_status, species = []):
+    def __init__(self, regionspec, kg_id, name, embargo_status, species=[]):
         RegionalFeature.__init__(self, regionspec, species)
         EbrainsDataset.__init__(self, kg_id, name, embargo_status)
         self.version = None
@@ -44,9 +45,7 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
 
     @property
     def url(self):
-        return (
-            f"https://search.kg.ebrains.eu/instances/{self.id.split('/')[-1]}"
-        )
+        return f"https://search.kg.ebrains.eu/instances/{self.id.split('/')[-1]}"
 
     def __str__(self):
         return EbrainsDataset.__str__(self)
@@ -58,17 +57,15 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
         return EbrainsDataset.__eq__(self, o)
 
 
-
 class EbrainsRegionalFeatureQuery(FeatureQuery):
 
     _FEATURETYPE = EbrainsRegionalDataset
 
-    # in EBRAINS knowledge graph prior to v3, versions were modelled 
+    # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
-    VERSION_PATTERN = re.compile(r'^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]')
+    VERSION_PATTERN = re.compile(r"^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]")
     COMPACT_FEATURE_LIST = True
 
-    
     # datasets whose name contains any of these strings will be ignored
     _BLACKLIST = {
         "Whole-brain parcellation of the Julich-Brain Cytoarchitectonic Atlas",
@@ -76,7 +73,6 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
         "DiFuMo atlas",
         "Automated Anatomical Labeling (AAL1) atlas",
     }
-
 
     def __init__(self, **kwargs):
         FeatureQuery.__init__(self)
@@ -92,7 +88,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
         # ids of EBRAINS datasets which represent siibra parcellations
         parcellations_ids = [
             dset.id
-            for parc in REGISTRY['Parcellation']
+            for parc in REGISTRY["Parcellation"]
             for dset in parc.datasets
             if isinstance(dset, EbrainsDataset)
         ]
@@ -104,23 +100,21 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
             for dataset in r.get("datasets", []):
                 species_alt = [
                     *species_alt,
-                    *dataset.get('ds_specimengroup_subject_species', []),
-                    *dataset.get('s_subject_species', []),
+                    *dataset.get("ds_specimengroup_subject_species", []),
+                    *dataset.get("s_subject_species", []),
                 ]
             for dataset in r.get("datasets", []):
 
                 ds_name = dataset.get("name")
                 ds_id = dataset.get("@id")
 
-                if (
-                    self.COMPACT_FEATURE_LIST and 
-                    any(ds_id.endswith(i) for i in parcellations_ids)
+                if self.COMPACT_FEATURE_LIST and any(
+                    ds_id.endswith(i) for i in parcellations_ids
                 ):
                     continue
 
-                if (
-                    self.COMPACT_FEATURE_LIST and
-                    any(e.lower() in ds_name.lower() for e in self._BLACKLIST)
+                if self.COMPACT_FEATURE_LIST and any(
+                    e.lower() in ds_name.lower() for e in self._BLACKLIST
                 ):
                     continue
 
@@ -135,23 +129,30 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
                 # species defined for the current dataset
                 dataset_species = [
-                    *dataset.get('ds_specimengroup_subject_species', []),
-                    *dataset.get('s_subject_species', []),
+                    *dataset.get("ds_specimengroup_subject_species", []),
+                    *dataset.get("s_subject_species", []),
                 ]
 
-                # if the current dataset has species defined, use the current species, 
+                # if the current dataset has species defined, use the current species,
                 # else use the general species
-                species = [*r.get("species", []), *(dataset_species if dataset_species else species_alt)] # list with keys @id, identifier, name
+                species = [
+                    *r.get("species", []),
+                    *(dataset_species if dataset_species else species_alt),
+                ]  # list with keys @id, identifier, name
 
                 # filter species by @id attribute
                 unique_species = []
                 for sp in species:
-                    if sp.get('@id') in [s.get('@id') for s in unique_species]:
+                    if sp.get("@id") in [s.get("@id") for s in unique_species]:
                         continue
                     unique_species.append(sp)
 
                 dset = EbrainsRegionalDataset(
-                    alias or regionname, ds_id, ds_name, ds_embargo_status, unique_species
+                    alias or regionname,
+                    ds_id,
+                    ds_name,
+                    ds_embargo_status,
+                    unique_species,
                 )
 
                 version_match = self.VERSION_PATTERN.search(ds_name)
@@ -161,8 +162,8 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                     # store version, add only the latest version after the loop
                     name, version = version_match.groups()
                     versioned_datasets[name][version] = dset
-        
-        # if versioned datasets have been recorded, register only 
+
+        # if versioned datasets have been recorded, register only
         # the newest one with older ones linked as a version history.
         for name, datasets in versioned_datasets.items():
             try:
@@ -179,7 +180,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 curr.version = version
                 if prev is not None:
                     curr._prev = prev
-                    prev._next= curr
+                    prev._next = curr
                 prev = curr
 
             # register the last recent one
@@ -188,8 +189,6 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 f"Registered only version {version} of {', '.join(sorted_versions)} for {name}. "
                 f"Its version history is: {curr.version_history}"
             )
-
-
 
         # NOTE:
         # Potentially, using ebrains_id is a lot quicker, but if user selects region with higher level of hierarchy,

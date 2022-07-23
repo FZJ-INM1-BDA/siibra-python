@@ -13,31 +13,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ctypes import ArgumentError
-from .. import __version__
-from ..commons import MapType, logger, QUIET
-from ..registry import TypedRegistry
-from ..core.concept import AtlasConcept
+from ..commons import logger, MapType, QUIET
+from ..registry import REGISTRY, TypedRegistry
 from ..core.atlas import Atlas
-from ..core.space import Space, Location, Point, PointSet, BoundingBox
+from ..core.concept import AtlasConcept
+from ..core.space import Location, Space, Point, PointSet, BoundingBox
 from ..core.region import Region
 from ..core.parcellation import Parcellation
 
+from ctypes import ArgumentError
 from typing import Tuple, Union
-import pandas as pd
+from enum import Enum
+from tqdm import tqdm
+import json
 import numpy as np
-import importlib
+import pandas as pd
 from textwrap import wrap
-from appdirs import user_config_dir
-from os import path, makedirs, listdir
-from datetime import datetime
+import importlib
 
 try:
     from importlib import resources
 except ImportError:
     import importlib_resources as resources
-import json
-from enum import Enum
 
 
 class MatchQualification(Enum):
@@ -131,31 +128,26 @@ class Feature:
     Base class for all data features.
     """
 
-    REGISTRY = TypedRegistry()
-    CONFDIR = path.join(
-        user_config_dir(appname=__name__.split(".")[0], version=__version__), "features"
-    )
+    SUBCLASSES = []
 
     def __init__(self):
         self._match = None
 
-    def __init_subclass__(cls):
-        """
-        Registers all subclasses of Feature, and bootstrape configuration directories with feature specs.
-        """
-        # populate configuration with default feature specs.
-        cls.CONFDIR = path.join(Feature.CONFDIR, cls.modality())
-        if not path.isdir(cls.CONFDIR):
-            makedirs(cls.CONFDIR)
-            cls._bootstrap()
-        if len(listdir(cls.CONFDIR)) > 0:
-            if not cls.modality() in Feature.REGISTRY:
-                Feature.REGISTRY.add(cls.modality(), cls)
-        return super().__init_subclass__()
-
     @property
     def matched(self):
         return self._match is not None
+
+    def __init_subclass__(cls) -> None:
+        Feature.SUBCLASSES.append(cls)
+        return super().__init_subclass__()
+
+    @classmethod
+    def get_modalities(cls):
+        result = TypedRegistry[cls]()
+        for subcls in cls.SUBCLASSES:
+            if subcls in REGISTRY:
+                result.add(subcls.__name__, subcls)
+        return result
 
     @property
     def match_qualification(self):
@@ -211,77 +203,33 @@ class Feature:
         return str(cls).split("'")[1].split(".")[-1]
 
     @classmethod
-    def _bootstrap(cls):
-        """
-        All derived classes need to define a bootstrap method 
-        to populate siibra's local configuration with features.
-        """
-        pass
-
-    @classmethod
-    def import_spec(cls, filename):
-        """
-        Import a custom data feature from a json file.
-        """
-        with open(filename, 'r') as f:
-            spec = json.load(f)
-            fname = "{}_import_{}.json".format(
-                datetime.now().strftime("%Y%m%d%H%M%S"),
-                path.splitext(path.basename(filename))[0]
-            )
-            cls._add_spec(spec, fname)
-
-    @classmethod
-    def _add_spec(cls, json_spec, basename):
-        """
-        Adds a new feature specification to the local configuration directory for this feature type.
-        This is called by bootstrap() methods of feature implementations.
-        """
-        filename = path.join(cls.CONFDIR, basename)
-        if path.isfile(filename):
-            logger.warn(
-                f"Specification file already exists for {cls.__name__}, will NOT overwrite {filename}"
-            )
-        else:
-            with open(filename, "w") as f:
-                json.dump(json_spec, f, indent="\t")
-        if not cls.modality() in Feature.REGISTRY:
-            Feature.REGISTRY.add(cls.modality(), cls)
-
-    @classmethod
     def get_features(cls, concept, modality, **kwargs):
         """
         Retrieve data features of the desired modality.
         """
-
+        modalities = cls.get_modalities()
         if isinstance(modality, str) and modality == 'all':
-            requested_modalities = cls.REGISTRY.values()
+            requested_modalities = modalities.values()
         elif isinstance(modality, (list, tuple)):
-            requested_modalities = [cls.REGISTRY[_] for _ in modality]
+            requested_modalities = [modalities[_] for _ in modality]
         else:
             try:
-                requested_modalities = [cls.REGISTRY[modality]]
+                requested_modalities = [modalities[modality]]
             except IndexError:
                 logger.error(f"No modalities found for specification '{modality}' which have any features.")
                 requested_modalities = []
 
         result = []
         for modality in requested_modalities:
+            logger.info(f"Querying {modality.__name__} features...")
             features = modality.query(concept)
             result.extend(features)
         return result
 
     @classmethod
     def get_feature_by_id(cls, feature_id: str):
-        for subclass in cls.REGISTRY.values():
-            result = subclass._by_id(feature_id)
-            if result is not None:
-                return result
-        return None
-
-    @classmethod
-    def get_modalities(cls):
-        return [modality.__name__ for modality in cls.REGISTRY]
+        # FIXME implement this
+        pass
 
     @classmethod
     def query(cls, concept, **kwargs):
@@ -289,37 +237,13 @@ class Feature:
         Queries features associated with a given atlas concept.
         """
         matches = []
-        for jsonfile in listdir(cls.CONFDIR):
-            try:
-                with open(path.join(cls.CONFDIR, jsonfile), "r") as f:
-                    spec = json.load(f)
-                feature = cls._from_json(spec)
-            except Exception as e:
-                logger.error(f"Cannot generate {cls.__name__} from {jsonfile}")
-                print(str(e))
-                continue
+        instances = REGISTRY[cls]
+        for feature in tqdm(
+            instances, total=len(instances), msg=f"Matching {cls.__name__}", unit="features"
+        ):
             if feature.match(concept, **kwargs):
                 matches.append(feature)
         return matches
-
-    @classmethod
-    def _by_id(cls, id):
-        """
-        Return feature with given id, if any, else return None.
-        """
-        for jsonfile in listdir(cls.CONFDIR):
-            try:
-                with open(path.join(cls.CONFDIR, jsonfile), "r") as f:
-                    spec = json.load(f)
-                if spec['@id'] == id:
-                    return cls._from_json(spec)
-                else:
-                    continue
-            except Exception as e:
-                logger.error(f"Cannot generate {cls.__name__} from {jsonfile}")
-                print(str(e))
-                continue
-        return None
 
 
 class SpatialFeature(Feature):
@@ -591,7 +515,7 @@ class RegionalFeature(Feature):
                 with QUIET:
                     if repl["Matched parcellation"] is not None:
                         # a matched parcellation is stored in the alias table, this will be preferred.
-                        parc = Parcellation.REGISTRY[repl["Matched parcellation"]]
+                        parc = REGISTRY.Parcellation[repl["Matched parcellation"]]
                         spec = repl["Matched region"]
                         msg_alias = (
                             f"Original region specification was '{self.regionspec}'."
@@ -599,7 +523,7 @@ class RegionalFeature(Feature):
                     else:
                         # no matched parcellation, then we use the original one given in the table.
                         assert repl["Origin parcellation"] is not None
-                        parc = Parcellation.REGISTRY[repl["Origin parcellation"]]
+                        parc = REGISTRY.Parcellation[repl["Origin parcellation"]]
                         msg_alias = (
                             f"Parcellation '{parc}' was used to decode '{spec}'."
                         )
@@ -730,7 +654,7 @@ class ParcellationFeature(Feature):
         """
         Feature.__init__(self)
         self.spec = parcellationspec
-        self.parcellations = Parcellation.REGISTRY.find(parcellationspec)
+        self.parcellations = REGISTRY.Parcellation.find(parcellationspec)
 
     def match(self, concept, **kwargs):
         """

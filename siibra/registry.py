@@ -14,12 +14,12 @@
 # limitations under the License.
 
 from . import __version__
-from .commons import logger, QUIET
-from .retrieval.repositories import GitlabConnector, RepositoryConnector
+from .commons import logger, QUIET, create_key
+from .retrieval.repositories import GitlabConnector, RepositoryConnector, LocalFileRepository
 from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException
 
 import os
-from typing import Any, Generic, Iterable, Iterator, List, TypeVar
+from typing import Any, Generic, Iterable, Iterator, List, TypeVar, Union
 
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
@@ -199,18 +199,18 @@ class PreconfiguredObjects:
     a registry of predefined objects will be created.
     Only when first requested, the registry will be populated with objects
     of that class, bootstrapped from specifications in a particular subfolder
-    of the siibra configuration. The subfolder is determined by the 
+    of the siibra configuration. The subfolder is determined by the
     class decorator.
 
     Predefined objects are shared between all instances of this class -
     no duplicate objects will be created when creating multiple instances of this class.
     We could implement a strict singleton in the future.
 
-    For example, 
+    For example,
         @Preconfigure("atlases")
         class Atlas...
 
-    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects, 
+    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects,
     and (when first requested) bootstrap objects from the "atlases" subfolder of the siibra configuration.
 
     Configurations are by default fetched from the siibra-configurations repository maintained at Forschungszentrum Jülich.
@@ -235,11 +235,17 @@ class PreconfiguredObjects:
     ]
 
     @classmethod
-    def add_configuration(cls, conn: RepositoryConnector):
+    def add_configuration(cls, conn: Union[str, RepositoryConnector]):
+        if isinstance(conn, str):
+            conn = LocalFileRepository(conn)
+        logger.info(f"Adding configuration {str(conn)}")
         cls._CONNECTORS.insert(0, conn)
 
     @classmethod
-    def use_configuration(cls, conn: RepositoryConnector):
+    def use_configuration(cls, conn: Union[str, RepositoryConnector]):
+        if isinstance(conn, str):
+            conn = LocalFileRepository(conn)
+        logger.info(f"Using configuration: {str(conn)}")
         cls._CONNECTORS = [conn]
 
     @classmethod
@@ -250,7 +256,7 @@ class PreconfiguredObjects:
 
         # at this point we should not have a registry for this class yet, and will create it.
         assert registered_cls not in cls._objects
-        cls._objects[registered_cls] = TypedRegistry[registered_cls](matchfunc=registered_cls.match_spec)
+        cls._objects[registered_cls] = TypedRegistry[registered_cls](matchfunc=registered_cls.match)
 
         # fill the registry with new bootstrapped object instances
         for connector in cls._CONNECTORS:
@@ -280,11 +286,18 @@ class PreconfiguredObjects:
             for fname, loader in loaders:
                 obj = registered_cls._from_json(loader.data)
                 if isinstance(obj, registered_cls):
-                    cls._objects[registered_cls].add(obj.key, obj)
-                else:
-                    raise RuntimeError(
-                        f"Could not generate object of type {registered_cls} from configuration {fname} - construction provided type {obj.__class__}"
-                    )
+                    if hasattr(obj, 'key'):
+                        cls._objects[registered_cls].add(obj.key, obj)
+                        continue
+                    elif hasattr(obj, 'name'):
+                        obj.key = create_key(obj.name)
+                        cls._objects[registered_cls].add(obj.key, obj)
+                        continue
+                    else:
+                        print(dir(obj))
+                raise RuntimeError(
+                    f"Could not generate object of type {registered_cls} from configuration {fname}"
+                )
 
     def __getitem__(self, cls):
         """
@@ -296,28 +309,36 @@ class PreconfiguredObjects:
             self.bootstrap(cls)
         return self._objects[cls]
 
-    def __getattr__(self, attr):
+    def __getattr__(self, attr: str):
         """
         Access pr3edefined object registries by attribute, e.g.
         REGISTRY.Atlas
         """
-        if attr in self._folders:
-            return self.__getitem__(attr)
+        classnames = {c.__name__: c for c in self}
+        if attr in classnames:
+            return self.__getitem__(classnames[attr])
         else:
-            raise AttributeError
+            raise AttributeError(
+                f"No predefined instances of {attr} found, only have "
+                f"{', '.join(classnames)}."
+            )
+
+    def __iter__(self):
+        return iter(self._folders.keys())
 
 
 class Preconfigure:
     """
     Decorator for preconfiguring instances of siibra classes from siibra configuration files.
 
-    Requires to provide the configuration subfolder which contains json files for bootstrapping objects of that class.
+    Requires to provide the configuration subfolder which contains json files for bootstrapping
+    objects of that class.
 
-    For example, 
+    For example,
         @Preconfigure("atlases")
         class Atlas...
 
-    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects, 
+    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects,
     and (when first requested) bootstrap objects from the "atlases" subfolder of the siibra configuration.
     """
 
@@ -326,11 +347,19 @@ class Preconfigure:
 
     def __call__(self, cls):
         if not all([hasattr(cls, "_from_json"), callable(cls._from_json)]):
-            raise RuntimeError(
+            raise TypeError(
                 f"Class '{cls.__name__}' needs to implement '_from_json()' "
                 "in order to use the @preconfigure decorator."
             )
+        if not all([hasattr(cls, "match"), callable(cls.match)]):
+            def match(self, specification):
+                """Match a given specification. Defaults to == operator,
+                but may be overriden by decorated classes."""
+                return self == specification
+            setattr(cls, "match", match)
+
         PreconfiguredObjects._folders[cls] = self.folder
+
         return cls
 
 

@@ -16,10 +16,10 @@
 from .feature import CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 
+from ..registry import REGISTRY
 from ..commons import logger, QUIET
-from ..core.space import PointSet, Point, Space
+from ..core.space import PointSet, Point
 from ..core.atlas import Atlas
-from ..core.parcellation import Parcellation
 from ..retrieval import HttpRequest
 
 import numpy as np
@@ -55,7 +55,7 @@ def load_wagstyl_profiles():
 
     # we cache the assignments of profiles to regions as well
     with QUIET:
-        jubrain = Parcellation.REGISTRY["julich"]
+        jubrain = REGISTRY.Parcellation["julich"]
     assfile = f"{req.cachefile}_{jubrain.key}_assignments.csv"
     ptsfile = assfile.replace('assignments.csv', 'bbcoords.txt')
 
@@ -138,7 +138,7 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
                 depths=depths,
                 values=profiles_left[idx, :],
                 boundaries=boundary_depths[idx, :],
-                location=Point(bbcoords[idx, :], Space.REGISTRY['bigbrain'])
+                location=Point(bbcoords[idx, :], REGISTRY.Space['bigbrain'])
             )
             self.register(p)
 

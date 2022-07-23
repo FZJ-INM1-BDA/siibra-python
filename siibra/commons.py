@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import os
+import re
 from enum import Enum
 from nibabel import Nifti1Image
 import logging
@@ -45,6 +46,18 @@ def set_log_level(level):
 set_log_level(os.getenv("SIIBRA_LOG_LEVEL", "INFO"))
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
+
+
+def create_key(name: str):
+    """
+    Creates an uppercase identifier string that includes only alphanumeric
+    characters and underscore from a natural language name.
+    """
+    return re.sub(
+        r" +",
+        "_",
+        "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
+    )
 
 
 class ParcellationIndex:

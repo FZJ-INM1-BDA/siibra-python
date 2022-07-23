@@ -25,9 +25,11 @@ from datetime import date
 from typing import List, Optional
 from pydantic import Field
 
+
 class Url(ConfigBaseModel):
     doi: str
     cite: Optional[str]
+
 
 class Dataset(JSONSerializable):
     """Parent class for datasets. Each dataset has an identifier."""
@@ -62,8 +64,8 @@ class Dataset(JSONSerializable):
 
     @property
     def is_surface(self):
-        """Return True if this dataset represents a brain volume surface. 
-        
+        """Return True if this dataset represents a brain volume surface.
+
         This property is overwritten by siibra.volumes.VolumeSrc
         """
         return False
@@ -106,61 +108,57 @@ class Dataset(JSONSerializable):
     @property
     def model_id(self):
         _id = hashlib.md5(
-            str(
-                self.id if self.id else f"{str(self)}{self.description}"
-            ).encode("utf-8")
+            str(self.id if self.id else f"{str(self)}{self.description}").encode(
+                "utf-8"
+            )
         ).hexdigest()
-        return f'{self.get_model_type()}/{_id}'
+        return f"{self.get_model_type()}/{_id}"
 
-    def to_model(self, **kwargs) -> 'DatasetJsonModel':
-        metadata=DatasetVersionModel(
+    def to_model(self, **kwargs) -> "DatasetJsonModel":
+        metadata = DatasetVersionModel(
             id=self.model_id,
             type=self.get_model_type(),
-            accessibility={ "@id": self.embargo_status[0].get("@id") } \
-                if hasattr(self, 'embargo_status') \
-                and self.embargo_status is not None \
-                and len(self.embargo_status) == 1 \
-                else { "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess" },
-            data_type=[{
-                "@id": "https://openminds.ebrains.eu/instances/semanticDataType/derivedData"
-            }],
-            digital_identifier={
-                "@id": None
+            accessibility={"@id": self.embargo_status[0].get("@id")}
+            if hasattr(self, "embargo_status")
+            and self.embargo_status is not None
+            and len(self.embargo_status) == 1
+            else {
+                "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess"
             },
-            ethics_assessment={
-                "@id": None
-            },
-            experimental_approach=[{
-                "@id": None
-            }],
-            full_documentation={
-                "@id": None
-            },
+            data_type=[
+                {
+                    "@id": "https://openminds.ebrains.eu/instances/semanticDataType/derivedData"
+                }
+            ],
+            digital_identifier={"@id": None},
+            ethics_assessment={"@id": None},
+            experimental_approach=[{"@id": None}],
+            full_documentation={"@id": None},
             full_name=self.name if hasattr(self, "name") else None,
-            license={
-                "@id": None
-            },
-            release_date=date(1970,1,1),
+            license={"@id": None},
+            release_date=date(1970, 1, 1),
             short_name=self.name[:30] if hasattr(self, "name") else "",
-            technique=[{
-                "@id": None
-            }],
+            technique=[{"@id": None}],
             version_identifier="",
             version_innovation="",
-            description=(self.description or "")[:2000] if hasattr(self, "description") else "",
+            description=(self.description or "")[:2000]
+            if hasattr(self, "description")
+            else "",
         )
         return DatasetJsonModel(
             id=metadata.id,
             type=Dataset.get_model_type(),
             metadata=metadata,
-            urls=[Url(**url) for url in self.urls]
+            urls=[Url(**url) for url in self.urls],
         )
+
 
 class DatasetJsonModel(ConfigBaseModel):
     id: str = Field(..., alias="@id")
     type: str = Field(Dataset.get_model_type(), alias="@type", const=True)
     metadata: DatasetVersionModel
     urls: List[Url]
+
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
     def __init__(self, name, description, urls):
@@ -217,7 +215,7 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
 
     @property
     def publications(self):
-        return self.detail.get('publications')
+        return self.detail.get("publications")
 
     @property
     def urls(self):

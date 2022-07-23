@@ -23,8 +23,9 @@ from ..commons import (
     MapType,
     compare_maps,
     affine_scaling,
+    create_key,
 )
-from ..registry import Registry
+from ..registry import Registry, REGISTRY
 from ..retrieval.repositories import GitlabConnector
 from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
     Model as ParcellationEntityVersionModel,
@@ -33,7 +34,7 @@ from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
     HasAnnotation,
 )
 from ..openminds.SANDS.v3.atlas.parcellationEntity import (
-    Model as ParcellationEntityModel
+    Model as ParcellationEntityModel,
 )
 
 import numpy as np
@@ -44,7 +45,9 @@ import anytree
 from typing import List, Union
 from nibabel import Nifti1Image
 
-OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE="https://openminds.ebrains.eu/sands/ParcellationEntityVersion"
+OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE = (
+    "https://openminds.ebrains.eu/sands/ParcellationEntityVersion"
+)
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -63,6 +66,7 @@ REPLACE_IN_NAME = {
 REGEX_TYPE = type(re.compile("test"))
 
 THRESHOLD_CONTINUOUS_MAPS = None
+
 
 class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     """
@@ -114,7 +118,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         """
         regionname = __class__._clear_name(name)
         # regions are not modelled with an id yet in the configuration, so we create one here
-        id = f"{parcellation.id}-{AtlasConcept._create_key((regionname+str(index))).replace('NONE','X')}"
+        id = f"{parcellation.id}-{create_key((regionname+str(index))).replace('NONE','X')}"
         AtlasConcept.__init__(
             self, identifier=id, name=regionname, dataset_specs=dataset_specs
         )
@@ -164,7 +168,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         """
         Identify a region by its parcellation key, region key, and parcellation index
         """
-        return hash(f"{self.parcellation.key}_{self.key}_{self.index.map}_{self.index.label}")
+        return hash(
+            f"{self.parcellation.key}_{self.key}_{self.index.map}_{self.index.label}"
+        )
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
@@ -177,7 +183,12 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
     @cached
     def find(
-        self, regionspec, filter_children=False, build_group=False, groupname=None, find_topmost=True
+        self,
+        regionspec,
+        filter_children=False,
+        build_group=False,
+        groupname=None,
+        find_topmost=True,
     ):
         """
         Find regions that match the given region specification in the subtree
@@ -200,7 +211,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         groupname : str (optional)
             Name of the resulting group region, if build_group is True
         find_topmost : Bool, default: True
-            If True, will return parent structures if all children are matched, 
+            If True, will return parent structures if all children are matched,
             even though the parent itself might not match the specification.
 
         Yield
@@ -241,7 +252,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                             and (region.index == regionspec)
                             and (region.parent.index != regionspec)
                         ):
-                            filtered.append(region)                                            
+                            filtered.append(region)
 
             # find any non-matched regions of which all children are matched
             if find_topmost:
@@ -344,13 +355,12 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
     @property
     def is_custom_group(self):
-        """ 
-        Determine wether this region object is a custom group, 
-        thus not part of the actual region hierarchy. 
         """
-        return (
-            self not in self.parcellation 
-            and all(c in self.parcellation for c in self.descendants)
+        Determine wether this region object is a custom group,
+        thus not part of the actual region hierarchy.
+        """
+        return self not in self.parcellation and all(
+            c in self.parcellation for c in self.descendants
         )
 
     @cached
@@ -360,7 +370,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         resolution_mm=None,
         maptype: MapType = MapType.LABELLED,
         threshold_continuous=None,
-        consider_other_types=True
+        consider_other_types=True,
     ):
         """
         Returns a mask where nonzero values denote
@@ -384,7 +394,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         consider_other_types: Boolean, default: True
             If a mask for the requested maptype cannot be created, try other maptypes.
         """
-        spaceobj = Space.REGISTRY[space]
+        spaceobj = REGISTRY.Space[space]
         if spaceobj.is_surface:
             raise NotImplementedError(
                 "Region masks for surface spaces are not yet supported."
@@ -408,13 +418,17 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             # Attempt to produce a map from the child regions.
             # We only accept this if all child regions produce valid masks.
             # NOTE We ignore extension regions here, since this is a complex case currently (e.g. iam regions in BigBrain)
-            logger.debug(f"Merging child regions to build mask for their parent {self.name}:")
+            logger.debug(
+                f"Merging child regions to build mask for their parent {self.name}:"
+            )
             maskdata = None
             affine = None
             for c in self.children:
                 if c.extended_from is not None:
                     continue
-                childmask = c.build_mask(space, resolution_mm, maptype, threshold_continuous)
+                childmask = c.build_mask(
+                    space, resolution_mm, maptype, threshold_continuous
+                )
                 if childmask is None:
                     logger.warning(f"No success getting mask for child {c.name}")
                     break
@@ -435,9 +449,13 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
             )
             if consider_other_types:
-                for other_maptype in (set(MapType) - {maptype}):
+                for other_maptype in set(MapType) - {maptype}:
                     mask = self.build_mask(
-                        space, resolution_mm, other_maptype, threshold_continuous, consider_other_types=False
+                        space,
+                        resolution_mm,
+                        other_maptype,
+                        threshold_continuous,
+                        consider_other_types=False,
                     )
                     if mask is not None:
                         logger.info(
@@ -448,7 +466,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
         if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
             data = np.asanyarray(mask.dataobj) > threshold_continuous
-            logger.info(f"Mask built using a continuous map thresholded at {threshold_continuous}.")
+            logger.info(
+                f"Mask built using a continuous map thresholded at {threshold_continuous}."
+            )
             # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
             assert np.any(data > 0)
             mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
@@ -487,7 +507,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         The list of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
-        return [s for s in Space.REGISTRY if self.mapped_in_space(s)]
+        return [s for s in REGISTRY.Space if self.mapped_in_space(s)]
 
     def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
@@ -638,7 +658,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         Returns:
             BoundingBox
         """
-        spaceobj = Space.REGISTRY[space]
+        spaceobj = REGISTRY.Space[space]
         try:
             mask = self.build_mask(
                 spaceobj, maptype=maptype, threshold_continuous=threshold_continuous
@@ -680,7 +700,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         peaks: PointSet
         pmap: continuous map
         """
-        spaceobj = Space.REGISTRY[space]
+        spaceobj = REGISTRY.Space[space]
         pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
         if pmap is None:
             logger.warn(
@@ -744,7 +764,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         from skimage import measure
 
         if not isinstance(space, Space):
-            space = Space.REGISTRY[space]
+            space = REGISTRY.Space[space]
 
         if not self.mapped_in_space(space):
             raise RuntimeError(
@@ -754,7 +774,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             )
 
         # build binary mask of the image
-        pimg = self.build_mask(space, maptype=maptype, threshold_continuous=threshold_continuous)
+        pimg = self.build_mask(
+            space, maptype=maptype, threshold_continuous=threshold_continuous
+        )
 
         # determine scaling factor from voxels to cube mm
         scale = affine_scaling(pimg.affine)
@@ -862,34 +884,43 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
     @property
     def model_id(self):
         from .. import parcellations
+
         if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
             return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
         import hashlib
+
         def get_unique_id(id):
             return hashlib.md5(id.encode("utf-8")).hexdigest()
+
         # there exists several instances where same region, with same sub region exist in jba2.9
         # (e.g. ch123)
         # this is so that these regions can be distinguished from each other (ie decend from magnocellular group within septum or magnocellular group within horizontal limb of diagnoal band)
         # if not distinguished, one cannot uniquely identify the parent with parent_id
         return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/{get_unique_id(self.id + str(self.parent or 'None') + str(self.children))}"
 
-    def to_model(self, detail=False, space: Space=None, **kwargs) -> ParcellationEntityVersionModel:
+    def to_model(
+        self, detail=False, space: Space = None, **kwargs
+    ) -> ParcellationEntityVersionModel:
         if detail:
-            assert isinstance(self.parent, JSONSerializable), f"Region.parent must be a JSONSerializable"
+            assert isinstance(
+                self.parent, JSONSerializable
+            ), "Region.parent must be a JSONSerializable"
         if space:
-            assert isinstance(space, Space), f"space kwarg must be of instance Space"
-        
+            assert isinstance(space, Space), "space kwarg must be of instance Space"
+
         pev = ParcellationEntityVersionModel(
             id=self.model_id,
             type=self.get_model_type(),
-            has_parent=[{
-                '@id': self.parent.model_id
-            }] if (self.parent is not None) else None,
+            has_parent=[{"@id": self.parent.model_id}]
+            if (self.parent is not None)
+            else None,
             name=self.name,
             ontology_identifier=None,
             relation_assessment=None,
             version_identifier=f"{self.parcellation.name} - {self.name}",
-            version_innovation=self.descriptions[0] if hasattr(self, 'descriptions') and len(self.descriptions) > 0 else None
+            version_innovation=self.descriptions[0]
+            if hasattr(self, "descriptions") and len(self.descriptions) > 0
+            else None,
         )
 
         from .. import parcellations, spaces
@@ -897,11 +928,10 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         from .datasets import EbrainsDataset
 
         if space is not None:
+
             def vol_to_id_dict(vol: VolumeSrc):
-                return {
-                    "@id": vol.model_id
-                }
-            
+                return {"@id": vol.model_id}
+
             """
             TODO
             It is not exactly clear, given space, if or not self.index is relevant.
@@ -910,7 +940,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ```python
             import siibra
             p = siibra.parcellations['2.9']
-            
+
             fp1 = p.decode_region('fp1')
             fp1_left = p.decode_region('fp1 left')
             print(fp1.index) # prints (None/212)
@@ -923,7 +953,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             ```
 
             The only way (without getting the whole map), that I can think of, is:
-            
+
             ```python
             volumes_in_correct_space = [v for v in [*parcellation.volumes, *self.volumes] if v.space is space]
             if (
@@ -939,16 +969,20 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             """
 
             self_volumes = [vol for vol in self.volumes if vol.space is space]
-            parc_volumes = [vol for vol in self.parcellation.volumes if vol.space is space]
+            parc_volumes = [
+                vol for vol in self.parcellation.volumes if vol.space is space
+            ]
 
-            vol_in_space = [v for v in [*self_volumes, *parc_volumes]
-                            if isinstance(v, NeuroglancerVolume)
-                            or isinstance(v, GiftiSurfaceLabeling) ]
+            vol_in_space = [
+                v
+                for v in [*self_volumes, *parc_volumes]
+                if isinstance(v, NeuroglancerVolume)
+                or isinstance(v, GiftiSurfaceLabeling)
+            ]
             len_vol_in_space = len(vol_in_space)
             internal_identifier = "unknown"
-            if (
-                (len_vol_in_space == 1 and self.index.map is None)
-                or (len_vol_in_space > 1 and self.index.map is not None)
+            if (len_vol_in_space == 1 and self.index.map is None) or (
+                len_vol_in_space > 1 and self.index.map is not None
             ):
                 internal_identifier = self.index.label or "unknown"
 
@@ -958,14 +992,18 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                     # TODO check criteriaQualityType
                     "@id": "https://openminds.ebrains.eu/instances/criteriaQualityType/asserted"
                 },
-                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get('rgb')) if self.attrs.get('rgb') else None,
+                display_color="#{0:02x}{1:02x}{2:02x}".format(*self.attrs.get("rgb"))
+                if self.attrs.get("rgb")
+                else None,
             )
             # seems to be the only way to convey link between PEV and dataset
-            ebrains_ds = [{ "@id": "https://doi.org/{}".format(url.get("doi")) }
+            ebrains_ds = [
+                {"@id": "https://doi.org/{}".format(url.get("doi"))}
                 for ds in self.datasets
                 if isinstance(ds, EbrainsDataset)
                 for url in ds.urls
-                if url.get("doi")]
+                if url.get("doi")
+            ]
 
             try:
 
@@ -980,13 +1018,15 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                         # self.index.map is undefined (expect a single volume?)
                         # but there exist multiple volumes (in the example, one for left/ one for right hemisphere)
                         if len(vol_in_space) == 1:
-                            pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[0])
+                            pev.has_annotation.visualized_in = vol_to_id_dict(
+                                vol_in_space[0]
+                            )
                     else:
-                        pev.has_annotation.visualized_in = vol_to_id_dict(vol_in_space[self.index.map])
+                        pev.has_annotation.visualized_in = vol_to_id_dict(
+                            vol_in_space[self.index.map]
+                        )
             except IndexError:
                 pass
-                
-
 
             # temporary workaround to https://github.com/FZJ-INM1-BDA/siibra-python/issues/185
             # in big brain jba29, without probing region.volumes, it is impossible to tell the labelindex of the region
@@ -995,21 +1035,29 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
             # also, it appears extension regions such as MGB-MGBd (CGM, Metathalamus) do not have index defined
             # see https://github.com/FZJ-INM1-BDA/siibra-python/issues/185#issuecomment-1119317697
-            BIG_BRAIN_SPACE = spaces['big brain']
+            BIG_BRAIN_SPACE = spaces["big brain"]
             precomputed_labels = []
             if space is BIG_BRAIN_SPACE:
-                big_brain_volume = [vol
+                big_brain_volume = [
+                    vol
                     for vol in self.volumes
                     if isinstance(vol, NeuroglancerVolume)
-                    and vol.space is BIG_BRAIN_SPACE]
+                    and vol.space is BIG_BRAIN_SPACE
+                ]
 
-                precomputed_labels = [{ "@id": f"siibra_python_ng_precomputed_labelindex://{vol.model_id}#{vol.detail.get('neuroglancer/precomputed', {}).get('labelIndex')}" }
+                precomputed_labels = [
+                    {
+                        "@id": f"siibra_python_ng_precomputed_labelindex://{vol.model_id}#{vol.detail.get('neuroglancer/precomputed', {}).get('labelIndex')}"
+                    }
                     for vol in self.volumes
                     if isinstance(vol, NeuroglancerVolume)
-                    and vol.space is BIG_BRAIN_SPACE]
+                    and vol.space is BIG_BRAIN_SPACE
+                ]
 
                 if len(big_brain_volume) == 1:
-                    pev.has_annotation.visualized_in = vol_to_id_dict(big_brain_volume[0])
+                    pev.has_annotation.visualized_in = vol_to_id_dict(
+                        big_brain_volume[0]
+                    )
 
             pev.has_annotation.inspired_by = [
                 *[vol_to_id_dict(vol) for vol in parc_volumes],
@@ -1017,21 +1065,21 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 *ebrains_ds,
                 *precomputed_labels,
             ]
-            
+
             if detail:
                 try:
                     centroids = self.centroids(space)
-                    assert len(centroids) == 1, f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
+                    assert (
+                        len(centroids) == 1
+                    ), f"expect a single centroid as return for centroid(space) call, but got {len(centroids)} results."
                     pev.has_annotation.best_view_point = BestViewPoint(
-                        coordinate_space={
-                            "@id": space.model_id
-                        },
-                        coordinates=[Coordinates(
-                            value=pt,
-                            unit={
-                                "@id": UnitOfMeasurement.MILLIMETER
-                            }
-                        ) for pt in centroids[0]]
+                        coordinate_space={"@id": space.model_id},
+                        coordinates=[
+                            Coordinates(
+                                value=pt, unit={"@id": UnitOfMeasurement.MILLIMETER}
+                            )
+                            for pt in centroids[0]
+                        ],
                     )
                 except NotImplementedError:
                     # Region masks for surface spaces are not yet supported. for surface-based spaces
@@ -1045,12 +1093,11 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             is_rh = "rh" in self.name
 
             if is_lh:
-                pev.version_identifier = f"2018, lh"
+                pev.version_identifier = "2018, lh"
             if is_rh:
-                pev.version_identifier = f"2018, rh"
-            
-            pev.lookup_label = f"SWMA_2018_{self.name}"
+                pev.version_identifier = "2018, rh"
 
+            pev.lookup_label = f"SWMA_2018_{self.name}"
 
             # remove lh/rh prefix
             superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
@@ -1060,30 +1107,33 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             superstructure_lookup_label = f"SWMA_{superstructure_name}"
             superstructure_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{superstructure_lookup_label}"
 
-            pev.has_parent = [{
-                "@id": superstructure_id
-            }]
+            pev.has_parent = [{"@id": superstructure_id}]
         return pev
 
     def to_parcellation_entities(self, **kwargs) -> List[ParcellationEntityModel]:
         import hashlib
+
         def get_unique_id(id):
             return hashlib.md5(id.encode("utf-8")).hexdigest()
+
         pe_id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.id)}"
         pe = ParcellationEntityModel(
             id=pe_id,
             type="https://openminds.ebrains.eu/sands/ParcellationEntity",
-            has_parent=[{
-                "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
-            }] if self.parent else None,
+            has_parent=[
+                {
+                    "@id": f"https://openminds.ebrains.eu/instances/parcellationEntity/{get_unique_id(self.parent.id)}"
+                }
+            ]
+            if self.parent
+            else None,
             name=self.name,
-            has_version=[{
-                "@id": self.to_model(**kwargs).id
-            }]
+            has_version=[{"@id": self.to_model(**kwargs).id}],
         )
         return_list = [pe]
 
         from .. import parcellations
+
         # per https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#pullrequestreview-872257424
         # and https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799479218
         # also https://github.com/HumanBrainProject/openMINDS_SANDS/pull/158#discussion_r799572025
@@ -1092,32 +1142,52 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
             is_lh = "lh" in self.name
             is_rh = "rh" in self.name
-            
+
             if not is_lh and not is_rh:
-                raise RuntimeError(f"PE for superficial bundle can only be generated for lh/rh")
-            
-            def get_pe_model(name:str, parent_ids:List[str]=None, has_versions_ids:List[str]=None) -> ParcellationEntityModel:
+                raise RuntimeError(
+                    "PE for superficial bundle can only be generated for lh/rh"
+                )
+
+            def get_pe_model(
+                name: str,
+                parent_ids: List[str] = None,
+                has_versions_ids: List[str] = None,
+            ) -> ParcellationEntityModel:
                 p = ParcellationEntityModel(**pe.dict())
                 p.name = name
                 p.lookup_label = f"SWMA_{name}"
                 p.id = f"https://openminds.ebrains.eu/instances/parcellationEntity/{p.lookup_label}"
-                p.has_parent = [{ "@id": _id } for _id in parent_ids] if parent_ids else None
-                p.has_version = [{ "@id": _id } for _id in has_versions_ids] if has_versions_ids else None
+                p.has_parent = (
+                    [{"@id": _id} for _id in parent_ids] if parent_ids else None
+                )
+                p.has_version = (
+                    [{"@id": _id} for _id in has_versions_ids]
+                    if has_versions_ids
+                    else None
+                )
                 return p
 
             # remove lh/rh prefix
             superstructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
             # remove _[\d] suffix
             superstructure_name = re.sub(r"_\d+$", "", superstructure_name)
-            superstructure = get_pe_model(superstructure_name, ["https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"])
+            superstructure = get_pe_model(
+                superstructure_name,
+                [
+                    "https://openminds.ebrains.eu/instances/parcellationEntity/SWMA_superficialFibreBundles"
+                ],
+            )
 
             substructure_name = re.sub(r"^(lh_|rh_)", "", self.name)
-            substructure = get_pe_model(substructure_name, [superstructure.id], [self.to_model(**kwargs).id])
+            substructure = get_pe_model(
+                substructure_name, [superstructure.id], [self.to_model(**kwargs).id]
+            )
 
             return_list.append(superstructure)
             return_list.append(substructure)
-            
+
         return return_list
+
 
 if __name__ == "__main__":
 

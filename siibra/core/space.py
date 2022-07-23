@@ -13,13 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Dict, List
 
-from pydantic import Field
 from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
-
-from ..registry import Preconfigure
+from ..registry import Preconfigure, REGISTRY
 from ..commons import logger
 from ..retrieval import HttpRequest
 from ..openminds.base import ConfigBaseModel
@@ -30,6 +27,8 @@ from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import (
 )
 
 
+from typing import Dict, List
+from pydantic import Field
 from datetime import date
 import hashlib
 import re
@@ -228,7 +227,7 @@ class Location(JSONSerializable, ABC):
             # typically only used for temporary entities, e.g. in individual voxel spaces.
             self.space = None
         else:
-            self.space: Space = Space.REGISTRY[space]
+            self.space: Space = REGISTRY.Space[space]
 
     @classmethod
     def get_model_type(Cls):
@@ -333,7 +332,7 @@ class WholeBrain(Location):
             # typically only used for temporary entities, e.g. in individual voxel spaces.
             self.space = None
         else:
-            self.space = Space.REGISTRY[space]
+            self.space = REGISTRY.Space[space]
 
     def intersects(self, mask: Nifti1Image):
         """Always true for whole brain features"""
@@ -459,7 +458,7 @@ class Point(Location, JSONSerializable):
         """Creates a new point by warping this point to another space"""
         assert targetspace is not None
         if not isinstance(targetspace, Space):
-            targetspace = Space.REGISTRY[targetspace]
+            targetspace = REGISTRY.Space[targetspace]
         if targetspace == self.space:
             return self
         if any(s.id not in SPACEWARP_IDS for s in [self.space, targetspace]):
@@ -597,7 +596,7 @@ class Point(Location, JSONSerializable):
 
         # require space spec
         space_id = obj["coordinateSpace"]["@id"]
-        assert Space.REGISTRY.provides(space_id)
+        assert REGISTRY.Space.provides(space_id)
 
         # require a 3D point spec for the coordinates
         assert all(c["unit"]["@id"] == "id.link/mm" for c in obj["coordinates"])
@@ -605,7 +604,7 @@ class Point(Location, JSONSerializable):
         # build the Point
         return cls(
             list(np.float16(c["value"]) for c in obj["coordinates"]),
-            space=Space.REGISTRY[space_id],
+            space=REGISTRY.Space[space_id],
         )
 
     def bigbrain_section(self):
@@ -614,7 +613,7 @@ class Point(Location, JSONSerializable):
         which corresponds to this point. If the point is given
         in another space, a warping to BigBrain space will be tried.
         """
-        if self.space == Space.REGISTRY["bigbrain"]:
+        if self.space == REGISTRY.Space["bigbrain"]:
             coronal_position = self[1]
         else:
             try:
@@ -701,7 +700,7 @@ class PointSet(Location):
         """Creates a new point set by warping its points to another space"""
         assert targetspace is not None
         if not isinstance(targetspace, Space):
-            targetspace = Space.REGISTRY[targetspace]
+            targetspace = REGISTRY.Space[targetspace]
         if targetspace == self.space:
             return self
         if any(s.id not in SPACEWARP_IDS for s in [self.space, targetspace]):
@@ -792,7 +791,7 @@ class PointSet(Location):
 
         # require space spec
         space_id = obj["coordinateSpace"]["@id"]
-        assert Space.REGISTRY.provides(space_id)
+        assert REGISTRY.Space.provides(space_id)
 
         # require mulitple 3D point specs
         coords = []
@@ -801,7 +800,7 @@ class PointSet(Location):
             coords.append(list(np.float16(c["value"]) for c in coord))
 
         # build the Point
-        return cls(coords, space=Space.REGISTRY[space_id])
+        return cls(coords, space=REGISTRY.Space[space_id])
 
     @property
     def boundingbox(self):

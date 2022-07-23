@@ -16,6 +16,7 @@
 from .feature import ParcellationFeature
 from .query import FeatureQuery
 
+from ..registry import REGISTRY
 from ..commons import logger, QUIET
 from ..core.parcellation import Parcellation
 from ..retrieval.repositories import GitlabConnector, EbrainsPublicDatasetConnector
@@ -120,40 +121,56 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
         base_model = ConnectivityMatrixDataModel(
             id=self.model_id,
             type=self.get_model_type(),
-            parcellations=[{
-                "@id": parc.model_id,
-            } for parc in self.parcellations],
+            parcellations=[
+                {
+                    "@id": parc.model_id,
+                }
+                for parc in self.parcellations
+            ],
             **model_dict_from_getattr,
         )
         if detail is False:
             return base_model
 
         from ..core import Region
+
         dtype_set = {dtype for dtype in self.matrix.dtypes}
-        
+
         if len(dtype_set) == 0:
-            raise TypeError(f"dtype is an empty set!")
+            raise TypeError("dtype is an empty set!")
 
         force_float = False
         if len(dtype_set) == 1:
-            dtype, = list(dtype_set)
+            (dtype,) = list(dtype_set)
             is_int = np.issubdtype(dtype, int)
             is_float = np.issubdtype(dtype, float)
-            assert is_int or is_float, f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
+            assert (
+                is_int or is_float
+            ), f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
 
         if len(dtype_set) > 1:
-            logger.warning(f"expect only 1 type of data, but got {len(dtype_set)}, will cast everything to float")
+            logger.warning(
+                f"expect only 1 type of data, but got {len(dtype_set)}, will cast everything to float"
+            )
             force_float = True
-        
+
         def get_column_name(col: Union[str, Region]) -> str:
             if isinstance(col, str):
                 return col
             if isinstance(col, Region):
                 return col.name
-            raise TypeError(f"matrix column value {col} of instance {col.__class__} can be be converted to str.")
+            raise TypeError(
+                f"matrix column value {col} of instance {col.__class__} can be be converted to str."
+            )
 
-        base_model.columns = [get_column_name(name) for name in self.matrix.columns.values]
-        base_model.matrix=NpArrayDataModel(self.matrix.to_numpy(dtype="float32" if force_float or is_float else "int32"))
+        base_model.columns = [
+            get_column_name(name) for name in self.matrix.columns.values
+        ]
+        base_model.matrix = NpArrayDataModel(
+            self.matrix.to_numpy(
+                dtype="float32" if force_float or is_float else "int32"
+            )
+        )
         return base_model
 
 
@@ -170,11 +187,11 @@ class StreamlineCounts(ConnectivityMatrix):
 
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-    
+
     @classmethod
     def get_model_type(Cls):
         return "siibra/features/connectivity/streamlineLengths"
-    
+
     def __init__(self, parcellation_id: str, matrixloader, srcinfo):
         super().__init__(parcellation_id, matrixloader, srcinfo)
 
@@ -210,7 +227,7 @@ class HcpConnectivityFetcher:
                 f"EBRAINS knowledge graph query for dataset {self._DATASET_ID} "
                 "did not return any files. It seems that your EBRAINS authentication "
                 "does not provide sufficient privileges to access the connectivity data."
-                )
+            )
         self._keyword = filename_keyword
 
     @property
@@ -221,11 +238,12 @@ class HcpConnectivityFetcher:
     def srcinfo(self):
         return {
             "name": self._connector.name,
-            "dataset_id": self._DATASET_ID, 
+            "dataset_id": self._DATASET_ID,
             "description": self._connector.description,
             "citation": self._connector.citation,
             "authors": self._connector.authors,
-            "cohort": "HCP"}
+            "cohort": "HCP",
+        }
 
     def get_matrixloaders(self, parcellation: Parcellation):
         """Return functions for loading the connectivity matrices
@@ -244,6 +262,7 @@ class HcpConnectivityFetcher:
                 continue
 
             # extract index - regionname mapping
+            parc = REGISTRY.Parcellation[parc_id]
             with zipfile.open(f"{name}/0ImageProcessing/Link.txt") as f:
                 lines = [
                     line.decode().strip().split(" ", maxsplit=1)
@@ -288,24 +307,29 @@ class HcpConnectivityFetcher:
         try:
             matrix = pd.read_csv(
                 zipfile.open(csv_filename),
-                delimiter=r"\s+|,|;", engine='python',
+                delimiter=r"\s+|,|;",
+                engine="python",
                 header=None,
                 index_col=False,
             )
-            l = matrix.shape[0]
-            if matrix.shape[1] != l:
+            nrows = matrix.shape[0]
+            if matrix.shape[1] != nrows:
                 raise RuntimeError(
-                    f"Non-quadratic connectivity matrix {l}x{matrix.shape[1]} "
+                    f"Non-quadratic connectivity matrix {nrows}x{matrix.shape[1]} "
                     f"from {csv_filename} in {zip_filename}"
                 )
-            if len(indexmap) == l:
-                remapper = {label - min(indexmap.keys()): region for label, region in indexmap.items()}
+            if len(indexmap) == nrows:
+                remapper = {
+                    label - min(indexmap.keys()): region
+                    for label, region in indexmap.items()
+                }
                 matrix = matrix.rename(index=remapper).rename(columns=remapper)
             else:
-                labels = {r.index.label for r in parcellation.regiontree} - {None} 
-                if max(labels) - min(labels) + 1 == l:
+                labels = {r.index.label for r in parcellation.regiontree} - {None}
+                if max(labels) - min(labels) + 1 == nrows:
                     indexmap = {
-                        r.index.label - min(labels): r for r in parcellation.regiontree
+                        r.index.label - min(labels): r
+                        for r in parcellation.regiontree
                         if r.index.label is not None
                     }
                     matrix = matrix.rename(index=indexmap).rename(columns=indexmap)
@@ -317,7 +341,6 @@ class HcpConnectivityFetcher:
                 f"Could not parse connectivity matrix from file {csv_filename} in {zip_filename}."
             )
         return matrix
-
 
     @property
     def parcellations(self):
@@ -387,7 +410,7 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
             if not any(kw.lower() in filename.lower() for kw in self._keywords):
                 continue
             parc_id = jsonloader.data["parcellation id"]
-            matrixloader = lambda l=jsonloader: self._matrixloader(l)
+            matrixloader = lambda _=jsonloader: self._matrixloader(_)
             srcinfo = {k: v for k, v in jsonloader.data.items() if k != "data"}
             srcinfo["filename"] = filename
             matched_cohorts = [
@@ -407,7 +430,9 @@ class PrereleasedConnectivityFetcher(GitlabConnector):
         assert "data" in data
         col_names = data["data"]["field names"]
         row_names = list(data["data"]["profiles"].keys())
-        assert col_names == row_names, f"{data['name']} assertion error: expected col_names == row_names"
+        assert (
+            col_names == row_names
+        ), f"{data['name']} assertion error: expected col_names == row_names"
         matrix = pd.DataFrame(
             data=[data["data"]["profiles"][r] for r in col_names],
             columns=col_names,

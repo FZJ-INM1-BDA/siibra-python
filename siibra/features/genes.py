@@ -17,16 +17,20 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..registry import Registry
-from ..core.space import Space, Point
+from ..registry import Registry, REGISTRY
+from ..core.space import Point
 from ..retrieval import HttpRequest
 
 from typing import List
-from os import path
 from xml.etree import ElementTree
 import numpy as np
 import json
-import siibra
+
+try:
+    from importlib import resources
+except ImportError:
+    import importlib_resources as resources
+
 try:
     # python 3.8+
     from typing import TypedDict
@@ -37,6 +41,7 @@ except ImportError:
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
+
 class DonorDict(TypedDict):
     id: int
     name: str
@@ -44,11 +49,13 @@ class DonorDict(TypedDict):
     age: int
     gender: str
 
+
 class SampleStructure(TypedDict):
     id: int
     name: str
     abbreviation: str
     color: str
+
 
 class GeneExpression(SpatialFeature):
     """
@@ -63,9 +70,9 @@ class GeneExpression(SpatialFeature):
         z_scores: List[float],
         probe_ids: List[int],
         donor_info: DonorDict,
-        mri_coord: List[int]=None,
-        structure: SampleStructure=None,
-        top_level_structure: SampleStructure=None,
+        mri_coord: List[int] = None,
+        structure: SampleStructure = None,
+        top_level_structure: SampleStructure = None,
     ):
         """
         Construct the spatial feature for gene expressions measured in a sample.
@@ -107,15 +114,16 @@ class GeneExpression(SpatialFeature):
                         for k, v in self.donor_info.items()
                     ]
                 ),
-                "Expression: [" + ",".join(["%4.1f" % v for v in self.expression_levels]) + "]",
+                "Expression: ["
+                + ",".join(["%4.1f" % v for v in self.expression_levels])
+                + "]",
                 "Z-score: [" + ",".join(["%4.1f" % v for v in self.z_scores]) + "]",
             ]
         )
 
 
 # provide a registry of gene names
-genename_file = path.join(path.dirname(siibra.__file__), "features", "gene_names.json")
-with open(genename_file, "r") as f:
+with resources.open_text("siibra.features", "gene_names.json") as f:
     _genes = json.load(f)
 GENE_NAMES = Registry()
 list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
@@ -152,11 +160,16 @@ class AllenBrainAtlasQuery(FeatureQuery):
     _notification_shown = False
 
     _QUERY = {
-        "probe": BASE_URL + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
-        "specimen": BASE_URL + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
-        "microarray": BASE_URL + "/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
-        "gene": BASE_URL + "/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
-        "factors": BASE_URL + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]",
+        "probe": BASE_URL
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        "specimen": BASE_URL
+        + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
+        "microarray": BASE_URL
+        + "/query.json?criteria=service::human_microarray_expression[probes$in{probe_ids}][donors$eq{donor_id}]",
+        "gene": BASE_URL
+        + "/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
+        "factors": BASE_URL
+        + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]",
     }
 
     # there is a 1:1 mapping between donors and specimen for the 6 adult human brains
@@ -178,14 +191,15 @@ class AllenBrainAtlasQuery(FeatureQuery):
         """
         FeatureQuery.__init__(self)
 
-        self.gene = kwargs.get('gene', None)
+        self.gene = kwargs.get("gene", None)
         self._specimen = {}
         self.factors = {}
 
         if self.gene is None:
             logger.warning(
-                f'No gene name provided to {self.__class__.__name__}, so no gene expressions will be retrieved. '
-                'Use the "gene=<name>" option in the feature query to specify one.')
+                f"No gene name provided to {self.__class__.__name__}, so no gene expressions will be retrieved. "
+                'Use the "gene=<name>" option in the feature query to specify one.'
+            )
 
         else:
             if not self.__class__._notification_shown:
@@ -196,7 +210,9 @@ class AllenBrainAtlasQuery(FeatureQuery):
             response = HttpRequest(url).get()
             if "site unavailable" in response.decode().lower():
                 # When the Allen site is not available, they still send a status code 200.
-                raise RuntimeError(f"Allen institute site unavailable - please try again later.")
+                raise RuntimeError(
+                    "Allen institute site unavailable - please try again later."
+                )
             root = ElementTree.fromstring(response)
             num_probes = int(root.attrib["total_rows"])
             probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
@@ -216,7 +232,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             }
 
             # get expression levels and z_scores for the gene
-            if len(probe_ids)>0:
+            if len(probe_ids) > 0:
                 for donor_id in self._DONOR_IDS:
                     self._retrieve_microarray(donor_id, probe_ids)
 
@@ -250,7 +266,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
         152 space to generate a SpatialFeature object for each sample.
         """
 
-        if len(probe_ids)==0:
+        if len(probe_ids) == 0:
             return
 
         # query the microarray data for this donor
@@ -281,14 +297,14 @@ class AllenBrainAtlasQuery(FeatureQuery):
             self.register(
                 GeneExpression(
                     self.gene,
-                    Point(icbm_coord, Space.REGISTRY.MNI152_2009C_NONL_ASYM),
+                    Point(icbm_coord, REGISTRY.Space.MNI152_2009C_NONL_ASYM),
                     expression_levels=[float(p["expression_level"][i]) for p in probes],
                     z_scores=[float(p["z-score"][i]) for p in probes],
                     probe_ids=[p["id"] for p in probes],
                     donor_info={**self.factors[donor["id"]], **donor},
                     mri_coord=sample["sample"]["mri"],
-                    structure=sample['structure'],
-                    top_level_structure=sample['top_level_structure'],
+                    structure=sample["structure"],
+                    top_level_structure=sample["top_level_structure"],
                 )
             )
 

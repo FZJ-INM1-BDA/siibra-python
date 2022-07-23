@@ -545,7 +545,7 @@ class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
                             "@id": kg_result["@id"].split("/")[-1],
                             "species": species,
                             "region_name": region_name,
-                            "url": url                    
+                            "url": url
                         }
                         basename = path.splitext(url.split("/")[-1])[0]
                         filename = f"{hashlib.md5(url.encode('utf8')).hexdigest()}_{basename}.json"

@@ -17,13 +17,16 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from .. import logger
+from ..registry import REGISTRY
 from ..core.concept import AtlasConcept
 from ..core.serializable_concept import JSONSerializable
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
-from ..core.space import Space, Point, PointSet, WholeBrain
+from ..core.space import Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
 from ..openminds.base import ConfigBaseModel
-from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import Model as CoordinatePointModel
+from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import (
+    Model as CoordinatePointModel,
+)
 
 import hashlib
 from pydantic import Field
@@ -33,12 +36,16 @@ import re
 
 class InRoiModel(ConfigBaseModel):
     in_roi: Optional[bool] = Field(None, alias="inRoi")
-    def process_in_roi(self, sf: SpatialFeature, detail=False, roi:AtlasConcept=None, **kwargs):
+
+    def process_in_roi(
+        self, sf: SpatialFeature, detail=False, roi: AtlasConcept = None, **kwargs
+    ):
         if not detail:
             return
         if not roi:
             return
         self.in_roi = sf.match(roi)
+
 
 class IEEGContactPointModel(InRoiModel):
     id: str
@@ -55,6 +62,7 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
     A Dataset of intracranial EEG measurements retrieved from EBRAINS,
     composed of different sessions on different subjects.
     """
+
     def __init__(self, dataset_id, name, space, embargo_status=None):
         SpatialFeature.__init__(self, WholeBrain(space))
         EbrainsDataset.__init__(self, dataset_id, name, embargo_status)
@@ -89,8 +97,8 @@ class IEEG_Dataset(SpatialFeature, EbrainsDataset):
         return cls(
             dataset_id=spec["kgId"],
             name=spec["name"],
-            space=Space.REGISTRY[spec["space id"]],
-            embargo_status=spec.get("embargoStatus")
+            space=REGISTRY.Space[spec["space id"]],
+            embargo_status=spec.get("embargoStatus"),
         )
 
 
@@ -140,10 +148,13 @@ class IEEG_Session(SpatialFeature, JSONSerializable):
 
     @property
     def model_id(self):
-        _id = hashlib.md5(self.dataset.model_id.encode("utf-8")).hexdigest() + f':{self.sub_id}'
+        _id = (
+            hashlib.md5(self.dataset.model_id.encode("utf-8")).hexdigest()
+            + f":{self.sub_id}"
+        )
         return f"{IEEG_Session.get_model_type()}/{_id}"
 
-    def to_model(self, **kwargs) -> 'IEEGSessionModel':
+    def to_model(self, **kwargs) -> "IEEGSessionModel":
         dataset = self.dataset.to_model(**kwargs)
         model = IEEGSessionModel(
             id=self.model_id,
@@ -166,11 +177,13 @@ class IEEGSessionModel(InRoiModel):
     sub_id: str
     electrodes: Dict[str, IEEGElectrodeModel]
 
+
 class IEEG_Electrode(SpatialFeature, JSONSerializable):
     """
     EEG Electrode with multiple contact points placed in a reference space,
     linking to a particular IEEG recording session.
     """
+
     def __init__(self, session: IEEG_Session, electrode_id):
         SpatialFeature.__init__(self, session.location)
         self.session = session
@@ -217,7 +230,7 @@ class IEEG_Electrode(SpatialFeature, JSONSerializable):
             contact_points={
                 key: contact_pt.to_model(**kwargs)
                 for key, contact_pt in self.contact_points.items()
-            }
+            },
         )
         model.process_in_roi(self, **kwargs)
         return model
@@ -272,11 +285,11 @@ class IEEG_ContactPoint(SpatialFeature, JSONSerializable):
 
     def to_model(self, **kwargs) -> IEEGContactPointModel:
         model = IEEGContactPointModel(
-            id=self.model_id,
-            point=self.point.to_model(**kwargs)
+            id=self.model_id, point=self.point.to_model(**kwargs)
         )
         model.process_in_roi(self, **kwargs)
         return model
+
 
 def parse_ptsfile(spec):
     lines = spec.split("\n")
@@ -296,7 +309,7 @@ class IEEG_SessionQuery(FeatureQuery):
     _FEATURETYPE = IEEG_Session
     _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "master")
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
 
         FeatureQuery.__init__(self)
         dset = IEEG_Dataset._from_json(
@@ -308,7 +321,7 @@ class IEEG_SessionQuery(FeatureQuery):
             logger.debug(f"Retrieving from {fname}")
 
             obj = parse_ptsfile(loader.data.decode())
-            subject_id = fname.replace('ieeg_contact_points/', '').split("_")[0]
+            subject_id = fname.replace("ieeg_contact_points/", "").split("_")[0]
             session = dset.new_session(subject_id)
             for electrode_id, contact_points in obj.items():
                 electrode = session.new_electrode(electrode_id)

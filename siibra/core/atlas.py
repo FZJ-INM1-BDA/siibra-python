@@ -116,7 +116,7 @@ class Atlas(
         """Access a registry of reference spaces supported by this atlas."""
         return TypedRegistry[Space](
             elements={s.key: s for s in self._spaces},
-            matchfunc=Space.match_spec,
+            matchfunc=Space.match,
         )
 
     @property
@@ -124,7 +124,7 @@ class Atlas(
         """Access a registry of parcellations supported by this atlas."""
         return TypedRegistry[Parcellation](
             elements={p.key: p for p in self._parcellations},
-            matchfunc=Parcellation.match_spec,
+            matchfunc=Parcellation.match,
         )
 
     @classmethod
@@ -277,7 +277,7 @@ class Atlas(
         Returns:
             Bounding Box
         """
-        spaceobj = Space.REGISTRY[space]
+        spaceobj = REGISTRY[space]
         if spaceobj not in self._spaces:
             raise ValueError(
                 f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."

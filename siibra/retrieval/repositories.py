@@ -136,6 +136,8 @@ class LocalFileRepository(RepositoryConnector):
                     result.append(path.join(root.replace(self._folder, ''), f))
         return result
 
+    def __str__(self):
+        return f"{self.__class__.__name__} at {self._folder}"
 
 class GitlabConnector(RepositoryConnector):
     def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):

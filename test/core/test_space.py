@@ -59,7 +59,7 @@ class TestSpaces(unittest.TestCase):
 
     def test_space__from_json_with_zip(self):
         space = Space._from_json(self.json_space_with_zip)
-        Space.REGISTRY.add(space.key, space)
+        spaces.add(space.key, space)
         self.assertTrue(self.name in str(space))
         self.assertEqual(len(space.volumes), 1)
         vsrc = space.volumes[0]
@@ -69,7 +69,7 @@ class TestSpaces(unittest.TestCase):
 
     def test_space__from_json_without_zip(self):
         space = Space._from_json(self.json_space_without_zip)
-        Space.REGISTRY.add(space.key, space)
+        spaces.add(space.key, space)
         self.assertTrue(self.name in str(space))
         self.assertEqual(len(space.volumes), 1)
         vsrc = space.volumes[0]
@@ -79,21 +79,26 @@ class TestSpaces(unittest.TestCase):
         spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces
         self.assertEqual(len(spaces), 4)
 
+
 all_spaces = [space for space in spaces]
 
-@pytest.mark.parametrize('spc', all_spaces)
+
+@pytest.mark.parametrize("spc", all_spaces)
 def test_json_serializable(spc: Space):
     assert issubclass(
         spc.to_model.__annotations__.get("return"),
         BaseModel,
     )
     import re
+
     model = spc.to_model()
-    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
+    assert re.match(
+        r"^[\w/\-.:]+$", model.id
+    ), f"model_id should only contain [\\w/\\-.:]+, but is instead {model.id}"
     import json
-    json.loads(
-        spc.to_model().json()
-    )
+
+    json.loads(spc.to_model().json())
+
 
 if __name__ == "__main__":
     unittest.main()
