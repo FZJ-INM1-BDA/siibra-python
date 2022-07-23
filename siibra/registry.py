@@ -14,8 +14,8 @@
 # limitations under the License.
 
 from . import __version__
-from .retrieval import GitlabConnector
 from .commons import logger, QUIET
+from .retrieval.repositories import GitlabConnector, RepositoryConnector
 from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException
 
 import os
@@ -202,6 +202,10 @@ class PreconfiguredObjects:
     of the siibra configuration. The subfolder is determined by the 
     class decorator.
 
+    Predefined objects are shared between all instances of this class -
+    no duplicate objects will be created when creating multiple instances of this class.
+    We could implement a strict singleton in the future.
+
     For example, 
         @Preconfigure("atlases")
         class Atlas...
@@ -215,7 +219,7 @@ class PreconfiguredObjects:
     _folders = {}
     _objects = {}
 
-    _CONNECTORS = (
+    _CONNECTORS = [
         GitlabConnector(
             "https://jugit.fz-juelich.de",
             3484,
@@ -228,7 +232,15 @@ class PreconfiguredObjects:
             GITLAB_PROJECT_TAG,
             skip_branchtest=USE_DEFAULT_PROJECT_TAG,
         ),
-    )
+    ]
+
+    @classmethod
+    def add_configuration(cls, conn: RepositoryConnector):
+        cls._CONNECTORS.insert(0, conn)
+
+    @classmethod
+    def use_configuration(cls, conn: RepositoryConnector):
+        cls._CONNECTORS = [conn]
 
     @classmethod
     def bootstrap(cls, registered_cls):
@@ -275,12 +287,20 @@ class PreconfiguredObjects:
                     )
 
     def __getitem__(self, cls):
+        """
+        Access predefined object registries by class, e.g.
+        REGISTRY[Atlas]
+        """
         assert cls in self._folders
         if cls not in self._objects:
             self.bootstrap(cls)
         return self._objects[cls]
 
     def __getattr__(self, attr):
+        """
+        Access pr3edefined object registries by attribute, e.g.
+        REGISTRY.Atlas
+        """
         if attr in self._folders:
             return self.__getitem__(attr)
         else:

@@ -83,7 +83,7 @@ class RepositoryConnector(ABC):
             )
 
 
-class LocalFolder(RepositoryConnector):
+class LocalFileRepository(RepositoryConnector):
 
     def __init__(self, folder: str):
         assert path.isdir(folder)
@@ -95,9 +95,14 @@ class LocalFolder(RepositoryConnector):
         return path.join(self._folder, folder, filename)
 
     class FileLoader:
+        """
+        Just a loads a local file, but mimics the behaviour 
+        of cached http requests used in other connectors.
+        """
         def __init__(self, file_url, decode_func):
             self.file_url = file_url
             self.func = decode_func
+            self.cached = True
 
         @property
         def data(self):
@@ -127,7 +132,7 @@ class LocalFolder(RepositoryConnector):
             for f in files:
                 if f[0] in exclude:
                     continue
-                if any([suffix is None, f.endswith(suffix)]):
+                if suffix is None or f.endswith(suffix):
                     result.append(path.join(root.replace(self._folder, ''), f))
         return result
 

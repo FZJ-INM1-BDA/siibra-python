@@ -26,19 +26,19 @@ logger.info(
 from .features import modalities, gene_names, get_features
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
+from .registry import REGISTRY, PreconfiguredObjects as _preconfigured_objects
 from .core.atlas import Atlas
 from .core.space import Space
-from .core.space import Point, PointSet, BoundingBox, Location as _
+from .core.space import Point, PointSet, BoundingBox, Location as _location
 from .core.parcellation import Parcellation
 from .core.region import THRESHOLD_CONTINUOUS_MAPS
-from .registry import REGISTRY
 from os import environ
 
-from_sands = _.from_sands
+from_sands = _location.from_sands
 set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
-
+use_configuration = _preconfigured_objects.use_configuration
 
 def __getattr__(attr):
     if attr == "atlases":
