@@ -16,9 +16,9 @@
 
 # Want to include these queries with their features into the pre-populated lists
 from .receptors import ReceptorDensityProfile, ReceptorFingerprint
+from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 from .voi import VolumeOfInterest
 from .genes import AllenBrainAtlasQuery
-from .connectivity import PrereleasedStreamlineLengthQuery, PrereleasedRestingStateQuery, PrereleasedStreamlineCountQuery
 from .ebrains import EbrainsRegionalFeatureQuery
 from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery, CellDensityFingerprintQuery
 from .ieeg import IEEG_SessionQuery

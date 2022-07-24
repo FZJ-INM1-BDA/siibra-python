@@ -363,6 +363,7 @@ class Preconfigure:
                     )
                 else:
                     setattr(cls, fncname, defaultfnc)
+
         for prop in self.PROPS_REQUIRED:                
             if not hasattr(cls, prop):
                 raise TypeError(
