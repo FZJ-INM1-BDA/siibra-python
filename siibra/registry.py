@@ -358,7 +358,7 @@ class Preconfigure:
             if not (hasattr(cls, fncname)):
                 if defaultfnc is None:
                     raise TypeError(
-                        f"Class '{cls.__name__}' needs to implement '{fnc}' "
+                        f"Class '{cls.__name__}' needs to implement '{fncname}' "
                         "in order to use the @preconfigure decorator."
                     )
                 else:

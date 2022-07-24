@@ -19,6 +19,7 @@ from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
 from os import path, walk
+from zipfile import ZipFile
 
 
 class RepositoryConnector(ABC):
@@ -82,6 +83,25 @@ class RepositoryConnector(ABC):
                 result, total=len(fnames), desc=progress, disable=logger.level > 20
             )
 
+    @classmethod
+    def _from_json(cls, spec):
+        spectype = spec["@type"]
+        if spectype == "siibra/repository/zippedfile/v1.0.0":
+            return ZipfileConnector(
+                spec['url']
+            )
+        elif spectype == "siibra/repository/gitlab/v1.0.0":
+            return GitlabConnector(
+                server=spec['server'],
+                project=spec['project'],
+                reftag=spec['branch']
+            )
+        else:
+            raise TypeError(
+                "Do not know how to create a repository "
+                f"connector from specification type {spectype}."
+            )
+
 
 class LocalFileRepository(RepositoryConnector):
 
@@ -138,6 +158,7 @@ class LocalFileRepository(RepositoryConnector):
 
     def __str__(self):
         return f"{self.__class__.__name__} at {self._folder}"
+
 
 class GitlabConnector(RepositoryConnector):
     def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):
@@ -210,6 +231,59 @@ class GitlabConnector(RepositoryConnector):
             for e in results
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
+
+
+class ZipfileConnector(RepositoryConnector):
+
+    def __init__(self, url: str):
+        RepositoryConnector.__init__(self, base_url="")
+        if path.isfile(path.expanduser(url)):
+            self.zipfile = path.expanduser(url)
+        else:
+            # assume the url is web URL to download the zip!
+            req = HttpRequest(url)
+            req._retrieve()
+            self.zipfile = req.cachefile
+
+    def _build_url(self, folder="", filename=None):
+        return path.join(folder, filename)
+
+    def search_files(self, folder="", suffix="", recursive=False):
+        container = ZipFile(self.zipfile)
+        result = []
+        if folder and not folder.endswith(path.sep):
+            folder += path.sep
+        for fname in container.namelist():
+            if path.dirname(fname.replace(folder, "")) and not recursive:
+                continue
+            if not path.basename(fname):
+                continue
+            if fname.startswith(folder) and fname.endswith(suffix):
+                result.append(fname)
+        return result
+
+    class FileLoader:
+        """
+        Loads a file from the zip archive, but mimics the behaviour 
+        of cached http requests used in other connectors.
+        """
+        def __init__(self, zipfile, filename, decode_func):
+            self.zipfile = zipfile
+            self.filename = filename
+            self.func = decode_func
+            self.cached = True
+
+        @property
+        def data(self):
+            container = ZipFile(self.zipfile)
+            return self.func(container.open(self.filename).read())
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for loading data
+        only once loader.data is accessed."""
+        if decode_func is None:
+            decode_func = lambda b: self._decode_response(b, filename)
+        return self.FileLoader(self.zipfile, filename, decode_func)
 
 
 class OwncloudConnector(RepositoryConnector):
