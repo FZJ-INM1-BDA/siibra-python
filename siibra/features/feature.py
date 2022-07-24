@@ -24,7 +24,6 @@ from ..core.parcellation import Parcellation
 from ctypes import ArgumentError
 from typing import Tuple, Union
 from enum import Enum
-from tqdm import tqdm
 import json
 import numpy as np
 import pandas as pd
@@ -238,10 +237,10 @@ class Feature:
         """
         matches = []
         instances = REGISTRY[cls]
-        for feature in tqdm(
-            instances, total=len(instances), desc=f"Matching {cls.__name__}", unit="features"
-        ):
+        n = 0
+        for feature in instances:
             if feature.match(concept, **kwargs):
+                n += 1
                 matches.append(feature)
         return matches
 
@@ -544,7 +543,8 @@ class RegionalFeature(Feature):
                 f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}"
             )
             for w in concept.key.split("_"):
-                spec = spec.replace(w.lower(), "")
+                if len(w) > 2:
+                    spec = spec.replace(w.lower(), "")
             for region in concept.regiontree.find(spec):
                 self._match = Match(
                     region,

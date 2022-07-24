@@ -39,6 +39,13 @@ class VolumeOfInterest(SpatialFeature, JSONSerializable):
             self.name = name
         self.volumes = []
 
+    @property
+    def key(self):
+        return "{}_{}".format(
+            create_key(name),
+            create_key(location)
+        )
+
     @classmethod
     def _from_json(cls, definition):
         spectype = "siibra/feature/volume/v1.0.0"

@@ -29,12 +29,15 @@ class AtlasConcept:
     def __init__(self, identifier, name, dataset_specs):
         self.id = identifier
         self.name = name
-        self.key = create_key(name)
         # objects for datasets wil only be generated lazily on request
         self._dataset_specs = dataset_specs
         self._datasets_cached = None
         # this attribute can be used to mark a concept as an extension of another one
         self.extends = None
+
+    @property
+    def key(self):
+        return create_key(self.name)
 
     def __init_subclass__(cls, type_id=None):
         """

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from . import __version__
-from .commons import logger, QUIET, create_key
+from .commons import logger, QUIET
 from .retrieval.repositories import GitlabConnector, RepositoryConnector, LocalFileRepository
 from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException
 
@@ -66,7 +66,7 @@ class TypedRegistry(Generic[T], Iterable):
         """
         assert isinstance(key, str)
         if key in self._elements:
-            logger.warning(
+            logger.error(
                 f"Key {key} already in {__class__.__name__}, existing value will be replaced."
             )
         self._elements[key] = value
@@ -286,15 +286,11 @@ class PreconfiguredObjects:
             for fname, loader in loaders:
                 obj = registered_cls._from_json(loader.data)
                 if isinstance(obj, registered_cls):
-                    if hasattr(obj, 'key'):
-                        cls._objects[registered_cls].add(obj.key, obj)
-                        continue
-                    elif hasattr(obj, 'name'):
-                        obj.key = create_key(obj.name)
-                        cls._objects[registered_cls].add(obj.key, obj)
-                        continue
-                    else:
-                        print(dir(obj))
+                    if not hasattr(obj, 'key'):
+                        print(obj.key)
+                        raise Exception
+                    cls._objects[registered_cls].add(obj.key, obj)
+                    continue
                 raise RuntimeError(
                     f"Could not generate object of type {registered_cls} from configuration {fname}"
                 )
@@ -342,21 +338,37 @@ class Preconfigure:
     and (when first requested) bootstrap objects from the "atlases" subfolder of the siibra configuration.
     """
 
+    def match(self, specification):
+        """Match a given specification. Defaults to == operator,
+        but may be overriden by decorated classes."""
+        return self == specification
+
+    FUNCS_REQUIRED = {
+        "_from_json": None, 
+        "match": match
+    }
+
+    PROPS_REQUIRED = ["key"]
+
     def __init__(self, folder):
         self.folder = folder
 
     def __call__(self, cls):
-        if not all([hasattr(cls, "_from_json"), callable(cls._from_json)]):
-            raise TypeError(
-                f"Class '{cls.__name__}' needs to implement '_from_json()' "
-                "in order to use the @preconfigure decorator."
-            )
-        if not all([hasattr(cls, "match"), callable(cls.match)]):
-            def match(self, specification):
-                """Match a given specification. Defaults to == operator,
-                but may be overriden by decorated classes."""
-                return self == specification
-            setattr(cls, "match", match)
+        for fncname, defaultfnc in self.FUNCS_REQUIRED.items():
+            if not (hasattr(cls, fncname)):
+                if defaultfnc is None:
+                    raise TypeError(
+                        f"Class '{cls.__name__}' needs to implement '{fnc}' "
+                        "in order to use the @preconfigure decorator."
+                    )
+                else:
+                    setattr(cls, fncname, defaultfnc)
+        for prop in self.PROPS_REQUIRED:                
+            if not hasattr(cls, prop):
+                raise TypeError(
+                    f"Class '{cls.__name__}' needs to specifically implement '{prop}' property "
+                    "in order to use the @preconfigure decorator."
+                )
 
         PreconfiguredObjects._folders[cls] = self.folder
 

@@ -14,9 +14,9 @@
 # limitations under the License.
 
 from .feature import CorticalProfile, RegionalFingerprint
-from .query import FeatureQuery
-from ..commons import logger
-from ..retrieval.requests import EbrainsKgQuery, HttpRequest
+from ..commons import logger, create_key
+from ..registry import Preconfigure
+from ..retrieval.requests import HttpRequest
 from ..core.datasets import EbrainsDataset, ConfigBaseModel
 from ..core.serializable_concept import NpArrayDataModel
 
@@ -24,8 +24,6 @@ from ..core.serializable_concept import NpArrayDataModel
 from typing import Dict
 from io import BytesIO
 import re
-import hashlib
-from os import path
 
 
 RECEPTOR_SYMBOLS = {
@@ -312,6 +310,7 @@ class ReceptorDataModel(ConfigBaseModel):
     receptor_symbols: Dict[str, SymbolMarkupClass]
 
 
+@Preconfigure("features/profiles/receptor")
 class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
 
     DESCRIPTION = (
@@ -341,6 +340,16 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
         )
         self._unit_cached = None
         CorticalProfile.__init__(self, f"{receptor_type} receptor density", species, regionname, self.DESCRIPTION)
+
+    @property
+    def key(self):
+        return "{}_{}_{}_{}_{}".format(
+            create_key(self.__class__.__name__),
+            self.id,
+            create_key(self.species_name),
+            create_key(self.regionspec),
+            create_key(self.type)
+        )
 
     @property
     def receptor(self):
@@ -383,56 +392,18 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
         }
 
     @classmethod
-    def _from_json(cls, definition):
+    def _from_json(cls, spec):
+        assert spec['@type'] == "siibra/feature/profile/receptor/v1.0.0"
         return ReceptorDensityProfile(
-            definition.get("@id"),
-            definition.get("species"),
-            definition.get("region_name"),
-            definition.get("receptor_type"),
-            definition.get("url"),
+            spec["kgId"],
+            spec['species'],
+            spec['region_name'],
+            spec['receptor_type'],
+            spec['url']
         )
 
-    @classmethod
-    def _bootstrap(cls):
-        """
-        Populate local configuration directory with receptor density profiles specs from EBRAINS.
-        """
 
-        query_result = EbrainsKgQuery(
-            query_id="siibra_receptor_densities-0_0_2",
-            params={"vocab": "https://schema.hbp.eu/myQuery/"},
-        ).get()
-
-        not_used = 0
-        for kg_result in query_result["results"]:
-            region_names = [
-                p_region["name"] for p_region in kg_result["parcellationRegion"]
-            ]
-            species = kg_result.get("species", [])
-            for region_name in region_names:
-                for url in kg_result["files"]:
-                    if re.match(r".*_pr[._].*\.tsv", url):
-                        receptor_type, basename = url.split("/")[-2:]
-                        if receptor_type in basename:
-                            spec = {
-                                "@id": kg_result["@id"].split("/")[-1],
-                                "species": species,
-                                "region_name": region_name,
-                                "receptor_type": receptor_type,
-                                "url": url
-                            }
-                            filename = f"{hashlib.md5(url.encode('utf8')).hexdigest()}_{basename}"
-                            cls._add_spec(spec, filename)
-                            continue
-                        else:
-                            not_used += 1
-
-        if not_used > 0:
-            logger.info(
-                f"{not_used} receptor datasets skipped due to unsupported format."
-            )
-
-
+@Preconfigure("features/fingerprints/receptor")
 class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
     DESCRIPTION = (
         "Fingerprint of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
@@ -495,6 +466,15 @@ class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
     def _stds(self):
         return self._loader.data['stds']
 
+    @property
+    def key(self):
+        return "{}_{}_{}_{}".format(
+            create_key(self.__class__.__name__),
+            self.id,
+            create_key(self.species_name),
+            create_key(self.regionspec),
+        )
+
     @classmethod
     def parse_tsv_data(cls, data: dict):
         units = {list(v.values())[3] for v in data.values()}
@@ -514,73 +494,11 @@ class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
         }
 
     @classmethod
-    def _from_json(cls, definition):
+    def _from_json(cls, spec):
+        assert spec["@type"] == "siibra/feature/fingerprint/receptor/v1.0.0"
         return ReceptorFingerprint(
-            definition.get('@id'),
-            definition.get('species'),
-            definition.get('region_name'),
-            definition.get('url')
+            spec['kgId'],
+            spec['species'],
+            spec['region_name'],
+            spec['url']
         )
-
-    @classmethod
-    def _bootstrap(cls):
-        """
-        Populate local configuration directory with receptor fingerprint profiles specs from EBRAINS.
-        """
-
-        query_result = EbrainsKgQuery(
-            query_id="siibra_receptor_densities-0_0_2",
-            params={"vocab": "https://schema.hbp.eu/myQuery/"},
-        ).get()
-
-        for kg_result in query_result["results"]:
-            region_names = [
-                p_region["name"] for p_region in kg_result["parcellationRegion"]
-            ]
-            species = kg_result.get("species", [])
-            for region_name in region_names:
-                for url in kg_result["files"]:
-                    if re.match(r".*_fp[._].*\.tsv", url):
-                        spec = {
-                            "@id": kg_result["@id"].split("/")[-1],
-                            "species": species,
-                            "region_name": region_name,
-                            "url": url
-                        }
-                        basename = path.splitext(url.split("/")[-1])[0]
-                        filename = f"{hashlib.md5(url.encode('utf8')).hexdigest()}_{basename}.json"
-                        cls._add_spec(spec, filename)
-
-
-class ReceptorFingerprintQuery(FeatureQuery):
-
-    _FEATURETYPE = ReceptorFingerprint
-
-    def __init__(self, **kwargs):
-        FeatureQuery.__init__(self)
-        query_result = EbrainsKgQuery(
-            query_id="siibra_receptor_densities-0_0_2",
-            params={"vocab": "https://schema.hbp.eu/myQuery/"},
-        ).get()
-
-        not_used = 0
-        for kg_result in query_result["results"]:
-            region_names = [
-                p_region["name"] for p_region in kg_result["parcellationRegion"]
-            ]
-            species = kg_result.get("species", [])
-            for region_name in region_names:
-                for url in kg_result["files"]:
-                    if re.match(r".*_fp[._].*\.tsv", url):
-                        f = ReceptorFingerprint(
-                            kg_result["@id"].split("/")[-1],
-                            species,
-                            region_name,
-                            url,
-                        )
-                        self.register(f)
-
-        if not_used > 0:
-            logger.info(
-                f"{not_used} receptor datasets skipped due to unsupported format."
-            )
