@@ -18,7 +18,6 @@
 from .receptors import ReceptorDensityProfile, ReceptorFingerprint
 from .voi import VolumeOfInterest
 from .genes import AllenBrainAtlasQuery
-from .connectivity import HcpStreamlineCountQuery, HcpRestingStateQuery, HcpStreamlineLengthQuery
 from .connectivity import PrereleasedStreamlineLengthQuery, PrereleasedRestingStateQuery, PrereleasedStreamlineCountQuery
 from .ebrains import EbrainsRegionalFeatureQuery
 from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery, CellDensityFingerprintQuery
