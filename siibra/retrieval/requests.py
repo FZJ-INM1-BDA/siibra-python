@@ -217,7 +217,7 @@ class EbrainsRequest(HttpRequest):
     _IAM_ENDPOING: str = "https://iam.ebrains.eu/auth/realms/hbp"
     _IAM_DEVICE_ENDPOINT: str = None
     _IAM_DEVICE_MAXTRIES = 5
-    _IAM_DEVICE_POLLING_INTERVAL_SEC = 10
+    _IAM_DEVICE_POLLING_INTERVAL_SEC = 5
     _IAM_DEVICE_FLOW_CLIENTID = "siibra"
 
     _IAM_TOKEN_ENDPOINT: str = f"{_IAM_ENDPOING}/protocol/openid-connect/token"
@@ -255,25 +255,7 @@ class EbrainsRequest(HttpRequest):
         """Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         """
-        username = input("Your EBRAINS username: ")
-        password = getpass("Your EBRAINS password: ")
-        response = requests.post(
-            "https://data-proxy.ebrains.eu/api/auth/token",
-            headers={
-                "accept": "application/json",
-                "Content-Type": "application/json",
-                **USER_AGENT_HEADER,
-            },
-            data=f'{{"username": "{username}", "password": "{password}"}}',
-        )
-        if response.status_code == 200:
-            cls._KG_API_TOKEN = response.json()
-        else:
-            if response.status_code == 500:
-                logger.error(
-                    "Invalid EBRAINS username/password provided for fetching token."
-                )
-            raise SiibraHttpRequestError(response)
+        cls.device_flow()
 
     @classmethod
     def set_token(cls, token):
