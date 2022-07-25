@@ -40,6 +40,7 @@ fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
 use_configuration = _preconfigured_objects.use_configuration
 
+
 def __getattr__(attr):
     if attr == "atlases":
         return REGISTRY[Atlas]
