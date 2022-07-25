@@ -272,7 +272,7 @@ class StreamlineCounts(ConnectivityMatrix):
         spectype = "siibra/resource/feature/connectivitymatrix/v1.0.0"
         assert spec.get("@type") == spectype
         conn = RepositoryConnector._from_json(spec['data']['repository'])
-        return cls(
+        return cls( 
             parcellation_id=spec["parcellation_id"],
             cohort=spec["cohort"],
             connector=conn,

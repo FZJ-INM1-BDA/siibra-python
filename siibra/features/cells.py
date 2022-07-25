@@ -18,13 +18,13 @@ from typing import List, Optional
 from .feature import RegionalFeature, CorticalProfile, RegionalFingerprint
 from .query import FeatureQuery
 
-from ..registry import REGISTRY
-from ..commons import logger, QUIET
+from ..registry import REGISTRY, Preconfigure
+from ..commons import logger, QUIET, create_key
 from ..core import Dataset
 from ..core.space import Point
 from ..core.datasets import DatasetJsonModel, EbrainsDataset
 from ..core.atlas import Atlas
-from ..retrieval import HttpRequest, GitlabConnector, OwncloudConnector, EbrainsKgQuery
+from ..retrieval import HttpRequest, GitlabConnector, OwncloudConnector, EbrainsKgQuery, SiibraHttpRequestError
 from ..openminds.base import ConfigBaseModel
 
 import numpy as np
@@ -32,7 +32,6 @@ import os
 import importlib
 import pandas as pd
 import nibabel as nib
-from collections import defaultdict
 from pydantic import Field
 from io import BytesIO
 from skimage.transform import resize
@@ -578,6 +577,7 @@ class CellDensityProfileQuery(FeatureQuery):
                     self.register(f)
 
 
+@Preconfigure("features/fingerprints/celldensity")
 class CellDensityFingerprint(RegionalFingerprint):
 
     DESCRIPTION = (
@@ -593,10 +593,13 @@ class CellDensityFingerprint(RegionalFingerprint):
         self,
         species: dict,
         regionname: str,
-        filepairs: str,
+        segmentfiles: list,
+        layerfiles: list,
+        dataset_id: str = None,
     ):
-        self._filepairs = filepairs
+        self._filepairs = list(zip(segmentfiles, layerfiles))
         self._densities = None
+        self.dataset_id = dataset_id
         RegionalFingerprint.__init__(
             self,
             measuretype="Layerwise cell density",
@@ -611,8 +614,13 @@ class CellDensityFingerprint(RegionalFingerprint):
         if self._densities is None:
             density_dict = {}
             for i, (cellfile, layerfile) in enumerate(self._filepairs):
-                cells = HttpRequest(cellfile, CELL_READER).data
-                layers = HttpRequest(layerfile, LAYER_READER).data
+                try:
+                    cells = HttpRequest(cellfile, func=CELL_READER).data
+                    layers = HttpRequest(layerfile, func=LAYER_READER).data
+                except SiibraHttpRequestError as e:
+                    print(str(e))
+                    logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
+                    continue
                 counts = cells.layer.value_counts()
                 areas = layers["Area(micron**2)"]
                 density_dict[i] = counts[areas.index] / areas * 100 ** 2 * 5
@@ -631,47 +639,25 @@ class CellDensityFingerprint(RegionalFingerprint):
     @property
     def _stds(self):
         return self.densities.std(axis=1).to_numpy()
+        
+    @property
+    def key(self):
+        assert len(self.species) == 1
+        return create_key("{}_{}_{}".format(
+            self.dataset_id,
+            self.species[0]['name'],
+            self.regionspec
+        ))
+
+    @classmethod
+    def _from_json(cls, spec):
+        assert spec.get('@type') == "siibra/resource/feature/fingerprint/celldensity/v1.0.0"
+        return cls(
+            species=spec['species'],
+            regionname=spec['region_name'],
+            segmentfiles=spec['segmentfiles'],
+            layerfiles=spec['layerfiles'],
+            dataset_id=spec['kgId']
+        )
 
 
-class CellDensityFingerprintQuery(FeatureQuery):
-
-    _FEATURETYPE = CellDensityFingerprint
-
-    SPECIES = [
-        {
-            "name": "Homo sapiens",
-            "@id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
-        }
-    ]
-
-    def __init__(self, **kwargs):
-        FeatureQuery.__init__(self)
-
-        query_result = EbrainsKgQuery(
-            query_id="siibra-cell-densities-0",
-            params={"vocab": "https://schema.hbp.eu/myQuery/"},
-        ).get()
-
-        # collect names of corresponding cell segmenation and layerinfo files per region
-        filepairs = defaultdict(list)
-        for result in query_result.get("results", []):
-            # dataset_id = result["@id"].split("/")[-1]
-            segment_files = [
-                fileinfo["url"]
-                for fileinfo in result["files"]
-                if fileinfo["name"] == "segments.txt"
-            ]
-            for regionname in result["regionspec"]:
-                for file_url in segment_files:
-                    filepairs[regionname].append(
-                        (file_url, file_url.replace("segments", "layerinfo"))
-                    )
-
-        # construct one fingerprint per region
-        for regionname, pairs in filepairs.items():
-            f = CellDensityFingerprint(
-                species=self.SPECIES,
-                regionname=regionname,
-                filepairs=pairs,
-            )
-            self.register(f)

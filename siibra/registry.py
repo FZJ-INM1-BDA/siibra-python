@@ -192,9 +192,10 @@ class Registry(TypedRegistry[Any]):
     pass
 
 
-class PreconfiguredObjects:
+class RegisteredObjects:
     """
-    Registry of preconfigured/bootstrapped objects of differenct siibra classes.
+    Registry of preconfigured/bootstrapped objects, as well as dynmically retrieved object,
+     of differenct siibra classes.
     For each class which is decorated by @Preconfigure (see below),
     a registry of predefined objects will be created.
     Only when first requested, the registry will be populated with objects
@@ -371,9 +372,9 @@ class Preconfigure:
                     "in order to use the @preconfigure decorator."
                 )
 
-        PreconfiguredObjects._folders[cls] = self.folder
+        RegisteredObjects._folders[cls] = self.folder
 
         return cls
 
 
-REGISTRY = PreconfiguredObjects()
+REGISTRY = RegisteredObjects()

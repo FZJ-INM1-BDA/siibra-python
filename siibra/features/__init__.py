@@ -20,7 +20,8 @@ from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnect
 from .voi import VolumeOfInterest
 from .genes import AllenBrainAtlasQuery
 from .ebrains import EbrainsRegionalFeatureQuery
-from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery, CellDensityFingerprintQuery
+from .cells import CellDensityFingerprint
+from .cells import RegionalCellDensityExtractor, CellDensityProfileQuery
 from .ieeg import IEEG_SessionQuery
 from .bigbrain import WagstylBigBrainProfileQuery
 # from .morphologies import NeuroMorphoQuery

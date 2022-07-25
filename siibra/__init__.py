@@ -26,7 +26,7 @@ logger.info(
 from .features import modalities, gene_names, get_features
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
-from .registry import REGISTRY, PreconfiguredObjects as _preconfigured_objects
+from .registry import REGISTRY, RegisteredObjects as _preconfigured_objects
 from .core.atlas import Atlas
 from .core.space import Space
 from .core.space import Point, PointSet, BoundingBox, Location as _location

@@ -14,10 +14,10 @@
 # limitations under the License.
 
 from .repositories import (
-    GitlabConnector, 
-    OwncloudConnector, 
-    EbrainsHdgConnector, 
-    EbrainsPublicDatasetConnector, 
+    GitlabConnector,
+    OwncloudConnector,
+    EbrainsHdgConnector,
+    EbrainsPublicDatasetConnector,
     LocalFileRepository,
     ZipfileConnector
 )
