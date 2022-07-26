@@ -26,7 +26,7 @@ import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
 from skimage import io
 import gzip
-from getpass import getpass
+import sys
 from io import BytesIO
 import urllib
 import pandas as pd
@@ -216,7 +216,7 @@ class EbrainsRequest(HttpRequest):
     _KG_API_TOKEN: str = None
     _IAM_ENDPOING: str = "https://iam.ebrains.eu/auth/realms/hbp"
     _IAM_DEVICE_ENDPOINT: str = None
-    _IAM_DEVICE_MAXTRIES = 5
+    _IAM_DEVICE_MAXTRIES = 12
     _IAM_DEVICE_POLLING_INTERVAL_SEC = 5
     _IAM_DEVICE_FLOW_CLIENTID = "siibra"
 
@@ -264,6 +264,10 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def device_flow(cls):
+        
+        if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
+            raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
+
         cls.init_oidc()
         resp = requests.post(
             url=cls._IAM_DEVICE_ENDPOINT,

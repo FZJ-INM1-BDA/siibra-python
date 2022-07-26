@@ -108,7 +108,7 @@ and To do so, please follow these steps:
    page <https://kg.humanbrainproject.eu/develop.html>`__.
 3. Let siibra fetch an authentication token by using
    `siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains 
-   authorization endpoint. Login, accept the requested detail.
+   login website. Login, and accept the requested detail.
 
 If you prefer not to use the device flow the commandline, you can
 also create your token by visiting `the EBRAINS authorization endpoint
