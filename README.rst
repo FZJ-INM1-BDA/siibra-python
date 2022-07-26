@@ -107,10 +107,10 @@ and To do so, please follow these steps:
    top of the `Knowledge Graph developer
    page <https://kg.humanbrainproject.eu/develop.html>`__.
 3. Let siibra fetch an authentication token by using
-   `siibra.fetch_ebrains_token()`. You will be asked for your EBRAINS username
-   and password, which will be transferred encrytped and not be stored.
+   `siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains 
+   authorization endpoint. Login, accept the requested detail.
 
-If you prefer not to pass your username/password on the commandline, you can
+If you prefer not to use the device flow the commandline, you can
 also create your token by visiting `the EBRAINS authorization endpoint
 <https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__. Copy the
 token, and either store it in the enviroment variable ``$HBP_AUTH_TOKEN`` or
