@@ -297,7 +297,6 @@ class ObjectRegistry:
                         ".json",
                         progress=f"Bootstrap: {registered_cls.__name__:15.15}",
                     )
-                    logger.info(f"Base configuration from {str(connector)}")
                     break
                 except Exception as e:
                     print(str(e))
