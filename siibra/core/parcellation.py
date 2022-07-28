@@ -19,7 +19,7 @@ from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
 from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
-from ..registry import Preconfigure, Registry, REGISTRY
+from ..registry import Preconfigure, ObjectLUT, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
 from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
@@ -318,7 +318,7 @@ class Parcellation(
 
     @property
     def spaces(self):
-        return Registry(
+        return ObjectLUT(
             matchfunc=Space.matches,
             elements={s.key: s for s in self.supported_spaces},
         )

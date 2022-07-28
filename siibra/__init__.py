@@ -23,10 +23,10 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-from .features import modalities, gene_names, get_features
+from .features import gene_names, get_features, modalities
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
-from .registry import REGISTRY, RegisteredObjects as _preconfigured_objects
+from .registry import REGISTRY, ObjectRegistry
 from .core.atlas import Atlas
 from .core.space import Space
 from .core.space import Point, PointSet, BoundingBox, Location as _location
@@ -38,7 +38,7 @@ from_sands = _location.from_sands
 set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
-use_configuration = _preconfigured_objects.use_configuration
+use_configuration = ObjectRegistry.use_configuration
 
 
 def __getattr__(attr):

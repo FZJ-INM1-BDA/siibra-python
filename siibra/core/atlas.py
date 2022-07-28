@@ -23,7 +23,7 @@ from .parcellation import Parcellation
 
 from ..registry import Preconfigure, REGISTRY
 from ..commons import MapType, logger
-from ..registry import TypedRegistry
+from ..registry import TypedObjectLUT
 from ..openminds.base import SiibraAtIdModel, ConfigBaseModel
 from ..openminds.controlledTerms.v1.species import Model as _SpeciesModel
 
@@ -114,7 +114,7 @@ class Atlas(
     @property
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
-        return TypedRegistry[Space](
+        return TypedObjectLUT[Space](
             elements={s.key: s for s in self._spaces},
             matchfunc=Space.match,
         )
@@ -122,7 +122,7 @@ class Atlas(
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return TypedRegistry[Parcellation](
+        return TypedObjectLUT[Parcellation](
             elements={p.key: p for p in self._parcellations},
             matchfunc=Parcellation.match,
         )

@@ -116,7 +116,7 @@ class LocalFileRepository(RepositoryConnector):
 
     class FileLoader:
         """
-        Just a loads a local file, but mimics the behaviour 
+        Just a loads a local file, but mimics the behaviour
         of cached http requests used in other connectors.
         """
         def __init__(self, file_url, decode_func):
@@ -264,7 +264,7 @@ class ZipfileConnector(RepositoryConnector):
 
     class FileLoader:
         """
-        Loads a file from the zip archive, but mimics the behaviour 
+        Loads a file from the zip archive, but mimics the behaviour
         of cached http requests used in other connectors.
         """
         def __init__(self, zipfile, filename, decode_func):
@@ -418,7 +418,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         self._description = ""
         self._name = ""
         self.use_version = None
-        
+
         stage = "IN_PROGRESS" if in_progress else "RELEASED"
         if title is None:
             assert dataset_id is not None
@@ -438,7 +438,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
                     raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets. Please refine your specification.")
             else:
                 raise RuntimeError(f"Dataset id {dataset_id} did not yield a unique match, please fix the dataset specification.")
-           
+
         data = results[0]
         self.id = data['id']
         if title is not None:

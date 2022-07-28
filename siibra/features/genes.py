@@ -17,7 +17,7 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..registry import Registry, REGISTRY
+from ..registry import ObjectLUT, REGISTRY
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
@@ -125,7 +125,7 @@ class GeneExpression(SpatialFeature):
 # provide a registry of gene names
 with resources.open_text("siibra.features", "gene_names.json") as f:
     _genes = json.load(f)
-GENE_NAMES = Registry()
+GENE_NAMES = ObjectLUT()
 list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
 
 

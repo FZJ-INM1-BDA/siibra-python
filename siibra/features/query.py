@@ -17,7 +17,7 @@ from siibra.core.serializable_concept import JSONSerializable
 from .feature import Feature
 
 from .. import logger
-from ..registry import TypedRegistry
+from ..registry import TypedObjectLUT
 from ..core import AtlasConcept, Dataset
 
 from abc import ABC
@@ -166,7 +166,7 @@ class FeatureQuery(ABC):
 
     @classmethod
     def get_modalities(cls):
-        return TypedRegistry[str](elements={c: c for c in cls._implementations.keys()})
+        return TypedObjectLUT[str](elements={c: c for c in cls._implementations.keys()})
 
     @classmethod
     def queries(cls, modality: str, **kwargs):

@@ -20,4 +20,4 @@ from .region import Region
 from .parcellation import Parcellation
 from .datasets import Dataset, OriginDescription, EbrainsDataset
 
-from ..registry import TypedRegistry
+from ..registry import TypedObjectLUT

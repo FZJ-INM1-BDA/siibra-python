@@ -48,7 +48,7 @@ class ConnectivityMatrixDataModel(ConfigBaseModel):
 
 
 # TODO: check if dataset_id is ebrains, then create the corresponding dataset
-# in general, it should be cleaner to model for all features an attribute wether the come from an EBRAINS dataset, 
+# in general, it should be cleaner to model for all features an attribute wether the come from an EBRAINS dataset,
 # instead of implementing additional classes of objects which are ebrainsdatasets.
 class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
@@ -272,7 +272,7 @@ class StreamlineCounts(ConnectivityMatrix):
         spectype = "siibra/resource/feature/connectivitymatrix/v1.0.0"
         assert spec.get("@type") == spectype
         conn = RepositoryConnector._from_json(spec['data']['repository'])
-        return cls( 
+        return cls(
             parcellation_id=spec["parcellation_id"],
             cohort=spec["cohort"],
             connector=conn,

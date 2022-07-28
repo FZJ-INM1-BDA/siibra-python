@@ -32,15 +32,15 @@ USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
 T = TypeVar('T')
 
 
-class TypedRegistry(Generic[T], Iterable):
+class TypedObjectLUT(Generic[T], Iterable):
     """
-    Provide attribute-access and iteration to a set of named elements,
+    Lookup table for objects by names. Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
     """
 
     def __init__(self, matchfunc=lambda a, b: a == b, elements=None):
         """
-        Build a glossary from a dictionary with string keys, for easy
+        Build an object lookup table from a dictionary with string keys, for easy
         attribute-like access, name autocompletion, and iteration.
         Matchfunc can be provided to enable inexact matching inside the index operator.
         It is a binary function, taking as first argument a value of the dictionary
@@ -127,12 +127,12 @@ class TypedRegistry(Generic[T], Iterable):
             )
             return largest
 
-    def __sub__(self, obj) -> 'TypedRegistry[T]':
+    def __sub__(self, obj) -> 'TypedObjectLUT[T]':
         """
         remove an object from the registry
         """
         if obj in self._elements.values():
-            return TypedRegistry[T](
+            return TypedObjectLUT[T](
                 self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
             )
         else:
@@ -188,13 +188,13 @@ class TypedRegistry(Generic[T], Iterable):
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
-class Registry(TypedRegistry[Any]):
+class ObjectLUT(TypedObjectLUT[Any]):
     pass
 
 
-class RegisteredObjects:
+class ObjectRegistry:
     """
-    Registry of preconfigured/bootstrapped objects, as well as dynmically retrieved object,
+    Registry of preconfigured and dynamically retrievable objects
      of differenct siibra classes.
     For each class which is decorated by @Preconfigure (see below),
     a registry of predefined objects will be created.
@@ -237,6 +237,7 @@ class RegisteredObjects:
 
     @classmethod
     def add_configuration(cls, conn: Union[str, RepositoryConnector]):
+        # FIXME This should add extensions to existing configurations instead of replacing them.
         if isinstance(conn, str):
             conn = LocalFileRepository(conn)
         logger.info(f"Adding configuration {str(conn)}")
@@ -257,7 +258,7 @@ class RegisteredObjects:
 
         # at this point we should not have a registry for this class yet, and will create it.
         assert registered_cls not in cls._objects
-        cls._objects[registered_cls] = TypedRegistry[registered_cls](matchfunc=registered_cls.match)
+        cls._objects[registered_cls] = TypedObjectLUT[registered_cls](matchfunc=registered_cls.match)
 
         # fill the registry with new bootstrapped object instances
         for connector in cls._CONNECTORS:
@@ -296,6 +297,10 @@ class RegisteredObjects:
                     f"Could not generate object of type {registered_cls} from configuration {fname}"
                 )
 
+    @property
+    def known_types(self):
+        return list(self._folders.keys())
+
     def __getitem__(self, cls):
         """
         Access predefined object registries by class, e.g.
@@ -308,7 +313,7 @@ class RegisteredObjects:
 
     def __getattr__(self, attr: str):
         """
-        Access pr3edefined object registries by attribute, e.g.
+        Access predefined object registries by attribute, e.g.
         REGISTRY.Atlas
         """
         classnames = {c.__name__: c for c in self}
@@ -372,9 +377,9 @@ class Preconfigure:
                     "in order to use the @preconfigure decorator."
                 )
 
-        RegisteredObjects._folders[cls] = self.folder
+        ObjectRegistry._folders[cls] = self.folder
 
         return cls
 
 
-REGISTRY = RegisteredObjects()
+REGISTRY = ObjectRegistry()

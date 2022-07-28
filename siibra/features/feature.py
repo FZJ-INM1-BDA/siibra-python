@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger, MapType, QUIET
-from ..registry import REGISTRY, TypedRegistry
+from ..registry import REGISTRY, TypedObjectLUT
 from ..core.atlas import Atlas
 from ..core.concept import AtlasConcept
 from ..core.space import Location, Space, Point, PointSet, BoundingBox
@@ -127,8 +127,6 @@ class Feature:
     Base class for all data features.
     """
 
-    SUBCLASSES = []
-
     def __init__(self):
         self._match = None
 
@@ -136,15 +134,12 @@ class Feature:
     def matched(self):
         return self._match is not None
 
-    def __init_subclass__(cls) -> None:
-        Feature.SUBCLASSES.append(cls)
-        return super().__init_subclass__()
-
     @classmethod
     def get_modalities(cls):
-        result = TypedRegistry[cls]()
-        for subcls in cls.SUBCLASSES:
-            if subcls in REGISTRY:
+        """ Returns a lookup table of registered feature subclasses. """
+        result = TypedObjectLUT[cls]()
+        for subcls in REGISTRY.known_types:
+            if issubclass(subcls, cls):
                 result.add(subcls.__name__, subcls)
         return result
 
@@ -207,6 +202,7 @@ class Feature:
         Retrieve data features of the desired modality.
         """
         modalities = cls.get_modalities()
+        print("modalities:", modalities)
         if isinstance(modality, str) and modality == 'all':
             requested_modalities = modalities.values()
         elif isinstance(modality, (list, tuple)):
@@ -236,9 +232,8 @@ class Feature:
         Queries features associated with a given atlas concept.
         """
         matches = []
-        instances = REGISTRY[cls]
         n = 0
-        for feature in instances:
+        for feature in REGISTRY[cls]:
             if feature.match(concept, **kwargs):
                 n += 1
                 matches.append(feature)
