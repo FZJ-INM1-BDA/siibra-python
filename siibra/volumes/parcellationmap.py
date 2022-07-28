@@ -25,7 +25,6 @@ from ..retrieval import CACHE, GitlabConnector
 import numpy as np
 from nibabel import Nifti1Image, funcs, load
 from nilearn import image
-from memoization import cached
 from tqdm import tqdm
 from abc import abstractmethod, ABC
 from typing import Union
@@ -614,7 +613,6 @@ class LabelledParcellationVolume(ParcellationVolume):
                 f"No maps found for {self.parcellation.name} in {self.space.name}"
             )
 
-    @cached
     def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
         m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
         if len(m.dataobj.shape) == 4:
@@ -632,7 +630,6 @@ class LabelledParcellationVolume(ParcellationVolume):
             m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine)
         return m
 
-    @cached
     def _collect_maps(self, resolution_mm, voi):
         """
         Build a 3D volume from the list of available regional maps.
@@ -739,7 +736,6 @@ class LabelledParcellationVolume(ParcellationVolume):
 
         return Nifti1Image(result, affine)
 
-    @cached
     def assign_coordinates(
         self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
     ):

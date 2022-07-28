@@ -30,7 +30,6 @@ from ..openminds.base import ConfigBaseModel, SiibraAtIdModel
 
 from datetime import date
 from typing import List, Optional, Set, Union
-from memoization import cached
 from difflib import SequenceMatcher
 from pydantic import Field
 
@@ -401,7 +400,6 @@ class Parcellation(
                 f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
             )
 
-    @cached
     def find_regions(
         self, regionspec, filter_children=False, build_group=False, groupname=None
     ):

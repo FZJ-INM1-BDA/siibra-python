@@ -39,7 +39,6 @@ from ..openminds.SANDS.v3.atlas.parcellationEntity import (
 
 import numpy as np
 import nibabel as nib
-from memoization import cached
 import re
 import anytree
 from typing import List, Union
@@ -181,7 +180,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         """
         return region == self or region in self.descendants
 
-    @cached
     def find(
         self,
         regionspec,
@@ -295,7 +293,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         else:
             return sorted(candidates, key=lambda r: r.depth)
 
-    @cached
     def matches(self, regionspec):
         """
         Checks wether this region matches the given region specification.
@@ -363,7 +360,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             c in self.parcellation for c in self.descendants
         )
 
-    @cached
     def build_mask(
         self,
         space: Space,
@@ -515,7 +511,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         """
         return self.get_regional_map(space, maptype) is not None
 
-    # @cached
     def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
         """
         Retrieves and returns a specific map of this region, if available
@@ -635,7 +630,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             for pre, _, node in anytree.RenderTree(self)
         )
 
-    @cached
     def get_bounding_box(
         self,
         space: Space,
@@ -735,7 +729,6 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         props = self.spatial_props(space)
         return [c["centroid"] for c in props["components"]]
 
-    @cached
     def spatial_props(
         self,
         space: Space,

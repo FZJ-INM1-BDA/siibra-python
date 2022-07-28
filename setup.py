@@ -45,7 +45,6 @@ setup(
         "appdirs",
         "scikit-image",
         "requests",
-        "memoization",
         "neuroglancer-scripts",
         "nilearn",
         'importlib-resources; python_version < "3.7"',
