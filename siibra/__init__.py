@@ -39,6 +39,7 @@ set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
 clear_cache = CACHE.clear
 use_configuration = ObjectRegistry.use_configuration
+extend_configuration = ObjectRegistry.extend_configuration
 
 
 def __getattr__(attr):

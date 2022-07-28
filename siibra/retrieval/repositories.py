@@ -79,8 +79,21 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return tqdm(
+            return list(tqdm(
                 result, total=len(fnames), desc=progress, disable=logger.level > 20
+            ))
+
+    @classmethod
+    def _from_url(cls, url: str):
+        expurl = path.abspath(path.expanduser(url))
+        if url.endswith(".zip"):
+            return ZipfileConnector(url)
+        elif path.isdir(expurl):
+            return LocalFileRepository(expurl)
+        else:
+            raise TypeError(
+                "Do not know how to create a repository "
+                f"connector from url '{url}'."
             )
 
     @classmethod
@@ -161,6 +174,7 @@ class LocalFileRepository(RepositoryConnector):
 
 
 class GitlabConnector(RepositoryConnector):
+
     def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):
         # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert server.startswith("http")
@@ -237,8 +251,8 @@ class ZipfileConnector(RepositoryConnector):
 
     def __init__(self, url: str):
         RepositoryConnector.__init__(self, base_url="")
-        if path.isfile(path.expanduser(url)):
-            self.zipfile = path.expanduser(url)
+        if path.isfile(path.abspath(path.expanduser(url))):
+            self.zipfile = path.abspath(path.expanduser(url))
         else:
             # assume the url is web URL to download the zip!
             req = HttpRequest(url)
@@ -284,6 +298,9 @@ class ZipfileConnector(RepositoryConnector):
         if decode_func is None:
             decode_func = lambda b: self._decode_response(b, filename)
         return self.FileLoader(self.zipfile, filename, decode_func)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.zipfile}"
 
 
 class OwncloudConnector(RepositoryConnector):

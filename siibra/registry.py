@@ -18,7 +18,6 @@ from .commons import logger, QUIET
 from .retrieval.repositories import (
     GitlabConnector,
     RepositoryConnector,
-    LocalFileRepository,
 )
 from .retrieval.exceptions import (
     NoSiibraConfigMirrorsAvailableException,
@@ -229,7 +228,7 @@ class ObjectRegistry:
 
     _objects = {}
 
-    _CONNECTORS = [
+    _CONFIGURATIONS = [
         GitlabConnector(
             "https://jugit.fz-juelich.de",
             3484,
@@ -244,20 +243,21 @@ class ObjectRegistry:
         ),
     ]
 
-    @classmethod
-    def add_configuration(cls, conn: Union[str, RepositoryConnector]):
-        # FIXME This should add extensions to existing configurations instead of replacing them.
-        if isinstance(conn, str):
-            conn = LocalFileRepository(conn)
-        logger.info(f"Adding configuration {str(conn)}")
-        cls._CONNECTORS.insert(0, conn)
+    _CONFIGURATION_EXTENSIONS = []
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
-            conn = LocalFileRepository(conn)
-        logger.info(f"Using configuration: {str(conn)}")
-        cls._CONNECTORS = [conn]
+            conn = RepositoryConnector._from_url(conn)
+        logger.info(f"Adding configuration {str(conn)}")
+        cls._CONFIGURATIONS.insert(0, conn)
+
+    @classmethod
+    def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
+        if isinstance(conn, str):
+            conn = RepositoryConnector._from_url(conn)
+        logger.info(f"Extending configuration with {str(conn)}")
+        cls._CONFIGURATION_EXTENSIONS.append(conn)
 
     @classmethod
     def register_preconfiguration(cls, folder: str, configured_class: type):
@@ -290,20 +290,21 @@ class ObjectRegistry:
         if registered_cls in cls._preconfiguration_folders:
 
             # get object loaders from siibra configuration
-            for connector in cls._CONNECTORS:
+            for connector in cls._CONFIGURATIONS:
                 try:
                     loaders = connector.get_loaders(
                         cls._preconfiguration_folders[registered_cls],
                         ".json",
                         progress=f"Bootstrap: {registered_cls.__name__:15.15}",
                     )
+                    logger.info(f"Base configuration from {str(connector)}")
                     break
                 except Exception as e:
                     print(str(e))
                     logger.error(
                         f"Cannot connect to configuration server {str(connector)}"
                     )
-                    *_, last = cls._CONNECTORS
+                    *_, last = cls._CONFIGURATIONS
                     if connector is last:
                         raise NoSiibraConfigMirrorsAvailableException(
                             "Tried all mirrors, none available."
@@ -314,15 +315,42 @@ class ObjectRegistry:
                     f"Cannot bootstrap '{registered_cls.__name__}' objects: No configuration data found for '{GITLAB_PROJECT_TAG}'."
                 )
 
+            num_default_loaders = len(loaders)
+
+            # add configuration extensions
+            for connector in cls._CONFIGURATION_EXTENSIONS:
+                try:
+                    extloaders = connector.get_loaders(
+                        cls._preconfiguration_folders[registered_cls],
+                        ".json",
+                        progress=f"Bootstrap: {registered_cls.__name__:15.15}",
+                    )
+                except Exception as e:
+                    print(str(e))
+                    logger.error(f"Cannot connect to configuration extension {str(connector)}")
+                    continue
+                loaders.extend(extloaders)
+
             # boostrap the preconfigured objects
-            with QUIET:
-                for fname, loader in loaders:
-                    obj = registered_cls._from_json(loader.data)
-                    if not isinstance(obj, registered_cls):
-                        raise RuntimeError(
-                            f"Could not instantiate {registered_cls} object from '{fname}'"
+            for i, (fname, loader) in enumerate(loaders):
+                obj = registered_cls._from_json(loader.data)
+                if not isinstance(obj, registered_cls):
+                    raise RuntimeError(
+                        f"Could not instantiate {registered_cls} object from '{fname}'"
+                    )
+                objkey = obj.key if hasattr(obj, 'key') else obj.__hash__()
+                if i >= num_default_loaders:
+                    if objkey in cls._objects[key]:
+                        logger.info(
+                            f"Extension updates existing {registered_cls.__name__} "
+                            f"({os.path.basename(fname)})"
                         )
-                    cls._objects[key].add(obj.key, obj)
+                    else:
+                        logger.info(
+                            f"Extension specifies new {registered_cls.__name__} "
+                            f"({os.path.basename(fname)})"
+                        )
+                cls._objects[key].add(objkey, obj)
 
     @classmethod
     def initialize_queries(cls, registered_cls: type, params: List[Tuple]):
@@ -447,12 +475,11 @@ class Preconfigure:
 
     FUNCS_REQUIRED = {"_from_json": None, "match": match}
 
-    PROPS_REQUIRED = ["key"]
-
     def __init__(self, folder):
         self.folder = folder
 
     def __call__(self, cls):
+
         for fncname, defaultfnc in self.FUNCS_REQUIRED.items():
             if not (hasattr(cls, fncname)):
                 if defaultfnc is None:
@@ -462,13 +489,6 @@ class Preconfigure:
                     )
                 else:
                     setattr(cls, fncname, defaultfnc)
-
-        for prop in self.PROPS_REQUIRED:
-            if not hasattr(cls, prop):
-                raise TypeError(
-                    f"Class '{cls.__name__}' needs to specifically implement '{prop}' property "
-                    "in order to use the @preconfigure decorator."
-                )
 
         ObjectRegistry.register_preconfiguration(self.folder, cls)
 
