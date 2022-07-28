@@ -399,39 +399,60 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
     maxentries = 1000
 
-    def __init__(self, dataset_id, in_progress=False):
+    def __init__(self, dataset_id: str = None, title: str = None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
         ----------
         dataset_id : str
             EBRAINS dataset id of a public dataset in KG v3.
+        title: str
+            Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
             Will only work when autenticated with an appropriately privileged
             user account.
         """
         self.dataset_id = dataset_id
-        stage = "IN_PROGRESS" if in_progress else "RELEASED"
-        url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
-        result = EbrainsRequest(url, DECODERS[".json"]).get()
         self.versions = {}
         self._description = ""
         self._name = ""
         self.use_version = None
-        assert len(result["data"]) < 2
-        if len(result["data"]) == 1:
-            data = result["data"][0]
-            self._description += data.get("description", "")
-            self._name += data.get("name", "")
-            self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
-            self.use_version = sorted(list(self.versions.keys()))[-1]
-            if len(self.versions) > 1:
-                logger.info(
-                    f"Found {len(self.versions)} versions for dataset '{data['name']}' "
-                    f"({', '.join(self.versions.keys())}). "
-                    f"Will use {self.use_version} per default."
-                )
+        
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        if title is None:
+            assert dataset_id is not None
+            self.dataset_id = dataset_id
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
+        else:
+            assert dataset_id is None
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&title={title}"
+
+        response = EbrainsRequest(url, DECODERS[".json"]).get()
+        results = response.get('data', [])
+        if len(results) != 1:
+            if dataset_id is None:
+                for r in results:
+                    print(r['name'])
+                    raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets. Please refine your specification.")
+            else:
+                raise RuntimeError(f"Dataset id {dataset_id} did not yield a unique match, please fix the dataset specification.")
+           
+        data = results[0]
+        self.id = data['id']
+        if title is not None:
+            self.dataset_id = data['id']
+        self._description += data.get("description", "")
+        self._name += data.get("name", "")
+        self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
+        self.use_version = sorted(list(self.versions.keys()))[-1]
+        if len(self.versions) > 1:
+            logger.info(
+                f"Found {len(self.versions)} versions for dataset '{data['name']}' "
+                f"({', '.join(self.versions.keys())}). "
+                f"Will use {self.use_version} per default."
+            )
 
     @property
     def name(self):
@@ -500,46 +521,51 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
 class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
     """Access files from public EBRAINS datasets via the Knowledge Graph v3 API."""
 
-    QUERY_ID = "siibra-dataset-by-id-minds"
+    QUERY_ID = "siibra-minds-dataset-v1"
     base_url = "https://kg.humanbrainproject.eu/query/minds/core/dataset/v1.0.0"
     maxentries = 1000
 
-    def __init__(self, dataset_id, in_progress=False):
+    def __init__(self, dataset_id=None, title=None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
         ----------
         dataset_id : str
             EBRAINS dataset id of a public dataset in KG v3.
+        title: str
+            Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
             Will only work when autenticated with an appropriately privileged
             user account.
         """
-        self.dataset_id = dataset_id
         stage = "IN_PROGRESS" if in_progress else "RELEASED"
-        url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
-        response = EbrainsRequest(url, DECODERS[".json"]).get()
-        results = response.get('results', [])
-        assert len(results) == 1
-        data = results[0]
-        self.name = data['name']
-        self.description = data['description']
-        self.id = data['@id']
-        self._container = data['container_url_2']
-
-    def __getattr__(self, name):
-        if name in self._data:
-            return self._data[name]
-
-    @property
-    def _files(self):
-        if self.use_version in self.versions:
-            return {
-                f["name"]: f["url"] for f in self.versions[self.use_version]["files"]
-            }
+        if title is None:
+            assert dataset_id is not None
+            self.dataset_id = dataset_id
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
         else:
-            return {}
+            assert dataset_id is None
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&title={title}"
+        req = EbrainsRequest(url, DECODERS[".json"])
+        print(req.cachefile)
+        response = req.get()
+        self._files = {}
+        results = response.get('results', [])
+        if dataset_id is not None:
+            assert len(results) < 2
+        elif len(results) > 1:
+            for r in results:
+                print(r.keys())
+                print(r['name'])
+            raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets, see above. Please refine your specification.")
+        for res in results:
+            if title is not None:
+                self.dataset_id = res['id']
+            self.id = res['id']
+            for fileinfo in res['https://schema.hbp.eu/myQuery/v1.0.0']:
+                self._files[fileinfo['relative_path']] = fileinfo['path']
 
     def search_files(self, folder="", suffix=None, recursive=False):
         result = []
