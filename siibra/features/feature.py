@@ -202,7 +202,6 @@ class Feature:
         Retrieve data features of the desired modality.
         """
         modalities = cls.get_modalities()
-        print("modalities:", modalities)
         if isinstance(modality, str) and modality == 'all':
             requested_modalities = modalities.values()
         elif isinstance(modality, (list, tuple)):
@@ -215,29 +214,17 @@ class Feature:
                 requested_modalities = []
 
         result = []
-        for modality in requested_modalities:
-            logger.info(f"Querying {modality.__name__} features...")
-            features = modality.query(concept)
-            result.extend(features)
+        for object_type in requested_modalities:
+            for feature in REGISTRY.get_objects(object_type, **kwargs):
+                if feature.match(concept, **kwargs):
+                    result.append(feature)
+
         return result
 
     @classmethod
     def get_feature_by_id(cls, feature_id: str):
         # FIXME implement this
         pass
-
-    @classmethod
-    def query(cls, concept, **kwargs):
-        """
-        Queries features associated with a given atlas concept.
-        """
-        matches = []
-        n = 0
-        for feature in REGISTRY[cls]:
-            if feature.match(concept, **kwargs):
-                n += 1
-                matches.append(feature)
-        return matches
 
 
 class SpatialFeature(Feature):

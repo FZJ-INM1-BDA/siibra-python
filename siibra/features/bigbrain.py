@@ -121,7 +121,7 @@ class BigBrainIntensityProfile(CorticalProfile):
         self.location = location
 
 
-class WagstylBigBrainProfileQuery(FeatureQuery):
+class WagstylBigBrainProfileQuery(FeatureQuery, parameters=[]):
 
     _FEATURETYPE = BigBrainIntensityProfile
 
@@ -140,7 +140,7 @@ class WagstylBigBrainProfileQuery(FeatureQuery):
                 boundaries=boundary_depths[idx, :],
                 location=Point(bbcoords[idx, :], REGISTRY.Space['bigbrain'])
             )
-            self.register(p)
+            self.add_feature(p)
 
 
 class BigBrainIntensityFingerprint(RegionalFingerprint):
@@ -175,7 +175,7 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         )
 
 
-class WagstylBigBrainIntensityFingerprintQuery(FeatureQuery):
+class WagstylBigBrainIntensityFingerprintQuery(FeatureQuery, parameters=[]):
 
     _FEATURETYPE = BigBrainIntensityFingerprint
 
@@ -201,4 +201,4 @@ class WagstylBigBrainIntensityFingerprintQuery(FeatureQuery):
                 means=[region_profiles[region_labels == _].mean() for _ in range(1, 7)],
                 stds=[region_profiles[region_labels == _].std() for _ in range(1, 7)],
             )
-            self.register(p)
+            self.add_feature(p)

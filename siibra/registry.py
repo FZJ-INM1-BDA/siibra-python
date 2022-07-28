@@ -15,12 +15,19 @@
 
 from . import __version__
 from .commons import logger, QUIET
-from .retrieval.repositories import GitlabConnector, RepositoryConnector, LocalFileRepository
-from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException
+from .retrieval.repositories import (
+    GitlabConnector,
+    RepositoryConnector,
+    LocalFileRepository,
+)
+from .retrieval.exceptions import (
+    NoSiibraConfigMirrorsAvailableException,
+    TagNotFoundException,
+)
 
 import os
-from typing import Any, Generic, Iterable, Iterator, List, TypeVar, Union
-
+from typing import Any, Generic, Iterable, Iterator, List, TypeVar, Union, Tuple
+from collections import defaultdict
 
 # Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
 GITLAB_PROJECT_TAG = os.getenv(
@@ -29,7 +36,7 @@ GITLAB_PROJECT_TAG = os.getenv(
 USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class TypedObjectLUT(Generic[T], Iterable):
@@ -57,14 +64,13 @@ class TypedObjectLUT(Generic[T], Iterable):
             self._elements = elements
         self._matchfunc = matchfunc
 
-    def add(self, key: str, value: T) -> None:
+    def add(self, key: Union[str, int], value: T) -> None:
         """Add a key/value pair to the registry.
 
         Args:
             key (string): Unique name or key of the object
             value (object): The registered object
         """
-        assert isinstance(key, str)
         if key in self._elements:
             logger.error(
                 f"Key {key} already in {__class__.__name__}, existing value will be replaced."
@@ -127,7 +133,7 @@ class TypedObjectLUT(Generic[T], Iterable):
             )
             return largest
 
-    def __sub__(self, obj) -> 'TypedObjectLUT[T]':
+    def __sub__(self, obj) -> "TypedObjectLUT[T]":
         """
         remove an object from the registry
         """
@@ -217,7 +223,10 @@ class ObjectRegistry:
     Configurations are by default fetched from the siibra-configurations repository maintained at Forschungszentrum Jülich.
     """
 
-    _folders = {}
+    _preconfiguration_folders = {}
+    _dynamic_query_types = defaultdict(set)
+    _dynamic_queries = defaultdict(set)
+
     _objects = {}
 
     _CONNECTORS = [
@@ -251,82 +260,169 @@ class ObjectRegistry:
         cls._CONNECTORS = [conn]
 
     @classmethod
-    def bootstrap(cls, registered_cls):
+    def register_preconfiguration(cls, folder: str, configured_class: type):
+        """
+        Adds a configuration folder with specifications for bootstrapping
+        preconfigured objects of the given class.
+        """
+        cls._preconfiguration_folders[configured_class] = folder
 
-        # at this point we have to know the bootstrap folder of the given class
-        assert registered_cls in cls._folders
+    @classmethod
+    def register_object_query(cls, query: type, queried_class: type):
+        """
+        Adds a dynamic query type which produces
+        objects of the given class when called.
+        """
+        cls._dynamic_query_types[queried_class].add(query)
+
+    @classmethod
+    def preconfigure_instances(cls, registered_cls):
+
+        key = (registered_cls, ())
 
         # at this point we should not have a registry for this class yet, and will create it.
-        assert registered_cls not in cls._objects
-        cls._objects[registered_cls] = TypedObjectLUT[registered_cls](matchfunc=registered_cls.match)
+        assert key not in cls._objects
+        cls._objects[key] = TypedObjectLUT[registered_cls](
+            matchfunc=registered_cls.match
+        )
 
-        # fill the registry with new bootstrapped object instances
-        for connector in cls._CONNECTORS:
-            try:
-                loaders = connector.get_loaders(
-                    cls._folders[registered_cls],
-                    ".json",
-                    progress=f"Bootstrap: {registered_cls.__name__:15.15}",
-                )
-                break
-            except Exception as e:
-                print(str(e))
-                logger.error(f"Cannot connect to configuration server {str(connector)}")
-                *_, last = cls._CONNECTORS
-                if connector is last:
-                    raise NoSiibraConfigMirrorsAvailableException(
-                        "Tried all mirrors, none available."
+        # bootstrap preconfigured objects
+        if registered_cls in cls._preconfiguration_folders:
+
+            # get object loaders from siibra configuration
+            for connector in cls._CONNECTORS:
+                try:
+                    loaders = connector.get_loaders(
+                        cls._preconfiguration_folders[registered_cls],
+                        ".json",
+                        progress=f"Bootstrap: {registered_cls.__name__:15.15}",
                     )
-
-        else:
-            # we get here only if the loop is not broken
-            raise TagNotFoundException(
-                f"Cannot bootstrap '{registered_cls.__name__}' objects: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-            )
-
-        with QUIET:
-            for fname, loader in loaders:
-                obj = registered_cls._from_json(loader.data)
-                if isinstance(obj, registered_cls):
-                    if not hasattr(obj, 'key'):
-                        print(obj.key)
-                        raise Exception
-                    cls._objects[registered_cls].add(obj.key, obj)
-                    continue
-                raise RuntimeError(
-                    f"Could not generate object of type {registered_cls} from configuration {fname}"
+                    break
+                except Exception as e:
+                    print(str(e))
+                    logger.error(
+                        f"Cannot connect to configuration server {str(connector)}"
+                    )
+                    *_, last = cls._CONNECTORS
+                    if connector is last:
+                        raise NoSiibraConfigMirrorsAvailableException(
+                            "Tried all mirrors, none available."
+                        )
+            else:
+                # we get here only if the loop is not broken
+                raise TagNotFoundException(
+                    f"Cannot bootstrap '{registered_cls.__name__}' objects: No configuration data found for '{GITLAB_PROJECT_TAG}'."
                 )
+
+            # boostrap the preconfigured objects
+            with QUIET:
+                for fname, loader in loaders:
+                    obj = registered_cls._from_json(loader.data)
+                    if not isinstance(obj, registered_cls):
+                        raise RuntimeError(
+                            f"Could not instantiate {registered_cls} object from '{fname}'"
+                        )
+                    cls._objects[key].add(obj.key, obj)
+
+    @classmethod
+    def initialize_queries(cls, registered_cls: type, params: List[Tuple]):
+
+        key = (registered_cls, params)
+        if key in cls._dynamic_queries:
+            # this cls/params pair has already been initialized
+            return
+
+        for Querytype in cls._dynamic_query_types[registered_cls]:
+            if not all(p in dict(params) for p in Querytype._parameters):
+                raise AttributeError(
+                    f"Parameter specification missing for querying '{registered_cls.__name__}' "
+                    f"objects (required: {', '.join(Querytype._parameters)})"
+                )
+            logger.info(f"Building new query {Querytype} with parameters {params}")
+            try:
+                cls._dynamic_queries[key].add(Querytype(**dict(params)))
+            except TypeError as e:
+                logger.error(f"Cannot initialize {Querytype} query: {str(e)}")
+                raise (e)
 
     @property
     def known_types(self):
-        return list(self._folders.keys())
+        return set(self._preconfiguration_folders) | set(self._dynamic_query_types)
 
-    def __getitem__(self, cls):
+    def get_objects(self, object_type, **kwargs):
         """
-        Access predefined object registries by class, e.g.
-        REGISTRY[Atlas]
+        Retrieve objects by type
         """
-        assert cls in self._folders
-        if cls not in self._objects:
-            self.bootstrap(cls)
-        return self._objects[cls]
 
-    def __getattr__(self, attr: str):
-        """
-        Access predefined object registries by attribute, e.g.
-        REGISTRY.Atlas
-        """
-        classnames = {c.__name__: c for c in self}
-        if attr in classnames:
-            return self.__getitem__(classnames[attr])
-        else:
-            raise AttributeError(
-                f"No predefined instances of {attr} found, only have "
-                f"{', '.join(classnames)}."
+        if object_type not in self.known_types:
+            logger.warn(f"No objects of type '{object_type.__name__}' known.")
+            return None
+
+        params = tuple(sorted(kwargs.items()))
+        key = (object_type, params)
+
+        # start with preconfigured objects
+        if object_type in self._preconfiguration_folders and key not in self._objects:
+            self.preconfigure_instances(object_type)
+
+        if key not in self._objects:
+            self._objects[key] = TypedObjectLUT[object_type](
+                matchfunc=object_type.match
             )
 
-    def __iter__(self):
-        return iter(self._folders.keys())
+        # extend by objects from dynamic queries
+        self.initialize_queries(object_type, params)
+        for Querytype in self._dynamic_query_types[object_type]:
+            assert hasattr(Querytype, "_parameters")
+            for query in self._dynamic_queries[key]:
+                for obj in query.features:
+                    objkey = obj.key if hasattr(obj, "key") else obj.__hash__()
+                    self._objects[key].add(objkey, obj)
+
+        return self._objects[key]
+
+    def __getattr__(self, classname: str):
+        """
+        Access predefined object registries by class name, e.g.
+        REGISTRY.Atlas.
+        For objects which are dynamically produced by parameterized queries,
+        a function of the parameters is returned instead of a registry.
+        You might want to use get_objects(type, parameters) for those for better readability.
+        """
+        classnames = {c.__name__: c for c in self.known_types}
+        if classname not in classnames:
+            raise AttributeError(
+                f"No objects of type '{classname}' found. Use one of "
+                f"{', '.join(classnames)}."
+            )
+        return self[classnames[classname]]
+
+    def __getitem__(self, object_type):
+        """
+        Access predefined object registries by class, e.g.
+        REGISTRY[Atlas].
+        For objects which are dynamically produced by parameterized queries,
+        a function of the parameters is returned instead of a registry.
+        You might want to use get_objects(type, parameters) for those for better readability.
+        """
+        if object_type in self._preconfiguration_folders:
+            return self.get_objects(object_type)
+
+        if object_type in self._dynamic_query_types:
+            querytypes = self._dynamic_query_types[object_type]
+            assert all(hasattr(_, "_parameters") for _ in querytypes)
+            params = [p for _ in querytypes for p in _._parameters]
+            if len(params) > 0:
+                logger.warn(
+                    f"Retrieval of '{object_type.__name__}' objects requires parameters "
+                    f"({', '.join(params)}). A function of these parameters is returned "
+                    "instead of an object lookup table."
+                )
+                return lambda **kwargs: self.get_objects(object_type, **kwargs)
+            else:
+                return self.get_objects(object_type)
+
+        raise AttributeError(f"No objects of type '{object_type.__name__}' known.")
 
 
 class Preconfigure:
@@ -349,10 +445,7 @@ class Preconfigure:
         but may be overriden by decorated classes."""
         return self == specification
 
-    FUNCS_REQUIRED = {
-        "_from_json": None, 
-        "match": match
-    }
+    FUNCS_REQUIRED = {"_from_json": None, "match": match}
 
     PROPS_REQUIRED = ["key"]
 
@@ -370,14 +463,14 @@ class Preconfigure:
                 else:
                     setattr(cls, fncname, defaultfnc)
 
-        for prop in self.PROPS_REQUIRED:                
+        for prop in self.PROPS_REQUIRED:
             if not hasattr(cls, prop):
                 raise TypeError(
                     f"Class '{cls.__name__}' needs to specifically implement '{prop}' property "
                     "in order to use the @preconfigure decorator."
                 )
 
-        ObjectRegistry._folders[cls] = self.folder
+        ObjectRegistry.register_preconfiguration(self.folder, cls)
 
         return cls
 

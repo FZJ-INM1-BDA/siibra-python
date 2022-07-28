@@ -57,7 +57,7 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
         return EbrainsDataset.__eq__(self, o)
 
 
-class EbrainsRegionalFeatureQuery(FeatureQuery):
+class EbrainsRegionalFeatureQuery(FeatureQuery, parameters=[]):
 
     _FEATURETYPE = EbrainsRegionalDataset
 
@@ -75,7 +75,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
     }
 
     def __init__(self, **kwargs):
-        FeatureQuery.__init__(self)
+        FeatureQuery.__init__(self, **kwargs)
 
         loader = EbrainsKgQuery(
             query_id="siibra-kg-feature-summary-0_0_4",
@@ -157,7 +157,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
 
                 version_match = self.VERSION_PATTERN.search(ds_name)
                 if version_match is None or (not self.COMPACT_FEATURE_LIST):
-                    self.register(dset)
+                    self.add_feature(dset)
                 else:
                     # store version, add only the latest version after the loop
                     name, version = version_match.groups()
@@ -184,7 +184,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery):
                 prev = curr
 
             # register the last recent one
-            self.register(curr)
+            self.add_feature(curr)
             logger.debug(
                 f"Registered only version {version} of {', '.join(sorted_versions)} for {name}. "
                 f"Its version history is: {curr.version_history}"

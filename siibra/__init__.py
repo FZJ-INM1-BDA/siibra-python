@@ -43,11 +43,11 @@ use_configuration = ObjectRegistry.use_configuration
 
 def __getattr__(attr):
     if attr == "atlases":
-        return REGISTRY[Atlas]
+        return REGISTRY.Atlas
     elif attr == "parcellations":
-        return REGISTRY[Parcellation]
+        return REGISTRY.Parcellation
     elif attr == "spaces":
-        return REGISTRY[Space]
+        return REGISTRY.Space
     else:
         raise AttributeError
 

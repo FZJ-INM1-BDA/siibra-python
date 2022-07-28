@@ -129,7 +129,7 @@ GENE_NAMES = ObjectLUT()
 list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
 
 
-class AllenBrainAtlasQuery(FeatureQuery):
+class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
     """
     Interface to Allen Human Brain Atlas microarray data.
 
@@ -189,9 +189,9 @@ class AllenBrainAtlasQuery(FeatureQuery):
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
-        FeatureQuery.__init__(self)
+        FeatureQuery.__init__(self, **kwargs)
 
-        self.gene = kwargs.get("gene", None)
+        self.gene = kwargs['gene']
         self._specimen = {}
         self.factors = {}
 
@@ -294,7 +294,7 @@ class AllenBrainAtlasQuery(FeatureQuery):
             ).T
 
             # Create the spatial feature
-            self.register(
+            self.add_feature(
                 GeneExpression(
                     self.gene,
                     Point(icbm_coord, REGISTRY.Space.MNI152_2009C_NONL_ASYM),
