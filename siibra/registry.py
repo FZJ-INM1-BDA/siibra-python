@@ -228,7 +228,7 @@ class ObjectRegistry:
 
     _objects = {}
 
-    _CONFIGURATIONS = [
+    _CONFIGURATIONS: List[RepositoryConnector] = [
         GitlabConnector(
             "https://jugit.fz-juelich.de",
             3484,
@@ -243,19 +243,23 @@ class ObjectRegistry:
         ),
     ]
 
-    _CONFIGURATION_EXTENSIONS = []
+    _CONFIGURATION_EXTENSIONS: List[RepositoryConnector] = []
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
-        logger.info(f"Adding configuration {str(conn)}")
-        cls._CONFIGURATIONS.insert(0, conn)
+        if not isinstance(conn, RepositoryConnector):
+            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
+        logger.info(f"Using configuration {str(conn)}")
+        cls._CONFIGURATIONS = [ conn ]
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
+        if not isinstance(conn, RepositoryConnector):
+            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls._CONFIGURATION_EXTENSIONS.append(conn)
 
