@@ -15,7 +15,7 @@
 
 from .. import logger
 from ..commons import MapType
-from ..registry import REGISTRY
+from ..registry import REGISTRY, Preconfigure
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.datasets import Dataset, DatasetJsonModel
 from ..core.space import Space, BoundingBox, PointSet
@@ -55,6 +55,7 @@ class VolumeModel(DatasetJsonModel):
     data: VolumeDataModel
 
 
+@Preconfigure("maps")
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
 
     _SPECIALISTS = {}
@@ -126,36 +127,50 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         Provides an object hook for the json library to construct a VolumeSrc
         object from a json stream.
         """
-        if obj.get("@type") != "fzj/tmp/volume_type/v0.0.1":
+
+        valid_types = (
+            "fzj/tmp/volume_type/v0.0.1",
+            "fzj/tmp/volume_type/v0.0.2",
+        )
+
+        if obj.get("@type") not in valid_types:
             raise NotImplementedError(
                 f"Cannot build VolumeSrc from this json spec: {obj}"
             )
 
-        try:
-            volume_type = obj["volume_type"]
-            url = obj["url"]
-            space_id = obj["space_id"]
-        except KeyError:
-            print(obj)
-            raise KeyError("Malformed volumeSrc specification")
+        identifier = obj.get("@id")
+        name = obj.get("name")
+        url = obj.get("url")
+        space = None
         detail = obj.get("detail")
-        space = REGISTRY.Space[space_id]
-        transform_nm = np.identity(4)
-        if detail is not None and "neuroglancer/precomputed" in detail:
-            if "transform" in detail["neuroglancer/precomputed"]:
-                transform_nm = np.array(detail["neuroglancer/precomputed"]["transform"])
+
+        volume_type = obj.get("volume_type")
+
+        if obj.get("@type") == "fzj/tmp/volume_type/v0.0.2":
+            space = REGISTRY[Space][obj.get("space").get("@id")]
+            
+
+        if obj.get("@type") == "fzj/tmp/volume_type/v0.0.1":
+            space = REGISTRY[Space][obj.get("space_id")]
+
+            transform_nm = np.identity(4)
+            if detail is not None and "neuroglancer/precomputed" in detail:
+                if "transform" in detail["neuroglancer/precomputed"]:
+                    transform_nm = np.array(detail["neuroglancer/precomputed"]["transform"])
+            kwargs = {
+                "transform_nm": transform_nm,
+                "zipped_file": obj.get("zipped_file", None),
+            }
+            
 
         # decide if object should be generated with a specialized derived class
         VolumeClass = cls._SPECIALISTS.get(volume_type, cls)
-        kwargs = {
-            "transform_nm": transform_nm,
-            "zipped_file": obj.get("zipped_file", None),
-        }
+
         if VolumeClass == cls:
             logger.error(f"Volume will be generated as plain VolumeSrc: {obj}")
         result = VolumeClass(
-            identifier=obj["@id"],
-            name=obj["name"],
+            identifier=identifier,
+            name=name,
             url=url,
             space=space,
             detail=detail,

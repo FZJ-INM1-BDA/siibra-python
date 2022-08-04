@@ -296,6 +296,7 @@ class ObjectRegistry:
                         cls._preconfiguration_folders[registered_cls],
                         ".json",
                         progress=f"Bootstrap: {registered_cls.__name__:15.15}",
+                        recursive=True,
                     )
                     break
                 except Exception as e:
