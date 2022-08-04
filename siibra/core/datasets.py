@@ -13,16 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import hashlib
 from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
 from ..openminds.core.v4.products.datasetVersion import Model as DatasetVersionModel
 from ..openminds.base import ConfigBaseModel
+from ..registry import Preconfigure, REGISTRY
 
+import hashlib
 import re
 from datetime import date
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pydantic import Field
 
 
@@ -181,11 +182,12 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
             description=spec.get("description"),
             urls=spec.get("url", []),
         )
-
-
+    
+@Preconfigure("features/ebrainsquery/v1")
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
-    def __init__(self, id, name, embargo_status=None):
+    def __init__(self, id, name, embargo_status=None, *, cached_data=None):
         Dataset.__init__(self, id, description=None)
+        self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
         self._detail = None
@@ -205,6 +207,8 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
 
     @property
     def detail(self):
+        if self._cached_data:
+            return self._cached_data
         return self._detail_loader.data
 
     @property
@@ -252,10 +256,31 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
 
     @classmethod
     def _from_json(cls, spec):
-        type_id = cls.extract_type_id(spec)
-        assert type_id == cls.type_id
+        """the _from_json method from EbrainsDataset can be called in two instances:
+        1/ when core concepts are being initialized
+        2/ when boostraped from configuration
+        """
+
+        only_id_flag = False
+        # when constructed from core concepts, directly fetch from registry
+        if all(key in spec for key in ("@type", "kgSchema", "kgId")):
+            only_id_flag = True
+            try:
+                return REGISTRY[EbrainsDataset][spec.get("kgId")]
+            except:
+                pass
+        
+        # otherwise, construct the instance
+        found_id = re.search(r'[a-f0-9-]+$', spec.get("fullId") or spec.get("kgId"))
+        assert found_id, f"Expecting spec.fullId or spec.kgId to match '[a-f0-9-]+$', but did not."
         return cls(
-            id=spec.get("kgId"),
+            id=found_id.group(),
             name=spec.get("name"),
             embargo_status=spec.get("embargo_status", None),
+            cached_data=spec if not only_id_flag else None,
         )
+
+    def match(self, spec: Union[str, 'EbrainsDataset']):
+        if spec is self:
+            return True
+        return self.id == spec

@@ -84,11 +84,12 @@ class EbrainsRegionalFeatureQuery(FeatureQuery, parameters=[]):
         )
 
         versioned_datasets = defaultdict(dict)
+        from ..core import Parcellation
 
         # ids of EBRAINS datasets which represent siibra parcellations
         parcellations_ids = [
             dset.id
-            for parc in REGISTRY["Parcellation"]
+            for parc in REGISTRY[Parcellation]
             for dset in parc.datasets
             if isinstance(dset, EbrainsDataset)
         ]
