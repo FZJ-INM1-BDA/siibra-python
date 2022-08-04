@@ -15,6 +15,9 @@
 
 from .. import logger
 from ..commons import MapType
+from ..config import (
+    SIIBRA_URL_MODS,
+)
 from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.datasets import Dataset, DatasetJsonModel
@@ -89,8 +92,8 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         assert name is not None
         self.name = name
         self.url = url
-        if "SIIBRA_URL_MODS" in os.environ and url:
-            mods = json.loads(os.environ["SIIBRA_URL_MODS"])
+        if SIIBRA_URL_MODS and url:
+            mods = json.loads(SIIBRA_URL_MODS)
             for old, new in mods.items():
                 self.url = self.url.replace(old, new)
             if self.url != url:

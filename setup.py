@@ -6,7 +6,7 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def find_version():
-    path_to_init = os.path.join(ROOT_DIR, "siibra", "__init__.py")
+    path_to_init = os.path.join(ROOT_DIR, "siibra", "version", "__init__.py")
     with open(path_to_init, "r", encoding="utf-8") as f:
         content = f.read()
         version_match = re.search(r"^__version__ *= *['\"](.*?)['\"]$", content, re.M)
