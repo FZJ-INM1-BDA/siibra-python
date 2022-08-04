@@ -17,6 +17,8 @@ from .. import logger
 from ..commons import MapType
 from ..config import (
     SIIBRA_URL_MODS,
+    SIIBRA_USE_VOLUME_SRC_MAPPING_FILE,
+    SIIBRA_USE_VOLUME_SRC_MAPPING_PREFIX,
 )
 from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
@@ -63,6 +65,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
     _SPECIALISTS = {}
     volume_type = None
     _SURFACE_TYPES = ["gii"]
+    _VOLUME_URL_MAPPING: Dict[str, str] = None
 
     def __init__(self, identifier, name, url, space, detail=None, **kwargs):
         """
@@ -91,16 +94,48 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         Dataset.__init__(self, identifier=identifier)
         assert name is not None
         self.name = name
-        self.url = url
+        self._url = url
+        if SIIBRA_USE_VOLUME_SRC_MAPPING_FILE:
+            if self.__class__._VOLUME_URL_MAPPING is None:
+                self.__class__._VOLUME_URL_MAPPING = {}
+                with open(SIIBRA_USE_VOLUME_SRC_MAPPING_FILE, "r") as fp:
+                    src_mapping = json.load(fp)
+                    for key in src_mapping:
+                        _key = key.replace("precomputed://", "").replace("precompmesh://", "")
+                        self.__class__._VOLUME_URL_MAPPING[_key] = src_mapping[key]
+
+            def map_url(url: str) -> str:
+                if url not in self.__class__._VOLUME_URL_MAPPING:
+                    logger.warn(f"SIIBRA_USE_VOLUME_SRC_MAPPING_FILE set, but url {url} cannot be found in mapping")
+                    return None
+                return (SIIBRA_USE_VOLUME_SRC_MAPPING_PREFIX or "") + self.__class__._VOLUME_URL_MAPPING[url]
+            
+            if self._url is not None:
+                if isinstance(self._url, str):
+                    self._url = map_url(self._url)
+                elif isinstance(self._url, dict):
+                    for key in self._url:
+                        self._url[key] = map_url(self._url[key])
+                else:
+                    logger.warn(f"url is not instance of str or dict, cannot replace")
+            
         if SIIBRA_URL_MODS and url:
             mods = json.loads(SIIBRA_URL_MODS)
             for old, new in mods.items():
-                self.url = self.url.replace(old, new)
-            if self.url != url:
-                logger.warning(f"Applied URL modification\nfrom {url}\nto   {self.url}")
+                self._url = self._url.replace(old, new)
+            if self._url != url:
+                logger.warning(f"Applied URL modification\nfrom {url}\nto   {self._url}")
         self.detail = {} if detail is None else detail
         self.space = space
         self.map_type = None
+
+    @property
+    def url(self):
+        """url property is a property without a setter to avoid inadvertent overwriting of url attribute.
+        The url attribute should *only* be set during the VolumeSrc.__init__ process, to allow for mapping of url.
+        For example, from internet to localhost."""
+        return self._url
+
 
     def __init_subclass__(cls, volume_type=None):
         """Called when this class gets subclassed by cls."""
@@ -410,8 +445,6 @@ class NeuroglancerVolume(
 
         VolumeSrc.__init__(self, identifier, name, url, space, detail)
         ImageProvider.__init__(self)
-        self.url = url
-        self.space = space
         self._scales_cached = None
         self._io = None
 
