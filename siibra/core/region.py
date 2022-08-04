@@ -292,6 +292,17 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
                 return None
         else:
             return sorted(candidates, key=lambda r: r.depth)
+    
+    @property
+    def volumes(self):
+        from ..volumes import VolumeSrc
+        legacy_volumes = [d for d in self.datasets if hasattr(d, 'is_volume') and d.is_volume]
+        separated_volumes = [v
+            for v in REGISTRY[VolumeSrc]
+            if any(
+                self.matches(map_spec.get("region")) for map_spec in v.detail.get("map", [])
+            )]
+        return [*legacy_volumes, *separated_volumes]
 
     def matches(self, regionspec):
         """
@@ -345,6 +356,15 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         elif isinstance(regionspec, REGEX_TYPE):
             # match regular expression
             return any(regionspec.search(s) is not None for s in [self.name, self.key])
+        elif isinstance(regionspec, dict):
+            matched = False
+            if regionspec.get("name") and self.matches(regionspec.get("name")):
+                matched = True
+            parc_spec = regionspec.get("parcellation")
+            if parc_spec:
+                if not self.parcellation.matches(parc_spec):
+                    matched = False
+            return matched
         else:
             raise TypeError(
                 f"Cannot interpret region specification of type '{type(regionspec)}'"

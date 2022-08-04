@@ -143,12 +143,15 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         url = obj.get("url")
         space = None
         detail = obj.get("detail")
+        kwargs = {}
 
         volume_type = obj.get("volume_type")
 
         if obj.get("@type") == "fzj/tmp/volume_type/v0.0.2":
             space = REGISTRY[Space][obj.get("space").get("@id")]
-            
+            detail = {
+                'map': obj.get("map")
+            }
 
         if obj.get("@type") == "fzj/tmp/volume_type/v0.0.1":
             space = REGISTRY[Space][obj.get("space_id")]

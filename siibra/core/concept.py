@@ -174,6 +174,11 @@ class AtlasConcept:
                         spec.replace(" ", "") in squeezedname,
                     ]
                 )
+        if isinstance(spec, dict):
+            if hasattr(self, 'id') and spec.get("@id"):
+                return self.id == spec.get("@id")
+            if hasattr(self, 'name') and spec.get("name"):
+                return self.name == spec.get("name")
         return False
 
     @classmethod
