@@ -252,8 +252,8 @@ class ObjectRegistry:
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
-        logger.info(f"Adding configuration {str(conn)}")
-        cls._CONFIGURATIONS.insert(0, conn)
+        logger.info(f"Ignoring default, using configuration {str(conn)}")
+        cls._CONFIGURATIONS = [ conn ]
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
