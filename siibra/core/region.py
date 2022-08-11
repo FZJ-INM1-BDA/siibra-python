@@ -400,7 +400,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         self,
         space: Space,
         resolution_mm=None,
-        maptype: MapType = Union[str,MapType.LABELLED],
+        maptype: Union[str, MapType] = MapType.LABELLED,
         threshold_continuous=None,
         consider_other_types=True,
     ):

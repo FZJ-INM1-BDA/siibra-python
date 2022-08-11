@@ -21,7 +21,7 @@ from ..registry import ObjectLUT, REGISTRY
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
-from typing import Iterable, List
+from typing import Iterable, List, Union
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -161,7 +161,9 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
 
     _QUERY = {
         "probe": BASE_URL
-        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
+        "multiple_gene_probe": BASE_URL
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']",
         "specimen": BASE_URL
         + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
         "microarray": BASE_URL
@@ -194,7 +196,7 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         """
         FeatureQuery.__init__(self, **kwargs)
 
-        self.gene = kwargs['gene']
+        self.gene: Union[str, Iterable[str]] = kwargs['gene']
 
         if self.gene is None:
             logger.warning(
@@ -209,6 +211,9 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
 
         logger.info("Retrieving probe ids for gene {}".format(self.gene))
         url = self._QUERY["probe"].format(gene=self.gene)
+        if not isinstance(self.gene, str):
+            url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g}'" for g in self.gene]))
+
         response = HttpRequest(url).get()
         if "site unavailable" in response.decode().lower():
             # When the Allen site is not available, they still send a status code 200.
@@ -239,8 +244,13 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
             for donor_id in self._DONOR_IDS:
-                for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene, donor_id, probe_ids):
-                    self.add_feature(gene_feature)
+                if isinstance(self.gene, str):
+                    for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene, donor_id, probe_ids):
+                        self.add_feature(gene_feature)
+                else:
+                    for gene in self.gene:
+                        for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene, donor_id, probe_ids):
+                            self.add_feature(gene_feature)
 
     @staticmethod
     def _retrieve_specimen(specimen_id):
