@@ -41,7 +41,7 @@ import numpy as np
 import nibabel as nib
 import re
 import anytree
-from typing import List, Union
+from typing import Dict, List, Union
 from nibabel import Nifti1Image
 
 OPENMINDS_PARCELLATION_ENTITY_VERSION_TYPE = (
@@ -132,6 +132,8 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             for c in self.children:
                 c.parent = self
                 c.parcellation = self.parcellation
+        
+        self._cached_labelled_mask: Dict[Space, Nifti1Image] = {}
 
     @staticmethod
     def copy(other):
@@ -360,11 +362,45 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             c in self.parcellation for c in self.descendants
         )
 
+    def cache_labelled_maps():
+        def wrapper(fn):
+            def inner(
+                self: 'Region',
+                space: Space,
+                resolution_mm=None,
+                maptype: Union[MapType, str] = MapType.LABELLED,
+                threshold_continuous=None,
+                consider_other_types=True,
+            ):
+                if isinstance(maptype, str):
+                    maptype = MapType[maptype.upper()]
+                
+                if maptype == MapType.LABELLED:
+                    if space in self._cached_labelled_mask:
+                        return self._cached_labelled_mask[space]
+
+                result = fn(
+                    self,
+                    space,
+                    resolution_mm,
+                    maptype,
+                    threshold_continuous,
+                    consider_other_types,
+                )
+
+                if maptype == maptype.LABELLED:
+                    self._cached_labelled_mask[space] = result
+
+                return result
+            return inner
+        return wrapper
+
+    @cache_labelled_maps()
     def build_mask(
         self,
         space: Space,
         resolution_mm=None,
-        maptype: MapType = MapType.LABELLED,
+        maptype: MapType = Union[str,MapType.LABELLED],
         threshold_continuous=None,
         consider_other_types=True,
     ):
