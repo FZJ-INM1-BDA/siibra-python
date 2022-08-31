@@ -183,7 +183,7 @@ class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
             urls=spec.get("url", []),
         )
     
-@Preconfigure("features/ebrainsquery/v1")
+@Preconfigure("snapshots/ebrainsquery/v1")
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
     def __init__(self, id, name, embargo_status=None, *, cached_data=None):
         Dataset.__init__(self, id, description=None)
