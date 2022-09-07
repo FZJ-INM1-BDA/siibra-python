@@ -280,7 +280,14 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
             cached_data=spec if not only_id_flag else None,
         )
 
-    def match(self, spec: Union[str, 'EbrainsDataset']):
+    def match(self, spec: Union[str, 'EbrainsDataset']) -> bool:
+        """Checks of a given spec (of type str or EbrainsDataset) describes this dataset.
+
+        Args:
+            spec (str, EbrainsDataset): spec to be checked
+        """
         if spec is self:
             return True
-        return self.id == spec
+        if isinstance(spec, str):
+            return self.id == spec
+        raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsDataset")
