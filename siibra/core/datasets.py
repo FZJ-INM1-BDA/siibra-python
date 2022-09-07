@@ -37,8 +37,8 @@ class Dataset(JSONSerializable):
 
     REGISTRY = {}
 
-    def __init__(self, identifier, description=""):
-        self.id = identifier
+    def __init__(self, id, description=""):
+        self.id = id
         self._description_cached = description
 
     def __str__(self):
@@ -190,7 +190,7 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
         self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
-        self._detail = None
+        
         if id is None:
             raise TypeError("Dataset id is required")
 
@@ -199,17 +199,17 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
-        self._detail_loader = EbrainsKgQuery(
-            query_id="interactiveViewerKgQuery-v1_0",
-            instance_id=match.group(1),
-            params={"vocab": "https://schema.hbp.eu/myQuery/"},
-        )
 
     @property
     def detail(self):
-        if self._cached_data:
-            return self._cached_data
-        return self._detail_loader.data
+        if not self._cached_data:
+            match = re.search(r"([a-f0-9-]+)$", self.id)
+            self._cached_data = EbrainsKgQuery(
+                query_id="interactiveViewerKgQuery-v1_0",
+                instance_id=match.group(1),
+                params={"vocab": "https://schema.hbp.eu/myQuery/"},
+            ).data
+        return self._cached_data
 
     @property
     def name(self):
