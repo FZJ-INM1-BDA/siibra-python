@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import __version__
 from .commons import logger, QUIET
 from .retrieval.repositories import (
     GitlabConnector,
@@ -26,7 +25,7 @@ from .retrieval.exceptions import (
 from .config import (
     USE_DEFAULT_PROJECT_TAG,
     GITLAB_PROJECT_TAG,
-    SIIBRA_USE_LOCAL_REPOSITORY,
+    SIIBRA_CONFIGURATION_SRC,
 )
 
 import os
@@ -241,10 +240,10 @@ class ObjectRegistry:
             GITLAB_PROJECT_TAG,
             skip_branchtest=USE_DEFAULT_PROJECT_TAG,
         ),
-    ] if SIIBRA_USE_LOCAL_REPOSITORY is None else [ RepositoryConnector._from_url(SIIBRA_USE_LOCAL_REPOSITORY) ]
+    ] if SIIBRA_CONFIGURATION_SRC is None else [ RepositoryConnector._from_url(SIIBRA_CONFIGURATION_SRC) ]
 
-    if SIIBRA_USE_LOCAL_REPOSITORY is not None:
-        logger.warn(f"SIIBRA_USE_LOCAL_REPOSITORY is set, use {SIIBRA_USE_LOCAL_REPOSITORY} as default configurations")
+    if SIIBRA_CONFIGURATION_SRC is not None:
+        logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
         
     _CONFIGURATION_EXTENSIONS = []
 

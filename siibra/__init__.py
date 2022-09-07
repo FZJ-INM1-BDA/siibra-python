@@ -14,7 +14,12 @@
 # limitations under the License.
 
 from .commons import logger, QUIET, VERBOSE
-from .version import __version__
+
+import os
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
+    __version__ = fp.read()
 
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")

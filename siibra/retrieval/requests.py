@@ -15,7 +15,6 @@
 
 from .cache import CACHE
 from ..commons import logger
-from .. import __version__
 from ..config import HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 
 import json
@@ -30,6 +29,10 @@ from io import BytesIO
 import urllib
 import pandas as pd
 import numpy as np
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.abspath(f"{ROOT_DIR}/../VERSION"), "r") as fp:
+    __version__ = fp.read()
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 

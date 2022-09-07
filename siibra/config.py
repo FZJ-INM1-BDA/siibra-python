@@ -1,5 +1,8 @@
 import os
-from ..version import __version__
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.abspath(f"{ROOT_DIR}/VERSION"), "r") as fp:
+    __version__ = fp.read()
 
 USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
 
@@ -19,4 +22,4 @@ SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
 
 SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 
-SIIBRA_USE_LOCAL_REPOSITORY = os.getenv("SIIBRA_USE_LOCAL_REPOSITORY")
+SIIBRA_CONFIGURATION_SRC = os.getenv("SIIBRA_CONFIGURATION_SRC")
