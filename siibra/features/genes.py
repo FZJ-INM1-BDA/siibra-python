@@ -253,7 +253,7 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
                             self.add_feature(gene_feature)
 
     @staticmethod
-    def _retrieve_specimen(specimen_id):
+    def _retrieve_specimen(specimen_id: str):
         """
         Retrieves information about a human specimen.
         """
