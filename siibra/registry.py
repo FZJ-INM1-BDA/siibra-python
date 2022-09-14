@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import __version__
 from .commons import logger, QUIET
 from .retrieval.repositories import (
     GitlabConnector,
@@ -23,16 +22,15 @@ from .retrieval.exceptions import (
     NoSiibraConfigMirrorsAvailableException,
     TagNotFoundException,
 )
+from .config import (
+    USE_DEFAULT_PROJECT_TAG,
+    GITLAB_PROJECT_TAG,
+    SIIBRA_CONFIGURATION_SRC,
+)
 
 import os
-from typing import Any, Generic, Iterable, Iterator, List, TypeVar, Union, Tuple
+from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, Union, Tuple
 from collections import defaultdict
-
-# Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
-GITLAB_PROJECT_TAG = os.getenv(
-    "SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__)
-)
-USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
 
 
 T = TypeVar("T")
@@ -226,6 +224,7 @@ class ObjectRegistry:
     _dynamic_query_types = defaultdict(set)
     _dynamic_queries = defaultdict(set)
 
+    # TODO memory management concern, esp in siibra-api
     _objects = {}
 
     _CONFIGURATIONS = [
@@ -241,16 +240,19 @@ class ObjectRegistry:
             GITLAB_PROJECT_TAG,
             skip_branchtest=USE_DEFAULT_PROJECT_TAG,
         ),
-    ]
+    ] if SIIBRA_CONFIGURATION_SRC is None else [ RepositoryConnector._from_url(SIIBRA_CONFIGURATION_SRC) ]
 
+    if SIIBRA_CONFIGURATION_SRC is not None:
+        logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
+        
     _CONFIGURATION_EXTENSIONS = []
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
-        logger.info(f"Adding configuration {str(conn)}")
-        cls._CONFIGURATIONS.insert(0, conn)
+        logger.info(f"Ignoring default, using configuration {str(conn)}")
+        cls._CONFIGURATIONS = [ conn ]
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -424,7 +426,7 @@ class ObjectRegistry:
             )
         return self[classnames[classname]]
 
-    def __getitem__(self, object_type):
+    def __getitem__(self, object_type: Type[T]) -> TypedObjectLUT[T]:
         """
         Access predefined object registries by class, e.g.
         REGISTRY[Atlas].
