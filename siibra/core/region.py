@@ -364,7 +364,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         self,
         space: Space,
         resolution_mm=None,
-        maptype: MapType = MapType.LABELLED,
+        maptype: Union[str, MapType] = MapType.LABELLED,
         threshold_continuous=None,
         consider_other_types=True,
     ):
@@ -380,7 +380,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
             Request the template at a particular physical resolution in mm.
             If None, the native resolution is used.
             Currently, this only works for the BigBrain volume.
-        maptype: MapType
+        maptype: Union[str, MapType]
             Type of map to build ('labelled' will result in a binary mask,
             'continuous' attempts to build a continuous mask, possibly by
             elementwise maximum of continuous maps of children )
@@ -498,7 +498,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         return True
 
     @property
-    def supported_spaces(self):
+    def supported_spaces(self) -> List[Space]:
         """
         The list of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
