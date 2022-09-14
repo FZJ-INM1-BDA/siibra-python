@@ -92,7 +92,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         index: ParcellationIndex,
         attrs={},
         parent=None,
-        children=None,
+        children:List['Region']=None,
         dataset_specs=[],
     ):
         """
@@ -876,9 +876,9 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
 
     @property
     def model_id(self):
-        from .. import parcellations
+        from .. import REGISTRY, Parcellation
 
-        if self.parcellation is parcellations.SUPERFICIAL_FIBRE_BUNDLES:
+        if self.parcellation is REGISTRY[Parcellation].SUPERFICIAL_FIBRE_BUNDLES:
             return f"https://openminds.ebrains.eu/instances/parcellationEntityVersion/SWMA_2018_{self.name}"
         import hashlib
 
