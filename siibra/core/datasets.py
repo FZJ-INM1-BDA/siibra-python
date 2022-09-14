@@ -37,8 +37,8 @@ class Dataset(JSONSerializable):
 
     REGISTRY = {}
 
-    def __init__(self, id, description=""):
-        self.id = id
+    def __init__(self, identifier, description=""):
+        self.id = identifier
         self._description_cached = description
 
     def __str__(self):
