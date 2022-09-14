@@ -173,22 +173,16 @@ class Feature:
     def matched_location(self):
         return self._match.location if self.matched else None
 
-    @abstractclassmethod
+    def match(self, concept, **kwargs):
+        raise NotImplementedError(f"match method must be overridden by derived classes.")
+
+    @classmethod
     def filter_features(cls, concept, features: List['Feature'], **kwargs)->List['Feature']:
         """Class method, filters features according to the concept.
 
         Maybe overriden by subclasses.
         """
-        raise RuntimeError(
-            f"filter_features must be overriden by subclasses"
-        )
-
-    @abstractclassmethod
-    def get_match_func(cls, concept, **kwargs) -> Callable[['Feature'], Match]:
-        """
-        Returns a function, which, when called will return a Callable
-        """
-        pass
+        return [f for f in features if f.match(concept, **kwargs)]
 
     def __str__(self):
         return f"{self.__class__.__name__} feature"
@@ -215,21 +209,12 @@ class Feature:
                 logger.error(f"No modalities found for specification '{modality}' which have any features.")
                 requested_modalities = []
 
-        # approach 1: with get_match_func
-        result = []
-        for object_type in requested_modalities:
-            match_func = object_type.get_match_func(concept, **kwargs)
-            for feature in REGISTRY.get_objects(object_type, **kwargs):
-                if match_func(feature):
-                    result.append(feature)
-        return result
-
-        # approach 2: with filter_features
-        features = [feat
-            for object_type in requested_modalities
-            for feat in REGISTRY.get_objects(object_type, **kwargs)]
-
-        return object_type.filter_features(concept, features, **kwargs)
+        return [filtered_feat
+            for modality in requested_modalities
+            for filtered_feat in modality.filter_features(
+                concept,
+                REGISTRY.get_objects(modality, **kwargs)
+            )]
 
 
     @classmethod
@@ -328,72 +313,6 @@ class SpatialFeature(Feature):
         return [feat for feat in features
             if match_feature(feat)]
 
-    @classmethod
-    def get_match_func(
-        cls,
-        concept,
-        *,
-        maptype: MapType = MapType.LABELLED,
-        threshold_continuous: float = None,
-        **kwargs):
-        
-        region = None
-        if isinstance(concept, Parcellation):
-            region = concept.regiontree
-            logger.info(
-                f"Matching against root node {region.name} of {concept.name}"
-            )
-        if isinstance(concept, Region):
-            region = concept
-
-        region_masks: Dict[Space, nib.Nifti1Image] = {}
-
-        def match(feat) -> Match:
-            assert isinstance(feat, cls), f"Expected SpatialFeature {feat.__class__.__name__} to be an instance of {cls.__name__}, but is not."
-
-            if feat.location is None:
-                return None
-            
-            if isinstance(concept, Space):
-                return concept == feat.space
-            
-            if region is None:
-                logger.warning(
-                    f"{feat.__class__} cannot match against {concept.__class__} concepts"
-                )
-                return None
-            
-            for tspace in [feat.space, *region.supported_spaces]:
-                if tspace.is_surface:
-                    continue
-                if not region.mapped_in_space(tspace):
-                    continue
-                if tspace not in region_masks:
-                    print(f"get match func build mask  in {tspace.name} for {region.name}")
-                    region_masks[tspace] = region.build_mask(
-                        space=tspace, maptype=maptype, threshold_continuous=threshold_continuous
-                    )
-                if feat.location.space == tspace:
-                    match_quantification_comment = feat._match_mask(feat.location, region_masks[tspace])
-                    if not match_quantification_comment:
-                        return None
-                    quant, comment = match_quantification_comment
-                    return Match(
-                        region,
-                        quant,
-                        comment,
-                    )
-                logger.warning(f"{feat.__class__.__name__} cannot be tested for {region.name} in {feat.location.space.name}, using {tspace.name} instead.")
-                match_quantification_comment = feat._match_mask(feat.location.warp(tspace), region_masks[tspace])
-                if match_quantification_comment:
-                    quant, comment = match_quantification_comment
-                    return Match(region, quant, comment)
-            else:
-                logger.warning(f"Cannot test overlap of {feat.location} with {region}")
-                return None
-                
-        return match
-
     def match(self, *args, **kwargs):
         pass
 
@@ -481,16 +400,6 @@ class RegionalFeature(Feature):
         return [s.get("@id") for s in self.species] + [
             s.get("kg_v1_id") for s in self.species
         ]
-    
-    @classmethod
-    def filter_features(cls, concept, features: List['RegionalFeature'], **kwargs):
-        return [feat for feat in features if feat.match(concept)]
-
-    @classmethod
-    def get_match_func(cls, concept, **kwargs):
-        def match(feat: 'RegionalFeature'):
-            return feat.match(concept)
-        return match
 
     def match(self, concept, **kwargs):
         """
@@ -716,16 +625,6 @@ class ParcellationFeature(Feature):
                 if p in self.parcellations:
                     return True
         return False
-
-    @classmethod
-    def filter_features(cls, concept, features: List['ParcellationFeature'], **kwargs):
-        return [feat for feat in features if feat.match(concept)]
-
-    @classmethod
-    def get_match_func(cls, concept, **kwargs):
-        def match(feat: 'ParcellationFeature') -> bool:
-            return feat.match(concept)
-        return match
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.spec}"
