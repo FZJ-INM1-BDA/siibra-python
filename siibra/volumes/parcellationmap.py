@@ -937,7 +937,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
                 print(self._map4d.shape)
                 for mapindex in range(self._map4d.shape[3]):
                     self._maploaders_cached.append(
-                        lambda m=mapindex: self._map4d.slicer[:, :, :, m]
+                        lambda res=None, voi=None, variant=None, m=mapindex: self._map4d.slicer[:, :, :, m]
                     )
                     # TODO this might not be correct for parcellations other than DifumoXX
                     r = self.parcellation.decode_region(mapindex + 1)
@@ -953,7 +953,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
                     continue
                 if r.has_regional_map(self.space, self.maptype):
                     regionmap = r.get_regional_map(self.space, self.maptype)
-                    self._maploaders_cached.append(lambda r=regionmap: r.fetch())
+                    self._maploaders_cached.append(lambda res=None, voi=None, variant=None, r=regionmap: r.fetch())
                     self._regions_cached[
                         ParcellationIndex(map=mapindex, label=None)
                     ] = r
