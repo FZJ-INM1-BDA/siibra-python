@@ -177,6 +177,8 @@ class EbrainsHdgConnector(RepositoryConnector):
     """
     # Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
 
+    # Version of the data-proxy API that should be used for this request.
+    # Currently v1 is the only supported version.
     api_version = "v1"
     base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
     maxentries = 1000
