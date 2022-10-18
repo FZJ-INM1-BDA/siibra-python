@@ -193,8 +193,7 @@ class EbrainsHdgConnector(RepositoryConnector):
       https://data-proxy.ebrains.eu/api/docs#/datasets/request_dataset_access_v1_datasets__dataset_id__post
         This is required for the other functions.
     - GET: Return list of all available objects in the dataset
-      https://data-proxy.ebrains.eu/api/docs#/datasets/dataset_stat_v1_datasets__dataset_id__stat_get
-    """
+      https://data-proxy.ebrains.eu/api/docs#/datasets/dataset_stat_v1_datasets__dataset_id__stat_get"""
     base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
     
     """
