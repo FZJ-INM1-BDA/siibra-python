@@ -177,7 +177,8 @@ class EbrainsHdgConnector(RepositoryConnector):
     """
     # Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
 
-    base_url = "https://data-proxy.ebrains.eu/api/datasets"
+    api_version = "v1"
+    base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
     maxentries = 1000
 
     def __init__(self, dataset_id):
