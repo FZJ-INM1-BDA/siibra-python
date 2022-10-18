@@ -175,6 +175,7 @@ class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
     the Human Data Gateway (HDG) via the data proxy API.
     """
+    # Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
 
     base_url = "https://data-proxy.ebrains.eu/api/datasets"
     maxentries = 1000
