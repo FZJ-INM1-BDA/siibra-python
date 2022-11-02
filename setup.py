@@ -6,13 +6,9 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def find_version():
-    path_to_init = os.path.join(ROOT_DIR, "siibra", "__init__.py")
-    with open(path_to_init, "r", encoding="utf-8") as f:
-        content = f.read()
-        version_match = re.search(r"^__version__ *= *['\"](.*?)['\"]$", content, re.M)
-        if version_match:
-            return version_match.group(1)
-        raise RuntimeError("Siibra version cannot be found.")
+    path_to_version = os.path.join(ROOT_DIR, "siibra", "VERSION")
+    with open(path_to_version, "r", encoding="utf-8") as f:
+        return f.read()
 
 
 with open(os.path.join(ROOT_DIR, "README.rst"), "r", encoding="utf-8") as f:
@@ -29,7 +25,7 @@ setup(
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,
-    package_data={'siibra': ['features/region_aliases_human.json']},
+    package_data={'siibra': ['features/region_aliases_human.json', 'VERSION']},
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python :: 3.6",

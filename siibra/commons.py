@@ -20,6 +20,8 @@ from nibabel import Nifti1Image
 import logging
 import numpy as np
 
+from .config import SIIBRA_LOG_LEVEL
+
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
 formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
@@ -43,7 +45,7 @@ def set_log_level(level):
     logger.setLevel(level)
 
 
-set_log_level(os.getenv("SIIBRA_LOG_LEVEL", "INFO"))
+set_log_level(SIIBRA_LOG_LEVEL)
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 

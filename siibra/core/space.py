@@ -242,6 +242,12 @@ class Location(JSONSerializable, ABC):
             space={"@id": self.space.model_id},
             type=self.get_model_type(),
         )
+    
+    @abstractmethod
+    def intersection(self, mask: Nifti1Image) -> bool:
+        """All subclasses of Location must implement intersection, as it is required by SpatialFeature._test_mask()
+        """
+        pass
 
     @abstractmethod
     def intersects(self, mask: Nifti1Image):

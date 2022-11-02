@@ -15,7 +15,7 @@
 
 from .cache import CACHE
 from ..commons import logger
-from .. import __version__
+from ..config import HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 
 import json
 from zipfile import ZipFile
@@ -29,6 +29,10 @@ from io import BytesIO
 import urllib
 import pandas as pd
 import numpy as np
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.abspath(f"{ROOT_DIR}/../VERSION"), "r") as fp:
+    __version__ = fp.read()
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -267,23 +271,20 @@ class EbrainsRequest(HttpRequest):
             return self.__class__._KG_API_TOKEN
 
         # See if a token is directly provided in  $HBP_AUTH_TOKEN
-        if "HBP_AUTH_TOKEN" in os.environ:
-            self.__class__._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
+        if HBP_AUTH_TOKEN:
+            self.__class__._KG_API_TOKEN = HBP_AUTH_TOKEN
             return self.__class__._KG_API_TOKEN
 
         # try KEYCLOAK. Requires the following environment variables set:
         # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
-        keycloak = {
-            v: os.environ.get(f"KEYCLOAK_{v.upper()}")
-            for v in ["client_id", "client_secret"]
-        }
-        if None not in keycloak.values():
+        
+        if KEYCLOAK_CLIENT_ID is not None and KEYCLOAK_CLIENT_SECRET is not None:
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
                 self.__class__.keycloak_endpoint,
                 data=(
-                    f"grant_type=client_credentials&client_id={keycloak['client_id']}"
-                    f"&client_secret={keycloak['client_secret']}"
+                    f"grant_type=client_credentials&client_id={KEYCLOAK_CLIENT_ID}"
+                    f"&client_secret={KEYCLOAK_CLIENT_SECRET}"
                     "&scope=kg-nexus-role-mapping%20kg-nexus-service-account-mock"
                 ),
                 headers={
@@ -345,7 +346,7 @@ class EbrainsKgQuery(EbrainsRequest):
     def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
         inst_tail = "/" + instance_id if instance_id is not None else ""
         self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?stage=RELEASED".format(
+        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
             self.server,
             self.org,
             self.domain,

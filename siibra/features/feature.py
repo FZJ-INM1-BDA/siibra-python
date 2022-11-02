@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from abc import abstractclassmethod
 from ..commons import logger, MapType, QUIET
 from ..registry import REGISTRY, TypedObjectLUT
 from ..core.atlas import Atlas
@@ -22,13 +23,14 @@ from ..core.region import Region
 from ..core.parcellation import Parcellation
 
 from ctypes import ArgumentError
-from typing import Tuple, Union
+from typing import Callable, Dict, List, Tuple, Union
 from enum import Enum
 import json
 import numpy as np
 import pandas as pd
 from textwrap import wrap
 import importlib
+import nibabel as nib
 
 try:
     from importlib import resources
@@ -172,21 +174,15 @@ class Feature:
         return self._match.location if self.matched else None
 
     def match(self, concept, **kwargs):
-        """
-        Matches this feature to the given atlas concept (or a subconcept of it),
-        and remembers the matching result.
+        raise NotImplementedError(f"match method must be overridden by derived classes.")
 
-        Parameters:
-        -----------
-        concept : AtlasConcept
+    @classmethod
+    def filter_features(cls, concept, features: List['Feature'], **kwargs)->List['Feature']:
+        """Class method, filters features according to the concept.
 
-        Returns:
-        -------
-        True, if match was successful, otherwise False
+        Maybe overriden by subclasses.
         """
-        raise RuntimeError(
-            f"match() needs to be implemented by derived classes of {self.__class__.__name__}"
-        )
+        return [f for f in features if f.match(concept, **kwargs)]
 
     def __str__(self):
         return f"{self.__class__.__name__} feature"
@@ -213,13 +209,13 @@ class Feature:
                 logger.error(f"No modalities found for specification '{modality}' which have any features.")
                 requested_modalities = []
 
-        result = []
-        for object_type in requested_modalities:
-            for feature in REGISTRY.get_objects(object_type, **kwargs):
-                if feature.match(concept, **kwargs):
-                    result.append(feature)
+        return [filtered_feat
+            for modality in requested_modalities
+            for filtered_feat in modality.filter_features(
+                concept,
+                REGISTRY.get_objects(modality, **kwargs)
+            )]
 
-        return result
 
     @classmethod
     def get_feature_by_id(cls, feature_id: str):
@@ -249,137 +245,104 @@ class SpatialFeature(Feature):
     def space(self):
         return self.location.space
 
-    def match(
-        self,
+    @classmethod
+    def filter_features(cls, 
         concept,
+        features: List['SpatialFeature'],
         *,
         maptype: MapType = MapType.LABELLED,
         threshold_continuous: float = None,
-        **kwargs,
-    ):
-        """
-        Matches this feature to the given atlas concept (or a subconcept of it),
-        and remembers the matching result.
+        **kwargs) -> List['SpatialFeature']:
 
-        TODO this could use parameters for resolution
 
-        Parameters:
-        -----------
-        concept : AtlasConcept
-        maptype : MapType
-        threshold_continuous : float
-
-        Returns:
-        -------
-        True, if match was successful, otherwise False
-        """
-
-        self._match = None
-        if self.location is None:
-            return False
-
-        if isinstance(concept, Space):
-            return concept == self.space
-        elif isinstance(concept, Parcellation):
+        region = None
+        if isinstance(concept, Parcellation):
             region = concept.regiontree
             logger.info(
-                f"{self.__class__} matching against root node {region.name} of {concept.name}"
+                f"Matching against root node {region.name} of {concept.name}"
             )
-        elif isinstance(concept, Region):
+        if isinstance(concept, Region):
             region = concept
-        else:
-            logger.warning(
-                f"{self.__class__} cannot match against {concept.__class__} concepts"
-            )
-            return False
+        
+        region_masks: Dict[Space, nib.Nifti1Image] = {}
+        
+        def match_feature(feat: 'SpatialFeature') -> bool:
 
-        for tspace in [self.space] + region.supported_spaces:
-            if tspace.is_surface:
-                continue
-            if region.mapped_in_space(tspace):
-                if tspace == self.space:
-                    return self._test_mask(
-                        self.location,
+            if not isinstance(feat, cls):
+                return False
+            if feat.location is None:
+                return False
+            if isinstance(concept, Space):
+                return concept == feat.space
+            
+            if region is None:
+                logger.warning(
+                    f"{feat.__class__} cannot match against {concept.__class__} concepts"
+                )
+                return None
+
+            for tspace in [feat.space, *region.supported_spaces]:
+                if tspace.is_surface:
+                    continue
+                if not region.mapped_in_space(tspace):
+                    continue
+                if tspace not in region_masks:
+                    print(f"match features build mask  in {tspace.name} for {region.name}")
+                    region_masks[tspace] = region.build_mask(
+                        space=tspace, maptype=maptype, threshold_continuous=threshold_continuous
+                    )
+                if feat.location.space == tspace:
+                    match_quantification_comment = feat._match_mask(feat.location, region_masks[tspace])
+                    if not match_quantification_comment:
+                        return None
+                    quant, comment = match_quantification_comment
+                    return Match(
                         region,
-                        tspace,
-                        maptype=maptype,
-                        threshold_continuous=threshold_continuous,
+                        quant,
+                        comment,
                     )
-                else:
-                    logger.warning(
-                        f"{self.__class__.__name__} cannot be tested for {region.name} "
-                        f"in {self.space}, testing in {tspace} instead."
-                    )
-                    return self._test_mask(self.location.warp(tspace), region, tspace)
-        else:
-            logger.warning(f"Cannot test overlap of {self.location} with {region}")
+                logger.warning(f"{feat.__class__.__name__} cannot be tested for {region.name} in {feat.location.space.name}, using {tspace.name} instead.")
+                match_quantification_comment = feat._match_mask(feat.location.warp(tspace), region_masks[tspace])
+                if match_quantification_comment:
+                    quant, comment = match_quantification_comment
+                    return Match(region, quant, comment)
+            else:
+                logger.warning(f"Cannot test overlap of {feat.location} with {region}")
+                return False
 
-        return self.matched
+        return [feat for feat in features
+            if match_feature(feat)]
 
-    def _test_mask(
-        self,
-        location: Location,
-        region: Region,
-        space: Space,
-        *,
-        maptype: MapType = MapType.LABELLED,
-        threshold_continuous=None,
-    ):
-        mask = region.build_mask(
-            space=space, maptype=maptype, threshold_continuous=threshold_continuous
-        )
+    def match(self, *args, **kwargs):
+        pass
+
+    def _match_mask(self, location: Location, mask: nib.Nifti1Image) -> Tuple[MatchQualification, str]:
         intersection = location.intersection(mask)
         if intersection is None:
-            return self.matched
-        elif isinstance(location, Point):
-            self._match = Match(
-                region,
-                MatchQualification.EXACT,
-                f"Location {location} is inside mask of {region.name}",
-            )
-        elif isinstance(location, PointSet):
+            return None
+        if isinstance(location, Point):
+            return (MatchQualification.EXACT, f"Location {location} is inside mask")
+        if isinstance(location, PointSet):
             npts = 1 if isinstance(intersection, Point) else len(intersection)
-            if npts == len(location):
-                self._match = Match(
-                    region,
-                    MatchQualification.EXACT,
-                    f"All points of {location} inside mask of {region.name}",
-                )
-            else:
-                self._match = Match(
-                    region,
-                    MatchQualification.APPROXIMATE,
-                    f"{npts} of {len(location)} points "
-                    f"were inside mask of {region.name}",
-                )
-        elif isinstance(location, BoundingBox):
-            # the intersection of a bounding box with a mask will be a pointset of the
-            # mask pixels in the bounding box.
+            return (
+                (MatchQualification.EXACT, f"All points of {location} inside mask")
+                if npts == len(location)
+                else (MatchQualification.APPROXIMATE, f"{npts} of {len(location)} points where inside the mask")
+            )
+        if isinstance(location, BoundingBox):
             if location.volume <= intersection.boundingbox.volume:
-                self._match = Match(
-                    region,
+                return (
                     MatchQualification.EXACT,
-                    f"{str(location)} is fully located inside mask "
-                    f"of region {region.name}. ",
+                    f"{str(location)} is fully located inside mask"
                 )
-            else:
-                self._match = Match(
-                    region,
-                    MatchQualification.APPROXIMATE,
-                    f"{str(location)} overlaps with mask " f"of region {region.name}.",
-                )
-        else:
-            self._match = Match(
-                region,
+            return (
                 MatchQualification.APPROXIMATE,
-                f"Location {location} intersected mask of {region.name}",
+                f"{str(location)} overlaps with mask"
             )
-        if self.location.space != location.space:
-            self._match.add_comment(
-                f"The {type(location)} has been warped from {self.location.space} "
-                f"to {location.space} for performing the test."
-            )
-        return self.matched
+        return (
+            MatchQualification.APPROXIMATE,
+            f"Location {location} intersected mask"
+        )
 
     def __str__(self):
         return f"{self.__class__.__name__} at {str(self.location)}"
@@ -638,7 +601,7 @@ class ParcellationFeature(Feature):
         self.spec = parcellationspec
         self.parcellations = REGISTRY.Parcellation.find(parcellationspec)
 
-    def match(self, concept, **kwargs):
+    def match(self, concept) -> bool:
         """
         Matches this feature to the given atlas concept (or a subconcept of it),
         and remembers the matching result.
@@ -651,29 +614,17 @@ class ParcellationFeature(Feature):
         -------
         True, if match was successful, otherwise False
         """
-        self._match = None
         if isinstance(concept, Parcellation):
             if concept in self.parcellations:
-                self._match = concept
-        elif isinstance(concept, Region):
+                return True
+        if isinstance(concept, Region):
             if concept.parcellation in self.parcellations:
-                self._match = concept
-        elif isinstance(concept, Atlas):
-            logger.debug(
-                "Matching a parcellation feature against a complete atlas. "
-                "This will return features matching any supported parcellation, "
-                "including different parcellation versions."
-            )
+                return True
+        if isinstance(concept, Atlas):
             for p in concept.parcellations:
                 if p in self.parcellations:
-                    self._match = p
                     return True
-        else:
-            logger.warning(
-                f"{self.__class__} cannot match against {concept.__class__} concepts"
-            )
-
-        return self.matched
+        return False
 
     def __str__(self):
         return f"{self.__class__.__name__} for {self.spec}"

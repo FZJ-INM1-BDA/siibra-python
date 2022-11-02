@@ -90,15 +90,11 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
         assert name is not None
         self.name = name
         self.url = url
-        if "SIIBRA_URL_MODS" in os.environ and url:
-            mods = json.loads(os.environ["SIIBRA_URL_MODS"])
-            for old, new in mods.items():
-                self.url = self.url.replace(old, new)
-            if self.url != url:
-                logger.warning(f"Applied URL modification\nfrom {url}\nto   {self.url}")
+
         self.detail = {} if detail is None else detail
         self.space = space
         self.map_type = None
+
 
     def __init_subclass__(cls, volume_type=None):
         """Called when this class gets subclassed by cls."""
@@ -419,8 +415,6 @@ class NeuroglancerVolume(
 
         VolumeSrc.__init__(self, identifier, name, url, space, detail)
         ImageProvider.__init__(self)
-        self.url = url
-        self.space = space
         self._scales_cached = None
         self._io = None
 
