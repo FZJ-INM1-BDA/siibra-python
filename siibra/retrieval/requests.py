@@ -314,6 +314,7 @@ class EbrainsRequest(HttpRequest):
                 json_resp = resp.json()
                 logger.debug(f"Device flow sucessful:", json_resp)
                 cls._KG_API_TOKEN = json_resp.get("access_token")
+                print("ebrains token successfuly set.")
                 break
 
             if resp.status_code == 400:

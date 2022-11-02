@@ -1,6 +1,6 @@
 from abc import ABC, abstractclassmethod, abstractmethod, abstractproperty
 import numpy as np
-import zlib
+import gzip
 import base64
 from pydantic import Field
 
@@ -82,7 +82,7 @@ class NpArrayDataModel(ConfigBaseModel):
         x_width = np_data.shape[0]
         x_height = 1 if len(np_data.shape) < 2 else np_data.shape[1]
         dtype = str(np_data.dtype)
-        content = base64.b64encode(zlib.compress(np_data.tobytes(order="F")))
+        content = base64.b64encode(gzip.compress(np_data.tobytes(order="F")))
 
         super().__init__(
             x_width=x_width,
