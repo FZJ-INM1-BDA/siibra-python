@@ -65,16 +65,6 @@ class AtlasConcept:
                 )
                 self._datasets_cached.append(obj)
 
-    def _extend(self, other):
-        """
-        Some concepts allow to be extended by refined concepts.
-        The "@extends" attribute in the configuration is used to indicate this.
-        Use this method to implement the actual extension operation.
-        """
-        raise NotImplementedError(
-            f"'{self.__class__.__name__}' does not implement an extension "
-            f"mechanism with '{other.__class__.__name__}' types.")
-
     @property
     def datasets(self):
         if self._datasets_cached is None:

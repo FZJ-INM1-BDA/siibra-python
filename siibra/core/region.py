@@ -300,7 +300,7 @@ class Region(anytree.NodeMixin, AtlasConcept, JSONSerializable):
         separated_volumes = [v
             for v in REGISTRY[VolumeSrc]
             if any(
-                self.matches(map_spec.get("region")) for map_spec in v.detail.get("map", [])
+                self.matches(map_spec.get("region")) for map_spec in v.detail.get("mapped_region", [])
             )]
         return [*legacy_volumes, *separated_volumes]
 

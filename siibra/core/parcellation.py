@@ -488,54 +488,6 @@ class Parcellation(
             )
         return self.version.__lt__(other.version)
 
-    def _extend(self, other):
-        """Extend a parcellation by additional regions
-        from a parcellation extension.
-
-        Args:
-            other (Parcellation): Extension parcellation
-        """
-        assert other.extends == self.id
-        assert isinstance(other, self.__class__)
-        for region in other.regiontree:
-
-            if region.parent is None:
-                continue
-
-            try:
-                matched_parent = self.decode_region(region.parent.name, find_topmost=False)
-            except (ValueError, AttributeError):
-                continue
-
-            conflicts = matched_parent.find(region.name, filter_children=True)
-            if len(conflicts) == 1:
-                merge_with = conflicts[0]
-                for d in region.datasets:
-                    if len(merge_with.datasets) > 0 and (d in merge_with.datasets):
-                        logger.error(
-                            f"Dataset '{str(d)}' already exists in '{merge_with.name}', and will not be extended."
-                        )
-                    logger.debug(
-                        f"Extending existing region {merge_with.name} with dataset {str(d)}"
-                    )
-                    merge_with._datasets_cached.append(d)
-
-            elif len(conflicts) == 0:
-                logger.debug(
-                    f"Extending '{matched_parent}' in '{self.name}' with '{region.name}' from '{other.name}'."
-                )
-                new_child = Region.copy(region)
-                new_child.parcellation = matched_parent.parcellation
-                new_child.extended_from = other
-                new_child.parent = matched_parent
-
-            else:
-                raise RuntimeError(
-                    f"Cannot extend '{matched_parent}' with '{region.name}' "
-                    "due to multiple conflicting children: "
-                    f"{', '.join(c.name for c in conflicts)}"
-                )
-
     @classmethod
     def _from_json(cls, obj):
         """
@@ -563,9 +515,6 @@ class Parcellation(
 
         if "publications" in obj:
             result._publications = obj["publications"]
-
-        if "@extends" in obj:
-            result.extends = obj["@extends"]
 
         return result
 

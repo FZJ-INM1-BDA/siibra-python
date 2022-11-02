@@ -56,7 +56,7 @@ class VolumeModel(DatasetJsonModel):
 
 
 @Preconfigure("maps")
-class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
+class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
 
     _SPECIALISTS = {}
     volume_type = None
@@ -129,7 +129,6 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         """
 
         valid_types = (
-            "fzj/tmp/volume_type/v0.0.1",
             "fzj/tmp/volume_type/v0.0.2",
         )
 
@@ -142,29 +141,24 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         name = obj.get("name")
         url = obj.get("url")
         space = None
-        detail = obj.get("detail")
+        detail = obj.get("detail", {})
         kwargs = {}
 
         volume_type = obj.get("volume_type")
 
-        if obj.get("@type") == "fzj/tmp/volume_type/v0.0.2":
-            space = REGISTRY[Space][obj.get("space").get("@id")]
-            detail = {
-                'map': obj.get("map")
-            }
+        space = REGISTRY[Space][obj.get("space").get("@id")]
+        detail["mapped_region"] = obj.get("mapped_region")
 
-        if obj.get("@type") == "fzj/tmp/volume_type/v0.0.1":
-            space = REGISTRY[Space][obj.get("space_id")]
+        if all(
+            detail is not None,
+            "neuroglancer/precomputed" in detail,
+            "transform" in detail.get("neuroglancer/precomputed", {}),
+        ):
+            kwargs["transform_nm"] = np.array(detail["neuroglancer/precomputed"]["transform"])
+        
+        if detail is not None and "zip" in detail:
+            kwargs["zipped_file"] = detail.get("zip").get("zipped_file")
 
-            transform_nm = np.identity(4)
-            if detail is not None and "neuroglancer/precomputed" in detail:
-                if "transform" in detail["neuroglancer/precomputed"]:
-                    transform_nm = np.array(detail["neuroglancer/precomputed"]["transform"])
-            kwargs = {
-                "transform_nm": transform_nm,
-                "zipped_file": obj.get("zipped_file", None),
-            }
-            
 
         # decide if object should be generated with a specialized derived class
         VolumeClass = cls._SPECIALISTS.get(volume_type, cls)
