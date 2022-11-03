@@ -19,6 +19,8 @@ from enum import Enum
 from nibabel import Nifti1Image
 import logging
 import numpy as np
+from threading import Thread
+from typing import Callable
 
 from .config import SIIBRA_LOG_LEVEL
 
@@ -204,3 +206,8 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
         "contains": intersection / N2,
         "correlation": r,
     }
+
+
+def queue_background_task(fn: Callable, *args, **kwargs):
+    bgtsk = Thread(target=fn, args=args, kwargs=kwargs)
+    bgtsk.start()

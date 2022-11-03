@@ -25,7 +25,6 @@ from ..openminds.base import SiibraAtIdModel
 import numpy as np
 import nibabel as nib
 import os
-import json
 from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
