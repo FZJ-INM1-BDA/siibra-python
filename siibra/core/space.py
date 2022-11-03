@@ -136,6 +136,11 @@ class Space(
     def __lt__(self, other):
         return self.type < other.type
 
+    @property
+    def volumes(self):
+        from ..volumes import VolumeSrc
+        return [v for v in REGISTRY[VolumeSrc] if "template" in v.detail and self.matches(v.space)]
+
     def get_bounding_box(self, point1, point2):
         """
         Get a volume of interest specification from this space.

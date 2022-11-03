@@ -93,6 +93,11 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
 
         self.detail = {} if detail is None else detail
         self.space = space
+
+        """
+        n.b. map_type property can be an expensive property to access.
+        For neuroglancer volumes, it needs to get access to info (network).
+        """
         self.map_type = None
 
 
@@ -135,7 +140,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
 
         identifier = obj.get("@id")
         name = obj.get("name")
-        url = obj.get("url")
+        url = obj.get("url") or obj.get("urls")
         space = None
         detail = obj.get("detail", {})
         kwargs = {}
@@ -145,11 +150,11 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
         space = REGISTRY[Space][obj.get("space").get("@id")]
         detail["mapped_region"] = obj.get("mapped_region")
 
-        if all(
+        if all([
             detail is not None,
             "neuroglancer/precomputed" in detail,
             "transform" in detail.get("neuroglancer/precomputed", {}),
-        ):
+        ]):
             kwargs["transform_nm"] = np.array(detail["neuroglancer/precomputed"]["transform"])
         
         if detail is not None and "zip" in detail:
@@ -174,7 +179,7 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.2"):
         # setter is provided, but result in noop
         # noop message will be printed if logging level is set to debug
         maptype = obj.get("map_type", None)
-        if maptype is not None:
+        if maptype:
             result.map_type = MapType[maptype.upper()]
         return result
 
