@@ -227,7 +227,7 @@ class ObjectRegistry:
     # TODO memory management concern, esp in siibra-api
     _objects = {}
 
-    _CONFIGURATIONS = [
+    _CONFIGURATIONS: List[RepositoryConnector] = [
         GitlabConnector(
             "https://jugit.fz-juelich.de",
             3484,
@@ -244,13 +244,14 @@ class ObjectRegistry:
 
     if SIIBRA_CONFIGURATION_SRC is not None:
         logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
-        
-    _CONFIGURATION_EXTENSIONS = []
+    _CONFIGURATION_EXTENSIONS: List[RepositoryConnector] = []
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
+        if not isinstance(conn, RepositoryConnector):
+            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Ignoring default, using configuration {str(conn)}")
         cls._CONFIGURATIONS = [ conn ]
 
@@ -258,6 +259,8 @@ class ObjectRegistry:
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
+        if not isinstance(conn, RepositoryConnector):
+            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls._CONFIGURATION_EXTENSIONS.append(conn)
 
