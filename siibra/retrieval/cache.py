@@ -19,6 +19,7 @@ from appdirs import user_cache_dir
 import tempfile
 
 from ..commons import logger
+from ..config import SIIBRA_CACHEDIR
 
 def assert_folder(folder):
     # make sure the folder exists and is writable, then return it.
@@ -32,8 +33,7 @@ def assert_folder(folder):
         return folder
     except OSError:
         # cannot write to requested directory, create a temporary one.
-        tmpdir = os.environ["SIIBRA_CACHEDIR"] = \
-            tempfile.mkdtemp(prefix="siibra-cache-")
+        tmpdir = tempfile.mkdtemp(prefix="siibra-cache-")
         logger.warning(
             f"Siibra created a temporary cache directory at {tmpdir}, as "
             f"the requested folder ({folder}) was not usable. "
@@ -59,8 +59,8 @@ class Cache:
         Return an instance of the siibra cache. Create folder if needed.
         """
         if cls._instance is None:
-            if "SIIBRA_CACHEDIR" in os.environ:
-                cls.folder = os.environ["SIIBRA_CACHEDIR"]
+            if SIIBRA_CACHEDIR:
+                cls.folder = SIIBRA_CACHEDIR
             cls.folder = assert_folder(cls.folder)
             cls._instance = cls.__new__(cls)
             cls._instance.run_maintenance()

@@ -15,8 +15,12 @@
 
 from .commons import logger, QUIET, VERBOSE
 
-# __version__ is parsed by setup.py
-__version__ = "0.3a30"
+import os
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
+    __version__ = fp.read()
+
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -26,7 +30,7 @@ logger.info(
 from .features import gene_names, get_features, modalities
 from .commons import MapType, ParcellationIndex
 from .retrieval import EbrainsRequest, CACHE
-from .registry import REGISTRY, ObjectRegistry
+from .registry import REGISTRY, ObjectRegistry, TypedObjectLUT
 from .core.atlas import Atlas
 from .core.space import Space
 from .core.space import Point, PointSet, BoundingBox, Location as _location

@@ -21,7 +21,7 @@ from ..registry import ObjectLUT, REGISTRY
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
-from typing import List
+from typing import Iterable, List, Union
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -161,7 +161,9 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
 
     _QUERY = {
         "probe": BASE_URL
-        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq{gene}],rma::options[only$eq'probes.id']",
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
+        "multiple_gene_probe": BASE_URL
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']",
         "specimen": BASE_URL
         + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
         "microarray": BASE_URL
@@ -183,6 +185,9 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         "H0351.2002",
     ]
 
+    _specimen = None
+    factors = None
+
     def __init__(self, **kwargs):
         """
         Retrieves probes IDs for the given gene, then collects the
@@ -191,38 +196,43 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         """
         FeatureQuery.__init__(self, **kwargs)
 
-        self.gene = kwargs['gene']
-        self._specimen = {}
-        self.factors = {}
+        self.gene: Union[str, Iterable[str]] = kwargs['gene']
 
         if self.gene is None:
             logger.warning(
                 f"No gene name provided to {self.__class__.__name__}, so no gene expressions will be retrieved. "
                 'Use the "gene=<name>" option in the feature query to specify one.'
             )
+            return
 
-        else:
-            if not self.__class__._notification_shown:
-                print(self.__class__.ALLEN_ATLAS_NOTIFICATION)
-                self.__class__._notification_shown = True
-            logger.info("Retrieving probe ids for gene {}".format(self.gene))
-            url = self._QUERY["probe"].format(gene=self.gene)
-            response = HttpRequest(url).get()
-            if "site unavailable" in response.decode().lower():
-                # When the Allen site is not available, they still send a status code 200.
-                raise RuntimeError(
-                    "Allen institute site unavailable - please try again later."
-                )
-            root = ElementTree.fromstring(response)
-            num_probes = int(root.attrib["total_rows"])
-            probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+        if not self.__class__._notification_shown:
+            print(self.__class__.ALLEN_ATLAS_NOTIFICATION)
+            self.__class__._notification_shown = True
 
-            # get specimen information
-            self._specimen = {
-                spcid: self._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
+        logger.info("Retrieving probe ids for gene {}".format(self.gene))
+        url = self._QUERY["probe"].format(gene=self.gene)
+        if not isinstance(self.gene, str):
+            url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g}'" for g in self.gene]))
+
+        response = HttpRequest(url).get()
+        if "site unavailable" in response.decode().lower():
+            # When the Allen site is not available, they still send a status code 200.
+            raise RuntimeError(
+                "Allen institute site unavailable - please try again later."
+            )
+        root = ElementTree.fromstring(response)
+        num_probes = int(root.attrib["total_rows"])
+        probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+
+        # get specimen information
+        if AllenBrainAtlasQuery._specimen is None:
+            AllenBrainAtlasQuery._specimen = {
+                spcid: AllenBrainAtlasQuery._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
             }
+        
+        if AllenBrainAtlasQuery.factors is None:
             response = HttpRequest(self._QUERY["factors"]).get()
-            self.factors = {
+            AllenBrainAtlasQuery.factors = {
                 item["id"]: {
                     "race": item["race_only"],
                     "gender": item["sex"],
@@ -231,16 +241,23 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
                 for item in response["msg"]
             }
 
-            # get expression levels and z_scores for the gene
-            if len(probe_ids) > 0:
-                for donor_id in self._DONOR_IDS:
-                    self._retrieve_microarray(donor_id, probe_ids)
+        # get expression levels and z_scores for the gene
+        if len(probe_ids) > 0:
+            for donor_id in self._DONOR_IDS:
+                if isinstance(self.gene, str):
+                    for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene, donor_id, probe_ids):
+                        self.add_feature(gene_feature)
+                else:
+                    for gene in self.gene:
+                        for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene, donor_id, probe_ids):
+                            self.add_feature(gene_feature)
 
-    def _retrieve_specimen(self, specimen_id):
+    @staticmethod
+    def _retrieve_specimen(specimen_id: str):
         """
         Retrieves information about a human specimen.
         """
-        url = self._QUERY["specimen"].format(specimen_id=specimen_id)
+        url = AllenBrainAtlasQuery._QUERY["specimen"].format(specimen_id=specimen_id)
         response = HttpRequest(url).get()
         if not response["success"]:
             raise Exception(
@@ -259,7 +276,8 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         )
         return specimen
 
-    def _retrieve_microarray(self, donor_id, probe_ids):
+    @staticmethod
+    def _retrieve_microarray(gene: str, donor_id: str, probe_ids: str) -> Iterable[GeneExpression]:
         """
         Retrieve microarray data for several probes of a given donor, and
         compute the MRI position of the corresponding tissue block in the ICBM
@@ -270,7 +288,7 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
             return
 
         # query the microarray data for this donor
-        url = self._QUERY["microarray"].format(
+        url = AllenBrainAtlasQuery._QUERY["microarray"].format(
             probe_ids=",".join([str(id) for id in probe_ids]), donor_id=donor_id
         )
         response = HttpRequest(url, json.loads).get()
@@ -289,23 +307,21 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
             # coordinate conversion to ICBM152 standard space
             donor = {k: sample["donor"][k] for k in ["name", "id"]}
             icbm_coord = np.matmul(
-                self._specimen[donor["name"]]["donor2icbm"],
+                AllenBrainAtlasQuery._specimen[donor["name"]]["donor2icbm"],
                 sample["sample"]["mri"] + [1],
             ).T
 
             # Create the spatial feature
-            self.add_feature(
-                GeneExpression(
-                    self.gene,
-                    Point(icbm_coord, REGISTRY.Space.MNI152_2009C_NONL_ASYM),
-                    expression_levels=[float(p["expression_level"][i]) for p in probes],
-                    z_scores=[float(p["z-score"][i]) for p in probes],
-                    probe_ids=[p["id"] for p in probes],
-                    donor_info={**self.factors[donor["id"]], **donor},
-                    mri_coord=sample["sample"]["mri"],
-                    structure=sample["structure"],
-                    top_level_structure=sample["top_level_structure"],
-                )
+            yield GeneExpression(
+                gene,
+                Point(icbm_coord, REGISTRY.Space.MNI152_2009C_NONL_ASYM),
+                expression_levels=[float(p["expression_level"][i]) for p in probes],
+                z_scores=[float(p["z-score"][i]) for p in probes],
+                probe_ids=[p["id"] for p in probes],
+                donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
+                mri_coord=sample["sample"]["mri"],
+                structure=sample["structure"],
+                top_level_structure=sample["top_level_structure"],
             )
 
 
