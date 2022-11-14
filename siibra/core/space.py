@@ -268,6 +268,12 @@ class WholeBrain(Location):
     is not further specified.
     """
 
+    def intersection(self, mask: Nifti1Image) -> bool:
+        """
+        Required for abstract class Location
+        """
+        return True
+
     def __init__(self, space: Space):
         if space is None:
             # typically only used for temporary entities, e.g. in individual voxel spaces.
