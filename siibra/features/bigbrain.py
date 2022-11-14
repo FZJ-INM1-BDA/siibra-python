@@ -107,7 +107,7 @@ class BigBrainIntensityProfile(CorticalProfile):
         CorticalProfile.__init__(
             self,
             measuretype="BigBrain cortical intensity profile",
-            species=Atlas.get_species_data('human').dict(),
+            species=Atlas.get_species_id('human'),
             regionname=regionname,
             description=self.DESCRIPTION,
             unit="staining intensity",
@@ -165,7 +165,7 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         RegionalFingerprint.__init__(
             self,
             measuretype="Layerwise BigBrain intensities",
-            species=Atlas.get_species_data('human').dict(),
+            species=Atlas.get_species_id('human'),
             regionname=regionname,
             description=self.DESCRIPTION,
             unit="staining intensity",
