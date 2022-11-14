@@ -56,7 +56,7 @@ class SiibraParcellationModel(ConfigBaseModel):
     type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
     name: str
     modality: Optional[str]
-    datasets: List[DatasetJsonModel]
+    # datasets: List[DatasetJsonModel]
     brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
     version: Optional[SiibraParcellationVersionModel]
 

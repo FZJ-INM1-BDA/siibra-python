@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .serializable_concept import JSONSerializable
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
 from ..openminds.core.v4.products.datasetVersion import Model as DatasetVersionModel
@@ -22,22 +21,21 @@ from ..registry import Preconfigure, REGISTRY
 
 import hashlib
 import re
-from datetime import date
-from typing import Any, Dict, List, Optional, Union
-from pydantic import Field
+from typing import Union
 
+# TODO remove once all dependency are migrated
+class DatasetJsonModel(ConfigBaseModel): pass
 
-class Url(ConfigBaseModel):
-    doi: str
-    cite: Optional[str]
-
-
-class Dataset(JSONSerializable):
+class Dataset:
     """Parent class for datasets. Each dataset has an identifier."""
 
     REGISTRY = {}
 
     def __init__(self, identifier, description=""):
+        if identifier is None:
+            import pdb
+            pdb.set_trace()
+        assert identifier, f"identifier must be defined for Dataset. self.id *must* be populated with unique, non random value!"
         self.id = identifier
         self._description_cached = description
 
@@ -102,68 +100,11 @@ class Dataset(JSONSerializable):
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
 
-    @classmethod
-    def get_model_type(Cls):
-        return "https://openminds.ebrains.eu/core/DatasetVersion"
-
-    @property
-    def model_id(self):
-        _id = hashlib.md5(
-            str(self.id if self.id else f"{str(self)}{self.description}").encode(
-                "utf-8"
-            )
-        ).hexdigest()
-        return f"{self.get_model_type()}/{_id}"
-
-    def to_model(self, **kwargs) -> "DatasetJsonModel":
-        metadata = DatasetVersionModel(
-            id=self.model_id,
-            type=self.get_model_type(),
-            accessibility={"@id": self.embargo_status[0].get("@id")}
-            if hasattr(self, "embargo_status")
-            and self.embargo_status is not None
-            and len(self.embargo_status) == 1
-            else {
-                "@id": "https://openminds.ebrains.eu/instances/productAccessibility/freeAccess"
-            },
-            data_type=[
-                {
-                    "@id": "https://openminds.ebrains.eu/instances/semanticDataType/derivedData"
-                }
-            ],
-            digital_identifier={"@id": None},
-            ethics_assessment={"@id": None},
-            experimental_approach=[{"@id": None}],
-            full_documentation={"@id": None},
-            full_name=self.name if hasattr(self, "name") else None,
-            license={"@id": None},
-            release_date=date(1970, 1, 1),
-            short_name=self.name[:30] if hasattr(self, "name") else "",
-            technique=[{"@id": None}],
-            version_identifier="",
-            version_innovation="",
-            description=(self.description or "")[:2000]
-            if hasattr(self, "description")
-            else "",
-        )
-        return DatasetJsonModel(
-            id=metadata.id,
-            type=Dataset.get_model_type(),
-            metadata=metadata,
-            urls=[Url(**url) for url in self.urls],
-        )
-
-
-class DatasetJsonModel(ConfigBaseModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field(Dataset.get_model_type(), alias="@type", const=True)
-    metadata: DatasetVersionModel
-    urls: List[Url]
-
 
 class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
-    def __init__(self, name, description, urls):
-        Dataset.__init__(self, None, description=description)
+    def __init__(self, name, description: str, urls):
+        _id = hashlib.md5(description.encode("utf-8")).hexdigest()
+        Dataset.__init__(self, _id, description=description)
         # we model the following as property functions,
         # so derived classes may replace them with a lazy loading mechanism.
         self.name = name
