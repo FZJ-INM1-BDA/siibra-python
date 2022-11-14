@@ -15,7 +15,7 @@
 
 from .concept import AtlasConcept
 from .serializable_concept import JSONSerializable
-from .space import PointSet, Space, Point, BoundingBox, UnitOfMeasurement
+from .space import PointSet, Space, Point, BoundingBox
 
 from ..commons import (
     logger,
@@ -36,6 +36,9 @@ from ..openminds.SANDS.v3.atlas.parcellationEntityVersion import (
 from ..openminds.SANDS.v3.atlas.parcellationEntity import (
     Model as ParcellationEntityModel,
 )
+
+class UnitOfMeasurement:
+    MILLIMETER = "https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
 
 import numpy as np
 import nibabel as nib

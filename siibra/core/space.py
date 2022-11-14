@@ -15,21 +15,11 @@
 
 
 from .concept import AtlasConcept
-from .serializable_concept import JSONSerializable
 from ..registry import Preconfigure, REGISTRY
 from ..commons import logger
 from ..retrieval import HttpRequest
-from ..openminds.base import ConfigBaseModel
-from ..openminds.SANDS.v3.atlas import commonCoordinateSpace
-from ..openminds.SANDS.v3.miscellaneous.coordinatePoint import (
-    Model as CoordinatePointModel,
-    Coordinates as QuantitativeValueModel,
-)
 
 
-from typing import Dict, List
-from pydantic import Field
-from datetime import date
 import hashlib
 import re
 import numpy as np
@@ -42,14 +32,10 @@ from os import path
 import numbers
 
 
-class UnitOfMeasurement:
-    MILLIMETER = "https://openminds.ebrains.eu/instances/unitOfMeasurement/millimeter"
-
 
 @Preconfigure('spaces')
 class Space(
     AtlasConcept,
-    JSONSerializable,
     type_id="minds/core/referencespace/v1.0.0",
 ):
     """
@@ -169,37 +155,6 @@ class Space(
 
         return result
 
-    @staticmethod
-    def get_model_type() -> str:
-        return "https://openminds.ebrains.eu/sands/CoordinateSpace"
-
-    @property
-    def model_id(self):
-        return self.id
-
-    def to_model(self, **kwargs) -> commonCoordinateSpace.Model:
-        return commonCoordinateSpace.Model(
-            id=self.model_id,
-            type=self.get_model_type(),
-            anatomical_axes_orientation={
-                "@id": "https://openminds.ebrains.eu/vocab/anatomicalAxesOrientation/XYZ"
-            },
-            axes_origin=[
-                commonCoordinateSpace.AxesOrigin(value=0),
-                commonCoordinateSpace.AxesOrigin(value=0),
-                commonCoordinateSpace.AxesOrigin(value=0),
-            ],
-            default_image=[{"@id": vol.id} for vol in self.volumes],
-            full_name=self.name,
-            native_unit={
-                "@id": "https://openminds.ebrains.eu/controlledTerms/Terminology/unitOfMeasurement/um"
-            },
-            release_date=date(2015, 1, 1),
-            short_name=self.name,
-            version_identifier=self.name,
-        )
-
-
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
 
@@ -211,13 +166,7 @@ SPACEWARP_IDS = {
     "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588": "Big Brain (Histology)",
 }
 
-
-class LocationModel(ConfigBaseModel):
-    type: str = Field(..., alias="@type")
-    space: Dict[str, str]
-
-
-class Location(JSONSerializable, ABC):
+class Location(ABC):
     """
     Abstract base class for locations in a given reference space.
     """
@@ -229,20 +178,6 @@ class Location(JSONSerializable, ABC):
         else:
             self.space: Space = REGISTRY.Space[space]
 
-    @classmethod
-    def get_model_type(Cls):
-        return "spy/location"
-
-    @property
-    def model_id(self):
-        return f"spy/location/space:{self.space.model_id if self.space is not None else 'None'}"
-
-    def to_model(self, **kwargs) -> LocationModel:
-        return LocationModel(
-            space={"@id": self.space.model_id},
-            type=self.get_model_type(),
-        )
-    
     @abstractmethod
     def intersection(self, mask: Nifti1Image) -> bool:
         """All subclasses of Location must implement intersection, as it is required by SpatialFeature._test_mask()
@@ -362,7 +297,7 @@ class WholeBrain(Location):
         return f"{self.__class__.__name__} in {self.space.name}"
 
 
-class Point(Location, JSONSerializable):
+class Point(Location):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -635,25 +570,11 @@ class Point(Location, JSONSerializable):
         return int((coronal_position + 70.0) / 0.02 + 1.5)
 
     @property
-    def model_id(self):
-        space_id = self.space.model_id
+    def id(self) -> str:
+        space_id = self.space.id
         return hashlib.md5(
             f"{space_id}{','.join(str(val) for val in self)}".encode("utf-8")
         ).hexdigest()
-
-    def to_model(self, **kwargs) -> CoordinatePointModel:
-        if self.space is None:
-            raise RuntimeError(
-                "Point.to_model cannot be done on Location entity that does not have space defined!"
-            )
-        space_id = self.space.model_id
-
-        return CoordinatePointModel(
-            id=self.model_id,
-            type="https://openminds.ebrains.eu/sands/CoordinatePoint",
-            coordinate_space={"@id": space_id},
-            coordinates=[QuantitativeValueModel(value=coord) for coord in self],
-        )
 
 
 class PointSet(Location):
@@ -842,14 +763,6 @@ class PointSet(Location):
         return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
 
 
-class BoundingBoxModel(LocationModel):
-    center: CoordinatePointModel
-    minpoint: CoordinatePointModel
-    maxpoint: CoordinatePointModel
-    shape: List[float]
-    is_planar: bool = Field(..., alias="isPlanar")
-
-
 class BoundingBox(Location):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
@@ -888,22 +801,8 @@ class BoundingBox(Location):
                     self.maxpoint[d] = self.minpoint[d] + minsize
 
     @property
-    def model_id(self):
-        import hashlib
-
+    def id(self) -> str:
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
-
-    def to_model(self, **kwargs) -> BoundingBoxModel:
-        super_model = super().to_model(**kwargs)
-        return BoundingBoxModel(
-            **super_model.dict(),
-            id=self.model_id,
-            center=self.center.to_model(**kwargs),
-            minpoint=self.minpoint.to_model(**kwargs),
-            maxpoint=self.maxpoint.to_model(**kwargs),
-            shape=self.shape,
-            is_planar=self.is_planar,
-        )
 
     @property
     def volume(self):
