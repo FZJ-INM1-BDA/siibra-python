@@ -18,7 +18,7 @@ from .feature import SpatialFeature
 from .. import QUIET
 from ..registry import Preconfigure
 from ..volumes.volume import VolumeSrc, VolumeModel, ColorVolumeNotSupported
-from ..core.space import BoundingBoxModel, BoundingBox
+from ..core.space import BoundingBox
 from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
 from ..core.serializable_concept import JSONSerializable
@@ -130,4 +130,5 @@ class EbrainsVolumeOfInterest(VolumeOfInterest, EbrainsDataset):
 class VOIDataModel(DatasetJsonModel):
     type: str = Field(VolumeOfInterest.get_model_type(), const=True, alias="@type")
     volumes: List[VolumeModel]
-    location: BoundingBoxModel
+    # TODO restore after migration
+    # location: BoundingBoxModel
