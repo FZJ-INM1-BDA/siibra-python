@@ -14,18 +14,15 @@
 # limitations under the License.
 
 
-from typing import List, Optional
 from .feature import CorticalProfile, RegionalFingerprint
 
 from ..registry import Preconfigure
 from ..commons import logger, create_key
 from ..core.datasets import EbrainsDataset
 from ..retrieval import HttpRequest, SiibraHttpRequestError
-from ..openminds.base import ConfigBaseModel
 
 import numpy as np
 import pandas as pd
-from pydantic import Field
 from io import BytesIO
 from skimage.transform import resize
 from skimage.draw import polygon

@@ -17,42 +17,20 @@ from .. import logger
 from ..commons import MapType
 from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
-from ..core.datasets import Dataset, DatasetJsonModel
+from ..core.datasets import Dataset
 from ..core.space import Space, BoundingBox, PointSet
-from ..core.serializable_concept import ConfigBaseModel
-from ..openminds.base import SiibraAtIdModel
 
 import numpy as np
 import nibabel as nib
 import os
-import json
 from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
-from typing import Any, Dict, Optional
-from pydantic import Field
 import hashlib
 
 
 class ColorVolumeNotSupported(NotImplementedError):
     pass
-
-
-class VolumeDataModel(ConfigBaseModel):
-    type: str
-    is_volume: bool
-    is_surface: bool
-    detail: Dict[str, Any]
-    space: SiibraAtIdModel
-    url: Optional[str]
-    url_map: Optional[Dict[str, str]]
-    map_type: Optional[str]
-    volume_type: Optional[str]
-
-
-class VolumeModel(DatasetJsonModel):
-    type: str = Field(..., alias="@type")
-    data: VolumeDataModel
 
 
 class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
@@ -167,36 +145,15 @@ class VolumeSrc(Dataset, type_id="fzj/tmp/volume_type/v0.0.1"):
         return result
 
     @property
-    def model_id(self):
-        hashed_url = hashlib.md5(str(self.url).encode("utf-8")).hexdigest()
-        return f"{self.get_model_type()}/{hashed_url}"
+    def id(self):
+        return hashlib.md5(str(self.url).encode("utf-8")).hexdigest()
 
-    def get_model_type(self):
-        return f"spy/volume/{self.volume_type}"
-
-    def to_model(self, **kwargs) -> VolumeModel:
-        super_model = super().to_model(**kwargs)
-        super_dict = {
-            **super_model.dict(),
-            **{"@id": self.model_id, "@type": self.get_model_type()},
-        }
-        return VolumeModel(
-            data=VolumeDataModel(
-                type=self.volume_type,
-                is_volume=self.is_volume,
-                is_surface=self.is_surface,
-                detail=self.detail or {},
-                space={"@id": self.space.model_id},
-                url=self.url if isinstance(self.url, str) else None,
-                url_map=self.url if isinstance(self.url, dict) else None,
-                map_type=self.map_type.name
-                if hasattr(self, "map_type") and self.map_type is not None
-                else None,
-                volume_type=self.volume_type,
-            ),
-            **super_dict,
-        )
-
+    @id.setter
+    def id(self, val):
+        """
+        Ignore volume id setter. Use hashed URL for id.
+        """
+        pass
 
 class ImageProvider(ABC):
     @abstractmethod
