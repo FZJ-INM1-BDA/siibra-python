@@ -373,7 +373,7 @@ class RegionalFeature(Feature):
             f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}"
         )
 
-    def __init__(self, regionspec: Tuple[str, Region], species=[], **kwargs):
+    def __init__(self, regionspec: Union[str, Region], species=[], **kwargs):
         """
         Parameters
         ----------
@@ -749,7 +749,7 @@ class CorticalProfile(RegionalFeature):
             )
 
     @property
-    def boundaries_mapped(self):
+    def boundaries_mapped(self) -> bool:
         if self.boundary_positions is None:
             return False
         else:

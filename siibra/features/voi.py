@@ -23,9 +23,7 @@ from ..core.datasets import EbrainsDataset, DatasetJsonModel
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
-from typing import List
 import hashlib
-from pydantic import Field
 from os import path
 
 
@@ -89,10 +87,6 @@ class VolumeOfInterest(SpatialFeature):
             list(map(result.volumes.append, vsrcs))
             return result
         return definition
-
-    @property
-    def id(self):
-        return hashlib.md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
     def _bootstrap(cls):

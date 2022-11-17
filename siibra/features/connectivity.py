@@ -18,39 +18,16 @@ from .feature import ParcellationFeature
 from ..registry import REGISTRY, Preconfigure
 from ..commons import logger, QUIET, create_key
 from ..retrieval.repositories import RepositoryConnector
-from ..core.serializable_concept import NpArrayDataModel, JSONSerializable
-from ..openminds.base import ConfigBaseModel
 
 import pandas as pd
-import numpy as np
-from typing import Dict, List, Optional, Union
 import hashlib
-from pydantic import Field
 from io import BytesIO
-
-
-class ConnectivityMatrixDataModel(ConfigBaseModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field(..., alias="@type")
-    name: Optional[str]
-    description: Optional[str]
-    citation: Optional[str]
-    authors: Optional[List[str]]
-    cohort: Optional[str]
-    subject: Optional[str]
-
-    filename: Optional[str]
-    dataset_id: Optional[str]
-
-    parcellations: List[Dict[str, str]]
-    matrix: Optional[NpArrayDataModel]
-    columns: Optional[List[str]]
 
 
 # TODO: check if dataset_id is ebrains, then create the corresponding dataset
 # in general, it should be cleaner to model for all features an attribute wether the come from an EBRAINS dataset,
 # instead of implementing additional classes of objects which are ebrainsdatasets.
-class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
+class ConnectivityMatrix(ParcellationFeature):
 
     """Connectivity matrix grouped by a parcellation."""
 
@@ -164,84 +141,15 @@ class ConnectivityMatrix(ParcellationFeature, JSONSerializable):
 
         return matrix
 
-    @classmethod
-    def get_model_type(Cls):
-        return "siibra/features/connectivity"
 
     @property
-    def model_id(self):
-        return f"{self.get_model_type()}/{hashlib.md5(str(self).encode('utf-8')).hexdigest()}"
+    def id(self):
+        return f"siibra/features/connectivity/{hashlib.md5(str(self).encode('utf-8')).hexdigest()}"
 
-    def to_model(self, detail=False, **kwargs) -> ConnectivityMatrixDataModel:
+    @id.setter
+    def id(self, val):
+        logger.warn(f"Connectivity matrix defines id as a property decorator")
 
-        # these properties do not exist on ConnectivityMatrix, but may be populated from ConnectivityMatrix.src_info via __getattr__
-        model_dict_from_getattr = {
-            key: getattr(self, key) if hasattr(self, key) else None
-            for key in [
-                "name",
-                "description",
-                "citation",
-                "authors",
-                "cohort",
-                "subject",
-                "filename",
-                "dataset_id",
-            ]
-        }
-        base_model = ConnectivityMatrixDataModel(
-            id=self.model_id,
-            type=self.get_model_type(),
-            parcellations=[
-                {
-                    "@id": parc.model_id,
-                }
-                for parc in self.parcellations
-            ],
-            **model_dict_from_getattr,
-        )
-        if detail is False:
-            return base_model
-
-        from ..core import Region
-
-        dtype_set = {dtype for dtype in self.matrix.dtypes}
-
-        if len(dtype_set) == 0:
-            raise TypeError("dtype is an empty set!")
-
-        force_float = False
-        if len(dtype_set) == 1:
-            (dtype,) = list(dtype_set)
-            is_int = np.issubdtype(dtype, int)
-            is_float = np.issubdtype(dtype, float)
-            assert (
-                is_int or is_float
-            ), f"expect datatype to be subdtype of either int or float, but is neither: {str(dtype)}"
-
-        if len(dtype_set) > 1:
-            logger.warning(
-                f"expect only 1 type of data, but got {len(dtype_set)}, will cast everything to float"
-            )
-            force_float = True
-
-        def get_column_name(col: Union[str, Region]) -> str:
-            if isinstance(col, str):
-                return col
-            if isinstance(col, Region):
-                return col.name
-            raise TypeError(
-                f"matrix column value {col} of instance {col.__class__} can be be converted to str."
-            )
-
-        base_model.columns = [
-            get_column_name(name) for name in self.matrix.columns.values
-        ]
-        base_model.matrix = NpArrayDataModel(
-            self.matrix.to_numpy(
-                dtype="float32" if force_float or is_float else "int32"
-            )
-        )
-        return base_model
 
 
 @Preconfigure("features/connectivitymatrix/streamlinecounts")
