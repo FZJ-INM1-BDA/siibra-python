@@ -630,6 +630,7 @@ class ParcellationFeature(Feature):
         return f"{self.__class__.__name__} for {self.spec}"
 
 
+# TODO how to allow rich text for label (e.g. markdown, latex) etc
 class CorticalProfile(RegionalFeature):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,

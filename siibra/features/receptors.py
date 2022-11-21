@@ -17,8 +17,7 @@ from .feature import CorticalProfile, RegionalFingerprint
 from ..commons import logger, create_key
 from ..registry import Preconfigure
 from ..retrieval.requests import HttpRequest
-from ..core.datasets import EbrainsDataset, ConfigBaseModel
-from ..core.serializable_concept import NpArrayDataModel
+from ..core.datasets import EbrainsDataset
 
 
 from typing import Dict
@@ -271,43 +270,6 @@ def decode_receptor_tsv(bytearray):
         )
         for _ in lines
     }
-
-
-class FingerPrintDataModel(ConfigBaseModel):
-    mean: float
-    std: float
-    unit: str
-
-
-class ProfileDataModel(ConfigBaseModel):
-    density: NpArrayDataModel
-    unit: str
-
-
-class AutoradiographyDataModel(NpArrayDataModel):
-    pass
-
-
-class ReceptorMarkupModel(ConfigBaseModel):
-    latex: str
-    markdown: str
-    name: str
-
-
-class NeurotransmitterMarkupModel(ReceptorMarkupModel):
-    label: str
-
-
-class SymbolMarkupClass(ConfigBaseModel):
-    receptor: ReceptorMarkupModel
-    neurotransmitter: NeurotransmitterMarkupModel
-
-
-class ReceptorDataModel(ConfigBaseModel):
-    autoradiographs: Dict[str, AutoradiographyDataModel]
-    profiles: Dict[str, ProfileDataModel]
-    fingerprints: Dict[str, FingerPrintDataModel]
-    receptor_symbols: Dict[str, SymbolMarkupClass]
 
 
 @Preconfigure("features/profiles/receptor")

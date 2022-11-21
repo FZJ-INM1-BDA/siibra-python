@@ -15,16 +15,12 @@
 
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
-from ..openminds.core.v4.products.datasetVersion import Model as DatasetVersionModel
-from ..openminds.base import ConfigBaseModel
 from ..registry import Preconfigure, REGISTRY
 
 import hashlib
 import re
 from typing import Union
 
-# TODO remove once all dependency are migrated
-class DatasetJsonModel(ConfigBaseModel): pass
 
 class Dataset:
     """Parent class for datasets. Each dataset has an identifier."""
