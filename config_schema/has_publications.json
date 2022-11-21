@@ -1,0 +1,23 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "publications": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/publication"
+            }
+        }
+    },
+    "definitions": {
+        "publication": {
+            "properties": {
+                "citation": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,39 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/volume/v0.0.1"
+        },
+        "urls": {
+            "type": "object",
+            "properties": {
+                "neuroglancer/precomputed": {
+                    "type": "string"
+                },
+                "neuroglancer/precompmesh": {
+                    "type": "string"
+                },
+                "nii": {
+                    "type": "string"
+                },
+                "zip/nii": {
+                    "type": "string",
+                    "pattern": "^.+\\s.+$"
+                },
+                "gii-label": {
+                    "type": "string"
+                },
+                "gii-mesh": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "required": [
+        "@type",
+        "urls"
+    ]
+}

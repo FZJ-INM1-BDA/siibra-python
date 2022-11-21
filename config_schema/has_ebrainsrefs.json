@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "ebrains": {
+            "type": "object",
+            "properties": {
+                "minds/core/dataset/v1.0.0": {
+                    "type": "string"
+                },
+                "minds/core/parcellationregion/v1.0.0": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

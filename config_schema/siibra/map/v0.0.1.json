@@ -1,0 +1,46 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "@type": {
+            "const": "siibra/map/v0.0.1"
+        },
+        "space": {
+            "$ref": "config_schema/at_id.json"
+        },
+        "parcellation": {
+            "$ref": "config_schema/at_id.json"
+        },
+        "volumes": {
+            "type": "array",
+            "items": {
+                "$ref": "config_schema/siibra/volume/v0.0.1.json"
+            }
+        },
+        "regions": {
+            "type": "object",
+            "patternProperties": {
+                "[\\w ]+": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "map": {
+                                "type": "number"
+                            },
+                            "index": {
+                                "anyOf": [{
+                                    "type": "number"
+                                }, {
+                                    "type": "null"
+                                }]
+                            }
+                        },
+                        "required": [
+                            "map"
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,68 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }, {
+        "$ref": "/config_schema/has_publications.json"
+    }],
+    "properties": {
+        "@id": {
+            "type": "string"
+        },
+        "@type": {
+            "const": "siibra/parcellation/v0.0.1"
+        },
+        "name": {
+            "type": "string"
+        },
+        "shortName": {
+            "type": "string"
+        },
+        "description": {
+            "type": "string"
+        },
+        "modality": {
+            "anyOf": [{
+                "type": "string"
+            }, {
+                "type": "null"
+            }]
+        },
+        "regions": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/region" }
+        }
+    },
+    "required": [
+        "@type",
+        "name",
+        "regions"
+    ],
+    "definitions": {
+        "region": {
+            "type": "object",
+            "properties": {
+                "children": {
+                    "type": "array",
+                    "items": { "$ref": "#/definitions/region" }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rgb": {
+                    "anyOf": [{
+                        "type": "array",
+                        "minItems": 3,
+                        "maxItems": 3,
+                        "items": {
+                            "type": "number"
+                        }
+                    }, {
+                        "type": "null"
+                    }]
+                }
+            },
+            "required": ["name"]
+        }
+    }
+}
