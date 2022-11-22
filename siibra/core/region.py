@@ -98,7 +98,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
         ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation. 
+            Identifiers of EBRAINS entities corresponding to this Parcellation.
             Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
         anytree.NodeMixin.__init__(self)
@@ -817,6 +817,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             publications=jsonspec.get("publications", []),
             ebrains_ids=jsonspec.get("ebrains_ids", {})
         )
+
 
 if __name__ == "__main__":
 

@@ -52,7 +52,7 @@ class AtlasConcept:
             description: str
                 Textual description of the parcellation
             ebrains_ids : dict
-                Identifiers of EBRAINS entities corresponding to this Parcellation. 
+                Identifiers of EBRAINS entities corresponding to this Parcellation.
                 Key: EBRAINS KG schema, value: EBRAINS KG @id
             publications: list
                 List of publications, each a dictionary with "doi" and/or "citation" fields
@@ -68,7 +68,7 @@ class AtlasConcept:
             if kg_schema == "minds/core/dataset/v1.0.0":
                 if kg_id not in REGISTRY[EbrainsDataset]:
                     REGISTRY[EbrainsDataset].add(
-                        kg_id, EbrainsDataset(id=g_id, name=None)
+                        kg_id, EbrainsDataset(id=kg_id, name=None)
                     )
                 self.datasets.append(REGISTRY[EbrainsDataset][kg_id])
             else:

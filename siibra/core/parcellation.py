@@ -146,13 +146,13 @@ class Parcellation(
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
         ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation. 
+            Identifiers of EBRAINS entities corresponding to this Parcellation.
             Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
         Region.__init__(
-            self, 
-            name=name, 
-            children=regions, 
+            self,
+            name=name,
+            children=regions,
             parent=None,
             shortname=shortname,
             description=description,
@@ -411,7 +411,7 @@ class Parcellation(
 
         # construct child region objects
         regions = []
-        for regionspec in obj.get("regions", []):  
+        for regionspec in obj.get("regions", []):
             try:
                 regions.append(Region._from_json(regionspec))
             except Exception as e:
@@ -444,5 +444,3 @@ class Parcellation(
             parcellation.version = version
 
         return parcellation
- 
-

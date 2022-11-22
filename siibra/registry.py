@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger, QUIET
+from .commons import logger
 from .retrieval.repositories import (
     GitlabConnector,
     RepositoryConnector,
@@ -240,7 +240,7 @@ class ObjectRegistry:
             GITLAB_PROJECT_TAG,
             skip_branchtest=USE_DEFAULT_PROJECT_TAG,
         ),
-    ] if SIIBRA_CONFIGURATION_SRC is None else [ RepositoryConnector._from_url(SIIBRA_CONFIGURATION_SRC) ]
+    ] if SIIBRA_CONFIGURATION_SRC is None else [RepositoryConnector._from_url(SIIBRA_CONFIGURATION_SRC)]
 
     if SIIBRA_CONFIGURATION_SRC is not None:
         logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
@@ -251,16 +251,16 @@ class ObjectRegistry:
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
-            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
+            raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Ignoring default, using configuration {str(conn)}")
-        cls._CONFIGURATIONS = [ conn ]
+        cls._CONFIGURATIONS = [conn]
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
-            raise RuntimeError(f"conn needs to be an instance of RepositoryConnector or a valid str")
+            raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls._CONFIGURATION_EXTENSIONS.append(conn)
 

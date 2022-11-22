@@ -15,7 +15,7 @@
 
 from ..commons import logger
 from ..retrieval import EbrainsKgQuery
-from ..registry import Preconfigure, REGISTRY
+from ..registry import Preconfigure
 
 import re
 from typing import Union
@@ -30,7 +30,7 @@ class Dataset:
         if identifier is None:
             import pdb
             pdb.set_trace()
-        assert identifier, f"identifier must be defined for Dataset. self.id *must* be populated with unique, non random value!"
+        assert identifier, "identifier must be defined for Dataset. self.id *must* be populated with unique, non random value!"
         self.id = identifier
         self._description_cached = description
 
@@ -94,7 +94,8 @@ class Dataset:
             if key in spec:
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
-    
+
+
 @Preconfigure("snapshots/ebrainsquery/v1")
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
     def __init__(self, id, name, embargo_status=None, *, cached_data=None):
@@ -102,7 +103,7 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
         self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
-        
+
         if id is None:
             raise TypeError("Dataset id is required")
 
