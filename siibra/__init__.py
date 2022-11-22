@@ -28,7 +28,7 @@ logger.info(
 )
 
 from .features import gene_names, get_features, modalities
-from .commons import MapType, ParcellationIndex
+from .commons import MapType, ParcellationIndex, set_log_level
 from .retrieval import EbrainsRequest, CACHE
 from .registry import REGISTRY, ObjectRegistry, TypedObjectLUT
 from .core.atlas import Atlas

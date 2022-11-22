@@ -95,30 +95,6 @@ class Dataset:
             if key in spec:
                 return spec[key]
         raise RuntimeError(f"No type defined in dataset specification: {spec}")
-
-
-class OriginDescription(Dataset, type_id="fzj/tmp/simpleOriginInfo/v0.0.1"):
-    def __init__(self, name, description: str, urls):
-        _id = hashlib.md5(description.encode("utf-8")).hexdigest()
-        Dataset.__init__(self, _id, description=description)
-        # we model the following as property functions,
-        # so derived classes may replace them with a lazy loading mechanism.
-        self.name = name
-        self._urls = urls
-
-    @property
-    def urls(self):
-        return self._urls
-
-    @classmethod
-    def _from_json(cls, spec):
-        type_id = cls.extract_type_id(spec)
-        assert type_id == cls.type_id
-        return cls(
-            name=spec["name"],
-            description=spec.get("description"),
-            urls=spec.get("url", []),
-        )
     
 @Preconfigure("snapshots/ebrainsquery/v1")
 class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):

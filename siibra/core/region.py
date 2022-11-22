@@ -112,8 +112,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self.index = index
         self.attrs = attrs
         self.parent = parent
-        # this is only used for regions added by parcellation extension:
-        self.extended_from = None
         if children:
             self.children = children
             for c in self.children:
@@ -407,8 +405,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             maskdata = None
             affine = None
             for c in self.children:
-                if c.extended_from is not None:
-                    continue
                 childmask = c.build_mask(
                     space, resolution_mm, maptype, threshold_continuous
                 )
@@ -480,7 +476,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             return False
 
         for child in self.children:
-            if (child.extended_from is None) and not child.mapped_in_space(space):
+            if not child.mapped_in_space(space):
                 return False
         return True
 
@@ -612,8 +608,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def __repr__(self):
         return "\n".join(
             "%s%s" % (pre, node.name)
-            if node.extended_from is None
-            else "%s%s [extension region]" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
         )
 

@@ -41,8 +41,8 @@ class LoggingContext:
         logger.setLevel(self.old_level)
 
 
-def set_log_level(level):
-    logger.setLevel(level)
+def set_log_level(level: str):
+    logger.setLevel(level.upper())
 
 
 set_log_level(SIIBRA_LOG_LEVEL)
