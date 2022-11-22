@@ -339,10 +339,14 @@ class ObjectRegistry:
             for i, (fname, loader) in enumerate(loaders):
                 obj = registered_cls._from_json(loader.data)
                 if not isinstance(obj, registered_cls):
-                    raise RuntimeError(
+                    logger.error(
                         f"Could not instantiate {registered_cls} object from '{fname}'"
                     )
+                    print(obj)
+                    continue
                 objkey = obj.key if hasattr(obj, 'key') else obj.__hash__()
+                # we remember the preconfiguration filenames in all preconfigured objects
+                obj._preconfiguration_file = fname
                 if i >= num_default_loaders:
                     if objkey in cls._objects[key]:
                         logger.info(

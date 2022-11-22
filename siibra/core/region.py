@@ -74,49 +74,58 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __init__(
         self,
-        name,
-        parcellation,
-        index: ParcellationIndex,
-        attrs={},
-        parent=None,
-        children:List['Region']=None,
-        dataset_specs=[],
+        name: str,
+        children: list["Region"] = [],
+        parent: "Region" = None,
+        shortname: str = "",
+        description: str = "",
+        publications: list = [],
+        ebrains_ids: dict = {},
     ):
         """
-        Constructs a new region object.
+        Constructs a new Region object.
 
         Parameters
         ----------
         name : str
-            Human-readable name of the rgion
-        parcellation : Parcellation
-            the parcellation object that this region belongs to
-        parcellaton : int
-            the integer label index used to mark the region in a labelled brain volume
-        index : ParcellationIndex
-            the integer label index used to specify one of muliple available maps, if any (otherwise None)
-        attrs : dict
-            A dictionary of arbitrary additional information
-        parent : Region
-            Parent of this region, if any
-        volumes : Dict of VolumeSrc
-            VolumeSrc objects indexed by (Space,MapType), representing available image datasets for this region map.
+            Human-readable name of the region
+        children: list of Regions,
+        parent: Region
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        publications: list
+            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+        ebrains_ids : dict
+            Identifiers of EBRAINS entities corresponding to this Parcellation. 
+            Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
-        regionname = __class__._clear_name(name)
-        # regions are not modelled with an id yet in the configuration, so we create one here
-        id = f"{parcellation.id}-{create_key((regionname+str(index))).replace('NONE','X')}"
+        anytree.NodeMixin.__init__(self)
         AtlasConcept.__init__(
-            self, identifier=id, name=regionname, dataset_specs=dataset_specs
+            self,
+            identifier=None,  # Region overwrites the property function below!
+            name=__class__._clear_name(name),
+            shortname=shortname,
+            description=description,
+            publications=publications,
+            ebrains_ids=ebrains_ids,
         )
-        self.parcellation = parcellation
-        self.index = index
-        self.attrs = attrs
+
+        # anytree node will take care to use this appropriately
         self.parent = parent
-        if children:
-            self.children = children
-            for c in self.children:
-                c.parent = self
-                c.parcellation = self.parcellation
+        self.children = children
+
+    @property
+    def id(self):
+        if self.parent is None:
+            return create_key(self.name)
+        else:
+            return f"{self.parent.root.id}_{create_key(self.name)}"
+
+    @property
+    def parcellation(self):
+        return self.root
 
     @staticmethod
     def copy(other):
@@ -131,10 +140,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         region.children = tuple(Region.copy(c) for c in other.children)
         for c in region.children:
             c.parent = region
-        region._datasets_cached = []
-        for d in other.datasets:
-            region._datasets_cached.append(d)
-
         return region
 
     @property
@@ -149,12 +154,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return self.__hash__() == other.__hash__()
 
     def __hash__(self):
-        """
-        Identify a region by its parcellation key, region key, and parcellation index
-        """
-        return hash(
-            f"{self.parcellation.key}_{self.key}_{self.index.map}_{self.index.label}"
-        )
+        return hash(self.id)
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
@@ -289,8 +289,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
             - a regex applied to region names,
-            - an integer, which is interpreted as a labelindex,
-            - a full ParcellationIndex
             - a region object
 
         Yield
@@ -303,14 +301,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         if isinstance(regionspec, Region):
             return self == regionspec
-        elif isinstance(regionspec, int):
-            # argument is int - a labelindex is expected
-            return self.index.label == regionspec
-        elif isinstance(regionspec, ParcellationIndex):
-            if self.index.map is None:
-                return self.index.label == regionspec.label
-            else:
-                return self.index == regionspec
         elif isinstance(regionspec, str):
             # string is given, perform some lazy string matching
             q = regionspec.lower().strip()
@@ -322,7 +312,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 words = splitstr(self.name.lower())
                 return all(
                     [
-                        w.lower() in words
+                        any(w.lower() in _ for _ in words)
                         for w in splitstr(__class__._clear_name(regionspec))
                     ]
                 )
@@ -605,7 +595,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def __str__(self):
         return f"{self.name}"
 
-    def __repr__(self):
+    def tree2str(self):
         return "\n".join(
             "%s%s" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
@@ -806,12 +796,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         )
         return compare_maps(mask, img)
 
-    def print_tree(self):
-        """
-        Returns the hierarchy of all descendants of this region as a tree.
-        """
-        print(self.__repr__())
-
     def __iter__(self):
         """
         Returns an iterator that goes through all regions in this subtree
@@ -820,37 +804,19 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return anytree.PreOrderIter(self)
 
     @classmethod
-    def _from_json(cls, jsonstr, parcellation):
+    def _from_json(cls, jsonspec):
         """
         Provides an object hook for the json library to construct a Region
         object from a json definition.
         """
-
-        # first construct any child objects
-        # This is important due to the bottom-up way the tree gets
-        # constructed in the Region constructor.
-        children = []
-        if "children" in jsonstr:
-            if jsonstr["children"] is not None:
-                for regiondef in jsonstr["children"]:
-                    children.append(Region._from_json(regiondef, parcellation))
-
-        # determine labelindex
-        labelindex = jsonstr.get("labelIndex", None)
-
-        # Setup the region object
-        pindex = ParcellationIndex(label=labelindex, map=jsonstr.get("mapIndex", None))
-        result = cls(
-            name=jsonstr["name"],
-            parcellation=parcellation,
-            index=pindex,
-            attrs=jsonstr,
-            children=children,
-            dataset_specs=jsonstr.get("datasets", []),
+        return Region(
+            name=jsonspec["name"],
+            children=map(Region._from_json, jsonspec.get("children", [])),
+            shortname=jsonspec.get("shortname", ""),
+            description=jsonspec.get("description", ""),
+            publications=jsonspec.get("publications", []),
+            ebrains_ids=jsonspec.get("ebrains_ids", {})
         )
-
-        return result
-
 
 if __name__ == "__main__":
 

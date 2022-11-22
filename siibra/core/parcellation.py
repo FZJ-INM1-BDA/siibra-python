@@ -15,7 +15,6 @@
 
 from .space import Space
 from .region import Region
-from .concept import AtlasConcept
 
 from ..registry import Preconfigure, ObjectLUT, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
@@ -23,7 +22,7 @@ from ..volumes import ParcellationMap
 
 from typing import Set, Union
 from difflib import SequenceMatcher
-
+from os import path
 
 
 # NOTE : such code could be used to automatically resolve
@@ -38,12 +37,13 @@ from difflib import SequenceMatcher
 
 class ParcellationVersion:
     def __init__(
-        self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False
+        self, name, parcellation, collection=None, prev_filename=None, next_filename=None, deprecated=False
     ):
         self.name = name
         self.collection = collection
-        self.next_id = next_id
-        self.prev_id = prev_id
+        self.parcellation = parcellation
+        self.next_filename = next_filename
+        self.prev_filename = prev_filename
         self.deprecated = deprecated
 
     def __eq__(self, other):
@@ -63,69 +63,67 @@ class ParcellationVersion:
 
     def __lt__(self, other):
         """< operator, useful for sorting by version"""
-        successor = self.next
-        while successor is not None:
-            if successor.version == other:
+        # check predecessors of other
+        pred = other.prev
+        while pred is not None:
+            if pred.version == self:
                 return True
-            successor = successor.version.next
+            pred = pred.version.prev
+
+        # check successors of self
+        succ = self.next
+        while succ is not None:
+            if succ.version == other:
+                return True
+            succ = succ.version.next
+
         return False
+
+    def find_parcellation(self, preconf_fname):
+        if preconf_fname is None:
+            return None
+        if preconf_fname.startswith('./'):
+            preconf_fname = path.join(
+                path.dirname(self.parcellation._preconfiguration_file),
+                preconf_fname[2:]
+            )
+        matches = [
+            p for p in REGISTRY.Parcellation
+            if p._preconfiguration_file == preconf_fname
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) == 0:
+            raise RuntimeError(f"No parcellations found for preconfiguration file {preconf_fname}")
+        else:
+            raise RuntimeError(f"Mulitple parcellations found for preconfiguration file {preconf_fname}")
 
     @property
     def next(self):
-        if self.next_id is None:
-            return None
-        try:
-            return REGISTRY.Parcellation[self.next_id]
-        except IndexError:
-            return None
-        except NameError:
-            logger.warning("Accessing REGISTRY before its declaration!")
+        return self.find_parcellation(self.next_filename)
 
     @property
     def prev(self):
-        if self.prev_id is None:
-            return None
-        try:
-            return REGISTRY.Parcellation[self.prev_id]
-        except IndexError:
-            return None
-        except NameError:
-            logger.warning("Accessing REGISTRY before its declaration!")
-
-    @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct a
-        ParcellationVersion object from a json string.
-        """
-        if obj is None:
-            return None
-        return cls(
-            obj.get("name", None),
-            obj.get("collectionName", None),
-            prev_id=obj.get("@prev", None),
-            next_id=obj.get("@next", None),
-            deprecated=obj.get("deprecated", False),
-        )
+        return self.find_parcellation(self.prev_filename)
 
 
 @Preconfigure("parcellations")
 class Parcellation(
-    AtlasConcept,
+    Region,  # parcellations are also used to represent the root nodes of region hierarchies
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
-
-    _regiontree_cached = None
 
     def __init__(
         self,
         identifier: str,
         name: str,
-        version=None,
-        modality=None,
-        regiondefs=[],
-        dataset_specs=[],
-        maps=None,
+        regions: tuple[Region] = (),
+        shortname: str = "",
+        description: str = "",
+        version: ParcellationVersion = None,
+        modality: str = None,
+        publications: list = [],
+        ebrains_ids: dict = {},
     ):
         """
         Constructs a new parcellation object.
@@ -136,43 +134,34 @@ class Parcellation(
             Unique identifier of the parcellation
         name : str
             Human-readable name of the parcellation
+        regions: list or Region
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
         version : str or None
-            a version specification, optional
+            Version specification, optional
         modality  :  str or None
-            a specification of the modality used for creating the parcellation.
-        regiondefs : list of dict
-            json specification of regions (siibra-configuration schema)
-        dataset_specs : list of dict
-            json specification of dataset (siibra-configuration schema)
-        maps : list of VolumeSrc (optional)
-            List of already instantiated parcellation maps
-            (as opposed to the dataset_specs, which still need to be instantiated)
+            Specification of the modality used for creating the parcellation
+        publications: list
+            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+        ebrains_ids : dict
+            Identifiers of EBRAINS entities corresponding to this Parcellation. 
+            Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
-        AtlasConcept.__init__(self, identifier, name, dataset_specs)
+        Region.__init__(
+            self, 
+            name=name, 
+            children=regions, 
+            parent=None,
+            shortname=shortname,
+            description=description,
+            publications=publications,
+            ebrains_ids=ebrains_ids
+        )
         self.version = version
-        self.description = ""
         self.modality = modality
-        self._regiondefs = regiondefs
-        if maps is not None:
-            if self._datasets_cached is None:
-                self._datasets_cached = []
-            self._datasets_cached.extend(maps)
         self.atlases = set()
-
-    @property
-    def regiontree(self):
-        if self._regiontree_cached is None:
-            self._regiontree_cached = Region(
-                self.name, self, ParcellationIndex(None, None)
-            )
-            try:
-                self._regiontree_cached.children = tuple(
-                    Region._from_json(regiondef, self) for regiondef in self._regiondefs
-                )
-            except Exception as e:
-                logger.error(f"Could not generate child regions for {self.name}")
-                raise (e)
-        return self._regiontree_cached
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -215,14 +204,6 @@ class Parcellation(
 
         return ParcellationMap.get_instance(self, spaceobj, maptype)
 
-    @property
-    def labels(self):
-        return self.regiontree.labels
-
-    @property
-    def names(self):
-        return self.regiontree.names
-
     def get_colormap(self):
         """Generate a matplotlib colormap from known rgb values of label indices."""
         from matplotlib.colors import ListedColormap
@@ -230,7 +211,7 @@ class Parcellation(
 
         colors = {
             r.index.label: r.attrs["rgb"]
-            for r in self.regiontree
+            for r in self
             if "rgb" in r.attrs and r.index.label
         }
         pallette = np.array(
@@ -248,7 +229,7 @@ class Parcellation(
         """
         return list(
             set(super().supported_spaces)
-            | {space for region in self.regiontree for space in region.supported_spaces}
+            | {space for region in self for space in region.supported_spaces}
         )
 
     def supports_space(self, space: Space):
@@ -267,10 +248,6 @@ class Parcellation(
     @property
     def is_newest_version(self):
         return (self.version is None) or (self.version.next is None)
-
-    @property
-    def publications(self):
-        return self._publications + super().publications
 
     def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region], find_topmost=True):
         """
@@ -317,7 +294,7 @@ class Parcellation(
             else:
                 return Region._build_grouptree(cleaned_regions, parcellation=self)
 
-        candidates = self.regiontree.find(regionspec, filter_children=True, find_topmost=find_topmost)
+        candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
         if not candidates:
             raise ValueError(
                 "Regionspec {} could not be decoded under '{}'".format(
@@ -367,7 +344,7 @@ class Parcellation(
         -----
         list of matching regions
         """
-        found_regions = self.regiontree.find(
+        found_regions = self.find(
             regionspec,
             filter_children=filter_children,
             build_group=build_group,
@@ -408,12 +385,6 @@ class Parcellation(
                 "Cannot compare object of type {} to Parcellation".format(type(other))
             )
 
-    def __iter__(self):
-        """
-        Returns an iterator that goes through all regions in this parcellation
-        """
-        return self.regiontree.__iter__()
-
     def __getitem__(self, regionspec: Union[str, int]):
         """
         Retrieve a region object from the parcellation by labelindex or partial name.
@@ -430,83 +401,48 @@ class Parcellation(
             )
         return self.version.__lt__(other.version)
 
-    def _extend(self, other):
-        """Extend a parcellation by additional regions
-        from a parcellation extension.
-
-        Args:
-            other (Parcellation): Extension parcellation
-        """
-        assert other.extends == self.id
-        assert isinstance(other, self.__class__)
-        for region in other.regiontree:
-
-            if region.parent is None:
-                continue
-
-            try:
-                matched_parent = self.decode_region(region.parent.name, find_topmost=False)
-            except (ValueError, AttributeError):
-                continue
-
-            conflicts = matched_parent.find(region.name, filter_children=True)
-            if len(conflicts) == 1:
-                merge_with = conflicts[0]
-                for d in region.datasets:
-                    if len(merge_with.datasets) > 0 and (d in merge_with.datasets):
-                        logger.error(
-                            f"Dataset '{str(d)}' already exists in '{merge_with.name}', and will not be extended."
-                        )
-                    logger.debug(
-                        f"Extending existing region {merge_with.name} with dataset {str(d)}"
-                    )
-                    merge_with._datasets_cached.append(d)
-
-            elif len(conflicts) == 0:
-                logger.debug(
-                    f"Extending '{matched_parent}' in '{self.name}' with '{region.name}' from '{other.name}'."
-                )
-                new_child = Region.copy(region)
-                new_child.parcellation = matched_parent.parcellation
-                new_child.extended_from = other
-                new_child.parent = matched_parent
-
-            else:
-                raise RuntimeError(
-                    f"Cannot extend '{matched_parent}' with '{region.name}' "
-                    "due to multiple conflicting children: "
-                    f"{', '.join(c.name for c in conflicts)}"
-                )
-
     @classmethod
     def _from_json(cls, obj):
         """
         Provides an object hook for the json library to construct a Parcellation
         object from a json string.
         """
-        assert obj.get("@type", None) == "minds/core/parcellationatlas/v1.0.0"
+        assert obj.get("@type", None) == "siibra/parcellation/v0.0.1"
 
-        # create the parcellation, it will create a parent region node for the regiontree.
-        result = cls(
-            obj["@id"],
-            obj["shortName"],
-            regiondefs=obj["regions"],
-            dataset_specs=obj.get("datasets", []),
+        # construct child region objects
+        regions = []
+        for regionspec in obj.get("regions", []):  
+            try:
+                regions.append(Region._from_json(regionspec))
+            except Exception as e:
+                print(regionspec)
+                raise e
+
+        # create the parcellation. This will create a parent region node for the regiontree.
+        parcellation = cls(
+            identifier=obj["@id"],
+            name=obj["name"],
+            regions=regions,
+            shortname=obj.get("shortName"),
+            description=obj.get("description", ""),
+            modality=obj.get('modality', ""),
+            publications=obj.get("publications", []),
+            ebrains_ids=obj.get("ebrains", {}),
         )
 
-        if "@version" in obj:
-            result.version = ParcellationVersion._from_json(obj["@version"])
+        # add version object, if any is specified
+        versionspec = obj.get('@version', None)
+        if versionspec is not None:
+            version = ParcellationVersion(
+                name=versionspec.get("name", None),
+                parcellation=parcellation,
+                collection=versionspec.get("collectionName", None),
+                prev_filename=versionspec.get("@prev", None),
+                next_filename=versionspec.get("@next", None),
+                deprecated=versionspec.get("deprecated", False)
+            )
+            parcellation.version = version
 
-        if "modality" in obj:
-            result.modality = obj["modality"]
+        return parcellation
+ 
 
-        if "description" in obj:
-            result.description = obj["description"]
-
-        if "publications" in obj:
-            result._publications = obj["publications"]
-
-        if "@extends" in obj:
-            result.extends = obj["@extends"]
-
-        return result

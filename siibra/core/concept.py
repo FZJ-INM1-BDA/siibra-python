@@ -13,8 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import Dataset
-from ..commons import logger, create_key
+
+from .datasets import EbrainsDataset
+
+from ..commons import create_key
+from ..registry import REGISTRY
 
 import re
 
@@ -26,12 +29,55 @@ class AtlasConcept:
     Typically, they are linked with one or more datasets that can be retrieved from the same or another online resource,
     providing data files or additional metadata descriptions on request.
     """
-    def __init__(self, identifier, name, dataset_specs):
-        self.id = identifier
+    def __init__(
+        self,
+        identifier: str,
+        name: str,
+        shortname: str = None,
+        description: str = None,
+        publications: list = [],
+        ebrains_ids: dict = {},
+    ):
+        """
+        Construct a new atlas concept base object.
+
+        Parameters
+        ----------
+            identifier : str
+                Unique identifier of the parcellation
+            name : str
+                Human-readable name of the parcellation
+            shortname: str
+                Shortform of human-readable name (optional)
+            description: str
+                Textual description of the parcellation
+            ebrains_ids : dict
+                Identifiers of EBRAINS entities corresponding to this Parcellation. 
+                Key: EBRAINS KG schema, value: EBRAINS KG @id
+            publications: list
+                List of publications, each a dictionary with "doi" and/or "citation" fields
+
+        """
+        self._id = identifier
         self.name = name
-        # objects for datasets wil only be generated lazily on request
-        self._dataset_specs = dataset_specs
-        self._datasets_cached = None
+        self.shortname = shortname
+        self.description = description
+        self.publications = publications
+        self.datasets = []
+        for kg_schema, kg_id in ebrains_ids.items():
+            if kg_schema == "minds/core/dataset/v1.0.0":
+                if kg_id not in REGISTRY[EbrainsDataset]:
+                    REGISTRY[EbrainsDataset].add(
+                        kg_id, EbrainsDataset(id=g_id, name=None)
+                    )
+                self.datasets.append(REGISTRY[EbrainsDataset][kg_id])
+            else:
+                raise NotImplementedError(f"No object construction available for EBRAINS schemas {kg_schema}.")
+
+    @property
+    def id(self):
+        # allows derived classes to assign the id dynamically
+        return self._id
 
     @property
     def key(self):
@@ -47,14 +93,6 @@ class AtlasConcept:
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.name}"
-
-    @property
-    def publications(self):
-        """List of publications found in info datasets."""
-        result = []
-        for info in self.infos:
-            result.extend(info.publications)
-        return result
 
     def matches(self, spec):
         """
