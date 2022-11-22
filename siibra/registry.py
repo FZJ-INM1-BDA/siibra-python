@@ -29,7 +29,7 @@ from .config import (
 )
 
 import os
-from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, Union, Tuple
+from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, Union, Tuple, Dict, Set, ClassVar
 from collections import defaultdict
 
 
@@ -220,14 +220,14 @@ class ObjectRegistry:
     Configurations are by default fetched from the siibra-configurations repository maintained at Forschungszentrum Jülich.
     """
 
-    _preconfiguration_folders = {}
-    _dynamic_query_types = defaultdict(set)
-    _dynamic_queries = defaultdict(set)
+    _preconfiguration_folders: ClassVar[Dict[Type, str]] = {}
+    _dynamic_query_types: ClassVar[Dict[Type, Set[Type]]] = defaultdict(set)
+    _dynamic_queries: ClassVar[Dict[Tuple[Type, List[Tuple]], Any]] = defaultdict(set)
 
     # TODO memory management concern, esp in siibra-api
-    _objects = {}
+    _objects: ClassVar[Dict[Tuple[Type[T], Tuple], TypedObjectLUT[Type[T]]]] = {}
 
-    _CONFIGURATIONS: List[RepositoryConnector] = [
+    _CONFIGURATIONS: ClassVar[List[RepositoryConnector]] = [
         GitlabConnector(
             "https://jugit.fz-juelich.de",
             3484,
@@ -244,7 +244,7 @@ class ObjectRegistry:
 
     if SIIBRA_CONFIGURATION_SRC is not None:
         logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
-    _CONFIGURATION_EXTENSIONS: List[RepositoryConnector] = []
+    _CONFIGURATION_EXTENSIONS: ClassVar[List[RepositoryConnector]] = []
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):

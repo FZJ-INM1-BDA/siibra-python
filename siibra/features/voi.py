@@ -17,21 +17,18 @@ from .feature import SpatialFeature
 
 from .. import QUIET
 from ..registry import Preconfigure
-from ..volumes.volume import VolumeSrc, VolumeModel, ColorVolumeNotSupported
-from ..core.space import BoundingBoxModel, BoundingBox
-from ..core.datasets import EbrainsDataset, DatasetJsonModel
+from ..volumes.volume import VolumeSrc, ColorVolumeNotSupported
+from ..core.space import BoundingBox
+from ..core.datasets import EbrainsDataset
 from ..retrieval.repositories import GitlabConnector
-from ..core.serializable_concept import JSONSerializable
 
 import numpy as np
-from typing import List
 import hashlib
-from pydantic import Field
 from os import path
 
 
 @Preconfigure("features/volumes")
-class VolumeOfInterest(SpatialFeature, JSONSerializable):
+class VolumeOfInterest(SpatialFeature):
 
     def __init__(self, location, name):
         SpatialFeature.__init__(self, location)
@@ -92,25 +89,6 @@ class VolumeOfInterest(SpatialFeature, JSONSerializable):
         return definition
 
     @classmethod
-    def get_model_type(Cls):
-        return "siibra/features/voi"
-
-    @property
-    def model_id(self):
-        _id = hashlib.md5(super().model_id.encode("utf-8")).hexdigest()
-        return f"{VolumeOfInterest.get_model_type()}/{str(_id)}"
-
-    def to_model(self, **kwargs) -> "VOIDataModel":
-        super_model = super().to_model(**kwargs)
-        super_model_dict = super_model.dict()
-        super_model_dict["@type"] = VolumeOfInterest.get_model_type()
-        return VOIDataModel(
-            location=self.location.to_model(**kwargs),
-            volumes=[vol.to_model(**kwargs) for vol in self.volumes],
-            **super_model_dict,
-        )
-
-    @classmethod
     def _bootstrap(cls):
         """
         Load default feature specifications for feature modality.
@@ -126,8 +104,3 @@ class EbrainsVolumeOfInterest(VolumeOfInterest, EbrainsDataset):
         EbrainsDataset.__init__(self, dataset_id, name)
         VolumeOfInterest.__init__(self, location, name)
 
-
-class VOIDataModel(DatasetJsonModel):
-    type: str = Field(VolumeOfInterest.get_model_type(), const=True, alias="@type")
-    volumes: List[VolumeModel]
-    location: BoundingBoxModel

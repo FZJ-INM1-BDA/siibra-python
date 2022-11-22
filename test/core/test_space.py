@@ -4,7 +4,6 @@ import pytest
 
 from siibra import atlases, spaces
 from siibra.core import Space
-from pydantic import BaseModel
 
 
 class TestSpaces(unittest.TestCase):
@@ -81,23 +80,6 @@ class TestSpaces(unittest.TestCase):
 
 
 all_spaces = [space for space in spaces]
-
-
-@pytest.mark.parametrize("spc", all_spaces)
-def test_json_serializable(spc: Space):
-    assert issubclass(
-        spc.to_model.__annotations__.get("return"),
-        BaseModel,
-    )
-    import re
-
-    model = spc.to_model()
-    assert re.match(
-        r"^[\w/\-.:]+$", model.id
-    ), f"model_id should only contain [\\w/\\-.:]+, but is instead {model.id}"
-    import json
-
-    json.loads(spc.to_model().json())
 
 
 if __name__ == "__main__":

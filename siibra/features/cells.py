@@ -14,37 +14,19 @@
 # limitations under the License.
 
 
-from typing import List, Optional
 from .feature import CorticalProfile, RegionalFingerprint
 
 from ..registry import Preconfigure
 from ..commons import logger, create_key
-from ..core.datasets import DatasetJsonModel, EbrainsDataset
+from ..core.datasets import EbrainsDataset
 from ..retrieval import HttpRequest, SiibraHttpRequestError
-from ..openminds.base import ConfigBaseModel
 
 import numpy as np
 import pandas as pd
-from pydantic import Field
 from io import BytesIO
 from skimage.transform import resize
 from skimage.draw import polygon
 
-
-class CorticalCellModel(ConfigBaseModel):
-    x: float
-    y: float
-    area: float
-    layer: int
-    instance_label: int = Field(..., alias="instance label")
-
-
-class CorticalCellDistributionModel(DatasetJsonModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field("siibra/features/cells", const=True, alias="@type")
-    cells: Optional[List[CorticalCellModel]]
-    section: Optional[str]
-    patch: Optional[str]
 
 
 class PolyLine:

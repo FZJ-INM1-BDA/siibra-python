@@ -359,7 +359,7 @@ class RegionalFeature(Feature):
     for species_name in ["human"]:
         # TODO temporary solution
         # when fully migrated to kg v3 query, change .kg_v1_id to .id
-        species_id = Atlas.get_species_data("human").kg_v1_id
+        species_id = Atlas.get_species_id("human").get("kg_v1_id")
         with resources.open_text(
             "siibra.features", f"region_aliases_{species_name}.json"
         ) as f:
@@ -373,7 +373,7 @@ class RegionalFeature(Feature):
             f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}"
         )
 
-    def __init__(self, regionspec: Tuple[str, Region], species=[], **kwargs):
+    def __init__(self, regionspec: Union[str, Region], species=[], **kwargs):
         """
         Parameters
         ----------
@@ -630,6 +630,7 @@ class ParcellationFeature(Feature):
         return f"{self.__class__.__name__} for {self.spec}"
 
 
+# TODO how to allow rich text for label (e.g. markdown, latex) etc
 class CorticalProfile(RegionalFeature):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
@@ -749,7 +750,7 @@ class CorticalProfile(RegionalFeature):
             )
 
     @property
-    def boundaries_mapped(self):
+    def boundaries_mapped(self) -> bool:
         if self.boundary_positions is None:
             return False
         else:

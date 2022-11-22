@@ -16,49 +16,14 @@
 from .space import Space
 from .region import Region
 from .concept import AtlasConcept
-from .serializable_concept import JSONSerializable
-from .datasets import DatasetJsonModel, OriginDescription, EbrainsDataset
 
 from ..registry import Preconfigure, ObjectLUT, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
-from ..openminds.SANDS.v3.atlas.brainAtlasVersion import (
-    Model as BrainAtlasVersionModel,
-    HasTerminologyVersion,
-)
-from ..openminds.base import ConfigBaseModel, SiibraAtIdModel
 
-from datetime import date
-from typing import List, Optional, Set, Union
+from typing import Set, Union
 from difflib import SequenceMatcher
-from pydantic import Field
 
-
-SIIBRA_PARCELLATION_MODEL_TYPE = "minds/core/parcellationatlas/v1.0.0"
-BRAIN_ATLAS_VERSION_TYPE = "https://openminds.ebrains.eu/sands/BrainAtlasVersion"
-
-
-class AtlasType:
-    DETERMINISTIC_ATLAS = "https://openminds.ebrains.eu/instances/atlasType/deterministicAtlas"
-    PARCELLATION_SCHEME = "https://openminds.ebrains.eu/instances/atlasType/parcellationScheme"
-    PROBABILISTIC_ATLAS = "https://openminds.ebrains.eu/instances/atlasType/probabilisticAtlas"
-
-
-class SiibraParcellationVersionModel(ConfigBaseModel):
-    name: str
-    deprecated: Optional[bool]
-    prev: Optional[SiibraAtIdModel]
-    next: Optional[SiibraAtIdModel]
-
-
-class SiibraParcellationModel(ConfigBaseModel):
-    id: str = Field(..., alias="@id")
-    type: str = Field(SIIBRA_PARCELLATION_MODEL_TYPE, const=True, alias="@type")
-    name: str
-    modality: Optional[str]
-    datasets: List[DatasetJsonModel]
-    brain_atlas_versions: List[BrainAtlasVersionModel] = Field(..., alias="brainAtlasVersions")
-    version: Optional[SiibraParcellationVersionModel]
 
 
 # NOTE : such code could be used to automatically resolve
@@ -71,7 +36,7 @@ class SiibraParcellationModel(ConfigBaseModel):
 #                    pass
 
 
-class ParcellationVersion(JSONSerializable):
+class ParcellationVersion:
     def __init__(
         self, name=None, collection=None, prev_id=None, next_id=None, deprecated=False
     ):
@@ -143,33 +108,10 @@ class ParcellationVersion(JSONSerializable):
             deprecated=obj.get("deprecated", False),
         )
 
-    @classmethod
-    def get_model_type(Cls):
-        raise AttributeError("ParcellationVersion.@type cannot be determined")
-
-    @property
-    def model_id(self):
-        return super().model_id
-
-    def to_model(self, **kwargs) -> SiibraParcellationVersionModel:
-        assert self.prev is None or isinstance(self.prev, Parcellation), f"parcellationVersion to_model failed. expected .prev, if defined, to be instance of Parcellation, but is {self.prev.__class__} instead"
-        assert self.next is None or isinstance(self.next, Parcellation), f"parcellationVersion to_model failed. expected .next, if defined, to be instance of Parcellation, but is {self.next.__class__} instead"
-        return SiibraParcellationVersionModel(
-            name=self.name,
-            deprecated=self.deprecated,
-            prev=SiibraAtIdModel(
-                id=self.prev.model_id
-            ) if self.prev is not None else None,
-            next=SiibraAtIdModel(
-                id=self.next.model_id
-            ) if self.next is not None else None,
-        )
-
 
 @Preconfigure("parcellations")
 class Parcellation(
     AtlasConcept,
-    JSONSerializable,
     type_id="minds/core/parcellationatlas/v1.0.0",
 ):
 
@@ -568,61 +510,3 @@ class Parcellation(
             result.extends = obj["@extends"]
 
         return result
-
-    def get_brain_atlas_version_id(self, space: Space) -> str:
-        return f"{self.id}/{space.model_id}"
-
-    def get_brain_atlas_version_name(self, space: Space) -> str:
-        return f"{self.name} in {space.to_model().full_name}"
-
-    @classmethod
-    def get_model_type(Cls):
-        return SIIBRA_PARCELLATION_MODEL_TYPE
-
-    @property
-    def model_id(self):
-        return self.id
-
-    def to_model(self, **kwargs) -> SiibraParcellationModel:
-        return SiibraParcellationModel(
-            id=self.model_id,
-            type=SIIBRA_PARCELLATION_MODEL_TYPE,
-            name=self.name,
-            modality=self.modality,
-            datasets=[ds.to_model() for ds in self.datasets if isinstance(ds, OriginDescription) or isinstance(ds, EbrainsDataset)],
-            brain_atlas_versions=[BrainAtlasVersionModel(
-                id=self.get_brain_atlas_version_id(spc),
-                type=BRAIN_ATLAS_VERSION_TYPE,
-                atlas_type={
-                    # TODO fix
-                    "@id": AtlasType.PROBABILISTIC_ATLAS
-                },
-                accessibility={
-                    # TODO fix
-                    "@id": ""
-                },
-                coordinate_space={
-                    "@id": spc.model_id
-                },
-                description=self.description[:2000],
-                full_documentation={
-                    # TODO fix
-                    "@id": ""
-                },
-                full_name=self.get_brain_atlas_version_name(spc),
-                has_terminology_version=HasTerminologyVersion(
-                    has_entity_version=[{
-                        "@id": r.model_id
-                    } for r in self]
-                ),
-                license={
-                    # TODO fix
-                    "@id": ""
-                },
-                release_date=date(1970, 1, 1),
-                short_name=self.name[:30],
-                version_identifier=f"{self.version} in {spc.to_model().full_name}",
-                version_innovation="",
-            ) for spc in self.supported_spaces],
-            version=self.version.to_model(**kwargs) if self.version is not None else None
-        )
