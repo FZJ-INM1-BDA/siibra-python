@@ -28,6 +28,27 @@
                 "type": "null"
             }]
         },
+        "@version": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "@prev": {
+                    "anyOf": [{
+                        "type": "string"
+                    }, {
+                        "type": "null"
+                    }]
+                },
+                "deprecated": {
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "name"
+            ]
+        },
         "regions": {
             "type": "array",
             "items": { "$ref": "#/definitions/region" }
@@ -59,6 +80,9 @@
                         }
                     }, {
                         "type": "null"
+                    }, {
+                        "type": "string",
+                        "pattern": "#[a-fA-F0-9]{6}"
                     }]
                 }
             },

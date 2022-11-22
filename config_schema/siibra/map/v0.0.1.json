@@ -16,7 +16,7 @@
                 "$ref": "config_schema/siibra/volume/v0.0.1.json"
             }
         },
-        "regions": {
+        "indices": {
             "type": "object",
             "patternProperties": {
                 "[\\w ]+": {
@@ -24,10 +24,10 @@
                     "items": {
                         "type": "object",
                         "properties": {
-                            "map": {
+                            "volume": {
                                 "type": "number"
                             },
-                            "index": {
+                            "label": {
                                 "anyOf": [{
                                     "type": "number"
                                 }, {
@@ -42,5 +42,12 @@
                 }
             }
         }
-    }
+    },
+    "required": [
+        "volumes",
+        "@type",
+        "space",
+        "parcellation",
+        "indices"
+    ]
 }
