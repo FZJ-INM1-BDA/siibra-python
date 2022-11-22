@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger
 from ..retrieval import EbrainsKgQuery
 from ..registry import Preconfigure
 
@@ -21,85 +20,11 @@ import re
 from typing import Union
 
 
-class Dataset:
-    """Parent class for datasets. Each dataset has an identifier."""
-
-    REGISTRY = {}
-
-    def __init__(self, identifier, description=""):
-        if identifier is None:
-            import pdb
-            pdb.set_trace()
-        assert identifier, "identifier must be defined for Dataset. self.id *must* be populated with unique, non random value!"
-        self.id = identifier
-        self._description_cached = description
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.id}"
-
-    def __init_subclass__(cls, type_id=None):
-        if type_id in Dataset.REGISTRY:
-            logger.warning(
-                f"Type id '{type_id}' already provided by {Dataset.REGISTRY[type_id].__name__}, but {cls.__name__} suggests itself as well"
-            )
-        if type_id is not None:
-            logger.debug(f"Registering specialist {cls.__name__} for type id {type_id}")
-            Dataset.REGISTRY[type_id] = cls
-        cls.type_id = type_id
-        return super().__init_subclass__()
-
-    @property
-    def is_volume(self):
-        """Return True if this dataset represents a brain volume source.
-
-        This property is overwritten by siibra.volumes.VolumeSrc
-        """
-        return False
-
-    @property
-    def is_surface(self):
-        """Return True if this dataset represents a brain volume surface.
-
-        This property is overwritten by siibra.volumes.VolumeSrc
-        """
-        return False
-
-    @property
-    def publications(self):
-        """
-        List of publications for this dataset.
-        Empty list here, but implemented in some derived classes.
-        """
-        return []
-
-    @property
-    def urls(self):
-        """
-        List of URLs related to this dataset.
-        Empty list here, but implemented in some derived classes.
-        """
-        return []
-
-    @property
-    def description(self):
-        """
-        Textual description of Dataset.
-        Empty string here, but implemented in some derived classes.
-        """
-        return self._description_cached
-
-    @classmethod
-    def extract_type_id(cls, spec):
-        for key in ["@type", "kgSchema"]:
-            if key in spec:
-                return spec[key]
-        raise RuntimeError(f"No type defined in dataset specification: {spec}")
-
-
 @Preconfigure("snapshots/ebrainsquery/v1")
-class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
+class EbrainsDataset:
+
     def __init__(self, id, name, embargo_status=None, *, cached_data=None):
-        Dataset.__init__(self, id, description=None)
+        self.id = id
         self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
@@ -166,19 +91,6 @@ class EbrainsDataset(Dataset, type_id="minds/core/dataset/v1.0.0"):
         if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
             return False
         return self.id == o.id
-
-    @classmethod
-    def _from_json(cls, spec):
-        expected_fields = ['id', 'name', 'embargoStatus']
-        if not all(f in spec for f in expected_fields):
-            logger.error(f"Invalid json spec encountered for{cls.__name__}")
-            return spec
-        return EbrainsDataset(
-            id=spec["id"],
-            name=spec["name"],
-            embargo_status=spec["embargoStatus"],
-            cached_data=spec,
-        )
 
     def match(self, spec: Union[str, 'EbrainsDataset']) -> bool:
         """Checks of a given spec (of type str or EbrainsDataset) describes this dataset.

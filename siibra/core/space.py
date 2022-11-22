@@ -32,7 +32,6 @@ from os import path
 import numbers
 
 
-
 @Preconfigure('spaces')
 class Space(
     AtlasConcept,
@@ -44,16 +43,51 @@ class Space(
 
     def __init__(
         self,
-        identifier,
-        name,
-        template_type=None,
-        src_volume_type=None,
-        dataset_specs=[],
+        identifier: str,
+        name: str,
+        volumes: list = [],
+        shortname: str = "",
+        description: str = "",
+        modality: str = "",
+        publications: list = [],
+        ebrains_ids: dict = {},
     ):
-        AtlasConcept.__init__(self, identifier, name, dataset_specs)
-        self.src_volume_type = src_volume_type
-        self.type = template_type
-        self.atlases = set()
+        """
+        Constructs a new parcellation object.
+
+        Parameters
+        ----------
+        identifier : str
+            Unique identifier of the space
+        name : str
+            Human-readable name of the space
+        volumes: list of template volumes
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality representing this reference space
+        publications: list
+            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+        ebrains_ids : dict
+            Identifiers of EBRAINS entities corresponding to this Parcellation.
+            Key: EBRAINS KG schema, value: EBRAINS KG @id
+        """
+
+        AtlasConcept.__init__(
+            self,
+            identifier=identifier,
+            name=name,
+            shortname=shortname,
+            description=description,
+            modality=modality,
+            publications=publications,
+            ebrains_ids=ebrains_ids,
+        )
+        self.volumes = volumes
+        for v in self.volumes:
+            v.space_info = {"@id": self.id}
 
     def get_template(self, variant=None):
         """
@@ -72,26 +106,19 @@ class Space(
         ------
         A VolumeSrc object representing the reference template, or None if not available.
         """
-        candidates = {
-            d.name: d
-            for d in self.datasets
-            if d.is_volume and d.volume_type == self.type
-        }
         if variant is None:
-            variant = next(iter(candidates.keys()))
-            if len(candidates) > 1:
-                logger.warn(
-                    f"Multiple template variants available for {self.name}. "
-                    f"Returning the first, '{variant}', but you could have chosen "
-                    f"any of {', '.join(candidates.keys())}."
-                )
-        if variant not in candidates.keys():
-            raise RuntimeError(
-                f"Template variant '{variant}' not available for {self.name}. "
-                f"Available variants are {', '.join(candidates.keys())}"
+            candidates = self.volumes
+        else:
+            candidates = [v for v in self.volumes if v.name == variant]
+        assert len(candidates) > 0
+        result = next(iter(candidates))
+        if len(candidates) > 1:
+            logger.warn(
+                f"Multiple template variants available for {self.name}. "
+                f"Returning the first, {result.name}, but you could have chosen "
+                f"any of {', '.join(v.name for v in candidates)}."
             )
-
-        return candidates[variant]
+        return result
 
     @property
     def is_surface(self):
@@ -119,9 +146,6 @@ class Space(
             point2 = [shape[i] if v is None else v for i, v in enumerate(point2)]
         return self.get_bounding_box(point1, point2)
 
-    def __lt__(self, other):
-        return self.type < other.type
-
     def get_bounding_box(self, point1, point2):
         """
         Get a volume of interest specification from this space.
@@ -133,27 +157,6 @@ class Space(
         """
         return BoundingBox(point1, point2, self)
 
-    @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct a Space
-        object from a json stream.
-        """
-        required_keys = ["@id", "name", "shortName", "templateType"]
-        if any([k not in obj for k in required_keys]):
-            return obj
-        if "minds/core/referencespace/v1.0.0" not in obj["@id"]:
-            return obj
-
-        result = cls(
-            identifier=obj["@id"],
-            name=obj["shortName"],
-            template_type=obj["templateType"],
-            src_volume_type=obj.get("srcVolumeType"),
-            dataset_specs=obj.get("datasets", []),
-        )
-
-        return result
 
 # backend for transforming coordinates between spaces
 SPACEWARP_SERVER = "https://hbp-spatial-backend.apps.hbp.eu/v1"
@@ -165,6 +168,7 @@ SPACEWARP_IDS = {
     "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992": "MNI Colin 27",
     "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588": "Big Brain (Histology)",
 }
+
 
 class Location(ABC):
     """

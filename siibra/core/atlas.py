@@ -96,34 +96,6 @@ class Atlas(
             matchfunc=Parcellation.match,
         )
 
-    @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct an Atlas
-        object from a json stream.
-        """
-        if obj.get("@type") != "juelich/iav/atlas/v1.0.0":
-            raise ValueError(
-                f"{cls.__name__} construction attempt from invalid json format (@type={obj.get('@type')}"
-            )
-        if all(["@id" in obj, "spaces" in obj, "parcellations" in obj]):
-            atlas = cls(obj["@id"], obj["name"], species=obj["species"])
-            for space_id in obj["spaces"]:
-                if not REGISTRY[Space].provides(space_id):
-                    raise ValueError(
-                        f"Invalid atlas configuration for {str(atlas)} - space {space_id} not known"
-                    )
-                atlas._register_space(REGISTRY[Space][space_id])
-            for parcellation_id in obj["parcellations"]:
-                if not REGISTRY[Parcellation].provides(parcellation_id):
-                    raise ValueError(
-                        f"Invalid atlas configuration for {str(atlas)} - parcellation {parcellation_id} not known"
-                    )
-                atlas._register_parcellation(REGISTRY[Parcellation][parcellation_id])
-            return atlas
-        return obj
-
-
     def get_parcellation(self, parcellation=None):
         """Returns a valid parcellation object defined by the atlas.
         If no specification is provided, the default is returned."""

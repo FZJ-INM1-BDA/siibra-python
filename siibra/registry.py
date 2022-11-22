@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .commons import logger
+from .factory import Factory
 from .retrieval.repositories import (
     GitlabConnector,
     RepositoryConnector,
@@ -337,7 +338,8 @@ class ObjectRegistry:
 
             # boostrap the preconfigured objects
             for i, (fname, loader) in enumerate(loaders):
-                obj = registered_cls._from_json(loader.data)
+                obj = Factory.from_json(loader.data)
+                # obj = registered_cls._from_json(loader.data)
                 if not isinstance(obj, registered_cls):
                     logger.error(
                         f"Could not instantiate {registered_cls} object from '{fname}'"
@@ -481,7 +483,7 @@ class Preconfigure:
         but may be overriden by decorated classes."""
         return self == specification
 
-    FUNCS_REQUIRED = {"_from_json": None, "match": match}
+    FUNCS_REQUIRED = {"match": match}
 
     def __init__(self, folder):
         self.folder = folder

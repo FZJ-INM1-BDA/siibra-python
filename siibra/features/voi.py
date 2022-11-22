@@ -17,7 +17,7 @@ from .feature import SpatialFeature
 
 from .. import QUIET
 from ..registry import Preconfigure
-from ..volumes.volume import VolumeSrc, ColorVolumeNotSupported
+from ..volumes.volume import ColorVolumeNotSupported
 from ..core.space import BoundingBox
 from ..core.datasets import EbrainsDataset
 from ..retrieval.repositories import GitlabConnector

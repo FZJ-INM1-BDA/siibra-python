@@ -13,22 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import VolumeSrc
 
 from ..retrieval import HttpRequest
 
 import numpy as np
 
 
-class GiftiSurface(VolumeSrc, volume_type="gii"):
+class GiftiSurface:
     """
     A (set of) surface meshes in Gifti format.
     """
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+    def __init__(self, url):
         if isinstance(url, str):
             # a single url
-            self._loaders = {name: url}
+            self._loaders = {"name": url}
         elif isinstance(url, dict):
             self._loaders = {
                 label: HttpRequest(url)
@@ -71,27 +69,26 @@ class GiftiSurface(VolumeSrc, volume_type="gii"):
         return (self.fetch(v) for v in self.variants)
 
 
-class GiftiSurfaceLabeling(VolumeSrc, volume_type="gii-label"):
+class GiftiSurfaceLabeling():
     """
     A mesh labeling, specified by a gifti file.
     """
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+    def __init__(self, url):
         self._loader = HttpRequest(self.url)
 
     def fetch(self):
         """Returns a 1D numpy array of label indices."""
-        assert(len(self._loader.data.darrays)==1)
+        assert len(self._loader.data.darrays) == 1
         return self._loader.data.darrays[0].data
 
 
-class NeuroglancerMesh(VolumeSrc, volume_type="neuroglancer/precompmesh"):
+class NeuroglancerMesh():
     """
     A surface mesh provided as neuroglancer precomputed mesh.     
     """
 
-    def __init__(self, identifier, name, url, space, detail=None, **kwargs):
-        VolumeSrc.__init__(self, identifier, name, url, space, detail, **kwargs)
+    def __init__(self, url):
+        self.url = url
 
     def fetch(self):
         raise NotImplementedError(f"Fetching from neuroglancer precomputed mesh is not yet implemented.")

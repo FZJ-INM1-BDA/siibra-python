@@ -157,11 +157,10 @@ class Parcellation(
             shortname=shortname,
             description=description,
             publications=publications,
-            ebrains_ids=ebrains_ids
+            ebrains_ids=ebrains_ids,
+            modality=modality
         )
         self.version = version
-        self.modality = modality
-        self.atlases = set()
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -400,47 +399,3 @@ class Parcellation(
                 f"Attempted to sort non-versioned instances of {self.__class__.__name__}."
             )
         return self.version.__lt__(other.version)
-
-    @classmethod
-    def _from_json(cls, obj):
-        """
-        Provides an object hook for the json library to construct a Parcellation
-        object from a json string.
-        """
-        assert obj.get("@type", None) == "siibra/parcellation/v0.0.1"
-
-        # construct child region objects
-        regions = []
-        for regionspec in obj.get("regions", []):
-            try:
-                regions.append(Region._from_json(regionspec))
-            except Exception as e:
-                print(regionspec)
-                raise e
-
-        # create the parcellation. This will create a parent region node for the regiontree.
-        parcellation = cls(
-            identifier=obj["@id"],
-            name=obj["name"],
-            regions=regions,
-            shortname=obj.get("shortName"),
-            description=obj.get("description", ""),
-            modality=obj.get('modality', ""),
-            publications=obj.get("publications", []),
-            ebrains_ids=obj.get("ebrains", {}),
-        )
-
-        # add version object, if any is specified
-        versionspec = obj.get('@version', None)
-        if versionspec is not None:
-            version = ParcellationVersion(
-                name=versionspec.get("name", None),
-                parcellation=parcellation,
-                collection=versionspec.get("collectionName", None),
-                prev_filename=versionspec.get("@prev", None),
-                next_filename=versionspec.get("@next", None),
-                deprecated=versionspec.get("deprecated", False)
-            )
-            parcellation.version = version
-
-        return parcellation

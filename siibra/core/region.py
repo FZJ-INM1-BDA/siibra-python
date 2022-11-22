@@ -79,6 +79,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         parent: "Region" = None,
         shortname: str = "",
         description: str = "",
+        modality: str = "",
         publications: list = [],
         ebrains_ids: dict = {},
     ):
@@ -95,6 +96,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
             Shortform of human-readable name (optional)
         description: str
             Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality used for specifying this region
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
         ebrains_ids : dict
@@ -108,6 +111,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             name=__class__._clear_name(name),
             shortname=shortname,
             description=description,
+            modality=modality,
             publications=publications,
             ebrains_ids=ebrains_ids,
         )
@@ -802,21 +806,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
-
-    @classmethod
-    def _from_json(cls, jsonspec):
-        """
-        Provides an object hook for the json library to construct a Region
-        object from a json definition.
-        """
-        return Region(
-            name=jsonspec["name"],
-            children=map(Region._from_json, jsonspec.get("children", [])),
-            shortname=jsonspec.get("shortname", ""),
-            description=jsonspec.get("description", ""),
-            publications=jsonspec.get("publications", []),
-            ebrains_ids=jsonspec.get("ebrains_ids", {})
-        )
 
 
 if __name__ == "__main__":

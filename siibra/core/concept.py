@@ -35,6 +35,7 @@ class AtlasConcept:
         name: str,
         shortname: str = None,
         description: str = None,
+        modality: str = "",
         publications: list = [],
         ebrains_ids: dict = {},
     ):
@@ -51,6 +52,8 @@ class AtlasConcept:
                 Shortform of human-readable name (optional)
             description: str
                 Textual description of the parcellation
+            modality  :  str or None
+                Specification of the modality underlying this concept
             ebrains_ids : dict
                 Identifiers of EBRAINS entities corresponding to this Parcellation.
                 Key: EBRAINS KG schema, value: EBRAINS KG @id
@@ -61,6 +64,7 @@ class AtlasConcept:
         self._id = identifier
         self.name = name
         self.shortname = shortname
+        self.modality = modality
         self.description = description
         self.publications = publications
         self.datasets = []

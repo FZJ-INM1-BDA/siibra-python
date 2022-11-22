@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import VolumeSrc, ImageProvider
+from .volume import ImageProvider, Volume
 from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
@@ -613,7 +613,7 @@ class LabelledParcellationVolume(ParcellationVolume):
                 f"No maps found for {self.parcellation.name} in {self.space.name}"
             )
 
-    def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
+    def _load_map(self, volume: Volume, resolution_mm: float, voi: BoundingBox):
         m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
         if len(m.dataobj.shape) == 4:
             if m.dataobj.shape[3] == 1:
