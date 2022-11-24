@@ -18,9 +18,8 @@ from .mesh import GiftiSurface, NeuroglancerMesh
 
 from .. import logger
 from ..commons import MapType
-from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
-from ..core.space import BoundingBox, PointSet
+from ..core.location import BoundingBox, PointSet
 
 import numpy as np
 import nibabel as nib
@@ -51,16 +50,6 @@ class Volume:
                 self._providers[srctype] = GiftiSurface(url)
             else:
                 logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
-
-    @property
-    def space(self):
-        if "@id" in self.space_info:
-            return REGISTRY.Space[self.space_info["@id"]]
-        elif "name" in self.space_info:
-            return REGISTRY.Space[self.space_info["name"]]
-        else:
-            logger.warn("No space specified in volume")
-            return None
 
 
 class ImageProvider(ABC):

@@ -17,7 +17,7 @@ from .feature import SpatialFeature
 from .query import FeatureQuery
 
 from ..commons import logger
-from ..registry import ObjectLUT, REGISTRY
+from ..registry import InstanceTable, REGISTRY
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
@@ -125,7 +125,7 @@ class GeneExpression(SpatialFeature):
 # provide a registry of gene names
 with resources.open_text("siibra.features", "gene_names.json") as f:
     _genes = json.load(f)
-GENE_NAMES = ObjectLUT()
+GENE_NAMES = InstanceTable[str]()
 list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
 
 
@@ -229,7 +229,7 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
             AllenBrainAtlasQuery._specimen = {
                 spcid: AllenBrainAtlasQuery._retrieve_specimen(spcid) for spcid in self._SPECIMEN_IDS
             }
-        
+
         if AllenBrainAtlasQuery.factors is None:
             response = HttpRequest(self._QUERY["factors"]).get()
             AllenBrainAtlasQuery.factors = {

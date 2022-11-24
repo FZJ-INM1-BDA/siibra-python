@@ -13,33 +13,198 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import __version__
 from .commons import logger
-from .factory import Factory
-from .retrieval.repositories import (
-    GitlabConnector,
-    RepositoryConnector,
-)
+from .core.atlas import Atlas
+from .core.parcellation import Parcellation, ParcellationVersion
+from .core.space import Space
+from .core.region import Region
+from .core.datasets import EbrainsDataset
+from .core.location import Point, PointSet
+from .volumes.volume import Volume
+from .retrieval.repositories import GitlabConnector, RepositoryConnector
+
 from .retrieval.exceptions import (
     NoSiibraConfigMirrorsAvailableException,
     TagNotFoundException,
 )
-from .config import (
-    USE_DEFAULT_PROJECT_TAG,
-    GITLAB_PROJECT_TAG,
-    SIIBRA_CONFIGURATION_SRC,
-)
 
-import os
 from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, Union, Tuple, Dict, Set, ClassVar
+from os import path
+import json
+import numpy as np
 from collections import defaultdict
+from tqdm import tqdm
+from requests.exceptions import ConnectionError
+
+
+class Factory:
+
+    @classmethod
+    def build_atlas(cls, spec):
+        assert spec.get("@type") == "juelich/iav/atlas/v1.0.0"
+        atlas = Atlas(
+            spec["@id"],
+            spec["name"],
+            species=spec["species"]
+        )
+        for space_id in spec["spaces"]:
+            atlas._register_space(space_id)
+        for parcellation_id in spec["parcellations"]:
+            atlas._register_parcellation(parcellation_id)
+        return atlas
+
+    @classmethod
+    def build_space(cls, spec):
+        assert spec.get("@type") == "siibra/space/v0.0.1"
+        volumes = list(map(cls.build_volume, spec.get("volumes", [])))
+        return Space(
+            identifier=spec["@id"],
+            name=spec["name"],
+            volumes=volumes,
+            shortname=spec.get("shortName", ""),
+            description=spec.get("description"),
+            modality=spec.get("modality"),
+            publications=spec.get("publications", []),
+            ebrains_ids=spec.get("ebrains", {})
+        )
+
+    @classmethod
+    def build_region(cls, spec):
+        return Region(
+            name=spec["name"],
+            children=map(cls.build_region, spec.get("children", [])),
+            shortname=spec.get("shortname", ""),
+            description=spec.get("description", ""),
+            publications=spec.get("publications", []),
+            ebrains_ids=spec.get("ebrains_ids", {})
+        )
+
+    @classmethod
+    def build_parcellation(cls, spec):
+        assert spec.get("@type", None) == "siibra/parcellation/v0.0.1"
+        regions = []
+        for regionspec in spec.get("regions", []):
+            try:
+                regions.append(cls.build_region(regionspec))
+            except Exception as e:
+                print(regionspec)
+                raise e
+        parcellation = Parcellation(
+            identifier=spec["@id"],
+            name=spec["name"],
+            regions=regions,
+            shortname=spec.get("shortName", ""),
+            description=spec.get("description", ""),
+            modality=spec.get('modality', ""),
+            publications=spec.get("publications", []),
+            ebrains_ids=spec.get("ebrains", {}),
+        )
+
+        # add version object, if any is specified
+        versionspec = spec.get('@version', None)
+        if versionspec is not None:
+            version = ParcellationVersion(
+                name=versionspec.get("name", None),
+                parcellation=parcellation,
+                collection=versionspec.get("collectionName", None),
+                prev_id=versionspec.get("@prev", None),
+                next_id=versionspec.get("@next", None),
+                deprecated=versionspec.get("deprecated", False)
+            )
+            parcellation.version = version
+
+        return parcellation
+
+    @classmethod
+    def build_volume(cls, spec):
+        assert spec.get("@type", None) == "siibra/volume/v0.0.1"
+        return Volume(
+            name=spec.get("name", ""),
+            space_info=spec.get("space", {}),
+            urls=spec.get("urls", {})
+        )
+
+    @classmethod
+    def build_ebrains_dataset(cls, spec):
+        assert spec.get("@type", None) == "siibra/snapshots/ebrainsquery/v1"
+        return EbrainsDataset(
+            id=spec["id"],
+            name=spec["name"],
+            embargo_status=spec["embargoStatus"],
+            cached_data=spec,
+        )
+
+    @classmethod
+    def build_point(cls, spec):
+        assert spec["@type"] == "https://openminds.ebrains.eu/sands/CoordinatePoint"
+        # require space spec
+        space_id = spec["coordinateSpace"]["@id"]
+
+        # require a 3D point spec for the coordinates
+        assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
+
+        # build the Point
+        return Point(
+            list(np.float16(c["value"]) for c in spec["coordinates"]),
+            space_id=space_id,
+        )
+
+    @classmethod
+    def build_pointset(cls, spec):
+        assert spec["@type"] == "tmp/poly"
+
+        # require space spec
+        space_id = spec["coordinateSpace"]["@id"]
+
+        # require mulitple 3D point specs
+        coords = []
+        for coord in spec["coordinates"]:
+            assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
+            coords.append(list(np.float16(c["value"]) for c in coord))
+
+        # build the Point
+        return PointSet(coords, space_id=space_id)
+
+    @classmethod
+    def from_json(cls, spec: dict):
+
+        if isinstance(spec, str):
+            if path.isfile(spec):
+                with open(spec, "r") as f:
+                    spec = json.load(f)
+            else:
+                spec = json.loads(spec)
+
+        spectype = spec.get("@type", None)
+
+        if spectype == "juelich/iav/atlas/v1.0.0":
+            return cls.build_atlas(spec)
+        elif spectype == "siibra/space/v0.0.1":
+            return cls.build_space(spec)
+        elif spectype == "siibra/parcellation/v0.0.1":
+            return cls.build_parcellation(spec)
+        elif spectype == "siibra/volume/v0.0.1":
+            return cls.build_volume(spec)
+        elif spectype == "siibra/space/v0.0.1":
+            return cls.build_space(spec)
+        elif spectype == "siibra/snapshots/ebrainsquery/v1":
+            return cls.build_ebrains_dataset(spec)
+        elif spectype == "https://openminds.ebrains.eu/sands/CoordinatePoint":
+            return cls.build_point(spec)
+        elif spectype == "tmp/poly":
+            return cls.build_pointset(spec)
+        else:
+            raise RuntimeError(f"No factory method for specification type {spectype}.")
 
 
 T = TypeVar("T")
 
 
-class TypedObjectLUT(Generic[T], Iterable):
+class InstanceTable(Generic[T], Iterable):
     """
-    Lookup table for objects by names. Provide attribute-access and iteration to a set of named elements,
+    Lookup table for instances of a given class by name/id. 
+    Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
     """
 
@@ -131,12 +296,12 @@ class TypedObjectLUT(Generic[T], Iterable):
             )
             return largest
 
-    def __sub__(self, obj) -> "TypedObjectLUT[T]":
+    def __sub__(self, obj) -> "InstanceTable[T]":
         """
         remove an object from the registry
         """
         if obj in self._elements.values():
-            return TypedObjectLUT[T](
+            return InstanceTable[T](
                 self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
             )
         else:
@@ -192,60 +357,28 @@ class TypedObjectLUT(Generic[T], Iterable):
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
-class ObjectLUT(TypedObjectLUT[Any]):
-    pass
+class Registry:
 
+    CONFIG_REPOS = [
+        ("https://jugit.fz-juelich.de", 3484),
+        ("https://gitlab.ebrains.eu", 93),
+    ]
 
-class ObjectRegistry:
-    """
-    Registry of preconfigured and dynamically retrievable objects
-     of differenct siibra classes.
-    For each class which is decorated by @Preconfigure (see below),
-    a registry of predefined objects will be created.
-    Only when first requested, the registry will be populated with objects
-    of that class, bootstrapped from specifications in a particular subfolder
-    of the siibra configuration. The subfolder is determined by the
-    class decorator.
+    CONFIGURATIONS = [
+        GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
+        for server, project in CONFIG_REPOS
+    ]
 
-    Predefined objects are shared between all instances of this class -
-    no duplicate objects will be created when creating multiple instances of this class.
-    We could implement a strict singleton in the future.
+    CONFIGURATION_EXTENSIONS = []
 
-    For example,
-        @Preconfigure("atlases")
-        class Atlas...
+    CONFIGURATION_FOLDERS = {
+        "atlases": Atlas,
+        "parcellations": Parcellation,
+        "spaces": Space,
+    }
 
-    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects,
-    and (when first requested) bootstrap objects from the "atlases" subfolder of the siibra configuration.
-
-    Configurations are by default fetched from the siibra-configurations repository maintained at Forschungszentrum Jülich.
-    """
-
-    _preconfiguration_folders: ClassVar[Dict[Type, str]] = {}
-    _dynamic_query_types: ClassVar[Dict[Type, Set[Type]]] = defaultdict(set)
-    _dynamic_queries: ClassVar[Dict[Tuple[Type, List[Tuple]], Any]] = defaultdict(set)
-
-    # TODO memory management concern, esp in siibra-api
-    _objects: ClassVar[Dict[Tuple[Type[T], Tuple], TypedObjectLUT[Type[T]]]] = {}
-
-    _CONFIGURATIONS: ClassVar[List[RepositoryConnector]] = [
-        GitlabConnector(
-            "https://jugit.fz-juelich.de",
-            3484,
-            GITLAB_PROJECT_TAG,
-            skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-        ),
-        GitlabConnector(
-            "https://gitlab.ebrains.eu",
-            93,
-            GITLAB_PROJECT_TAG,
-            skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-        ),
-    ] if SIIBRA_CONFIGURATION_SRC is None else [RepositoryConnector._from_url(SIIBRA_CONFIGURATION_SRC)]
-
-    if SIIBRA_CONFIGURATION_SRC is not None:
-        logger.warn(f"SIIBRA_CONFIGURATION_SRC is set, use {SIIBRA_CONFIGURATION_SRC} as default configurations")
-    _CONFIGURATION_EXTENSIONS: ClassVar[List[RepositoryConnector]] = []
+    spec_loaders = defaultdict(list)
+    instance_tables = {}
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -253,8 +386,8 @@ class ObjectRegistry:
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
-        logger.info(f"Ignoring default, using configuration {str(conn)}")
-        cls._CONFIGURATIONS = [conn]
+        logger.info(f"Using custom configuration from {str(conn)}")
+        cls.CONFIGURATIONS = [conn]
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -263,246 +396,61 @@ class ObjectRegistry:
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
-        cls._CONFIGURATION_EXTENSIONS.append(conn)
+        cls.CONFIGURATION_EXTENSIONS.append(conn)
 
-    @classmethod
-    def register_preconfiguration(cls, folder: str, configured_class: type):
-        """
-        Adds a configuration folder with specifications for bootstrapping
-        preconfigured objects of the given class.
-        """
-        cls._preconfiguration_folders[configured_class] = folder
+    def __init__(self):
 
-    @classmethod
-    def register_object_query(cls, query: type, queried_class: type):
-        """
-        Adds a dynamic query type which produces
-        objects of the given class when called.
-        """
-        cls._dynamic_query_types[queried_class].add(query)
-
-    @classmethod
-    def preconfigure_instances(cls, registered_cls):
-
-        key = (registered_cls, ())
-
-        # at this point we should not have a registry for this class yet, and will create it.
-        assert key not in cls._objects
-        cls._objects[key] = TypedObjectLUT[registered_cls](
-            matchfunc=registered_cls.match
-        )
-
-        # bootstrap preconfigured objects
-        if registered_cls in cls._preconfiguration_folders:
-
-            # get object loaders from siibra configuration
-            for connector in cls._CONFIGURATIONS:
-                try:
-                    loaders = connector.get_loaders(
-                        cls._preconfiguration_folders[registered_cls],
-                        ".json",
-                        progress=f"Bootstrap: {registered_cls.__name__:15.15}",
-                    )
-                    break
-                except Exception as e:
-                    print(str(e))
-                    logger.error(
-                        f"Cannot connect to configuration server {str(connector)}"
-                    )
-                    *_, last = cls._CONFIGURATIONS
-                    if connector is last:
-                        raise NoSiibraConfigMirrorsAvailableException(
-                            "Tried all mirrors, none available."
-                        )
-            else:
-                # we get here only if the loop is not broken
-                raise TagNotFoundException(
-                    f"Cannot bootstrap '{registered_cls.__name__}' objects: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-                )
-
-            num_default_loaders = len(loaders)
-
-            # add configuration extensions
-            for connector in cls._CONFIGURATION_EXTENSIONS:
-                try:
-                    extloaders = connector.get_loaders(
-                        cls._preconfiguration_folders[registered_cls],
-                        ".json",
-                        progress=f"Bootstrap: {registered_cls.__name__:15.15}",
-                    )
-                except Exception as e:
-                    print(str(e))
-                    logger.error(f"Cannot connect to configuration extension {str(connector)}")
-                    continue
-                loaders.extend(extloaders)
-
-            # boostrap the preconfigured objects
-            for i, (fname, loader) in enumerate(loaders):
-                obj = Factory.from_json(loader.data)
-                # obj = registered_cls._from_json(loader.data)
-                if not isinstance(obj, registered_cls):
-                    logger.error(
-                        f"Could not instantiate {registered_cls} object from '{fname}'"
-                    )
-                    print(obj)
-                    continue
-                objkey = obj.key if hasattr(obj, 'key') else obj.__hash__()
-                # we remember the preconfiguration filenames in all preconfigured objects
-                obj._preconfiguration_file = fname
-                if i >= num_default_loaders:
-                    if objkey in cls._objects[key]:
-                        logger.info(
-                            f"Extension updates existing {registered_cls.__name__} "
-                            f"({os.path.basename(fname)})"
-                        )
-                    else:
-                        logger.info(
-                            f"Extension specifies new {registered_cls.__name__} "
-                            f"({os.path.basename(fname)})"
-                        )
-                cls._objects[key].add(objkey, obj)
-
-    @classmethod
-    def initialize_queries(cls, registered_cls: type, params: List[Tuple]):
-
-        key = (registered_cls, params)
-        if key in cls._dynamic_queries:
-            # this cls/params pair has already been initialized
-            return
-
-        for Querytype in cls._dynamic_query_types[registered_cls]:
-            if not all(p in dict(params) for p in Querytype._parameters):
-                raise AttributeError(
-                    f"Parameter specification missing for querying '{registered_cls.__name__}' "
-                    f"objects (required: {', '.join(Querytype._parameters)})"
-                )
-            logger.info(f"Building new query {Querytype} with parameters {params}")
+        # retrieve json spec loaders main configuration
+        for connector in self.CONFIGURATIONS:
             try:
-                cls._dynamic_queries[key].add(Querytype(**dict(params)))
-            except TypeError as e:
-                logger.error(f"Cannot initialize {Querytype} query: {str(e)}")
-                raise (e)
+                for folder, _class in self.CONFIGURATION_FOLDERS.items():
+                    self.spec_loaders[_class] = connector.get_loaders(folder, suffix='json')
+                break
+            except ConnectionError:
+                logger.error(f"Cannot load configuration from {str(connector)}")
+                *_, last = self.CONFIGURATIONS
+                if connector is last:
+                    raise NoSiibraConfigMirrorsAvailableException(
+                        "Tried all mirrors, none available."
+                    )
+        else:
+            raise RuntimeError("Cannot pull any default siibra configuration.")
 
-    @property
-    def known_types(self):
-        return set(self._preconfiguration_folders) | set(self._dynamic_query_types)
+        # add spec loaders from extension configurations
+        for connector in self.CONFIGURATION_EXTENSIONS:
+            try:
+                for folder, _class in self.CONFIGURATION_FOLDERS.items():
+                    self.spec_loaders[_class].extend(
+                        connector.get_loaders(folder, suffix='json')
+                    )
+                break
+            except ConnectionError:
+                logger.error(f"Cannot connect to configuration extension {str(connector)}")
+                continue
 
-    def get_objects(self, object_type, **kwargs):
-        """
-        Retrieve objects by type
-        """
+        for _class, loaders in self.spec_loaders.items():
+            print(f"{len(loaders):5} specs for {_class.__name__}")
 
-        if object_type not in self.known_types:
-            logger.warn(f"No objects of type '{object_type.__name__}' known.")
-            return None
-
-        params = tuple(sorted(kwargs.items()))
-        key = (object_type, params)
-
-        # start with preconfigured objects
-        if object_type in self._preconfiguration_folders and key not in self._objects:
-            self.preconfigure_instances(object_type)
-
-        if key not in self._objects:
-            self._objects[key] = TypedObjectLUT[object_type](
-                matchfunc=object_type.match
-            )
-
-        # extend by objects from dynamic queries
-        self.initialize_queries(object_type, params)
-        for Querytype in self._dynamic_query_types[object_type]:
-            assert hasattr(Querytype, "_parameters")
-            for query in self._dynamic_queries[key]:
-                for obj in query.features:
-                    objkey = obj.key if hasattr(obj, "key") else obj.__hash__()
-                    self._objects[key].add(objkey, obj)
-
-        return self._objects[key]
+    def get_instances(self, requested_class):
+        if requested_class not in self.instance_tables:
+            self.instance_tables[requested_class] = InstanceTable(matchfunc=requested_class.match)
+            for fname, loader in self.spec_loaders.get(requested_class):
+                obj = Factory.from_json(loader.data)
+                if not isinstance(obj, requested_class):
+                    logger.error(
+                        f"Could not instantiate {requested_class} object from {fname}."
+                    )
+                    continue
+                k = obj.key if hasattr(obj, 'key') else obj.__hash__()
+                self.instance_tables[requested_class].add(k, obj)
+        return self.instance_tables[requested_class]
 
     def __getattr__(self, classname: str):
-        """
-        Access predefined object registries by class name, e.g.
-        REGISTRY.Atlas.
-        For objects which are dynamically produced by parameterized queries,
-        a function of the parameters is returned instead of a registry.
-        You might want to use get_objects(type, parameters) for those for better readability.
-        """
-        classnames = {c.__name__: c for c in self.known_types}
-        if classname not in classnames:
-            raise AttributeError(
-                f"No objects of type '{classname}' found. Use one of "
-                f"{', '.join(classnames)}."
-            )
-        return self[classnames[classname]]
+        known_classes = {
+            _.__name__: _ for _ in 
+            set(self.CONFIGURATION_FOLDERS.values()) 
+            | set(self.instance_tables.keys())
+        }
+        return self.get_instances(known_classes.get(classname))
 
-    def __getitem__(self, object_type: Type[T]) -> TypedObjectLUT[T]:
-        """
-        Access predefined object registries by class, e.g.
-        REGISTRY[Atlas].
-        For objects which are dynamically produced by parameterized queries,
-        a function of the parameters is returned instead of a registry.
-        You might want to use get_objects(type, parameters) for those for better readability.
-        """
-        if object_type in self._preconfiguration_folders:
-            return self.get_objects(object_type)
-
-        if object_type in self._dynamic_query_types:
-            querytypes = self._dynamic_query_types[object_type]
-            assert all(hasattr(_, "_parameters") for _ in querytypes)
-            params = [p for _ in querytypes for p in _._parameters]
-            if len(params) > 0:
-                logger.warn(
-                    f"Retrieval of '{object_type.__name__}' objects requires parameters "
-                    f"({', '.join(params)}). A function of these parameters is returned "
-                    "instead of an object lookup table."
-                )
-                return lambda **kwargs: self.get_objects(object_type, **kwargs)
-            else:
-                return self.get_objects(object_type)
-
-        raise AttributeError(f"No objects of type '{object_type.__name__}' known.")
-
-
-class Preconfigure:
-    """
-    Decorator for preconfiguring instances of siibra classes from siibra configuration files.
-
-    Requires to provide the configuration subfolder which contains json files for bootstrapping
-    objects of that class.
-
-    For example,
-        @Preconfigure("atlases")
-        class Atlas...
-
-    will make inform the PreconfiguredObjects class to provide a registry of predefined "Atlas" objects,
-    and (when first requested) bootstrap objects from the "atlases" subfolder of the siibra configuration.
-    """
-
-    def match(self, specification):
-        """Match a given specification. Defaults to == operator,
-        but may be overriden by decorated classes."""
-        return self == specification
-
-    FUNCS_REQUIRED = {"match": match}
-
-    def __init__(self, folder):
-        self.folder = folder
-
-    def __call__(self, cls):
-
-        for fncname, defaultfnc in self.FUNCS_REQUIRED.items():
-            if not (hasattr(cls, fncname)):
-                if defaultfnc is None:
-                    raise TypeError(
-                        f"Class '{cls.__name__}' needs to implement '{fncname}' "
-                        "in order to use the @preconfigure decorator."
-                    )
-                else:
-                    setattr(cls, fncname, defaultfnc)
-
-        ObjectRegistry.register_preconfiguration(self.folder, cls)
-
-        return cls
-
-
-REGISTRY = ObjectRegistry()
+REGISTRY = Registry()

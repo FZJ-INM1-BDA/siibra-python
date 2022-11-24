@@ -18,7 +18,8 @@ from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
 from ..commons import ParcellationIndex, MapType, compare_maps
-from ..core.space import Point, PointSet, Space, BoundingBox
+from ..core.space import Space
+from ..core.location import Point, PointSet, BoundingBox
 from ..core.region import Region
 from ..retrieval import CACHE, GitlabConnector
 

@@ -17,15 +17,12 @@ from .concept import AtlasConcept
 from .space import Space
 from .parcellation import Parcellation
 
-from ..registry import Preconfigure, REGISTRY
 from ..commons import MapType, logger
-from ..registry import TypedObjectLUT
 
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-@Preconfigure('atlases')
 class Atlas(
     AtlasConcept, type_id="juelich/iav/atlas/v1.0.0"
 ):
@@ -64,35 +61,34 @@ class Atlas(
     def __init__(self, identifier, name, species=None):
         """Construct an empty atlas object with a name and identifier."""
 
-        AtlasConcept.__init__(self, identifier, name, dataset_specs=[])
-
-        self._parcellations = []  # add with _add_parcellation
-        self._spaces = []  # add with _add_space
+        AtlasConcept.__init__(
+            self,
+            identifier=identifier,
+            name=name,
+        )
+        self._parcellation_ids = []
+        self._space_ids = []
         self.species = species
 
-    def _register_space(self, space):
-        """Registers another reference space to the atlas."""
-        space.atlases.add(self)
-        self._spaces.append(space)
+    def _register_space(self, space_id: str):
+        self._space_ids.append(space_id)
 
-    def _register_parcellation(self, parcellation):
-        """Registers another parcellation to the atlas."""
-        parcellation.atlases.add(self)
-        self._parcellations.append(parcellation)
+    def _register_parcellation(self, parcellation_id: str):
+        self._parcellation_ids.append(parcellation_id)
 
     @property
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
-        return TypedObjectLUT[Space](
-            elements={s.key: s for s in self._spaces},
+        return InstanceTable[Space](
+            elements={s.key: s for s in REGISTRY.Space if s.id in self._space_ids},
             matchfunc=Space.match,
         )
 
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return TypedObjectLUT[Parcellation](
-            elements={p.key: p for p in self._parcellations},
+        return InstanceTable[Parcellation](
+            elements={p.key: p for p in self._parcellation_ids if p.id in self._parcellation_ids},
             matchfunc=Parcellation.match,
         )
 
@@ -101,14 +97,14 @@ class Atlas(
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self._parcellations[0]
-            if len(self._parcellations) > 1:
+            parcellation_obj = self._parcellation_ids[0]
+            if len(self._parcellation_ids) > 1:
                 logger.info(
                     f"No parcellation specified, using default '{parcellation_obj.name}'."
                 )
         else:
             parcellation_obj = self.parcellations[parcellation]
-            if parcellation_obj not in self._parcellations:
+            if parcellation_obj not in self._parcellation_ids:
                 raise ValueError(
                     f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
                 )
@@ -122,8 +118,8 @@ class Atlas(
             space: Space, or string specification of a space
         """
         if space is None:
-            space_obj = self._spaces[0]
-            if len(self._spaces) > 1:
+            space_obj = self._space_ids[0]
+            if len(self._space_ids) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
         elif isinstance(space, Space):
             space_obj = space
@@ -202,7 +198,7 @@ class Atlas(
             Bounding Box
         """
         spaceobj = REGISTRY[space]
-        if spaceobj not in self._spaces:
+        if spaceobj not in self._space_ids:
             raise ValueError(
                 f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
             )
@@ -243,7 +239,7 @@ class Atlas(
         list of matching regions
         """
         result = []
-        for p in self._parcellations:
+        for p in self._parcellation_ids:
             if p.is_newest_version or all_versions:
                 match = p.find_regions(
                     regionspec,

@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from .concept import AtlasConcept
-from .space import PointSet, Space, Point, BoundingBox
+from .space import Space
+from .location import PointSet, Point, BoundingBox
 
 from ..commons import (
     logger,
@@ -24,7 +25,6 @@ from ..commons import (
     affine_scaling,
     create_key,
 )
-from ..registry import ObjectLUT, REGISTRY
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -152,7 +152,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     @property
     def names(self):
-        return ObjectLUT(elements={r.key: r.name for r in self})
+        return InstanceTable[self.__class__](elements={r.key: r.name for r in self})
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()

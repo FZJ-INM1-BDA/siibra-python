@@ -23,6 +23,7 @@ class GiftiSurface:
     """
     A (set of) surface meshes in Gifti format.
     """
+
     def __init__(self, url):
         if isinstance(url, str):
             # a single url
@@ -31,26 +32,26 @@ class GiftiSurface:
             self._loaders = {
                 label: HttpRequest(url)
                 for label, url in url.items()
-            } 
+            }
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
     def fetch(self, name=None):
         """
-        Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates, 
+        Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
         and an Mx3 array of face definitions using row indices of the vertex array.
 
         If name is specified, only submeshes matching this name are included, otherwise all meshes are combined.
         """
         vertices = np.empty((0, 3))
-        faces = np.empty((0,3), dtype='int')
+        faces = np.empty((0, 3), dtype='int')
         for n, loader in self._loaders.items():
             npoints = vertices.shape[0]
-            if (name is not None) & (n!=name):
+            if (name is not None) & (n != name):
                 continue
-            assert len(loader.data.darrays)>1
-            vertices = np.append(vertices, loader.data.darrays[0].data, axis = 0)
-            faces = np.append(faces, loader.data.darrays[1].data+npoints, axis = 0)
+            assert len(loader.data.darrays) > 1
+            vertices = np.append(vertices, loader.data.darrays[0].data, axis=0)
+            faces = np.append(faces, loader.data.darrays[1].data + npoints, axis=0)
 
         return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
 
@@ -73,6 +74,7 @@ class GiftiSurfaceLabeling():
     """
     A mesh labeling, specified by a gifti file.
     """
+
     def __init__(self, url):
         self._loader = HttpRequest(self.url)
 
@@ -84,11 +86,11 @@ class GiftiSurfaceLabeling():
 
 class NeuroglancerMesh():
     """
-    A surface mesh provided as neuroglancer precomputed mesh.     
+    A surface mesh provided as neuroglancer precomputed mesh.
     """
 
     def __init__(self, url):
         self.url = url
 
     def fetch(self):
-        raise NotImplementedError(f"Fetching from neuroglancer precomputed mesh is not yet implemented.")
+        raise NotImplementedError("Fetching from neuroglancer precomputed mesh is not yet implemented.")

@@ -15,9 +15,7 @@
 
 
 from .datasets import EbrainsDataset
-
 from ..commons import create_key
-from ..registry import REGISTRY
 
 import re
 
@@ -70,11 +68,7 @@ class AtlasConcept:
         self.datasets = []
         for kg_schema, kg_id in ebrains_ids.items():
             if kg_schema == "minds/core/dataset/v1.0.0":
-                if kg_id not in REGISTRY[EbrainsDataset]:
-                    REGISTRY[EbrainsDataset].add(
-                        kg_id, EbrainsDataset(id=kg_id, name=None)
-                    )
-                self.datasets.append(REGISTRY[EbrainsDataset][kg_id])
+                self.datasets.append(EbrainsDataset(id=kg_id, name=None))
             else:
                 raise NotImplementedError(f"No object construction available for EBRAINS schemas {kg_schema}.")
 

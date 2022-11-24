@@ -16,13 +16,11 @@
 from .space import Space
 from .region import Region
 
-from ..registry import Preconfigure, ObjectLUT, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
 from ..volumes import ParcellationMap
 
 from typing import Set, Union
 from difflib import SequenceMatcher
-from os import path
 
 
 # NOTE : such code could be used to automatically resolve
@@ -37,13 +35,13 @@ from os import path
 
 class ParcellationVersion:
     def __init__(
-        self, name, parcellation, collection=None, prev_filename=None, next_filename=None, deprecated=False
+        self, name, parcellation, collection=None, prev_id=None, next_id=None, deprecated=False
     ):
         self.name = name
         self.collection = collection
         self.parcellation = parcellation
-        self.next_filename = next_filename
-        self.prev_filename = prev_filename
+        self.next_id = next_id
+        self.prev_id = prev_id
         self.deprecated = deprecated
 
     def __eq__(self, other):
@@ -57,57 +55,18 @@ class ParcellationVersion:
 
     def __iter__(self):
         yield "name", self.name
-        yield "prev", self.prev.id if self.prev is not None else None
-        yield "next", self.next.id if self.next is not None else None
+        yield "prev", self.prev_id
+        yield "next", self.next_id
         yield "deprecated", self.deprecated
 
     def __lt__(self, other):
-        """< operator, useful for sorting by version"""
-        # check predecessors of other
-        pred = other.prev
-        while pred is not None:
-            if pred.version == self:
-                return True
-            pred = pred.version.prev
-
-        # check successors of self
-        succ = self.next
-        while succ is not None:
-            if succ.version == other:
-                return True
-            succ = succ.version.next
-
-        return False
-
-    def find_parcellation(self, preconf_fname):
-        if preconf_fname is None:
-            return None
-        if preconf_fname.startswith('./'):
-            preconf_fname = path.join(
-                path.dirname(self.parcellation._preconfiguration_file),
-                preconf_fname[2:]
-            )
-        matches = [
-            p for p in REGISTRY.Parcellation
-            if p._preconfiguration_file == preconf_fname
-        ]
-        if len(matches) == 1:
-            return matches[0]
-        elif len(matches) == 0:
-            raise RuntimeError(f"No parcellations found for preconfiguration file {preconf_fname}")
-        else:
-            raise RuntimeError(f"Mulitple parcellations found for preconfiguration file {preconf_fname}")
-
-    @property
-    def next(self):
-        return self.find_parcellation(self.next_filename)
-
-    @property
-    def prev(self):
-        return self.find_parcellation(self.prev_filename)
+        """
+        < operator, useful for sorting by version
+        FIXME: this is only by name, not recursing into parcellations, to avoid importing the registry here.
+        """
+        return self.name < other.name
 
 
-@Preconfigure("parcellations")
 class Parcellation(
     Region,  # parcellations are also used to represent the root nodes of region hierarchies
     type_id="minds/core/parcellationatlas/v1.0.0",
@@ -160,7 +119,12 @@ class Parcellation(
             ebrains_ids=ebrains_ids,
             modality=modality
         )
+        self._id = identifier
         self.version = version
+
+    @property
+    def id(self):
+        return self._id
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
@@ -239,14 +203,14 @@ class Parcellation(
 
     @property
     def spaces(self):
-        return ObjectLUT(
+        return InstanceTable(
             matchfunc=Space.matches,
             elements={s.key: s for s in self.supported_spaces},
         )
 
     @property
     def is_newest_version(self):
-        return (self.version is None) or (self.version.next is None)
+        return (self.version is None) or (self.version.next_id is None)
 
     def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region], find_topmost=True):
         """

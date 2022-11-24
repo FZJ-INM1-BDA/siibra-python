@@ -15,9 +15,8 @@
 
 from .concept import AtlasConcept
 from .atlas import Atlas
-from .space import Space, Point, PointSet, BoundingBox
+from .location import Point, PointSet, BoundingBox
+from .space import Space
 from .region import Region
 from .parcellation import Parcellation
 from .datasets import EbrainsDataset
-
-from ..registry import TypedObjectLUT

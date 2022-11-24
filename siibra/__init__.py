@@ -27,34 +27,20 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-from .features import gene_names, get_features, modalities
 from .commons import MapType, ParcellationIndex, set_log_level
-from .retrieval import EbrainsRequest, CACHE
-from .registry import REGISTRY, ObjectRegistry, TypedObjectLUT
-from .core.atlas import Atlas
-from .core.space import Space
-from .core.space import Point, PointSet, BoundingBox, Location as _location
-from .core.parcellation import Parcellation
-from .core.region import THRESHOLD_CONTINUOUS_MAPS
 from os import environ
-
-from_sands = _location.from_sands
+from .retrieval.requests import EbrainsRequest
 set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
+from .retrieval.cache import CACHE
 clear_cache = CACHE.clear
-use_configuration = ObjectRegistry.use_configuration
-extend_configuration = ObjectRegistry.extend_configuration
 
-
-def __getattr__(attr):
-    if attr == "atlases":
-        return REGISTRY.Atlas
-    elif attr == "parcellations":
-        return REGISTRY.Parcellation
-    elif attr == "spaces":
-        return REGISTRY.Space
-    else:
-        raise AttributeError
+from .registry import Registry, REGISTRY
+use_configuration = Registry.use_configuration
+extend_configuration = Registry.extend_configuration
+atlases = REGISTRY.Atlas
+parcellations = REGISTRY.Parcellation
+spaces = REGISTRY.Space
 
 
 def set_feasible_download_size(maxsize_gbyte):

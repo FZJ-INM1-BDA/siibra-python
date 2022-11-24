@@ -14,13 +14,11 @@
 # limitations under the License.
 
 from ..retrieval import EbrainsKgQuery
-from ..registry import Preconfigure
 
 import re
 from typing import Union
 
 
-@Preconfigure("snapshots/ebrainsquery/v1")
 class EbrainsDataset:
 
     def __init__(self, id, name, embargo_status=None, *, cached_data=None):

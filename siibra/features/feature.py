@@ -15,7 +15,7 @@
 
 from abc import abstractclassmethod
 from ..commons import logger, MapType, QUIET
-from ..registry import REGISTRY, TypedObjectLUT
+from ..registry import REGISTRY, InstanceTable
 from ..core.atlas import Atlas
 from ..core.concept import AtlasConcept
 from ..core.space import Location, Space, Point, PointSet, BoundingBox
@@ -139,7 +139,7 @@ class Feature:
     @classmethod
     def get_modalities(cls):
         """ Returns a lookup table of registered feature subclasses. """
-        result = TypedObjectLUT[cls]()
+        result = InstanceTable[cls]()
         for subcls in REGISTRY.known_types:
             if issubclass(subcls, cls):
                 result.add(subcls.__name__, subcls)
