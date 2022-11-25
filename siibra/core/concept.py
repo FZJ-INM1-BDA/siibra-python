@@ -15,7 +15,7 @@
 
 
 from .datasets import EbrainsDataset
-from ..commons import create_key
+from ..commons import create_key, logger
 
 import re
 
@@ -27,6 +27,7 @@ class AtlasConcept:
     Typically, they are linked with one or more datasets that can be retrieved from the same or another online resource,
     providing data files or additional metadata descriptions on request.
     """
+
     def __init__(
         self,
         identifier: str,
@@ -69,8 +70,10 @@ class AtlasConcept:
         for kg_schema, kg_id in ebrains_ids.items():
             if kg_schema == "minds/core/dataset/v1.0.0":
                 self.datasets.append(EbrainsDataset(id=kg_id, name=None))
+            elif kg_schema == "minds/core/parcellationregion/v1.0.0":
+                self.ebrains_parcellation_region = kg_id
             else:
-                raise NotImplementedError(f"No object construction available for EBRAINS schemas {kg_schema}.")
+                logger.warn(f"No object construction available for EBRAINS schemas {kg_schema}.")
 
     @property
     def id(self):

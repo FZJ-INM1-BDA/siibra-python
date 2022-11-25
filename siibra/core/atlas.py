@@ -17,15 +17,15 @@ from .concept import AtlasConcept
 from .space import Space
 from .parcellation import Parcellation
 
+from ..registry import REGISTRY
 from ..commons import MapType, logger
+from ..registry import InstanceTable
 
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class Atlas(
-    AtlasConcept, type_id="juelich/iav/atlas/v1.0.0"
-):
+class Atlas(AtlasConcept):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference

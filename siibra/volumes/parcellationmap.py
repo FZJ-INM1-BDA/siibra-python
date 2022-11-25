@@ -17,7 +17,9 @@ from .volume import ImageProvider, Volume
 from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
+from ..registry import REGISTRY
 from ..commons import ParcellationIndex, MapType, compare_maps
+from ..core.concept import AtlasConcept
 from ..core.space import Space
 from ..core.location import Point, PointSet, BoundingBox
 from ..core.region import Region
@@ -35,6 +37,132 @@ import pandas as pd
 from math import ceil, log10
 import gzip
 from scipy.ndimage.morphology import distance_transform_edt
+
+
+class Map(AtlasConcept):
+
+    def __init__(
+        self,
+        identifier: str,
+        name: str,
+        space_spec: dict,
+        parcellation_spec: dict,
+        indices: dict, 
+        volumes: list = [],
+        shortname: str = "",
+        description: str = "",
+        modality: str = None,
+        publications: list = [],
+        ebrains_ids: dict = {},
+    ):
+        """
+        Constructs a new parcellation object.
+
+        Parameters
+        ----------
+        identifier : str
+            Unique identifier of the parcellation
+        name : str
+            Human-readable name of the parcellation
+        space_spec: dict
+            Specification of the space (use @id or name fields)
+        parcellation_spec: str
+            Specification of the parcellation (use @id or name fields)
+        indices: dict
+            Dictionary of indices for the brain regions. 
+            Keys are exact region names.
+            Per region name, a list of dictionaries with fields "volume" and "label" is expected,
+            where "volume" points to the index of the Volume object where this region is mapped, 
+            and optional "label" is the voxel label for that region.
+            For contiuous / probability maps, the "label" can be null or omitted.
+            For single-volume labelled maps, the "volume" can be null or omitted.
+        volumes: list of Volume
+            parcellation volumes
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality used for creating the parcellation
+        publications: list
+            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+        ebrains_ids : dict
+            Identifiers of EBRAINS entities corresponding to this Parcellation.
+            Key: EBRAINS KG schema, value: EBRAINS KG @id
+        """
+        AtlasConcept.__init__(
+            self,
+            identifier=identifier,
+            name=name,
+            shortname=shortname,
+            description=description,
+            publications=publications,
+            ebrains_ids=ebrains_ids,
+            modality=modality
+        )
+        assert all(
+            d['volume'] in range(len(volumes)) 
+            for v in indices.values() for d in v
+        )
+        self.volumes = volumes
+        self._indices = indices
+        self._space_spec = space_spec
+        self._parcellation_spec = parcellation_spec
+        for v in self.volumes:
+            v._space_spec = space_spec
+
+    @property
+    def get_index(self, regionname: str):
+        if regionname in self._indices:
+            return self._indices[regionname]
+        else:
+            logger.warn(f"Region with name {regionname} not defined in {self}")
+            return None
+
+    @property
+    def space(self):
+        for key in ["@id", "name"]:
+            if key in self._space_spec:
+                return REGISTRY.Space[self._space_spec[key]]
+        logger.warn(
+            f"Cannot determine space of {self.__class__.__name__} "
+            f"{self.name} from {self._space_spec}"
+        )
+        return None
+
+    @property
+    def parcellation(self):
+        for key in ["@id", "name"]:
+            if key in self._parcellation_spec:
+                return REGISTRY.Parcellation[self._parcellation_spec[key]]
+        logger.warn(
+            f"Cannot determine parcellation of {self.__class__.__name__} "
+            f"{self.name} from {self._parcellation_spec}"
+        )
+        return None
+
+    @property
+    def labels(self):
+        """
+        The set of all label indices defined in this map, 
+        including "None" if not defined for one or more regions. 
+        """
+        return {
+            d.get('label', None) 
+            for v in self._indices.values() for d in v
+        }
+
+    @property
+    def maptype(self):
+        if all(isinstance(l, int) for l in self.labels):
+            return MapType.LABELLED
+        elif self.labels == {None}:
+            return MapType.CONTINUOUS
+        else:
+            raise RuntimeError(
+                f"Inconsistent label indices encountered in {self}"
+            )
+
 
 
 class ParcellationMap(ABC):

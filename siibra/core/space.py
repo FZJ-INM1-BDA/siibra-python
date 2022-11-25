@@ -16,13 +16,11 @@
 
 from .concept import AtlasConcept
 from .location import Point, BoundingBox
+
 from ..commons import logger
 
 
-class Space(
-    AtlasConcept,
-    type_id="minds/core/referencespace/v1.0.0",
-):
+class Space(AtlasConcept):
     """
     A particular brain reference space.
     """

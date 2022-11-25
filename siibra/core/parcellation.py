@@ -16,11 +16,10 @@
 from .space import Space
 from .region import Region
 
+from ..registry import InstanceTable, REGISTRY
 from ..commons import logger, MapType, ParcellationIndex
-from ..volumes import ParcellationMap
 
 from typing import Set, Union
-from difflib import SequenceMatcher
 
 
 # NOTE : such code could be used to automatically resolve
@@ -67,10 +66,7 @@ class ParcellationVersion:
         return self.name < other.name
 
 
-class Parcellation(
-    Region,  # parcellations are also used to represent the root nodes of region hierarchies
-    type_id="minds/core/parcellationatlas/v1.0.0",
-):
+class Parcellation(Region):
 
     def __init__(
         self,
@@ -146,26 +142,20 @@ class Parcellation(
         ------
         A ParcellationMap representing the volumetric map.
         """
-        if isinstance(maptype, str):
+        if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
-        if space is None:
-            spaces = {v.space for v in self.volumes}
-            if len(spaces) == 0:
-                raise RuntimeError(f'Parcellation "{str(self)}" provides no maps.')
-            elif len(spaces) == 1:
-                spaceobj = next(iter(spaces))
-            else:
-                raise ValueError(
-                    f'Parcellation "{str(self)}" provides maps in multiple spaces, but no space was specified ({",".join(s.name for s in spaces)})'
-                )
-        else:
-            spaceobj = REGISTRY.Space[space]
-            if not self.supports_space(spaceobj):
-                raise ValueError(
-                    f'Parcellation "{self.name}" does not provide a map for space "{spaceobj.name}"'
-                )
-
-        return ParcellationMap.get_instance(self, spaceobj, maptype)
+        candidates = [
+            m for m in REGISTRY.Map
+            if m.space.matches(space)
+            and m.maptype == maptype
+            and m.parcellation.matches(self)
+        ]
+        if len(candidates) == 0:
+            logger.error(f"No {maptype} map in {space} available for {str(self)}")
+            return None
+        if len(candidates) > 1:
+            logger.warn(f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first.")
+        return candidates[0]
 
     def get_colormap(self):
         """Generate a matplotlib colormap from known rgb values of label indices."""
@@ -219,8 +209,7 @@ class Parcellation(
         region object.
         This method is meant to definitely determine a valid region. Therefore,
         if no match is found, it raises a ValueError. If it finds multiple
-        matches, it tries to return only the common parent node. If there are
-        multiple remaining parent nodes, which is rare, a custom group region is constructed.
+        matches, it tries to return only the common parent node.
 
         Parameters
         ----------
@@ -240,23 +229,6 @@ class Parcellation(
         if isinstance(regionspec, Region) and (regionspec.parcellation == self):
             return regionspec
 
-        if isinstance(regionspec, str) and regionspec.startswith("Group:"):
-            # seems to be a group region name - build the group region by recursive decoding.
-            logger.info(f"Decoding group region: {regionspec}")
-            regions = [
-                self.decode_region(s) for s in regionspec.replace("Group:", "").split(",")
-            ]
-            # refuse to group regions with any of their existing children
-            cleaned_regions = [
-                r for r in regions
-                if not any(r in r2.descendants for r2 in regions)
-            ]
-            if len(cleaned_regions) == 1:
-                logger.debug(f"Group reduced to a single parent: {cleaned_regions[0].name}")
-                return cleaned_regions[0]
-            else:
-                return Region._build_grouptree(cleaned_regions, parcellation=self)
-
         candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
         if not candidates:
             raise ValueError(
@@ -267,66 +239,9 @@ class Parcellation(
         elif len(candidates) == 1:
             return candidates[0]
         else:
-            if isinstance(regionspec, str):
-                scores = [
-                    SequenceMatcher(None, regionspec, region.name).ratio()
-                    for region in candidates
-                ]
-                bestmatch = scores.index(max(scores))
-                logger.info(
-                    f"Decoding of spec {regionspec} resulted in multiple matches: "
-                    f"{','.join(r.name for r in candidates)}. The closest match was chosen: {candidates[bestmatch].name}"
-                )
-                return candidates[bestmatch]
             raise RuntimeError(
-                f"Decoding of spec {regionspec} resulted in multiple matches: {','.join(r.name for r in candidates)}."
+                f"Decoding of spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
-
-    def find_regions(
-        self, regionspec, filter_children=False, build_group=False, groupname=None
-    ):
-        """
-        Find regions with the given specification in this parcellation.
-
-        Parameters
-        ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - an integer, which is interpreted as a labelindex
-            - a region object
-        filter_children : Boolean
-            If true, children of matched parents will not be returned
-        build_group : Boolean, default: False
-            If true, the result will be a single region object. To do so,
-            a group region of matched elements will be created if needed.
-        groupname : str (optional)
-            Name of the resulting group region, if build_group is True
-
-        Yield
-        -----
-        list of matching regions
-        """
-        found_regions = self.find(
-            regionspec,
-            filter_children=filter_children,
-            build_group=build_group,
-            groupname=groupname,
-        )
-
-        # Perform ranking of return result, if the spec provided is a string. Otherwise, return the unsorted found_regions
-        # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        return (
-            sorted(
-                found_regions,
-                reverse=True,
-                key=lambda region: SequenceMatcher(
-                    None, str(region), regionspec
-                ).ratio(),
-            )
-            if type(regionspec) == str
-            else found_regions
-        )
 
     def __str__(self):
         return self.name

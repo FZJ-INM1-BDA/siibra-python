@@ -15,187 +15,12 @@
 
 from . import __version__
 from .commons import logger
-from .core.atlas import Atlas
-from .core.parcellation import Parcellation, ParcellationVersion
-from .core.space import Space
-from .core.region import Region
-from .core.datasets import EbrainsDataset
-from .core.location import Point, PointSet
-from .volumes.volume import Volume
 from .retrieval.repositories import GitlabConnector, RepositoryConnector
+from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 
-from .retrieval.exceptions import (
-    NoSiibraConfigMirrorsAvailableException,
-    TagNotFoundException,
-)
-
-from typing import Any, Generic, Iterable, Iterator, List, Type, TypeVar, Union, Tuple, Dict, Set, ClassVar
-from os import path
-import json
-import numpy as np
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union
 from collections import defaultdict
-from tqdm import tqdm
 from requests.exceptions import ConnectionError
-
-
-class Factory:
-
-    @classmethod
-    def build_atlas(cls, spec):
-        assert spec.get("@type") == "juelich/iav/atlas/v1.0.0"
-        atlas = Atlas(
-            spec["@id"],
-            spec["name"],
-            species=spec["species"]
-        )
-        for space_id in spec["spaces"]:
-            atlas._register_space(space_id)
-        for parcellation_id in spec["parcellations"]:
-            atlas._register_parcellation(parcellation_id)
-        return atlas
-
-    @classmethod
-    def build_space(cls, spec):
-        assert spec.get("@type") == "siibra/space/v0.0.1"
-        volumes = list(map(cls.build_volume, spec.get("volumes", [])))
-        return Space(
-            identifier=spec["@id"],
-            name=spec["name"],
-            volumes=volumes,
-            shortname=spec.get("shortName", ""),
-            description=spec.get("description"),
-            modality=spec.get("modality"),
-            publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {})
-        )
-
-    @classmethod
-    def build_region(cls, spec):
-        return Region(
-            name=spec["name"],
-            children=map(cls.build_region, spec.get("children", [])),
-            shortname=spec.get("shortname", ""),
-            description=spec.get("description", ""),
-            publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains_ids", {})
-        )
-
-    @classmethod
-    def build_parcellation(cls, spec):
-        assert spec.get("@type", None) == "siibra/parcellation/v0.0.1"
-        regions = []
-        for regionspec in spec.get("regions", []):
-            try:
-                regions.append(cls.build_region(regionspec))
-            except Exception as e:
-                print(regionspec)
-                raise e
-        parcellation = Parcellation(
-            identifier=spec["@id"],
-            name=spec["name"],
-            regions=regions,
-            shortname=spec.get("shortName", ""),
-            description=spec.get("description", ""),
-            modality=spec.get('modality', ""),
-            publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {}),
-        )
-
-        # add version object, if any is specified
-        versionspec = spec.get('@version', None)
-        if versionspec is not None:
-            version = ParcellationVersion(
-                name=versionspec.get("name", None),
-                parcellation=parcellation,
-                collection=versionspec.get("collectionName", None),
-                prev_id=versionspec.get("@prev", None),
-                next_id=versionspec.get("@next", None),
-                deprecated=versionspec.get("deprecated", False)
-            )
-            parcellation.version = version
-
-        return parcellation
-
-    @classmethod
-    def build_volume(cls, spec):
-        assert spec.get("@type", None) == "siibra/volume/v0.0.1"
-        return Volume(
-            name=spec.get("name", ""),
-            space_info=spec.get("space", {}),
-            urls=spec.get("urls", {})
-        )
-
-    @classmethod
-    def build_ebrains_dataset(cls, spec):
-        assert spec.get("@type", None) == "siibra/snapshots/ebrainsquery/v1"
-        return EbrainsDataset(
-            id=spec["id"],
-            name=spec["name"],
-            embargo_status=spec["embargoStatus"],
-            cached_data=spec,
-        )
-
-    @classmethod
-    def build_point(cls, spec):
-        assert spec["@type"] == "https://openminds.ebrains.eu/sands/CoordinatePoint"
-        # require space spec
-        space_id = spec["coordinateSpace"]["@id"]
-
-        # require a 3D point spec for the coordinates
-        assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
-
-        # build the Point
-        return Point(
-            list(np.float16(c["value"]) for c in spec["coordinates"]),
-            space_id=space_id,
-        )
-
-    @classmethod
-    def build_pointset(cls, spec):
-        assert spec["@type"] == "tmp/poly"
-
-        # require space spec
-        space_id = spec["coordinateSpace"]["@id"]
-
-        # require mulitple 3D point specs
-        coords = []
-        for coord in spec["coordinates"]:
-            assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
-            coords.append(list(np.float16(c["value"]) for c in coord))
-
-        # build the Point
-        return PointSet(coords, space_id=space_id)
-
-    @classmethod
-    def from_json(cls, spec: dict):
-
-        if isinstance(spec, str):
-            if path.isfile(spec):
-                with open(spec, "r") as f:
-                    spec = json.load(f)
-            else:
-                spec = json.loads(spec)
-
-        spectype = spec.get("@type", None)
-
-        if spectype == "juelich/iav/atlas/v1.0.0":
-            return cls.build_atlas(spec)
-        elif spectype == "siibra/space/v0.0.1":
-            return cls.build_space(spec)
-        elif spectype == "siibra/parcellation/v0.0.1":
-            return cls.build_parcellation(spec)
-        elif spectype == "siibra/volume/v0.0.1":
-            return cls.build_volume(spec)
-        elif spectype == "siibra/space/v0.0.1":
-            return cls.build_space(spec)
-        elif spectype == "siibra/snapshots/ebrainsquery/v1":
-            return cls.build_ebrains_dataset(spec)
-        elif spectype == "https://openminds.ebrains.eu/sands/CoordinatePoint":
-            return cls.build_point(spec)
-        elif spectype == "tmp/poly":
-            return cls.build_pointset(spec)
-        else:
-            raise RuntimeError(f"No factory method for specification type {spectype}.")
 
 
 T = TypeVar("T")
@@ -203,7 +28,7 @@ T = TypeVar("T")
 
 class InstanceTable(Generic[T], Iterable):
     """
-    Lookup table for instances of a given class by name/id. 
+    Lookup table for instances of a given class by name/id.
     Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
     """
@@ -245,7 +70,10 @@ class InstanceTable(Generic[T], Iterable):
         return self._elements.keys()
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
+        if len(self) > 0:
+            return f"{self.__class__.__name__}:\n - " + "\n - ".join(self._elements.keys())
+        else:
+            return f"Empty {self.__class__.__name__}"
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
@@ -280,7 +108,7 @@ class InstanceTable(Generic[T], Iterable):
             print(str(self))
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
+                f"Possible values are: " + ", ".join(self._elements.keys())
             )
         elif len(matches) == 1:
             return matches[0]
@@ -358,6 +186,20 @@ class InstanceTable(Generic[T], Iterable):
 
 
 class Registry:
+    """
+    A registry object provides lookup tables of already instantiated objects
+    for different siibra classes. For each class, one such instance table is maintained.
+
+    When a Registry is constructed, it parses a siibra configuration for, which is
+    a directory of json specifications for predefined siibra objects.
+    The default configuration is pulled from a gitlab repository
+    maintained by the siibra development team, but different configurations
+    can be passed via the use_configuration() method, and extended via the
+    extend_configuration() method.
+
+    Objects and instance tables will only be constructed from the json loaders
+    once the instances of a particular class are requested for the first time.
+    """
 
     CONFIG_REPOS = [
         ("https://jugit.fz-juelich.de", 3484),
@@ -369,16 +211,53 @@ class Registry:
         for server, project in CONFIG_REPOS
     ]
 
-    CONFIGURATION_EXTENSIONS = []
-
     CONFIGURATION_FOLDERS = {
-        "atlases": Atlas,
-        "parcellations": Parcellation,
-        "spaces": Space,
+        'Atlas': 'atlases',
+        'Parcellation': 'parcellations',
+        'Space': 'spaces',
+        'Map': 'maps',
     }
+    CONFIGURATION_EXTENSIONS = []
 
     spec_loaders = defaultdict(list)
     instance_tables = {}
+
+    def __init__(self):
+
+        # retrieve json spec loaders from the default configuration
+        for connector in self.CONFIGURATIONS:
+            try:
+                for classname, folder in self.CONFIGURATION_FOLDERS.items():
+                    loaders = connector.get_loaders(folder, suffix='json')
+                    if len(loaders) > 0:
+                        self.spec_loaders[classname] = loaders
+                break
+            except ConnectionError:
+                logger.error(f"Cannot load configuration from {str(connector)}")
+                *_, last = self.CONFIGURATIONS
+                if connector is last:
+                    raise NoSiibraConfigMirrorsAvailableException(
+                        "Tried all mirrors, none available."
+                    )
+        else:
+            raise RuntimeError("Cannot pull any default siibra configuration.")
+
+        # add additional spec loaders from extension configurations
+        for connector in self.CONFIGURATION_EXTENSIONS:
+            try:
+                for _class, folder in self.CONFIGURATION_FOLDERS.items():
+                    self.spec_loaders[_class].extend(
+                        connector.get_loaders(folder, suffix='json')
+                    )
+                break
+            except ConnectionError:
+                logger.error(f"Cannot connect to configuration extension {str(connector)}")
+                continue
+
+        logger.info(
+            "Preconfigurations:\n\t"
+            + "\n\t".join(f"{classname:15.15} {len(L):5}" for classname, L in self.spec_loaders.items())
+        )
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -398,59 +277,31 @@ class Registry:
         logger.info(f"Extending configuration with {str(conn)}")
         cls.CONFIGURATION_EXTENSIONS.append(conn)
 
-    def __init__(self):
-
-        # retrieve json spec loaders main configuration
-        for connector in self.CONFIGURATIONS:
-            try:
-                for folder, _class in self.CONFIGURATION_FOLDERS.items():
-                    self.spec_loaders[_class] = connector.get_loaders(folder, suffix='json')
-                break
-            except ConnectionError:
-                logger.error(f"Cannot load configuration from {str(connector)}")
-                *_, last = self.CONFIGURATIONS
-                if connector is last:
-                    raise NoSiibraConfigMirrorsAvailableException(
-                        "Tried all mirrors, none available."
-                    )
-        else:
-            raise RuntimeError("Cannot pull any default siibra configuration.")
-
-        # add spec loaders from extension configurations
-        for connector in self.CONFIGURATION_EXTENSIONS:
-            try:
-                for folder, _class in self.CONFIGURATION_FOLDERS.items():
-                    self.spec_loaders[_class].extend(
-                        connector.get_loaders(folder, suffix='json')
-                    )
-                break
-            except ConnectionError:
-                logger.error(f"Cannot connect to configuration extension {str(connector)}")
-                continue
-
-        for _class, loaders in self.spec_loaders.items():
-            print(f"{len(loaders):5} specs for {_class.__name__}")
-
-    def get_instances(self, requested_class):
-        if requested_class not in self.instance_tables:
-            self.instance_tables[requested_class] = InstanceTable(matchfunc=requested_class.match)
-            for fname, loader in self.spec_loaders.get(requested_class):
-                obj = Factory.from_json(loader.data)
-                if not isinstance(obj, requested_class):
+    def get_instances(self, classname):
+        if classname not in self.instance_tables:
+            # we load the module only here to avoid circular imports
+            from .factory import Factory
+            for i, (fname, loader) in enumerate(self.spec_loaders.get(classname)):
+                # we pass the filename to the spec for the Factor.
+                # for example, it is used in Factor to determine an object identifier if none is provided.
+                obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
+                if obj.__class__.__name__ != classname:
                     logger.error(
-                        f"Could not instantiate {requested_class} object from {fname}."
+                        f"Specification in {fname} resulted in object type "
+                        f"{obj.__class__.__name__}, but {classname} was expected."
                     )
                     continue
+                if classname not in self.instance_tables:
+                    self.instance_tables[classname] = InstanceTable(matchfunc=obj.__class__.match)
                 k = obj.key if hasattr(obj, 'key') else obj.__hash__()
-                self.instance_tables[requested_class].add(k, obj)
-        return self.instance_tables[requested_class]
+                self.instance_tables[classname].add(k, obj)
+        return self.instance_tables[classname]
+
+    def __getitem__(self, classname: str):
+        return self.get_instances(classname)
 
     def __getattr__(self, classname: str):
-        known_classes = {
-            _.__name__: _ for _ in 
-            set(self.CONFIGURATION_FOLDERS.values()) 
-            | set(self.instance_tables.keys())
-        }
-        return self.get_instances(known_classes.get(classname))
+        return self.get_instances(classname)
+
 
 REGISTRY = Registry()

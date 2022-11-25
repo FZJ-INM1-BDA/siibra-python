@@ -25,6 +25,7 @@ from ..commons import (
     affine_scaling,
     create_key,
 )
+from ..registry import REGISTRY
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -33,6 +34,7 @@ import re
 import anytree
 from typing import List, Union
 from nibabel import Nifti1Image
+from difflib import SequenceMatcher
 
 
 REMOVE_FROM_NAME = [
@@ -65,6 +67,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     @staticmethod
     def _clear_name(name):
+        """ clean up a region name to the for matching"""
         result = name
         for word in REMOVE_FROM_NAME:
             result = result.replace(word, "")
@@ -82,6 +85,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         modality: str = "",
         publications: list = [],
         ebrains_ids: dict = {},
+        rgb: str = None,
     ):
         """
         Constructs a new Region object.
@@ -103,6 +107,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         ebrains_ids : dict
             Identifiers of EBRAINS entities corresponding to this Parcellation.
             Key: EBRAINS KG schema, value: EBRAINS KG @id
+        rgb: str, default None
+            Hexcode of preferred color of this region (e.g. "#9FE770")
         """
         anytree.NodeMixin.__init__(self)
         AtlasConcept.__init__(
@@ -119,6 +125,11 @@ class Region(anytree.NodeMixin, AtlasConcept):
         # anytree node will take care to use this appropriately
         self.parent = parent
         self.children = children
+        # convert hex to int tuple if rgb is given
+        self.rgb = (
+            None if rgb is None
+            else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
+        )
 
     @property
     def id(self):
@@ -152,7 +163,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     @property
     def names(self):
-        return InstanceTable[self.__class__](elements={r.key: r.name for r in self})
+        return {r.key for r in self}
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
@@ -173,8 +184,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self,
         regionspec,
         filter_children=False,
-        build_group=False,
-        groupname=None,
         find_topmost=True,
     ):
         """
@@ -192,26 +201,18 @@ class Region(anytree.NodeMixin, AtlasConcept):
             - a region object
         filter_children : Boolean
             If true, children of matched parents will not be returned
-        build_group : Boolean, default: False
-            If true, the result will be a single region object, or None.
-            If needed,a group region of matched elements will be created.
-        groupname : str (optional)
-            Name of the resulting group region, if build_group is True
         find_topmost : Bool, default: True
             If True, will return parent structures if all children are matched,
             even though the parent itself might not match the specification.
 
         Yield
         -----
-        list of matching regions if build_group==False, else Region
+        list of matching regions
         """
         if isinstance(regionspec, str) and regionspec in self.names:
             # key is given, this gives us an exact region
             match = anytree.search.find_by_attr(self, regionspec, name="key")
-            if match is None:
-                return []
-            else:
-                return [match]
+            return [] if match is None else [match]
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
@@ -269,18 +270,21 @@ class Region(anytree.NodeMixin, AtlasConcept):
         else:
             candidates = list(candidates)
 
-        if build_group:
-            # return a single region as the result
-            if len(candidates) == 1:
-                return candidates[0]
-            elif len(candidates) > 1:
-                return Region._build_grouptree(
-                    candidates, self.parcellation, name=groupname
-                )
-            else:
-                return None
-        else:
-            return sorted(candidates, key=lambda r: r.depth)
+        found_regions = sorted(candidates, key=lambda r: r.depth)
+
+        # reverse is set to True, since SequenceMatcher().ratio(), higher == better
+        return (
+            sorted(
+                found_regions,
+                reverse=True,
+                key=lambda region: SequenceMatcher(
+                    None, str(region), regionspec
+                ).ratio(),
+            )
+            if type(regionspec) == str
+            else found_regions
+        )
+
 
     def matches(self, regionspec):
         """
@@ -299,27 +303,30 @@ class Region(anytree.NodeMixin, AtlasConcept):
         -----
         True or False
         """
-
         def splitstr(s):
             return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
 
         if isinstance(regionspec, Region):
             return self == regionspec
+
         elif isinstance(regionspec, str):
-            # string is given, perform some lazy string matching
+            # string is given, perform lazy string matching
             q = regionspec.lower().strip()
             if q == self.key.lower().strip():
+                return True
+            elif q == self.id.lower().strip():
                 return True
             elif q == self.name.lower().strip():
                 return True
             else:
-                words = splitstr(self.name.lower())
-                return all(
-                    [
-                        any(w.lower() in _ for _ in words)
-                        for w in splitstr(__class__._clear_name(regionspec))
-                    ]
-                )
+                # match if all words of the query are also included in the region name
+                W = splitstr(self.name.lower())
+                Q = splitstr(__class__._clear_name(regionspec))
+                return all([any(
+                    q.lower() == w or 'v' + q.lower() == w 
+                    for w in W
+                ) for q in Q])
+
         # Python 3.6 does not support re.Pattern
         elif isinstance(regionspec, REGEX_TYPE):
             # match regular expression
@@ -328,16 +335,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             raise TypeError(
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
-
-    @property
-    def is_custom_group(self):
-        """
-        Determine wether this region object is a custom group,
-        thus not part of the actual region hierarchy.
-        """
-        return self not in self.parcellation and all(
-            c in self.parcellation for c in self.descendants
-        )
 
     def build_mask(
         self,
@@ -526,8 +523,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def __getitem__(self, labelindex):
         """
         Given an integer label index, return the corresponding region.
-        If multiple matches are found, return the unique parent if possible,
-        otherwise create an artificial parent node.
+        If multiple matches are found, return the unique parent if possible.
         Otherwise, return None
 
         Parameters
@@ -557,44 +553,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
             parentmatches = [m for m in matches if m.parent not in matches]
             if len(parentmatches) == 1:
                 return parentmatches[0]
-            else:
-                # create an articicial parent region from the multiple matches
-                custom_parent = Region._build_grouptree(
-                    parentmatches, self.parcellation
-                )
-                assert custom_parent.index.label == labelindex
-                logger.warning(
-                    "Label index {} resolves to multiple regions. A customized region subtree is returned: {}".format(
-                        labelindex, custom_parent.name
-                    )
-                )
-                return custom_parent
+
         return None
-
-    @staticmethod
-    def _build_grouptree(regions, parcellation, name=None):
-        """
-        Creates an artificial subtree from a list of regions by adding a group
-        parent and adding the regions as deep copies recursively.
-        """
-        # determine appropriate labelindex
-        indices = []
-        for tree in regions:
-            indices.extend([r.index for r in tree])
-        unique = set(indices)
-        index = (
-            next(iter(unique)) if len(unique) == 1 else ParcellationIndex(None, None)
-        )
-
-        if name is None:
-            name = "Group: " + ",".join([r.name for r in regions])
-        group = Region(
-            name,
-            parcellation,
-            index,
-            children=[Region.copy(r) for r in regions],
-        )
-        return group
 
     def __str__(self):
         return f"{self.name}"

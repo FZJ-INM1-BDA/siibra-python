@@ -43,7 +43,7 @@ class Volume:
             if srctype == "neuroglancer/precomputed":
                 self._providers[srctype] = NeuroglancerVolume(url)
             elif srctype == "nii":
-                self._providers[srctype] = NiftiVolume(urls)
+                self._providers[srctype] = NiftiVolume(url)
             elif srctype == "neuroglancer/precompmesh":
                 self._providers[srctype] = NeuroglancerMesh(url)
             elif srctype == "gii-mesh":
@@ -94,24 +94,18 @@ class NiftiVolume(ImageProvider):
         ImageProvider.__init__(self, url)
         if os.path.isfile(self.url):
             if zipped_file is None:
-                self._image_loader = lambda fname=self.url: nib.load(fname)
+                self._image_loader = lambda fn=self.url: nib.load(fn)
             else:
                 raise NotImplementedError("loading niftis from zip containers not yet supported")
         else:
             if zipped_file is None:
-                self._image_loader = HttpRequest(url)
+                self._image_loader = lambda u=url: HttpRequest(u).data
             else:
-                self._image_loader = ZipfileRequest(url, zipped_file)
-
-        if np.isnan(self.image.get_fdata()).any():
-            logger.warn(f"Replacing NaN by 0 for {self.name}")
-            self.image = nib.Nifti1Image(
-                np.nan_to_num(self.image.get_fdata()), self.image.affine
-            )
+                self._image_loader = lambda u=url: ZipfileRequest(u, zipped_file).data
 
     @property
     def image(self):
-        return self._image_loader.data
+        return self._image_loader()
 
     def fetch(self, resolution_mm=None, voi=None):
         """
