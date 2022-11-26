@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import ImageProvider, Volume
+from .volume import VolumeProvider, Volume
 from .util import create_gaussian_kernel, argmax_dim4
 
 from .. import logger, QUIET
@@ -457,7 +457,7 @@ class ParcellationMap(ABC):
         return [idx for idx, _ in subregions]
 
 
-class ParcellationVolume(ParcellationMap, ImageProvider):
+class ParcellationVolume(ParcellationMap, VolumeProvider):
     """
     Represents a brain map in a particular volumetric reference space, with
     explicit knowledge about the region information per labelindex or channel.

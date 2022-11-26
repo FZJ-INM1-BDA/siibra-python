@@ -271,7 +271,7 @@ class Point(Location):
         if isinstance(other, numbers.Number):
             return Point([c - other for c in self.coordinate], self.space_id)
 
-        assert self.space_id == other.space
+        assert self.space_id == other.space_id
         return Point(
             [self.coordinate[i] - other.coordinate[i] for i in range(3)], self.space_id
         )

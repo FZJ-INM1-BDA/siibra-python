@@ -255,8 +255,8 @@ class Registry:
                 continue
 
         logger.info(
-            "Preconfigurations:\n\t"
-            + "\n\t".join(f"{classname:15.15} {len(L):5}" for classname, L in self.spec_loaders.items())
+            "Preconfigurations: "
+            + " | ".join(f"{classname}: {len(L)}" for classname, L in self.spec_loaders.items())
         )
 
     @classmethod

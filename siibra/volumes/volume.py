@@ -18,6 +18,7 @@ from .mesh import GiftiSurface, NeuroglancerMesh
 
 from .. import logger
 from ..commons import MapType
+from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.location import BoundingBox, PointSet
 
@@ -34,28 +35,68 @@ class ColorVolumeNotSupported(NotImplementedError):
 
 
 class Volume:
+    """ 
+    A volume is a specific mesh or 3D array,
+    which can be accessible via multiple providers in different formats.
+    """
 
-    def __init__(self, name="", space_info: dict = {}, urls: dict = {}):
+    PREFERRED_FORMATS = {"nii", "neuroglancer/precomputed"}
+
+    def __init__(self, name="", space_spec: dict = {}, urls: dict = {}):
         self.name = name
-        self.space_info = space_info
+        self._space_spec = space_spec
         self._providers = {}
         for srctype, url in urls.items():
             if srctype == "neuroglancer/precomputed":
-                self._providers[srctype] = NeuroglancerVolume(url)
+                self._providers[srctype] = NeuroglancerVolume(url, self)
             elif srctype == "nii":
-                self._providers[srctype] = NiftiVolume(url)
+                self._providers[srctype] = NiftiVolume(url, self)
             elif srctype == "neuroglancer/precompmesh":
-                self._providers[srctype] = NeuroglancerMesh(url)
+                self._providers[srctype] = NeuroglancerMesh(url, self)
             elif srctype == "gii-mesh":
-                self._providers[srctype] = GiftiSurface(url)
+                self._providers[srctype] = GiftiSurface(url, self)
             else:
                 logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
+        if len(self._providers) == 0:
+            logger.error(f"No provider for volume {self}")
+
+    @property
+    def formats(self):
+        return set(self._providers.keys())
+
+    @property
+    def space(self):
+        for key in ["@id", "name"]:
+            if key in self._space_spec:
+                return REGISTRY.Space[self._space_spec[key]]
+        logger.warn(
+            f"Cannot determine space of {self.__class__.__name__} "
+            f"{self.name} from {self._space_spec}"
+        )
+        return None
+
+    def fetch(self, resolution_mm: float = None, voi=None, format: str = None):
+        """ fetch the data in a requested format from one of the providers. """
+        requested_formats = self.PREFERRED_FORMATS if format is None else {format}
+        for fmt in requested_formats & self.formats:
+            return self._providers[fmt].fetch(
+                resolution_mm=resolution_mm, voi=voi
+            )
+        raise RuntimeError(f"Formats {requested_formats} not available for volume {self}")
 
 
-class ImageProvider(ABC):
+class VolumeProvider(ABC):
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, volume: Volume=None):
         self.url = url
+        self.volume = volume
+
+    @property
+    def space(self):
+        if self.volume is None:
+            return None
+        else:
+            return self.volume.space
 
     @abstractmethod
     def fetch(self, resolution_mm=None, voi=None):
@@ -88,10 +129,10 @@ class ImageProvider(ABC):
         return len(self.get_shape()) == 4
 
 
-class NiftiVolume(ImageProvider):
+class NiftiVolume(VolumeProvider):
 
-    def __init__(self, url, zipped_file=None):
-        ImageProvider.__init__(self, url)
+    def __init__(self, url, volume: Volume=None, zipped_file=None):
+        VolumeProvider.__init__(self, url, volume)
         if os.path.isfile(self.url):
             if zipped_file is None:
                 self._image_loader = lambda fn=self.url: nib.load(fn)
@@ -191,7 +232,7 @@ class NiftiVolume(ImageProvider):
         )
 
 
-class NeuroglancerVolume(ImageProvider):
+class NeuroglancerVolume(VolumeProvider):
     # Number of bytes at which an image array is considered to large to fetch
     MAX_GiB = 0.2
 
@@ -202,8 +243,8 @@ class NeuroglancerVolume(ImageProvider):
     def MAX_BYTES(self):
         return self.MAX_GiB * 1024 ** 3
 
-    def __init__(self, url: str):
-        ImageProvider.__init__(self, url=url)
+    def __init__(self, url: str, volume: Volume = None):
+        VolumeProvider.__init__(self, url=url, volume=volume)
         self._scales_cached = None
         self._io = None
 
@@ -213,16 +254,6 @@ class NeuroglancerVolume(ImageProvider):
     def transform_nm(self):
         if self._transform_nm is not None:
             return self._transform_nm
-        transform_in_detail = self.detail.get("neuroglancer/precomputed", {}).get(
-            "transform"
-        )
-        if transform_in_detail:
-            logger.debug(
-                "transform defined in detail attribute, using detail to set transform"
-            )
-            self._transform_nm = np.array(transform_in_detail)
-            return self._transform_nm
-
         try:
             res = HttpRequest(f"{self.url}/transform.json").get()
         except SiibraHttpRequestError:
@@ -278,10 +309,10 @@ class NeuroglancerVolume(ImageProvider):
             self._bootstrap()
         return self._scales_cached
 
-    def fetch(self, resolution_mm=None, voi: BoundingBox = None):
+    def fetch(self, resolution_mm: float=None, voi: BoundingBox = None):
         if voi is not None:
             assert voi.space == self.space
-        scale = self._select_scale(resolution_mm, voi)
+        scale = self._select_scale(resolution_mm=resolution_mm)
         logger.debug(
             f"Fetching resolution "
             f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm "
@@ -295,7 +326,7 @@ class NeuroglancerVolume(ImageProvider):
     def is_float(self):
         return self.dtype.kind == "f"
 
-    def _select_scale(self, resolution_mm, bbox: BoundingBox = None):
+    def _select_scale(self, resolution_mm: float, bbox: BoundingBox = None):
 
         if resolution_mm is None:
             suitable = self.scales
