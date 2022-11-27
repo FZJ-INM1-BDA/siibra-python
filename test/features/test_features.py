@@ -9,7 +9,7 @@ def test_spatial_feature_continuous_map():
     
     class ExpectedException(Exception): pass
 
-    r = siibra.parcellations['2.9'].decode_region('fp1 left')
+    r = siibra.parcellations['2.9'].get_region('fp1 left')
 
     with patch.object(r, 'build_mask', MagicMock()) as mock:
         mock.side_effect = ExpectedException
@@ -28,7 +28,7 @@ def test_spatial_feature_continuous_map():
             raise e
 
 def test_gene_exp():
-    r = siibra.parcellations['2.9'].decode_region('fp1 left')
+    r = siibra.parcellations['2.9'].get_region('fp1 left')
     args = (r, "gene")
     kwargs = {
         'gene': "MAOA",

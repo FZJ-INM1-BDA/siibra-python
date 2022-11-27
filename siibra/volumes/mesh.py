@@ -13,18 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .volume import VolumeProvider
 
 from ..retrieval import HttpRequest
 
 import numpy as np
 
 
-class GiftiSurface:
+class GiftiSurface(VolumeProvider, srctype="gii-mesh"):
     """
     A (set of) surface meshes in Gifti format.
     """
 
-    def __init__(self, url):
+    def __init__(self, url, volume=None):
+        self.volume = volume
         if isinstance(url, str):
             # a single url
             self._loaders = {"name": url}
@@ -84,12 +86,13 @@ class GiftiSurfaceLabeling():
         return self._loader.data.darrays[0].data
 
 
-class NeuroglancerMesh():
+class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
     """
     A surface mesh provided as neuroglancer precomputed mesh.
     """
 
-    def __init__(self, url):
+    def __init__(self, url, volume = None):
+        self.volume = volume
         self.url = url
 
     def fetch(self):

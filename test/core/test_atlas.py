@@ -40,8 +40,8 @@ class TestAtlas(unittest.TestCase):
         #self.assertEqual(a.species, 'human')
 
         # on init, parcellations and spaces are empty lists
-        self.assertTrue(len(a._parcellations) == 0)
-        self.assertTrue(len(a._spaces) == 0)
+        self.assertTrue(len(a._parcellation_ids) == 0)
+        self.assertTrue(len(a._space_ids) == 0)
 
     def test_parcellations(self):
         parcellations = self.atlas.parcellations

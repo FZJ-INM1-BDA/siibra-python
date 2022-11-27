@@ -78,7 +78,7 @@ print(centroid)
 # We extract a list of coordinate tuples by
 # decoding each connectivity matrix region into the corresponding region of the parcellation map,
 # and then fetching the coordinate tuple of its corresponding centroid.
-node_coords = [tuple(centroids[parcmap.decode_region(r)]) for r in conn.matrix.index]
+node_coords = [tuple(centroids[parcmap.get_region(r)]) for r in conn.matrix.index]
 
 # %%
 # Now we can plot the structural connectome.

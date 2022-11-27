@@ -67,7 +67,7 @@ parameter = [
 def test_species(atlas_id,parc_id,region_id,inc_exc):
     atlas:Atlas = siibra.atlases[atlas_id]
     parc:Parcellation = atlas.parcellations[parc_id]
-    r:Region = parc.decode_region(region_id)
+    r:Region = parc.get_region(region_id)
     print("ID", region_id, "REGION", r)
     features: List[Feature] = siibra.get_features(r, 'ebrains')
     feature_names = [f.name for f in features]

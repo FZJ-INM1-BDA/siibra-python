@@ -15,7 +15,7 @@
 
 
 from .datasets import EbrainsDataset
-from ..commons import create_key, logger
+from ..commons import create_key, logger, clear_name
 
 import re
 
@@ -109,7 +109,7 @@ class AtlasConcept:
             else:
                 # match the name
                 words = [w for w in re.split("[ -]", spec)]
-                squeezedname = self.name.lower().replace(" ", "")
+                squeezedname = clear_name(self.name.lower()).replace(" ", "")
                 return any(
                     [
                         all(w.lower() in squeezedname for w in words),

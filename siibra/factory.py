@@ -13,14 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from .commons import logger
 from .core.atlas import Atlas
 from .core.parcellation import Parcellation, ParcellationVersion
 from .core.space import Space
 from .core.region import Region
 from .core.datasets import EbrainsDataset
 from .core.location import Point, PointSet
-from .volumes.volume import Volume
-from .volumes.parcellationmap import Map
+from .volumes.volume import Volume, NiftiVolume, NeuroglancerVolume
+from .volumes.mesh import NeuroglancerMesh, GiftiSurface
+from .volumes.map import Map
 
 from os import path
 import json
@@ -109,10 +111,21 @@ class Factory:
     @classmethod
     def build_volume(cls, spec):
         assert spec.get("@type", None) == "siibra/volume/v0.0.1"
+
+        providers = []
+        provider_types = [NeuroglancerVolume, NiftiVolume, NeuroglancerMesh, GiftiSurface]
+        for srctype, url in spec.get("urls", {}).items():
+            for provider_type in provider_types:
+                if srctype == provider_type.srctype:
+                    providers.append(provider_type(url))
+                    break
+            else:
+                logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
+    
         return Volume(
             name=spec.get("name", ""),
-            space_info=spec.get("space", {}),
-            urls=spec.get("urls", {})
+            space_spec=spec.get("space", {}),
+            providers=providers
         )
 
     @classmethod

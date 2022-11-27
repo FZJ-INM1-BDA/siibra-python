@@ -59,19 +59,19 @@ for region in atlas.find_regions('amygdala'):
 # %%
 # Often however, we want to access one particular region, given a unique specification,
 # and not obtain a list of many possible matches. This can be done using the 
-# `decode_region` method. It assumes that the provided region specification is 
+# `get_region` method. It assumes that the provided region specification is 
 # unique, and returns the single exact match. 
 # Note that if the specification is not unique, this method will raise an exception!
-julich_brain.decode_region('v1 left')
+julich_brain.get_region('v1 left')
 
 # %%
 # In case that the given specification matches multiple regions, which however represent
-# the children of the same parent, `decode_region` will return the parent object. 
+# the children of the same parent, `get_region` will return the parent object. 
 # In that case, the returned region can be a full subtree:
-julich_brain.decode_region('amygdala')
+julich_brain.get_region('amygdala')
 
 # %%
-# Atlas objects provide direct access to the `decode_region()` method of their
+# Atlas objects provide direct access to the `get_region()` method of their
 # parcellations. This way the above can also be done without explictly
 # accessing the parcellation object:
 atlas.get_region('amygdala', parcellation='julich')

@@ -9,7 +9,7 @@ test_params = [
 @pytest.mark.parametrize("region_spec,gene", test_params)
 def test_genes(region_spec:str, gene: str):
     parc = siibra.parcellations['2.9']
-    region = parc.decode_region(region_spec)
+    region = parc.get_region(region_spec)
     features = siibra.get_features(region, "gene", gene=gene)
     assert len(features) > 0, f"expecting at least 1 gene feature"
     assert all([

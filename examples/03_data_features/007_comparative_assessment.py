@@ -32,7 +32,7 @@ import numpy as np
 # using simple keyword specifications.
 jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
 specs = ['ifg 44', 'hoc1']
-regions = [jubrain.decode_region(spec) for spec in specs]
+regions = [jubrain.get_region(spec) for spec in specs]
 
 # %%
 # Next, we choose a set of feature modalities that we're interested in.

@@ -471,7 +471,7 @@ class RegionalFeature(Feature):
                         msg_alias = (
                             f"Parcellation '{parc}' was used to decode '{spec}'."
                         )
-                    for r in [parc.decode_region(s) for s in spec.split(",")]:
+                    for r in [parc.get_region(s) for s in spec.split(",")]:
                         if self._match_region(r, concept):
                             break
                 if self._match is not None:

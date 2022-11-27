@@ -17,7 +17,7 @@ from .space import Space
 from .region import Region
 
 from ..registry import InstanceTable, REGISTRY
-from ..commons import logger, MapType, ParcellationIndex
+from ..commons import logger, MapType, MapIndex, clear_name
 
 from typing import Set, Union
 
@@ -202,7 +202,7 @@ class Parcellation(Region):
     def is_newest_version(self):
         return (self.version is None) or (self.version.next_id is None)
 
-    def decode_region(self, regionspec: Union[str, int, ParcellationIndex, Region], find_topmost=True):
+    def get_region(self, regionspec: Union[str, int, MapIndex, Region], find_topmost=True):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -218,7 +218,7 @@ class Parcellation(Region):
               against the name and the identifier key,
             - an integer, which is interpreted as a labelindex,
             - a region object
-            - a full ParcellationIndex
+            - a full MapIndex
         find_topmost : Bool, default: True
             If True, will automatically return the parent of a decoded region the decoded region is its only child.
 
@@ -240,7 +240,7 @@ class Parcellation(Region):
             return candidates[0]
         else:
             raise RuntimeError(
-                f"Decoding of spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
+                f"Spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
 
     def __str__(self):
@@ -267,7 +267,7 @@ class Parcellation(Region):
         """
         Retrieve a region object from the parcellation by labelindex or partial name.
         """
-        return self.decode_region(regionspec)
+        return self.get_region(regionspec)
 
     def __lt__(self, other):
         """

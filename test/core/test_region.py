@@ -156,7 +156,7 @@ detailed_region=[
 @pytest.mark.parametrize('parc_spec,region_spec,space_spec,expect_raise,expect_best_view_point', detailed_region)
 def test_detail_region(parc_spec,region_spec,space_spec,expect_raise,expect_best_view_point):
     p = siibra.parcellations[parc_spec]
-    r = p.decode_region(region_spec)
+    r = p.get_region(region_spec)
     s = siibra.spaces[space_spec]
     if expect_raise:
         with pytest.raises(RuntimeError):
@@ -177,7 +177,7 @@ has_inspired_by = [
 @pytest.mark.parametrize('parc_spec, region_spec, space_spec', has_inspired_by)
 def test_has_inspired_by(parc_spec, region_spec, space_spec):
     p = siibra.parcellations[parc_spec]
-    r = p.decode_region(region_spec)
+    r = p.get_region(region_spec)
     model = r.to_model(space=siibra.spaces[space_spec])
     assert model.has_annotation.visualized_in is not None, f"expecting has_annotation.visualized_in is defined"
 
@@ -201,7 +201,7 @@ has_internal_identifier = [
 @pytest.mark.parametrize('parc_spec, region_spec, space_spec, expect_id_defined', has_internal_identifier)
 def test_has_internal_identifier(parc_spec, region_spec, space_spec, expect_id_defined):
     p = siibra.parcellations[parc_spec]
-    r = p.decode_region(region_spec)
+    r = p.get_region(region_spec)
     model = r.to_model(space=siibra.spaces[space_spec])
     assert model.has_annotation.internal_identifier is not None, f"expecting has_annotation.internal_identifier is defined"
     assert (model.has_annotation.internal_identifier != "unknown") == expect_id_defined, f"expect_id_defined: {expect_id_defined}, but id: {model.has_annotation.internal_identifier}"

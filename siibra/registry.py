@@ -217,9 +217,18 @@ class Registry:
         'Space': 'spaces',
         'Map': 'maps',
     }
+
     CONFIGURATION_EXTENSIONS = []
 
+    # lists of loaders for json specification files
+    # found in the siibra configuration, stored per
+    # preconfigured class name. These files can
+    # loaded and fed to the Factory.from_json
+    # to produce the corresponding object.
     spec_loaders = defaultdict(list)
+
+    # InstanceTable objects with already instantiated
+    # objects per name of corresponding class.
     instance_tables = {}
 
     def __init__(self):

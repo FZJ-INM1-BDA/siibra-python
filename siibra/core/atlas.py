@@ -166,7 +166,7 @@ class Atlas(AtlasConcept):
             Key, approximate name, id or instance of a brain parcellation.
             If None, the default is used.
         """
-        return self.get_parcellation(parcellation).decode_region(region)
+        return self.get_parcellation(parcellation).get_region(region)
 
     def get_template(self, space: Space = None, variant: str = None):
         """

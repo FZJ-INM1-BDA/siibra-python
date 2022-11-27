@@ -62,31 +62,63 @@ def create_key(name: str):
     )
 
 
-class ParcellationIndex:
+class MapIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
 
-    def __init__(self, map, label):
-        self.map = map
+    def __init__(self, volume: int, label: int):
+        self.volume = volume
         self.label = label
 
+    @classmethod
+    def from_dict(cls, spec: dict):
+        assert all(k in spec for k in ['volume', 'label'])
+        return cls(spec['volume'], spec['label'])
+
     def __str__(self):
-        return f"({self.map}/{self.label})"
+        return f"(volume:{self.volume}, label:{self.label})"
 
     def __repr__(self):
-        return f"{self.__class__.__name__} " + str(self)
+        return f"{self.__class__.__name__}{str(self)}"
 
     def __eq__(self, other):
-        return all([self.map == other.map, self.label == other.label])
+        assert isinstance(other, self.__class__)
+        return all([self.volume == other.volume, self.label == other.label])
 
     def __hash__(self):
-        return hash((self.map, self.label))
+        return hash((self.volume, self.label))
 
 
 class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
+
+
+REMOVE_FROM_NAME = [
+    "hemisphere",
+    " -",
+    "-brain",
+    # region string used in receptor features sometimes contains both/Both keywords
+    # when they are present, the regions cannot be parsed properly
+    "both",
+    "Both",
+]
+
+REPLACE_IN_NAME = {
+    "ctx-lh-": "left ",
+    "ctx-rh-": "right ",
+}
+
+
+def clear_name(name):
+    """ clean up a region name to the for matching"""
+    result = name
+    for word in REMOVE_FROM_NAME:
+        result = result.replace(word, "")
+    for search, repl in REPLACE_IN_NAME.items():
+        result = result.replace(search, repl)
+    return " ".join(w for w in result.split(" ") if len(w))
 
 
 def snake2camel(s: str):

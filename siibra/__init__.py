@@ -27,7 +27,7 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-from .commons import MapType, ParcellationIndex, set_log_level
+from .commons import MapType, MapIndex, set_log_level
 from os import environ
 from .retrieval.requests import EbrainsRequest
 set_ebrains_token = EbrainsRequest.set_token
@@ -35,13 +35,19 @@ fetch_ebrains_token = EbrainsRequest.fetch_token
 from .retrieval.cache import CACHE
 clear_cache = CACHE.clear
 
-from .registry import Registry, REGISTRY
-use_configuration = Registry.use_configuration
-extend_configuration = Registry.extend_configuration
-atlases = REGISTRY.Atlas
-parcellations = REGISTRY.Parcellation
-spaces = REGISTRY.Space
+from .registry import REGISTRY
+use_configuration = REGISTRY.__class__.use_configuration
+extend_configuration = REGISTRY.__class__.extend_configuration
 
+def __getattr__(name):
+    if name == "atlases":
+        return REGISTRY["Atlas"]
+    elif name == "parcellations":
+        return REGISTRY["Parcellation"]
+    elif name == "spaces":
+        return REGISTRY["Space"]
+    else:
+        raise AttributeError(f"No such attribute: {__name__}.{name}")
 
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
@@ -57,3 +63,4 @@ def set_cache_size(maxsize_gbyte: int):
 
 if "SIIBRA_CACHE_SIZE_GIB" in environ:
     set_cache_size(float(environ.get("SIIBRA_CACHE_SIZE_GIB")))
+

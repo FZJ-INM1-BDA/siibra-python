@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .mesh import GiftiSurface, NeuroglancerMesh
-
-
 from .. import logger
 from ..commons import MapType
 from ..registry import REGISTRY
@@ -25,6 +22,7 @@ from ..core.location import BoundingBox, PointSet
 import numpy as np
 import nibabel as nib
 import os
+from typing import Union
 from abc import ABC, abstractmethod
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
@@ -35,28 +33,21 @@ class ColorVolumeNotSupported(NotImplementedError):
 
 
 class Volume:
-    """ 
+    """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
     """
 
     PREFERRED_FORMATS = {"nii", "neuroglancer/precomputed"}
 
-    def __init__(self, name="", space_spec: dict = {}, urls: dict = {}):
+    def __init__(self, name="", space_spec: dict = {}, providers: list = []):
         self.name = name
         self._space_spec = space_spec
         self._providers = {}
-        for srctype, url in urls.items():
-            if srctype == "neuroglancer/precomputed":
-                self._providers[srctype] = NeuroglancerVolume(url, self)
-            elif srctype == "nii":
-                self._providers[srctype] = NiftiVolume(url, self)
-            elif srctype == "neuroglancer/precompmesh":
-                self._providers[srctype] = NeuroglancerMesh(url, self)
-            elif srctype == "gii-mesh":
-                self._providers[srctype] = GiftiSurface(url, self)
-            else:
-                logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
+        for provider in providers:
+            srctype = provider.srctype
+            assert srctype not in self._providers
+            self._providers[srctype] = provider
         if len(self._providers) == 0:
             logger.error(f"No provider for volume {self}")
 
@@ -87,66 +78,40 @@ class Volume:
 
 class VolumeProvider(ABC):
 
-    def __init__(self, url: str, volume: Volume=None):
-        self.url = url
-        self.volume = volume
+    def __init_subclass__(cls, srctype: str) -> None:
+        cls.srctype = srctype
+        return super().__init_subclass__()
 
-    @property
-    def space(self):
-        if self.volume is None:
-            return None
-        else:
-            return self.volume.space
 
-    @abstractmethod
-    def fetch(self, resolution_mm=None, voi=None):
+class NiftiVolume(VolumeProvider, srctype="nii"):
+
+    def __init__(self, src: Union[str, nib.Nifti1Image], zipped_file=None):
         """
-        Provide access to image data.
+        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.    
         """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement fetch(), use a derived class."
-        )
-
-    @abstractmethod
-    def get_shape(self, resolution_mm=None):
-        """
-        Return the shape of the image volume.
-        """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement get_shape(), use a derived class."
-        )
-
-    @abstractmethod
-    def is_float(self):
-        """
-        Return True if the data type of the volume is a float type.
-        """
-        raise NotImplementedError(
-            f"{self.__class__.__name__} does not implement is_float(), use a derived class."
-        )
-
-    def is_4D(self):
-        return len(self.get_shape()) == 4
-
-
-class NiftiVolume(VolumeProvider):
-
-    def __init__(self, url, volume: Volume=None, zipped_file=None):
-        VolumeProvider.__init__(self, url, volume)
-        if os.path.isfile(self.url):
-            if zipped_file is None:
-                self._image_loader = lambda fn=self.url: nib.load(fn)
+        VolumeProvider.__init__(self)
+        self._image_cached = None
+        if isinstance(src, nib.Nifti1Image):
+            self._image_cached = src
+        elif isinstance(src, str):
+            if os.path.isfile(src):
+                if zipped_file is None:
+                    self._image_loader = lambda fn=self.url: nib.load(fn)
+                else:
+                    raise NotImplementedError("loading niftis from zip containers not yet supported")
             else:
-                raise NotImplementedError("loading niftis from zip containers not yet supported")
+                if zipped_file is None:
+                    self._image_loader = lambda u=src: HttpRequest(u).data
+                else:
+                    self._image_loader = lambda u=src: ZipfileRequest(u, zipped_file).data
         else:
-            if zipped_file is None:
-                self._image_loader = lambda u=url: HttpRequest(u).data
-            else:
-                self._image_loader = lambda u=url: ZipfileRequest(u, zipped_file).data
+            raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
 
     @property
     def image(self):
-        return self._image_loader()
+        if self._image_cached is None:
+            self._image_cached = self._image_loader()
+        return self._image_cached
 
     def fetch(self, resolution_mm=None, voi=None):
         """
@@ -232,7 +197,7 @@ class NiftiVolume(VolumeProvider):
         )
 
 
-class NeuroglancerVolume(VolumeProvider):
+class NeuroglancerVolume(VolumeProvider, srctype="neuroglancer/precomputed"):
     # Number of bytes at which an image array is considered to large to fetch
     MAX_GiB = 0.2
 
@@ -243,8 +208,9 @@ class NeuroglancerVolume(VolumeProvider):
     def MAX_BYTES(self):
         return self.MAX_GiB * 1024 ** 3
 
-    def __init__(self, url: str, volume: Volume = None):
-        VolumeProvider.__init__(self, url=url, volume=volume)
+    def __init__(self, url: str):
+        VolumeProvider.__init__(self)
+        self.url = url
         self._scales_cached = None
         self._io = None
 
@@ -257,6 +223,7 @@ class NeuroglancerVolume(VolumeProvider):
         try:
             res = HttpRequest(f"{self.url}/transform.json").get()
         except SiibraHttpRequestError:
+            logger.warn(f"No transform.json found at {self.url}")
             res = None
         if res is not None:
             logger.debug(
@@ -309,7 +276,7 @@ class NeuroglancerVolume(VolumeProvider):
             self._bootstrap()
         return self._scales_cached
 
-    def fetch(self, resolution_mm: float=None, voi: BoundingBox = None):
+    def fetch(self, resolution_mm: float = None, voi: BoundingBox = None):
         if voi is not None:
             assert voi.space == self.space
         scale = self._select_scale(resolution_mm=resolution_mm)
@@ -372,11 +339,6 @@ class NeuroglancerScale:
     def res_mm(self):
         return self.res_nm / 1e6
 
-    @property
-    def space(self):
-        """forward the corresponding volume's coordinate space."""
-        return self.volume.space
-
     def resolves(self, resolution_mm):
         """Test wether the resolution of this scale is sufficient to provide the given resolution."""
         return any(r / 1e6 <= resolution_mm for r in self.res_nm)
@@ -394,7 +356,7 @@ class NeuroglancerScale:
     def _estimate_nbytes(self, bbox: BoundingBox = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
         if bbox is None:
-            bbox_ = BoundingBox((0, 0, 0), self.size, self.space)
+            bbox_ = BoundingBox((0, 0, 0), self.size, space_id=None)
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
         result = self.volume.dtype.itemsize * bbox_.volume
@@ -471,7 +433,7 @@ class NeuroglancerScale:
 
         # define the bounding box in this scale's voxel space
         if voi is None:
-            bbox_ = BoundingBox((0, 0, 0), self.size, self.space)
+            bbox_ = BoundingBox((0, 0, 0), self.size, space_id=None)
         else:
             bbox_ = voi.transform(np.linalg.inv(self.affine))
 

@@ -74,7 +74,7 @@ class ConnectivityMatrix(ParcellationFeature):
 
     def get_profile(self, regionspec):
         for p in self.parcellations:
-            region = p.decode_region(regionspec)
+            region = p.get_region(regionspec)
             return self.matrix[region]
 
     def __str__(self):
@@ -117,7 +117,7 @@ class ConnectivityMatrix(ParcellationFeature):
         ]
         with QUIET:
             indexmap = {
-                int(line[0]): parcellation.decode_region(line[1])
+                int(line[0]): parcellation.get_region(line[1])
                 for line in lines
                 if len(line) == 2 and line[0].isnumeric()
             }

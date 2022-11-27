@@ -39,7 +39,7 @@ receptor_features = siibra.get_features(jubrain, siibra.modalities.ReceptorDistr
 # densities measured for GABAA.
 receptor = 'GABAA'
 mapping = {
-    jubrain.decode_region(f.regionspec) : f.fingerprint[receptor].mean
+    jubrain.get_region(f.regionspec) : f.fingerprint[receptor].mean
     for f in receptor_features if receptor in f.fingerprint.labels
 }
 

@@ -19,11 +19,12 @@ from .location import PointSet, Point, BoundingBox
 
 from ..commons import (
     logger,
-    ParcellationIndex,
+    MapIndex,
     MapType,
     compare_maps,
     affine_scaling,
     create_key,
+    clear_name,
 )
 from ..registry import REGISTRY
 from ..retrieval.repositories import GitlabConnector
@@ -36,20 +37,6 @@ from typing import List, Union
 from nibabel import Nifti1Image
 from difflib import SequenceMatcher
 
-
-REMOVE_FROM_NAME = [
-    "hemisphere",
-    " -",
-    # region string used in receptor features sometimes contains both/Both keywords
-    # when they are present, the regions cannot be parsed properly
-    "both",
-    "Both",
-]
-
-REPLACE_IN_NAME = {
-    "ctx-lh-": "left ",
-    "ctx-rh-": "right ",
-}
 
 REGEX_TYPE = type(re.compile("test"))
 
@@ -64,16 +51,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
     CONNECTOR = GitlabConnector(
         server="https://jugit.fz-juelich.de", project=3009, reftag="master"
     )
-
-    @staticmethod
-    def _clear_name(name):
-        """ clean up a region name to the for matching"""
-        result = name
-        for word in REMOVE_FROM_NAME:
-            result = result.replace(word, "")
-        for search, repl in REPLACE_IN_NAME.items():
-            result = result.replace(search, repl)
-        return " ".join(w for w in result.split(" ") if len(w))
 
     def __init__(
         self,
@@ -114,7 +91,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         AtlasConcept.__init__(
             self,
             identifier=None,  # Region overwrites the property function below!
-            name=__class__._clear_name(name),
+            name=clear_name(name),
             shortname=shortname,
             description=description,
             modality=modality,
@@ -197,7 +174,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
               against the name and the identifier key,
             - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
-            - a full ParcellationIndex
+            - a full MapIndex
             - a region object
         filter_children : Boolean
             If true, children of matched parents will not be returned
@@ -226,7 +203,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 # while a child has an exact matching index, use the child.
                 if len(children_included) > 0:
                     if not (
-                        isinstance(regionspec, ParcellationIndex)
+                        isinstance(regionspec, MapIndex)
                         and (region.index != regionspec)
                         and any(c.index == regionspec for c in children_included)
                     ):
@@ -236,7 +213,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         filtered.append(region)
                     else:
                         if (
-                            isinstance(regionspec, ParcellationIndex)
+                            isinstance(regionspec, MapIndex)
                             and (region.index == regionspec)
                             and (region.parent.index != regionspec)
                         ):
@@ -285,7 +262,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else found_regions
         )
 
-
     def matches(self, regionspec):
         """
         Checks wether this region matches the given region specification.
@@ -304,7 +280,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         True or False
         """
         def splitstr(s):
-            return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
+            return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
         if isinstance(regionspec, Region):
             return self == regionspec
@@ -320,10 +296,10 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 return True
             else:
                 # match if all words of the query are also included in the region name
-                W = splitstr(self.name.lower())
-                Q = splitstr(__class__._clear_name(regionspec))
+                W = splitstr(clear_name(self.name.lower()))
+                Q = splitstr(clear_name(regionspec))
                 return all([any(
-                    q.lower() == w or 'v' + q.lower() == w 
+                    q.lower() == w or 'v' + q.lower() == w
                     for w in W
                 ) for q in Q])
 
@@ -451,7 +427,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         # the simple case: the region has a non-empty parcellation index,
         # and its parcellation has a volumetric map in the requested space.
-        if self.index != ParcellationIndex(None, None) and len(
+        if self.index != MapIndex(None, None) and len(
             [v for v in self.parcellation.volumes if v.space == space]
         ):
             return True
