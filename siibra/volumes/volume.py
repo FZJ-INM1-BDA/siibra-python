@@ -38,7 +38,7 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = {"nii", "neuroglancer/precomputed"}
+    PREFERRED_FORMATS = {"nii", "zip/nii", "neuroglancer/precomputed"}
 
     def __init__(self, name="", space_spec: dict = {}, providers: list = []):
         self.name = name
@@ -74,6 +74,8 @@ class Volume:
 
     def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None):
         """ fetch the data in a requested format from one of the providers. """
+        if variant is None:
+            logger.warn()
         requested_formats = self.PREFERRED_FORMATS if format is None else {format}
         for fmt in requested_formats & self.formats:
             try:
@@ -97,7 +99,7 @@ class VolumeProvider(ABC):
 
 class NiftiVolume(VolumeProvider, srctype="nii"):
 
-    def __init__(self, src: Union[str, nib.Nifti1Image], zipped_file=None):
+    def __init__(self, src: Union[str, nib.Nifti1Image]):
         """
         Construct a new NIfTI volume source, from url, local file, or Nift1Image object.    
         """
@@ -107,15 +109,9 @@ class NiftiVolume(VolumeProvider, srctype="nii"):
             self._image_cached = src
         elif isinstance(src, str):
             if os.path.isfile(src):
-                if zipped_file is None:
-                    self._image_loader = lambda fn=self.url: nib.load(fn)
-                else:
-                    raise NotImplementedError("loading niftis from zip containers not yet supported")
+                self._image_loader = lambda fn=self.url: nib.load(fn)
             else:
-                if zipped_file is None:
-                    self._image_loader = lambda u=src: HttpRequest(u).data
-                else:
-                    self._image_loader = lambda u=src: ZipfileRequest(u, zipped_file).data
+                self._image_loader = lambda u=src: HttpRequest(u).data
         else:
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
 
@@ -207,6 +203,19 @@ class NiftiVolume(VolumeProvider, srctype="nii"):
             ),
             img,
         )
+
+
+class ZipContainedNiftiVolume(NiftiVolume, srctype="zip/nii"):
+
+    def __init__(self, src: str):
+        """
+        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.    
+        """
+        VolumeProvider.__init__(self)
+        zipurl, zipped_file = src.split(" ")
+        logger.info(f"NIfTI volume from {zipped_file} in {zipurl}")
+        self._image_cached = None
+        self._image_loader = lambda u=zipurl: ZipfileRequest(u, zipped_file).data
 
 
 class NeuroglancerVolume(VolumeProvider, srctype="neuroglancer/precomputed"):

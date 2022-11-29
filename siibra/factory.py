@@ -20,7 +20,7 @@ from .core.space import Space
 from .core.region import Region
 from .core.datasets import EbrainsDataset
 from .core.location import Point, PointSet
-from .volumes.volume import Volume, NiftiVolume, NeuroglancerVolume
+from .volumes.volume import Volume, NiftiVolume, NeuroglancerVolume, ZipContainedNiftiVolume
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
 from .volumes.map import Map
 from .volumes.sparsemap import SparseMap
@@ -114,7 +114,13 @@ class Factory:
         assert spec.get("@type", None) == "siibra/volume/v0.0.1"
 
         providers = []
-        provider_types = [NeuroglancerVolume, NiftiVolume, NeuroglancerMesh, GiftiSurface]
+        provider_types = [
+            NeuroglancerVolume,
+            NiftiVolume,
+            ZipContainedNiftiVolume,
+            NeuroglancerMesh,
+            GiftiSurface
+        ]
         for srctype, url in spec.get("urls", {}).items():
             for provider_type in provider_types:
                 if srctype == provider_type.srctype:
@@ -122,6 +128,7 @@ class Factory:
                     break
             else:
                 logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
+                print(srctype, url)
     
         return Volume(
             name=spec.get("name", ""),
