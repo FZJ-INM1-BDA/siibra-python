@@ -402,7 +402,7 @@ class PointSet(Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space_id: str, sigma_mm=0):
+    def __init__(self, coordinates, space = None, sigma_mm=0):
         """
         Construct a 3D point set in the given reference space.
 
@@ -410,17 +410,17 @@ class PointSet(Location):
         ----------
         coordinates : list of Point, 3-tuples or string specs
             Coordinates in mm of the given space
-        space_id : id of reference space
+        space : reference space (id, name, or Space object)
             The reference space
         sigma_mm : float, or list of float
             Optional standard deviation of point locations.
         """
-        Location.__init__(self, space_id)
+        Location.__init__(self, space)
         if isinstance(sigma_mm, numbers.Number):
-            self.coordinates = [Point(c, space_id, sigma_mm) for c in coordinates]
+            self.coordinates = [Point(c, space, sigma_mm) for c in coordinates]
         else:
             self.coordinates = [
-                Point(c, space_id, s) for c, s in zip(coordinates, sigma_mm)
+                Point(c, space, s) for c, s in zip(coordinates, sigma_mm)
             ]
 
     def intersection(self, mask: Nifti1Image):

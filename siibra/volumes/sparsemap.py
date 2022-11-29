@@ -263,38 +263,6 @@ class SparseMap(Map):
     def shape(self):
         return self.sparse_index.shape
 
-    def sample_locations(self, regionspec, numpoints, lower_threshold=0.0):
-        """Sample 3D locations by using one of the maps as probability distributions.
-
-        Parameters
-        ----------
-        regionspec: valid region specification
-            Region to be used
-        numpoints: int
-            Number of samples to draw
-        lower_threshold: float, default: 0
-            Voxels in the map with a value smaller than this threshold will not be considered.
-
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
-
-        TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
-        """
-        if isinstance(regionspec, Number):
-            mapindex = regionspec
-        else:
-            mapindex = self.get_index(regionspec)[0].map
-        pmap = self.fetch(mapindex, cropped=True)
-        D = np.array(pmap.dataobj)  # do a real copy so we don't modify the map
-        D[D < lower_threshold] = 0.0
-        p = (D / D.sum()).ravel()
-        XYZ_ = np.array(
-            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
-        ).T
-        XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
-
     def fetch(
         self,
         volume: int = None,
@@ -341,6 +309,7 @@ class SparseMap(Map):
         if volume is None:
             assert index is not None
             volume = index.volume
+        assert isinstance(volume, int)
 
         x, y, z, v = self.sparse_index.mapped_voxels(volume)
         if cropped:
@@ -655,39 +624,6 @@ class SparseMap(Map):
             return df
         else:
             return df, Nifti1Image(components, self.affine)
-
-
-    def sample_locations(self, regionspec, numpoints, lower_threshold=0.0):
-        """Sample 3D locations by using one of the maps as probability distributions.
-
-        Parameters
-        ----------
-        regionspec: valid region specification
-            Region to be used
-        numpoints: int
-            Number of samples to draw
-        lower_threshold: float, default: 0
-            Voxels in the map with a value smaller than this threshold will not be considered.
-
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
-
-        TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
-        """
-        if isinstance(regionspec, Number):
-            mapindex = regionspec
-        else:
-            mapindex = self.get_index(regionspec)[0].map
-        pmap = self.fetch(mapindex, cropped=True)
-        D = np.array(pmap.dataobj)  # do a real copy so we don't modify the map
-        D[D < lower_threshold] = 0.0
-        p = (D / D.sum()).ravel()
-        XYZ_ = np.array(
-            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
-        ).T
-        XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
 
     def assign(
         self,

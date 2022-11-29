@@ -245,7 +245,11 @@ class Map(AtlasConcept):
         assert len(self) > 0
         if index is not None:
             assert volume is None
+            assert isinstance(index, MapIndex)
             volume = index.volume
+        elif isinstance(volume, MapIndex):
+            # be kind if an index is passed as the first parameter
+            volume = volume.volume
         if len(self) > 1:
             if volume is None:
                 raise ValueError(
@@ -253,7 +257,8 @@ class Map(AtlasConcept):
                     "one to fetch, or use fetch_iter() to iterate over all volumes."
                 )
             else:
-                assert isinstance(volume, int)
+                if not isinstance(volume, int):
+                    raise ValueError(f"Parameter 'volume' should be an integer, but '{type(volume).__name__}' was provided.")
                 if volume >= len(self):
                     raise ValueError(
                         f"{self} provides only {len(self)} mapped volumes, "
@@ -425,6 +430,38 @@ class Map(AtlasConcept):
 
         return Nifti1Image(result, affine)
 
+    def sample_locations(self, regionspec, numpoints: int):
+        """ Sample 3D locations inside a given region.
+
+        The probability distribution is approximated from the region mask
+        based on the squared distance transform.
+
+        regionspec: valid region specification
+            Region to be used
+        numpoints: int
+            Number of samples to draw
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+
+        """
+        index = self.get_index(regionspec)
+        mask = self.fetch(index=index)
+        arr = np.asanyarray(mask.dataobj)
+        if arr.dtype.char in np.typecodes['AllInteger']:
+            # a binary mask - use distance transform to get sampling weights
+            W = distance_transform_edt(np.asanyarray(mask.dataobj))**2
+        else:
+            # a continuous map - interpret directly as weights
+            W = arr
+        p = (W / W.sum()).ravel()
+        XYZ_ = np.array(
+            np.unravel_index(np.random.choice(len(p), numpoints, p=p), W.shape)
+        ).T
+        XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
+        return PointSet(XYZ, space=self.space)
+
     def assign_coordinates(
         self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
     ):
@@ -476,42 +513,7 @@ class Map(AtlasConcept):
 
         return assignments
 
-    def sample_locations(self, regionspec, numpoints: int):
-        """ Sample 3D locations inside a given region.
 
-        The probability distribution is approximated from the region mask
-        based on the squared distance transform.
-
-        regionspec: valid region specification
-            Region to be used
-        numpoints: int
-            Number of samples to draw
-
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
-
-        """
-        indices = self.get_index(regionspec)
-        assert len(indices) > 0
-
-        # build region mask
-        B = None
-        lmap = None
-        for index in indices:
-            lmap = self.fetch(index.map)
-            M = np.asanyarray(lmap.dataobj)
-            if B is None:
-                B = np.zeros_like(M)
-            B[M == index.label] = 1
-
-        D = distance_transform_edt(B)**2
-        p = (D / D.sum()).ravel()
-        XYZ_ = np.array(
-            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
-        ).T
-        XYZ = np.dot(lmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
 
     def assign(self, img: Nifti1Image, msg=None, quiet=False):
         """
