@@ -120,9 +120,9 @@ class Map(AtlasConcept):
 
     def get_index(self, region: Union[str, Region]):
         """
-        Returns the unique index corresponding to the specified region, 
+        Returns the unique index corresponding to the specified region,
         assuming that the specification matches one unique region
-        defined in this parcellation map. 
+        defined in this parcellation map.
         If not unique, or not defined, an exception will be thrown.
         See find_indices() for a less strict search returning all matches.
         """
@@ -176,11 +176,7 @@ class Map(AtlasConcept):
         for key in ["@id", "name"]:
             if key in self._space_spec:
                 return REGISTRY.Space[self._space_spec[key]]
-        logger.warn(
-            f"Cannot determine space of {self.__class__.__name__} "
-            f"{self.name} from {self._space_spec}"
-        )
-        return None
+        return Space(None, "Unspecified space")
 
     @property
     def parcellation(self):
@@ -239,7 +235,7 @@ class Map(AtlasConcept):
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
         voi: VolumeOfInterest
-            bounding box specification 
+            bounding box specification
         variant : str
             Optional specification of a specific variant to use for the maps. For example,
             fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
@@ -295,7 +291,7 @@ class Map(AtlasConcept):
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
         voi: VolumeOfInterest
-            bounding box specification 
+            bounding box specification
         variant : str
             Optional specification of a specific variant to use for the maps. For example,
             fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
@@ -312,8 +308,8 @@ class Map(AtlasConcept):
 
     def compress(self):
         """
-        Converts this map into a labelled 3D parcellation map, obtained 
-        by taking the voxelwise maximum across the mapped volumes, and 
+        Converts this map into a labelled 3D parcellation map, obtained
+        by taking the voxelwise maximum across the mapped volumes, and
         re-labelling regions sequentially.
         """
         result_nii = None
@@ -322,7 +318,7 @@ class Map(AtlasConcept):
         region_indices = defaultdict(list)
 
         for volume in tqdm(
-            range(len(self)), total=len(self), unit='maps', 
+            range(len(self)), total=len(self), unit='maps',
             desc=f"Building compressed 3D map from {len(self)} {self.maptype.name.lower()} volumes"
         ):
 
@@ -578,7 +574,6 @@ class Map(AtlasConcept):
             )
         ]
         return assignments
-
 
     def _coords(self, mapindex):
         # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex

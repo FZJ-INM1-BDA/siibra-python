@@ -18,12 +18,13 @@ from ..commons import MapType
 from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.location import BoundingBox, PointSet
+from ..core.space import Space
 
 import numpy as np
 import nibabel as nib
 import os
 from typing import Union
-from abc import ABC, abstractmethod
+from abc import ABC
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
 
@@ -60,11 +61,7 @@ class Volume:
         for key in ["@id", "name"]:
             if key in self._space_spec:
                 return REGISTRY.Space[self._space_spec[key]]
-        logger.warn(
-            f"Cannot determine space of {self.__class__.__name__} "
-            f"{self.name} from {self._space_spec}"
-        )
-        return None
+        return Space(None, "Unspecified space")
 
     def __str__(self):
         if self.space is None:
@@ -101,7 +98,7 @@ class NiftiVolume(VolumeProvider, srctype="nii"):
 
     def __init__(self, src: Union[str, nib.Nifti1Image]):
         """
-        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.    
+        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
         VolumeProvider.__init__(self)
         self._image_cached = None
@@ -209,11 +206,10 @@ class ZipContainedNiftiVolume(NiftiVolume, srctype="zip/nii"):
 
     def __init__(self, src: str):
         """
-        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.    
+        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
         VolumeProvider.__init__(self)
         zipurl, zipped_file = src.split(" ")
-        logger.info(f"NIfTI volume from {zipped_file} in {zipurl}")
         self._image_cached = None
         self._image_loader = lambda u=zipurl: ZipfileRequest(u, zipped_file).data
 

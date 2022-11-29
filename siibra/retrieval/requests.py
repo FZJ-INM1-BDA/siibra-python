@@ -277,7 +277,7 @@ class EbrainsRequest(HttpRequest):
 
         # try KEYCLOAK. Requires the following environment variables set:
         # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
-        
+
         if KEYCLOAK_CLIENT_ID is not None and KEYCLOAK_CLIENT_SECRET is not None:
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(

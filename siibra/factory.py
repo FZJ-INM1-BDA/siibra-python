@@ -128,8 +128,7 @@ class Factory:
                     break
             else:
                 logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
-                print(srctype, url)
-    
+
         return Volume(
             name=spec.get("name", ""),
             space_spec=spec.get("space", {}),

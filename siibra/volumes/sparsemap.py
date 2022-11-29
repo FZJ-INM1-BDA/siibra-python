@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .map import Map
+from .util import create_gaussian_kernel
 
 from ..commons import MapIndex, logger
 from ..core.location import BoundingBox, Point, PointSet
@@ -22,10 +23,11 @@ from ..retrieval import CACHE
 from os import path
 import gzip
 from typing import Dict, Union
-from nibabel import Nifti1Image, load
+from nibabel import Nifti1Image, load, image
 from tqdm import tqdm
 import numpy as np
 from numbers import Number
+import pandas as pd
 
 
 class SparseIndex:
@@ -77,6 +79,30 @@ class SparseIndex:
 
     def max(self):
         return self.voxels.max()
+
+    def coords(self, volume: int):
+        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
+        coord_ids = [i for i, l in enumerate(self.probs) if volume in l]
+        x0, y0, z0 = self.bboxes[volume]["minpoint"]
+        x1, y1, z1 = self.bboxes[volume]["maxpoint"]
+        return (
+            np.array(
+                np.where(
+                    np.isin(
+                        self.voxels[x0: x1 + 1, y0: y1 + 1, z0: z1 + 1],
+                        coord_ids,
+                    )
+                )
+            ).T
+            + (x0, y0, z0)
+        ).T
+
+    def mapped_voxels(self, volume: int):
+        # returns the x, y, and z coordinates of nonzero voxels for the map
+        # with the given index, together with their corresponding values v.
+        x, y, z = [v.squeeze() for v in np.split(self.coords(volume), 3)]
+        v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
+        return x, y, z, v
 
     def to_cache(self, prefix: str):
         """ Serialize this index to the cache,
@@ -190,7 +216,7 @@ class SparseMap(Map):
             space_spec=space_spec,
             parcellation_spec=parcellation_spec,
             indices=indices,
-            shortname=shortname, 
+            shortname=shortname,
             description=description,
             modality=modality,
             publications=publications,
@@ -231,30 +257,6 @@ class SparseMap(Map):
     def shape(self):
         return self.sparse_index.shape
 
-    def _coords(self, mapindex):
-        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
-        coord_ids = [i for i, l in enumerate(self.sparse_index.probs) if mapindex in l]
-        x0, y0, z0 = self.sparse_index.bboxes[mapindex]["minpoint"]
-        x1, y1, z1 = self.sparse_index.bboxes[mapindex]["maxpoint"]
-        return (
-            np.array(
-                np.where(
-                    np.isin(
-                        self.sparse_index.voxels[x0: x1 + 1, y0: y1 + 1, z0: z1 + 1],
-                        coord_ids,
-                    )
-                )
-            ).T
-            + (x0, y0, z0)
-        ).T
-
-    def _mapped_voxels(self, mapindex):
-        # returns the x, y, and z coordinates of nonzero voxels for the map
-        # with the given index, together with their corresponding values v.
-        x, y, z = [v.squeeze() for v in np.split(self._coords(mapindex), 3)]
-        v = [self.sparse_index.probs[i][mapindex] for i in self.sparse_index.voxels[x, y, z]]
-        return x, y, z, v
-
     def sample_locations(self, regionspec, numpoints, lower_threshold=0.0):
         """Sample 3D locations by using one of the maps as probability distributions.
 
@@ -287,7 +289,6 @@ class SparseMap(Map):
         XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
         return PointSet(XYZ, space=self.space)
 
-
     def fetch(
         self,
         volume: int = None,
@@ -296,7 +297,7 @@ class SparseMap(Map):
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
-        cropped = False,
+        cropped: bool = False,
     ):
         """
         Recreate a particular volumetric map from the sparse
@@ -311,7 +312,7 @@ class SparseMap(Map):
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
         voi: VolumeOfInterest
-            bounding box specification 
+            bounding box specification
         variant : str
             Optional specification of a specific variant to use for the maps. For example,
             fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.

@@ -91,7 +91,7 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
     A surface mesh provided as neuroglancer precomputed mesh.
     """
 
-    def __init__(self, url, volume = None):
+    def __init__(self, url, volume=None):
         self.volume = volume
         self.url = url
 
