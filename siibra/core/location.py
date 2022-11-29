@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ..registry import REGISTRY
 from ..commons import logger
 from ..retrieval import HttpRequest
 
@@ -48,8 +49,17 @@ class Location(ABC):
     Abstract base class for locations in a given reference space.
     """
 
-    def __init__(self, space_id: str = None):
-        self.space_id = space_id
+    def __init__(self, space):
+        try: 
+            spaceobj = REGISTRY.Space[space]
+            self.space_id = spaceobj.id
+        except RuntimeError:
+            self.space_id = ""
+
+
+    @property
+    def space(self):
+        return REGISTRY.Space[self.space_id]
 
     @abstractmethod
     def intersection(self, mask: Nifti1Image) -> bool:
@@ -121,19 +131,19 @@ class WholeBrain(Location):
         """
         return True
 
-    def __init__(self, space_id: str = None):
-        self.space_id = space_id
+    def __init__(self, space = None):
+        Location.__init__(self, space)
 
     def intersects(self, mask: Nifti1Image):
         """Always true for whole brain features"""
         return True
 
-    def warp(self, space_id: str):
+    def warp(self, space):
         """Generates a new whole brain location
         in another reference space."""
-        return self.__class__(space_id)
+        return self.__class__(space)
 
-    def transform(self, affine: np.ndarray, space_id: str = None):
+    def transform(self, affine: np.ndarray, space = None):
         """Does nothing."""
         pass
 
@@ -186,7 +196,7 @@ class Point(Location):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
-    def __init__(self, coordinatespec, space_id: str = None, sigma_mm: float = 0.0):
+    def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -194,18 +204,18 @@ class Point(Location):
         ----------
         coordinate : 3-tuple of int/float, or string specification
             Coordinate in mm of the given space
-        space_id : id of reference space
+        space : reference space specification (id, object, or name)
             The reference space
         sigma_mm : float
             Optional location uncertainy of the point
             (will be intrepreded as the isotropic standard deviation of location)
         """
-        Location.__init__(self, space_id)
+        Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
         self.sigma = sigma_mm
         if isinstance(coordinatespec, Point):
             assert coordinatespec.sigma == sigma_mm
-            assert coordinatespec.space_id == space_id
+            assert coordinatespec.space_id == self.space_id
 
     @property
     def homogeneous(self):
@@ -545,7 +555,7 @@ class BoundingBox(Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space_id: str = None, minsize: float = None):
+    def __init__(self, point1, point2, space = None, minsize: float = None):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -558,17 +568,17 @@ class BoundingBox(Location):
             Startpoint given in mm of the given space
         point2 : Point or 3-tuple
             Endpoint given in mm of the given space
-        space_id : id of reference space
+        space : reference space (id, name, or Space)
             The reference space
         minsize : float
             Minimum size along each dimension. If not None, the maxpoint will
             be adjusted to match the minimum size, if needed.
         """
-        Location.__init__(self, space_id)
+        Location.__init__(self, space)
         xyz1 = Point.parse(point1)
         xyz2 = Point.parse(point2)
-        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space_id)
-        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space_id)
+        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
+        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
         if minsize is not None:
             for d in range(3):
                 if self.shape[d] < minsize:

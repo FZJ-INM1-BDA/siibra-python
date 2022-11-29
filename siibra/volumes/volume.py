@@ -71,8 +71,11 @@ class Volume:
 
     def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None):
         """ fetch the data in a requested format from one of the providers. """
-        if variant is None:
-            logger.warn()
+        if variant is not None:
+            logger.warn(
+                f"Variant {variant} requested, but {self.__class__.__name__} "
+                "does not provide volume variants."
+            )
         requested_formats = self.PREFERRED_FORMATS if format is None else {format}
         for fmt in requested_formats & self.formats:
             try:
@@ -373,7 +376,7 @@ class NeuroglancerScale:
     def _estimate_nbytes(self, bbox: BoundingBox = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
         if bbox is None:
-            bbox_ = BoundingBox((0, 0, 0), self.size, space_id=None)
+            bbox_ = BoundingBox((0, 0, 0), self.size, space=None)
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
         result = self.volume.dtype.itemsize * bbox_.volume
@@ -450,7 +453,7 @@ class NeuroglancerScale:
 
         # define the bounding box in this scale's voxel space
         if voi is None:
-            bbox_ = BoundingBox((0, 0, 0), self.size, space_id=None)
+            bbox_ = BoundingBox((0, 0, 0), self.size, space=None)
         else:
             bbox_ = voi.transform(np.linalg.inv(self.affine))
 
