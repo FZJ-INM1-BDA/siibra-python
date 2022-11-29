@@ -23,6 +23,7 @@ from .core.location import Point, PointSet
 from .volumes.volume import Volume, NiftiVolume, NeuroglancerVolume
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
 from .volumes.map import Map
+from .volumes.sparsemap import SparseMap
 
 from os import path
 import json
@@ -138,7 +139,9 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = list(map(cls.build_volume, spec.get("volumes", [])))
 
-        return Map(
+        Maptype = Map if len(volumes) < 10 else SparseMap
+
+        return Maptype(
             identifier=spec.get("@id", identifier),
             name=spec.get("name", name),
             space_spec=spec.get("space", {}),

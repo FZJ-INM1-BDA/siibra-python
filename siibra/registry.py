@@ -294,7 +294,7 @@ class Registry:
                 # we pass the filename to the spec for the Factor.
                 # for example, it is used in Factor to determine an object identifier if none is provided.
                 obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-                if obj.__class__.__name__ != classname:
+                if classname not in [_.__name__ for _ in [obj.__class__] + list(obj.__class__.__bases__)]:
                     logger.error(
                         f"Specification in {fname} resulted in object type "
                         f"{obj.__class__.__name__}, but {classname} was expected."

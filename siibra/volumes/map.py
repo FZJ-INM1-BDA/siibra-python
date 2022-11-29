@@ -25,17 +25,15 @@ from ..core.location import Point, PointSet, BoundingBox
 from ..core.region import Region
 
 import numpy as np
-from nibabel import Nifti1Image, funcs, load
 from nilearn import image
 from tqdm import tqdm
 from typing import Union, Dict
-from os import path
+
 from numbers import Number
 import pandas as pd
-from math import ceil, log10
-import gzip
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
+from nibabel import Nifti1Image
 
 
 class Map(AtlasConcept):
@@ -120,7 +118,7 @@ class Map(AtlasConcept):
         for v in self.volumes:
             v._space_spec = space_spec
 
-    def get_index(self, regionname: str):
+    def get_index(self, region: Union[str, Region]):
         """
         Returns the unique index corresponding to the specified region, 
         assuming that the specification matches one unique region
@@ -128,26 +126,27 @@ class Map(AtlasConcept):
         If not unique, or not defined, an exception will be thrown.
         See find_indices() for a less strict search returning all matches.
         """
-        matches = self.find_indices(regionname)
+        matches = self.find_indices(region)
         if len(matches) > 1:
             raise RuntimeError(
-                f"The specification '{regionname}' matches multiple mapped "
+                f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
             raise RuntimeError(
-                f"The specification '{regionname}' does not match to any structure mapped in {self}"
+                f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
             return next(iter(matches))
 
-    def find_indices(self, regionname: str):
+    def find_indices(self, region: Union[str, Region]):
         """ Returns the volume/label indices in this map
         which match the given region specification"""
+        regionname = region.name if isinstance(region, Region) else region
         matched_region_names = set(_.name for _ in self.parcellation.find(regionname))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
-            logger.warn(f"Region with name {regionname} not defined in {self}")
+            logger.warn(f"Region {regionname} not defined in {self}")
         return {
             idx: regionname
             for regionname in matches
@@ -268,6 +267,7 @@ class Map(AtlasConcept):
             resolution_mm=resolution_mm,
             format=format,
             voi=voi,
+            variant=variant
         )
         if index is None or index.label is None:
             return result
@@ -277,8 +277,6 @@ class Map(AtlasConcept):
                 (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
                 result.affine
             )
-
-
 
     def fetch_iter(
         self,

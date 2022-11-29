@@ -66,14 +66,26 @@ class Volume:
         )
         return None
 
-    def fetch(self, resolution_mm: float = None, voi=None, format: str = None):
+    def __str__(self):
+        if self.space is None:
+            return f"{self.__class__.__name__} {self.name}"
+        else:
+            return f"{self.__class__.__name__} {self.name} in {self.space.name}"
+
+    def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None):
         """ fetch the data in a requested format from one of the providers. """
         requested_formats = self.PREFERRED_FORMATS if format is None else {format}
         for fmt in requested_formats & self.formats:
-            return self._providers[fmt].fetch(
-                resolution_mm=resolution_mm, voi=voi
-            )
-        raise RuntimeError(f"Formats {requested_formats} not available for volume {self}")
+            try:
+                return self._providers[fmt].fetch(
+                    resolution_mm=resolution_mm, voi=voi
+                )
+            except SiibraHttpRequestError as e:
+                logger.error(f"Cannot access {self._providers[fmt]}")
+                print(str(e))
+                continue
+        logger.error(f"Formats {requested_formats} not available for volume {self}")
+        return None
 
 
 class VolumeProvider(ABC):
