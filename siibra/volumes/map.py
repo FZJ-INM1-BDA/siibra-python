@@ -544,15 +544,15 @@ class Map(AtlasConcept):
         # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=["Component", "MapIndex", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
+                columns=["Structure", "Volume", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
             result = np.array(assignments)
             ind = np.lexsort((-result[:, -1], result[:, 0]))
             df = pd.DataFrame(
                 {
-                    "Component": result[ind, 0].astype("int"),
-                    "MapIndex": result[ind, 1].astype("int"),
+                    "Structure": result[ind, 0].astype("int"),
+                    "Volume": result[ind, 1].astype("int"),
                     "Region": [
                         self.get_region(volume=m, label=None).name
                         if self.maptype == MapType.CONTINUOUS
@@ -622,7 +622,7 @@ class Map(AtlasConcept):
             if sigma_vox < 3:
                 # voxel-precise - just read out the value in the maps
                 N = len(self)
-                logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
+                logger.debug(f"Assigning coordinate {tuple(point)} to {N} maps")
                 x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[:3]
                 vals = self._read_voxel(x, y, z)
                 for volume, value in vals:
@@ -631,7 +631,7 @@ class Map(AtlasConcept):
                             [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
-                logger.info(
+                logger.debug(
                     f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
@@ -799,7 +799,7 @@ class LabelledSurface:
         """
 
         result = []
-        for mapindex, mesh in enumerate(self.fetch_iter(variant=variant)):
+        for volume, mesh in enumerate(self.fetch_iter(variant=variant)):
             if (name is not None) and (name != mesh['name']):
                 continue
             cmesh = {
@@ -814,7 +814,7 @@ class LabelledSurface:
                 except IndexError:
                     continue
                 for index in indices:
-                    if index.map == mapindex:
+                    if index.volume == volume:
                         cmesh['labels'][mesh['labels'] == index.label] = value
             result.append(cmesh)
 
