@@ -30,6 +30,8 @@ from typing import Union, Dict
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
 from nibabel import Nifti1Image
+from nilearn import image
+import pandas as pd
 
 
 class Map(AtlasConcept):
@@ -250,6 +252,10 @@ class Map(AtlasConcept):
         elif isinstance(volume, MapIndex):
             # be kind if an index is passed as the first parameter
             volume = volume.volume
+        elif isinstance(volume, str):
+            # be kind if a region name is passed as the first parameter
+            index = self.get_index(volume)
+            volume = index.volume
         if len(self) > 1:
             if volume is None:
                 raise ValueError(
@@ -462,120 +468,161 @@ class Map(AtlasConcept):
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
         return PointSet(XYZ, space=self.space)
 
-    def assign_coordinates(
-        self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
+    def assign(
+        self,
+        item: Union[Point, PointSet, Nifti1Image],
+        msg=None,
+        quiet=False,
+        minsize_voxel=1,
+        lower_threshold=0.0,
     ):
-        """
-        Assign regions to a physical coordinates with optional standard deviation.
+        """Assign an input image to brain regions.
+
+        The input image is assumed to be defined in the same coordinate space
+        as this parcellation map.
 
         Parameters
         ----------
-        point : Point or PointSet
-        sigma_mm : Not needed for labelled parcellation maps
-        sigma_truncation : Not needed for labelled parcellation maps
+        item: Point, PointSet, or Nifti1Image
+            A spatial object defined in the same physical reference space as this
+            parcellation map, which could be a point, set of points, or image.
+            If it is an image, it will be resampled to the same voxel space if its affine
+            transforation differs from that of the parcellation map.
+            Resampling will use linear interpolation for float image types,
+            otherwise nearest neighbor.
+        msg: str, or None
+            An optional message to be shown with the progress bar. This is
+            useful if you use assign() in a loop.
+        quiet: Bool, default: False
+            If True, no outputs will be generated.
+        minsize_voxel: int, default: 1
+            Minimum voxel size of image components to be taken into account.
+        lower_threshold: float, default: 0
+            Lower threshold on values in the continuous map. Values smaller than
+            this threshold will be excluded from the assignment computation.
+
+        Return
+        ------
+        assignments : pandas Dataframe
+            A table of associated regions and their scores per component found in the input image,
+            or per coordinate provived.
+            The scores are:
+                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or
+                  input image signal component.
+                - Pearson correlation coefficient between the brain region map and an input image signal
+                  component (NaN for exact coordinates)
+                - "Contains": Percentage of the brain region map contained in an input image signal component,
+                  measured from their binarized masks as the ratio between the volume of their interesection
+                  and the volume of the brain region (NaN for exact coordinates)
+                - "Contained"": Percentage of an input image signal component contained in the brain region map,
+                  measured from their binary masks as the ratio between the volume of their interesection
+                  and the volume of the input image signal component (NaN for exact coordinates)
+        components: Nifti1Image, or None
+            If the input was an image, this is a labelled volume mapping the detected components
+            in the input image, where pixel values correspond to the "component" column of the
+            assignment table. If the input was a Point or PointSet, this is None.
         """
 
-        if point.space != self.space:
-            logger.info(
-                f"Coordinates will be converted from {point.space.name} "
-                f"to {self.space.name} space for assignment."
+        components = None
+        if isinstance(item, Point):
+            assignments = self._assign_points(PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+        elif isinstance(item, PointSet):
+            assignments = self._assign_points(item, lower_threshold)    
+        elif isinstance(item, Nifti1Image):
+            assignments = self._assign_image(item, minsize_voxel, lower_threshold)
+        else:
+            raise RuntimeError(
+                f"Items of type {item.__class__.__name__} cannot be used for region assignment."
             )
 
-        # Convert input to Nx4 list of homogenous coordinates
-        if isinstance(point, Point):
-            coords = [point.warp(self.space).homogeneous]
-        elif isinstance(point, PointSet):
-            pointset = point
-            coords = [p.homogeneous for p in pointset.warp(self.space)]
+        # format assignments as pandas dataframe
+        if len(assignments) == 0:
+            df = pd.DataFrame(
+                columns=["Component", "MapIndex", "Region", "MaxValue", "Correlation", "IoU", "Contains", "Contained"]
+            )
         else:
-            raise ValueError("assign_coordinates expects a Point or PointSet object.")
+            result = np.array(assignments)
+            ind = np.lexsort((-result[:, -1], result[:, 0]))
+            df = pd.DataFrame(
+                {
+                    "Component": result[ind, 0].astype("int"),
+                    "MapIndex": result[ind, 1].astype("int"),
+                    "Region": [
+                        self.get_region(volume=m, label=None).name
+                        for m in result[ind, 1]
+                    ],
+                    "MaxValue": result[ind, 2],
+                    "Correlation": result[ind, 6],
+                    "IoU": result[ind, 3],
+                    "Contains": result[ind, 5],
+                    "Contained": result[ind, 4],
+                }
+            ).dropna(axis=1, how="all")
 
-        assignments = []
-        N = len(self)
-        msg = f"Assigning {len(coords)} points to {N} maps"
-        assignments = [[] for _ in coords]
-        for mapindex, loadfnc in tqdm(
-            enumerate(self.maploaders),
-            total=len(self),
-            desc=msg,
-            unit=" maps",
-            disable=logger.level > 20,
-        ):
-            lmap = loadfnc()
-            p2v = np.linalg.inv(lmap.affine)
-            A = lmap.get_fdata()
-            for i, coord in enumerate(coords):
-                x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]
-                label = A[x, y, z]
-                if label > 0:
-                    region = self.get_index(mapindex=mapindex, labelindex=label)
-                    assignments[i].append((region, lmap, None))
+        if components is None:
+            return df
+        else:
+            return df
 
-        return assignments
-
-
-
-    def assign(self, img: Nifti1Image, msg=None, quiet=False):
+    @staticmethod 
+    def iterate_connected_components(img: Nifti1Image):
         """
-        Assign the region of interest represented by a given volumetric image to brain regions in this map.
+        Provide an iterator over masks of connected components in the given image.
+        """
+        from skimage import measure
+        imgdata = np.asanyarray(img.dataobj).squeeze()
+        components = measure.label(imgdata > 0)
+        component_labels = np.unique(components)
+        assert component_labels[0] == 0
+        return (
+            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+            for label in component_labels[1:]
+        )
 
-        TODO unify this with the corresponding methond in ContinuousParcellationMap
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
+        """
+        Assign an image volume to this parcellation map.
 
         Parameters:
         -----------
-        img : Nifti1Image
-            The input region of interest, typically a binary mask or statistical map.
-        msg : str, default:None
-            Message to display with the progress bar
-        quiet: Boolen, default:False
-            If true, no progess indicator will be displayed
+        minsize_voxel: int, default: 1
+            Minimum voxel size of image components to be taken into account.
+        lower_threshold: float, default: 0
+            Lower threshold on values in the continuous map. Values smaller than
+            this threshold will be excluded from the assignment computation.
         """
+        assignments = []
 
-        if msg is None and not quiet:
-            msg = f"Assigning structure to {len(self.regions)} regions"
-
-        # How to visualize progress from the iterator?
-        def plain_progress(f):
-            return f
-
-        def visual_progress(f):
-            return tqdm(
-                f,
-                total=len(self.regions),
-                desc=msg,
-                unit="regions",
-                disable=logger.level > 20,
+        # resample query image into this image's voxel space, if required
+        with QUIET:
+            affine = self.fetch(volume=0).affine
+        if (queryimg.affine - affine).sum() == 0:
+            queryimg = queryimg
+        else:
+            if issubclass(np.asanyarray(queryimg.dataobj).dtype.type, np.integer):
+                interp = "nearest"
+            else:
+                interp = "linear"
+            queryimg = image.resample_img(
+                queryimg,
+                target_affine=self.affine,
+                target_shape=self.shape,
+                interpolation=interp,
             )
 
-        progress = plain_progress if quiet else visual_progress
+        with QUIET:
+            for mode, maskimg in Map.iterate_connected_components(queryimg):
+                for volume, vol_img in enumerate(self):
+                    vol_data = np.asanyarray(vol_img.dataobj)
+                    labels = [v.label for L in self._indices.values() for v in L if v.volume==volume]
+                    for label in tqdm(labels):
+                        targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                        scores = compare_maps(maskimg, targetimg)
+                        if scores["overlap"] > 0:
+                            assignments.append(
+                                [mode, volume, np.nan, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
+                            )
 
-        # setup assignment loop
-        values = {}
-        pmaps = {}
-
-        for index, region in progress(self.regions.items()):
-
-            this = self.maploaders[index.map]()
-            if not this:
-                logger.warning(f"Could not load regional map for {region.name}")
-                continue
-            if (index.label is not None) and (index.label > 0):
-                with QUIET:
-                    this = region.build_mask(self.space, maptype=self.maptype)
-            scores = compare_maps(img, this)
-            if scores["overlap"] > 0:
-                assert region not in pmaps
-                pmaps[region] = this
-                values[region] = scores
-
-        assignments = [
-            (region, region.index.map, scores)
-            for region, scores in sorted(
-                values.items(),
-                key=lambda item: abs(item[1]["correlation"]),
-                reverse=True,
-            )
-        ]
         return assignments
 
 

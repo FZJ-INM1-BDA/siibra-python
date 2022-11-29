@@ -17,20 +17,18 @@ from .map import Map
 from .util import create_gaussian_kernel
 
 from ..commons import MapIndex, logger
-from ..core.location import BoundingBox, Point, PointSet
+from ..core.location import BoundingBox
 from ..retrieval import CACHE
 
 from os import path
 import gzip
-from typing import Dict, Union
+from typing import Dict
 from nilearn import image
 from nibabel import Nifti1Image, load
 from tqdm import tqdm
 import numpy as np
-from numbers import Number
-import pandas as pd
 
-
+ 
 class SparseIndex:
 
     def __init__(self):
@@ -74,7 +72,6 @@ class SparseIndex:
                 "maxpoint": (X.max(), Y.max(), Z.max()),
             }
         )
-
 
     @property
     def num_volumes(self):
@@ -298,6 +295,20 @@ class SparseMap(Map):
             volume with padded zeros (Default: False)
 
         """
+        if index is not None:
+            assert volume is None
+            assert isinstance(index, MapIndex)
+            volume = index.volume
+        elif isinstance(volume, MapIndex):
+            # be kind if an index is passed as the first parameter
+            volume = volume.volume
+        elif isinstance(volume, str):
+            # be kind if a region name is passed as the first parameter
+            logger.info(
+                f"'{volume}' will be interpreted as a region name to decode the volume index."
+            )
+            index = self.get_index(volume)
+            volume = index.volume
         if voi is not None:
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support volume of interest fetching yet."
@@ -325,602 +336,179 @@ class SparseMap(Map):
             result[x, y, z] = v
             return Nifti1Image(result, self.affine)
 
-    def assign(
-        self,
-        item: Union[Point, PointSet, Nifti1Image],
-        msg=None,
-        quiet=False,
-        minsize_voxel=1,
-        lower_threshold=0.0,
-        skip_mapindices=[],
-    ):
-        """Assign an input image to brain regions.
+    def _assign_points(self, points, lower_threshold: float):
+        """
+        assign a PointSet to this parcellation map.
 
-        The input image is assumed to be defined in the same coordinate space
-        as this parcellation map.
+        Parameters:
+        -----------
+        lower_threshold: float, default: 0
+            Lower threshold on values in the continuous map. Values smaller than
+            this threshold will be excluded from the assignment computation.
+        """
+        assignments = []
 
-        Parameters
-        ----------
-        item: Point, PointSet, or Nifti1Image
-            A spatial object defined in the same physical reference space as this
-            parcellation map, which could be a point, set of points, or image.
-            If it is an image, it will be resampled to the same voxel space if its affine
-            transforation differs from that of the parcellation map.
-            Resampling will use linear interpolation for float image types,
-            otherwise nearest neighbor.
-        msg: str, or None
-            An optional message to be shown with the progress bar. This is
-            useful if you use assign() in a loop.
-        quiet: Bool, default: False
-            If True, no outputs will be generated.
+        if points.space_id != self.space_id:
+            logger.info(
+                f"Coordinates will be converted from {points.space.name} "
+                f"to {self.space.name} space for assignment."
+            )
+        # convert sigma to voxel coordinates
+        scaling = np.array(
+            [np.linalg.norm(self.affine[:, i]) for i in range(3)]
+        ).mean()
+        phys2vox = np.linalg.inv(self.affine)
+
+        for pointindex, point in enumerate(points.warp(self.space.id)):
+
+            sigma_vox = point.sigma / scaling
+            if sigma_vox < 3:
+                # voxel-precise - just read out the value in the maps
+                N = len(self)
+                logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
+                x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[
+                    :3
+                ]
+                for mapindex, value in self.sparse_index.probs[
+                    self.sparse_index.voxels[x, y, z]
+                ].items():
+                    if value > lower_threshold:
+                        assignments.append((pointindex, mapindex, value, np.NaN, np.NaN, np.NaN, np.NaN))
+            else:
+                logger.info(
+                    f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
+                )
+                kernel = create_gaussian_kernel(sigma_vox, 3)
+                r = int(kernel.shape[0] / 2)  # effective radius
+                xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
+                shift = np.identity(4)
+                shift[:3, -1] = xyz_vox[:3] - r
+                # build niftiimage with the Gaussian blob,
+                # then recurse into this method with the image input
+                W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
+                T, _ = self.assign(W, lower_threshold=lower_threshold)
+                assignments.extend(
+                    [
+                        [pointindex, volume, maxval, iou, contained, contains, rho]
+                        for (_, volume, _, maxval, rho, iou, contains, contained) in T.values
+                    ]
+                )
+        return assignments
+
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
+        """
+        Assign an image volume to this parcellation map.
+
+        Parameters:
+        -----------
+        queryimg: Nifti1Image
+            the image to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
             Lower threshold on values in the continuous map. Values smaller than
             this threshold will be excluded from the assignment computation.
-        skip_mapindices: list, default: []
-            Maps whose index is listed here will not be considered for the assignment
-
-        Return
-        ------
-        assignments : pandas Dataframe
-            A table of associated regions and their scores per component found in the input image,
-            or per coordinate provived.
-            The scores are:
-                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or
-                  input image signal component.
-                - Pearson correlation coefficient between the brain region map and an input image signal
-                  component (NaN for exact coordinates)
-                - "Contains": Percentage of the brain region map contained in an input image signal component,
-                  measured from their binarized masks as the ratio between the volume of their interesection
-                  and the volume of the brain region (NaN for exact coordinates)
-                - "Contained"": Percentage of an input image signal component contained in the brain region map,
-                  measured from their binary masks as the ratio between the volume of their interesection
-                  and the volume of the input image signal component (NaN for exact coordinates)
-        components: Nifti1Image, or None
-            If the input was an image, this is a labelled volume mapping the detected components
-            in the input image, where pixel values correspond to the "component" column of the
-            assignment table. If the input was a Point or PointSet, this is None.
         """
 
         assignments = []
         components = None
 
-        if isinstance(item, Point):
-            item = PointSet([item], item.space, sigma_mm=item.sigma)
-
-        if isinstance(item, PointSet):
-            if item.space != self.space:
-                logger.info(
-                    f"Coordinates will be converted from {item.space.name} "
-                    f"to {self.space.name} space for assignment."
-                )
-            # convert sigma to voxel coordinates
-            scaling = np.array(
-                [np.linalg.norm(self.affine[:, i]) for i in range(3)]
-            ).mean()
-            phys2vox = np.linalg.inv(self.affine)
-
-            for pointindex, point in enumerate(item.warp(self.space)):
-
-                sigma_vox = point.sigma / scaling
-                if sigma_vox < 3:
-                    # voxel-precise - just read out the value in the maps
-                    N = len(self)
-                    logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
-                    x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[
-                        :3
-                    ]
-                    for mapindex, value in self.sparse_index.probs[
-                        self.sparse_index.voxels[x, y, z]
-                    ].items():
-                        if mapindex in skip_mapindices:
-                            continue
-                        if value > lower_threshold:
-                            assignments.append(
-                                (
-                                    pointindex,
-                                    mapindex,
-                                    value,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                )
-                            )
-                else:
-                    logger.info(
-                        f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
-                    )
-                    kernel = create_gaussian_kernel(sigma_vox, 3)
-                    r = int(kernel.shape[0] / 2)  # effective radius
-                    xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
-                    shift = np.identity(4)
-                    shift[:3, -1] = xyz_vox[:3] - r
-                    # build niftiimage with the Gaussian blob,
-                    # then recurse into this method with the image input
-                    W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                    T, _ = self.assign(
-                        W,
-                        lower_threshold=lower_threshold,
-                        skip_mapindices=skip_mapindices,
-                    )
-                    assignments.extend(
-                        [
-                            [
-                                pointindex,
-                                mapindex,
-                                maxval,
-                                iou,
-                                contained,
-                                contains,
-                                rho,
-                            ]
-                            for (
-                                _,
-                                mapindex,
-                                _,
-                                maxval,
-                                rho,
-                                iou,
-                                contains,
-                                contained,
-                            ) in T.values
-                        ]
-                    )
-
-        elif isinstance(item, Nifti1Image):
-
-            # ensure query image is in parcellation map's voxel space
-            if (item.affine - self.affine).sum() == 0:
-                img2 = item
+        # resample query image into this image's voxel space, if required
+        if (queryimg.affine - self.affine).sum() == 0:
+            queryimg = queryimg
+        else:
+            if issubclass(np.asanyarray(queryimg.dataobj).dtype.type, np.integer):
+                interp = "nearest"
             else:
-                if issubclass(np.asanyarray(item.dataobj).dtype.type, np.integer):
-                    interp = "nearest"
-                else:
-                    interp = "linear"
-                img2 = image.resample_img(
-                    item,
-                    target_affine=self.affine,
-                    target_shape=self.shape,
-                    interpolation=interp,
-                )
-            img2data = np.asanyarray(img2.dataobj).squeeze()
-
-            # split input image into multiple 'modes',  ie. connected components
-            from skimage import measure
-
-            components = measure.label(img2data > 0)
-            component_labels = np.unique(components)
-            assert component_labels[0] == 0
-            if len(component_labels) > 1:
-                logger.info(
-                    f"Detected {len(component_labels)-1} components in the image. Assigning each of them to {len(self)} brain regions."
-                )
-
-            for modeindex in component_labels[1:]:
-
-                # determine bounding box of the mode
-                mask = components == modeindex
-                XYZ2 = np.array(np.where(mask)).T
-                if XYZ2.shape[0] <= minsize_voxel:
-                    components[mask] == 0
-                    continue
-                X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
-
-                bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
-                if bbox2.volume == 0:
-                    continue
-
-                for mapindex in tqdm(
-                    range(len(self)),
-                    total=len(self),
-                    unit=" map",
-                    desc=msg,
-                    disable=logger.level > 20,
-                ):
-                    if mapindex in skip_mapindices:
-                        continue
-
-                    bbox1 = BoundingBox(
-                        self.sparse_index.bboxes[mapindex]["minpoint"],
-                        self.sparse_index.bboxes[mapindex]["maxpoint"],
-                        space=None,
-                    )
-                    if bbox1.intersection(bbox2) is None:
-                        continue
-
-                    # compute union of voxel space bounding boxes
-                    bbox = bbox1.union(bbox2)
-                    bbshape = np.array(bbox.shape, dtype="int") + 1
-                    x0, y0, z0 = map(int, bbox.minpoint)
-
-                    # build flattened vector of map values
-                    v1 = np.zeros(np.prod(bbshape))
-                    XYZ1 = self._coords(mapindex).T
-                    X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
-                    indices1 = np.ravel_multi_index(
-                        (X1 - x0, Y1 - y0, Z1 - z0), bbshape
-                    )
-                    v1[indices1] = [
-                        self.sparse_index.probs[i][mapindex] for i in self.sparse_index.voxels[X1, Y1, Z1]
-                    ]
-                    v1[v1 < lower_threshold] = 0
-
-                    # build flattened vector of input image mode
-                    v2 = np.zeros(np.prod(bbshape))
-                    indices2 = np.ravel_multi_index(
-                        (X2 - x0, Y2 - y0, Z2 - z0), bbshape
-                    )
-                    v2[indices2] = img2data[X2, Y2, Z2]
-
-                    assert v1.shape == v2.shape
-
-                    intersection = np.sum(
-                        (v1 > 0) & (v2 > 0)
-                    )  # np.minimum(v1, v2).sum()
-                    if intersection == 0:
-                        continue
-                    iou = intersection / np.sum(
-                        (v1 > 0) | (v2 > 0)
-                    )  # np.maximum(v1, v2).sum()
-                    contains = intersection / (v1 > 0).sum()
-                    contained = intersection / (v2 > 0).sum()
-
-                    v1d = v1 - v1.mean()
-                    v2d = v2 - v2.mean()
-                    rho = (
-                        (v1d * v2d).sum()
-                        / np.sqrt((v1d ** 2).sum())
-                        / np.sqrt((v2d ** 2).sum())
-                    )
-
-                    maxval = v1.max()
-
-                    assignments.append(
-                        [modeindex, mapindex, maxval, iou, contained, contains, rho]
-                    )
-
-        else:
-            raise RuntimeError(
-                f"Items of type {item.__class__.__name__} cannot be used for region assignment."
+                interp = "linear"
+            queryimg = image.resample_img(
+                queryimg,
+                target_affine=self.affine,
+                target_shape=self.shape,
+                interpolation=interp,
             )
 
-        if len(assignments) == 0:
-            df = pd.DataFrame(
-                columns=[
-                    "Component",
-                    "MapIndex",
-                    "Region",
-                    "MaxValue",
-                    "Correlation",
-                    "IoU",
-                    "Contains",
-                    "Contained",
-                ]
-            )
-        else:
-            result = np.array(assignments)
-            # sort by component, then by correlation
-            ind = np.lexsort((-result[:, -1], result[:, 0]))
+        querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-            df = pd.DataFrame(
-                {
-                    "Component": result[ind, 0].astype("int"),
-                    "MapIndex": result[ind, 1].astype("int"),
-                    "Region": [
-                        self.decode_index(mapindex=m, labelindex=None).name
-                        for m in result[ind, 1]
-                    ],
-                    "MaxValue": result[ind, 2],
-                    "Correlation": result[ind, 6],
-                    "IoU": result[ind, 3],
-                    "Contains": result[ind, 5],
-                    "Contained": result[ind, 4],
-                }
-            ).dropna(axis=1, how="all")
+        for mode, modeimg in Map.iterate_connected_components(queryimg):
 
-        if components is None:
-            return df
-        else:
-            return df, Nifti1Image(components, self.affine)
+            # determine bounding box of the mode
+            modemask = np.asanyarray(modeimg.dataobj)
+            XYZ2 = np.array(np.where(modemask)).T
+            if XYZ2.shape[0] <= minsize_voxel:
+                components[modemask] == 0
+                continue
+            X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
 
-    def assign(
-        self,
-        item: Union[Point, PointSet, Nifti1Image],
-        msg=None,
-        quiet=False,
-        minsize_voxel=1,
-        lower_threshold=0.0,
-        skip_mapindices=[],
-    ):
-        """Assign an input image to brain regions.
+            bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
+            if bbox2.volume == 0:
+                continue
 
-        The input image is assumed to be defined in the same coordinate space
-        as this parcellation map.
+            spind = self.sparse_index
 
-        Parameters
-        ----------
-        item: Point, PointSet, or Nifti1Image
-            A spatial object defined in the same physical reference space as this
-            parcellation map, which could be a point, set of points, or image.
-            If it is an image, it will be resampled to the same voxel space if its affine
-            transforation differs from that of the parcellation map.
-            Resampling will use linear interpolation for float image types,
-            otherwise nearest neighbor.
-        msg: str, or None
-            An optional message to be shown with the progress bar. This is
-            useful if you use assign() in a loop.
-        quiet: Bool, default: False
-            If True, no outputs will be generated.
-        minsize_voxel: int, default: 1
-            Minimum voxel size of image components to be taken into account.
-        lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
-            this threshold will be excluded from the assignment computation.
-        skip_mapindices: list, default: []
-            Maps whose index is listed here will not be considered for the assignment
-
-        Return
-        ------
-        assignments : pandas Dataframe
-            A table of associated regions and their scores per component found in the input image,
-            or per coordinate provived.
-            The scores are:
-                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or
-                  input image signal component.
-                - Pearson correlation coefficient between the brain region map and an input image signal
-                  component (NaN for exact coordinates)
-                - "Contains": Percentage of the brain region map contained in an input image signal component,
-                  measured from their binarized masks as the ratio between the volume of their interesection
-                  and the volume of the brain region (NaN for exact coordinates)
-                - "Contained"": Percentage of an input image signal component contained in the brain region map,
-                  measured from their binary masks as the ratio between the volume of their interesection
-                  and the volume of the input image signal component (NaN for exact coordinates)
-        components: Nifti1Image, or None
-            If the input was an image, this is a labelled volume mapping the detected components
-            in the input image, where pixel values correspond to the "component" column of the
-            assignment table. If the input was a Point or PointSet, this is None.
-        """
-
-        assignments = []
-        components = None
-
-        if isinstance(item, Point):
-            item = PointSet([item], item.space, sigma_mm=item.sigma)
-
-        if isinstance(item, PointSet):
-            if item.space != self.space:
-                logger.info(
-                    f"Coordinates will be converted from {item.space.name} "
-                    f"to {self.space.name} space for assignment."
+            for volume in tqdm(
+                range(len(self)),
+                desc=f"Assigning to {len(self)} sparse maps",
+                total=len(self),
+                unit=" map",
+                disable=logger.level > 20,
+            ):
+                bbox1 = BoundingBox(
+                    self.sparse_index.bboxes[volume]["minpoint"],
+                    self.sparse_index.bboxes[volume]["maxpoint"],
+                    space=None,
                 )
-            # convert sigma to voxel coordinates
-            scaling = np.array(
-                [np.linalg.norm(self.affine[:, i]) for i in range(3)]
-            ).mean()
-            phys2vox = np.linalg.inv(self.affine)
-
-            for pointindex, point in enumerate(item.warp(self.space.id)):
-
-                sigma_vox = point.sigma / scaling
-                if sigma_vox < 3:
-                    # voxel-precise - just read out the value in the maps
-                    N = len(self)
-                    logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
-                    x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[
-                        :3
-                    ]
-                    for mapindex, value in self.sparse_index.probs[
-                        self.sparse_index.voxels[x, y, z]
-                    ].items():
-                        if mapindex in skip_mapindices:
-                            continue
-                        if value > lower_threshold:
-                            assignments.append(
-                                (
-                                    pointindex,
-                                    mapindex,
-                                    value,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                )
-                            )
-                else:
-                    logger.info(
-                        f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
-                    )
-                    kernel = create_gaussian_kernel(sigma_vox, 3)
-                    r = int(kernel.shape[0] / 2)  # effective radius
-                    xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
-                    shift = np.identity(4)
-                    shift[:3, -1] = xyz_vox[:3] - r
-                    # build niftiimage with the Gaussian blob,
-                    # then recurse into this method with the image input
-                    W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                    T, _ = self.assign(
-                        W,
-                        lower_threshold=lower_threshold,
-                        skip_mapindices=skip_mapindices,
-                    )
-                    assignments.extend(
-                        [
-                            [
-                                pointindex,
-                                mapindex,
-                                maxval,
-                                iou,
-                                contained,
-                                contains,
-                                rho,
-                            ]
-                            for (
-                                _,
-                                mapindex,
-                                _,
-                                maxval,
-                                rho,
-                                iou,
-                                contains,
-                                contained,
-                            ) in T.values
-                        ]
-                    )
-
-        elif isinstance(item, Nifti1Image):
-
-            # ensure query image is in parcellation map's voxel space
-            if (item.affine - self.affine).sum() == 0:
-                img2 = item
-            else:
-                if issubclass(np.asanyarray(item.dataobj).dtype.type, np.integer):
-                    interp = "nearest"
-                else:
-                    interp = "linear"
-                img2 = image.resample_img(
-                    item,
-                    target_affine=self.affine,
-                    target_shape=self.shape,
-                    interpolation=interp,
-                )
-            img2data = np.asanyarray(img2.dataobj).squeeze()
-
-            # split input image into multiple 'modes',  ie. connected components
-            from skimage import measure
-
-            components = measure.label(img2data > 0)
-            component_labels = np.unique(components)
-            assert component_labels[0] == 0
-            if len(component_labels) > 1:
-                logger.info(
-                    f"Detected {len(component_labels)-1} components in the image. Assigning each of them to {len(self)} brain regions."
-                )
-
-            for modeindex in component_labels[1:]:
-
-                # determine bounding box of the mode
-                mask = components == modeindex
-                XYZ2 = np.array(np.where(mask)).T
-                if XYZ2.shape[0] <= minsize_voxel:
-                    components[mask] == 0
-                    continue
-                X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
-
-                bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
-                if bbox2.volume == 0:
+                if bbox1.intersection(bbox2) is None:
                     continue
 
-                for mapindex in tqdm(
-                    range(len(self)),
-                    total=len(self),
-                    unit=" map",
-                    desc=msg,
-                    disable=logger.level > 20,
-                ):
-                    if mapindex in skip_mapindices:
-                        continue
+                # compute union of voxel space bounding boxes
+                bbox = bbox1.union(bbox2)
+                bbshape = np.array(bbox.shape, dtype="int") + 1
+                x0, y0, z0 = map(int, bbox.minpoint)
 
-                    bbox1 = BoundingBox(
-                        self.bboxes[mapindex]["minpoint"],
-                        self.bboxes[mapindex]["maxpoint"],
-                        space=None,
-                    )
-                    if bbox1.intersection(bbox2) is None:
-                        continue
+                # build flattened vector of map values
+                v1 = np.zeros(np.prod(bbshape))
+                XYZ1 = spind.coords(volume).T
+                X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
+                indices1 = np.ravel_multi_index(
+                    (X1 - x0, Y1 - y0, Z1 - z0), bbshape
+                )
+                v1[indices1] = [spind.probs[i][volume] for i in spind.voxels[X1, Y1, Z1]]
+                v1[v1 < lower_threshold] = 0
 
-                    # compute union of voxel space bounding boxes
-                    bbox = bbox1.union(bbox2)
-                    bbshape = np.array(bbox.shape, dtype="int") + 1
-                    x0, y0, z0 = map(int, bbox.minpoint)
+                # build flattened vector of input image mode
+                v2 = np.zeros(np.prod(bbshape))
+                indices2 = np.ravel_multi_index(
+                    (X2 - x0, Y2 - y0, Z2 - z0), bbshape
+                )
+                v2[indices2] = querydata[X2, Y2, Z2]
 
-                    # build flattened vector of map values
-                    v1 = np.zeros(np.prod(bbshape))
-                    XYZ1 = self._coords(mapindex).T
-                    X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
-                    indices1 = np.ravel_multi_index(
-                        (X1 - x0, Y1 - y0, Z1 - z0), bbshape
-                    )
-                    v1[indices1] = [
-                        self.probs[i][mapindex] for i in self.spatial_index[X1, Y1, Z1]
-                    ]
-                    v1[v1 < lower_threshold] = 0
+                assert v1.shape == v2.shape
 
-                    # build flattened vector of input image mode
-                    v2 = np.zeros(np.prod(bbshape))
-                    indices2 = np.ravel_multi_index(
-                        (X2 - x0, Y2 - y0, Z2 - z0), bbshape
-                    )
-                    v2[indices2] = img2data[X2, Y2, Z2]
+                intersection = np.sum(
+                    (v1 > 0) & (v2 > 0)
+                )  # np.minimum(v1, v2).sum()
+                if intersection == 0:
+                    continue
+                iou = intersection / np.sum(
+                    (v1 > 0) | (v2 > 0)
+                )  # np.maximum(v1, v2).sum()
+                contains = intersection / (v1 > 0).sum()
+                contained = intersection / (v2 > 0).sum()
 
-                    assert v1.shape == v2.shape
+                v1d = v1 - v1.mean()
+                v2d = v2 - v2.mean()
+                rho = (
+                    (v1d * v2d).sum()
+                    / np.sqrt((v1d ** 2).sum())
+                    / np.sqrt((v2d ** 2).sum())
+                )
 
-                    intersection = np.sum(
-                        (v1 > 0) & (v2 > 0)
-                    )  # np.minimum(v1, v2).sum()
-                    if intersection == 0:
-                        continue
-                    iou = intersection / np.sum(
-                        (v1 > 0) | (v2 > 0)
-                    )  # np.maximum(v1, v2).sum()
-                    contains = intersection / (v1 > 0).sum()
-                    contained = intersection / (v2 > 0).sum()
+                maxval = v1.max()
 
-                    v1d = v1 - v1.mean()
-                    v2d = v2 - v2.mean()
-                    rho = (
-                        (v1d * v2d).sum()
-                        / np.sqrt((v1d ** 2).sum())
-                        / np.sqrt((v2d ** 2).sum())
-                    )
+                assignments.append(
+                    [mode, volume, maxval, iou, contained, contains, rho]
+                )
 
-                    maxval = v1.max()
+        return assignments
 
-                    assignments.append(
-                        [modeindex, mapindex, maxval, iou, contained, contains, rho]
-                    )
-
-        else:
-            raise RuntimeError(
-                f"Items of type {item.__class__.__name__} cannot be used for region assignment."
-            )
-
-        if len(assignments) == 0:
-            df = pd.DataFrame(
-                columns=[
-                    "Component",
-                    "MapIndex",
-                    "Region",
-                    "MaxValue",
-                    "Correlation",
-                    "IoU",
-                    "Contains",
-                    "Contained",
-                ]
-            )
-        else:
-            result = np.array(assignments)
-            # sort by component, then by correlation
-            ind = np.lexsort((-result[:, -1], result[:, 0]))
-
-            df = pd.DataFrame(
-                {
-                    "Component": result[ind, 0].astype("int"),
-                    "MapIndex": result[ind, 1].astype("int"),
-                    "Region": [
-                        self.get_region(volume=m, label=None).name
-                        for m in result[ind, 1]
-                    ],
-                    "MaxValue": result[ind, 2],
-                    "Correlation": result[ind, 6],
-                    "IoU": result[ind, 3],
-                    "Contains": result[ind, 5],
-                    "Contained": result[ind, 4],
-                }
-            ).dropna(axis=1, how="all")
-
-        if components is None:
-            return df
-        else:
-            return df, Nifti1Image(components, self.affine)
