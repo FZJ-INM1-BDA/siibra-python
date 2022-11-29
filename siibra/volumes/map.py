@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .volume import Volume, NiftiVolume
+from .util import create_gaussian_kernel
 
 from .. import logger, QUIET
 from ..registry import REGISTRY
@@ -285,6 +286,11 @@ class Map(AtlasConcept):
                 result.affine
             )
 
+    @property
+    def affine(self):
+        with QUIET:
+            return self.fetch(volume=0).affine
+
     def fetch_iter(
         self,
         resolution_mm=None,
@@ -507,7 +513,7 @@ class Map(AtlasConcept):
             A table of associated regions and their scores per component found in the input image,
             or per coordinate provived.
             The scores are:
-                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or
+                - Value: Maximum value of the voxels in the map covered by an input coordinate or
                   input image signal component.
                 - Pearson correlation coefficient between the brain region map and an input image signal
                   component (NaN for exact coordinates)
@@ -538,7 +544,7 @@ class Map(AtlasConcept):
         # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=["Component", "MapIndex", "Region", "MaxValue", "Correlation", "IoU", "Contains", "Contained"]
+                columns=["Component", "MapIndex", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
             result = np.array(assignments)
@@ -549,9 +555,11 @@ class Map(AtlasConcept):
                     "MapIndex": result[ind, 1].astype("int"),
                     "Region": [
                         self.get_region(volume=m, label=None).name
+                        if self.maptype == MapType.CONTINUOUS
+                        else self.get_region(volume=m, label=result[ind, 2]).name
                         for m in result[ind, 1]
                     ],
-                    "MaxValue": result[ind, 2],
+                    "Value": result[ind, 2],
                     "Correlation": result[ind, 6],
                     "IoU": result[ind, 3],
                     "Contains": result[ind, 5],
@@ -579,6 +587,70 @@ class Map(AtlasConcept):
             for label in component_labels[1:]
         )
 
+    def _read_voxel(self, x, y, z):
+        return [
+            (volume, np.asanyarray(volimg.dataobj)[x, y, z])
+            for volume, volimg in enumerate(self)
+        ]
+
+    def _assign_points(self, points, lower_threshold: float):
+        """
+        assign a PointSet to this parcellation map.
+
+        Parameters:
+        -----------
+        lower_threshold: float, default: 0
+            Lower threshold on values in the continuous map. Values smaller than
+            this threshold will be excluded from the assignment computation.
+        """
+        assignments = []
+
+        if points.space_id != self.space.id:
+            logger.info(
+                f"Coordinates will be converted from {points.space.name} "
+                f"to {self.space.name} space for assignment."
+            )
+        # convert sigma to voxel coordinates
+        scaling = np.array(
+            [np.linalg.norm(self.affine[:, i]) for i in range(3)]
+        ).mean()
+        phys2vox = np.linalg.inv(self.affine)
+
+        for pointindex, point in enumerate(points.warp(self.space.id)):
+
+            sigma_vox = point.sigma / scaling
+            if sigma_vox < 3:
+                # voxel-precise - just read out the value in the maps
+                N = len(self)
+                logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
+                x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[:3]
+                vals = self._read_voxel(x, y, z)
+                for volume, value in vals:
+                    if value > lower_threshold:
+                        assignments.append(
+                            [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
+                        )
+            else:
+                logger.info(
+                    f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
+                )
+                kernel = create_gaussian_kernel(sigma_vox, 3)
+                r = int(kernel.shape[0] / 2)  # effective radius
+                xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
+                shift = np.identity(4)
+                shift[:3, -1] = xyz_vox[:3] - r
+                # build niftiimage with the Gaussian blob,
+                # then recurse into this method with the image input
+                W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
+                T, _ = self.assign(W, lower_threshold=lower_threshold)
+                assignments.extend(
+                    [
+                        [pointindex, volume, value, iou, contained, contains, rho]
+                        for (_, volume, _, value, rho, iou, contains, contained) in T.values
+                    ]
+                )
+        return assignments
+
     def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
         """
         Assign an image volume to this parcellation map.
@@ -594,9 +666,7 @@ class Map(AtlasConcept):
         assignments = []
 
         # resample query image into this image's voxel space, if required
-        with QUIET:
-            affine = self.fetch(volume=0).affine
-        if (queryimg.affine - affine).sum() == 0:
+        if (queryimg.affine - self.affine).sum() == 0:
             queryimg = queryimg
         else:
             if issubclass(np.asanyarray(queryimg.dataobj).dtype.type, np.integer):
@@ -620,7 +690,7 @@ class Map(AtlasConcept):
                         scores = compare_maps(maskimg, targetimg)
                         if scores["overlap"] > 0:
                             assignments.append(
-                                [mode, volume, np.nan, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
+                                [mode, volume, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
                             )
 
         return assignments

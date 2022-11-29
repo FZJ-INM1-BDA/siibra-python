@@ -452,6 +452,10 @@ class PointSet(Location):
 
     def warp(self, space):
         """Creates a new point set by warping its points to another space"""
+        try:
+            space_id = REGISTRY.Space[space].id
+        except IndexError:
+            space_id = ""
         if space_id == self.space_id:
             return self
         if any(_ not in SPACEWARP_IDS for _ in [self.space_id, space_id]):

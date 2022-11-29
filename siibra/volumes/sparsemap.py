@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from .map import Map
-from .util import create_gaussian_kernel
 
 from ..commons import MapIndex, logger
 from ..core.location import BoundingBox
@@ -336,64 +335,9 @@ class SparseMap(Map):
             result[x, y, z] = v
             return Nifti1Image(result, self.affine)
 
-    def _assign_points(self, points, lower_threshold: float):
-        """
-        assign a PointSet to this parcellation map.
-
-        Parameters:
-        -----------
-        lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
-            this threshold will be excluded from the assignment computation.
-        """
-        assignments = []
-
-        if points.space_id != self.space_id:
-            logger.info(
-                f"Coordinates will be converted from {points.space.name} "
-                f"to {self.space.name} space for assignment."
-            )
-        # convert sigma to voxel coordinates
-        scaling = np.array(
-            [np.linalg.norm(self.affine[:, i]) for i in range(3)]
-        ).mean()
-        phys2vox = np.linalg.inv(self.affine)
-
-        for pointindex, point in enumerate(points.warp(self.space.id)):
-
-            sigma_vox = point.sigma / scaling
-            if sigma_vox < 3:
-                # voxel-precise - just read out the value in the maps
-                N = len(self)
-                logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
-                x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[
-                    :3
-                ]
-                for mapindex, value in self.sparse_index.probs[
-                    self.sparse_index.voxels[x, y, z]
-                ].items():
-                    if value > lower_threshold:
-                        assignments.append((pointindex, mapindex, value, np.NaN, np.NaN, np.NaN, np.NaN))
-            else:
-                logger.info(
-                    f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
-                )
-                kernel = create_gaussian_kernel(sigma_vox, 3)
-                r = int(kernel.shape[0] / 2)  # effective radius
-                xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
-                shift = np.identity(4)
-                shift[:3, -1] = xyz_vox[:3] - r
-                # build niftiimage with the Gaussian blob,
-                # then recurse into this method with the image input
-                W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                T, _ = self.assign(W, lower_threshold=lower_threshold)
-                assignments.extend(
-                    [
-                        [pointindex, volume, maxval, iou, contained, contains, rho]
-                        for (_, volume, _, maxval, rho, iou, contains, contained) in T.values
-                    ]
-                )
-        return assignments
+    def _read_voxel(self, x, y, z):
+        spind = self.sparse_index
+        return list(spind.probs[spind.voxels[x, y, z]].items())
 
     def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
         """
