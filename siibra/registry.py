@@ -345,6 +345,10 @@ class Registry:
 
     def get_instances(self, classname, **kwargs):
 
+        if classname not in self.classes:
+            logger.warn(f"Registry does not know how to build {classname} instances")
+            return []
+
         if classname not in self.instance_tables:
             # keep here to avoid circular imports!
             from .factory import Factory

@@ -210,18 +210,13 @@ class Feature:
                 logger.error(f"No modalities found for specification '{modality}' which have any features.")
                 requested_feature_types = []
 
-        return [
-            feature
-            for feature_type in requested_feature_types
-            for feature in feature_type.filter_features(
-                concept,
-                Query.get_instances(feature_type.__name__, **kwargs)
-            )]
-
-    @classmethod
-    def get_feature_by_id(cls, feature_id: str):
-        # FIXME implement this
-        pass
+        candidates = []
+        for T in requested_feature_types:
+            features = Query.get_instances(T.__name__, **kwargs)
+            if T.__name__ in REGISTRY.classes:
+                features.extend(REGISTRY.get_instances(T.__name__))
+            candidates.extend(T.filter_features(concept, features))
+        return candidates
 
 
 class SpatialFeature(Feature):
