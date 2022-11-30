@@ -326,7 +326,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def build_mask(self, space, maptype: MapType, threshold_continuous: float = None):
         """
-        Attempts to build a binary mask of this region in the given space, 
+        Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
         """
         result = None
@@ -358,7 +358,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                     else:
                         assert mask.affine == affine
                         updates = mask.get_fdata() > dataobj
-                        dataobj[updates] = mask.get_fdata()[updates] 
+                        dataobj[updates] = mask.get_fdata()[updates]
             if dataobj is not None:
                 result = Nifti1Image(dataobj, affine)
 

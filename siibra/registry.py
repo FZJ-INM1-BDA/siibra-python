@@ -258,7 +258,7 @@ class Registry:
         for server, project in CONFIG_REPOS
     ]
 
-    # map class name to the relative configuration folders 
+    # map class name to the relative configuration folders
     # where their preconfiguration specifications can be found.
     CONFIGURATION_FOLDERS = {
         'Atlas': 'atlases',

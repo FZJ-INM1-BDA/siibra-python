@@ -39,7 +39,7 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = {"nii", "zip/nii",  "gii-mesh", "neuroglancer/precomputed","neuroglancer/precompmesh"}
+    PREFERRED_FORMATS = {"nii", "zip/nii", "gii-mesh", "neuroglancer/precomputed", "neuroglancer/precompmesh"}
     SURFACE_FORMATS = {"gii-mesh", "neuroglancer/precompmesh"}
 
     def __init__(self, name="", space_spec: dict = {}, providers: list = []):
@@ -101,11 +101,11 @@ class Subvolume(Volume):
     """
     def __init__(self, parent_volume: Volume, z: int):
         Volume.__init__(
-            self, 
-            name=parent_volume.name, 
+            self,
+            name=parent_volume.name,
             space_spec=parent_volume._space_spec,
             providers=[
-                SubvolumeProvider(p, z=z) 
+                SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
             ]
         )
@@ -524,7 +524,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
     This provider wraps around an existing volume provider,
     but is preconfigured to always fetch a fixed subvolume.
     The primary use is to provide a fixed z coordinate
-    of a 4D volume provider as a 3D volume under the 
+    of a 4D volume provider as a 3D volume under the
     interface of a normal volume provider.
     """
     def __init__(self, parent_provider: VolumeProvider, z: int):

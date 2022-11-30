@@ -301,7 +301,7 @@ class SpatialFeature(Feature):
                 return False
 
         return [
-            feat for feat in tqdm(features, desc=f"Matching {len(features)} features to {region.name}") 
+            feat for feat in tqdm(features, desc=f"Matching {len(features)} features to {region.name}")
             if match_feature(feat)
         ]
 
