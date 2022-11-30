@@ -288,7 +288,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else found_regions
         )
 
-    def  matches(self, regionspec):
+    def matches(self, regionspec):
         """
         Checks wether this region matches the given region specification.
 

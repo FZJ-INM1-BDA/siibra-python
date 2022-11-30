@@ -17,7 +17,7 @@ from .space import Space
 from .region import Region
 
 from ..registry import InstanceTable, REGISTRY
-from ..commons import logger, MapType, MapIndex, clear_name
+from ..commons import logger, MapType, MapIndex
 
 from typing import Set, Union
 

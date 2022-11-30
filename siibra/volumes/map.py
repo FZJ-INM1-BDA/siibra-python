@@ -132,7 +132,6 @@ class Map(AtlasConcept):
         for v in self.volumes:
             v._space_spec = space_spec
 
-
     def get_index(self, region: Union[str, Region]):
         """
         Returns the unique index corresponding to the specified region,
@@ -550,7 +549,7 @@ class Map(AtlasConcept):
         if isinstance(item, Point):
             assignments = self._assign_points(PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
         elif isinstance(item, PointSet):
-            assignments = self._assign_points(item, lower_threshold)    
+            assignments = self._assign_points(item, lower_threshold)
         elif isinstance(item, Nifti1Image):
             assignments = self._assign_image(item, minsize_voxel, lower_threshold)
         else:
@@ -589,7 +588,7 @@ class Map(AtlasConcept):
         else:
             return df
 
-    @staticmethod 
+    @staticmethod
     def iterate_connected_components(img: Nifti1Image):
         """
         Provide an iterator over masks of connected components in the given image.
@@ -701,7 +700,7 @@ class Map(AtlasConcept):
             for mode, maskimg in Map.iterate_connected_components(queryimg):
                 for volume, vol_img in enumerate(self):
                     vol_data = np.asanyarray(vol_img.dataobj)
-                    labels = [v.label for L in self._indices.values() for v in L if v.volume==volume]
+                    labels = [v.label for L in self._indices.values() for v in L if v.volume == volume]
                     for label in tqdm(labels):
                         targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                         scores = compare_maps(maskimg, targetimg)

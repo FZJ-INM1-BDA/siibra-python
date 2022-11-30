@@ -88,7 +88,7 @@ class Atlas(AtlasConcept):
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
         return InstanceTable[Parcellation](
-            elements={p.key: p for p in self._parcellation_ids if p.id in self._parcellation_ids},
+            elements={p.key: p for p in REGISTRY.Parcellation if p.id in self._parcellation_ids},
             matchfunc=Parcellation.match,
         )
 
@@ -97,10 +97,10 @@ class Atlas(AtlasConcept):
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self._parcellation_ids[0]
+            parcellation_obj = REGISTRY.Parcellation[0]
             if len(self._parcellation_ids) > 1:
                 logger.info(
-                    f"No parcellation specified, using default '{parcellation_obj.name}'."
+                    f"No parcellation specified, using the first encountered: '{parcellation_obj.name}'."
                 )
         else:
             parcellation_obj = self.parcellations[parcellation]
@@ -240,12 +240,11 @@ class Atlas(AtlasConcept):
         """
         result = []
         for p in self._parcellation_ids:
-            if p.is_newest_version or all_versions:
-                match = p.find_regions(
+            parcobj = REGISTRY.Parcellation[p]
+            if parcobj.is_newest_version or all_versions:
+                match = parcobj.find(
                     regionspec,
                     filter_children=filter_children,
-                    build_group=build_groups,
-                    groupname=groupname,
                 )
                 if build_groups:
                     if match is not None:
