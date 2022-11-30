@@ -23,23 +23,25 @@ Selecting a predefined atlas
 """
 
 # %%
-# The predefined atlas objects will be bootstrapped the first time a particular version
-# of `siibra` is loaded, so an internet connection is required before accessing them for the
-# first time. After the initial bootstrap, the atlas definitions are cached on the local
-# disk, so they can be accessed offline.
+# Predefined atlas objects are stored in `siibra.atlases`, which is just a shortcut to
+# the object registry `siibra.REGISTRY.Atlas`. This container of predefined objects
+# will be populated at the first time you request it. This will require an internet connection 
+# to retrieve the configuration information. After the initial call, the atlas definitions are cached 
+# on the local disk, so they can be accessed offline from then on.
 import siibra
 
 # %% 
-# `siibra.atlases` is a Registry object: 
+# `siibra.atlases` is an instance table, a siibra object which allows 
+# to access objects by name and autocompletion.
 type(siibra.atlases)
 
 # %%
-# siibra uses registries not only for atlases, but also for parcellations
+# siibra uses instance tables not only for atlases, but also for parcellations
 # (`siibra.parcellations`), reference spaces (`siibra.spaces`) or data
 # modalities (`siibra.modalilities`). These will be adressed in subsequent
 # examples. 
 #
-# Objects stored in a siibra Registry can be accessed in
+# Objects stored in a siibra instance table can be accessed in
 # different ways:
 #
 #  1. You can iterate over all objects
@@ -78,3 +80,5 @@ atlas.species
 # We will cover these in the next examples.
 dir(atlas.spaces)
 
+
+# %%
