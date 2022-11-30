@@ -150,6 +150,7 @@ class NiftiFetcher(VolumeProvider, srctype="nii"):
         voi : BoundingBox
             optional bounding box
         """
+
         img = None
         if resolution_mm is not None:
             raise NotImplementedError(
@@ -527,17 +528,12 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.srctype = parent_provider.srctype
         self.z = z
 
-    @property
     def fetch(self, **kwargs):
         vol = self.provider.fetch(**kwargs)
         arr = np.asanyarray(vol.dataobj)
-        print("subvolume provider sees shape", arr.shape)
         assert len(arr.shape) == 4
         assert self.z in range(arr.shape[3])
-        return nib.Nifti1Image(
-            arr[:, :, :, self.z].squeeze(),
-            self._volume_cached.affine
-        )
+        return nib.Nifti1Image(arr[:, :, :, self.z].squeeze(), vol.affine)
 
     def __getattr__(self, attr):
-        return self.provider.__getattr__(attr)
+        return self.provider.__getattribute__(attr)

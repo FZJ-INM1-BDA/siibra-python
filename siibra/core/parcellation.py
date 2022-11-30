@@ -249,20 +249,6 @@ class Parcellation(Region):
     def __repr__(self):
         return self.name
 
-    def __eq__(self, other):
-        """
-        Compare this parcellation with other objects. If other is a string,
-        compare to key, name or id.
-        """
-        if isinstance(other, Parcellation):
-            return self.id == other.id
-        elif isinstance(other, str):
-            return any([self.name == other, self.key == other, self.id == other])
-        else:
-            raise ValueError(
-                "Cannot compare object of type {} to Parcellation".format(type(other))
-            )
-
     def __getitem__(self, regionspec: Union[str, int]):
         """
         Retrieve a region object from the parcellation by labelindex or partial name.

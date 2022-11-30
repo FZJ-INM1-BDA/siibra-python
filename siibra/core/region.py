@@ -143,6 +143,19 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return {r.key for r in self}
 
     def __eq__(self, other):
+        """
+        Compare this region with other objects. If other is a string,
+        compare to key, name or id.
+        """
+        if isinstance(other, Region):
+            return self.id == other.id
+        elif isinstance(other, str):
+            return any([self.name == other, self.key == other, self.id == other])
+        else:
+            raise ValueError(
+                f"Cannot compare object of type {type(other)} to {self.__class__.__name__}"
+            )
+
         return self.__hash__() == other.__hash__()
 
     def __hash__(self):
@@ -194,6 +207,19 @@ class Region(anytree.NodeMixin, AtlasConcept):
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
+
+        if len(candidates) > 1 and isinstance(regionspec, str):
+            # if we have an exact match of words in one region, discard other candidates.
+            querywords = {w.lower() for w in regionspec.split()}
+            for c in candidates:
+                targetwords = {w.lower() for w in c.name.split()}
+                if len(querywords & targetwords) == len(targetwords):
+                    logger.debug(
+                        f"Candidates {', '.join(_.name for _ in candidates if _ != c)} "
+                        f"will be ingored, because candidate {c.name} is a full match to {regionspec}."
+                    )
+                    candidates = [c]
+
         if len(candidates) > 1 and filter_children:
 
             filtered = []
@@ -262,7 +288,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else found_regions
         )
 
-    def matches(self, regionspec):
+    def  matches(self, regionspec):
         """
         Checks wether this region matches the given region specification.
 
