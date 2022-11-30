@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import Volume, NiftiVolume
+from .volume import Volume, NiftiFetcher, Subvolume
 from .util import create_gaussian_kernel
 
 from .. import logger, QUIET
@@ -96,15 +96,30 @@ class Map(AtlasConcept):
             ebrains_ids=ebrains_ids,
             modality=modality
         )
-        assert all(
-            d['volume'] in range(len(volumes))
-            for v in indices.values() for d in v
-        )
-        self.volumes = volumes
-        self._indices = {
-            clear_name(k): list(map(MapIndex.from_dict, v))
-            for k, v in indices.items()
-        }
+
+        # Since the volumes might include 4D arrays, where the actual
+        # volume index points to a z coordinate, we create subvolume
+        # indexers from the given volume provider if 'z' is specified.
+        self._indices = {}
+        self.volumes = []
+        remap_volumes = {}
+        for regionname, indexlist in indices.items():
+            k = clear_name(regionname)
+            self._indices[k] = []
+            for index in indexlist:
+                volume = 0 if index.get('volume') is None else index['volume']
+                assert volume in range(len(volumes))
+                z = index.get('z')
+                if (volume, z) not in remap_volumes:
+                    if z is None:
+                        self.volumes.append(volumes[volume])
+                    else:
+                        self.volumes.append(Subvolume(volumes[volume], z))
+                    remap_volumes[volume, z] = len(self.volumes) - 1
+                self._indices[k].append(
+                    MapIndex(volume=remap_volumes[volume, z], label=index.get('label'))
+                )
+
         # make sure the indices are unique - each map/label pair should appear at most once
         all_indices = sum(self._indices.values(), [])
         seen = set()
@@ -116,6 +131,7 @@ class Map(AtlasConcept):
         self._parcellation_spec = parcellation_spec
         for v in self.volumes:
             v._space_spec = space_spec
+
 
     def get_index(self, region: Union[str, Region]):
         """
@@ -253,6 +269,7 @@ class Map(AtlasConcept):
         elif isinstance(volume, MapIndex):
             # be kind if an index is passed as the first parameter
             volume = volume.volume
+            index = volume
         elif isinstance(volume, str):
             # be kind if a region name is passed as the first parameter
             index = self.get_index(volume)
@@ -355,7 +372,7 @@ class Map(AtlasConcept):
 
             for label in labels:
                 region = self.get_region(label=label, volume=volume)
-                region_indices[region.name].append({"volume": 0, "label": label})
+                region_indices[region.name].append({"volume": 0, "label": next_labelindex})
                 if label is None:
                     update_voxels = (img_data > voxelwise_max)
                 else:
@@ -373,7 +390,7 @@ class Map(AtlasConcept):
             volumes=[
                 Volume(
                     space_spec=self._space_spec,
-                    providers=[NiftiVolume(result_nii)]
+                    providers=[NiftiFetcher(result_nii)]
                 )
             ]
         )

@@ -90,6 +90,22 @@ class Volume:
         return None
 
 
+class Subvolume(Volume):
+    """
+    Wrapper class for exposing a z level of a 4D volume to be used like a 3D volume.
+    """
+    def __init__(self, parent_volume: Volume, z: int):
+        Volume.__init__(
+            self, 
+            name=parent_volume.name, 
+            space_spec=parent_volume._space_spec,
+            providers=[
+                SubvolumeProvider(p, z=z) 
+                for p in parent_volume._providers.values()
+            ]
+        )
+
+
 class VolumeProvider(ABC):
 
     def __init_subclass__(cls, srctype: str) -> None:
@@ -97,7 +113,7 @@ class VolumeProvider(ABC):
         return super().__init_subclass__()
 
 
-class NiftiVolume(VolumeProvider, srctype="nii"):
+class NiftiFetcher(VolumeProvider, srctype="nii"):
 
     def __init__(self, src: Union[str, nib.Nifti1Image]):
         """
@@ -205,7 +221,7 @@ class NiftiVolume(VolumeProvider, srctype="nii"):
         )
 
 
-class ZipContainedNiftiVolume(NiftiVolume, srctype="zip/nii"):
+class ZipContainedNiftiFetcher(NiftiFetcher, srctype="zip/nii"):
 
     def __init__(self, src: str):
         """
@@ -217,7 +233,7 @@ class ZipContainedNiftiVolume(NiftiVolume, srctype="zip/nii"):
         self._image_loader = lambda u=zipurl: ZipfileRequest(u, zipped_file).data
 
 
-class NeuroglancerVolume(VolumeProvider, srctype="neuroglancer/precomputed"):
+class NeuroglancerVolumeFetcher(VolumeProvider, srctype="neuroglancer/precomputed"):
     # Number of bytes at which an image array is considered to large to fetch
     MAX_GiB = 0.2
 
@@ -346,7 +362,7 @@ class NeuroglancerVolume(VolumeProvider, srctype="neuroglancer/precomputed"):
 class NeuroglancerScale:
     """One scale of a NeuroglancerVolume."""
 
-    def __init__(self, volume: NeuroglancerVolume, scaleinfo: dict):
+    def __init__(self, volume: NeuroglancerVolumeFetcher, scaleinfo: dict):
         self.volume = volume
         self.chunk_sizes = np.array(scaleinfo["chunk_sizes"]).squeeze()
         self.encoding = scaleinfo["encoding"]
@@ -495,3 +511,33 @@ class NeuroglancerScale:
             data_zyx[z0: z0 + zd, y0: y0 + yd, x0: x0 + xd],
             np.dot(self.affine, np.dot(shift, trans)),
         )
+
+
+class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
+    """
+    This provider wraps around an existing volume provider,
+    but is preconfigured to always fetch a fixed subvolume.
+    The primary use is to provide a fixed z coordinate
+    of a 4D volume provider as a 3D volume under the 
+    interface of a normal volume provider.
+    """
+    def __init__(self, parent_provider: VolumeProvider, z: int):
+        VolumeProvider.__init__(self)
+        self.provider = parent_provider
+        self.srctype = parent_provider.srctype
+        self.z = z
+
+    @property
+    def fetch(self, **kwargs):
+        vol = self.provider.fetch(**kwargs)
+        arr = np.asanyarray(vol.dataobj)
+        print("subvolume provider sees shape", arr.shape)
+        assert len(arr.shape) == 4
+        assert self.z in range(arr.shape[3])
+        return nib.Nifti1Image(
+            arr[:, :, :, self.z].squeeze(),
+            self._volume_cached.affine
+        )
+
+    def __getattr__(self, attr):
+        return self.provider.__getattr__(attr)

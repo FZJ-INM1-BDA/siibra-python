@@ -20,7 +20,7 @@ from .core.space import Space
 from .core.region import Region
 from .core.datasets import EbrainsDataset
 from .core.location import Point, PointSet
-from .volumes.volume import Volume, NiftiVolume, NeuroglancerVolume, ZipContainedNiftiVolume
+from .volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
 from .volumes.map import Map
 from .volumes.sparsemap import SparseMap
@@ -115,16 +115,16 @@ class Factory:
 
         providers = []
         provider_types = [
-            NeuroglancerVolume,
-            NiftiVolume,
-            ZipContainedNiftiVolume,
+            NeuroglancerVolumeFetcher,
+            NiftiFetcher,
+            ZipContainedNiftiFetcher,
             NeuroglancerMesh,
             GiftiSurface
         ]
         for srctype, url in spec.get("urls", {}).items():
-            for provider_type in provider_types:
-                if srctype == provider_type.srctype:
-                    providers.append(provider_type(url))
+            for ProviderType in provider_types:
+                if srctype == ProviderType.srctype:
+                    providers.append(ProviderType(url))
                     break
             else:
                 logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
