@@ -208,18 +208,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
         )
 
-        if len(candidates) > 1 and isinstance(regionspec, str):
-            # if we have an exact match of words in one region, discard other candidates.
-            querywords = {w.lower() for w in regionspec.split()}
-            for c in candidates:
-                targetwords = {w.lower() for w in c.name.split()}
-                if len(querywords & targetwords) == len(targetwords):
-                    logger.debug(
-                        f"Candidates {', '.join(_.name for _ in candidates if _ != c)} "
-                        f"will be ingored, because candidate {c.name} is a full match to {regionspec}."
-                    )
-                    candidates = [c]
-
         if len(candidates) > 1 and filter_children:
 
             filtered = []
