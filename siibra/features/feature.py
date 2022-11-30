@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger, MapType, QUIET
-from ..registry import REGISTRY, InstanceTable
+from ..registry import REGISTRY, InstanceTable, Query
 from ..core.atlas import Atlas
 from ..core.concept import AtlasConcept
 from ..core.space import Space
@@ -31,6 +31,7 @@ import pandas as pd
 from textwrap import wrap
 import importlib
 import nibabel as nib
+from tqdm import tqdm
 
 try:
     from importlib import resources
@@ -214,7 +215,7 @@ class Feature:
             for feature_type in requested_feature_types
             for feature in feature_type.filter_features(
                 concept,
-                REGISTRY.get_instances(feature_type.__name__, **kwargs)
+                Query.get_instances(feature_type.__name__, **kwargs)
             )]
 
     @classmethod
@@ -286,20 +287,15 @@ class SpatialFeature(Feature):
                 if not region.mapped_in_space(tspace):
                     continue
                 if tspace not in region_masks:
-                    print(f"match features build mask  in {tspace.name} for {region.name}")
                     region_masks[tspace] = region.build_mask(
                         space=tspace, maptype=maptype, threshold_continuous=threshold_continuous
                     )
-                if feat.location.space == tspace:
+                if feat.location.space_id == tspace.id:
                     match_quantification_comment = feat._match_mask(feat.location, region_masks[tspace])
                     if not match_quantification_comment:
                         return None
                     quant, comment = match_quantification_comment
-                    return Match(
-                        region,
-                        quant,
-                        comment,
-                    )
+                    return Match(region, quant, comment)
                 logger.warning(f"{feat.__class__.__name__} cannot be tested for {region.name} in {feat.location.space.name}, using {tspace.name} instead.")
                 match_quantification_comment = feat._match_mask(feat.location.warp(tspace), region_masks[tspace])
                 if match_quantification_comment:
@@ -309,8 +305,10 @@ class SpatialFeature(Feature):
                 logger.warning(f"Cannot test overlap of {feat.location} with {region}")
                 return False
 
-        return [feat for feat in features
-                if match_feature(feat)]
+        return [
+            feat for feat in tqdm(features, desc=f"Matching {len(features)} features to {region.name}") 
+            if match_feature(feat)
+        ]
 
     def match(self, *args, **kwargs):
         pass

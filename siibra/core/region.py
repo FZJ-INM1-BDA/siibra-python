@@ -30,10 +30,9 @@ from ..registry import REGISTRY
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
-import nibabel as nib
 import re
 import anytree
-from typing import List, Union
+from typing import List, Set
 from nibabel import Nifti1Image
 from difflib import SequenceMatcher
 
@@ -107,6 +106,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             None if rgb is None
             else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
         )
+        self._supported_spaces = None  # computed on 1st call of self.supported_spaces
 
     @property
     def id(self):
@@ -155,8 +155,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             raise ValueError(
                 f"Cannot compare object of type {type(other)} to {self.__class__.__name__}"
             )
-
-        return self.__hash__() == other.__hash__()
 
     def __hash__(self):
         return hash(self.id)
@@ -326,189 +324,71 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
 
-    def build_mask(
-        self,
-        space: Space,
-        resolution_mm=None,
-        maptype: Union[str, MapType] = MapType.LABELLED,
-        threshold_continuous=None,
-        consider_other_types=True,
-    ):
+    def build_mask(self, space, maptype: MapType, threshold_continuous: float = None):
         """
-        Returns a mask where nonzero values denote
-        voxels corresponding to the region.
-
-        Parameters
-        ----------
-        space : Space
-            The desired template space.
-        resolution_mm : float or None (Default: None)
-            Request the template at a particular physical resolution in mm.
-            If None, the native resolution is used.
-            Currently, this only works for the BigBrain volume.
-        maptype: Union[str, MapType]
-            Type of map to build ('labelled' will result in a binary mask,
-            'continuous' attempts to build a continuous mask, possibly by
-            elementwise maximum of continuous maps of children )
-        threshold_continuous: float, or None
-            if not None, masks will be preferably constructed by thresholding
-            continuous maps with the given value.
-        consider_other_types: Boolean, default: True
-            If a mask for the requested maptype cannot be created, try other maptypes.
+        Attempts to build a binary mask of this region in the given space, 
+        using the specified maptypes.
         """
-        spaceobj = REGISTRY.Space[space]
-        if spaceobj.is_surface:
-            raise NotImplementedError(
-                "Region masks for surface spaces are not yet supported."
-            )
-
-        mask = None
-        if isinstance(maptype, str):
-            maptype = MapType[maptype.upper()]
-
-        if self.has_regional_map(spaceobj, maptype):
-            # the region has itself a map of that type linked
-            mask = self.get_regional_map(space, maptype).fetch(
-                resolution_mm=resolution_mm
-            )
-        else:
-            # retrieve  map of that type from the region's corresponding parcellation map
-            parcmap = self.parcellation.get_map(spaceobj, maptype)
-            mask = parcmap.fetch_regionmap(self, resolution_mm=resolution_mm)
-
-        if mask is None:
-            # Attempt to produce a map from the child regions.
-            # We only accept this if all child regions produce valid masks.
-            # NOTE We ignore extension regions here, since this is a complex case currently (e.g. iam regions in BigBrain)
-            logger.debug(
-                f"Merging child regions to build mask for their parent {self.name}:"
-            )
-            maskdata = None
-            affine = None
-            for c in self.children:
-                childmask = c.build_mask(
-                    space, resolution_mm, maptype, threshold_continuous
-                )
-                if childmask is None:
-                    logger.warning(f"No success getting mask for child {c.name}")
-                    break
-                if maskdata is None:
-                    affine = childmask.affine
-                    maskdata = np.asanyarray(childmask.dataobj)
-                else:
-                    assert (childmask.affine == affine).all()
-                    maskdata = np.maximum(maskdata, np.asanyarray(childmask.dataobj))
-            else:
-                # we get here only if the for loop was not interrupted by 'break'
-                if maskdata is not None:
-                    return Nifti1Image(maskdata, affine)
-
-        if mask is None:
-            # No map of the requested type found for the region.
-            logger.warn(
-                f"Could not compute {maptype.name.lower()} mask for {self.name} in {spaceobj.name}."
-            )
-            if consider_other_types:
-                for other_maptype in set(MapType) - {maptype}:
-                    mask = self.build_mask(
-                        space,
-                        resolution_mm,
-                        other_maptype,
-                        threshold_continuous,
-                        consider_other_types=False,
+        result = None
+        for m in REGISTRY.Map:
+            if all([
+                m.space.matches(space),
+                m.maptype == maptype,
+                self.name in m.regions
+            ]):
+                result = m.fetch(index=m.get_index(self.name))
+                if threshold_continuous is not None:
+                    assert maptype == MapType.CONTINUOUS
+                    logger.info(f"Thresholding continuous map at {threshold_continuous}")
+                    result = Nifti1Image(
+                        (result.get_fdata() > threshold_continuous).astype('uint8'),
+                        result.affine
                     )
-                    if mask is not None:
-                        logger.info(
-                            f"A mask was generated from map type {other_maptype.name.lower()} instead."
-                        )
-                        return mask
-            return None
+                break
+        else:
+            # all children are mapped instead
+            dataobj = None
+            affine = None
+            if all(c.mapped_in_space(space) for c in self.children):
+                for c in self.children:
+                    mask = c.build_mask(space, maptype, threshold_continuous)
+                    if dataobj is None:
+                        dataobj = np.asanyarray(mask.dataobj)
+                        affine = mask.affine
+                    else:
+                        assert mask.affine == affine
+                        updates = mask.get_fdata() > dataobj
+                        dataobj[updates] = mask.get_fdata()[updates] 
+            if dataobj is not None:
+                result = Nifti1Image(dataobj, affine)
 
-        if (threshold_continuous is not None) and (maptype == MapType.CONTINUOUS):
-            data = np.asanyarray(mask.dataobj) > threshold_continuous
-            logger.info(
-                f"Mask built using a continuous map thresholded at {threshold_continuous}."
-            )
-            # ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
-            assert np.any(data > 0)
-            mask = nib.Nifti1Image(data.astype("uint8").squeeze(), mask.affine)
+        if result is None:
+            raise RuntimeError(f"Cannot build mask for {self.name} from {maptype} maps in {space}")
 
-        return mask
+        return result
 
-    def mapped_in_space(self, space):
+    def mapped_in_space(self, space) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
-        # the simple case: the region has a non-empty parcellation index,
-        # and its parcellation has a volumetric map in the requested space.
-        if self.index != MapIndex(None, None) and len(
-            [v for v in self.parcellation.volumes if v.space == space]
-        ):
-            return True
-
-        # Some regions have explicit regional maps
-        for maptype in ["labelled", "continuous"]:
-            if self.has_regional_map(space, maptype):
-                return True
-
-        # The last option is that this region has children,
-        # and all of them are mapped in the requested space.
-        if self.is_leaf:
-            return False
-
-        for child in self.children:
-            if not child.mapped_in_space(space):
-                return False
-        return True
+        for m in REGISTRY.Map:
+            if m.space.matches(space):
+                if self.name in m.regions:
+                    return True
+        if not self.is_leaf:
+            # check if all children are mapped instead
+            return all(c.mapped_in_space(space) for c in self.children)
+        return False
 
     @property
-    def supported_spaces(self) -> List[Space]:
+    def supported_spaces(self) -> Set[Space]:
         """
-        The list of spaces for which a mask could be extracted.
+        The set of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
-        return [s for s in REGISTRY.Space if self.mapped_in_space(s)]
-
-    def has_regional_map(self, space: Space, maptype: Union[str, MapType]):
-        """
-        Tests wether a specific map of this region is available.
-        """
-        return self.get_regional_map(space, maptype) is not None
-
-    def get_regional_map(self, space: Space, maptype: Union[str, MapType]):
-        """
-        Retrieves and returns a specific map of this region, if available
-        (otherwise None). This is typically a probability or otherwise
-        continuous map, as opposed to the standard label mask from the discrete
-        parcellation.
-
-        Parameters
-        ----------
-        space : Space, or str
-            Specifier for the template space
-        maptype : MapType
-            Type of map (e.g. continuous, labelled - see commons.MapType)
-        """
-        if isinstance(maptype, str):
-            maptype = MapType[maptype.upper()]
-
-        def maptype_ok(vsrc, maptype):
-            if vsrc.map_type is None:
-                return (maptype == MapType.CONTINUOUS) == (vsrc.is_float())
-            else:
-                return vsrc.map_type == maptype
-
-        available = self.get_volumes(space)
-
-        suitable = [v for v in available if maptype_ok(v, maptype)]
-        if len(suitable) == 1:
-            return suitable[0]
-        elif len(suitable) == 0:
-            return None
-        else:
-            raise NotImplementedError(
-                f"Multiple regional maps found for {self} in {space}. This case is not expected."
-            )
+        if self._supported_spaces is None:
+            self._supported_spaces = {s for s in REGISTRY.Space if self.mapped_in_space(s)}
+        return self._supported_spaces
 
     def __getitem__(self, labelindex):
         """

@@ -22,6 +22,8 @@ from typing import Generic, Iterable, Iterator, List, TypeVar, Union
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 
+from abc import ABC, abstractmethod
+
 
 T = TypeVar("T")
 
@@ -187,6 +189,49 @@ class InstanceTable(Generic[T], Iterable):
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
+class Query(ABC):
+
+    # set of mandatory query argument names
+    _query_args = []
+
+    def __init__(self, **kwargs):
+        parstr = ", ".join(f"{k}={v}" for k, v in kwargs.items())
+        if parstr:
+            parstr = "with parameters " + parstr
+        logger.info(f"Initializing query for {self._FEATURETYPE.__name__} features {parstr}")
+        if not all(p in kwargs for p in self._query_args):
+            raise ValueError(
+                f"Incomplete specification for {self.__class__.__name__} query "
+                f"(Mandatory arguments: {', '.join(self._query_args)})"
+            )
+        self._kwargs = kwargs
+
+    def __init_subclass__(cls, args: List[str], objtype: type):
+        cls._query_args = args
+        cls.object_type = objtype
+        return super().__init_subclass__()
+
+    @abstractmethod
+    def __iter__(self):
+        """ iterate over queried objects (use yield to implemnet this in derived classes)"""
+        pass
+
+    @classmethod
+    def get_subclasses(cls):
+        for subclass in cls.__subclasses__():
+            yield from subclass.get_subclasses()
+            yield subclass
+
+    @classmethod
+    def get_instances(cls, classname, **kwargs):
+        # collect instances of the requested class from all suitable query subclasses.
+        result = []
+        for querytype in cls.get_subclasses():
+            if querytype.object_type.__name__ == classname:
+                result.extend(list(querytype(**kwargs)))
+        return result
+
+
 class Registry:
     """
     A registry object provides lookup tables of already instantiated objects
@@ -213,6 +258,8 @@ class Registry:
         for server, project in CONFIG_REPOS
     ]
 
+    # map class name to the relative configuration folders 
+    # where their preconfiguration specifications can be found.
     CONFIGURATION_FOLDERS = {
         'Atlas': 'atlases',
         'Parcellation': 'parcellations',
@@ -296,13 +343,13 @@ class Registry:
         logger.info(f"Extending configuration with {str(conn)}")
         cls.CONFIGURATION_EXTENSIONS.append(conn)
 
-    def get_instances(self, classname):
+    def get_instances(self, classname, **kwargs):
+
         if classname not in self.instance_tables:
-            # we load the module only here to avoid circular imports
+            # keep here to avoid circular imports!
             from .factory import Factory
             for i, (fname, loader) in enumerate(self.spec_loaders.get(classname, [])):
-                # we pass the filename to the spec for the Factor.
-                # for example, it is used in Factor to determine an object identifier if none is provided.
+                # filename is used by Factory to create an object identifier if none is provided.
                 obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
                 if classname not in [_.__name__ for _ in [obj.__class__] + list(obj.__class__.__bases__)]:
                     logger.error(
@@ -314,6 +361,7 @@ class Registry:
                     self.instance_tables[classname] = InstanceTable(matchfunc=obj.__class__.match)
                 k = obj.key if hasattr(obj, 'key') else obj.__hash__()
                 self.instance_tables[classname].add(k, obj)
+
         return self.instance_tables[classname]
 
     def __getitem__(self, classname: str):

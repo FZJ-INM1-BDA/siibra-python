@@ -106,7 +106,7 @@ class Space(AtlasConcept):
 
     @property
     def is_surface(self):
-        return all(d.is_surface for d in self.datasets)
+        return all(v.is_surface for v in self.volumes)
 
     def __getitem__(self, slices):
         """

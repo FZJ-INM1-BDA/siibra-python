@@ -14,10 +14,9 @@
 # limitations under the License.
 
 from .feature import RegionalFeature
-from .query import FeatureQuery
 
 from .. import logger
-from ..registry import REGISTRY
+from ..registry import REGISTRY, Query
 from ..core.datasets import EbrainsDataset
 from ..retrieval.requests import EbrainsKgQuery
 
@@ -57,7 +56,7 @@ class EbrainsRegionalDataset(RegionalFeature, EbrainsDataset):
         return EbrainsDataset.__eq__(self, o)
 
 
-class EbrainsRegionalFeatureQuery(FeatureQuery, parameters=[]):
+class EbrainsRegionalFeatureQuery(Query, args=[], objtype=EbrainsDataset):
 
     _FEATURETYPE = EbrainsRegionalDataset
 
@@ -75,7 +74,7 @@ class EbrainsRegionalFeatureQuery(FeatureQuery, parameters=[]):
     }
 
     def __init__(self, **kwargs):
-        FeatureQuery.__init__(self, **kwargs)
+        Query.__init__(self, **kwargs)
 
         loader = EbrainsKgQuery(
             query_id="siibra-kg-feature-summary-0_0_4",

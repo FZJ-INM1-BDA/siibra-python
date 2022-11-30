@@ -14,10 +14,9 @@
 # limitations under the License.
 
 from .feature import SpatialFeature
-from .query import FeatureQuery
 
 from ..commons import logger
-from ..registry import InstanceTable, REGISTRY
+from ..registry import InstanceTable, REGISTRY, Query
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
@@ -129,7 +128,7 @@ GENE_NAMES = InstanceTable[str]()
 list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
 
 
-class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
+class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
     """
     Interface to Allen Human Brain Atlas microarray data.
 
@@ -194,9 +193,10 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
-        FeatureQuery.__init__(self, **kwargs)
-
+        Query.__init__(self, **kwargs)
         self.gene: Union[str, Iterable[str]] = kwargs['gene']
+
+    def __iter__(self):
 
         if self.gene is None:
             logger.warning(
@@ -246,11 +246,11 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
             for donor_id in self._DONOR_IDS:
                 if isinstance(self.gene, str):
                     for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene, donor_id, probe_ids):
-                        self.add_feature(gene_feature)
+                        yield gene_feature
                 else:
                     for gene in self.gene:
                         for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene, donor_id, probe_ids):
-                            self.add_feature(gene_feature)
+                            yield gene_feature
 
     @staticmethod
     def _retrieve_specimen(specimen_id: str):
@@ -314,7 +314,7 @@ class AllenBrainAtlasQuery(FeatureQuery, parameters=['gene']):
             # Create the spatial feature
             yield GeneExpression(
                 gene,
-                Point(icbm_coord, REGISTRY.Space.MNI152_2009C_NONL_ASYM),
+                Point(icbm_coord, REGISTRY.Space.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC),
                 expression_levels=[float(p["expression_level"][i]) for p in probes],
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],

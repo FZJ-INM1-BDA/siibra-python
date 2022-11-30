@@ -39,7 +39,8 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = {"nii", "zip/nii", "neuroglancer/precomputed"}
+    PREFERRED_FORMATS = {"nii", "zip/nii",  "gii-mesh", "neuroglancer/precomputed","neuroglancer/precompmesh"}
+    SURFACE_FORMATS = {"gii-mesh", "neuroglancer/precompmesh"}
 
     def __init__(self, name="", space_spec: dict = {}, providers: list = []):
         self.name = name
@@ -55,6 +56,10 @@ class Volume:
     @property
     def formats(self):
         return set(self._providers.keys())
+
+    @property
+    def is_surface(self):
+        return all(f in self.SURFACE_FORMATS for f in self.formats)
 
     @property
     def space(self):

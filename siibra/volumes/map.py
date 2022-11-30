@@ -296,7 +296,7 @@ class Map(AtlasConcept):
         if index is None or index.label is None:
             return result
         else:
-            logger.info(f"Creating binary mask for label {index.label} from volume {volume}")
+            logger.debug(f"Creating binary mask for label {index.label} from volume {volume}")
             return Nifti1Image(
                 (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
                 result.affine

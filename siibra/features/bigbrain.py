@@ -14,9 +14,8 @@
 # limitations under the License.
 
 from .feature import CorticalProfile, RegionalFingerprint
-from .query import FeatureQuery
 
-from ..registry import REGISTRY
+from ..registry import REGISTRY, Query
 from ..commons import logger, QUIET
 from ..core.location import PointSet, Point
 from ..core.atlas import Atlas
@@ -121,13 +120,13 @@ class BigBrainIntensityProfile(CorticalProfile):
         self.location = location
 
 
-class WagstylBigBrainProfileQuery(FeatureQuery, parameters=[]):
+class WagstylBigBrainProfileQuery(Query, args=[], objtype=BigBrainIntensityProfile):
 
     _FEATURETYPE = BigBrainIntensityProfile
 
     def __init__(self):
 
-        FeatureQuery.__init__(self)
+        Query.__init__(self)
         profiles_left, boundary_depths, assignments, bbcoords = load_wagstyl_profiles()
         logger.debug(f"{profiles_left.shape[0]} BigBrain intensity profiles...")
         depths = np.arange(0, 1, 1 / profiles_left.shape[1])
@@ -175,13 +174,13 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         )
 
 
-class WagstylBigBrainIntensityFingerprintQuery(FeatureQuery, parameters=[]):
+class WagstylBigBrainIntensityFingerprintQuery(Query, args=[], objtype=BigBrainIntensityFingerprint):
 
     _FEATURETYPE = BigBrainIntensityFingerprint
 
     def __init__(self):
 
-        FeatureQuery.__init__(self)
+        Query.__init__(self)
         profiles_left, boundary_positions, assignments, bbcoords = load_wagstyl_profiles()
 
         # compute array of layer labels for all coefficients in profiles_left

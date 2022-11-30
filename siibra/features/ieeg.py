@@ -14,15 +14,14 @@
 # limitations under the License.
 
 from .feature import SpatialFeature
-from .query import FeatureQuery
 
 from .. import logger
-from ..registry import REGISTRY
+from ..registry import REGISTRY, Query
 from ..core.datasets import EbrainsDataset
 from ..core.location import Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
-import re
 
+import re
 
 
 class IEEG_Dataset(SpatialFeature, EbrainsDataset):
@@ -212,13 +211,13 @@ def parse_ptsfile(spec):
     return result
 
 
-class IEEG_SessionQuery(FeatureQuery, parameters=[]):
+class IEEG_SessionQuery(Query, args=[], objtype=IEEG_Session):
     _FEATURETYPE = IEEG_Session
     _CONNECTOR = GitlabConnector("https://jugit.fz-juelich.de", 3009, "master")
 
     def __init__(self, **kwargs):
 
-        FeatureQuery.__init__(self, **kwargs)
+        Query.__init__(self, **kwargs)
         dset = IEEG_Dataset._from_json(
             self._CONNECTOR.get_loader("ieeg_contact_points/info.json").data
         )
