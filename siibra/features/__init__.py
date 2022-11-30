@@ -15,7 +15,7 @@
 
 
 # Want to include these queries with their features into the pre-populated lists
-from .receptors import ReceptorDensityProfile, ReceptorFingerprint
+from .receptors import ReceptorDensityProfile, ReceptorDensityFingerprint
 from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 from .voi import VolumeOfInterest
 from .genes import AllenBrainAtlasQuery

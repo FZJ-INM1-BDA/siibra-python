@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import abstractclassmethod
 from ..commons import logger, MapType, QUIET
 from ..registry import REGISTRY, InstanceTable
 from ..core.atlas import Atlas
 from ..core.concept import AtlasConcept
-from ..core.space import Location, Space, Point, PointSet, BoundingBox
+from ..core.space import Space
+from ..core.location import Location, Point, PointSet, BoundingBox
 from ..core.region import Region
 from ..core.parcellation import Parcellation
 
 from ctypes import ArgumentError
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 from enum import Enum
 import json
 import numpy as np
@@ -128,6 +128,7 @@ class Feature:
     """
     Base class for all data features.
     """
+    Modalities = InstanceTable()
 
     def __init__(self):
         self._match = None
@@ -136,14 +137,13 @@ class Feature:
     def matched(self):
         return self._match is not None
 
+    def __init_subclass__(cls):
+        cls.Modalities.add(cls.__name__, cls)
+
     @classmethod
     def get_modalities(cls):
         """ Returns a lookup table of registered feature subclasses. """
-        result = InstanceTable[cls]()
-        for subcls in REGISTRY.known_types:
-            if issubclass(subcls, cls):
-                result.add(subcls.__name__, subcls)
-        return result
+        return cls.Modalities
 
     @property
     def match_qualification(self):
@@ -174,10 +174,10 @@ class Feature:
         return self._match.location if self.matched else None
 
     def match(self, concept, **kwargs):
-        raise NotImplementedError(f"match method must be overridden by derived classes.")
+        raise NotImplementedError("match method must be overridden by derived classes.")
 
     @classmethod
-    def filter_features(cls, concept, features: List['Feature'], **kwargs)->List['Feature']:
+    def filter_features(cls, concept, features: List['Feature'], **kwargs) -> List['Feature']:
         """Class method, filters features according to the concept.
 
         Maybe overriden by subclasses.
@@ -197,25 +197,25 @@ class Feature:
         """
         Retrieve data features of the desired modality.
         """
-        modalities = cls.get_modalities()
+        feature_types = cls.get_modalities()
         if isinstance(modality, str) and modality == 'all':
-            requested_modalities = modalities.values()
+            requested_feature_types = feature_types.values()
         elif isinstance(modality, (list, tuple)):
-            requested_modalities = [modalities[_] for _ in modality]
+            requested_feature_types = [feature_types[_] for _ in modality]
         else:
             try:
-                requested_modalities = [modalities[modality]]
+                requested_feature_types = [feature_types[modality]]
             except IndexError:
                 logger.error(f"No modalities found for specification '{modality}' which have any features.")
-                requested_modalities = []
+                requested_feature_types = []
 
-        return [filtered_feat
-            for modality in requested_modalities
-            for filtered_feat in modality.filter_features(
+        return [
+            feature
+            for feature_type in requested_feature_types
+            for feature in feature_type.filter_features(
                 concept,
-                REGISTRY.get_objects(modality, **kwargs)
+                REGISTRY.get_instances(feature_type.__name__, **kwargs)
             )]
-
 
     @classmethod
     def get_feature_by_id(cls, feature_id: str):
@@ -246,14 +246,13 @@ class SpatialFeature(Feature):
         return self.location.space
 
     @classmethod
-    def filter_features(cls, 
-        concept,
-        features: List['SpatialFeature'],
-        *,
-        maptype: MapType = MapType.LABELLED,
-        threshold_continuous: float = None,
-        **kwargs) -> List['SpatialFeature']:
-
+    def filter_features(cls,
+                        concept,
+                        features: List['SpatialFeature'],
+                        *,
+                        maptype: MapType = MapType.LABELLED,
+                        threshold_continuous: float = None,
+                        **kwargs) -> List['SpatialFeature']:
 
         region = None
         if isinstance(concept, Parcellation):
@@ -263,9 +262,9 @@ class SpatialFeature(Feature):
             )
         if isinstance(concept, Region):
             region = concept
-        
+
         region_masks: Dict[Space, nib.Nifti1Image] = {}
-        
+
         def match_feature(feat: 'SpatialFeature') -> bool:
 
             if not isinstance(feat, cls):
@@ -274,7 +273,7 @@ class SpatialFeature(Feature):
                 return False
             if isinstance(concept, Space):
                 return concept == feat.space
-            
+
             if region is None:
                 logger.warning(
                     f"{feat.__class__} cannot match against {concept.__class__} concepts"
@@ -311,7 +310,7 @@ class SpatialFeature(Feature):
                 return False
 
         return [feat for feat in features
-            if match_feature(feat)]
+                if match_feature(feat)]
 
     def match(self, *args, **kwargs):
         pass

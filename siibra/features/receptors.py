@@ -15,12 +15,10 @@
 
 from .feature import CorticalProfile, RegionalFingerprint
 from ..commons import logger, create_key
-from ..registry import Preconfigure
 from ..retrieval.requests import HttpRequest
 from ..core.datasets import EbrainsDataset
 
 
-from typing import Dict
 from io import BytesIO
 import re
 
@@ -272,7 +270,6 @@ def decode_receptor_tsv(bytearray):
     }
 
 
-@Preconfigure("features/profiles/receptor")
 class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
 
     DESCRIPTION = (
@@ -353,20 +350,8 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
             "unit": next(iter(units)),
         }
 
-    @classmethod
-    def _from_json(cls, spec):
-        assert spec['@type'] == "siibra/feature/profile/receptor/v1.0.0"
-        return ReceptorDensityProfile(
-            spec["kgId"],
-            spec['species'],
-            spec['region_name'],
-            spec['receptor_type'],
-            spec['url']
-        )
 
-
-@Preconfigure("features/fingerprints/receptor")
-class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
+class ReceptorDensityFingerprint(RegionalFingerprint, EbrainsDataset):
     DESCRIPTION = (
         "Fingerprint of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
         "obtained by means of quantitative in vitro autoradiography. The fingerprint provides average "
@@ -454,13 +439,3 @@ class ReceptorFingerprint(RegionalFingerprint, EbrainsDataset):
             'means': [float(m) if m.isnumeric() else 0 for m in mean],
             'stds': [float(s) if s.isnumeric() else 0 for s in std],
         }
-
-    @classmethod
-    def _from_json(cls, spec):
-        assert spec["@type"] == "siibra/feature/fingerprint/receptor/v1.0.0"
-        return ReceptorFingerprint(
-            spec['kgId'],
-            spec['species'],
-            spec['region_name'],
-            spec['url']
-        )

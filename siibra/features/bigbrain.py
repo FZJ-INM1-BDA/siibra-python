@@ -18,7 +18,7 @@ from .query import FeatureQuery
 
 from ..registry import REGISTRY
 from ..commons import logger, QUIET
-from ..core.space import PointSet, Point
+from ..core.location import PointSet, Point
 from ..core.atlas import Atlas
 from ..retrieval import HttpRequest
 

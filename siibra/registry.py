@@ -218,6 +218,10 @@ class Registry:
         'Parcellation': 'parcellations',
         'Space': 'spaces',
         'Map': 'maps',
+        'ReceptorDensityFingerprint': "features/fingerprints/receptor",
+        'ReceptorDensityProfile': "features/profiles/celldensity",
+        'CellDensityFingerprint': "features/fingerprints/celldensity",
+        'CellDensityProfile': "features/profiles/celldensity",
     }
 
     CONFIGURATION_EXTENSIONS = []
@@ -265,10 +269,14 @@ class Registry:
                 logger.error(f"Cannot connect to configuration extension {str(connector)}")
                 continue
 
-        logger.info(
+        logger.debug(
             "Preconfigurations: "
             + " | ".join(f"{classname}: {len(L)}" for classname, L in self.spec_loaders.items())
         )
+
+    @property
+    def classes(self):
+        return list(self.spec_loaders.keys())
 
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -292,7 +300,7 @@ class Registry:
         if classname not in self.instance_tables:
             # we load the module only here to avoid circular imports
             from .factory import Factory
-            for i, (fname, loader) in enumerate(self.spec_loaders.get(classname)):
+            for i, (fname, loader) in enumerate(self.spec_loaders.get(classname, [])):
                 # we pass the filename to the spec for the Factor.
                 # for example, it is used in Factor to determine an object identifier if none is provided.
                 obj = Factory.from_json(dict(loader.data, **{'filename': fname}))

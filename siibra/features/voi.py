@@ -16,7 +16,6 @@
 from .feature import SpatialFeature
 
 from .. import QUIET
-from ..registry import Preconfigure
 from ..volumes.volume import ColorVolumeNotSupported
 from ..core.space import BoundingBox
 from ..core.datasets import EbrainsDataset
@@ -27,7 +26,6 @@ import hashlib
 from os import path
 
 
-@Preconfigure("features/volumes")
 class VolumeOfInterest(SpatialFeature):
 
     def __init__(self, location, name):

@@ -20,21 +20,40 @@ from .core.space import Space
 from .core.region import Region
 from .core.datasets import EbrainsDataset
 from .core.location import Point, PointSet
+
 from .volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
 from .volumes.map import Map
 from .volumes.sparsemap import SparseMap
 
+from .features.receptors import ReceptorDensityFingerprint, ReceptorDensityProfile
+from .features.cells import CellDensityFingerprint, CellDensityProfile
+
 from os import path
 import json
 import numpy as np
+
+BUILDFUNCS = {
+    "juelich/iav/atlas/v1.0.0": "build_atlas",
+    "siibra/space/v0.0.1": "build_space",
+    "siibra/parcellation/v0.0.1": "build_parcellation",
+    "siibra/volume/v0.0.1": "build_volume",
+    "siibra/map/v0.0.1": "build_map",
+    "siibra/space/v0.0.1": "build_space",
+    "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
+    "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
+    "tmp/poly": "build_pointset",
+    "siibra/feature/fingerprint/receptor/v1.0.0": "build_receptor_density_fingerprint",
+    "siibra/feature/profile/receptor/v1.0.0": "build_receptor_density_profile",
+    "siibra/feature/fingerprint/celldensity/v1.0.0": "build_cell_density_fingerprint",
+    "siibra/feature/profile/celldensity/v1.0.0": "build_cell_density_profile",
+}
 
 
 class Factory:
 
     @classmethod
     def build_atlas(cls, spec):
-        assert spec.get("@type") == "juelich/iav/atlas/v1.0.0"
         atlas = Atlas(
             spec["@id"],
             spec["name"],
@@ -48,7 +67,6 @@ class Factory:
 
     @classmethod
     def build_space(cls, spec):
-        assert spec.get("@type") == "siibra/space/v0.0.1"
         volumes = list(map(cls.build_volume, spec.get("volumes", [])))
         return Space(
             identifier=spec["@id"],
@@ -75,7 +93,6 @@ class Factory:
 
     @classmethod
     def build_parcellation(cls, spec):
-        assert spec.get("@type", None) == "siibra/parcellation/v0.0.1"
         regions = []
         for regionspec in spec.get("regions", []):
             try:
@@ -111,8 +128,6 @@ class Factory:
 
     @classmethod
     def build_volume(cls, spec):
-        assert spec.get("@type", None) == "siibra/volume/v0.0.1"
-
         providers = []
         provider_types = [
             NeuroglancerVolumeFetcher,
@@ -137,7 +152,6 @@ class Factory:
 
     @classmethod
     def build_map(cls, spec):
-        assert spec.get("@type") == "siibra/map/v0.0.1"
         # maps have no configured identifier - we require the spec filename to build one
         assert "filename" in spec
         basename = path.splitext(path.basename(spec['filename']))[0]
@@ -163,7 +177,6 @@ class Factory:
 
     @classmethod
     def build_ebrains_dataset(cls, spec):
-        assert spec.get("@type", None) == "siibra/snapshots/ebrainsquery/v1"
         return EbrainsDataset(
             id=spec["id"],
             name=spec["name"],
@@ -173,7 +186,6 @@ class Factory:
 
     @classmethod
     def build_point(cls, spec):
-        assert spec["@type"] == "https://openminds.ebrains.eu/sands/CoordinatePoint"
         space_id = spec["coordinateSpace"]["@id"]
         assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
         return Point(
@@ -183,13 +195,52 @@ class Factory:
 
     @classmethod
     def build_pointset(cls, spec):
-        assert spec["@type"] == "tmp/poly"
         space_id = spec["coordinateSpace"]["@id"]
         coords = []
         for coord in spec["coordinates"]:
             assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
             coords.append(list(np.float16(c["value"]) for c in coord))
         return PointSet(coords, space_id=space_id)
+
+    @classmethod
+    def build_receptor_density_fingerprint(cls, spec):
+        return ReceptorDensityFingerprint(
+            spec['kgId'],
+            spec['species'],
+            spec['region_name'],
+            spec['url']
+        )
+
+    @classmethod
+    def build_receptor_density_profile(cls, spec):
+        return ReceptorDensityProfile(
+            spec["kgId"],
+            spec['species'],
+            spec['region_name'],
+            spec['receptor_type'],
+            spec['url']
+        )
+
+    @classmethod
+    def build_cell_density_fingerprint(cls, spec):
+        return CellDensityFingerprint(
+            species=spec['species'],
+            regionname=spec['region_name'],
+            segmentfiles=spec['segmentfiles'],
+            layerfiles=spec['layerfiles'],
+            dataset_id=spec['kgId']
+        )
+
+    @classmethod
+    def build_cell_density_profile(cls, spec):
+        return CellDensityProfile(
+            species=spec['species'],
+            regionname=spec['region_name'],
+            url=spec['url'],
+            dataset_id=spec['kgId'],
+            section=spec['section'],
+            patch=spec['patch']
+        )
 
     @classmethod
     def from_json(cls, spec: dict):
@@ -205,24 +256,10 @@ class Factory:
                 spec = json.loads(spec)
 
         spectype = spec.get("@type", None)
-
-        if spectype == "juelich/iav/atlas/v1.0.0":
-            return cls.build_atlas(spec)
-        elif spectype == "siibra/space/v0.0.1":
-            return cls.build_space(spec)
-        elif spectype == "siibra/parcellation/v0.0.1":
-            return cls.build_parcellation(spec)
-        elif spectype == "siibra/volume/v0.0.1":
-            return cls.build_volume(spec)
-        elif spectype == "siibra/map/v0.0.1":
-            return cls.build_map(spec)
-        elif spectype == "siibra/space/v0.0.1":
-            return cls.build_space(spec)
-        elif spectype == "siibra/snapshots/ebrainsquery/v1":
-            return cls.build_ebrains_dataset(spec)
-        elif spectype == "https://openminds.ebrains.eu/sands/CoordinatePoint":
-            return cls.build_point(spec)
-        elif spectype == "tmp/poly":
-            return cls.build_pointset(spec)
+        if spectype in BUILDFUNCS:
+            func = getattr(cls, BUILDFUNCS[spectype])
+            return func(spec)
         else:
             raise RuntimeError(f"No factory method for specification type {spectype}.")
+
+

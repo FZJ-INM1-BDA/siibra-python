@@ -39,6 +39,7 @@ from .registry import REGISTRY
 use_configuration = REGISTRY.__class__.use_configuration
 extend_configuration = REGISTRY.__class__.extend_configuration
 
+
 def __getattr__(name):
     if name == "atlases":
         return REGISTRY["Atlas"]
@@ -48,6 +49,7 @@ def __getattr__(name):
         return REGISTRY["Space"]
     else:
         raise AttributeError(f"No such attribute: {__name__}.{name}")
+
 
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
@@ -64,3 +66,4 @@ def set_cache_size(maxsize_gbyte: int):
 if "SIIBRA_CACHE_SIZE_GIB" in environ:
     set_cache_size(float(environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
+from .features import modalities, get_features

@@ -16,7 +16,6 @@
 
 from .feature import CorticalProfile, RegionalFingerprint
 
-from ..registry import Preconfigure
 from ..commons import logger, create_key
 from ..core.datasets import EbrainsDataset
 from ..retrieval import HttpRequest, SiibraHttpRequestError
@@ -26,7 +25,6 @@ import pandas as pd
 from io import BytesIO
 from skimage.transform import resize
 from skimage.draw import polygon
-
 
 
 class PolyLine:
@@ -82,7 +80,6 @@ def LAYER_READER(b):
     return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
 
 
-@Preconfigure("features/profiles/celldensity")
 class CellDensityProfile(CorticalProfile, EbrainsDataset):
 
     DESCRIPTION = (
@@ -289,7 +286,7 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
             else:
                 densities.append(np.NaN)
         return densities
-  
+
     @property
     def key(self):
         assert len(self.species) == 1
@@ -301,20 +298,7 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
             self.patch
         ))
 
-    @classmethod
-    def _from_json(cls, spec):
-        assert spec.get('@type') == "siibra/resource/feature/profile/celldensity/v1.0.0"
-        return cls(
-            species=spec['species'],
-            regionname=spec['region_name'],
-            url=spec['url'],
-            dataset_id=spec['kgId'],
-            section=spec['section'],
-            patch=spec['patch']
-        )
 
-
-@Preconfigure("features/fingerprints/celldensity")
 class CellDensityFingerprint(RegionalFingerprint):
 
     DESCRIPTION = (
@@ -376,7 +360,7 @@ class CellDensityFingerprint(RegionalFingerprint):
     @property
     def _stds(self):
         return self.densities.std(axis=1).to_numpy()
-        
+
     @property
     def key(self):
         assert len(self.species) == 1
@@ -385,14 +369,3 @@ class CellDensityFingerprint(RegionalFingerprint):
             self.species[0]['name'],
             self.regionspec
         ))
-
-    @classmethod
-    def _from_json(cls, spec):
-        assert spec.get('@type') == "siibra/resource/feature/fingerprint/celldensity/v1.0.0"
-        return cls(
-            species=spec['species'],
-            regionname=spec['region_name'],
-            segmentfiles=spec['segmentfiles'],
-            layerfiles=spec['layerfiles'],
-            dataset_id=spec['kgId']
-        )

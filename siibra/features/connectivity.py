@@ -15,7 +15,7 @@
 
 from .feature import ParcellationFeature
 
-from ..registry import REGISTRY, Preconfigure
+from ..registry import REGISTRY
 from ..commons import logger, QUIET, create_key
 from ..retrieval.repositories import RepositoryConnector
 
@@ -151,8 +151,6 @@ class ConnectivityMatrix(ParcellationFeature):
         logger.warn(f"Connectivity matrix defines id as a property decorator")
 
 
-
-@Preconfigure("features/connectivitymatrix/streamlinecounts")
 class StreamlineCounts(ConnectivityMatrix):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
@@ -191,7 +189,6 @@ class StreamlineCounts(ConnectivityMatrix):
         )
 
 
-@Preconfigure("features/connectivitymatrix/streamlinelengths")
 class StreamlineLengths(ConnectivityMatrix):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
 
@@ -230,7 +227,6 @@ class StreamlineLengths(ConnectivityMatrix):
         )
 
 
-@Preconfigure("features/connectivitymatrix/functional")
 class FunctionalConnectivity(ConnectivityMatrix):
     """Functional connectivity matrix, grouped by a parcellation."""
 

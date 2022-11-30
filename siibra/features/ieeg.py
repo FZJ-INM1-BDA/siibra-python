@@ -19,7 +19,7 @@ from .query import FeatureQuery
 from .. import logger
 from ..registry import REGISTRY
 from ..core.datasets import EbrainsDataset
-from ..core.space import Point, PointSet, WholeBrain
+from ..core.location import Point, PointSet, WholeBrain
 from ..retrieval.repositories import GitlabConnector
 import re
 

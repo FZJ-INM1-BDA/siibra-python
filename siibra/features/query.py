@@ -15,7 +15,6 @@
 
 from .feature import Feature
 from .. import logger
-from ..registry import REGISTRY
 
 from abc import ABC
 from typing import List
@@ -41,11 +40,7 @@ class FeatureQuery(ABC):
         """
         Registers new query types in siibra's object registry.
         """
-        logger.debug(
-            f"New query {cls.__name__} for {cls._FEATURETYPE.__name__} features, parameterized by {parameters}"
-        )
         cls._parameters = parameters
-        REGISTRY.register_object_query(cls, cls._FEATURETYPE)
         return super().__init_subclass__()
 
     def __str__(self):
