@@ -21,9 +21,10 @@ skip_types = (
     "siibra/resource/feature/connectivitymatrix/v1.0.0",
     "siibra/resource/feature/fingerprint/celldensity/v1.0.0",
     "siibra/feature/fingerprint/receptor/v1.0.0",
-    "siibra/feature/volume/v1.0.0", # should have been siibra/feature/voi
     "siibra/resource/feature/profile/celldensity/v1.0.0",
     "siibra/feature/profile/receptor/v1.0.0",
+    "siibra/feature/fingerprint/celldensity/v1.0.0",
+    "siibra/feature/profile/celldensity/v1.0.0"
 )
 
 class ValidationResult(Enum):

@@ -13,7 +13,7 @@
         "volumes": {
             "type": "array",
             "items": {
-                "$ref": "config_schema/siibra/volume/v0.0.1.json"
+                "$ref": "/config_schema/siibra/volume/v0.0.1.json"
             }
         },
         "indices": {

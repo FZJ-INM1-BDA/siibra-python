@@ -29,7 +29,14 @@
                 "gii-mesh": {
                     "type": "string"
                 }
-            }
+            },
+            "additionalProperties": false
+        },
+        "detail": {
+            "type": "object"
+        },
+        "name": {
+            "type": "string"
         }
     },
     "required": [
