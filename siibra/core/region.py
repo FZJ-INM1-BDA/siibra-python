@@ -428,6 +428,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __str__(self):
         return f"{self.name}"
+        
+    def __repr__(self):
+        return self.tree2str()
 
     def tree2str(self):
         return "\n".join(
