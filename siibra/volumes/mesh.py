@@ -98,19 +98,40 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
     """
     A surface mesh provided as neuroglancer precomputed mesh.
     """
-#
     def __init__(self, url, volume=None):
-        VolumeProvider.__init__(self)
         self.volume = volume
         self.url = url
+        self.meshinfo = HttpRequest(url=self.url + "/info", func=DECODERS['.json']).data
+        self.mesh_key = self.meshinfo.get('mesh')
 
-    def fetch(self, resolution_mm=None, name=None):
+    def fetch(self, resolution_mm: float = None, name=None, voi=None):
         """
-        Returns the mesh as a dictionary with the keys
-        - verticies: an Nx3 array of coordinates (in nanometer)
-        - trianlges: an MX3 array containing connection data of verticies
-        - name: name of the region 
+        Returns the mesh as a dictionary with the region names as keys
+        Each region is also a dictionary with the keys:
+        - url: the urls to the data
+        - verticies (/left /right): an Nx3 array of coordinates (in nanometer)
+        - trianlges (/left /right): an MX3 array containing connection data of verticies
         """
+        # QUESTION: How can I reach regions of the map I am fetching from?
+        regions = ['cortical layer 1',
+        'cortical layer 2',
+        'cortical layer 3',
+        'cortical layer 4',
+        'cortical layer 5',
+        'cortical layer 6',
+        'non-cortical structures']
+        meshes = {}
+        for r in regions:
+            fragment_dict = HttpRequest(
+                url = f"{self.url}/{self.mesh_key}/{str(regions.index(r)+1)}:0",
+                func = DECODERS['.json']
+            ).data
+            meshes[r] = dict(keys=["url", "verticies/left", "triangles/left", "verticies/right", "triangles/right"])
+            meshes[r]["url"] = [f"{self.url}/{self.mesh_key}/{f}" for f in fragment_dict.get('fragments')]
+        
+        # QUESTION: Can we use the voulme.NeuroglancerScale here?
+        transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data) # raise error when there is no transform.json?
+        
         def fetch_precomputed_NG_mesh(mesh_url):
             r = HttpRequest(mesh_url, func=lambda b: BytesIO(b))
             (vertices_vox, triangles_vox) = NGmesh.read_precomputed_mesh(r.data)
@@ -118,38 +139,16 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
             vertices /= 1e6
             return vertices, triangles
 
-        if not self.region.mapped_in_space(space=sapce):
-            print('The region is not mapped in this space. Please choose another space.') # replace with exception or warning
-
-        labelled_maps = [self.region.parcellation.get_map(s, "labelled") for s in self.region.supported_spaces]
-        map = labelled_maps[0] # how many maps should we expect? shall we give a choice?
-
-        volume_url = VolumeProvider._providers[self.srctype].url
-
-        meshinfo = HttpRequest(url=volume_url + "/info", func=DECODERS['.json']).data
-        mesh_key = meshinfo.get('mesh')
-        meshes =  HttpRequest(
-                url = f"{volume_url}/{mesh_key}/{str(map.get_index(self.region).label)}:0",
-                func = DECODERS['.json']
-            ).data
-            
-        mesh_urls = [f"{volume_url}/{mesh_key}/{f}" for f in meshes.get('fragments')]
+        # better to run through the list based on metadata from info(?) .json (to determine the keys)
+        for r in regions:
+            meshes[r]["verticies/left"], meshes[r]["triangles/left"] = fetch_precomputed_NG_mesh(meshes[r]["url"][0])
+            meshes[r]["verticies/right"], meshes[r]["triangles/right"] = fetch_precomputed_NG_mesh(meshes[r]["url"][1])
         
-        # raise error when there is no transform.json?
-        transform_nm = np.array(HttpRequest(f"{volume_url}/transform.json").data)
-
-        # probably better to run through the list based on metadata from info .json (to determine the keys)
-        vertices_l, triangles_l = fetch_precomputed_NG_mesh(mesh_urls[0])
-        vertices_r, triangles_r = fetch_precomputed_NG_mesh(mesh_urls[1])
-        
-        return dict(zip(['left', 'right', 'name'], [{'vertices': vertices_l, 'triangles': triangles_l}, {'vertices': vertices_r, 'triangles': triangles_r}, name]))
-
-    def view_mesh(self, hemisphere: str = 'left'):
-        return nilearn_plotting.view_surf((self[hemisphere]['vertices'], self[hemisphere]['triangles']))
+        return meshes
 
     @property
     def variants(self):
-        return list(self._loaders.keys())
+        return list(self._loaders.keys()) # rewrite the code above to have _loaders instead
 
     def fetch_iter(self):
         return (self.fetch(v) for v in self.variants)
