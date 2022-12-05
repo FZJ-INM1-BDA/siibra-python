@@ -80,7 +80,7 @@ class Atlas(AtlasConcept):
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
         return InstanceTable[Space](
-            elements={s.key: s for s in REGISTRY.Space if s.id in self._space_ids},
+            elements={s.key: s for s in REGISTRY[Space] if s.id in self._space_ids},
             matchfunc=Space.match,
         )
 
@@ -88,7 +88,7 @@ class Atlas(AtlasConcept):
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
         return InstanceTable[Parcellation](
-            elements={p.key: p for p in REGISTRY.Parcellation if p.id in self._parcellation_ids},
+            elements={p.key: p for p in REGISTRY[Parcellation] if p.id in self._parcellation_ids},
             matchfunc=Parcellation.match,
         )
 
@@ -97,18 +97,16 @@ class Atlas(AtlasConcept):
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = REGISTRY.Parcellation[0]
+            parcellation_obj = self.parcellations[self._parcellation_ids[0]]
             if len(self._parcellation_ids) > 1:
-                logger.info(
-                    f"No parcellation specified, using the first encountered: '{parcellation_obj.name}'."
-                )
-        else:
-            parcellation_obj = self.parcellations[parcellation]
-            if parcellation_obj not in self._parcellation_ids:
-                raise ValueError(
-                    f"Parcellation {parcellation_obj.name} not supported by atlas {self.name}."
-                )
-        return parcellation_obj
+                logger.info(f"No parcellation specified, using default: '{parcellation_obj.name}'.")
+            return parcellation_obj
+        
+        if isinstance(parcellation, Parcellation):
+            assert parcellation in self.parcellations
+            return parcellation
+
+        return self.parcellations[parcellation]
 
     def get_space(self, space=None):
         """Returns a valid reference space object defined by the atlas.
@@ -118,15 +116,16 @@ class Atlas(AtlasConcept):
             space: Space, or string specification of a space
         """
         if space is None:
-            space_obj = self._space_ids[0]
+            space_obj = self.spaces[self._space_ids[0]]
             if len(self._space_ids) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
-        elif isinstance(space, Space):
-            space_obj = space
-        else:
-            space_obj = self.spaces[space]
+            return space_obj
+        
+        if isinstance(space, Space):
+            assert space in self.spaces
+            return space
 
-        return space_obj
+        return self.spaces[space]
 
     def get_map(
         self,
@@ -197,12 +196,7 @@ class Atlas(AtlasConcept):
         Returns:
             Bounding Box
         """
-        spaceobj = REGISTRY[space]
-        if spaceobj not in self._space_ids:
-            raise ValueError(
-                f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
-            )
-        return spaceobj.get_bounding_box(point1, point2)
+        return self.get_space(space).get_bounding_box(point1, point2)
 
     def find_regions(
         self,
@@ -240,7 +234,7 @@ class Atlas(AtlasConcept):
         """
         result = []
         for p in self._parcellation_ids:
-            parcobj = REGISTRY.Parcellation[p]
+            parcobj = REGISTRY[Parcellation][p]
             if parcobj.is_newest_version or all_versions:
                 match = parcobj.find(
                     regionspec,
@@ -253,7 +247,7 @@ class Atlas(AtlasConcept):
                     result.extend(match)
         return result
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'Atlas'):
         """
         We sort atlases by their names
         """

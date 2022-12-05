@@ -19,7 +19,7 @@ from .retrieval.repositories import GitlabConnector, RepositoryConnector
 from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from .config import SIIBRA_USE_CONFIGURATION
 
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Type
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 
@@ -48,14 +48,14 @@ class InstanceTable(Generic[T], Iterable):
 
         assert hasattr(matchfunc, "__call__")
         if elements is None:
-            self._elements = {}
+            self._elements: Dict[str, T] = {}
         else:
             assert isinstance(elements, dict)
             assert all(isinstance(k, str) for k in elements.keys())
-            self._elements = elements
+            self._elements: Dict[str, T] = elements
         self._matchfunc = matchfunc
 
-    def add(self, key: Union[str, int], value: T) -> None:
+    def add(self, key: str, value: T) -> None:
         """Add a key/value pair to the registry.
 
         Args:
@@ -82,11 +82,12 @@ class InstanceTable(Generic[T], Iterable):
         """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
 
-    def __contains__(self, key) -> bool:
+    def __contains__(self, key: Union[str, T]) -> bool:
         """Test wether the given key is defined by the registry."""
-        return (
-            key in self._elements
-        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
+        if isinstance(key, str):
+            return key in self._elements
+        return key in [item for _, item in self._elements.values()]
+
 
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
@@ -279,11 +280,11 @@ class Registry:
     # preconfigured class name. These files can
     # loaded and fed to the Factory.from_json
     # to produce the corresponding object.
-    spec_loaders = defaultdict(list)
+    spec_loaders: Dict[str, str] = defaultdict(list)
 
     # InstanceTable objects with already instantiated
     # objects per name of corresponding class.
-    instance_tables = {}
+    instance_tables: Dict[str, InstanceTable] = {}
 
     def __init__(self):
 
@@ -349,7 +350,7 @@ class Registry:
     def get_instances(self, classname, **kwargs):
 
         if classname not in self.classes:
-            logger.warn(f"Registry does not know how to build {classname} instances")
+            logger.warning(f"Registry does not know how to build {classname} instances")
             return []
 
         if classname not in self.instance_tables:
@@ -371,8 +372,11 @@ class Registry:
 
         return self.instance_tables[classname]
 
-    def __getitem__(self, classname: str):
-        return self.get_instances(classname)
+    def __getitem__(self, cls: Type[T]) -> InstanceTable[T]:
+        if isinstance(cls, str):
+            logger.debug(f"Accessing __getitem__ with str, fallback to __getattr__")
+            return self.__getattr__(cls)
+        return self.get_instances(cls.__name__)
 
     def __getattr__(self, classname: str):
         return self.get_instances(classname)
@@ -380,5 +384,5 @@ class Registry:
 
 REGISTRY = Registry()
 if SIIBRA_USE_CONFIGURATION:
-    logger.warn(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
+    logger.warning(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
     Registry.use_configuration(SIIBRA_USE_CONFIGURATION)

@@ -144,10 +144,13 @@ class Parcellation(Region):
         """
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
+
+        from ..volumes.map import Map
         candidates = [
-            m for m in REGISTRY.Map
+            m for m in REGISTRY[Map]
             if m.space.matches(space)
             and m.maptype == maptype
+            and m.parcellation
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:

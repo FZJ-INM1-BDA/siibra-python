@@ -42,11 +42,11 @@ extend_configuration = REGISTRY.__class__.extend_configuration
 
 def __getattr__(name):
     if name == "atlases":
-        return REGISTRY["Atlas"]
+        return REGISTRY.Atlas
     elif name == "parcellations":
-        return REGISTRY["Parcellation"]
+        return REGISTRY.Parcellation
     elif name == "spaces":
-        return REGISTRY["Space"]
+        return REGISTRY.Space
     else:
         raise AttributeError(f"No such attribute: {__name__}.{name}")
 

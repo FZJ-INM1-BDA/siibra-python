@@ -21,6 +21,8 @@ from ..registry import REGISTRY
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
 from ..core.concept import AtlasConcept
 from ..core.space import Space
+from ..core.parcellation import Parcellation
+
 from ..core.location import Point, PointSet, BoundingBox
 from ..core.region import Region
 
@@ -196,7 +198,7 @@ class Map(AtlasConcept):
     def parcellation(self):
         for key in ["@id", "name"]:
             if key in self._parcellation_spec:
-                return REGISTRY.Parcellation[self._parcellation_spec[key]]
+                return REGISTRY[Parcellation][self._parcellation_spec[key]]
         logger.warn(
             f"Cannot determine parcellation of {self.__class__.__name__} "
             f"{self.name} from {self._parcellation_spec}"
@@ -212,7 +214,7 @@ class Map(AtlasConcept):
         return {d.label for v in self._indices.values() for d in v}
 
     @property
-    def maptype(self):
+    def maptype(self) -> MapType:
         if all(isinstance(_, int) for _ in self.labels):
             return MapType.LABELLED
         elif self.labels == {None}:
