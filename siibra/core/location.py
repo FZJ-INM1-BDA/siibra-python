@@ -337,7 +337,7 @@ class Point(Location):
         ----------
         affine : numpy 4x4 ndarray
             affine matrix
-        space_id : id of reference space, or None (optional)
+        space : id of reference space, or None (optional)
             Target reference space which is reached after
             applying the transform. Note that the consistency
             of this cannot be checked and is up to the user.
@@ -345,7 +345,7 @@ class Point(Location):
         x, y, z, h = np.dot(affine, self.homogeneous)
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
-        return self.__class__((x / h, y / h, z / h), space_id)
+        return self.__class__((x / h, y / h, z / h), space)
 
     def get_enclosing_cube(self, width_mm):
         """
@@ -823,15 +823,15 @@ class BoundingBox(Location):
         ----------
         affine : numpy 4x4 ndarray
             affine matrix
-        space_id : id of reference space
+        space : id of reference space
             Target reference space which is reached after
             applying the transform. Note that the consistency
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            point1=self.minpoint.transform(affine, space_id),
-            point2=self.maxpoint.transform(affine, space_id),
-            space=space_id,
+            point1=self.minpoint.transform(affine, space),
+            point2=self.maxpoint.transform(affine, space),
+            space=space,
         )
 
     def __iter__(self):

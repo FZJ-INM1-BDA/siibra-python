@@ -36,7 +36,7 @@ class VolumeOfInterest(SpatialFeature):
 
     @classmethod
     def _from_json(cls, definition):
-        spectype = "siibra/feature/volume/v1.0.0"
+        spectype = "siibra/feature/voi/v0.0.1"
         if not definition.get("@type") == spectype:
             raise TypeError(
                 f"Received specification of type '{definition.get('@type')}', "
@@ -49,11 +49,11 @@ class VolumeOfInterest(SpatialFeature):
         maxpoints = []
         for vsrc_def in definition["volumeSrc"]:
             try:
-                vsrc = VolumeSrc._from_json(vsrc_def)
-                if space is None:
-                    space = vsrc.space
-                else:
-                    assert vsrc.space == space
+                from ..factory import Factory
+                vsrc = Factory.build_volume({
+                    **definition, # space information is in the parent json
+                    **vsrc_def,
+                })
                 with QUIET:
                     img = vsrc.fetch()
                     D = np.asanyarray(img.dataobj).squeeze()

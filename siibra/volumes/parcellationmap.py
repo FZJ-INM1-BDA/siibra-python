@@ -1045,50 +1045,8 @@ class ContinuousParcellationVolume(ParcellationVolume):
         ParcellationMap.__init__(self, parcellation, space, maptype="continuous")
 
     def _define_maps_and_regions(self):
-
-        # Check for available maps and brain regions.
-        # First look for a 4D array where the last dimension are the different maps
-        self._maploaders_cached = []
-        self._regions_cached = {}
-        self._map4d = None
-        for v in self.parcellation.volumes:
-            if (
-                isinstance(v, ImageProvider)
-                and v.is_float()
-                and v.is_4D()
-                and v.get_shape()[3] > 1
-            ):
-                self._map4d = v.fetch()
-                print(self._map4d.shape)
-                for mapindex in range(self._map4d.shape[3]):
-                    self._maploaders_cached.append(
-                        lambda m=mapindex: self._map4d.slicer[:, :, :, m]
-                    )
-                    # TODO this might not be correct for parcellations other than DifumoXX
-                    r = self.parcellation.decode_region(mapindex + 1)
-                    self._regions_cached[
-                        ParcellationIndex(map=mapindex, label=None)
-                    ] = r
-
-        if self._map4d is None:
-            # No 4D array, look for regional continuous maps stored in the region tree.
-            mapindex = 0
-            for r in self.parcellation.regiontree.leaves:
-                if r in self.regions.values():
-                    continue
-                if r.has_regional_map(self.space, self.maptype):
-                    regionmap = r.get_regional_map(self.space, self.maptype)
-                    self._maploaders_cached.append(lambda r=regionmap: r.fetch())
-                    self._regions_cached[
-                        ParcellationIndex(map=mapindex, label=None)
-                    ] = r
-                    mapindex += 1
-
-        # either load or build the sparse index
-        if not self._load_index():
-            self._build_index()
-            self._store_index()
-        assert self.spatial_index.max() == len(self.probs) - 1
+        # TODO check if this functionality has been ported to elsewhere.
+        raise NotImplementedError(f"ImageProvider has been deprecated.")
 
     def _load_index(self):
 
