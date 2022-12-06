@@ -19,7 +19,7 @@ from .region import Region
 from ..registry import InstanceTable, REGISTRY
 from ..commons import logger, MapType, MapIndex
 
-from typing import Set, Union
+from typing import Set, Union, List
 
 
 # NOTE : such code could be used to automatically resolve
@@ -72,7 +72,7 @@ class Parcellation(Region):
         self,
         identifier: str,
         name: str,
-        regions: tuple[Region] = (),
+        regions: Union[List[Region], Region] = (),
         shortname: str = "",
         description: str = "",
         version: ParcellationVersion = None,

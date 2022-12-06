@@ -54,7 +54,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def __init__(
         self,
         name: str,
-        children: list["Region"] = [],
+        children: List["Region"] = [],
         parent: "Region" = None,
         shortname: str = "",
         description: str = "",
