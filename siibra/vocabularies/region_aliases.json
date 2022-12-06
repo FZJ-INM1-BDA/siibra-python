@@ -1,0 +1,263 @@
+{
+	"human|Supramarginal (SM)": {
+		"human|mesial precentral gyrus": "exact"
+	},
+	"human|hMT+/V5": {
+		"human|Area hOc5 (LOC)": "exact"
+	},
+	"human|Visual Area v3": {
+		"human|Area hOc3v (LingG), Area hOc3d (Cuneus)": "contains"
+	},
+	"human|CA (Hippocampus)": {
+		"human|CA1, CA2, CA3": "contains"
+	},
+	"human|Frontal Neocortex": {
+		"human|frontal lobe": "exact"
+	},
+	"human|Inferior Temporal (IT)": {
+		"human|Temporal lobe": "contained"
+	},
+	"human|Temporal cortex": {
+		"human|Temporal lobe": "approximate"
+	},
+	"human|Inferior Parietal (IP)": {
+		"human|Inferior Parietal Lobule": "contained"
+	},
+	"human|Rostral Anterior Cingulate (RAC)": {
+		"human|Cingulate gyrus frontal part": "approximate"
+	},
+	"human|Transverse Temporal (TT)": {
+		"human|Temporal lobe": "contained"
+	},
+	"human|Putamen": {
+		"human|None": "exact"
+	},
+	"human|Posterior segment of the  arcuate fasciculus": {
+		"human|None": "exact"
+	},
+	"human|Area i29 (retrosplenial)": {
+		"human|limbic lobe": "contained"
+	},
+	"human|temporal cingulate fibres": {
+		"human|None": "exact"
+	},
+	"human|human occipetal area 1": {
+		"human|Area hOc1 (V1, 17, CalcS)": "exact"
+	},
+	"human|PreS (Subiculum)": {
+		"human|HC-Subiculum (Hippocampus)": "contained"
+	},
+	"human|medial temporal lobe": {
+		"human|Temporal Lobe": "contained"
+	},
+	"human|Area 47": {
+		"human|Lateral Orbitofrontal": "approximate"
+	},
+	"human|Insula (Ins)": {
+		"human|Insula": "exact"
+	},
+	"human|TrS (Transsubiculum)": {
+		"human|HC-Transsubiculum (Hippocampus)": "exact"
+	},
+	"human|Direct segment of the  arcuate fasciculus": {
+		"human|None": "exact"
+	},
+	"human|primary visual cortex (V1)": {
+		"human|Area hOc1 (V1, 17, CalcS)": "exact"
+	},
+	"human|short cingulate fibres": {
+		"human|None": "exact"
+	},
+	"human|Cingulate Neocortex": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|Lateral Occipital (LO)": {
+		"human|Lateral Occipital Cortex": "exact"
+	},
+	"human|Pars Orbitalis (Or)": {
+		"human|Frontal Operculum": "approximate"
+	},
+	"human|inferior fronto-occipital fasciculus": {
+		"human|None": "exact"
+	},
+	"human|ProS (Subiculum)": {
+		"human|HC-Subiculum (Hippocampus)": "contained"
+	},
+	"human|Superior Temporal (ST)": {
+		"human|STS1, STS2": "contains"
+	},
+	"human|Superior Parietal (SP)": {
+		"human|Superior Parietal Lobule": "close"
+	},
+	"human|Precuneus (PrCu)": {
+		"human|Parietal Lobe": "approximate"
+	},
+	"human|Anterior segment of the  arcuate fasciculus": {
+		"human|None": "exact"
+	},
+	"human|Pars Opercularis (Op)": {
+		"human|None": "exact"
+	},
+	"human|Posterior Cingulate (PoCi)": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|Area 9": {
+		"human|Frontal lobe": "contained"
+	},
+	"human|fornix": {
+		"human|None": "exact"
+	},
+	"human|inferior longitudinal fasciculus": {
+		"human|None": "exact"
+	},
+	"human|Middle Temporal (MT)": {
+		"human|Temporal lobe": "contained"
+	},
+	"human|Caudal Middle Frontal (CMF)": {
+		"human|Frontal lobe": "contained"
+	},
+	"human|Rostral Middle Frontal (RMF)": {
+		"human|Frontal lobe": "contained"
+	},
+	"human|anterior Thalamic nucleus": {
+		"human|Thalamus": "contained"
+	},
+	"human|anterior insular cortex": {
+		"human|Insula": "contained"
+	},
+	"human|Superior Frontal (SF)": {
+		"human|Frontal lobe": "contained"
+	},
+	"human|Fusiform (Fu)": {
+		"human|Fusiform Gyrus": "exact"
+	},
+	"human|FD (DG)": {
+		"human|DG (Hippocampus)": "contained"
+	},
+	"human|long cingulate fibres": {
+		"human|None": "exact"
+	},
+	"human|Prefrontal cortex": {
+		"human|Frontal lobe": "approximate"
+	},
+	"human|medial parietal cortex": {
+		"human|Parietal lobe": "approximate"
+	},
+	"human|Cuneus (Cu)": {
+		"human|hOc4d, hOc3d": "contains"
+	},
+	"human|corticospinal tract": {
+		"human|None": "exact"
+	},
+	"human|somatosensory cortex": {
+		"human|Area 3a (PostCG), Area 3b (PostCG)": "contains"
+	},
+	"human|Whole brain": {
+		"human|Julich-brain": "exact"
+	},
+	"human|Isthmus Cingulate (IC)": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|Auditory Cortex": {
+		"human|Superior temporal gyrus": "approximate"
+	},
+	"human|Postcetnral (PoC)": {
+		"human|postcentral gyrus": "close"
+	},
+	"human|Sub (Subiculum)": {
+		"human|HC-Subiculum (Hippocampus)": "exact"
+	},
+	"human|Pars Triangularis (Tr)": {
+		"human|Frontal lobe": "approximate"
+	},
+	"human|Postcentral (PoC)": {
+		"human|Postcentral gyrus": "exact"
+	},
+	"human|Middle Orbitofrontal (MOF)": {
+		"human|Medial orbitofrontal cortex": "exact"
+	},
+	"human|dorsal anterior cingulate cortex": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|Temporal Neocortex": {
+		"human|Temporal lobe": "approximate"
+	},
+	"human|Motor cortex": {
+		"human|Area 4a (PreCG), Area 4p (PreCG)": "contains"
+	},
+	"human|Superior Parietal  (SP)": {
+		"human|Superior parietal lobule": "exact"
+	},
+	"human|Caudal Anterior Cingulate (CAC)": {
+		"human|cingulate gyrus, frontal part": "approximate"
+	},
+	"human|human occipetal area 2": {
+		"human|Area hOc2 (V2, 18)": "exact"
+	},
+	"human|Lingual (Li)": {
+		"human|Occipital cortex": "approximate"
+	},
+	"human|Visual Cortex": {
+		"human|Occipital cortex": "approximate"
+	},
+	"human|Dentate Gyrus": {
+		"human|DG (Hippocampus)": "exact"
+	},
+	"human|Corpus geniculatum laterale (CGL, LGB, metathalamus)": {
+		"human|CGL (Metathalamus)": "exact"
+	},
+	"human|human occipetal area 3": {
+		"human|Area hOc3v (LingG), Area hOc3d (Cuneus)": "contains"
+	},
+	"human|uncinate fasciculus": {
+		"human|None": "exact"
+	},
+	"human|CA4 (DG)": {
+		"human|DG (Hippocampus)": "contains"
+	},
+	"human|Area a30 (retrosplenial)": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|anterior temporal cortex": {
+		"human|Temporal lobe": "contained"
+	},
+	"human|Supramarginal (SP)": {
+		"human|Mesial precentral gyrus": "?"
+	},
+	"human|Precentral (PrC)": {
+		"human|Precentral gyrus": "close"
+	},
+	"human|Mediodorsal Thalamic Nucleus": {
+		"human|Thalamus": "contained"
+	},
+	"human|Brodmann area 21": {
+		"human|Temporal lobe": "contained"
+	},
+	"human|Corpus geniculatum mediale (CGM, MGB, metathalamus)": {
+		"human|CGM (Metathalamus)": "exact"
+	},
+	"human|Visual cortex area 17": {
+		"human|Area hOc1 (V1, 17, CalcS)": "exact"
+	},
+	"human|Area 46": {
+		"human|Frontal lobe": "contained"
+	},
+	"human|Lateral Orbitofrontal (LOF)": {
+		"human|Lateral orbitofrontal cortex": "exact"
+	},
+	"human|superior occipital cortex": {
+		"human|Occipital cortex": "contained"
+	},
+	"human|Area a29 (retrosplenial)": {
+		"human|Limbic lobe": "contained"
+	},
+	"human|PaS (Subiculum)": {
+		"human|HC-Subiculum (Hippocampus)": "exact"
+	},
+	"human|Area Ia (Insula)": {
+		"human|Area Ia1 (Insula)": "exact"
+	},
+	"human|medial temporal cortex": {
+		"human|Temporal lobe": "contained"
+	}
+}

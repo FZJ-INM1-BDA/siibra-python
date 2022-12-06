@@ -16,8 +16,7 @@
 from .space import Space
 from .region import Region
 
-from ..registry import InstanceTable, REGISTRY
-from ..commons import logger, MapType, MapIndex
+from ..commons import logger, MapType, MapIndex, InstanceTable
 
 from typing import Set, Union, List
 
@@ -66,7 +65,9 @@ class ParcellationVersion:
         return self.name < other.name
 
 
-class Parcellation(Region):
+class Parcellation(Region, configuration_folder="parcellations"):
+
+    _CACHED_REGION_SEARCHES = {}
 
     def __init__(
         self,
@@ -78,7 +79,7 @@ class Parcellation(Region):
         version: ParcellationVersion = None,
         modality: str = None,
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
     ):
         """
         Constructs a new parcellation object.
@@ -100,9 +101,8 @@ class Parcellation(Region):
             Specification of the modality used for creating the parcellation
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
-        ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation.
-            Key: EBRAINS KG schema, value: EBRAINS KG @id
+        datasets : list
+            datasets associated with this region
         """
         Region.__init__(
             self,
@@ -112,7 +112,7 @@ class Parcellation(Region):
             shortname=shortname,
             description=description,
             publications=publications,
-            ebrains_ids=ebrains_ids,
+            datasets=datasets,
             modality=modality
         )
         self._id = identifier
@@ -142,10 +142,11 @@ class Parcellation(Region):
         ------
         A ParcellationMap representing the volumetric map.
         """
+        from ..volumes import Map
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
         candidates = [
-            m for m in REGISTRY.Map
+            m for m in Map.registry()
             if m.space.matches(space)
             and m.maptype == maptype
             and m.parcellation.matches(self)
@@ -174,6 +175,23 @@ class Parcellation(Region):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
+
+    @classmethod
+    def find_regions(cls, region_spec: str, parents_only=True):
+        MEM = cls._CACHED_REGION_SEARCHES
+        if region_spec not in MEM:
+            MEM[region_spec] = [
+                r
+                for p in cls.registry()
+                for r in p.find(regionspec=region_spec)
+            ]
+        if parents_only:
+            return [
+                r for r in MEM[region_spec]
+                if not any(_ in r.children for _ in MEM[region_spec])
+            ]
+        else:
+            return MEM[region_spec]
 
     @property
     def supported_spaces(self) -> Set[Space]:

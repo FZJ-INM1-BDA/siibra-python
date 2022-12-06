@@ -14,8 +14,7 @@
 # limitations under the License.
 
 from .cache import CACHE
-from ..commons import logger
-from ..config import HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 
 import json
 from zipfile import ZipFile

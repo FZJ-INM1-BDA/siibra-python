@@ -17,7 +17,6 @@ from .volume import Volume, NiftiFetcher, Subvolume
 from .util import create_gaussian_kernel
 
 from .. import logger, QUIET
-from ..registry import REGISTRY
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
 from ..core.concept import AtlasConcept
 from ..core.space import Space
@@ -35,7 +34,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(AtlasConcept):
+class Map(AtlasConcept, configuration_folder="maps"):
 
     def __init__(
         self,

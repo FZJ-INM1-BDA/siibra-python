@@ -17,7 +17,6 @@
 from .feature import CorticalProfile, RegionalFingerprint
 
 from ..commons import logger, create_key
-from ..core.datasets import EbrainsDataset
 from ..retrieval import HttpRequest, SiibraHttpRequestError
 
 import numpy as np
@@ -80,7 +79,7 @@ def LAYER_READER(b):
     return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
 
 
-class CellDensityProfile(CorticalProfile, EbrainsDataset):
+class CellDensityProfile(CorticalProfile):
 
     DESCRIPTION = (
         "Cortical profile of estimated densities of detected cell bodies (in detected cells per 0.1 cube millimeter) "
@@ -113,9 +112,6 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        EbrainsDataset.__init__(
-            self, dataset_id, f"Cell density profile for {regionname}"
-        )
 
         self._step = 0.01
         self._url = url
@@ -133,7 +129,7 @@ class CellDensityProfile(CorticalProfile, EbrainsDataset):
             self,
             measuretype="cell density",
             species=species,
-            regionname=regionname,
+            region=regionname,
             description=self.DESCRIPTION,
             unit="detected cells / 0.1mm3",
         )

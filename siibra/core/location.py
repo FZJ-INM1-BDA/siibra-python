@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..registry import REGISTRY
 from ..commons import logger
 from ..retrieval import HttpRequest
 
@@ -51,7 +50,7 @@ class Location(ABC):
 
     def __init__(self, space):
         try:
-            spaceobj = REGISTRY.Space[space]
+            spaceobj = Space.get_instance(space)
             self.space_id = spaceobj.id
         except IndexError:
             self.space_id = ""

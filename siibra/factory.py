@@ -14,12 +14,15 @@
 # limitations under the License.
 
 from .commons import logger
+from .anchor import AnatomicalAnchor
+
 from .core.atlas import Atlas
 from .core.parcellation import Parcellation, ParcellationVersion
 from .core.space import Space
 from .core.region import Region
-from .core.datasets import EbrainsDataset
 from .core.location import Point, PointSet
+
+from .retrieval.datasets import EbrainsDataset
 
 from .volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
@@ -43,14 +46,35 @@ BUILDFUNCS = {
     "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
     "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
     "tmp/poly": "build_pointset",
-    "siibra/feature/fingerprint/receptor/v1.0.0": "build_receptor_density_fingerprint",
-    "siibra/feature/profile/receptor/v1.0.0": "build_receptor_density_profile",
+    "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
+    "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
     "siibra/feature/fingerprint/celldensity/v1.0.0": "build_cell_density_fingerprint",
     "siibra/feature/profile/celldensity/v1.0.0": "build_cell_density_profile",
 }
 
 
 class Factory:
+
+    @classmethod
+    def extract_datasets(cls, spec):
+        datasets = []
+        if "minds/core/dataset/v1.0.0" in spec.get("ebrains", {}):
+            datasets.append(
+                EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
+            )
+        return datasets
+
+    @classmethod
+    def extract_volumes(cls, spec):
+        return list(map(cls.build_volume, spec.get("volumes", [])))
+
+    @classmethod
+    def extract_anchor(cls, spec):
+        return AnatomicalAnchor(
+            region=spec.get('region', None),
+            location=None,
+            species=spec.get("species", None),
+        )
 
     @classmethod
     def build_atlas(cls, spec):
@@ -67,16 +91,15 @@ class Factory:
 
     @classmethod
     def build_space(cls, spec):
-        volumes = list(map(cls.build_volume, spec.get("volumes", [])))
         return Space(
             identifier=spec["@id"],
             name=spec["name"],
-            volumes=volumes,
+            volumes=cls.extract_volumes(spec),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {})
+            datasets=cls.extract_datasets(spec),
         )
 
     @classmethod
@@ -87,7 +110,7 @@ class Factory:
             shortname=spec.get("shortname", ""),
             description=spec.get("description", ""),
             publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {}),
+            datasets=cls.extract_datasets(spec),
             rgb=spec.get("rgb", None),
         )
 
@@ -108,7 +131,7 @@ class Factory:
             description=spec.get("description", ""),
             modality=spec.get('modality', ""),
             publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {}),
+            datasets=cls.extract_datasets(spec),
         )
 
         # add version object, if any is specified
@@ -157,8 +180,7 @@ class Factory:
         basename = path.splitext(path.basename(spec['filename']))[0]
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
-        volumes = list(map(cls.build_volume, spec.get("volumes", [])))
-
+        volumes = cls.extract_volumes(spec)
         Maptype = Map if len(volumes) < 10 else SparseMap
 
         return Maptype(
@@ -172,7 +194,7 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            ebrains_ids=spec.get("ebrains", {})
+            ebrains=cls.build_ebrains_items(spec.get("ebrains", {}))
         )
 
     @classmethod
@@ -205,20 +227,18 @@ class Factory:
     @classmethod
     def build_receptor_density_fingerprint(cls, spec):
         return ReceptorDensityFingerprint(
-            spec['kgId'],
-            spec['species'],
-            spec['region_name'],
-            spec['url']
+            tsvfile=spec['file'],
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
         )
 
     @classmethod
     def build_receptor_density_profile(cls, spec):
         return ReceptorDensityProfile(
-            spec["kgId"],
-            spec['species'],
-            spec['region_name'],
-            spec['receptor_type'],
-            spec['url']
+            receptor=spec['receptor'],
+            tsvfile=spec['file'],
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
         )
 
     @classmethod
@@ -261,5 +281,3 @@ class Factory:
             return func(spec)
         else:
             raise RuntimeError(f"No factory method for specification type {spectype}.")
-
-

@@ -15,7 +15,7 @@
 
 from .feature import CorticalProfile, RegionalFingerprint
 
-from ..registry import REGISTRY, Query
+from ..configuration import REGISTRY, Query
 from ..commons import logger, QUIET
 from ..core.location import PointSet, Point
 from ..core.atlas import Atlas
@@ -107,7 +107,7 @@ class BigBrainIntensityProfile(CorticalProfile):
             self,
             measuretype="BigBrain cortical intensity profile",
             species=Atlas.get_species_id('human'),
-            regionname=regionname,
+            region=regionname,
             description=self.DESCRIPTION,
             unit="staining intensity",
             depths=depths,

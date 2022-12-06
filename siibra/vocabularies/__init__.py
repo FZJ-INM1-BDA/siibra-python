@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from ..registry import InstanceTable
+from ..commons import InstanceTable
 
 import json
 from os import path
@@ -34,3 +34,7 @@ with open(runtime_path('gene_names.json'), 'r') as f:
 
 with open(runtime_path('receptor_symbols.json'), 'r') as f:
     RECEPTOR_SYMBOLS = json.load(f)
+
+
+with open(runtime_path('region_aliases_human.json'), 'r') as f:
+    REGION_ALIASES = json.load(f)
