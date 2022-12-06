@@ -25,6 +25,7 @@ from ..commons import (
     affine_scaling,
     create_key,
     clear_name,
+    InstanceTable,
 )
 from ..retrieval.repositories import GitlabConnector
 
@@ -398,6 +399,20 @@ class Region(anytree.NodeMixin, AtlasConcept):
         if self._supported_spaces is None:
             self._supported_spaces = {s for s in Space.registry() if self.mapped_in_space(s)}
         return self._supported_spaces
+
+    def supports_space(self, space: Space):
+        """
+        Return true if this region supports the given space, else False.
+        """
+        return any(s.matches(space) for s in self.supported_spaces)
+
+    @property
+    def spaces(self):
+        return InstanceTable(
+            matchfunc=Space.matches,
+            elements={s.key: s for s in self.supported_spaces},
+        )
+
 
     def __getitem__(self, labelindex):
         """

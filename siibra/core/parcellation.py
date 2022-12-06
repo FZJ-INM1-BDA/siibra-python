@@ -13,12 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .space import Space
 from .region import Region
 
-from ..commons import logger, MapType, MapIndex, InstanceTable
+from ..commons import logger, MapType, MapIndex
 
-from typing import Set, Union, List
+from typing import Union, List
 
 
 # NOTE : such code could be used to automatically resolve
@@ -192,29 +191,6 @@ class Parcellation(Region, configuration_folder="parcellations"):
             ]
         else:
             return MEM[region_spec]
-
-    @property
-    def supported_spaces(self) -> Set[Space]:
-        """Overwrite the method of AtlasConcept.
-        For parcellations, a space is also considered as supported if one of their regions is mapped in the space.
-        """
-        return list(
-            set(super().supported_spaces)
-            | {space for region in self for space in region.supported_spaces}
-        )
-
-    def supports_space(self, space: Space):
-        """
-        Return true if this parcellation supports the given space, else False.
-        """
-        return any(s.matches(space) for s in self.supported_spaces)
-
-    @property
-    def spaces(self):
-        return InstanceTable(
-            matchfunc=Space.matches,
-            elements={s.key: s for s in self.supported_spaces},
-        )
 
     @property
     def is_newest_version(self):

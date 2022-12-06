@@ -194,7 +194,7 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            ebrains=cls.build_ebrains_items(spec.get("ebrains", {}))
+            datasets=cls.extract_datasets(spec)
         )
 
     @classmethod

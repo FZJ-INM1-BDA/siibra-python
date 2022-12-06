@@ -135,11 +135,6 @@ class Configuration:
         for fname, loader in self.spec_loaders.get(folder, []):
             # filename is used by Factory to create an object identifier if none is provided.
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-            # all objects generated are expected to be of the same class!
-            if objtype is None:
-                objtype = obj.__class__
-            else:
-                assert objtype == obj.__class__
             result.append(obj)
 
         return result
