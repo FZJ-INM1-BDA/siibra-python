@@ -82,11 +82,12 @@ def test_region_volumes(volume: VolumeSrc):
     assert Dataset.get_model_type() not in model.id
 
 
-fetch_ng_volume_fetchable_params=[
+fetch_ng_volume_fetchable_params = [
     ("ID", "NAME", "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210927-waxholm-v4/precomputed/segmentations/WHS_SD_rat_atlas_v4", None, None)
 ]
+
 @pytest.mark.parametrize("identifier,name,url,space,detail", fetch_ng_volume_fetchable_params)
-def test_ng_volume(identifier,name,url,space,detail):
+def test_ng_volume(identifier, name, url, space, detail):
     vol = NeuroglancerVolumeFetcher(identifier, name, url, space, detail)
     vol.fetch()
 
@@ -99,7 +100,7 @@ volume_map_types = [
 ]
 
 @pytest.mark.parametrize("parc_id,volume_cls,volume_index,map_type", volume_map_types)
-def test_volume_map_types(parc_id,volume_cls,volume_index,map_type):
+def test_volume_map_types(parc_id, volume_cls, volume_index, map_type):
     parc = parcellations[parc_id]
     v: VolumeSrc = [v for v in parc.volumes if isinstance(v, volume_cls)][volume_index]
     assert v.map_type is map_type
