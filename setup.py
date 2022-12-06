@@ -25,7 +25,14 @@ setup(
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
     packages=find_packages(include=["siibra", "siibra.*"]),
     include_package_data=True,
-    package_data={'siibra': ['features/region_aliases_human.json', 'VERSION']},
+    package_data={
+        'siibra': [
+            'features/region_aliases_human.json',
+            'VERSION',
+            'vocabularies/gene_names.json',
+            'vocabularies/receptory_symbols.json',
+        ]
+    },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Programming Language :: Python :: 3.6",
@@ -43,7 +50,6 @@ setup(
         "requests",
         "neuroglancer-scripts",
         "nilearn",
-        'importlib-resources; python_version < "3.7"',
         'typing-extensions; python_version < "3.8"',
     ],
 )
