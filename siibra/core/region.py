@@ -380,7 +380,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Verifies wether this region is defined by an explicit map in the given space.
         """
         from ..volumes.map import Map
-        for m in Map.get_instances():
+        for m in Map.registry():
             if m.space.matches(space):
                 if self.name in m.regions:
                     return True
