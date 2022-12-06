@@ -17,6 +17,7 @@ from . import __version__
 from .commons import logger
 from .retrieval.repositories import GitlabConnector, RepositoryConnector
 from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
+from .config import SIIBRA_USE_CONFIGURATION
 
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union
 from collections import defaultdict
@@ -333,6 +334,7 @@ class Registry:
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Using custom configuration from {str(conn)}")
         cls.CONFIGURATIONS = [conn]
+        REGISTRY.__init__()
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -342,6 +344,7 @@ class Registry:
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls.CONFIGURATION_EXTENSIONS.append(conn)
+        REGISTRY.__init__()
 
     def get_instances(self, classname, **kwargs):
 
@@ -376,3 +379,6 @@ class Registry:
 
 
 REGISTRY = Registry()
+if SIIBRA_USE_CONFIGURATION:
+    logger.warn(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
+    Registry.use_configuration(SIIBRA_USE_CONFIGURATION)
