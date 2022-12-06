@@ -30,6 +30,7 @@ logger.info(
 from .commons import MapType, MapIndex, set_log_level
 from os import environ
 from .retrieval.requests import EbrainsRequest
+
 set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
 from .retrieval.cache import CACHE
@@ -39,16 +40,32 @@ from .registry import REGISTRY
 use_configuration = REGISTRY.__class__.use_configuration
 extend_configuration = REGISTRY.__class__.extend_configuration
 
+atlases = REGISTRY.Atlas
+spaces = REGISTRY.Space
+parcellations = REGISTRY.Parcellation
 
-def __getattr__(name):
-    if name == "atlases":
-        return REGISTRY["Atlas"]
-    elif name == "parcellations":
-        return REGISTRY["Parcellation"]
-    elif name == "spaces":
-        return REGISTRY["Space"]
-    else:
-        raise AttributeError(f"No such attribute: {__name__}.{name}")
+get_atlas = REGISTRY.Atlas.get
+get_space = REGISTRY.Space.get
+get_parcellation = REGISTRY.Parcellation.get
+
+
+def get_map(parc_spec: str, space_spec: str, maptype: MapType = MapType.LABELLED):
+    return (
+        REGISTRY.Parcellation
+        .get(parc_spec)
+        .get_map(space=space_spec, maptype=maptype)
+    )
+
+
+def get_region(parc_spec: str, region_spec: str):
+    return (
+        REGISTRY.Parcellation
+        .get(parc_spec)
+        .get_region(regionspec=region_spec)
+    )
+
+
+from .core.location import Point, PointSet, BoundingBox
 
 
 def set_feasible_download_size(maxsize_gbyte):

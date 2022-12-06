@@ -50,12 +50,11 @@ class Location(ABC):
     """
 
     def __init__(self, space):
-        try: 
+        try:
             spaceobj = REGISTRY.Space[space]
             self.space_id = spaceobj.id
         except IndexError:
             self.space_id = ""
-
 
     @property
     def space(self):
@@ -84,7 +83,7 @@ class Location(ABC):
         pass
 
     @abstractmethod
-    def transform(self, affine: np.ndarray, space = None):
+    def transform(self, affine: np.ndarray, space=None):
         """Returns a new location obtained by transforming the
         reference coordinates of this one with the given affine matrix.
 
@@ -113,7 +112,7 @@ class Location(ABC):
             )
         else:
             return (
-                f"{self.__class__.__name__} in {self.space_id} "
+                f"{self.__class__.__name__} in {self.space.name} "
                 f"[{','.join(str(l) for l in iter(self))}]"
             )
 
@@ -121,7 +120,7 @@ class Location(ABC):
 class WholeBrain(Location):
     """
     Trivial location class for formally representing
-    location in a particular reference space. Which
+    location in a particular reference space, which
     is not further specified.
     """
 
@@ -131,7 +130,7 @@ class WholeBrain(Location):
         """
         return True
 
-    def __init__(self, space = None):
+    def __init__(self, space=None):
         Location.__init__(self, space)
 
     def intersects(self, mask: Nifti1Image):
@@ -143,7 +142,7 @@ class WholeBrain(Location):
         in another reference space."""
         return self.__class__(space)
 
-    def transform(self, affine: np.ndarray, space = None):
+    def transform(self, affine: np.ndarray, space=None):
         """Does nothing."""
         pass
 
@@ -254,6 +253,12 @@ class Point(Location):
         else:
             return check(mask, self.coordinate)
 
+    def contained_in(self, mask: Nifti1Image):
+        return self.intersects(mask)
+
+    def contains(self, mask: Nifti1Image):
+        return False
+
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
         try:
@@ -329,7 +334,7 @@ class Point(Location):
         """Return a new point with multiplied
         coordinates in the same space."""
 
-    def transform(self, affine: np.ndarray, space = None):
+    def transform(self, affine: np.ndarray, space=None):
         """Returns a new Point obtained by transforming the
         coordinate of this one with the given affine matrix.
 
@@ -337,11 +342,13 @@ class Point(Location):
         ----------
         affine : numpy 4x4 ndarray
             affine matrix
-        space_id : id of reference space, or None (optional)
+        space : reference space, (str, Space, or None))
             Target reference space which is reached after
             applying the transform. Note that the consistency
             of this cannot be checked and is up to the user.
         """
+        spaceobj = REGISTRY.Space[space] if isinstance(space, str) else space
+        space_id = "" if spaceobj is None else spaceobj.id
         x, y, z, h = np.dot(affine, self.homogeneous)
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
@@ -408,7 +415,7 @@ class PointSet(Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space = None, sigma_mm=0):
+    def __init__(self, coordinates, space=None, sigma_mm=0):
         """
         Construct a 3D point set in the given reference space.
 
@@ -484,7 +491,7 @@ class PointSet(Location):
             coordinates=tuple(response["target_points"]), space=space_id
         )
 
-    def transform(self, affine: np.ndarray, space = None):
+    def transform(self, affine: np.ndarray, space=None):
         """Returns a new PointSet obtained by transforming the
         coordinates of this one with the given affine matrix.
 
@@ -519,7 +526,7 @@ class PointSet(Location):
         return len(self.coordinates)
 
     def __str__(self):
-        return f"Set of points {self.space_id}: " + ", ".join(
+        return f"Set of points {self.space.name}: " + ", ".join(
             f"({','.join(str(v) for v in p)})" for p in self
         )
 
@@ -813,7 +820,7 @@ class BoundingBox(Location):
         ] = 1
         return Nifti1Image(arr, tpl.affine)
 
-    def transform(self, affine: np.ndarray, space = None):
+    def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the
         min- and maxpoint of this one with the given affine matrix.
 
@@ -823,11 +830,13 @@ class BoundingBox(Location):
         ----------
         affine : numpy 4x4 ndarray
             affine matrix
-        space_id : id of reference space
+        space : reference space (str, Space, or None)
             Target reference space which is reached after
             applying the transform. Note that the consistency
             of this cannot be checked and is up to the user.
         """
+        spaceobj = REGISTRY.Space[space] if isinstance(space, str) else space
+        space_id = "" if spaceobj is None else spaceobj.id
         return self.__class__(
             point1=self.minpoint.transform(affine, space_id),
             point2=self.maxpoint.transform(affine, space_id),

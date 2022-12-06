@@ -93,6 +93,9 @@ class InstanceTable(Generic[T], Iterable):
         return len(self._elements)
 
     def __getitem__(self, spec) -> T:
+        return self.get(spec)
+
+    def get(self, spec) -> T:
         """Give access to objects in the registry by sequential index,
         exact key, or keyword matching. If the keywords match multiple objects,
         the first in sorted order is returned. If the specification does not match,

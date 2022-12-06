@@ -329,6 +329,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
         """
+        if isinstance(maptype, str):
+            maptype = MapType[maptype.upper()]
         result = None
         for m in REGISTRY.Map:
             if all([
