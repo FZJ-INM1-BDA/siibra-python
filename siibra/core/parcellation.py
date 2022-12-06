@@ -182,7 +182,10 @@ class Parcellation(Region):
         """
         return list(
             set(super().supported_spaces)
-            | {space for region in self for space in region.supported_spaces}
+            | { space
+                for region in self
+                if region is not self
+                for space in region.supported_spaces }
         )
 
     def supports_space(self, space: Space):
