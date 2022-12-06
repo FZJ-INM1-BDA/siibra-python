@@ -27,7 +27,7 @@ from nibabel import Nifti1Image, load
 from tqdm import tqdm
 import numpy as np
 
- 
+
 class SparseIndex:
 
     def __init__(self):
@@ -233,7 +233,6 @@ class SparseMap(Map):
             prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
             spind = SparseIndex.from_cache(prefix)
             if spind is None:
-                print("index not in cache")
                 spind = SparseIndex()
                 for volume in tqdm(
                     range(len(self)), total=len(self), unit="maps",
@@ -455,4 +454,3 @@ class SparseMap(Map):
                 )
 
         return assignments
-
