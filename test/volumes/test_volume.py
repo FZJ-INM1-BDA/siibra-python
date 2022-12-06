@@ -4,7 +4,7 @@ from siibra.commons import MapType
 
 from siibra.volumes.volume import VolumeSrc, RemoteNiftiVolume, Dataset
 from siibra import spaces, parcellations
-from siibra.volumes.volume import NeuroglancerVolume
+from siibra.volumes.volume import NeuroglancerVolumeFetcher
 
 
 class TestVolumeSrc(unittest.TestCase):
@@ -87,15 +87,15 @@ fetch_ng_volume_fetchable_params=[
 ]
 @pytest.mark.parametrize("identifier,name,url,space,detail", fetch_ng_volume_fetchable_params)
 def test_ng_volume(identifier,name,url,space,detail):
-    vol = NeuroglancerVolume(identifier, name, url, space, detail)
+    vol = NeuroglancerVolumeFetcher(identifier, name, url, space, detail)
     vol.fetch()
 
 volume_map_types = [
-    ("difumo 64", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 128", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 256", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 512", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 1024", NeuroglancerVolume, 0, MapType.LABELLED),
+    ("difumo 64", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 128", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 256", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 512", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 1024", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
 ]
 
 @pytest.mark.parametrize("parc_id,volume_cls,volume_index,map_type", volume_map_types)
