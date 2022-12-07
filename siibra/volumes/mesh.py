@@ -116,6 +116,8 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         - faces: an MX3 array containing connection data of vertices
         - name: name of the fragment
         """
+        if voi:
+            raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
         try: 
             resp = HttpRequest(
                 url=f"{self.url}/{self.mesh_key}/{str(mesh_index)}:0",
