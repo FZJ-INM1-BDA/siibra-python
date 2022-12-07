@@ -13,10 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import logger, find_regions
+
 from .core.location import Location
 from .core.region import Region
 from .core.concept import AtlasConcept
-from . import logger, find_regions
+
+from .vocabularies import REGION_ALIASES
 
 from typing import Union
 from enum import Enum
@@ -127,7 +130,20 @@ class AnatomicalAnchor:
     @property
     def regions(self):
         if self._regions_cached is None:
-            self._regions_cached = find_regions(self._regionspec, self.species)
+            # decode the region specification into a set of region objects
+            self._regions_cached = {
+                r: AssignmentQualification['EXACT'] 
+                for r in find_regions(self._regionspec, self.species)
+            }
+            # add more regions from possible aliases of the region spec
+            region_aliases = REGION_ALIASES.get(self.species, {}).get(self._regionspec, {})
+            for species, aliases in region_aliases.items():
+                for regionspec, qualificationspec in aliases.items():
+                    for r in find_regions(regionspec, species):
+                        if r not in self._regions_cached:
+                            logger.info(f"Adding region {r.name} in {species} from alias to {self._regionspec}")
+                            self._regions_cached[r] = qualificationspec
+
         return self._regions_cached
 
     def __str__(self):

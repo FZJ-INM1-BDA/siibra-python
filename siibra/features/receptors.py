@@ -18,7 +18,6 @@ from .feature import CorticalProfile, RegionalFingerprint
 from ..commons import logger, create_key
 from ..retrieval.requests import HttpRequest
 from ..vocabularies import RECEPTOR_SYMBOLS
-from ..anchor import AnatomicalAnchor
 
 from io import BytesIO
 import re
@@ -72,7 +71,7 @@ class ReceptorDensityProfile(CorticalProfile, configuration_folder="features/pro
         self,
         receptor: str,
         tsvfile: str,
-        anchor: AnatomicalAnchor,
+        anchor: "AnatomicalAnchor",
         datasets: list = []
     ):
         """Generate a receptor density profile from a URL to a .tsv file
@@ -156,7 +155,7 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
     def __init__(
         self,
         tsvfile: str,
-        anchor: AnatomicalAnchor,
+        anchor: "AnatomicalAnchor",
         datasets: list = []
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file

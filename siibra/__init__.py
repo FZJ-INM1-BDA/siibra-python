@@ -18,7 +18,7 @@ from .core import Atlas, Parcellation, Space, Point, PointSet, BoundingBox
 from .retrieval.requests import EbrainsRequest
 from .retrieval.cache import CACHE
 from .configuration import Configuration
-from .features import Feature
+from .features import Feature, ReceptorDensityProfile
 
 import os
 

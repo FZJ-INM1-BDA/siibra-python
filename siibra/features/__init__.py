@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .feature import Feature
+from .receptors import ReceptorDensityProfile, ReceptorDensityFingerprint
 get_features = Feature.match
 
 # __all__ = []

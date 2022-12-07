@@ -53,6 +53,11 @@ BUILDFUNCS = {
 }
 
 
+# list of species specifications expected by the factory so far,
+# in order to inform when new ones come up to add support.
+EXPECTED_SPECIES_SPECS = [None, 'Homo sapiens']
+
+
 class Factory:
 
     @classmethod
@@ -76,6 +81,8 @@ class Factory:
 
     @classmethod
     def extract_anchor(cls, spec):
+        if spec.get("species") not in EXPECTED_SPECIES_SPECS:
+            logger.error(f"Species specification '{spec.get('species')}' unexpected - check if supported.")
         return AnatomicalAnchor(
             region=spec.get('region', None),
             location=None,
