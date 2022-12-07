@@ -108,7 +108,7 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, resolution_mm: float = None, index: int = None, voi=None):
+    def fetch(self, resolution_mm: float = None, mesh_index: int = None, voi=None):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is  a dictionary with the keys:
@@ -118,12 +118,12 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         """
         try: 
             resp = HttpRequest(
-                url=f"{self.url}/{self.mesh_key}/{str(index)}:0",
+                url=f"{self.url}/{self.mesh_key}/{str(mesh_index)}:0",
                 func=DECODERS['.json']
             ).data
             fragments = resp.get('fragments') if resp else None
         except SiibraHttpRequestError:
-            logger.error(f"Source {self} does not provide a mesh with index {index}.")
+            logger.error(f"Source {self} does not provide a mesh with index {mesh_index}.")
             return None
         
         transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data)
