@@ -115,6 +115,7 @@ class AnatomicalAnchor:
             )
         self.location = location
         self.species = species
+        self._assignments = {}
         if isinstance(region, Region):
             self._regions_cached = [region]
             self._regionspec = None
@@ -139,20 +140,22 @@ class AnatomicalAnchor:
         """
         Match this anchoring to an atlas concept.
         """
-        matches = ListWithoutNone()
-        if isinstance(concept, Region):
-            if self.location is not None:
-                logger.info(f"match location {self.location} to region '{concept.name}'")
-                matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
-            for region in self.regions:
-                matches.append(AnatomicalAnchor.match_regions(region, concept))
-        elif isinstance(concept, Location):
-            if self.location is not None:
-                matches.append(AnatomicalAnchor.match_locations(self.location, concept))
-            for region in self.regions:
-                match = AnatomicalAnchor.match_location_to_region(concept, region)
-                matches.append(None if match is None else match.invert())
-        return sorted(matches)
+        if concept not in self._assignments:
+            matches = ListWithoutNone()
+            if isinstance(concept, Region):
+                if self.location is not None:
+                    logger.info(f"match location {self.location} to region '{concept.name}'")
+                    matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
+                for region in self.regions:
+                    matches.append(AnatomicalAnchor.match_regions(region, concept))
+            elif isinstance(concept, Location):
+                if self.location is not None:
+                    matches.append(AnatomicalAnchor.match_locations(self.location, concept))
+                for region in self.regions:
+                    match = AnatomicalAnchor.match_location_to_region(concept, region)
+                    matches.append(None if match is None else match.invert())
+            self._assignments[concept] = sorted(matches)
+        return self._assignments[concept]
 
     def matches(self, concept: AtlasConcept):
         return len(self.assign(concept)) > 0

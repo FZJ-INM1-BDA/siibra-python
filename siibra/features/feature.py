@@ -76,13 +76,29 @@ class Feature:
         if cls._instances is None:
             from ..configuration import Configuration
             conf = Configuration()
+            Configuration.register_cleanup(cls.clean_instances)
             assert cls._configuration_folder in conf.folders
             cls._instances = conf.build_objects(cls._configuration_folder)
             logger.info(f"Built {len(cls._instances)} preconfigured {cls.__name__} objects from {cls._configuration_folder}.")
         return cls._instances
 
+    @classmethod
+    def clean_instances(cls):
+        """ Removes all instantiated object instances"""
+        cls._instances = None
+
     def matches(self, concept: AtlasConcept) -> bool:
-        return False if self.anchor is None else self.anchor.matches(concept)
+        if self.anchor and self.anchor.matches(concept):
+            self._last_matched_concept = concept
+            return True
+        self._last_matched_concept = None
+        return False
+
+    @property
+    def last_match_result(self):
+        if self.anchor is None:
+            return None
+        return self.anchor._assignments.get(self._last_matched_concept)
 
     @classmethod
     def match(cls, concept: AtlasConcept, modality: Union[str, type], **kwargs):

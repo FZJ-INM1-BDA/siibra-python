@@ -74,6 +74,9 @@ class AtlasConcept:
             from ..configuration import Configuration
             from ..commons import InstanceTable
             conf = Configuration()
+            # visit the configuration to provide a cleanup function 
+            # in case the user changes the configuration during runtime.
+            Configuration.register_cleanup(cls.clear_registry)
             assert cls._configuration_folder in conf.folders
             objects = conf.build_objects(cls._configuration_folder)
             logger.info(f"Building registry of {len(objects)} preconfigured {cls.__name__} objects from {cls._configuration_folder}.")
@@ -83,6 +86,10 @@ class AtlasConcept:
                 matchfunc=objects[0].__class__.match
             )
         return cls._registry_cached
+
+    @classmethod
+    def clear_registry(cls):
+        cls._registry_cached = None
 
     @classmethod
     def get_instance(cls, spec: str):
