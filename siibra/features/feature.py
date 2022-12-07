@@ -16,12 +16,14 @@
 from ..commons import logger, InstanceTable
 from ..core.concept import AtlasConcept
 
-from typing import Union
+from typing import Union, TYPE_CHECKING
 import numpy as np
 import pandas as pd
 from textwrap import wrap
 from tqdm import tqdm
 
+if TYPE_CHECKING:
+    from ..anchor import AnatomicalAnchor
 
 class Feature:
     """
@@ -34,7 +36,7 @@ class Feature:
         self,
         measuretype: str,
         description: str,
-        anchor: "AnatomicalAnchor",
+        anchor: AnatomicalAnchor,
         datasets: list = []
     ):
         """
@@ -123,7 +125,7 @@ class CorticalProfile(Feature):
         self,
         description: str,
         measuretype: str,
-        anchor: "AnatomicalAnchor",
+        anchor: AnatomicalAnchor,
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
         unit: str = None,
@@ -290,7 +292,7 @@ class RegionalFingerprint(Feature):
         self,
         description: str,
         measuretype: str,
-        anchor: "AnatomicalAnchor",
+        anchor: AnatomicalAnchor,
         means: Union[list, np.ndarray] = None,
         labels: Union[list, np.ndarray] = None,
         stds: Union[list, np.ndarray] = None,
