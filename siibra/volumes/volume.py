@@ -64,7 +64,7 @@ class Volume:
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return REGISTRY.Space[self._space_spec[key]]
+                return Space.get_instance(self._space_spec[key])
         return Space(None, "Unspecified space")
 
     def __str__(self):

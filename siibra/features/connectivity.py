@@ -42,7 +42,7 @@ class ConnectivityMatrix(Feature):
         dataset_id: str = None,
     ):
         """Construct a parcellation-averaged connectivty matrix."""
-        ParcellationFeature.__init__(self, parcellation_id)
+        Feature.__init__(self)
         self.cohort = cohort.upper()
         self.subject = subject
         self.dataset_id = dataset_id
