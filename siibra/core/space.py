@@ -20,7 +20,7 @@ from .location import Point, BoundingBox
 from ..commons import logger
 
 
-class Space(AtlasConcept):
+class Space(AtlasConcept, configuration_folder="spaces"):
     """
     A particular brain reference space.
     """
@@ -34,7 +34,7 @@ class Space(AtlasConcept):
         description: str = "",
         modality: str = "",
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
     ):
         """
         Constructs a new parcellation object.
@@ -67,7 +67,7 @@ class Space(AtlasConcept):
             description=description,
             modality=modality,
             publications=publications,
-            ebrains_ids=ebrains_ids,
+            datasets=datasets,
         )
         self.volumes = volumes
         for v in self.volumes:

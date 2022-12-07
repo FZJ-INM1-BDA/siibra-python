@@ -19,14 +19,192 @@ from enum import Enum
 from nibabel import Nifti1Image
 import logging
 import numpy as np
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union
 
-from .config import SIIBRA_LOG_LEVEL
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
 formatter = logging.Formatter("[{name}:{levelname}] {message}", style="{")
 ch.setFormatter(formatter)
 logger.addHandler(ch)
+
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+HBP_AUTH_TOKEN = os.getenv("HBP_AUTH_TOKEN")
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
+SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
+SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
+SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
+with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
+    __version__ = fp.read()
+
+
+T = TypeVar("T")
+
+
+class InstanceTable(Generic[T], Iterable):
+    """
+    Lookup table for instances of a given class by name/id.
+    Provide attribute-access and iteration to a set of named elements,
+    given by a dictionary with keys of 'str' type.
+    """
+
+    def __init__(self, matchfunc=lambda a, b: a == b, elements=None):
+        """
+        Build an object lookup table from a dictionary with string keys, for easy
+        attribute-like access, name autocompletion, and iteration.
+        Matchfunc can be provided to enable inexact matching inside the index operator.
+        It is a binary function, taking as first argument a value of the dictionary
+        (ie. an object that you put into this glossary), and as second argument
+        the index/specification that should match one of the objects, and returning a boolean.
+        """
+
+        assert hasattr(matchfunc, "__call__")
+        if elements is None:
+            self._elements = {}
+        else:
+            assert isinstance(elements, dict)
+            assert all(isinstance(k, str) for k in elements.keys())
+            self._elements = elements
+        self._matchfunc = matchfunc
+
+    def add(self, key: Union[str, int], value: T) -> None:
+        """Add a key/value pair to the registry.
+
+        Args:
+            key (string): Unique name or key of the object
+            value (object): The registered object
+        """
+        if key in self._elements:
+            logger.error(
+                f"Key {key} already in {__class__.__name__}, existing value will be replaced."
+            )
+        self._elements[key] = value
+
+    def __dir__(self) -> Iterable[str]:
+        """List of all object keys in the registry"""
+        return self._elements.keys()
+
+    def __str__(self) -> str:
+        if len(self) > 0:
+            return f"{self.__class__.__name__}:\n - " + "\n - ".join(self._elements.keys())
+        else:
+            return f"Empty {self.__class__.__name__}"
+
+    def __iter__(self) -> Iterator[T]:
+        """Iterate over all objects in the registry"""
+        return (w for w in self._elements.values())
+
+    def __contains__(self, key) -> bool:
+        """Test wether the given key is defined by the registry."""
+        return (
+            key in self._elements
+        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
+
+    def __len__(self) -> int:
+        """Return the number of elements in the registry"""
+        return len(self._elements)
+
+    def __getitem__(self, spec) -> T:
+        return self.get(spec)
+
+    def get(self, spec) -> T:
+        """Give access to objects in the registry by sequential index,
+        exact key, or keyword matching. If the keywords match multiple objects,
+        the first in sorted order is returned. If the specification does not match,
+        a RuntimeError is raised.
+
+        Args:
+            spec [int or str]: Index or string specification of an object
+
+        Returns:
+            Matched object
+        """
+        if spec is None:
+            raise IndexError(f"{__class__.__name__} indexed with None")
+        elif spec == "":
+            raise IndexError(f"{__class__.__name__} indexed with empty string")
+        matches = self.find(spec)
+        if len(matches) == 0:
+            print(str(self))
+            raise IndexError(
+                f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
+                f"Possible values are: " + ", ".join(self._elements.keys())
+            )
+        elif len(matches) == 1:
+            return matches[0]
+        else:
+            try:
+                S = sorted(matches, reverse=True)
+            except TypeError:
+                # not all object types support sorting, accept this
+                S = matches
+            largest = S[0]
+            logger.info(
+                f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
+            )
+            return largest
+
+    def __sub__(self, obj) -> "InstanceTable[T]":
+        """
+        remove an object from the registry
+        """
+        if obj in self._elements.values():
+            return InstanceTable[T](
+                self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
+            )
+        else:
+            return self
+
+    def provides(self, spec) -> bool:
+        """
+        Returns True if an element that matches the given specification can be found
+        (using find(), thus going beyond the matching of names only as __contains__ does)
+        """
+        matches = self.find(spec)
+        return len(matches) > 0
+
+    def find(self, spec) -> List[T]:
+        """
+        Return a list of items matching the given specification,
+        which could be either the name or a specification that
+        works with the matchfunc of the Glossary.
+        """
+        if isinstance(spec, str) and (spec in self._elements):
+            return [self._elements[spec]]
+        elif isinstance(spec, int) and (spec < len(self._elements)):
+            return [list(self._elements.values())[spec]]
+        else:
+            # string matching on values
+            matches = [v for v in self._elements.values() if self._matchfunc(v, spec)]
+            if len(matches) == 0:
+                # string matching on keys
+                matches = [
+                    self._elements[k]
+                    for k in self._elements.keys()
+                    if all(w.lower() in k.lower() for w in spec.split())
+                ]
+            return matches
+
+    def __getattr__(self, index) -> T:
+        """Access elements by using their keys as attributes.
+        Keys are auto-generated from the provided names to be uppercase,
+        with words delimited using underscores.
+        """
+        if index in self._elements:
+            return self._elements[index]
+        else:
+            hint = ""
+            if isinstance(index, str):
+                import difflib
+
+                closest = difflib.get_close_matches(
+                    index, list(self._elements.keys()), n=3
+                )
+                if len(closest) > 0:
+                    hint = f"Did you mean {' or '.join(closest)}?"
+            raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
 class LoggingContext:

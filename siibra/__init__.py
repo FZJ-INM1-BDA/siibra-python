@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger, QUIET, VERBOSE
+from .commons import logger, QUIET, VERBOSE, MapType, MapIndex, set_log_level, __version__
+from .core import Atlas, Parcellation, Space, Point, PointSet, BoundingBox
+from .retrieval.requests import EbrainsRequest
+from .retrieval.cache import CACHE
+from .configuration import Configuration
+from .features import Feature
 
 import os
 
-ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
-    __version__ = fp.read()
 
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
@@ -27,45 +29,55 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-from .commons import MapType, MapIndex, set_log_level
-from os import environ
-from .retrieval.requests import EbrainsRequest
-
+# forward access to some functions
 set_ebrains_token = EbrainsRequest.set_token
 fetch_ebrains_token = EbrainsRequest.fetch_token
-from .retrieval.cache import CACHE
 clear_cache = CACHE.clear
+get_features = Feature.match
+use_configuration = Configuration.use_configuration
+extend_configuration = Configuration.extend_configuration
+modalities = Feature.modalities
+find_regions = Parcellation.find_regions
 
-from .registry import REGISTRY
-use_configuration = REGISTRY.__class__.use_configuration
-extend_configuration = REGISTRY.__class__.extend_configuration
 
-atlases = REGISTRY.Atlas
-spaces = REGISTRY.Space
-parcellations = REGISTRY.Parcellation
+# lazy access to class registries
+# (should only be executed on request, not on package intialization)
+def __getattr__(attr: str):
 
-get_atlas = REGISTRY.Atlas.get
-get_space = REGISTRY.Space.get
-get_parcellation = REGISTRY.Parcellation.get
+    aliases = {
+        'atlases': Atlas,
+        'spaces': Space,
+        'parcellations': Parcellation,
+    }
+
+    # provide siibra.atlases, siibra.spaces, ...
+    if attr in aliases:
+        return aliases[attr].registry()
+
+    # provide siibra.get_atlas(..), ...
+    if attr.startswith('get_'):
+        name = attr.split('_')[1].capitalize()
+        for cls in aliases.values():
+            if cls.__name__ == name:
+                return cls.get_instance
+
+    raise AttributeError(f"siibra has no attribute named {attr}")
 
 
 def get_map(parc_spec: str, space_spec: str, maptype: MapType = MapType.LABELLED):
     return (
-        REGISTRY.Parcellation
-        .get(parc_spec)
+        Parcellation
+        .get_instance(parc_spec)
         .get_map(space=space_spec, maptype=maptype)
     )
 
 
 def get_region(parc_spec: str, region_spec: str):
     return (
-        REGISTRY.Parcellation
-        .get(parc_spec)
+        Parcellation
+        .get_instance(parc_spec)
         .get_region(regionspec=region_spec)
     )
-
-
-from .core.location import Point, PointSet, BoundingBox
 
 
 def set_feasible_download_size(maxsize_gbyte):
@@ -80,7 +92,5 @@ def set_cache_size(maxsize_gbyte: int):
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
 
-if "SIIBRA_CACHE_SIZE_GIB" in environ:
-    set_cache_size(float(environ.get("SIIBRA_CACHE_SIZE_GIB")))
-
-from .features import modalities, get_features
+if "SIIBRA_CACHE_SIZE_GIB" in os.environ:
+    set_cache_size(float(os.environ.get("SIIBRA_CACHE_SIZE_GIB")))

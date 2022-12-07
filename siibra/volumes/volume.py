@@ -15,7 +15,6 @@
 
 from .. import logger
 from ..commons import MapType
-from ..registry import REGISTRY
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
 from ..core.location import BoundingBox, PointSet
 from ..core.space import Space

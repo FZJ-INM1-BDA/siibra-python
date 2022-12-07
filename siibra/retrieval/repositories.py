@@ -14,12 +14,15 @@
 # limitations under the License.
 
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+
 from .. import logger
+
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
 from os import path, walk
 from zipfile import ZipFile
+import re
 
 
 class RepositoryConnector(ABC):

@@ -13,22 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-# Want to include these queries with their features into the pre-populated lists
-from .receptors import ReceptorDensityProfile, ReceptorDensityFingerprint
-from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
-from .voi import VolumeOfInterest
-from .genes import AllenBrainAtlasQuery
-from .ebrains import EbrainsRegionalFeatureQuery
-from .cells import CellDensityFingerprint, CellDensityProfile
-from .ieeg import IEEG_SessionQuery
-from .bigbrain import WagstylBigBrainProfileQuery
-# from .morphologies import NeuroMorphoQuery
-
 from .feature import Feature
-get_features = Feature.get_features
+get_features = Feature.match
 
-__all__ = []
-from .genes import GENE_NAMES as gene_names
-modalities = Feature.get_modalities()
-__all__ += ['gene_names', 'modalities']
+# __all__ = []
+# from .genes import GENE_NAMES as gene_names
+# modalities = AnchoredFeature.get_modalities()
+# __all__ += ['gene_names', 'modalities']

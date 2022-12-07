@@ -16,7 +16,7 @@
 from .feature import SpatialFeature
 
 from ..commons import logger
-from ..registry import InstanceTable, REGISTRY, Query
+from ..configuration import InstanceTable, REGISTRY, Query
 from ..core.space import Point
 from ..retrieval import HttpRequest
 
@@ -24,11 +24,6 @@ from typing import Iterable, List, Union
 from xml.etree import ElementTree
 import numpy as np
 import json
-
-try:
-    from importlib import resources
-except ImportError:
-    import importlib_resources as resources
 
 try:
     # python 3.8+
@@ -119,13 +114,6 @@ class GeneExpression(SpatialFeature):
                 "Z-score: [" + ",".join(["%4.1f" % v for v in self.z_scores]) + "]",
             ]
         )
-
-
-# provide a registry of gene names
-with resources.open_text("siibra.features", "gene_names.json") as f:
-    _genes = json.load(f)
-GENE_NAMES = InstanceTable[str]()
-list(map(lambda k: GENE_NAMES.add(k, k), _genes.keys()))
 
 
 class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):

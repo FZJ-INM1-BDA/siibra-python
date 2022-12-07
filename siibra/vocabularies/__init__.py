@@ -14,6 +14,27 @@
 # limitations under the License.
 
 
-from .map import Map
-from .volume import Volume, NeuroglancerVolumeFetcher, NiftiFetcher
-from .mesh import GiftiSurfaceLabeling, NeuroglancerMesh, GiftiSurface
+from ..commons import InstanceTable
+
+import json
+from os import path
+
+
+RT_DIR = path.dirname(__file__)
+
+
+def runtime_path(fname: str):
+    return path.join(RT_DIR, fname)
+
+
+with open(runtime_path('gene_names.json'), 'r') as f:
+    _gene_names = json.load(f)
+    GENE_NAMES = InstanceTable[str](elements={k: v for k, v in _gene_names.items()})
+
+
+with open(runtime_path('receptor_symbols.json'), 'r') as f:
+    RECEPTOR_SYMBOLS = json.load(f)
+
+
+with open(runtime_path('region_aliases_human.json'), 'r') as f:
+    REGION_ALIASES = json.load(f)

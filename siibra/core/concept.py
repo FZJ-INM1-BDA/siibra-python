@@ -14,8 +14,7 @@
 # limitations under the License.
 
 
-from .datasets import EbrainsDataset
-from ..commons import create_key, logger, clear_name
+from ..commons import create_key, clear_name, logger
 
 import re
 
@@ -36,7 +35,7 @@ class AtlasConcept:
         description: str = None,
         modality: str = "",
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
     ):
         """
         Construct a new atlas concept base object.
@@ -53,9 +52,8 @@ class AtlasConcept:
                 Textual description of the parcellation
             modality  :  str or None
                 Specification of the modality underlying this concept
-            ebrains_ids : dict
-                Identifiers of EBRAINS entities corresponding to this Parcellation.
-                Key: EBRAINS KG schema, value: EBRAINS KG @id
+            datasets : list
+                list of datasets corresponding to this concept
             publications: list
                 List of publications, each a dictionary with "doi" and/or "citation" fields
 
@@ -66,14 +64,41 @@ class AtlasConcept:
         self.modality = modality
         self.description = description
         self.publications = publications
-        self.datasets = []
-        for kg_schema, kg_id in ebrains_ids.items():
-            if kg_schema == "minds/core/dataset/v1.0.0":
-                self.datasets.append(EbrainsDataset(id=kg_id, name=None))
-            elif kg_schema == "minds/core/parcellationregion/v1.0.0":
-                self.ebrains_parcellation_region = kg_id
-            else:
-                logger.warn(f"No object construction available for EBRAINS schemas {kg_schema}.")
+        self.datasets = datasets
+
+    @classmethod
+    def registry(cls):
+        if cls._configuration_folder is None:
+            return None
+        if cls._registry_cached is None:
+            from ..configuration import Configuration
+            from ..commons import InstanceTable
+            conf = Configuration()
+            # visit the configuration to provide a cleanup function 
+            # in case the user changes the configuration during runtime.
+            Configuration.register_cleanup(cls.clear_registry)
+            assert cls._configuration_folder in conf.folders
+            objects = conf.build_objects(cls._configuration_folder)
+            logger.info(f"Building registry of {len(objects)} preconfigured {cls.__name__} objects from {cls._configuration_folder}.")
+            assert len(objects) > 0
+            cls._registry_cached = InstanceTable(
+                elements={o.key: o for o in objects},
+                matchfunc=objects[0].__class__.match
+            )
+        return cls._registry_cached
+
+    @classmethod
+    def clear_registry(cls):
+        cls._registry_cached = None
+
+    @classmethod
+    def get_instance(cls, spec: str):
+        """
+        Returns an instance of this class matching the given specification
+        from its registry, if possible, otherwise None.
+        """
+        if cls.registry() is not None:
+            return cls.registry().get(spec)
 
     @property
     def id(self):
@@ -84,12 +109,13 @@ class AtlasConcept:
     def key(self):
         return create_key(self.name)
 
-    def __init_subclass__(cls, type_id=None):
+    def __init_subclass__(cls, configuration_folder: str = None):
         """
         This method is called whenever AtlasConcept gets subclassed
         (see https://docs.python.org/3/reference/datamodel.html)
         """
-        cls.type_id = type_id
+        cls._registry_cached = None
+        cls._configuration_folder = configuration_folder
         return super().__init_subclass__()
 
     def __str__(self):

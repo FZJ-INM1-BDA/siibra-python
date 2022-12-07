@@ -208,7 +208,7 @@ class SparseMap(Map):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
     ):
         Map.__init__(
             self,
@@ -221,7 +221,7 @@ class SparseMap(Map):
             description=description,
             modality=modality,
             publications=publications,
-            ebrains_ids=ebrains_ids,
+            datasets=datasets,
             volumes=volumes,
         )
 

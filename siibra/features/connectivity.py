@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import ParcellationFeature
+from .feature import Feature
 
-from ..registry import REGISTRY
+from ..configuration import REGISTRY
 from ..commons import logger, QUIET, create_key
 from ..retrieval.repositories import RepositoryConnector
 
@@ -27,7 +27,7 @@ from io import BytesIO
 # TODO: check if dataset_id is ebrains, then create the corresponding dataset
 # in general, it should be cleaner to model for all features an attribute wether the come from an EBRAINS dataset,
 # instead of implementing additional classes of objects which are ebrainsdatasets.
-class ConnectivityMatrix(ParcellationFeature):
+class ConnectivityMatrix(Feature):
 
     """Connectivity matrix grouped by a parcellation."""
 

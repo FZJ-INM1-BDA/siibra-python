@@ -17,10 +17,10 @@ from .volume import Volume, NiftiFetcher, Subvolume
 from .util import create_gaussian_kernel
 
 from .. import logger, QUIET
-from ..registry import REGISTRY
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
 from ..core.concept import AtlasConcept
 from ..core.space import Space
+from ..core.parcellation import Parcellation
 from ..core.location import Point, PointSet, BoundingBox
 from ..core.region import Region
 
@@ -35,7 +35,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(AtlasConcept):
+class Map(AtlasConcept, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -49,7 +49,7 @@ class Map(AtlasConcept):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
     ):
         """
         Constructs a new parcellation object.
@@ -82,9 +82,8 @@ class Map(AtlasConcept):
             Specification of the modality used for creating the parcellation
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
-        ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation.
-            Key: EBRAINS KG schema, value: EBRAINS KG @id
+        datasets : list
+            datasets associated with this concept
         """
         AtlasConcept.__init__(
             self,
@@ -93,7 +92,7 @@ class Map(AtlasConcept):
             shortname=shortname,
             description=description,
             publications=publications,
-            ebrains_ids=ebrains_ids,
+            datasets=datasets,
             modality=modality
         )
 
@@ -189,14 +188,14 @@ class Map(AtlasConcept):
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return REGISTRY.Space[self._space_spec[key]]
+                return Space.get_instance(self._space_spec[key])
         return Space(None, "Unspecified space")
 
     @property
     def parcellation(self):
         for key in ["@id", "name"]:
             if key in self._parcellation_spec:
-                return REGISTRY.Parcellation[self._parcellation_spec[key]]
+                return Parcellation.get_instance(self._parcellation_spec[key])
         logger.warn(
             f"Cannot determine parcellation of {self.__class__.__name__} "
             f"{self.name} from {self._parcellation_spec}"
