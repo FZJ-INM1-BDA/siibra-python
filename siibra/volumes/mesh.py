@@ -19,7 +19,7 @@ from ..commons import logger
 from ..retrieval import HttpRequest, SiibraHttpRequestError
 from ..retrieval.requests import DECODERS
 
-from neuroglancer_scripts import mesh as ngmesh
+from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 from io import BytesIO
 import numpy as np
 
@@ -101,19 +101,20 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         self.mesh_key = self.meshinfo.get('mesh')
 
     @staticmethod
-    def fetch_fragment(url, transform_nm):
+    def _fetch_fragment(url: str, transform_nm: np.ndarray):
         r = HttpRequest(url, func=lambda b: BytesIO(b))
-        (vertices_vox, triangles_vox) = ngmesh.read_precomputed_mesh(r.data)
-        vertices, triangles = ngmesh.affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
+        (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)
+        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
         vertices /= 1e6
         return vertices, triangles
 
     def fetch(self, resolution_mm: float = None, index: int = None, voi=None):
         """
         Returns the list of fragment meshes found under the given mesh index.
-        Each mesh is also a dictionary with the keys:
-        - vertices (/left /right): an Nx3 array of coordinates (in nanometer)
-        - triangles (/left /right): an MX3 array containing connection data of vertices
+        Each mesh is  a dictionary with the keys:
+        - vertices: an Nx3 array of coordinates (in nanometer)
+        - faces: an MX3 array containing connection data of vertices
+        - name: name of the fragment
         """
         try: 
             resp = HttpRequest(
@@ -127,7 +128,7 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         
         transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data)
         mesh_fragments = [
-            self.fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm)
+            self._fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm)
             for f in fragments
         ]
         return [
