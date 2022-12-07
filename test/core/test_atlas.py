@@ -63,33 +63,33 @@ class TestAtlas(unittest.TestCase):
     
     def test_spaces(self):
         mocked_spaces = []
-        with patch.object(siibra.registry.Registry, "__getitem__", return_value=mocked_spaces) as registry_getitem:
-            with patch.object(siibra.registry.InstanceTable, "__init__", return_value=None) as mock_init_method:
+        with patch.object(Space, "registry", return_value=mocked_spaces) as registry_getitem:
+            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
                 
                 spaces = self.atlas.spaces
                 mock_init_method.assert_called_once_with(
                     elements={},
                     matchfunc=Space.match
                 )
-                registry_getitem.assert_called_once_with(Space)
+                registry_getitem.assert_called_once_with()
 
     def test_parcellations(self):
         mocked_parcellations = []
-        with patch.object(siibra.registry.Registry, "__getitem__", return_value=mocked_parcellations) as registry_getitem:
-            with patch.object(siibra.registry.InstanceTable, "__init__", return_value=None) as mock_init_method:
+        with patch.object(Parcellation, "registry", return_value=mocked_parcellations) as registry_getitem:
+            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
                 
                 parcellations = self.atlas.parcellations
                 mock_init_method.assert_called_once_with(
                     elements={},
                     matchfunc=Parcellation.match
                 )
-                registry_getitem.assert_called_once_with(Parcellation)
+                registry_getitem.assert_called_once_with()
 
     @parameterized.expand([
         ('spaces', 'spaces', 'get_space'),
         ('parcellations', 'parcellations', 'get_parcellation')
     ])
-    def test_get_space_no_arg(self, property: str, key: str, fn_name: str):
+    def test_get_attr_no_arg(self, property: str, key: str, fn_name: str):
         mocked_return_dict = {
             _id: MockObj(_id) for _id in human_atlas_json.get(key)
         }

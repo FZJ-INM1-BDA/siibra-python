@@ -97,7 +97,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = Parcellation.registry()[0]
+            parcellation_obj = self.parcellations[self._parcellation_ids[0]]
             if len(self._parcellation_ids) > 1:
                 logger.info(f"No parcellation specified, using default: '{parcellation_obj.name}'.")
             return parcellation_obj
@@ -196,12 +196,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
         Returns:
             Bounding Box
         """
-        spaceobj = Space.get_instance(space)
-        if spaceobj.id not in self._space_ids:
-            raise ValueError(
-                f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
-            )
-        return spaceobj.get_bounding_box(point1, point2)
+        return self.get_space(space).get_bounding_box(point1, point2)
 
     def find_regions(
         self,

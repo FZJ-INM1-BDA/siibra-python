@@ -14,9 +14,12 @@
 # limitations under the License.
 
 
-from ..commons import create_key, clear_name, logger
+from ..commons import create_key, clear_name, logger, InstanceTable
 
 import re
+from typing import Generic, TypeVar, Type
+
+T = TypeVar("T", bound="AtlasConcept")
 
 
 class AtlasConcept:
@@ -67,12 +70,11 @@ class AtlasConcept:
         self.datasets = datasets
 
     @classmethod
-    def registry(cls):
+    def registry(cls: Type[T]) -> InstanceTable[T]:
         if cls._configuration_folder is None:
             return None
         if cls._registry_cached is None:
             from ..configuration import Configuration
-            from ..commons import InstanceTable
             conf = Configuration()
             assert cls._configuration_folder in conf.folders
             objects = conf.build_objects(cls._configuration_folder)

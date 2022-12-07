@@ -36,5 +36,5 @@ with open(runtime_path('receptor_symbols.json'), 'r') as f:
     RECEPTOR_SYMBOLS = json.load(f)
 
 
-with open(runtime_path('region_aliases_human.json'), 'r') as f:
+with open(runtime_path('region_aliases.json'), 'r') as f:
     REGION_ALIASES = json.load(f)
