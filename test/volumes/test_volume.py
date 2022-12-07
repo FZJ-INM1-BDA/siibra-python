@@ -4,7 +4,7 @@ from siibra.commons import MapType
 
 from siibra.volumes.volume import VolumeSrc, RemoteNiftiVolume, Dataset
 from siibra import spaces, parcellations
-from siibra.volumes.volume import NeuroglancerVolume
+from siibra.volumes.volume import NeuroglancerVolumeFetcher
 
 
 class TestVolumeSrc(unittest.TestCase):
@@ -41,9 +41,9 @@ class TestVolumeSrc(unittest.TestCase):
             VolumeSrc._from_json(v_invalid_json)
 
 
-space_volumes = [ volume
-                for space in spaces
-                for volume in space.volumes]
+space_volumes = [volume
+                 for space in spaces
+                 for volume in space.volumes]
 
 
 @pytest.mark.parametrize("volume", space_volumes)
@@ -54,8 +54,8 @@ def test_space_volumes(volume: VolumeSrc):
 
 
 parcs_volumes = [volume
-                for parc in parcellations
-                for volume in parc.volumes]
+                 for parc in parcellations
+                 for volume in parc.volumes]
 
 
 @pytest.mark.parametrize("volume", parcs_volumes)
@@ -68,9 +68,10 @@ def test_parc_volumes(volume: VolumeSrc):
 
 
 region_volmes = [volume
-                for parc in parcellations
-                for region in parc
-                for volume in region.volumes]
+                 for parc in parcellations
+                 for region in parc
+                 for volume in region.volumes]
+
 
 @pytest.mark.parametrize("volume", region_volmes)
 def test_region_volumes(volume: VolumeSrc):
@@ -82,27 +83,32 @@ def test_region_volumes(volume: VolumeSrc):
     assert Dataset.get_model_type() not in model.id
 
 
-fetch_ng_volume_fetchable_params=[
+fetch_ng_volume_fetchable_params = [
     ("ID", "NAME", "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210927-waxholm-v4/precomputed/segmentations/WHS_SD_rat_atlas_v4", None, None)
 ]
+
+
 @pytest.mark.parametrize("identifier,name,url,space,detail", fetch_ng_volume_fetchable_params)
-def test_ng_volume(identifier,name,url,space,detail):
-    vol = NeuroglancerVolume(identifier, name, url, space, detail)
+def test_ng_volume(identifier, name, url, space, detail):
+    vol = NeuroglancerVolumeFetcher(identifier, name, url, space, detail)
     vol.fetch()
 
+
 volume_map_types = [
-    ("difumo 64", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 128", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 256", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 512", NeuroglancerVolume, 0, MapType.LABELLED),
-    ("difumo 1024", NeuroglancerVolume, 0, MapType.LABELLED),
+    ("difumo 64", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 128", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 256", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 512", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+    ("difumo 1024", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
 ]
 
+
 @pytest.mark.parametrize("parc_id,volume_cls,volume_index,map_type", volume_map_types)
-def test_volume_map_types(parc_id,volume_cls,volume_index,map_type):
+def test_volume_map_types(parc_id, volume_cls, volume_index, map_type):
     parc = parcellations[parc_id]
     v: VolumeSrc = [v for v in parc.volumes if isinstance(v, volume_cls)][volume_index]
     assert v.map_type is map_type
+
 
 if __name__ == "__main__":
     unittest.main()

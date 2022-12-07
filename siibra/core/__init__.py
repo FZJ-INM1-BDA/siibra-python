@@ -13,10 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
 from .atlas import Atlas
-from .location import Point, PointSet, BoundingBox
+from .parcellation import Parcellation
 from .space import Space
 from .region import Region
-from .parcellation import Parcellation
-from .datasets import EbrainsDataset
+from .location import Point, PointSet, BoundingBox

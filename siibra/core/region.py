@@ -25,8 +25,8 @@ from ..commons import (
     affine_scaling,
     create_key,
     clear_name,
+    InstanceTable,
 )
-from ..registry import REGISTRY
 from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
@@ -60,7 +60,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         description: str = "",
         modality: str = "",
         publications: list = [],
-        ebrains_ids: dict = {},
+        datasets: list = [],
         rgb: str = None,
     ):
         """
@@ -80,9 +80,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
             Specification of the modality used for specifying this region
         publications: list
             List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
-        ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation.
-            Key: EBRAINS KG schema, value: EBRAINS KG @id
+        datasets : list
+            datasets associated with this region
         rgb: str, default None
             Hexcode of preferred color of this region (e.g. "#9FE770")
         """
@@ -95,7 +94,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             description=description,
             modality=modality,
             publications=publications,
-            ebrains_ids=ebrains_ids,
+            datasets=datasets,
         )
 
         # anytree node will take care to use this appropriately
@@ -107,6 +106,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
+        self._CACHED_REGION_SEARCHES = {}
 
     @property
     def id(self):
@@ -197,10 +197,16 @@ class Region(anytree.NodeMixin, AtlasConcept):
         -----
         list of matching regions
         """
+        key = (regionspec, filter_children, find_topmost)
+        MEM = self._CACHED_REGION_SEARCHES
+        if key in MEM:
+            return MEM[key]
+
         if isinstance(regionspec, str) and regionspec in self.names:
             # key is given, this gives us an exact region
             match = anytree.search.find_by_attr(self, regionspec, name="key")
-            return [] if match is None else [match]
+            MEM[key] = [] if match is None else [match]
+            return MEM[key]
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
@@ -262,17 +268,17 @@ class Region(anytree.NodeMixin, AtlasConcept):
         found_regions = sorted(candidates, key=lambda r: r.depth)
 
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        return (
+        MEM[key] = (
             sorted(
                 found_regions,
                 reverse=True,
-                key=lambda region: SequenceMatcher(
-                    None, str(region), regionspec
-                ).ratio(),
+                key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
             if type(regionspec) == str
             else found_regions
         )
+
+        return MEM[key]
 
     def matches(self, regionspec):
         """
@@ -329,8 +335,11 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
         """
+        from ..volumes import Map  # keep here to avoid circular import
+        if isinstance(maptype, str):
+            maptype = MapType[maptype.upper()]
         result = None
-        for m in REGISTRY.Map:
+        for m in Map.registry():
             if all([
                 m.space.matches(space),
                 m.maptype == maptype,
@@ -371,7 +380,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
-        for m in REGISTRY.Map:
+        from ..volumes.map import Map
+        for m in Map.registry():
             if m.space.matches(space):
                 if self.name in m.regions:
                     return True
@@ -387,8 +397,22 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Overwrites the corresponding method of AtlasConcept.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = {s for s in REGISTRY.Space if self.mapped_in_space(s)}
+            self._supported_spaces = {s for s in Space.registry() if self.mapped_in_space(s)}
         return self._supported_spaces
+
+    def supports_space(self, space: Space):
+        """
+        Return true if this region supports the given space, else False.
+        """
+        return any(s.matches(space) for s in self.supported_spaces)
+
+    @property
+    def spaces(self):
+        return InstanceTable(
+            matchfunc=Space.matches,
+            elements={s.key: s for s in self.supported_spaces},
+        )
+
 
     def __getitem__(self, labelindex):
         """
@@ -457,7 +481,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Returns:
             BoundingBox
         """
-        spaceobj = REGISTRY.Space[space]
+        spaceobj = Space.get_instance(space)
         try:
             mask = self.build_mask(
                 spaceobj, maptype=maptype, threshold_continuous=threshold_continuous
@@ -499,7 +523,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         peaks: PointSet
         pmap: continuous map
         """
-        spaceobj = REGISTRY.Space[space]
+        spaceobj = Space.get_instance(space)
         pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
         if pmap is None:
             logger.warn(
@@ -562,7 +586,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         from skimage import measure
 
         if not isinstance(space, Space):
-            space = REGISTRY.Space[space]
+            space = Space.get_instance(space)
 
         if not self.mapped_in_space(space):
             raise RuntimeError(

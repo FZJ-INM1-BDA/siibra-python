@@ -14,225 +14,14 @@
 # limitations under the License.
 
 from .feature import CorticalProfile, RegionalFingerprint
+
 from ..commons import logger, create_key
 from ..retrieval.requests import HttpRequest
-from ..core.datasets import EbrainsDataset
-
+from ..vocabularies import RECEPTOR_SYMBOLS
+from ..anchor import AnatomicalAnchor
 
 from io import BytesIO
 import re
-
-
-RECEPTOR_SYMBOLS = {
-    "5-HT1A": {
-        "receptor": {
-            "latex": "$5-HT_{1A}$",
-            "markdown": "5-HT<sub>1A</sub>",
-            "name": "5-hydroxytryptamine receptor type 1A",
-        },
-        "neurotransmitter": {
-            "label": "5-HT",
-            "latex": "$5-HT$",
-            "markdown": "5-HT",
-            "name": "serotonin",
-        },
-    },
-    "5-HT2": {
-        "receptor": {
-            "latex": "$5-HT_2$",
-            "markdown": "5-HT<sub>2</sub>",
-            "name": "5-hydroxytryptamine receptor type 2",
-        },
-        "neurotransmitter": {
-            "label": "5-HT",
-            "latex": "$5-HT$",
-            "markdown": "5-HT",
-            "name": "serotonin",
-        },
-    },
-    "AMPA": {
-        "receptor": {
-            "latex": "$AMPA$",
-            "markdown": "AMPA",
-            "name": "alpha-amino-3hydroxy-5-methyl-4isoxazolepropionic acid receptor",
-        },
-        "neurotransmitter": {
-            "label": "Glu",
-            "latex": "$Glu$",
-            "markdown": "Glu",
-            "name": "glutamate",
-        },
-    },
-    "BZ": {
-        "receptor": {
-            "latex": "$GABA_A/BZ$",
-            "markdown": "GABA<sub>A</sub>/BZ",
-            "name": "gamma-aminobutyric acid receptor type A / benzodiazepine associated binding site",
-        },
-        "neurotransmitter": {
-            "label": "GABA",
-            "latex": "$GABA$",
-            "markdown": "GABA",
-            "name": "gamma-aminobutyric acid",
-        },
-    },
-    "D1": {
-        "receptor": {
-            "latex": "$D_1$",
-            "markdown": "D<sub>1</sub>",
-            "name": "dopamine receptor type 1",
-        },
-        "neurotransmitter": {
-            "label": "DA",
-            "latex": "$DA$",
-            "markdown": "DA",
-            "name": "dopamine",
-        },
-    },
-    "GABAA": {
-        "receptor": {
-            "latex": "$GABA_A$",
-            "markdown": "GABA<sub>A</sub>",
-            "name": "gamma-aminobutyric acid receptor type A",
-        },
-        "neurotransmitter": {
-            "label": "GABA",
-            "latex": "$GABA$",
-            "markdown": "GABA",
-            "name": "gamma-aminobutyric acid",
-        },
-    },
-    "GABAB": {
-        "receptor": {
-            "latex": "$GABA_B$",
-            "markdown": "GABA<sub>B</sub>",
-            "name": "gamma-aminobutyric acid receptor type B",
-        },
-        "neurotransmitter": {
-            "label": "GABA",
-            "latex": "$GABA$",
-            "markdown": "GABA",
-            "name": "gamma-aminobutyric acid",
-        },
-    },
-    "M1": {
-        "receptor": {
-            "latex": "$M_1$",
-            "markdown": "M<sub>1</sub>",
-            "name": "muscarinic acetylcholine receptor type 1",
-        },
-        "neurotransmitter": {
-            "label": "ACh",
-            "latex": "$ACh$",
-            "markdown": "ACh",
-            "name": "acetylcholine",
-        },
-    },
-    "M2": {
-        "receptor": {
-            "latex": "$M_2$",
-            "markdown": "M<sub>2</sub>",
-            "name": "muscarinic acetylcholine receptor type 2",
-        },
-        "neurotransmitter": {
-            "label": "ACh",
-            "latex": "$ACh$",
-            "markdown": "ACh",
-            "name": "acetylcholine",
-        },
-    },
-    "M3": {
-        "receptor": {
-            "latex": "$M_3$",
-            "markdown": "M<sub>3</sub>",
-            "name": "muscarinic acetylcholine receptor type 3",
-        },
-        "neurotransmitter": {
-            "label": "ACh",
-            "latex": "$ACh$",
-            "markdown": "ACh",
-            "name": "acetylcholine",
-        },
-    },
-    "NMDA": {
-        "receptor": {
-            "latex": "$NMDA$",
-            "markdown": "NMDA",
-            "name": "N-methyl-D-aspartate receptor",
-        },
-        "neurotransmitter": {
-            "label": "Glu",
-            "latex": "$Glu$",
-            "markdown": "Glu",
-            "name": "glutamate",
-        },
-    },
-    "alpha1": {
-        "receptor": {
-            "latex": "$\\alpha_1$",
-            "markdown": "&#945<sub>1</sub>",
-            "name": "alpha-1 adrenergic receptor",
-        },
-        "neurotransmitter": {
-            "label": "NE",
-            "latex": "$NE$",
-            "markdown": "NE",
-            "name": "norepinephrine",
-        },
-    },
-    "alpha2": {
-        "receptor": {
-            "latex": "$\\alpha_2$",
-            "markdown": "&#945<sub>2</sub>",
-            "name": "alpha-2 adrenergic receptor",
-        },
-        "neurotransmitter": {
-            "label": "NE",
-            "latex": "$NE$",
-            "markdown": "NE",
-            "name": "norepinephrine",
-        },
-    },
-    "alpha4beta2": {
-        "receptor": {
-            "latex": "$\\alpha_4\\beta_2$",
-            "markdown": "&#945<sub>4</sub>&#946<sub>2</sub>",
-            "name": "alpha-4 beta-2 nicotinic receptor",
-        },
-        "neurotransmitter": {
-            "label": "ACh",
-            "latex": "$ACh$",
-            "markdown": "ACh",
-            "name": "acetylcholine",
-        },
-    },
-    "kainate": {
-        "receptor": {
-            "latex": "$kainate$",
-            "markdown": "kainate",
-            "name": "kainate receptors",
-        },
-        "neurotransmitter": {
-            "label": "Glu",
-            "latex": "$Glu$",
-            "markdown": "Glu",
-            "name": "glutamate",
-        },
-    },
-    "mGluR2_3": {
-        "receptor": {
-            "latex": "$mGluR2/3$",
-            "markdown": "mGluR2/3",
-            "name": "metabotropic glutamate receptor type 2 and 3",
-        },
-        "neurotransmitter": {
-            "label": "Glu",
-            "latex": "$Glu$",
-            "markdown": "Glu",
-            "name": "glutamate",
-        },
-    },
-}
 
 
 def unify_stringlist(L: list):
@@ -270,7 +59,7 @@ def decode_receptor_tsv(bytearray):
     }
 
 
-class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
+class ReceptorDensityProfile(CorticalProfile, configuration_folder="features/profiles/receptor"):
 
     DESCRIPTION = (
         "Cortical profile of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
@@ -281,24 +70,28 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
 
     def __init__(
         self,
-        dataset_id: str,
-        species: dict,
-        regionname: str,
-        receptor_type: str,
-        url: str,
+        receptor: str,
+        tsvfile: str,
+        anchor: AnatomicalAnchor,
+        datasets: list = []
     ):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        EbrainsDataset.__init__(self, dataset_id, f"Receptor density for {receptor_type} in {regionname}")
-        self.type = receptor_type
+        CorticalProfile.__init__(
+            self,
+            description=self.DESCRIPTION,
+            measuretype=f"{receptor} receptor density",
+            anchor=anchor,
+            datasets=datasets,
+        )
+        self.type = receptor
         self._data_cached = None
         self._loader = HttpRequest(
-            url,
+            tsvfile,
             lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
         )
         self._unit_cached = None
-        CorticalProfile.__init__(self, f"{receptor_type} receptor density", species, regionname, self.DESCRIPTION)
 
     @property
     def key(self):
@@ -351,7 +144,8 @@ class ReceptorDensityProfile(CorticalProfile, EbrainsDataset):
         }
 
 
-class ReceptorDensityFingerprint(RegionalFingerprint, EbrainsDataset):
+class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="features/fingerprints/receptor"):
+
     DESCRIPTION = (
         "Fingerprint of densities (in fmol/mg protein) of receptors for classical neurotransmitters "
         "obtained by means of quantitative in vitro autoradiography. The fingerprint provides average "
@@ -361,27 +155,26 @@ class ReceptorDensityFingerprint(RegionalFingerprint, EbrainsDataset):
 
     def __init__(
         self,
-        dataset_id: str,
-        species: dict,
-        regionname: str,
-        url: str,
+        tsvfile: str,
+        anchor: AnatomicalAnchor,
+        datasets: list = []
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
         """
-        self._data_cached = None
-        self._loader = HttpRequest(
-            url,
-            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
-        )
         RegionalFingerprint.__init__(
             self,
-            measuretype="Neurotransmitter receptor density",
-            species=species,
-            regionname=regionname,
             description=self.DESCRIPTION,
+            measuretype="Neurotransmitter receptor density",
+            anchor=anchor,
+            datasets=datasets,
         )
-        EbrainsDataset.__init__(self, dataset_id, self.name)
+
+        self._data_cached = None
+        self._loader = HttpRequest(
+            tsvfile,
+            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
+        )
 
     @property
     def unit(self):

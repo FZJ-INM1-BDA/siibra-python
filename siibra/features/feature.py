@@ -13,617 +13,93 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, MapType, QUIET
-from ..registry import REGISTRY, InstanceTable, Query
-from ..core.atlas import Atlas
+from ..commons import logger, InstanceTable
 from ..core.concept import AtlasConcept
-from ..core.space import Space
-from ..core.location import Location, Point, PointSet, BoundingBox
-from ..core.region import Region
-from ..core.parcellation import Parcellation
 
-from ctypes import ArgumentError
-from typing import Dict, List, Tuple, Union
-from enum import Enum
-import json
+from typing import Union
 import numpy as np
 import pandas as pd
 from textwrap import wrap
-import importlib
-import nibabel as nib
 from tqdm import tqdm
-
-try:
-    from importlib import resources
-except ImportError:
-    import importlib_resources as resources
-
-
-class MatchQualification(Enum):
-    # Anatomical location of feature matches atlas concept exactly
-    EXACT = 0
-    # Anatomical location of feature matches atlas concept only approximately
-    APPROXIMATE = 1
-    # Anatomical location of the feature represents a part of the matched atlas concept
-    CONTAINED = 2
-    # Anatomical location of the feature inludes the matched atlas concept as a part
-    CONTAINS = 3
-
-    @classmethod
-    def from_string(cls, name):
-        for v in range(4):
-            if cls(v).name == name.upper():
-                return cls(v)
-        return None
-
-    def __str__(self):
-        return self.name.lower()
-
-
-class Match:
-    """Description of how a feature has been mapped to an atlas concept."""
-
-    def __init__(
-        self,
-        concept: AtlasConcept,
-        qualification: MatchQualification = MatchQualification.EXACT,
-        comment: str = None,
-    ):
-        """Construct a feature match description.
-
-        Parameters
-        ----------
-        concept : AtlasConcept
-            The atlas concept to which the feature had been mapped.
-        qualification: MatchQualifiction
-            Qualification of the match, see siibra.feature.MatchQualification
-        comment: str
-            Optional human-readable explanation comment about the way the match
-            was computed
-        """
-        self.concept = concept
-        self.qualification = qualification
-        self._comments = []
-        if comment is not None:
-            self.add_comment(comment)
-
-    @property
-    def region(self):
-        if isinstance(self.concept, Region):
-            return self.concept
-        else:
-            return None
-
-    @property
-    def parcellation(self):
-        if isinstance(self.concept, Region):
-            return self.concept.parcellation
-        elif isinstance(self.concept, Parcellation):
-            return self.concept
-        else:
-            return None
-
-    @property
-    def location(self):
-        if isinstance(self.concept, Location):
-            return self.concept
-        else:
-            return None
-
-    @property
-    def comments(self):
-        return ". ".join(self._comments)
-
-    def __str__(self):
-        return (
-            f"Matched to {self.concept.__class__.__name__} "
-            f"'{self.concept.name}' as '{self.qualification}'. "
-            f"{self.comments}"
-        )
-
-    def add_comment(self, comment: str):
-        self._comments.append(comment)
 
 
 class Feature:
     """
-    Base class for all data features.
+    Base class for anatomically anchored data features.
     """
-    Modalities = InstanceTable()
 
-    def __init__(self):
-        self._match = None
+    modalities = InstanceTable()
 
-    @property
-    def matched(self):
-        return self._match is not None
-
-    def __init_subclass__(cls):
-        cls.Modalities.add(cls.__name__, cls)
-
-    @classmethod
-    def get_modalities(cls):
-        """ Returns a lookup table of registered feature subclasses. """
-        return cls.Modalities
-
-    @property
-    def match_qualification(self):
-        """If this feature was matched against an atlas concept,
-        return the qualification rating of the match.
-
-        Return
-        ------
-        siibra.features.feature.MatchQualification, if feature was matche
-        else None
+    def __init__(
+        self,
+        measuretype: str,
+        description: str,
+        anchor: "AnatomicalAnchor",
+        datasets: list = []
+    ):
         """
-        return self._match.qualification if self.matched else None
-
-    @property
-    def match_description(self):
-        return str(self._match) if self.matched else None
-
-    @property
-    def matched_region(self):
-        return self._match.region if self.matched else None
-
-    @property
-    def matched_parcellation(self):
-        return self._match.parcellation if self.matched else None
-
-    @property
-    def matched_location(self):
-        return self._match.location if self.matched else None
-
-    def match(self, concept, **kwargs):
-        raise NotImplementedError("match method must be overridden by derived classes.")
-
-    @classmethod
-    def filter_features(cls, concept, features: List['Feature'], **kwargs) -> List['Feature']:
-        """Class method, filters features according to the concept.
-
-        Maybe overriden by subclasses.
+        Parameters
+        ----------
+        measuretype: str
+            A textual description of the type of measured information
+        description: str
+            A textual description of the feature.
+        anchor: AnatomicalAnchor
+        datasets : list
+            list of datasets corresponding to this feature
         """
-        return [f for f in features if f.match(concept, **kwargs)]
+        self.measuretype = measuretype
+        self._description = description
+        self.anchor = anchor
+        self.datasets = datasets
 
-    def __str__(self):
-        return f"{self.__class__.__name__} feature"
+    def __init_subclass__(cls, configuration_folder=None):
+        cls.modalities.add(cls.__name__, cls)
+        cls._instances = None
+        cls._configuration_folder = configuration_folder
+        return super().__init_subclass__()
+
+    @property
+    def description(self):
+        """ Allowssubclasses to overwrite the description with a function call. """
+        return self._description
+
+    @property
+    def name(self):
+        """Returns a short human-readable name of this feature."""
+        return f"{self.__class__.__name__} ({self.measuretype}) anchored at {self.anchor}"
 
     @classmethod
-    def modality(cls):
-        """Returns a string representing the modality of a feature."""
-        return str(cls).split("'")[1].split(".")[-1]
+    def get_instances(cls):
+        if cls._configuration_folder is None:
+            return None
+        if cls._instances is None:
+            from ..configuration import Configuration
+            conf = Configuration()
+            assert cls._configuration_folder in conf.folders
+            cls._instances = conf.build_objects(cls._configuration_folder)
+            logger.info(f"Built {len(cls._instances)} preconfigured {cls.__name__} objects from {cls._configuration_folder}.")
+        return cls._instances
+
+    def matches(self, concept: AtlasConcept) -> bool:
+        return False if self.anchor is None else self.anchor.matches(concept)
 
     @classmethod
-    def get_features(cls, concept, modality, **kwargs):
+    def match(cls, concept: AtlasConcept, modality: Union[str, type], **kwargs):
         """
         Retrieve data features of the desired modality.
         """
-        feature_types = cls.get_modalities()
-        if isinstance(modality, str) and modality == 'all':
-            requested_feature_types = feature_types.values()
-        elif isinstance(modality, (list, tuple)):
-            requested_feature_types = [feature_types[_] for _ in modality]
-        else:
-            try:
-                requested_feature_types = [feature_types[modality]]
-            except IndexError:
-                logger.error(f"No modalities found for specification '{modality}' which have any features.")
-                requested_feature_types = []
-
-        candidates = []
-        for T in requested_feature_types:
-            features = Query.get_instances(T.__name__, **kwargs)
-            if T.__name__ in REGISTRY.classes:
-                features.extend(REGISTRY.get_instances(T.__name__))
-            candidates.extend(T.filter_features(concept, features))
-        return candidates
-
-
-class SpatialFeature(Feature):
-    """
-    Base class for coordinate-anchored data features.
-    """
-
-    def __init__(self, location: Location):
-        """
-        Initialize a new spatial feature.
-
-        Parameters
-        ----------
-        location : Location type
-            The location, see siibra.core.location
-        """
-        assert location is not None
-        Feature.__init__(self)
-        self.location = location
-
-    @property
-    def space(self):
-        return self.location.space
-
-    @classmethod
-    def filter_features(cls,
-                        concept,
-                        features: List['SpatialFeature'],
-                        *,
-                        maptype: MapType = MapType.LABELLED,
-                        threshold_continuous: float = None,
-                        **kwargs) -> List['SpatialFeature']:
-
-        region = None
-        if isinstance(concept, Parcellation):
-            region = concept.regiontree
-            logger.info(
-                f"Matching against root node {region.name} of {concept.name}"
-            )
-        if isinstance(concept, Region):
-            region = concept
-
-        region_masks: Dict[Space, nib.Nifti1Image] = {}
-
-        def match_feature(feat: 'SpatialFeature') -> bool:
-
-            if not isinstance(feat, cls):
-                return False
-            if feat.location is None:
-                return False
-            if isinstance(concept, Space):
-                return concept == feat.space
-
-            if region is None:
-                logger.warning(
-                    f"{feat.__class__} cannot match against {concept.__class__} concepts"
-                )
-                return None
-
-            for tspace in [feat.space, *region.supported_spaces]:
-                if tspace.is_surface:
-                    continue
-                if not region.mapped_in_space(tspace):
-                    continue
-                if tspace not in region_masks:
-                    region_masks[tspace] = region.build_mask(
-                        space=tspace, maptype=maptype, threshold_continuous=threshold_continuous
-                    )
-                if feat.location.space_id == tspace.id:
-                    match_quantification_comment = feat._match_mask(feat.location, region_masks[tspace])
-                    if not match_quantification_comment:
-                        return None
-                    quant, comment = match_quantification_comment
-                    return Match(region, quant, comment)
-                logger.warning(f"{feat.__class__.__name__} cannot be tested for {region.name} in {feat.location.space.name}, using {tspace.name} instead.")
-                match_quantification_comment = feat._match_mask(feat.location.warp(tspace), region_masks[tspace])
-                if match_quantification_comment:
-                    quant, comment = match_quantification_comment
-                    return Match(region, quant, comment)
-            else:
-                logger.warning(f"Cannot test overlap of {feat.location} with {region}")
-                return False
-
+        if isinstance(modality, str):
+            modality = cls.modalities[modality]
+        msg = f"Matching {modality.__name__} to {concept}"
         return [
-            feat for feat in tqdm(features, desc=f"Matching {len(features)} features to {region.name}")
-            if match_feature(feat)
+            f for f in tqdm(modality.get_instances(), desc=msg)
+            if f.matches(concept)
         ]
-
-    def match(self, *args, **kwargs):
-        pass
-
-    def _match_mask(self, location: Location, mask: nib.Nifti1Image) -> Tuple[MatchQualification, str]:
-        intersection = location.intersection(mask)
-        if intersection is None:
-            return None
-        if isinstance(location, Point):
-            return (MatchQualification.EXACT, f"Location {location} is inside mask")
-        if isinstance(location, PointSet):
-            npts = 1 if isinstance(intersection, Point) else len(intersection)
-            return (
-                (MatchQualification.EXACT, f"All points of {location} inside mask")
-                if npts == len(location)
-                else (MatchQualification.APPROXIMATE, f"{npts} of {len(location)} points where inside the mask")
-            )
-        if isinstance(location, BoundingBox):
-            if location.volume <= intersection.boundingbox.volume:
-                return (
-                    MatchQualification.EXACT,
-                    f"{str(location)} is fully located inside mask"
-                )
-            return (
-                MatchQualification.APPROXIMATE,
-                f"{str(location)} overlaps with mask"
-            )
-        return (
-            MatchQualification.APPROXIMATE,
-            f"Location {location} intersected mask"
-        )
-
-    def __str__(self):
-        return f"{self.__class__.__name__} at {str(self.location)}"
-
-
-class RegionalFeature(Feature):
-    """
-    Base class for region-anchored data features (semantic anchoring to region
-    names instead of coordinates).
-    """
-
-    # load region name aliases from data file
-    _aliases = {}
-    for species_name in ["human"]:
-        # TODO temporary solution
-        # when fully migrated to kg v3 query, change .kg_v1_id to .id
-        species_id = Atlas.get_species_id("human").get("kg_v1_id")
-        with resources.open_text(
-            "siibra.features", f"region_aliases_{species_name}.json"
-        ) as f:
-            _aliases[species_id] = {
-                d["Region specification"]
-                .lower()
-                .strip(): {k: v for k, v in d.items() if k != "Region specification"}
-                for d in json.load(f)
-            }
-        logger.debug(
-            f"Loaded {len(_aliases[species_id])} region spec aliases for {species_name}"
-        )
-
-    def __init__(self, regionspec: Union[str, Region], species=[], **kwargs):
-        """
-        Parameters
-        ----------
-        regionspec : string or Region
-            Specifier for the brain region, will be matched at test time
-        """
-        if not any(map(lambda c: isinstance(regionspec, c), [Region, str])):
-            raise TypeError(
-                f"invalid type {type(regionspec)} provided as region specification"
-            )
-        Feature.__init__(self)
-        self.regionspec = regionspec
-        if isinstance(species, list):
-            self.species = species
-        elif isinstance(species, dict):
-            self.species = [species]
-        else:
-            raise ArgumentError(
-                f"Type {type(species)} not expected for species, should be list or dict."
-            )
-
-    @property
-    def species_ids(self):
-        return [s.get("@id") for s in self.species] + [
-            s.get("kg_v1_id") for s in self.species
-        ]
-
-    def match(self, concept, **kwargs):
-        """
-        Matches this feature to the given atlas concept (or a subconcept of it),
-        and remembers the matching result.
-
-        Parameters:
-        -----------
-        concept : AtlasConcept
-
-        Returns:
-        -------
-        True, if match was successful, otherwise False
-        """
-        self._match = None
-
-        # Verify that a possible species specification of the feature matches the
-        # given concept at all.
-        try:
-            if isinstance(concept, Region):
-                atlases = concept.parcellation.atlases
-            elif isinstance(concept, Parcellation):
-                atlases = concept.atlases
-            elif isinstance(concept, Space):
-                atlases = concept.atlases
-            elif isinstance(concept, Atlas):
-                atlases = {concept}
-            if atlases:
-                # if self.species_ids is defined, and the concept is explicitly not in
-                # return False
-                if not any(
-                    [
-                        any(
-                            _ in self.species_ids
-                            for _ in [a.species.kg_v1_id, a.species.id]
-                        )
-                        for a in atlases
-                    ]
-                ):
-                    return self.matched
-        # for backwards compatibility. If any attr is not found, pass
-        except AttributeError:
-            pass
-
-        # Feature's region is specified as a Region object
-        # -> we can apply simple tests for any query object.
-        if isinstance(self.regionspec, Region):
-            return self._match_region(self.regionspec, concept)
-
-        assert isinstance(self.regionspec, str)
-        spec = self.regionspec.lower().strip()
-
-        # Feature's region is specified by string. Check alias table first.
-        for species_id in set(self.species_ids) & set(self._aliases.keys()):
-            if spec in self._aliases[species_id]:
-                repl = self._aliases[species_id][spec]
-                with QUIET:
-                    if repl["Matched parcellation"] is not None:
-                        # a matched parcellation is stored in the alias table, this will be preferred.
-                        parc = REGISTRY.Parcellation[repl["Matched parcellation"]]
-                        spec = repl["Matched region"]
-                        msg_alias = (
-                            f"Original region specification was '{self.regionspec}'."
-                        )
-                    else:
-                        # no matched parcellation, then we use the original one given in the table.
-                        assert repl["Origin parcellation"] is not None
-                        parc = REGISTRY.Parcellation[repl["Origin parcellation"]]
-                        msg_alias = (
-                            f"Parcellation '{parc}' was used to decode '{spec}'."
-                        )
-                    for r in [parc.get_region(s) for s in spec.split(",")]:
-                        if self._match_region(r, concept):
-                            break
-                if self._match is not None:
-                    self._match.add_comment(msg_alias)
-                    if repl["Qualification"] is not None:
-                        self._match.qualification = MatchQualification.from_string(
-                            repl["Qualification"]
-                        )
-                return self.matched
-
-        # Feature's region is specified by string, search query is a Parcellation
-        if isinstance(concept, Parcellation):
-            logger.debug(
-                f"{self.__class__} matching against root node {concept.regiontree.name} of {concept.name}"
-            )
-            for w in concept.key.split("_"):
-                if len(w) > 2:
-                    spec = spec.replace(w.lower(), "")
-            for region in concept.regiontree.find(spec):
-                self._match = Match(
-                    region,
-                    MatchQualification.CONTAINED,
-                    f"Feature was linked to {region.name}, which belongs to parcellation {concept.name}.",
-                )
-                return True
-
-        # Feature's region is specified by string, search query is a Region
-        elif isinstance(concept, Region):
-            for w in concept.parcellation.key.split("_"):
-                if not w.isnumeric() and len(w) > 2:
-                    spec = spec.replace(w.lower(), "")
-            for region in concept.find(spec):
-                if region == concept:
-                    self._match = Match(region, MatchQualification.EXACT)
-                else:
-                    self._match = Match(
-                        concept,
-                        MatchQualification.CONTAINED,
-                        f"Feature was linked to child region '{region.name}'",
-                    )
-                return True
-
-        # Feature's region is specified by string, search query is an Atlas
-        elif isinstance(concept, Atlas):
-            logger.debug(
-                "Matching regional features against a complete atlas. "
-                "This is not efficient and the query may take a while."
-            )
-            for w in concept.key.split("_"):
-                spec = spec.replace(w.lower(), "")
-            for p in concept.parcellations:
-                for region in p.regiontree.find(spec):
-                    self._match = Match(
-                        concept,
-                        MatchQualification.CONTAINED,
-                        f"Region {region.name} belongs to atlas parcellation {p.name}",
-                    )
-                    return True
-        else:
-            logger.warning(
-                f"{self.__class__} cannot match against {concept.__class__} concepts"
-            )
-
-        return self.matched
-
-    def _match_region(self, region: Region, concept: AtlasConcept):
-        """
-        Match a decoded region object representing the anatomical location
-        of this feature to a given atlas concept.
-
-        This is only a convenience function used by match(), and not
-        meant for direct evaluation.
-        """
-        self._match = None
-        if isinstance(concept, Parcellation):
-            if region in concept:
-                self._match = Match(
-                    concept,
-                    MatchQualification.CONTAINED,
-                    f"Feature belongs to {region.name}, which is part of "
-                    f"parcellation {concept.name}.",
-                )
-        elif isinstance(concept, Region):
-            if region == concept:
-                self._match = Match(concept, MatchQualification.EXACT)
-            elif region.has_parent(concept):
-                self._match = Match(
-                    concept,
-                    MatchQualification.CONTAINED,
-                    f"Feature was linked to child region '{region.name}'",
-                )
-            elif concept.has_parent(region):
-                self._match = Match(
-                    concept,
-                    MatchQualification.CONTAINS,
-                    f"Feature was linked to parent region '{region.name}'",
-                )
-        elif isinstance(concept, Atlas):
-            if any(region in p for p in concept.parcellations):
-                self._match = Match(
-                    concept,
-                    MatchQualification.CONTAINED,
-                    f"Feature belongs to {region.name}, which is part of "
-                    f"a parcellation supported by atlas {concept.name}.",
-                )
-        return self.matched
-
-    def __str__(self):
-        return f"{self.__class__.__name__} for {self.regionspec}"
-
-
-class ParcellationFeature(Feature):
-    """
-    Base class for data features which apply to the atlas as a whole
-    instead of a particular location or region. A typical example is a
-    connectivity matrix, which applies to all regions in the atlas.
-    """
-
-    def __init__(self, parcellationspec):
-        """
-        Parameters
-        ----------
-        parcellationspec : str or Parcellation object
-            Identifies the underlying parcellation
-        """
-        Feature.__init__(self)
-        self.spec = parcellationspec
-        self.parcellations = REGISTRY.Parcellation.find(parcellationspec)
-
-    def match(self, concept) -> bool:
-        """
-        Matches this feature to the given atlas concept (or a subconcept of it),
-        and remembers the matching result.
-
-        Parameters:
-        -----------
-        concept : AtlasConcept
-
-        Returns:
-        -------
-        True, if match was successful, otherwise False
-        """
-        if isinstance(concept, Parcellation):
-            if concept in self.parcellations:
-                return True
-        if isinstance(concept, Region):
-            if concept.parcellation in self.parcellations:
-                return True
-        if isinstance(concept, Atlas):
-            for p in concept.parcellations:
-                if p in self.parcellations:
-                    return True
-        return False
-
-    def __str__(self):
-        return f"{self.__class__.__name__} for {self.spec}"
 
 
 # TODO how to allow rich text for label (e.g. markdown, latex) etc
-class CorticalProfile(RegionalFeature):
+class CorticalProfile(Feature):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
     measured at relative depths between 0 representing the pial surface,
@@ -645,26 +121,23 @@ class CorticalProfile(RegionalFeature):
 
     def __init__(
         self,
-        measuretype: str,
-        species: dict,
-        regionname: str,
         description: str,
+        measuretype: str,
+        anchor: "AnatomicalAnchor",
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
         unit: str = None,
         boundary_positions: dict = None,
+        datasets: list = []
     ):
         """Initialize profile.
 
         Args:
-            measuretype (str):
-                Short textual description of the modaility of measurements
-            species (dict):
-                Species specification; dictionary with keys 'name', 'id'
-            regionname (str):
-                Textual description of the brain region
             description (str):
                 Human-readable of the modality of the measurements.
+            measuretype (str):
+                Short textual description of the modaility of measurements
+            anchor: AnatomicalAnchor
             depths (list, optional):
                 List of cortical depthh positions corresponding to each
                 measurement, all in the range [0..1].
@@ -681,19 +154,19 @@ class CorticalProfile(RegionalFeature):
                 Keys are tuples of layer numbers, e.g. (1,2), values are cortical
                 depth positions in the range [0..1].
                 Defaults to None.
+            datasets : list
+                list of datasets corresponding to this feature
         """
-        RegionalFeature.__init__(self, regionspec=regionname, species=species)
-        self.measuretype = measuretype
+        Feature.__init__(self, measuretype=measuretype, description=description, anchor=anchor, datasets=datasets)
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
-        self._description = description
         self._unit = unit
         self._depths_cached = depths
         self._values_cached = values
         self._boundary_positions = boundary_positions
 
-    def _assert_consistency(self):
+    def _check_sanity(self):
         # check plausibility of the profile
         assert isinstance(self._depths, (list, np.ndarray))
         assert isinstance(self._values, (list, np.ndarray))
@@ -707,20 +180,11 @@ class CorticalProfile(RegionalFeature):
             )
 
     @property
-    def description(self):
-        return self._description
-
-    @property
     def unit(self):
         """Optionally overridden in derived classes."""
         if self._unit is None:
             raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")
         return self._unit
-
-    @property
-    def name(self):
-        """Returns a short human-readable name of this feature."""
-        return f"{self.measuretype} for {self.regionspec}"
 
     @property
     def boundary_positions(self):
@@ -761,7 +225,7 @@ class CorticalProfile(RegionalFeature):
     @property
     def data(self):
         """Return a pandas Series representing the profile."""
-        self._assert_consistency()
+        self._check_sanity()
         return pd.Series(
             self._values, index=self._depths, name=f"{self.modality()} ({self.unit})"
         )
@@ -819,32 +283,25 @@ class CorticalProfile(RegionalFeature):
         return self._values_cached
 
 
-class RegionalFingerprint(RegionalFeature):
+class RegionalFingerprint(Feature):
     """Represents a fingerprint of multiple variants of averaged measures in a brain region."""
 
     def __init__(
         self,
+        description: str,
         measuretype: str,
-        species: dict,
-        regionname: str,
-        description: str = None,
+        anchor: "AnatomicalAnchor",
         means: Union[list, np.ndarray] = None,
         labels: Union[list, np.ndarray] = None,
         stds: Union[list, np.ndarray] = None,
         unit: str = None,
+        datasets: list = []
     ):
-        self._description = description
-        self.measuretype = measuretype
+        Feature.__init__(self, measuretype=measuretype, description=description, anchor=anchor, datasets=datasets)
         self._means_cached = means
         self._labels_cached = labels
         self._stds_cached = stds
         self._unit = unit
-        RegionalFeature.__init__(self, regionname, species)
-
-    @property
-    def description(self):
-        """Optionally overridden in derived class to allow lazy loading."""
-        return self._description
 
     @property
     def unit(self):
@@ -865,11 +322,6 @@ class RegionalFingerprint(RegionalFeature):
     def _stds(self):
         """Optionally overridden in derived class to allow lazy loading."""
         return self._stds_cached
-
-    @property
-    def name(self):
-        """Returns a short human-readable name of this feature."""
-        return f"{self.measuretype} for {self.regionspec}"
 
     @property
     def data(self):
@@ -898,11 +350,11 @@ class RegionalFingerprint(RegionalFeature):
 
     def plot(self, ax=None):
         """Create a polar plot of the fingerprint."""
-        if importlib.util.find_spec("matplotlib") is None:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
             logger.error("matplotlib not available. Plotting of fingerprints disabled.")
             return None
-
-        import matplotlib.pyplot as plt
         from collections import deque
 
         if ax is None:

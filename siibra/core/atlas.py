@@ -17,15 +17,15 @@ from .concept import AtlasConcept
 from .space import Space
 from .parcellation import Parcellation
 
-from ..registry import REGISTRY
-from ..commons import MapType, logger
-from ..registry import InstanceTable
+from ..commons import MapType, logger, InstanceTable
+
+from typing import List
 
 
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class Atlas(AtlasConcept):
+class Atlas(AtlasConcept, configuration_folder="atlases"):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference
@@ -66,8 +66,8 @@ class Atlas(AtlasConcept):
             identifier=identifier,
             name=name,
         )
-        self._parcellation_ids = []
-        self._space_ids = []
+        self._parcellation_ids: List[str] = []
+        self._space_ids: List[str] = []
         self.species = species
 
     def _register_space(self, space_id: str):
@@ -80,7 +80,7 @@ class Atlas(AtlasConcept):
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
         return InstanceTable[Space](
-            elements={s.key: s for s in REGISTRY[Space] if s.id in self._space_ids},
+            elements={s.key: s for s in Space.registry() if s.id in self._space_ids},
             matchfunc=Space.match,
         )
 
@@ -88,7 +88,7 @@ class Atlas(AtlasConcept):
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
         return InstanceTable[Parcellation](
-            elements={p.key: p for p in REGISTRY[Parcellation] if p.id in self._parcellation_ids},
+            elements={p.key: p for p in Parcellation.registry() if p.id in self._parcellation_ids},
             matchfunc=Parcellation.match,
         )
 
@@ -97,7 +97,7 @@ class Atlas(AtlasConcept):
         If no specification is provided, the default is returned."""
 
         if parcellation is None:
-            parcellation_obj = self.parcellations[self._parcellation_ids[0]]
+            parcellation_obj = Parcellation.registry()[0]
             if len(self._parcellation_ids) > 1:
                 logger.info(f"No parcellation specified, using default: '{parcellation_obj.name}'.")
             return parcellation_obj
@@ -196,7 +196,12 @@ class Atlas(AtlasConcept):
         Returns:
             Bounding Box
         """
-        return self.get_space(space).get_bounding_box(point1, point2)
+        spaceobj = Space.get_instance(space)
+        if spaceobj.id not in self._space_ids:
+            raise ValueError(
+                f"Requested space {space} not supported by {self.__class__.__name__} {self.name}."
+            )
+        return spaceobj.get_bounding_box(point1, point2)
 
     def find_regions(
         self,
@@ -234,7 +239,7 @@ class Atlas(AtlasConcept):
         """
         result = []
         for p in self._parcellation_ids:
-            parcobj = REGISTRY[Parcellation][p]
+            parcobj = Parcellation.get_instance(p)
             if parcobj.is_newest_version or all_versions:
                 match = parcobj.find(
                     regionspec,
