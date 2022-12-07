@@ -15,16 +15,12 @@
 
 from .volume import VolumeProvider
 
-from ..retrieval import HttpRequest
-
-# ahmet
-from .. import logger
+from ..commons import logger
+from ..retrieval import HttpRequest, SiibraHttpRequestError
 from ..retrieval.requests import DECODERS
-from neuroglancer_scripts import mesh as NGmesh
-from io import BytesIO
-from nilearn import plotting as nilearn_plotting
-# ahmet
 
+from neuroglancer_scripts import mesh as ngmesh
+from io import BytesIO
 import numpy as np
 
 
@@ -104,47 +100,40 @@ class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
         self.meshinfo = HttpRequest(url=self.url + "/info", func=DECODERS['.json']).data
         self.mesh_key = self.meshinfo.get('mesh')
 
-    def fetch(self, resolution_mm: float = None, name=None, voi=None):
-        """
-        Returns the mesh as a dictionary with the region names as keys
-        Each region is also a dictionary with the keys:
-        - url: the urls to the data
-        - verticies (/left /right): an Nx3 array of coordinates (in nanometer)
-        - trianlges (/left /right): an MX3 array containing connection data of verticies
-        """
-        # QUESTION: How can I reach regions of the map I am fetching from?
-        regions = ['cortical layer 1',
-        'cortical layer 2',
-        'cortical layer 3',
-        'cortical layer 4',
-        'cortical layer 5',
-        'cortical layer 6',
-        'non-cortical structures']
-        meshes = {}
-        for r in regions:
-            fragment_dict = HttpRequest(
-                url = f"{self.url}/{self.mesh_key}/{str(regions.index(r)+1)}:0",
-                func = DECODERS['.json']
-            ).data
-            meshes[r] = dict(keys=["url", "verticies/left", "triangles/left", "verticies/right", "triangles/right"])
-            meshes[r]["url"] = [f"{self.url}/{self.mesh_key}/{f}" for f in fragment_dict.get('fragments')]
-        
-        # QUESTION: Can we use the voulme.NeuroglancerScale here?
-        transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data) # raise error when there is no transform.json?
-        
-        def fetch_precomputed_NG_mesh(mesh_url):
-            r = HttpRequest(mesh_url, func=lambda b: BytesIO(b))
-            (vertices_vox, triangles_vox) = NGmesh.read_precomputed_mesh(r.data)
-            vertices, triangles = NGmesh.affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
-            vertices /= 1e6
-            return vertices, triangles
+    @staticmethod
+    def fetch_fragment(url, transform_nm):
+        r = HttpRequest(url, func=lambda b: BytesIO(b))
+        (vertices_vox, triangles_vox) = ngmesh.read_precomputed_mesh(r.data)
+        vertices, triangles = ngmesh.affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
+        vertices /= 1e6
+        return vertices, triangles
 
-        # better to run through the list based on metadata from info(?) .json (to determine the keys)
-        for r in regions:
-            meshes[r]["verticies/left"], meshes[r]["triangles/left"] = fetch_precomputed_NG_mesh(meshes[r]["url"][0])
-            meshes[r]["verticies/right"], meshes[r]["triangles/right"] = fetch_precomputed_NG_mesh(meshes[r]["url"][1])
+    def fetch(self, resolution_mm: float = None, index: int = None, voi=None):
+        """
+        Returns the list of fragment meshes found under the given mesh index.
+        Each mesh is also a dictionary with the keys:
+        - vertices (/left /right): an Nx3 array of coordinates (in nanometer)
+        - triangles (/left /right): an MX3 array containing connection data of vertices
+        """
+        try: 
+            resp = HttpRequest(
+                url=f"{self.url}/{self.mesh_key}/{str(index)}:0",
+                func=DECODERS['.json']
+            ).data
+            fragments = resp.get('fragments') if resp else None
+        except SiibraHttpRequestError:
+            logger.error(f"Source {self} does not provide a mesh with index {index}.")
+            return None
         
-        return meshes
+        transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data)
+        mesh_fragments = [
+            self.fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm)
+            for f in fragments
+        ]
+        return [
+            dict(zip(['verts', 'faces', 'name'], [vertices, faces, fragments[i]]))
+            for i, (vertices, faces) in enumerate(mesh_fragments)
+        ]
 
     @property
     def variants(self):

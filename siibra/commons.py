@@ -122,7 +122,7 @@ class InstanceTable(Generic[T], Iterable):
             Matched object
         """
         if spec is None:
-            raise IndexError(f"{__class__.__name__} indexed with None")
+            return None
         elif spec == "":
             raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)

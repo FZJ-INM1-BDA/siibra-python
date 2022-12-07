@@ -127,7 +127,7 @@ class Configuration:
 
     @classmethod
     def register_cleanup(cls, func):
-        """ 
+        """
         Register an arbitrary function that should be executed when the
         configuration is changed, e.g. with use_configuration().
         """

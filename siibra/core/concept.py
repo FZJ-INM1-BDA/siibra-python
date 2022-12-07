@@ -74,7 +74,7 @@ class AtlasConcept:
             from ..configuration import Configuration
             from ..commons import InstanceTable
             conf = Configuration()
-            # visit the configuration to provide a cleanup function 
+            # visit the configuration to provide a cleanup function
             # in case the user changes the configuration during runtime.
             Configuration.register_cleanup(cls.clear_registry)
             assert cls._configuration_folder in conf.folders

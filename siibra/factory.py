@@ -65,8 +65,14 @@ class Factory:
         return datasets
 
     @classmethod
-    def extract_volumes(cls, spec):
-        return list(map(cls.build_volume, spec.get("volumes", [])))
+    def extract_volumes(cls, spec, space_id: str = None):
+        volume_specs = spec.get("volumes", [])
+        if space_id:
+            for vspec in volume_specs:
+                if 'space' in vspec:
+                    logger.warn(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
+                vspec['space'] = {"@id": space_id}
+        return list(map(cls.build_volume, volume_specs))
 
     @classmethod
     def extract_anchor(cls, spec):
@@ -94,7 +100,7 @@ class Factory:
         return Space(
             identifier=spec["@id"],
             name=spec["name"],
-            volumes=cls.extract_volumes(spec),
+            volumes=cls.extract_volumes(spec, space_id=spec.get("@id")),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),

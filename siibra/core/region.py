@@ -413,7 +413,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             elements={s.key: s for s in self.supported_spaces},
         )
 
-
     def __getitem__(self, labelindex):
         """
         Given an integer label index, return the corresponding region.
@@ -452,7 +451,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __str__(self):
         return f"{self.name}"
-        
+
     def __repr__(self):
         return self.tree2str()
 
