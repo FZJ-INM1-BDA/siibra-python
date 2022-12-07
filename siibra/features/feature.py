@@ -15,15 +15,14 @@
 
 from ..commons import logger, InstanceTable
 from ..core.concept import AtlasConcept
+from ..anchor import AnatomicalAnchor
 
-from typing import Union, TYPE_CHECKING
+from typing import Union
 import numpy as np
 import pandas as pd
 from textwrap import wrap
 from tqdm import tqdm
 
-if TYPE_CHECKING:
-    from ..anchor import AnatomicalAnchor
 
 class Feature:
     """
