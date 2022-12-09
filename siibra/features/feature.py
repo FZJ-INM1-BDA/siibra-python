@@ -78,8 +78,14 @@ class Feature:
             conf = Configuration()
             Configuration.register_cleanup(cls.clean_instances)
             assert cls._configuration_folder in conf.folders
-            cls._instances = conf.build_objects(cls._configuration_folder)
-            logger.info(f"Built {len(cls._instances)} preconfigured {cls.__name__} objects from {cls._configuration_folder}.")
+            cls._instances = [
+                o for o in conf.build_objects(cls._configuration_folder)
+                if isinstance(o, cls)
+            ]
+            logger.debug(
+                f"Built {len(cls._instances)} preconfigured {cls.__name__} "
+                f"objects from {cls._configuration_folder}."
+            )
         return cls._instances
 
     @classmethod

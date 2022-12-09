@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .commons import logger
-from .anchor import AnatomicalAnchor
+from .features.anchor import AnatomicalAnchor
 
 from .core.atlas import Atlas
 from .core.parcellation import Parcellation, ParcellationVersion
@@ -23,6 +23,7 @@ from .core.region import Region
 from .core.location import Point, PointSet
 
 from .retrieval.datasets import EbrainsDataset
+from .retrieval.repositories import ZipfileConnector, GitlabConnector
 
 from .volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
 from .volumes.mesh import NeuroglancerMesh, GiftiSurface
@@ -31,6 +32,7 @@ from .volumes.sparsemap import SparseMap
 
 from .features.receptors import ReceptorDensityFingerprint, ReceptorDensityProfile
 from .features.cells import CellDensityFingerprint, CellDensityProfile
+from .features.connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 
 from os import path
 import json
@@ -46,17 +48,12 @@ BUILDFUNCS = {
     "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
     "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
     "tmp/poly": "build_pointset",
-    "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
     "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
-    "siibra/feature/fingerprint/celldensity/v1.0.0": "build_cell_density_fingerprint",
-    "siibra/feature/profile/celldensity/v1.0.0": "build_cell_density_profile",
+    "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
+    "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
+    "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
+    "siibra/resource/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
 }
-
-
-# list of species specifications expected by the factory so far,
-# in order to inform when new ones come up to add support.
-EXPECTED_SPECIES_SPECS = [None, 'Homo sapiens']
-
 
 class Factory:
 
@@ -80,14 +77,61 @@ class Factory:
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
+    def extract_species(cls, spec):
+        species_map = {
+            "Homo sapiens": "Homo sapiens",
+            "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": "Homo sapiens",
+        }
+        idspec = spec.get("ebrains", {}).get("minds/core/species/v1.0.0")
+        namespec = spec.get("species")
+        if idspec in species_map:
+            return species_map[idspec]
+        elif namespec in species_map:
+            return species_map[namespec]
+        else:
+            logger.error(f"Species specifications '{(idspec, namespec)}' unexpected - check if supported.")
+            return None
+
+    @classmethod
     def extract_anchor(cls, spec):
-        if spec.get("species") not in EXPECTED_SPECIES_SPECS:
-            logger.error(f"Species specification '{spec.get('species')}' unexpected - check if supported.")
+        if spec.get('region'):
+            region = spec['region']
+        elif spec.get('parcellation', {}).get('@id'):
+            # a parcellation is a special region,
+            # and can be used if no region is found
+            region = spec['parcellation']['@id']
+        elif spec.get('parcellation', {}).get('name'):
+            region = spec['parcellation']['name']
+        else:
+            region = None
+        if region is None:
+            print("no region in spec!")
+            print(spec)
+            raise RuntimeError
         return AnatomicalAnchor(
-            region=spec.get('region', None),
+            region=region,
             location=None,
-            species=spec.get("species", None),
+            species=cls.extract_species(spec)
         )
+
+    @classmethod
+    def extract_connector(cls, spec):
+        repospec = spec.get('repository', {})
+        spectype = repospec["@type"]
+        if spectype == "siibra/repository/zippedfile/v1.0.0":
+            return ZipfileConnector(repospec['url'])
+        elif spectype == "siibra/repository/gitlab/v1.0.0":
+            return GitlabConnector(
+                server=repospec['server'],
+                project=repospec['project'],
+                reftag=repospec['branch']
+            )
+        else:
+            logger.warn(
+                "Do not know how to create a repository "
+                f"connector from specification type {spectype}."
+            )
+            return None
 
     @classmethod
     def build_atlas(cls, spec):
@@ -246,6 +290,16 @@ class Factory:
         )
 
     @classmethod
+    def build_cell_density_fingerprint(cls, spec):
+        return CellDensityFingerprint(
+            species=spec['species'],
+            regionname=spec['region_name'],
+            segmentfiles=spec['segmentfiles'],
+            layerfiles=spec['layerfiles'],
+            dataset_id=spec['kgId']
+        )
+        
+    @classmethod
     def build_receptor_density_profile(cls, spec):
         return ReceptorDensityProfile(
             receptor=spec['receptor'],
@@ -255,25 +309,39 @@ class Factory:
         )
 
     @classmethod
-    def build_cell_density_fingerprint(cls, spec):
-        return CellDensityFingerprint(
-            species=spec['species'],
-            regionname=spec['region_name'],
-            segmentfiles=spec['segmentfiles'],
-            layerfiles=spec['layerfiles'],
-            dataset_id=spec['kgId']
-        )
-
-    @classmethod
     def build_cell_density_profile(cls, spec):
         return CellDensityProfile(
-            species=spec['species'],
-            regionname=spec['region_name'],
-            url=spec['url'],
-            dataset_id=spec['kgId'],
             section=spec['section'],
-            patch=spec['patch']
+            patch=spec['patch'],
+            url=spec['url'],
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
         )
+        
+    @classmethod
+    def build_connectivity_matrix(cls, spec):
+        measuretype = spec["modality"]
+        kwargs = {
+            "cohort": spec["cohort"],
+            "subject": spec["subject"],
+            "measuretype": measuretype,
+            "connector": cls.extract_connector(spec),
+            "files": spec.get('files', {}),
+            "anchor": cls.extract_anchor(spec),
+            "datasets": cls.extract_datasets(spec),
+        }
+        if measuretype == "StreamlineCounts":
+            return StreamlineCounts(**kwargs)
+        elif measuretype == "StreamlineLengths":
+            return StreamlineLengths(**kwargs)
+        elif measuretype == "Functional":
+            kwargs["paradigm"] = spec.get("paradigm")
+            return FunctionalConnectivity(**kwargs)
+        elif measuretype == "RestingState":
+            kwargs["paradigm"] = "RestingState"
+            return FunctionalConnectivity(**kwargs)
+        else:
+            raise ValueError(f"Do not know how to build connectivity matrix of type {measuretype}.")
 
     @classmethod
     def from_json(cls, spec: dict):

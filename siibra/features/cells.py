@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from .feature import CorticalProfile, RegionalFingerprint
 
 from ..commons import logger, create_key
@@ -102,17 +101,24 @@ class CellDensityProfile(CorticalProfile):
 
     def __init__(
         self,
-        dataset_id: str,
-        species: dict,
-        regionname: str,
         section: int,
         patch: int,
         url: str,
+        anchor: "AnatomicalAnchor",
+        datasets: list = []
     ):
-        """Generate a receptor density profile from a URL to a .tsv file
-        formatted according to the structure used by Palomero-Gallagher et al.
         """
-
+        Generate a cell density profile from a URL to a cloud folder
+        formatted according to the structure used by Bludau/Dickscheid et al.
+        """
+        CorticalProfile.__init__(
+            self,
+            description=self.DESCRIPTION,
+            measuretype="cell density",
+            unit="detected cells / 0.1mm3",
+            anchor=anchor,
+            datasets=datasets,
+        )
         self._step = 0.01
         self._url = url
         self._cell_loader = HttpRequest(url, CELL_READER)
@@ -124,15 +130,6 @@ class CellDensityProfile(CorticalProfile):
         self._depth_image = None
         self.section = section
         self.patch = patch
-
-        CorticalProfile.__init__(
-            self,
-            measuretype="cell density",
-            species=species,
-            region=regionname,
-            description=self.DESCRIPTION,
-            unit="detected cells / 0.1mm3",
-        )
 
     @property
     def shape(self):
@@ -308,23 +305,22 @@ class CellDensityFingerprint(RegionalFingerprint):
 
     def __init__(
         self,
-        species: dict,
-        regionname: str,
         segmentfiles: list,
         layerfiles: list,
-        dataset_id: str = None,
+        anchor: "AnatomicalAnchor",
+        datasets: list = [],
     ):
-        self._filepairs = list(zip(segmentfiles, layerfiles))
-        self._densities = None
-        self.dataset_id = dataset_id
         RegionalFingerprint.__init__(
             self,
-            measuretype="Layerwise cell density",
-            species=species,
-            regionname=regionname,
             description=self.DESCRIPTION,
+            measuretype="Layerwise cell density",
+            anchor=anchor,
+            datasets=datasets,
             unit="detected cells / 0.1mm3",
         )
+        self._filepairs = list(zip(segmentfiles, layerfiles))
+        self._densities = None
+
 
     @property
     def densities(self):

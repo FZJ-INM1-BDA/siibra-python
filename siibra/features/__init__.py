@@ -15,6 +15,7 @@
 
 from .feature import Feature
 from .receptors import ReceptorDensityProfile, ReceptorDensityFingerprint
+from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 get_features = Feature.match
 
 # __all__ = []

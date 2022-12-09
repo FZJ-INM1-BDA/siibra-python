@@ -18,6 +18,7 @@ from .region import Region
 from ..commons import logger, MapType, MapIndex
 
 from typing import Union, List
+import re
 
 
 # NOTE : such code could be used to automatically resolve
@@ -196,14 +197,38 @@ class Parcellation(Region, configuration_folder="parcellations"):
     def is_newest_version(self):
         return (self.version is None) or (self.version.next_id is None)
 
-    def get_region(self, regionspec: Union[str, int, MapIndex, Region], find_topmost=True):
+    def _split_group_spec(self, spec: str):
+        """ 
+        Split a group region specification as produced in older siibra versions
+        into the subregion specs.
+        This is used when decoding datasets that still include region name
+        specifications from old siibra versions, such as some connectivity matrices.
+        """
+        spec = re.sub(r'Group: *', '', spec)
+        for substr in re.findall(r'\(.*?\)', spec):
+            # temporarilty replace commas inside brackets with a placeholder
+            # because these are not region spec delimiters
+            spec = spec.replace(substr, re.sub(r', *', '##', substr))
+        # process the comma separated substrings
+        candidates = [
+            self.get_region(re.sub(r'##', ', ', s))
+            for s in re.split(r', *', spec)
+        ]
+        if len(candidates) > 0:
+            return candidates
+        else:
+            return [spec]
+
+    def get_region(self, regionspec: Union[str, int, MapIndex, Region], find_topmost=True, build_group=False):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
         region object.
         This method is meant to definitely determine a valid region. Therefore,
-        if no match is found, it raises a ValueError. If it finds multiple
-        matches, it tries to return only the common parent node.
+        if no match is found, it raises a ValueError.
+        If multiple matches are found, the method tries to return only the common parent node.
+        If there is no common parent, an exception is raised, except when
+        build_group=True - then a custom group region is returned.
 
         Parameters
         ----------
@@ -214,7 +239,11 @@ class Parcellation(Region, configuration_folder="parcellations"):
             - a region object
             - a full MapIndex
         find_topmost : Bool, default: True
-            If True, will automatically return the parent of a decoded region the decoded region is its only child.
+            If True, will automatically return the parent of a decoded region
+            the decoded region is its only child.
+        build_group: Bool, default: False
+            If multiple candidates without a common parent are found, built a
+            custom group region instead of raising an exception.
 
         Return
         ------
@@ -223,7 +252,14 @@ class Parcellation(Region, configuration_folder="parcellations"):
         if isinstance(regionspec, Region) and (regionspec.parcellation == self):
             return regionspec
 
-        candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
+        if regionspec.startswith("Group"):
+            candidates = [
+                r
+                for spec in self._split_group_spec(regionspec)
+                for r in self.find(spec, filter_children=True, find_topmost=find_topmost)
+            ]
+        else:
+            candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
         if len(candidates) > 1 and isinstance(regionspec, str):
             # if we have an exact match of words in one region, discard other candidates.
             querywords = {w.lower() for w in regionspec.split()}
@@ -237,14 +273,15 @@ class Parcellation(Region, configuration_folder="parcellations"):
                     candidates = [c]
 
         if not candidates:
-            raise ValueError(
-                "Regionspec {} could not be decoded under '{}'".format(
-                    regionspec, self.name
-                )
-            )
+            raise ValueError(f"'{regionspec}' could not be decoded under '{self.name}'")
         elif len(candidates) == 1:
             return candidates[0]
         else:
+            if build_group:
+                return Region(
+                    name="Group: " + ", ".join(c.name for c in candidates),
+                    children=candidates, parent=self
+                )
             raise RuntimeError(
                 f"Spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
