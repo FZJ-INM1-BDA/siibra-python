@@ -32,7 +32,7 @@ class ConnectivityMatrix(Feature):
         measuretype: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor", 
+        anchor: "AnatomicalAnchor",
         description: str = "",
         datasets: list = [],
     ):
@@ -115,9 +115,9 @@ class ConnectivityMatrix(Feature):
         ]
         with QUIET:
             indexmap = {
-                int(l[0]): parc.get_region(l[1], build_group=True)
-                for l in lines
-                if len(l) == 2 and l[0].isnumeric()
+                int(line[0]): parc.get_region(line[1], build_group=True)
+                for line in lines
+                if len(line) == 2 and line[0].isnumeric()
             }
         if len(indexmap) == nrows:
             remapper = {
@@ -150,7 +150,7 @@ class StreamlineCounts(ConnectivityMatrix, configuration_folder="features/connec
         measuretype: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor", 
+        anchor: "AnatomicalAnchor",
         description: str = "",
         datasets: list = [],
     ):
@@ -178,7 +178,7 @@ class FunctionalConnectivity(ConnectivityMatrix, configuration_folder="features/
         paradigm: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor", 
+        anchor: "AnatomicalAnchor",
         description: str = "",
         datasets: list = [],
     ):
@@ -206,7 +206,7 @@ class StreamlineLengths(ConnectivityMatrix, configuration_folder="features/conne
         measuretype: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor", 
+        anchor: "AnatomicalAnchor",
         description: str = "",
         datasets: list = [],
     ):

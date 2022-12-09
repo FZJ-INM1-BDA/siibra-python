@@ -133,7 +133,7 @@ class AnatomicalAnchor:
         if self._regions_cached is None:
             # decode the region specification into a set of region objects
             self._regions_cached = {
-                r: AssignmentQualification['EXACT'] 
+                r: AssignmentQualification['EXACT']
                 for r in find_regions(self._regionspec, self.species)
             }
             # add more regions from possible aliases of the region spec

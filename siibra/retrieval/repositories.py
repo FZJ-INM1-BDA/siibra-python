@@ -22,7 +22,6 @@ from urllib.parse import quote
 from tqdm import tqdm
 from os import path, walk
 from zipfile import ZipFile
-import re
 
 
 class RepositoryConnector(ABC):
@@ -98,8 +97,6 @@ class RepositoryConnector(ABC):
                 "Do not know how to create a repository "
                 f"connector from url '{url}'."
             )
-
-
 
 
 class LocalFileRepository(RepositoryConnector):

@@ -198,7 +198,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         return (self.version is None) or (self.version.next_id is None)
 
     def _split_group_spec(self, spec: str):
-        """ 
+        """
         Split a group region specification as produced in older siibra versions
         into the subregion specs.
         This is used when decoding datasets that still include region name

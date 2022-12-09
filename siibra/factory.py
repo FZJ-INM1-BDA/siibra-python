@@ -55,6 +55,7 @@ BUILDFUNCS = {
     "siibra/resource/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
 }
 
+
 class Factory:
 
     @classmethod
@@ -298,7 +299,7 @@ class Factory:
             layerfiles=spec['layerfiles'],
             dataset_id=spec['kgId']
         )
-        
+ 
     @classmethod
     def build_receptor_density_profile(cls, spec):
         return ReceptorDensityProfile(
@@ -317,7 +318,7 @@ class Factory:
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
         )
-        
+
     @classmethod
     def build_connectivity_matrix(cls, spec):
         measuretype = spec["modality"]
