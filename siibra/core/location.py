@@ -188,6 +188,9 @@ class Point(Location):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
+    def __hash__(self):
+        return sum(map(hash, (self.coordinate, self.sigma, self.space.key)))
+
     def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
         """
         Construct a new 3D point set in the given reference space.
@@ -207,7 +210,7 @@ class Point(Location):
         self.sigma = sigma_mm
         if isinstance(coordinatespec, Point):
             assert coordinatespec.sigma == sigma_mm
-            assert coordinatespec.space_id == space.id
+            assert coordinatespec.space == space
 
     @property
     def homogeneous(self):
@@ -420,10 +423,10 @@ class PointSet(Location):
         """
         Location.__init__(self, space)
         if isinstance(sigma_mm, numbers.Number):
-            self.coordinates = [Point(c, space, sigma_mm) for c in coordinates]
+            self.points = [Point(c, self.space, sigma_mm) for c in coordinates]
         else:
-            self.coordinates = [
-                Point(c, space, s) for c, s in zip(coordinates, sigma_mm)
+            self.points = [
+                Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
             ]
 
     def intersection(self, mask: Nifti1Image):
@@ -446,6 +449,14 @@ class PointSet(Location):
 
     def intersects(self, mask: Nifti1Image):
         return len(self.intersection(mask)) > 0
+
+    @property
+    def sigma(self):
+        return [p.sigma for p in self]
+
+    @property
+    def has_constant_sigma(self):
+        return len(set(self.sigma)) == 1
 
     def warp(self, space):
         """Creates a new point set by warping its points to another space"""
@@ -493,7 +504,7 @@ class PointSet(Location):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            [c.transform(affine, space) for c in self.coordinates], space
+            [c.transform(affine, space) for c in self.points], space
         )
 
     def __getitem__(self, index: int):
@@ -503,15 +514,15 @@ class PointSet(Location):
                 f"but index of {index} was requested."
             )
         else:
-            return self.coordinates[index]
+            return self.points[index]
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
-        return iter(self.coordinates)
+        return iter(self.points)
 
     def __len__(self):
         """The number of points in this PointSet."""
-        return len(self.coordinates)
+        return len(self.points)
 
     def __str__(self):
         return f"Set of points {self.space.name}: " + ", ".join(
@@ -549,7 +560,7 @@ class PointSet(Location):
     @property
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        return np.array([c.homogeneous for c in self.coordinates]).reshape((-1, 4))
+        return np.array([c.homogeneous for c in self.points]).reshape((-1, 4))
 
 
 class BoundingBox(Location):
