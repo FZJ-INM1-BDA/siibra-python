@@ -160,11 +160,11 @@ class AnatomicalAnchor:
         if concept not in self._assignments:
             matches = ListWithoutNone()
             if isinstance(concept, Region):
+                for region in self.regions:
+                    matches.append(AnatomicalAnchor.match_regions(region, concept))
                 if self.location is not None:
                     logger.info(f"match location {self.location} to region '{concept.name}'")
                     matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
-                for region in self.regions:
-                    matches.append(AnatomicalAnchor.match_regions(region, concept))
             elif isinstance(concept, Location):
                 if self.location is not None:
                     matches.append(AnatomicalAnchor.match_locations(self.location, concept))
@@ -215,24 +215,41 @@ class AnatomicalAnchor:
         assert isinstance(location, Location)
         assert isinstance(region, Region)
         if (location, region) not in cls._MATCH_MEMO:
-            mask = region.build_mask(space=location.space, maptype='labelled')
-            expl = (
-                f"{location} was compared with the mask of query region "
-                f"'{region.name}' in {location.space.name}."
-            )
+            # compute mask of the region
+            if location.space in region.supported_spaces:
+                mask = region.build_mask(space=location.space, maptype='labelled')
+                mask_space = location.space
+                expl = (
+                    f"{location} was compared with the mask of query region "
+                    f"'{region.name}' in {location.space.name}."
+                )
+            else:
+                for space in region.supported_spaces:
+                    if space.is_surface:  # siibra does not yet match locations to surface spaces
+                        continue
+                    mask = region.build_mask(space=space, maptype='labelled')
+                    mask_space = space
+                    expl = (
+                        f"{location} was warped from {location.space.name} and then compared "
+                        f"in this space with the mask of query region '{region.name}'."
+                    )
+                    if mask is not None:
+                        break
             if mask is None:
-                logger.warn(f"'{region.name}' provides not mask to match {location}.")
+                logger.warn(
+                    f"'{region.name}' provides no mask in a space "
+                    f"to which {location} can be warped."
+                )
                 res = None
-            elif location.contained_in(mask):
+            elif location.warp(mask_space).contained_in(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.CONTAINED, expl)
-            elif location.contains(mask):
+            elif location.warp(mask_space).contains(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.CONTAINS, expl)
-            elif location.intersects(mask):
+            elif location.warp(mask_space).intersects(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.OVERLAPS, expl)
             else:
                 logger.debug(
-                    f"{location} does not match mask of '{region.name}' "
-                    f"in {location.space.name}."
+                    f"{location} does not match mask of '{region.name}' in {mask_space.name}."
                 )
                 res = None
             cls._MATCH_MEMO[location, region] = res

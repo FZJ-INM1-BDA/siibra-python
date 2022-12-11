@@ -342,6 +342,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         for m in Map.registry():
             if all([
                 m.space.matches(space),
+                not m.is_surface,
                 m.maptype == maptype,
                 self.name in m.regions
             ]):
