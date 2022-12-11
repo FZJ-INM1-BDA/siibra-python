@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import SpatialFeature
+from ..feature import SpatialFeature
 
-from .. import QUIET
-from ..volumes.volume import ColorVolumeNotSupported
-from ..core.space import BoundingBox
-from ..core.datasets import EbrainsDataset
-from ..retrieval.repositories import GitlabConnector
+from ... import QUIET
+from ...volumes.volume import ColorVolumeNotSupported
+from ...core.space import BoundingBox
+from ...core import EbrainsDataset
+from ...retrieval.repositories import GitlabConnector
 
 import numpy as np
 import hashlib

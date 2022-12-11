@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import RegionalFeature
+from ..feature import RegionalFeature
 
-from .. import logger
-from ..configuration.configuration import REGISTRY, Query
-from ..retrieval.datasets import EbrainsDataset
-from ..retrieval.requests import EbrainsKgQuery
+from ... import logger
+from ...configuration.configuration import REGISTRY, Query
+from ...retrieval.datasets import EbrainsDataset
+from ...retrieval.requests import EbrainsKgQuery
 
 from collections import defaultdict
 import re
@@ -83,7 +83,7 @@ class EbrainsRegionalFeatureQuery(Query, args=[], objtype=EbrainsDataset):
         )
 
         versioned_datasets = defaultdict(dict)
-        from ..core import Parcellation
+        from ...core import Parcellation
 
         # ids of EBRAINS datasets which represent siibra parcellations
         parcellations_ids = [

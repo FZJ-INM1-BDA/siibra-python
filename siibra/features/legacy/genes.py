@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import SpatialFeature
+from ..feature import SpatialFeature
 
-from ..commons import logger
-from ..configuration.configuration import REGISTRY, Query
-from ..core.space import Point
-from ..retrieval import HttpRequest
+from ...commons import logger
+from ...configuration.configuration import REGISTRY, Query
+from ...core.space import Point
+from ...retrieval import HttpRequest
 
 from typing import Iterable, List, Union
 from xml.etree import ElementTree
