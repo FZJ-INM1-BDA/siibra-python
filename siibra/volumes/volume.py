@@ -50,7 +50,7 @@ class Volume:
             assert srctype not in self._providers
             self._providers[srctype] = provider
         if len(self._providers) == 0:
-            logger.error(f"No provider for volume {self}")
+            logger.debug(f"No provider for volume {self}")
 
     @property
     def formats(self):

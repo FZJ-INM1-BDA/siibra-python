@@ -124,7 +124,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
-        Get the volumetric maps for the parcellation in the requested
+        Get the maps for the parcellation in the requested
         template space. This might in general include multiple
         3D volumes. For example, the Julich-Brain atlas provides two separate
         maps, one per hemisphere. Per default, multiple maps are concatenated into a 4D
