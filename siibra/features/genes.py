@@ -16,7 +16,7 @@
 from .feature import SpatialFeature
 
 from ..commons import logger
-from ..configuration import InstanceTable, REGISTRY, Query
+from ..configuration.configuration import REGISTRY, Query
 from ..core.space import Point
 from ..retrieval import HttpRequest
 

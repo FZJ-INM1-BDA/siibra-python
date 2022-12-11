@@ -15,7 +15,7 @@
 
 
 from ..commons import logger
-from ..configuration import REGISTRY
+from ..configuration.configuration import REGISTRY
 from ..core.space import Point, PointSet
 
 from ctypes import ArgumentError

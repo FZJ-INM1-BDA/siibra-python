@@ -16,8 +16,8 @@
 from .feature import RegionalFeature
 
 from .. import logger
-from ..configuration import REGISTRY, Query
-from ..core.datasets import EbrainsDataset
+from ..configuration.configuration import REGISTRY, Query
+from ..retrieval.datasets import EbrainsDataset
 from ..retrieval.requests import EbrainsKgQuery
 
 from collections import defaultdict

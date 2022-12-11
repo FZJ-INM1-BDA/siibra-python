@@ -13,26 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger
-from .features.anchor import AnatomicalAnchor
+from ..commons import logger
+from ..features.anchor import AnatomicalAnchor
 
-from .core.atlas import Atlas
-from .core.parcellation import Parcellation, ParcellationVersion
-from .core.space import Space
-from .core.region import Region
-from .core.location import Point, PointSet
+from ..core.atlas import Atlas
+from ..core.parcellation import Parcellation, ParcellationVersion
+from ..core.space import Space
+from ..core.region import Region
+from ..core.location import Point, PointSet
 
-from .retrieval.datasets import EbrainsDataset
-from .retrieval.repositories import ZipfileConnector, GitlabConnector
+from ..retrieval.datasets import EbrainsDataset
+from ..retrieval.repositories import ZipfileConnector, GitlabConnector
 
-from .volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
-from .volumes.mesh import NeuroglancerMesh, GiftiSurface
-from .volumes.map import Map
-from .volumes.sparsemap import SparseMap
+from ..volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
+from ..volumes.mesh import NeuroglancerMesh, GiftiSurface
+from ..volumes.map import Map
+from ..volumes.sparsemap import SparseMap
 
-from .features.receptors import ReceptorDensityFingerprint, ReceptorDensityProfile
-from .features.cells import CellDensityFingerprint, CellDensityProfile
-from .features.connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
+from ..features.fingerprints import ReceptorDensityFingerprint, CellDensityFingerprint
+from ..features.profiles import CellDensityProfile, ReceptorDensityProfile
+from ..features.connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 
 from os import path
 import json

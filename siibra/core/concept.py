@@ -71,7 +71,7 @@ class AtlasConcept:
         if cls._configuration_folder is None:
             return None
         if cls._registry_cached is None:
-            from ..configuration import Configuration
+            from ..configuration.configuration import Configuration
             from ..commons import InstanceTable
             conf = Configuration()
             # visit the configuration to provide a cleanup function

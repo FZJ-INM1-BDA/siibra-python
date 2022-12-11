@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
+from ..features.feature import Feature
 
 from ..commons import logger
 from ..core.concept import AtlasConcept

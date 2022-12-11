@@ -13,15 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint
-from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
-from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
-from ..livequeries.bigbrain import BigBrainProfileQuery, BigBrainIntensityFingerprintQuery
-
-get_features = Feature.match
-
-# __all__ = []
-# from .genes import GENE_NAMES as gene_names
-# modalities = AnchoredFeature.get_modalities()
-# __all__ += ['gene_names', 'modalities']
+from .configuration import Configuration

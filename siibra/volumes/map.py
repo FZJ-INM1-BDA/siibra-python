@@ -320,6 +320,8 @@ class Map(Region, configuration_folder="maps"):
                     continue
             else:
                 raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
+        if not isinstance(self._affine_cached, np.ndarray):
+            logger.error("invalid affine:", self._affine_cached)
         return self._affine_cached
 
     def fetch_iter(

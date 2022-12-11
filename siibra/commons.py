@@ -20,6 +20,7 @@ from nibabel import Nifti1Image
 import logging
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union
+from io import BytesIO
 
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
@@ -277,8 +278,6 @@ REMOVE_FROM_NAME = [
     "hemisphere",
     " -",
     "-brain",
-    # region string used in receptor features sometimes contains both/Both keywords
-    # when they are present, the regions cannot be parsed properly
     "both",
     "Both",
 ]
@@ -413,4 +412,82 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
         "contained": intersection / N1,
         "contains": intersection / N2,
         "correlation": r,
+    }
+
+
+class PolyLine:
+    """Simple polyline representation which allows equidistant sampling.."""
+
+    def __init__(self, pts):
+        self.pts = pts
+        self.lengths = [
+            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
+            for i in range(1, pts.shape[0])
+        ]
+
+    def length(self):
+        return sum(self.lengths)
+
+    def sample(self, d):
+
+        # if d is interable, we assume a list of sample positions
+        try:
+            iter(d)
+        except TypeError:
+            positions = [d]
+        else:
+            positions = d
+
+        samples = []
+        for s_ in positions:
+            s = min(max(s_, 0), 1)
+            target_distance = s * self.length()
+            current_distance = 0
+            for i, length in enumerate(self.lengths):
+                current_distance += length
+                if current_distance >= target_distance:
+                    p1 = self.pts[i, :]
+                    p2 = self.pts[i + 1, :]
+                    r = (target_distance - current_distance + length) / length
+                    samples.append(p1 + (p2 - p1) * r)
+                    break
+
+        if len(samples) == 1:
+            return samples[0]
+        else:
+            return np.array(samples)
+
+
+def unify_stringlist(L: list):
+    """Adds asterisks to strings that appear multiple times, so the resulting
+    list has only unique strings but still the same length, order, and meaning.
+    For example:
+        unify_stringlist(['a','a','b','a','c']) -> ['a','a*','b','a**','c']
+    """
+    assert all([isinstance(_, str) for _ in L])
+    return [L[i] + "*" * L[:i].count(L[i]) for i in range(len(L))]
+
+
+def decode_receptor_tsv(bytearray):
+    bytestream = BytesIO(bytearray)
+    header = bytestream.readline()
+    lines = [_.strip() for _ in bytestream.readlines() if len(_.strip()) > 0]
+    sep = b"{" if b"{" in lines[0] else b"\t"
+    keys = unify_stringlist(
+        [
+            n.decode("utf8").replace('"', "").replace("'", "").strip()
+            for n in header.split(sep)
+        ]
+    )
+    if any(k.endswith("*") for k in keys):
+        logger.warning("Redundant headers in receptor file")
+    assert len(keys) == len(set(keys))
+    return {
+        _.split(sep)[0].decode("utf8"): dict(
+            zip(
+                keys,
+                [re.sub(r"\\+", r"\\", v.decode("utf8").strip()) for v in _.split(sep)],
+            )
+        )
+        for _ in lines
     }
