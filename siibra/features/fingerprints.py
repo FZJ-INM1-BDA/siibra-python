@@ -122,7 +122,7 @@ class RegionalFingerprint(Feature):
         return ax
 
 
-class CellDensityFingerprint(RegionalFingerprint):
+class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features/fingerprints/celldensity"):
 
     DESCRIPTION = (
         "Layerwise estimated densities of detected cell bodies  (in detected cells per 0.1 cube millimeter) "

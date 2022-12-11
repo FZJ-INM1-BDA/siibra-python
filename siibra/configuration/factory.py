@@ -300,11 +300,10 @@ class Factory:
     @classmethod
     def build_cell_density_fingerprint(cls, spec):
         return CellDensityFingerprint(
-            species=spec['species'],
-            regionname=spec['region_name'],
             segmentfiles=spec['segmentfiles'],
             layerfiles=spec['layerfiles'],
-            dataset_id=spec['kgId']
+            anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
         )
 
     @classmethod
