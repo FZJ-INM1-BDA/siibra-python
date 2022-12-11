@@ -120,15 +120,16 @@ class Feature:
             modality = cls.modalities[modality]
         logger.info(f"Matching {modality.__name__} to {concept}")
         msg = f"Matching {modality.__name__} to {concept}"
+        instances = modality.get_instances()
         preconfigured_instances = [
-            f for f in tqdm(modality.get_instances(), desc=msg)
+            f for f in tqdm(instances, desc=msg, total=len(instances))
             if f.matches(concept)
         ]
 
         live_instances = []
         for QueryType in modality._live_queries:
-            logger.info(f"Running live query {QueryType.__name__} on {concept}")
+            logger.info(f"Running live query {QueryType.__name__} on {concept} with args {kwargs}")
             q = QueryType(**kwargs)
-            live_instances.extend(q.query(concept, **kwargs))
+            live_instances.extend(q.query(concept))
 
         return preconfigured_instances + live_instances

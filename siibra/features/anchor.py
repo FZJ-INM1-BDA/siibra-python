@@ -124,26 +124,29 @@ class AnatomicalAnchor:
             self._regions_cached = [region]
             self._regionspec = None
         else:
-            assert isinstance(region, str)
+            assert isinstance(region, Union[str, None])
             self._regions_cached = None
             self._regionspec = region
 
     @property
     def regions(self):
         if self._regions_cached is None:
-            # decode the region specification into a set of region objects
-            self._regions_cached = {
-                r: AssignmentQualification['EXACT']
-                for r in find_regions(self._regionspec, self.species)
-            }
-            # add more regions from possible aliases of the region spec
-            region_aliases = REGION_ALIASES.get(self.species, {}).get(self._regionspec, {})
-            for species, aliases in region_aliases.items():
-                for regionspec, qualificationspec in aliases.items():
-                    for r in find_regions(regionspec, species):
-                        if r not in self._regions_cached:
-                            logger.info(f"Adding region {r.name} in {species} from alias to {self._regionspec}")
-                            self._regions_cached[r] = qualificationspec
+            if self._regionspec is not None:
+                # decode the region specification into a set of region objects
+                self._regions_cached = {
+                    r: AssignmentQualification['EXACT']
+                    for r in find_regions(self._regionspec, self.species)
+                }
+                # add more regions from possible aliases of the region spec
+                region_aliases = REGION_ALIASES.get(self.species, {}).get(self._regionspec, {})
+                for species, aliases in region_aliases.items():
+                    for regionspec, qualificationspec in aliases.items():
+                        for r in find_regions(regionspec, species):
+                            if r not in self._regions_cached:
+                                logger.info(f"Adding region {r.name} in {species} from alias to {self._regionspec}")
+                                self._regions_cached[r] = qualificationspec
+            else:
+                self._regions_cached = []
 
         return self._regions_cached
 
@@ -163,7 +166,6 @@ class AnatomicalAnchor:
                 for region in self.regions:
                     matches.append(AnatomicalAnchor.match_regions(region, concept))
                 if self.location is not None:
-                    logger.info(f"match location {self.location} to region '{concept.name}'")
                     matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
             elif isinstance(concept, Location):
                 if self.location is not None:

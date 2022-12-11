@@ -14,10 +14,12 @@
 # limitations under the License.
 
 from .feature import Feature
+from .simple import GeneExpression
 from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint
 from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
 from ..livequeries.bigbrain import BigBrainProfileQuery, BigBrainIntensityFingerprintQuery
+from ..livequeries.allen import AllenBrainAtlasQuery
 
 get_features = Feature.match
 

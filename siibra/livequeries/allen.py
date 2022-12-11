@@ -13,110 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..feature import SpatialFeature
+from .query import LiveQuery
 
-from ...commons import logger
-from ...configuration.configuration import REGISTRY, Query
-from ...core.space import Point
-from ...retrieval import HttpRequest
+from ..features.simple import GeneExpression
+from ..commons import logger
+from ..core.location import Point
+from ..core.region import Region
+from ..retrieval import HttpRequest
 
-from typing import Iterable, List, Union
+from typing import Iterable, Union, List
 from xml.etree import ElementTree
 import numpy as np
 import json
-
-try:
-    # python 3.8+
-    from typing import TypedDict
-except ImportError:
-    # python 3.7 and below
-    from typing_extensions import TypedDict
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
 
-class DonorDict(TypedDict):
-    id: int
-    name: str
-    race: str
-    age: int
-    gender: str
-
-
-class SampleStructure(TypedDict):
-    id: int
-    name: str
-    abbreviation: str
-    color: str
-
-
-class GeneExpression(SpatialFeature):
-    """
-    A spatial feature type for gene expressions.
-    """
-
-    def __init__(
-        self,
-        gene: str,
-        location: Point,
-        expression_levels: List[float],
-        z_scores: List[float],
-        probe_ids: List[int],
-        donor_info: DonorDict,
-        mri_coord: List[int] = None,
-        structure: SampleStructure = None,
-        top_level_structure: SampleStructure = None,
-    ):
-        """
-        Construct the spatial feature for gene expressions measured in a sample.
-
-        Parameters:
-        -----------
-        gene : str
-            Name of gene
-        location : Point
-            3D location of the gene expression sample
-        expression_levels : list of float
-            expression levels measured in possibly multiple probes of the same sample
-        z_scores : list of float
-            z scores measured in possibly multiple probes of the same sample
-        probe_ids : list of int
-            The probe_ids corresponding to each z_score element
-        donor_info : dict (keys: age, race, gender, donor, speciment)
-            Dictionary of donor attributes
-        mri_coord : tuple  (optional)
-            coordinates in original mri space
-        """
-        SpatialFeature.__init__(self, location=location)
-        self.expression_levels = expression_levels
-        self.z_scores = z_scores
-        self.donor_info = donor_info
-        self.gene = gene
-        self.probe_ids = probe_ids
-        self.mri_coord = mri_coord
-        self.structure = structure
-        self.top_level_structure = top_level_structure
-
-    def __repr__(self):
-        return " ".join(
-            [
-                "At (" + ",".join("{:4.0f}".format(v) for v in self.location) + ")",
-                " ".join(
-                    [
-                        "{:>7.7}:{:7.7}".format(k, str(v))
-                        for k, v in self.donor_info.items()
-                    ]
-                ),
-                "Expression: ["
-                + ",".join(["%4.1f" % v for v in self.expression_levels])
-                + "]",
-                "Z-score: [" + ",".join(["%4.1f" % v for v in self.z_scores]) + "]",
-            ]
-        )
-
-
-class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
+class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression):
     """
     Interface to Allen Human Brain Atlas microarray data.
 
@@ -137,13 +51,6 @@ class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
 
     _FEATURETYPE = GeneExpression
 
-    ALLEN_ATLAS_NOTIFICATION = """
-    For retrieving microarray data, siibra connects to the web API of
-    the Allen Brain Atlas (© 2015 Allen Institute for Brain Science),
-    available from https://brain-map.org/api/index.html. Any use of the
-    microarray data needs to be in accordance with their terms of use,
-    as specified at https://alleninstitute.org/legal/terms-use/.
-    """
     _notification_shown = False
 
     _QUERY = {
@@ -181,8 +88,13 @@ class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
         Microarray probes, samples and z-scores for each donor.
         TODO check that this is only called for ICBM space
         """
-        Query.__init__(self, **kwargs)
+        LiveQuery.__init__(self, **kwargs)
         self.gene: Union[str, Iterable[str]] = kwargs['gene']
+
+    def query(self, region: Region) -> List[GeneExpression]:
+        assert isinstance(region, Region)
+        mask = region.build_mask("mni152", "labelled")
+        return (f for f in self if f.anchor.location.intersects(mask))
 
     def __iter__(self):
 
@@ -194,7 +106,7 @@ class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
             return
 
         if not self.__class__._notification_shown:
-            print(self.__class__.ALLEN_ATLAS_NOTIFICATION)
+            print(GeneExpression.ALLEN_ATLAS_NOTIFICATION)
             self.__class__._notification_shown = True
 
         logger.info("Retrieving probe ids for gene {}".format(self.gene))
@@ -264,13 +176,17 @@ class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
         )
         return specimen
 
-    @staticmethod
-    def _retrieve_microarray(gene: str, donor_id: str, probe_ids: str) -> Iterable[GeneExpression]:
+    @classmethod
+    def _retrieve_microarray(cls, gene: str, donor_id: str, probe_ids: str) -> Iterable[GeneExpression]:
         """
         Retrieve microarray data for several probes of a given donor, and
         compute the MRI position of the corresponding tissue block in the ICBM
         152 space to generate a SpatialFeature object for each sample.
         """
+
+        from ..features.anchor import AnatomicalAnchor
+        from ..core.space import Space
+        space = Space.get_instance('mni152')
 
         if len(probe_ids) == 0:
             return
@@ -302,17 +218,12 @@ class AllenBrainAtlasQuery(Query, args=['gene'], objtype=GeneExpression):
             # Create the spatial feature
             yield GeneExpression(
                 gene,
-                Point(icbm_coord, REGISTRY.Space.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC),
                 expression_levels=[float(p["expression_level"][i]) for p in probes],
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
+                anchor=AnatomicalAnchor(location=Point(icbm_coord, space)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],
             )
-
-
-if __name__ == "__main__":
-
-    featureextractor = AllenBrainAtlasQuery("GABARAPL2")

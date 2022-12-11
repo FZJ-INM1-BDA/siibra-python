@@ -1,6 +1,6 @@
 import pytest
 import siibra
-from siibra.features.legacy.genes import GeneExpression
+from siibra.livequeries.genes import GeneExpression
 
 test_params = [
     ("hoc1 left", "MAOA")
