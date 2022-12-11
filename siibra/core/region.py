@@ -344,6 +344,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 m.space.matches(space),
                 not m.is_surface,
                 m.maptype == maptype,
+                m.parcellation == self.parcellation,
                 self.name in m.regions
             ]):
                 result = m.fetch(index=m.get_index(self.name))
@@ -366,7 +367,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
                     else:
-                        assert mask.affine == affine
+                        assert np.linalg.norm(mask.affine - affine) < 1e-12
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
             if dataobj is not None:
