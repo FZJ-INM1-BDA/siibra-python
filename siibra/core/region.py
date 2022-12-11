@@ -26,6 +26,8 @@ from ..commons import (
     create_key,
     clear_name,
     InstanceTable,
+    SIIBRA_DEFAULT_MAPTYPE,
+    SIIBRA_DEFAULT_MAP_THRESHOLD,
 )
 from ..retrieval.repositories import GitlabConnector
 
@@ -330,7 +332,12 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
 
-    def build_mask(self, space, maptype: MapType, threshold_continuous: float = None):
+    def build_mask(
+        self,
+        space,
+        maptype: MapType=SIIBRA_DEFAULT_MAPTYPE,
+        threshold_continuous: float = SIIBRA_DEFAULT_MAP_THRESHOLD
+    ):
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.

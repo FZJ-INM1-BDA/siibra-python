@@ -274,6 +274,10 @@ class MapType(Enum):
     CONTINUOUS = 2
 
 
+SIIBRA_DEFAULT_MAPTYPE = None
+SIIBRA_DEFAULT_MAP_THRESHOLD = None
+
+
 REMOVE_FROM_NAME = [
     "hemisphere",
     " -",
