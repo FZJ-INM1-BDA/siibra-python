@@ -16,6 +16,8 @@
 from .feature import Feature
 from .receptors import ReceptorDensityProfile, ReceptorDensityFingerprint
 from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
+from .bigbrain import BigBrainIntensityFingerprint, BigBrainIntensityProfile
+
 get_features = Feature.match
 
 # __all__ = []

@@ -55,7 +55,8 @@ class Feature:
 
     def __init_subclass__(cls, configuration_folder=None):
         cls.modalities.add(cls.__name__, cls)
-        cls._instances = None
+        cls._live_queries = []
+        cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
         return super().__init_subclass__()
 
@@ -70,28 +71,36 @@ class Feature:
         return f"{self.__class__.__name__} ({self.measuretype}) anchored at {self.anchor}"
 
     @classmethod
-    def get_instances(cls):
-        if cls._configuration_folder is None:
-            return None
-        if cls._instances is None:
-            from ..configuration import Configuration
-            conf = Configuration()
-            Configuration.register_cleanup(cls.clean_instances)
-            assert cls._configuration_folder in conf.folders
-            cls._instances = [
-                o for o in conf.build_objects(cls._configuration_folder)
-                if isinstance(o, cls)
-            ]
-            logger.debug(
-                f"Built {len(cls._instances)} preconfigured {cls.__name__} "
-                f"objects from {cls._configuration_folder}."
-            )
-        return cls._instances
+    def get_instances(cls, **kwargs):
+        """
+        Retrieve objects of a particular feature subclass.
+        Objects can be preconfigured in the configuration,
+        or delivered by Live queries.
+        """
+        print(f"getting instances of {cls.__name__}")
+        if cls._preconfigured_instances is None:
+            if cls._configuration_folder is None:
+                cls._preconfigured_instances = []
+            else:
+                from ..configuration import Configuration
+                conf = Configuration()
+                Configuration.register_cleanup(cls.clean_instances)
+                assert cls._configuration_folder in conf.folders
+                cls._preconfigured_instances = [
+                    o for o in conf.build_objects(cls._configuration_folder)
+                    if isinstance(o, cls)
+                ]
+                logger.debug(
+                    f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
+                    f"objects from {cls._configuration_folder}."
+                )
+
+        return cls._preconfigured_instances
 
     @classmethod
     def clean_instances(cls):
         """ Removes all instantiated object instances"""
-        cls._instances = None
+        cls._preconfigured_instances = None
 
     def matches(self, concept: AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
@@ -113,11 +122,20 @@ class Feature:
         """
         if isinstance(modality, str):
             modality = cls.modalities[modality]
+        logger.info(f"Matching {modality.__name__} to {concept}")
         msg = f"Matching {modality.__name__} to {concept}"
-        return [
+        preconfigured_instances = [
             f for f in tqdm(modality.get_instances(), desc=msg)
             if f.matches(concept)
         ]
+
+        live_instances = [] 
+        for QueryType in modality._live_queries:
+            logger.info(f"Running live query {QueryType.__name__} on {concept}")
+            q = QueryType(**kwargs)
+            live_instances.extend(q.query(concept, **kwargs))
+
+        return preconfigured_instances + live_instances
 
 
 # TODO how to allow rich text for label (e.g. markdown, latex) etc
@@ -249,7 +267,7 @@ class CorticalProfile(Feature):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
         return pd.Series(
-            self._values, index=self._depths, name=f"{self.modality()} ({self.unit})"
+            self._values, index=self._depths, name=f"{self.measuretype} ({self.unit})"
         )
 
     def plot(self, **kwargs):

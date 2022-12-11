@@ -1,10 +1,28 @@
+# Copyright 2018-2021
+# Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from .feature import Feature
+
 from ..commons import logger
+from ..core.concept import AtlasConcept
 
 from abc import ABC, abstractmethod
 from typing import List
 
 
-class Query(ABC):
+class LiveQuery(ABC):
 
     # set of mandatory query argument names
     _query_args = []
@@ -13,7 +31,7 @@ class Query(ABC):
         parstr = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         if parstr:
             parstr = "with parameters " + parstr
-        logger.info(f"Initializing query for {self._FEATURETYPE.__name__} features {parstr}")
+        logger.info(f"Initializing query for {self.feature_type.__name__} features {parstr}")
         if not all(p in kwargs for p in self._query_args):
             raise ValueError(
                 f"Incomplete specification for {self.__class__.__name__} query "
@@ -21,27 +39,12 @@ class Query(ABC):
             )
         self._kwargs = kwargs
 
-    def __init_subclass__(cls, args: List[str], objtype: type):
+    def __init_subclass__(cls, args: List[str], FeatureType: type):
         cls._query_args = args
-        cls.object_type = objtype
+        cls.feature_type = FeatureType
+        FeatureType._live_queries.append(cls)
         return super().__init_subclass__()
 
     @abstractmethod
-    def __iter__(self):
-        """ iterate over queried objects (use yield to implemnet this in derived classes)"""
+    def query(self, concept: AtlasConcept, **kwargs) -> List[Feature]:
         pass
-
-    @classmethod
-    def get_subclasses(cls):
-        for subclass in cls.__subclasses__():
-            yield from subclass.get_subclasses()
-            yield subclass
-
-    @classmethod
-    def get_instances(cls, classname, **kwargs):
-        # collect instances of the requested class from all suitable query subclasses.
-        result = []
-        for querytype in cls.get_subclasses():
-            if querytype.object_type.__name__ == classname:
-                result.extend(list(querytype(**kwargs)))
-        return result

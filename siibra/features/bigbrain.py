@@ -14,19 +14,20 @@
 # limitations under the License.
 
 from .feature import CorticalProfile, RegionalFingerprint
+from .query import LiveQuery
 
-from ..configuration import REGISTRY, Query
-from ..commons import logger, QUIET
+from ..commons import logger
 from ..core.location import PointSet, Point
-from ..core.atlas import Atlas
+from ..core.parcellation import Parcellation
+from ..core.space import Space
+from ..core.region import Region
 from ..retrieval import HttpRequest
 
 import numpy as np
-import os
-import pandas as pd
+from typing import List
 
 
-def load_wagstyl_profiles():
+class WagstylProfileLoader:
 
     REPO = "https://github.com/kwagstyl/cortical_layers_tutorial"
     BRANCH = "main"
@@ -34,53 +35,67 @@ def load_wagstyl_profiles():
     THICKNESSES_FILE = "data/thicknesses_left.npy"
     MESH_FILE = "data/gray_left_327680.surf.gii"
 
-    # read thicknesses, in mm, and normalize by their last columsn which is the total thickness
-    mesh_left = HttpRequest(f"{REPO}/raw/{BRANCH}/{MESH_FILE}").data
-    T = HttpRequest(f"{REPO}/raw/{BRANCH}/{THICKNESSES_FILE}").data.T
-    total = T[:, :-1].sum(1)
-    valid = np.where(total > 0)[0]
-    boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
-    boundary_depths[:, -1] = 1
+    profiles = None
+    vertices = None
+    boundary_depths = None
 
-    # read profiles with valid thickenss
-    req = HttpRequest(
-        f"{REPO}/raw/{BRANCH}/{PROFILES_FILE}",
-        msg_if_not_cached="First request to BigBrain profiles. Downloading and preprocessing the data now. This may take a little."
-    )
-    profiles_left = req.data[valid, :]
+    def __init__(self):
+        if self.profiles is None:
+            self.__class__._load()
 
-    vertices = mesh_left.darrays[0].data[valid, :]
-    assert vertices.shape[0] == profiles_left.shape[0]
+    @property
+    def profile_labels(self):
+        return np.arange(0, 1, 1 / self.profiles.shape[1])
 
-    # we cache the assignments of profiles to regions as well
-    with QUIET:
-        jubrain = REGISTRY.Parcellation["julich"]
-    assfile = f"{req.cachefile}_{jubrain.key}_assignments.csv"
-    ptsfile = assfile.replace('assignments.csv', 'bbcoords.txt')
+    @classmethod
+    def _load(cls):
+        # read thicknesses, in mm, and normalize by their last columsn which is the total thickness
+        mesh_left = HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
+        T = HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
+        total = T[:, :-1].sum(1)
+        valid = np.where(total > 0)[0]
+        boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
+        boundary_depths[:, -1] = 1
 
-    if not os.path.isfile(assfile):
+        # read profiles with valid thickenss
+        req = HttpRequest(
+            f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}",
+            msg_if_not_cached="First request to BigBrain profiles. Downloading and preprocessing the data now. This may take a little."
+        )
 
-        logger.info(f"Warping locations of {len(vertices)} BigBrain profiles to MNI space...")
-        pts_bb = PointSet(vertices, space="bigbrain")
-        pts_mni = pts_bb.warp("mni152")
+        cls.boundary_depths = boundary_depths
+        cls.vertices = mesh_left.darrays[0].data[valid, :]
+        cls.profiles = req.data[valid, :]
+        logger.debug(f"{cls.profiles.shape[0]} BigBrain intensity profiles.")
+        assert cls.vertices.shape[0] == cls.profiles.shape[0]
 
-        logger.info(f"Assigning {len(vertices)} profile locations to Julich-Brain regions...")
-        pmaps = jubrain.get_map(space="mni152", maptype="continuous")
-        # keep only the unique matches with maximum probability
-        with QUIET:
-            ass = (
-                pmaps.assign(pts_mni)
-                .sort_values("MaxValue", ascending=False)
-                .drop_duplicates(["Component"])
-            )
+    def __len__(self):
+        return self.vertices.shape[0]
 
-        ass.to_csv(assfile)
-        np.savetxt(ptsfile, pts_bb.as_list())
+    def match(self, concept: Region):
+        assert isinstance(concept, Region)
+        parc = concept if isinstance(concept, Parcellation) else concept.parcellation
+        logger.info(f"Matching locations of {len(self)} BigBrain profiles...")
 
-    assignments = pd.read_csv(assfile)
-    bbcoords = np.loadtxt(ptsfile)
+        for space in parc.supported_spaces:
+            if space.is_surface:
+                continue
+            try:
+                mask = concept.build_mask(space=space, maptype="labelled")
+            except RuntimeError:
+                continue
+            logger.info(f"Assigning {len(self)} profile locations to {concept} in {space}...")
+            pts = PointSet(self.vertices, space="bigbrain").warp(space)
+            inside = [i for i, p in enumerate(pts) if p.contained_in(mask)]
+            break
+        else:
+            raise RuntimeError(f"Could not filter big brain profiles by {concept}")
 
-    return profiles_left, boundary_depths, assignments, bbcoords
+        return (
+            self.profiles[inside, :],
+            self.boundary_depths[inside, :],
+            self.vertices[inside, :]
+        )
 
 
 class BigBrainIntensityProfile(CorticalProfile):
@@ -103,15 +118,20 @@ class BigBrainIntensityProfile(CorticalProfile):
         boundaries: list,
         location: Point
     ):
+        from .anchor import AnatomicalAnchor
+        anchor = AnatomicalAnchor(
+            location=location,
+            region=regionname,
+            species='Homo sapiens'
+        )
         CorticalProfile.__init__(
             self,
-            measuretype="BigBrain cortical intensity profile",
-            species=Atlas.get_species_id('human'),
-            region=regionname,
             description=self.DESCRIPTION,
-            unit="staining intensity",
+            measuretype="BigBrain cortical intensity profile",
+            anchor=anchor,
             depths=depths,
             values=values,
+            unit="staining intensity",
             boundary_positions={
                 b: boundaries[b[0]]
                 for b in CorticalProfile.BOUNDARIES
@@ -120,26 +140,28 @@ class BigBrainIntensityProfile(CorticalProfile):
         self.location = location
 
 
-class WagstylBigBrainProfileQuery(Query, args=[], objtype=BigBrainIntensityProfile):
-
-    _FEATURETYPE = BigBrainIntensityProfile
+class WagstylBigBrainProfileQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityProfile):
 
     def __init__(self):
+        LiveQuery.__init__(self)
 
-        Query.__init__(self)
-        profiles_left, boundary_depths, assignments, bbcoords = load_wagstyl_profiles()
-        logger.debug(f"{profiles_left.shape[0]} BigBrain intensity profiles...")
-        depths = np.arange(0, 1, 1 / profiles_left.shape[1])
-        for assignment in assignments.itertuples():
-            idx = assignment.Component
-            p = BigBrainIntensityProfile(
-                regionname=assignment.Region,
-                depths=depths,
-                values=profiles_left[idx, :],
-                boundaries=boundary_depths[idx, :],
-                location=Point(bbcoords[idx, :], REGISTRY.Space['bigbrain'])
+    def query(self, region: Region, **kwargs) -> List[BigBrainIntensityProfile]:
+        logger.info(f"Executing {self.__class__.__name__} query.")
+        assert isinstance(region, Region)
+        profiles = WagstylProfileLoader()
+        matched_profiles, boundary_depths, coords = profiles.match(region)
+        bbspace = Space.get_instance('bigbrain')
+        features = [
+            BigBrainIntensityProfile(
+                regionname=region.name,
+                depths=profiles.profile_labels,
+                values=matched_profiles[i, :],
+                boundaries=boundary_depths[i, :],
+                location=Point(coords[i, :], bbspace)
             )
-            self.add_feature(p)
+            for i, profile in enumerate(matched_profiles)
+        ]
+        return features
 
 
 class BigBrainIntensityFingerprint(RegionalFingerprint):
@@ -161,43 +183,49 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         means: list,
         stds: list,
     ):
+
+        from .anchor import AnatomicalAnchor
+        anchor = AnatomicalAnchor(
+            region=regionname,
+            species='Homo sapiens'
+        )
         RegionalFingerprint.__init__(
             self,
-            measuretype="Layerwise BigBrain intensities",
-            species=Atlas.get_species_id('human'),
-            regionname=regionname,
             description=self.DESCRIPTION,
-            unit="staining intensity",
+            measuretype="Layerwise BigBrain intensities",
+            anchor=anchor,
             means=means,
             stds=stds,
+            unit="staining intensity",
             labels=list(CorticalProfile.LAYERS.values())[1: -1],
         )
 
 
-class WagstylBigBrainIntensityFingerprintQuery(Query, args=[], objtype=BigBrainIntensityFingerprint):
-
-    _FEATURETYPE = BigBrainIntensityFingerprint
+class WagstylBigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityFingerprint):
 
     def __init__(self):
+        LiveQuery.__init__(self)
 
-        Query.__init__(self)
-        profiles_left, boundary_positions, assignments, bbcoords = load_wagstyl_profiles()
+    def query(self, region: Region, **kwargs) -> List[BigBrainIntensityFingerprint]:
+
+        assert isinstance(region, Region)
+        logger.info(f"Executing {self.__class__.__name__} query.")
+
+        profiles = WagstylProfileLoader()
+
+        matched_profiles, boundary_depths, coords = profiles.match(region)
 
         # compute array of layer labels for all coefficients in profiles_left
-        N = profiles_left.shape[1]
+        N = matched_profiles.shape[1]
         prange = np.arange(N)
-        labels = 7 - np.array([
+        region_labels = 7 - np.array([
             [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
-            for b in boundary_positions
+            for b in boundary_depths
         ]).squeeze()
 
-        for region in assignments.Region.unique():
-            indices = list(assignments[assignments.Region == region].Component)
-            region_profiles = profiles_left[indices, :]
-            region_labels = labels[indices, :]
-            p = BigBrainIntensityFingerprint(
-                regionname=region,
-                means=[region_profiles[region_labels == _].mean() for _ in range(1, 7)],
-                stds=[region_profiles[region_labels == _].std() for _ in range(1, 7)],
-            )
-            self.add_feature(p)
+        fp = BigBrainIntensityFingerprint(
+            regionname=region.name,
+            means=[matched_profiles[region_labels == _].mean() for _ in range(1, 7)],
+            stds=[matched_profiles[region_labels == _].std() for _ in range(1, 7)],
+        )
+        return [fp]
