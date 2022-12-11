@@ -98,7 +98,7 @@ class AnatomicalAssignment:
         return AnatomicalAssignment(self.assigned_structure, self.qualification.invert(), self.explanation)
 
     def __lt__(self, other):
-        return self.qualification.value < other.assignment_type.value
+        return self.qualification.value < other.qualification.value
 
 
 class AnatomicalAnchor:

@@ -103,7 +103,6 @@ class BigBrainProfileQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityProf
         LiveQuery.__init__(self)
 
     def query(self, region: Region, **kwargs) -> List[BigBrainIntensityProfile]:
-        logger.info(f"Executing {self.__class__.__name__} query.")
         assert isinstance(region, Region)
         profiles = WagstylProfileLoader()
 
@@ -130,10 +129,7 @@ class BigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrain
         LiveQuery.__init__(self)
 
     def query(self, region: Region, **kwargs) -> List[BigBrainIntensityFingerprint]:
-
         assert isinstance(region, Region)
-        logger.info(f"Executing {self.__class__.__name__} query.")
-
         profiles = WagstylProfileLoader()
 
         result = []

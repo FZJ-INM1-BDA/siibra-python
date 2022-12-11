@@ -21,6 +21,7 @@ from ..retrieval.requests import SiibraHttpRequestError
 from typing import Union
 from collections import defaultdict
 from requests.exceptions import ConnectionError
+from tqdm import tqdm
 
 from os import path
 
@@ -144,7 +145,19 @@ class Configuration:
             return result
 
         from .factory import Factory
-        for fname, loader in self.spec_loaders.get(folder, []):
+        specloaders = self.spec_loaders.get(folder, [])
+        if len(specloaders) == 0:
+            return result
+        else:
+            fname0, spec0 = specloaders[0]
+            obj0 = Factory.from_json(dict(spec0.data, **{'filename': fname0}))
+            objtype = obj0.__class__
+
+        for fname, loader in tqdm(
+            specloaders,
+            total=len(specloaders), 
+            desc=f"Configuring {objtype.__name__} objects"
+        ):
             # filename is used by Factory to create an object identifier if none is provided.
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
             result.append(obj)

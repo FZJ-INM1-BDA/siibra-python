@@ -52,11 +52,13 @@ BUILDFUNCS = {
     "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
-    "siibra/resource/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
+    "siibra/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
 }
 
 
 class Factory:
+
+    _warnings_issued = []
 
     @classmethod
     def extract_datasets(cls, spec):
@@ -218,32 +220,21 @@ class Factory:
             GiftiSurface
         ]
 
-        ignored = []
         for srctype, url in spec.get("urls", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
                     providers.append(ProviderType(url))
                     break
             else:
-                ignored.append(srctype)
+                if srctype not in cls._warnings_issued:
+                    logger.warn(f"No provider defined for volume Source type {srctype}")
+                    cls._warnings_issued.append(srctype)
 
         result = Volume(
             name=spec.get("name", ""),
             space_spec=spec.get("space", {}),
             providers=providers
         )
-
-        if len(ignored) > 0:
-            if len(providers) == 0:
-                logger.error(
-                    f"No volume provider for {result} after ignoring specs "
-                    f"{', '.join(str(s) for s in set(ignored))}."
-                )
-            else:
-                logger.warn(
-                    f"Some volume providers ignored for {result}: "
-                    f"{', '.join(str(s) for s in set(ignored))}."
-                )
 
         return result
 
@@ -330,7 +321,7 @@ class Factory:
         return CellDensityProfile(
             section=spec['section'],
             patch=spec['patch'],
-            url=spec['url'],
+            url=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
         )

@@ -213,7 +213,7 @@ class CorticalProfile(Feature):
         return self._values_cached
 
 
-class CellDensityProfile(CorticalProfile):
+class CellDensityProfile(CorticalProfile, configuration_folder="features/profiles/celldensity"):
 
     DESCRIPTION = (
         "Cortical profile of estimated densities of detected cell bodies (in detected cells per 0.1 cube millimeter) "

@@ -31,7 +31,6 @@ class LiveQuery(ABC):
         parstr = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         if parstr:
             parstr = "with parameters " + parstr
-        logger.info(f"Initializing query for {self.feature_type.__name__} features {parstr}")
         if not all(p in kwargs for p in self._query_args):
             raise ValueError(
                 f"Incomplete specification for {self.__class__.__name__} query "
