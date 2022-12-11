@@ -217,19 +217,35 @@ class Factory:
             NeuroglancerMesh,
             GiftiSurface
         ]
+
+        ignored = []
         for srctype, url in spec.get("urls", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
                     providers.append(ProviderType(url))
                     break
             else:
-                logger.warn(f"Volume source type {srctype} not yet supported, ignoring this specification.")
+                ignored.append(srctype)
 
-        return Volume(
+        result = Volume(
             name=spec.get("name", ""),
             space_spec=spec.get("space", {}),
             providers=providers
         )
+
+        if len(ignored) > 0:
+            if len(providers) == 0:
+                logger.error(
+                    f"No volume provider for {result} after ignoring specs "
+                    f"{', '.join(str(s) for s in set(ignored))}."
+                )
+            else:
+                logger.warn(
+                    f"Some volume providers ignored for {result}: "
+                    f"{', '.join(str(s) for s in set(ignored))}."
+                )
+
+        return result
 
     @classmethod
     def build_map(cls, spec):
@@ -299,7 +315,7 @@ class Factory:
             layerfiles=spec['layerfiles'],
             dataset_id=spec['kgId']
         )
- 
+
     @classmethod
     def build_receptor_density_profile(cls, spec):
         return ReceptorDensityProfile(
