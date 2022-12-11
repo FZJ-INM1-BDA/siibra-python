@@ -37,7 +37,7 @@ class SparseIndex:
         # these are initialized when adding the first volume, see below
         self.affine: np.ndarray = None
         self.shape = None
-        self.voxels: Nifti1Image = None
+        self.voxels: np.ndarray = None
 
     def add_img(self, img: Nifti1Image):
 
@@ -336,7 +336,18 @@ class SparseMap(Map):
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index
-        return list(spind.probs[spind.voxels[x, y, z]].items())
+        vx = spind.voxels[x, y, z]
+        if isinstance(vx, int):
+            return list(
+                (None, volume, value)
+                for volume, value in spind.probs[vx].items()
+            )
+        else:
+            return list(
+                (pointindex, volume, value)
+                for pointindex, voxel in enumerate(vx)
+                for volume, value in spind.probs[voxel].items()
+            )
 
     def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
         """

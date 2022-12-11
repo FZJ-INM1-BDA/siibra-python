@@ -26,7 +26,7 @@ from ..core.region import Region
 
 import numpy as np
 from tqdm import tqdm
-from typing import Union, Dict
+from typing import Union, Dict, List
 
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
@@ -35,7 +35,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(AtlasConcept, configuration_folder="maps"):
+class Map(Region, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -128,6 +128,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
 
         self._space_spec = space_spec
         self._parcellation_spec = parcellation_spec
+        self._affine_cached = None
         for v in self.volumes:
             v._space_spec = space_spec
 
@@ -257,7 +258,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
             Optional specification of a specific variant to use for the maps. For example,
             fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         format: str
-            optional specificatino of the voume format to use (e.g. "nii", "neuroglancer/precomputed")
+            optional specification of the volume format to use (e.g. "nii", "neuroglancer/precomputed")
         """
         assert len(self) > 0
         if index is not None:
@@ -292,7 +293,9 @@ class Map(AtlasConcept, configuration_folder="maps"):
             voi=voi,
             variant=variant
         )
-        if index is None or index.label is None:
+        if result is None:
+            raise RuntimeError(f"Error fetching volume {volume} from {self}.")
+        elif index is None or index.label is None:
             return result
         else:
             logger.debug(f"Creating binary mask for label {index.label} from volume {volume}")
@@ -302,9 +305,22 @@ class Map(AtlasConcept, configuration_folder="maps"):
             )
 
     @property
+    def is_surface(self):
+        return all(v.is_surface for v in self.volumes)
+
+    @property
     def affine(self):
-        with QUIET:
-            return self.fetch(volume=0).affine
+        if self._affine_cached is None:
+            # we compute the affine from a volumetric volume provider
+            for format in Volume.PREFERRED_FORMATS - Volume.SURFACE_FORMATS:
+                try:
+                    self._affine_cached = self.fetch(volume=0, format=format).affine
+                    break
+                except RuntimeError:
+                    continue
+            else:
+                raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
+        return self._affine_cached
 
     def fetch_iter(
         self,
@@ -564,16 +580,20 @@ class Map(AtlasConcept, configuration_folder="maps"):
         else:
             result = np.array(assignments)
             ind = np.lexsort((-result[:, -1], result[:, 0]))
+            region_lut = {
+                (mi.volume, mi.label): r
+                for r, l in self._indices.items()
+                for mi in l
+            }
+            if self.maptype == MapType.CONTINUOUS:
+                regions = [region_lut[v, None] for v in result[ind, 1].astype('int')]
+            else:
+                regions = [region_lut[v, l] for v, l in result[ind, 1:3].astype('int')]
             df = pd.DataFrame(
                 {
                     "Structure": result[ind, 0].astype("int"),
                     "Volume": result[ind, 1].astype("int"),
-                    "Region": [
-                        self.get_region(volume=m, label=None).name
-                        if self.maptype == MapType.CONTINUOUS
-                        else self.get_region(volume=m, label=result[ind, 2]).name
-                        for m in result[ind, 1]
-                    ],
+                    "Region": regions,
                     "Value": result[ind, 2],
                     "Correlation": result[ind, 6],
                     "IoU": result[ind, 3],
@@ -602,11 +622,24 @@ class Map(AtlasConcept, configuration_folder="maps"):
             for label in component_labels[1:]
         )
 
-    def _read_voxel(self, x, y, z):
-        return [
-            (volume, np.asanyarray(volimg.dataobj)[x, y, z])
-            for volume, volimg in enumerate(self)
-        ]
+    def _read_voxel(
+        self,
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List]
+    ):
+        if isinstance(x, int):
+            return [
+                (None, volume, np.asanyarray(volimg.dataobj)[x, y, z])
+                for volume, volimg in enumerate(self)
+            ]
+        else:
+            return [
+                (pointindex, volume, value)
+                for volume, volimg in enumerate(self)
+                for pointindex, value
+                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+            ]
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -620,7 +653,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
         """
         assignments = []
 
-        if points.space_id != self.space.id:
+        if points.space != self.space:
             logger.info(
                 f"Coordinates will be converted from {points.space.name} "
                 f"to {self.space.name} space for assignment."
@@ -631,7 +664,27 @@ class Map(AtlasConcept, configuration_folder="maps"):
         ).mean()
         phys2vox = np.linalg.inv(self.affine)
 
-        for pointindex, point in enumerate(points.warp(self.space.id)):
+        # if all points have the same sigma, and lead to a standard deviation
+        # below 3 voxels, we are much faster with a multi-coordinate readout.
+        if points.has_constant_sigma:
+            sigma_vox = points.sigma[0] / scaling
+            if sigma_vox < 3:
+                logger.info("Points have constant single-voxel precision, using direct multi-point lookup.")
+                X, Y, Z = (np.dot(phys2vox, points.homogeneous.T) + 0.5).astype("int")[:3]
+                for pointindex, volume, value in self._read_voxel(X, Y, Z):
+                    if value > lower_threshold:
+                        assignments.append(
+                            [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
+                        )
+            return assignments
+
+        # if we get here, we need to handle each point independently.
+        # This is much slower but more precise in dealing with the uncertainties
+        # of the coordinates.
+        for pointindex, point in tqdm(
+            enumerate(points.warp(self.space.id)),
+            total=len(points), desc="Warping points",
+        ):
 
             sigma_vox = point.sigma / scaling
             if sigma_vox < 3:
@@ -640,7 +693,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
                 logger.debug(f"Assigning coordinate {tuple(point)} to {N} maps")
                 x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[:3]
                 vals = self._read_voxel(x, y, z)
-                for volume, value in vals:
+                for _, volume, value in vals:
                     if value > lower_threshold:
                         assignments.append(
                             [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
