@@ -356,30 +356,32 @@ class Map(Region, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
-    def compress(self):
+    def compress(self, **kwargs):
         """
         Converts this map into a labelled 3D parcellation map, obtained
         by taking the voxelwise maximum across the mapped volumes, and
         re-labelling regions sequentially.
         """
-        result_nii = None
-        voxelwise_max = None
         next_labelindex = 1
         region_indices = defaultdict(list)
+
+        # initialize empty volume according to the template
+        template = self.space.get_template().fetch(**kwargs)
+        result_data = np.zeros_like(np.asanyarray(template.dataobj))
+        voxelwise_max = np.zeros_like(result_data)
+        result_nii = Nifti1Image(result_data, template.affine)
+        interpolation = 'nearest' if self.maptype == MapType.LABELLED else 'linear'
 
         for volume in tqdm(
             range(len(self)), total=len(self), unit='maps',
             desc=f"Building compressed 3D map from {len(self)} {self.maptype.name.lower()} volumes"
         ):
 
-            with QUIET:
-                img = self.fetch(volume=volume)
+            img = self.fetch(volume=volume)
+            if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                logger.debug(f"Compression requires to resample volume {volume} ({interpolation})")
+                img = image.resample_to_img(img, result_nii, interpolation)
             img_data = np.asanyarray(img.dataobj)
-
-            if result_nii is None:
-                result_data = np.zeros_like(img_data)
-                voxelwise_max = np.zeros_like(img_data)
-                result_nii = Nifti1Image(result_data, img.affine)
 
             if self.maptype == MapType.LABELLED:
                 labels = set(np.unique(img_data)) - {0}
@@ -387,7 +389,11 @@ class Map(Region, configuration_folder="maps"):
                 labels = {None}
 
             for label in labels:
-                region = self.get_region(label=label, volume=volume)
+                with QUIET:
+                    region = self.get_region(label=label, volume=volume)
+                if region is None:
+                    logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                    continue
                 region_indices[region.name].append({"volume": 0, "label": next_labelindex})
                 if label is None:
                     update_voxels = (img_data > voxelwise_max)

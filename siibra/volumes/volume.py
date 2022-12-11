@@ -38,8 +38,8 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = {"nii", "zip/nii", "gii-mesh", "neuroglancer/precomputed", "neuroglancer/precompmesh"}
-    SURFACE_FORMATS = {"gii-mesh", "neuroglancer/precompmesh"}
+    PREFERRED_FORMATS = ["nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", "neuroglancer/precompmesh"]
+    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh"]
 
     def __init__(self, name="", space_spec: dict = {}, providers: list = []):
         self.name = name
@@ -80,16 +80,17 @@ class Volume:
                 f"Variant {variant} requested, but {self.__class__.__name__} "
                 "does not provide volume variants."
             )
-        requested_formats = self.PREFERRED_FORMATS if format is None else {format}
-        for fmt in requested_formats & self.formats:
-            try:
-                return self._providers[fmt].fetch(
-                    resolution_mm=resolution_mm, voi=voi
-                )
-            except SiibraHttpRequestError as e:
-                logger.error(f"Cannot access {self._providers[fmt]}")
-                print(str(e))
-                continue
+        requested_formats = self.PREFERRED_FORMATS if format is None else [format]
+        for fmt in requested_formats:
+            if fmt in self.formats:
+                try:
+                    return self._providers[fmt].fetch(
+                        resolution_mm=resolution_mm, voi=voi
+                    )
+                except SiibraHttpRequestError as e:
+                    logger.error(f"Cannot access {self._providers[fmt]}")
+                    print(str(e))
+                    continue
         logger.error(f"Formats {requested_formats} not available for volume {self}")
         return None
 
