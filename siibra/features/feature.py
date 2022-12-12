@@ -13,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import anchor
+
 from ..commons import logger, InstanceTable
-from ..core.concept import AtlasConcept
+from ..core import concept
 
 from typing import Union
 from tqdm import tqdm
@@ -29,15 +31,15 @@ class Feature:
 
     def __init__(
         self,
-        measuretype: str,
+        modality: str,
         description: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         datasets: list = []
     ):
         """
         Parameters
         ----------
-        measuretype: str
+        modality: str
             A textual description of the type of measured information
         description: str
             A textual description of the feature.
@@ -45,7 +47,7 @@ class Feature:
         datasets : list
             list of datasets corresponding to this feature
         """
-        self.measuretype = measuretype
+        self.modality = modality
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
@@ -70,7 +72,7 @@ class Feature:
     @property
     def name(self):
         """Returns a short human-readable name of this feature."""
-        return f"{self.__class__.__name__} ({self.measuretype}) anchored at {self.anchor}"
+        return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
 
     @classmethod
     def get_instances(cls, **kwargs):
@@ -103,7 +105,7 @@ class Feature:
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: AtlasConcept) -> bool:
+    def matches(self, concept: concept.AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
             self._last_matched_concept = concept
             return True
@@ -117,7 +119,7 @@ class Feature:
         return self.anchor._assignments.get(self._last_matched_concept)
 
     @classmethod
-    def match(cls, concept: AtlasConcept, modality: Union[str, type], **kwargs):
+    def match(cls, concept: concept.AtlasConcept, modality: Union[str, type], **kwargs):
         """
         Retrieve data features of the desired modality.
         """

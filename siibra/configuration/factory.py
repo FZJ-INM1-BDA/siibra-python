@@ -14,27 +14,12 @@
 # limitations under the License.
 
 from ..commons import logger
-from ..features.anchor import AnatomicalAnchor
-
-from ..core.atlas import Atlas
-from ..core.parcellation import Parcellation, ParcellationVersion
-from ..core.space import Space
-from ..core.region import Region
-from ..locations.point import Point
-from ..locations.pointset import PointSet
-
-from ..retrieval.datasets import EbrainsDataset
-from ..retrieval.repositories import ZipfileConnector, GitlabConnector
-
-from ..volumes.volume import Volume, NiftiFetcher, NeuroglancerVolumeFetcher, ZipContainedNiftiFetcher
-from ..volumes.mesh import NeuroglancerMesh, GiftiSurface
-from ..volumes.map import Map
-from ..volumes.sparsemap import SparseMap
-
-from ..features.fingerprints import ReceptorDensityFingerprint, CellDensityFingerprint
-from ..features.profiles import CellDensityProfile, ReceptorDensityProfile
-from ..features.connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
-from ..features.voi import VolumeOfInterest
+from ..features import anchor
+from ..core import atlas, parcellation, space, region
+from ..locations import point, pointset
+from ..retrieval import datasets, repositories
+from ..volumes import volume, nifti, neuroglancer, mesh, sparsemap, parcellationmap
+from ..features import profiles, fingerprints, connectivity, voi
 
 from os import path
 import json
@@ -65,12 +50,12 @@ class Factory:
 
     @classmethod
     def extract_datasets(cls, spec):
-        datasets = []
+        result = []
         if "minds/core/dataset/v1.0.0" in spec.get("ebrains", {}):
-            datasets.append(
-                EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
+            result.append(
+                datasets.EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
             )
-        return datasets
+        return result
 
     @classmethod
     def extract_volumes(cls, spec, space_id: str = None):
@@ -114,7 +99,7 @@ class Factory:
             print("no region in spec!")
             print(spec)
             raise RuntimeError
-        return AnatomicalAnchor(
+        return anchor.AnatomicalAnchor(
             region=region,
             location=None,
             species=cls.extract_species(spec)
@@ -125,9 +110,9 @@ class Factory:
         repospec = spec.get('repository', {})
         spectype = repospec["@type"]
         if spectype == "siibra/repository/zippedfile/v1.0.0":
-            return ZipfileConnector(repospec['url'])
+            return repositories.ZipfileConnector(repospec['url'])
         elif spectype == "siibra/repository/gitlab/v1.0.0":
-            return GitlabConnector(
+            return repositories.GitlabConnector(
                 server=repospec['server'],
                 project=repospec['project'],
                 reftag=repospec['branch']
@@ -141,20 +126,20 @@ class Factory:
 
     @classmethod
     def build_atlas(cls, spec):
-        atlas = Atlas(
+        a = atlas.Atlas(
             spec["@id"],
             spec["name"],
             species=spec["species"]
         )
         for space_id in spec["spaces"]:
-            atlas._register_space(space_id)
+            a._register_space(space_id)
         for parcellation_id in spec["parcellations"]:
-            atlas._register_parcellation(parcellation_id)
-        return atlas
+            a._register_parcellation(parcellation_id)
+        return a
 
     @classmethod
     def build_space(cls, spec):
-        return Space(
+        return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
             volumes=cls.extract_volumes(spec, space_id=spec.get("@id")),
@@ -167,7 +152,7 @@ class Factory:
 
     @classmethod
     def build_region(cls, spec):
-        return Region(
+        return region.Region(
             name=spec["name"],
             children=map(cls.build_region, spec.get("children", [])),
             shortname=spec.get("shortname", ""),
@@ -186,7 +171,7 @@ class Factory:
             except Exception as e:
                 print(regionspec)
                 raise e
-        parcellation = Parcellation(
+        p = parcellation.Parcellation(
             identifier=spec["@id"],
             name=spec["name"],
             regions=regions,
@@ -200,27 +185,27 @@ class Factory:
         # add version object, if any is specified
         versionspec = spec.get('@version', None)
         if versionspec is not None:
-            version = ParcellationVersion(
+            version = parcellation.ParcellationVersion(
                 name=versionspec.get("name", None),
-                parcellation=parcellation,
+                parcellation=p,
                 collection=versionspec.get("collectionName", None),
                 prev_id=versionspec.get("@prev", None),
                 next_id=versionspec.get("@next", None),
                 deprecated=versionspec.get("deprecated", False)
             )
-            parcellation.version = version
+            p.version = version
 
-        return parcellation
+        return p
 
     @classmethod
     def build_volume(cls, spec):
         providers = []
         provider_types = [
-            NeuroglancerVolumeFetcher,
-            NiftiFetcher,
-            ZipContainedNiftiFetcher,
-            NeuroglancerMesh,
-            GiftiSurface
+            neuroglancer.NeuroglancerVolumeFetcher,
+            nifti.NiftiFetcher,
+            nifti.ZipContainedNiftiFetcher,
+            mesh.NeuroglancerMesh,
+            mesh.GiftiSurface
         ]
 
         for srctype, url in spec.get("urls", {}).items():
@@ -233,8 +218,7 @@ class Factory:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-        result = Volume(
-            name=spec.get("name", ""),
+        result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers
         )
@@ -249,7 +233,7 @@ class Factory:
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
-        Maptype = Map if len(volumes) < 10 else SparseMap
+        Maptype = parcellationmap.Map if len(volumes) < 10 else sparsemap.SparseMap
 
         return Maptype(
             identifier=spec.get("@id", identifier),
@@ -267,7 +251,7 @@ class Factory:
 
     @classmethod
     def build_ebrains_dataset(cls, spec):
-        return EbrainsDataset(
+        return datasets.EbrainsDataset(
             id=spec["id"],
             name=spec["name"],
             embargo_status=spec["embargoStatus"],
@@ -278,7 +262,7 @@ class Factory:
     def build_point(cls, spec):
         space_id = spec["coordinateSpace"]["@id"]
         assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
-        return Point(
+        return point.Point(
             list(np.float16(c["value"]) for c in spec["coordinates"]),
             space_id=space_id,
         )
@@ -290,11 +274,11 @@ class Factory:
         for coord in spec["coordinates"]:
             assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
             coords.append(list(np.float16(c["value"]) for c in coord))
-        return PointSet(coords, space_id=space_id)
+        return pointset.PointSet(coords, space_id=space_id)
 
     @classmethod
     def build_receptor_density_fingerprint(cls, spec):
-        return ReceptorDensityFingerprint(
+        return fingerprints.ReceptorDensityFingerprint(
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
@@ -302,7 +286,7 @@ class Factory:
 
     @classmethod
     def build_cell_density_fingerprint(cls, spec):
-        return CellDensityFingerprint(
+        return fingerprints.CellDensityFingerprint(
             segmentfiles=spec['segmentfiles'],
             layerfiles=spec['layerfiles'],
             anchor=cls.extract_anchor(spec),
@@ -311,7 +295,7 @@ class Factory:
 
     @classmethod
     def build_receptor_density_profile(cls, spec):
-        return ReceptorDensityProfile(
+        return profiles.ReceptorDensityProfile(
             receptor=spec['receptor'],
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
@@ -320,7 +304,7 @@ class Factory:
 
     @classmethod
     def build_cell_density_profile(cls, spec):
-        return CellDensityProfile(
+        return profiles.CellDensityProfile(
             section=spec['section'],
             patch=spec['patch'],
             url=spec['file'],
@@ -330,41 +314,39 @@ class Factory:
 
     @classmethod
     def build_volume_of_interest(cls, spec):
-        return VolumeOfInterest(
-            name=spec.get('name', ""),
-            space_spec=spec.get('space', {}),
-            measuretype=spec.get('modality'),
-            volumes=cls.extract_volumes(
-                spec,
-                space_id=spec.get("space", {}).get("@id")
-            ),
+        vol = cls.build_volume(spec)
+        return voi.VolumeOfInterest(
+            name=vol.name,
+            modality=spec.get('modality', ""),
+            space_spec=vol._space_spec,
+            providers=vol._providers.values(),
             datasets=cls.extract_datasets(spec),
         )
 
     @classmethod
     def build_connectivity_matrix(cls, spec):
-        measuretype = spec["modality"]
+        modality = spec["modality"]
         kwargs = {
             "cohort": spec["cohort"],
             "subject": spec["subject"],
-            "measuretype": measuretype,
+            "modality": modality,
             "connector": cls.extract_connector(spec),
             "files": spec.get('files', {}),
             "anchor": cls.extract_anchor(spec),
             "datasets": cls.extract_datasets(spec),
         }
-        if measuretype == "StreamlineCounts":
-            return StreamlineCounts(**kwargs)
-        elif measuretype == "StreamlineLengths":
-            return StreamlineLengths(**kwargs)
-        elif measuretype == "Functional":
+        if modality == "StreamlineCounts":
+            return connectivity.StreamlineCounts(**kwargs)
+        elif modality == "StreamlineLengths":
+            return connectivity.StreamlineLengths(**kwargs)
+        elif modality == "Functional":
             kwargs["paradigm"] = spec.get("paradigm")
-            return FunctionalConnectivity(**kwargs)
-        elif measuretype == "RestingState":
+            return connectivity.FunctionalConnectivity(**kwargs)
+        elif modality == "RestingState":
             kwargs["paradigm"] = "RestingState"
-            return FunctionalConnectivity(**kwargs)
+            return connectivity.FunctionalConnectivity(**kwargs)
         else:
-            raise ValueError(f"Do not know how to build connectivity matrix of type {measuretype}.")
+            raise ValueError(f"Do not know how to build connectivity matrix of type {modality}.")
 
     @classmethod
     def from_json(cls, spec: dict):

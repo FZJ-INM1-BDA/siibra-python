@@ -33,7 +33,7 @@ class RegionalFingerprint(Feature):
     def __init__(
         self,
         description: str,
-        measuretype: str,
+        modality: str,
         anchor: "AnatomicalAnchor",
         means: Union[list, np.ndarray] = None,
         labels: Union[list, np.ndarray] = None,
@@ -41,7 +41,7 @@ class RegionalFingerprint(Feature):
         unit: str = None,
         datasets: list = []
     ):
-        Feature.__init__(self, measuretype=measuretype, description=description, anchor=anchor, datasets=datasets)
+        Feature.__init__(self, modality=modality, description=description, anchor=anchor, datasets=datasets)
         self._means_cached = means
         self._labels_cached = labels
         self._stds_cached = stds
@@ -153,7 +153,7 @@ class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features
         RegionalFingerprint.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype="Layerwise cell density",
+            modality="Layerwise cell density",
             anchor=anchor,
             datasets=datasets,
             unit="detected cells / 0.1mm3",
@@ -230,7 +230,7 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         RegionalFingerprint.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype="Layerwise BigBrain intensities",
+            modality="Layerwise BigBrain intensities",
             anchor=anchor,
             means=means,
             stds=stds,
@@ -260,7 +260,7 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
         RegionalFingerprint.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype="Neurotransmitter receptor density",
+            modality="Neurotransmitter receptor density",
             anchor=anchor,
             datasets=datasets,
         )

@@ -119,6 +119,7 @@ class Configuration:
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
+        # FIXME determine how to deal with cleanup funcs
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
@@ -155,7 +156,7 @@ class Configuration:
 
         for fname, loader in tqdm(
             specloaders,
-            total=len(specloaders), 
+            total=len(specloaders),
             desc=f"Configuring {objtype.__name__} objects"
         ):
             # filename is used by Factory to create an object identifier if none is provided.

@@ -14,6 +14,7 @@
 # limitations under the License.
 
 
-from .map import Map
-from .volume import Volume, NeuroglancerVolumeFetcher, NiftiFetcher
+from .parcellationmap import Map
+from .neuroglancer import NeuroglancerVolumeFetcher
+from .nifti import NiftiFetcher
 from .mesh import GiftiSurfaceLabeling, NeuroglancerMesh, GiftiSurface

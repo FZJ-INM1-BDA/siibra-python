@@ -88,7 +88,7 @@ class GeneExpression(Feature):
         """
         Feature.__init__(
             self,
-            measuretype="Gene expression",
+            modality="Gene expression",
             description=self.DESCRIPTION + self.ALLEN_ATLAS_NOTIFICATION,
             anchor=anchor,
             datasets=datasets

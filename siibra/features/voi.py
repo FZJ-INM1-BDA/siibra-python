@@ -13,57 +13,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from . import anchor
+from . import feature, anchor
 
-from ..volumes.volume import ColorVolumeNotSupported, Volume
-from ..core.space import Space
-from ..locations import BoundingBox
+from ..volumes import volume
+from ..core import space
+from ..locations import boundingbox
 
 from typing import List
 
 
-class VolumeOfInterest(Feature, configuration_folder="features/volumes"):
+class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="features/volumes"):
 
     def __init__(
         self,
         name: str,
+        modality: str,
         space_spec: dict,
-        measuretype: str,
-        volumes: List[Volume],
+        providers: List[volume.VolumeProvider],
         datasets: List = [],
     ):
-        Feature.__init__(
+        feature.Feature.__init__(
             self,
-            description=None,
-            measuretype=measuretype,
+            modality=modality,
+            description=None,  # lazy implementation below!
             anchor=None,  # lazy implementation below!
             datasets=datasets
         )
-        self.volumes = volumes
-        self._space_cached = None
-        self._space_spec = space_spec
+        volume.Volume.__init__(
+            self,
+            space_spec=space_spec,
+            providers=providers,
+            name=name,
+
+        )
 
     @property
     def anchor(self):
         if self._anchor_cached is None:
-            bbox = None
-            for volume in self.volumes:
-                next_bbox = BoundingBox.from_image(volume.fetch(), space=self.space)
-                if bbox is None:
-                    bbox = next_bbox
-                else:
-                    bbox = bbox.union(next_bbox)
+            bbox = boundingbox.BoundingBox.from_image(self.fetch(), space=self.space)
             self._anchor_cached = anchor.AnatomicalAnchor(location=bbox)
         return self._anchor_cached
 
     @property
-    def space(self):
-        if self._space_cached is None:
-            for key in ["@id", "name"]:
-                if key in self._space_spec:
-                    self._space_cached = Space.get_instance(self._space_spec[key])
-                    break
-            else:
-                self._space_cached = Space(None, "Unspecified space")
-        return self._space_cached
+    def description(self):
+        if self._description_cached is None:
+            self._description_cached = (
+                f"Volume of interest with modality {self.modality} "
+                f"at {self.anchor}"
+            )
+

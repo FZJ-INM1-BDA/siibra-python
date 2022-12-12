@@ -52,7 +52,7 @@ class CorticalProfile(Feature):
     def __init__(
         self,
         description: str,
-        measuretype: str,
+        modality: str,
         anchor: "AnatomicalAnchor",
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
@@ -65,7 +65,7 @@ class CorticalProfile(Feature):
         Args:
             description (str):
                 Human-readable of the modality of the measurements.
-            measuretype (str):
+            modality (str):
                 Short textual description of the modaility of measurements
             anchor: AnatomicalAnchor
             depths (list, optional):
@@ -87,7 +87,7 @@ class CorticalProfile(Feature):
             datasets : list
                 list of datasets corresponding to this feature
         """
-        Feature.__init__(self, measuretype=measuretype, description=description, anchor=anchor, datasets=datasets)
+        Feature.__init__(self, modality=modality, description=description, anchor=anchor, datasets=datasets)
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
@@ -157,7 +157,7 @@ class CorticalProfile(Feature):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
         return pd.Series(
-            self._values, index=self._depths, name=f"{self.measuretype} ({self.unit})"
+            self._values, index=self._depths, name=f"{self.modality} ({self.unit})"
         )
 
     def plot(self, **kwargs):
@@ -259,7 +259,7 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
         CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype="cell density",
+            modality="cell density",
             unit="detected cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
@@ -466,7 +466,7 @@ class BigBrainIntensityProfile(CorticalProfile):
         CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype="BigBrain cortical intensity profile",
+            modality="BigBrain cortical intensity profile",
             anchor=anchor,
             depths=depths,
             values=values,
@@ -501,7 +501,7 @@ class ReceptorDensityProfile(CorticalProfile, configuration_folder="features/pro
         CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            measuretype=f"{receptor} receptor density",
+            modality=f"{receptor} receptor density",
             anchor=anchor,
             datasets=datasets,
         )
