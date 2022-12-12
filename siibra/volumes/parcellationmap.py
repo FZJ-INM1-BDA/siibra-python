@@ -19,6 +19,7 @@ from .. import logger, QUIET
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, is_mesh
 from ..core import concept, space, parcellation, region
 from ..locations import point, pointset, boundingbox
+from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
@@ -233,6 +234,7 @@ class Map(region.Region, configuration_folder="maps"):
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
+        regionspec: str = None
     ):
         """
         Fetches one particular volume of this parcellation map.
@@ -271,10 +273,13 @@ class Map(region.Region, configuration_folder="maps"):
             mapindex = index
         elif isinstance(vol, MapIndex):  # tolerate if the first parameter is a MapIndex
             mapindex = vol
+        elif regionspec is not None:
+            assert isinstance(regionspec, str)
+            mapindex = self.get_index(regionspec)
         elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
             mapindex = self.get_index(vol)
         else:
-            logger.info(f"Neither volume nor index defined, assuming vol=0 for fetch()")
+            logger.info("Neither volume nor index defined, assuming vol=0 for fetch()")
             mapindex = MapIndex(volume=0, label=None)
 
         if len(self) > 1 and mapindex.volume is None:
@@ -288,28 +293,30 @@ class Map(region.Region, configuration_folder="maps"):
                 f"{self} provides only {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
 
-        result = self.volumes[vol or 0].fetch(
-            resolution_mm=resolution_mm,
-            format=format,
-            voi=voi,
-            variant=variant,
-            meshindex=index.label,
-        )
+        try:
+            result = self.volumes[mapindex.volume or 0].fetch(
+                resolution_mm=resolution_mm,
+                format=format,
+                voi=voi,
+                variant=variant,
+                meshindex=mapindex.label,
+            )
+        except requests.SiibraHttpRequestError:
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
 
         if result is None:
-            raise RuntimeError(f"Error fetching volume {vol} from {self}.")
-        elif index is None or index.label is None:
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+        elif mapindex.label is None:
             return result
         elif is_mesh(result):
             return result
         elif isinstance(result, Nifti1Image): 
-            logger.debug(f"Creating binary mask for label {index.label} from volume {vol}")
+            logger.debug(f"Creating binary mask for label {mapindex.label} from volume {mapindex.volume}")
             return Nifti1Image(
-                (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
+                (np.asanyarray(result.dataobj) == mapindex.label).astype("uint8"),
                 result.affine
             )
-        else:
-            raise RuntimeError(f"Error fetching volume {vol} from {self}.")
+        raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
 
     @property
     def is_surface(self):
