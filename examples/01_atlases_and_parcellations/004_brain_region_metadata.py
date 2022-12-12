@@ -54,13 +54,12 @@ v1.children
 # fetch one child
 v1l = v1.children[0]
 
+# NOTE: Is metadata fetching without programmatic permissions possible?
 # %%
 # Regions contain metadata. In some cases, they even represent individual EBRAINS datasets.
 # In this case we can retrieve more detailed information from the EBRAINS Knowledge Graph.
-
-# print some metadata of the brain region
+# print some metadata of the brain region. (Requires programmatic access to EBRAINS)
 for infodata in v1l.infos:
     print(infodata.description); print()
     for p in infodata.publications:
         print(p['cite']); print()
-

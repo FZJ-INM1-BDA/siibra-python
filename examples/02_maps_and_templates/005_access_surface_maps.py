@@ -25,15 +25,16 @@ It comes in three variants: white matter surface, pial surface, and inflated sur
 # %%
 # Load the Julich-Brain parcellation.
 import siibra
-jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
+jubrain = siibra.parcellations["julich"]
 
 # %%
 # We can tell volumetric from surface spaces using their `is_surface` attribute.
 for space in jubrain.spaces:
-    if space.is_surface:
-        print(space)
- 
-# %%
+    if space.is_surface: print(space)
+
+# BUG: the gii-mesh could not be fetched. When there is a single url, GiftiSurface.fetch doesn't work.
+# NOTE: I think it would be beneficial to add a method (to map?) that lists possible variants.
+
 # The surface map is accessed in just the same way as volumetric maps, using the `get map` method.
 # Note that we call the method here on the parcellation object, while previous examples usually
 # called it on an atlas object.

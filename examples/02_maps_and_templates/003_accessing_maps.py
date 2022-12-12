@@ -28,45 +28,46 @@ a reference space.
 # %%
 # We start by selecting an atlas.
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
+atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS # siibra.atlases["human"]
+
+# for plotting
+from nilearn import plotting
+# (in order to display plots using web browsers) 
+import matplotlib
+matplotlib.use('webagg')
 
 # %%
 # We select the maximum probability map of Julich-Brain in MNI152 space,
 # which is a parcellation map with discrete labels. The `get_map` method
 # of the atlas assumes maptype='labelled' by default.
 julich_mpm = atlas.get_map(space="mni152", parcellation="julich", maptype="labelled")
-julich_mpm
+print(julich_mpm)
 
 # %%
+# Some maps are shopeed with several volumes inside. Julich-Brain ships the left
+# and right hemispheres in different volumes, so corresponding regions can use
+# the same label index while still being distinguishable. We can find the number
+# of mapped volumes inside a parcellation map simply from its length:
+print(len(julich_mpm))
+# and list the volumes
+[v for v in julich_mpm]
+
 # As already seen for reference templates, the returned object does not contain
 # any image data yet, since siibra uses a lazy strategy for loading data.
 # To access the actual image data, we call the fetch() method.
 # This gives us a Nifti1Image object defined in the reference space.
-from nilearn import plotting
-import matplotlib
-matplotlib.use('webagg')
-mapimg = julich_mpm.fetch()
+mapimg = julich_mpm.fetch(volume=0) # need to specify which volume is fetched 
 print(type(mapimg))
+
+# we can now plot the image with nilearn
 plotting.plot_roi(mapimg, title=f"{julich_mpm.parcellation.name}")
 
 # %%
-# This map shows only the left hemisphere, because Julich-Brain ships the left
-# and right hemispheres in different volumes, so corresponding regions can use
-# the same label index while still being distinguishable. We can find the number
-# of mapped volumes inside a parcellation map simply from its length:
-len(julich_mpm)
-
-# %%
-# To get the second labelled volume, we can explicitly pass the map index to
-# `fetch()` - it defaults to 0 otherwise.
-mapimg2 = julich_mpm.fetch(mapindex=1)
-plotting.plot_roi(mapimg2, title=f"{julich_mpm.parcellation.name}, map index 1")
-
-# %%
-# Instead of dealing with map indices, we can also simply iterate over all
-# available maps using `fetch_iter()`.
+# To get the second labelled volume, we can pass volume=1 or instead of
+# dealing with map indices, we can simply iterate over all available maps
+# using `fetch_iter()`.
 for img in julich_mpm.fetch_iter():
-    plotting.plot_stat_map(img)
+    plotting.plot_roi(img)
 
 # %%
 # Julich-Brain, like some other parcellations, provides probabilistic maps.
@@ -89,8 +90,9 @@ julich_pmaps
 print(len(julich_pmaps))
 
 # %%
-# Again, we can iterate over all >300 pmaps using `fetch_iter_()`, but for simplicity, we just access a random index here.
-pmap = julich_pmaps.fetch(mapindex=102)
+# Again, we can iterate over all pmaps using `fetch_iter()`,
+# but for simplicity, we just access a random index here.
+pmap = julich_pmaps.fetch(volume=102)
 plotting.plot_stat_map(pmap)
 
 # %%
@@ -99,13 +101,13 @@ plotting.plot_stat_map(pmap)
 # indices into regions and vice versa:
 
 # What is the region behind map index 102?
-julich_pmaps.get_index(mapindex=102)
+julich_pmaps.get_region(vol=102)
 
-# Vice versa, what is the index of that region?
-julich_pmaps.get_index('hoc5 left')
+# Or vice versa, what is the index of that region?
+julich_pmaps.get_index('IFJ1 left')
 
 # %%
-# Besides parcellation maps, `siibra` can also produce binary masks of brain regions.
-v5l = atlas.get_region('hoc5 left')
-v5l_mask = v5l.build_mask("mni152")
-plotting.plot_roi(v5l_mask)
+# In addition to parcellation maps, `siibra` can produce binary masks of brain regions.
+hoc5L = atlas.get_region('hoc5 left', parcellation='julich 2.9')
+hoc5L_mask = hoc5L.build_mask(space="mni152", maptype="continuous")
+plotting.plot_roi(hoc5L_mask, title=f"Mask of the region {hoc5L.name}")
