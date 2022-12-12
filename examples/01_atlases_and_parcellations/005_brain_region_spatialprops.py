@@ -25,8 +25,17 @@ spatial properties.
 # We start by selecting an atlas and a space
 from pprint import pprint # we'll use that for some outputs
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-space = atlas.spaces.MNI152_2009C_NONL_ASYM
+atlas = siibra.atlases["MULTILEVEL HUMAN ATLAS"]
+# print the spaces defined in the atlas
+print(atlas.spaces)
+
+# %%
+# Choose a space
+space = atlas.spaces.MNI_152_ICBM_2009C_NONLINEAR_ASYMMETRIC
+print(space.name)
+# and a region
+v1_left = atlas.get_region("v1 left", parcellation='julich')
+print(v1_left)
 
 # %%
 # The `Region.spatial_props()` method computes the centroid and volume of a
@@ -35,8 +44,7 @@ space = atlas.spaces.MNI152_2009C_NONL_ASYM
 # Also note that in `siibra`, spatial properties are always represented in
 # millimeter units of the physical coordinate system of the reference space,
 # not in voxel units.
-v1_left = atlas.get_region("v1 left")
-props = v1_left.spatial_props(space)
+props = v1_left.spatial_props(space=space)
 pprint(props)
 
 # %%
@@ -49,11 +57,12 @@ print(centroid)
 centroid.space.name
 
 # %% 
-# We can also generate a binary mask of the region in a given space, which
+# We can also generate a binary mask of the region in a given space and maptype, which
 # gives us a Nifti1Image object as provided by `nibabel <https://nipy.org/nibabel/>`_, 
 # and which we can directly visualize using plotting functions like the ones in 
 # `nilearn <https://nilearn.github.io/stable/index.html>`_:
-mask = v1_left.build_mask(space)
+
+mask = v1_left.build_mask(space, maptype="labelled")
+
 from nilearn import plotting
 plotting.plot_roi(mask, title=f"Mask of {v1_left.name} in {space.name}")
-

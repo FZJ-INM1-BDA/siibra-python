@@ -33,7 +33,8 @@ dir(siibra.spaces)
 
 # %%
 # Fetching an object works in the same way as for e.g. `siibra.atlases` (see :ref:`atlases`)
-siibra.spaces['mni152']
+space = siibra.spaces['mni152']
+print(space)
 
 # %%
 # Typically however, we are only interested in the reference spaces supported by
@@ -44,10 +45,12 @@ dir(atlas.spaces)
 
 # %%
 # These can be used like any other registry object:
-atlas.spaces['colin27']
+space2 = atlas.spaces['colin27']
+print(space2)
 
 # %%
 # We can also explicitely request a supported space object from the
 # atlas, which has the same effect as accessing the Registry.
-atlas.get_space('bigbrain')
+space3 = atlas.get_space('bigbrain')
+print(space3)
 
