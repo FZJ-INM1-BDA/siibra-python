@@ -18,6 +18,8 @@ from .simple import GeneExpression
 from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint
 from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
+from .voi import VolumeOfInterest
+
 from ..livequeries.bigbrain import BigBrainProfileQuery, BigBrainIntensityFingerprintQuery
 from ..livequeries.allen import AllenBrainAtlasQuery
 
