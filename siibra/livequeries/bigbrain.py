@@ -133,7 +133,7 @@ class BigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrain
 
         result = []
         for subregion in region.leaves:
-            matched_profiles, boundary_depths, coords = profiles.match(region)
+            matched_profiles, boundary_depths, coords = profiles.match(subregion)
 
             # compute array of layer labels for all coefficients in profiles_left
             N = matched_profiles.shape[1]
