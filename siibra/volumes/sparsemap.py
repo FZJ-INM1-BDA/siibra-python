@@ -234,15 +234,15 @@ class SparseMap(Map):
             spind = SparseIndex.from_cache(prefix)
             if spind is None:
                 spind = SparseIndex()
-                for volume in tqdm(
+                for vol in tqdm(
                     range(len(self)), total=len(self), unit="maps",
                     desc=f"Fetching {len(self)} volumetric maps",
                     disable=logger.level > 20,
                 ):
-                    img = super().fetch(volume=volume)
+                    img = super().fetch(vol=vol)
                     if img is None:
-                        region = self.get_region(volume=volume)
-                        logger.error(f"Cannot retrieve volume #{volume} for {region.name}, it will not be included in the sparse map.")
+                        region = self.get_region(vol=vol)
+                        logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                         continue
                     spind.add_img(img)
                 spind.to_cache(prefix)

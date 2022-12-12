@@ -135,7 +135,7 @@ class Feature:
 
         live_instances = []
         for QueryType in modality._live_queries:
-            logger.info(f"Running live query {QueryType.__name__} on {concept} with args {kwargs}")
+            logger.info(f"Running live query for {cls.__name__} objects linked to {concept} with args {kwargs}")
             q = QueryType(**kwargs)
             live_instances.extend(q.query(concept))
 

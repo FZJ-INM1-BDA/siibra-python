@@ -371,7 +371,7 @@ class Map(Region, configuration_folder="maps"):
 
         for vol in tqdm(
             range(len(self)), total=len(self), unit='maps',
-            desc=f"Building compressed 3D map from {len(self)} {self.maptype.name.lower()} volumes"
+            desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
             img = self.fetch(volume=vol)
@@ -387,7 +387,7 @@ class Map(Region, configuration_folder="maps"):
 
             for label in labels:
                 with QUIET:
-                    region = self.get_region(label=label, volume=vol)
+                    region = self.get_region(label=label, vol=vol)
                 if region is None:
                     logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
                     continue
@@ -407,7 +407,7 @@ class Map(Region, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[
-                vol.Volume(
+                volume.Volume(
                     space_spec=self._space_spec,
                     providers=[nifti.NiftiFetcher(result_nii)]
                 )
