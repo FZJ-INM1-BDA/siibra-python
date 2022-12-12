@@ -260,7 +260,7 @@ class SparseMap(parcellationmap.Map):
 
     def fetch(
         self,
-        volume: int = None,
+        vol: int = None,
         resolution_mm: float = None,
         voi: boundingbox.BoundingBox = None,
         variant: str = None,
@@ -294,19 +294,19 @@ class SparseMap(parcellationmap.Map):
 
         """
         if index is not None:
-            assert volume is None
+            assert vol is None
             assert isinstance(index, MapIndex)
-            volume = index.volume
-        elif isinstance(volume, MapIndex):
+            vol = index.volume
+        elif isinstance(vol, MapIndex):
             # be kind if an index is passed as the first parameter
-            volume = volume.volume
-        elif isinstance(volume, str):
+            vol = vol.volume
+        elif isinstance(vol, str):
             # be kind if a region name is passed as the first parameter
             logger.info(
-                f"'{volume}' will be interpreted as a region name to decode the volume index."
+                f"'{vol}' will be interpreted as a region name to decode the volume index."
             )
-            index = self.get_index(volume)
-            volume = index.volume
+            index = self.get_index(vol)
+            vol = index.volume
         if voi is not None:
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support volume of interest fetching yet."
@@ -315,12 +315,12 @@ class SparseMap(parcellationmap.Map):
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support fetching at resolutions other than 1mm yet."
             )
-        if volume is None:
+        if vol is None:
             assert index is not None
-            volume = index.volume
-        assert isinstance(volume, int)
+            vol = index.volume
+        assert isinstance(vol, int)
 
-        x, y, z, v = self.sparse_index.mapped_voxels(volume)
+        x, y, z, v = self.sparse_index.mapped_voxels(vol)
         if cropped:
             bbox = np.array([[min(_), max(_)] for _ in [x, y, z]])
             result = np.zeros(bbox[:, 1] - bbox[:, 0] + 1)

@@ -227,7 +227,7 @@ class Map(region.Region, configuration_folder="maps"):
 
     def fetch(
         self,
-        volume: int = None,
+        vol: int = None,
         resolution_mm: float = None,
         voi: boundingbox.BoundingBox = None,
         variant: str = None,
@@ -242,7 +242,7 @@ class Map(region.Region, configuration_folder="maps"):
 
         Parameters
         ----------
-        volume : int
+        vol : int
             The index of the mapped volume to be fetched.
         resolution_mm : float or None (optional)
             Physical resolution of the map, used for multi-resolution image volumes.
@@ -258,43 +258,43 @@ class Map(region.Region, configuration_folder="maps"):
         """
         assert len(self) > 0
         if index is not None:
-            assert volume is None
+            assert vol is None
             assert isinstance(index, MapIndex)
-            volume = index.volume
-        elif isinstance(volume, MapIndex):
+            vol = index.volume
+        elif isinstance(vol, MapIndex):
             # be kind if an index is passed as the first parameter
-            volume = volume.volume
-            index = volume
-        elif isinstance(volume, str):
+            vol = vol.volume
+            index = vol
+        elif isinstance(vol, str):
             # be kind if a region name is passed as the first parameter
-            index = self.get_index(volume)
-            volume = index.volume
+            index = self.get_index(vol)
+            vol = index.volume
         if len(self) > 1:
-            if volume is None:
+            if vol is None:
                 raise ValueError(
                     f"{self} provides {len(self)} mapped volumes, please specify which "
                     "one to fetch, or use fetch_iter() to iterate over all volumes."
                 )
             else:
-                if not isinstance(volume, int):
-                    raise ValueError(f"Parameter 'volume' should be an integer, but '{type(volume).__name__}' was provided.")
-                if volume >= len(self):
+                if not isinstance(vol, int):
+                    raise ValueError(f"Parameter 'volume' should be an integer, but '{type(vol).__name__}' was provided.")
+                if vol >= len(self):
                     raise ValueError(
                         f"{self} provides only {len(self)} mapped volumes, "
-                        f"but #{volume} was requested."
+                        f"but #{vol} was requested."
                     )
-        result = self.volumes[volume or 0].fetch(
+        result = self.volumes[vol or 0].fetch(
             resolution_mm=resolution_mm,
             format=format,
             voi=voi,
             variant=variant
         )
         if result is None:
-            raise RuntimeError(f"Error fetching volume {volume} from {self}.")
+            raise RuntimeError(f"Error fetching volume {vol} from {self}.")
         elif index is None or index.label is None:
             return result
         else:
-            logger.debug(f"Creating binary mask for label {index.label} from volume {volume}")
+            logger.debug(f"Creating binary mask for label {index.label} from volume {vol}")
             return Nifti1Image(
                 (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
                 result.affine
@@ -311,7 +311,7 @@ class Map(region.Region, configuration_folder="maps"):
             for fmt in volume.Volume.PREFERRED_FORMATS:
                 if fmt not in volume.Volume.SURFACE_FORMATS:
                     try:
-                        self._affine_cached = self.fetch(volume=0, format=fmt).affine
+                        self._affine_cached = self.fetch(vol=0, format=fmt).affine
                         break
                     except RuntimeError:
                         continue
@@ -374,7 +374,7 @@ class Map(region.Region, configuration_folder="maps"):
             desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
-            img = self.fetch(volume=vol)
+            img = self.fetch(vol=vol)
             if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
                 logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
                 img = image.resample_to_img(img, result_nii, interpolation)
