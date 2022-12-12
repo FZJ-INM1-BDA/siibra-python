@@ -64,6 +64,13 @@ def __getattr__(attr: str):
     raise AttributeError(f"siibra has no attribute named {attr}")
 
 
+def get_template(space_spec: str, **kwargs):
+    return (
+        Space
+        .get_instance(space_spec)
+        .get_template(**kwargs)
+    )
+
 def get_map(parc_spec: str, space_spec: str, maptype: MapType = MapType.LABELLED):
     return (
         Parcellation
