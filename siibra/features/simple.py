@@ -15,7 +15,9 @@
 
 # simple data features anchored to a point in space
 
-from .feature import Feature
+from . import feature, anchor
+
+from ..retrieval import datasets
 
 from typing import List, TypedDict
 
@@ -35,7 +37,7 @@ class SampleStructure(TypedDict):
     color: str
 
 
-class GeneExpression(Feature):
+class GeneExpression(feature.Feature):
     """
     A spatial feature type for gene expressions.
     """
@@ -59,7 +61,7 @@ class GeneExpression(Feature):
         z_scores: List[float],
         probe_ids: List[int],
         donor_info: DonorDict,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         mri_coord: List[int] = None,
         structure: SampleStructure = None,
         top_level_structure: SampleStructure = None,
@@ -86,7 +88,7 @@ class GeneExpression(Feature):
         datasets : list
             list of datasets corresponding to this feature
         """
-        Feature.__init__(
+        feature.Feature.__init__(
             self,
             modality="Gene expression",
             description=self.DESCRIPTION + self.ALLEN_ATLAS_NOTIFICATION,
@@ -118,3 +120,62 @@ class GeneExpression(Feature):
                 "Z-score: [" + ",".join(["%4.1f" % v for v in self.z_scores]) + "]",
             ]
         )
+
+
+class EbrainsAnchoredDataset(feature.Feature, datasets.EbrainsDataset):
+
+    def __init__(
+        self,
+        dataset_id: str,
+        name: str,
+        anchor: anchor.AnatomicalAnchor,
+        embargo_status: str = None,
+    ):
+        feature.Feature.__init__(
+            self,
+            modality=None,  # lazy implementation below
+            description=None,  # lazy implementation below
+            anchor=anchor,
+            datasets=[]
+        )
+        datasets.EbrainsDataset.__init__(
+            self,
+            id=dataset_id,
+            name=name,
+            embargo_status=embargo_status,
+        )
+        self.version = None
+        self._next = None
+        self._prev = None
+
+    @property
+    def modality(self):
+        return ", ".join(self.detail.get('methods', []))
+
+    @property
+    def description(self):
+        return self.detail.get("description", "")
+
+    @property
+    def name(self):
+        return self._name_cached
+
+    @property
+    def version_history(self):
+        if self._prev is None:
+            return [self.version]
+        else:
+            return [self.version] + self._prev.version_history
+
+    @property
+    def url(self):
+        return f"https://search.kg.ebrains.eu/instances/{self.id.split('/')[-1]}"
+
+    def __str__(self):
+        return datasets.EbrainsDataset.__str__(self)
+
+    def __hash__(self):
+        return datasets.EbrainsDataset.__hash__(self)
+
+    def __eq__(self, o: object) -> bool:
+        return datasets.EbrainsDataset.__eq__(self, o)

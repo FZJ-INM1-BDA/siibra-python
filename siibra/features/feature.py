@@ -47,10 +47,16 @@ class Feature:
         datasets : list
             list of datasets corresponding to this feature
         """
-        self.modality = modality
+        self._modality_cached = modality
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
+        self._last_matched_concept = None
+
+    @property
+    def modality(self):
+        # allows subclasses to implement lazy loading of an anchor
+        return self._modality_cached
 
     @property
     def anchor(self):

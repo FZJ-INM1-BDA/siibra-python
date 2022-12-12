@@ -22,7 +22,7 @@ from ..core.region import Region
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union
+from typing import Union, Set
 from enum import Enum
 
 
@@ -57,18 +57,6 @@ class AssignmentQualification(Enum):
             "CONTAINS": "CONTAINED",
         }
         return AssignmentQualification[inverses[self.name]]
-
-
-class ListWithoutNone(list):
-    """ A list which ignores None-type elements during append()."""
-
-    def __init__(self, **kwargs):
-        list.__init__(self, **kwargs)
-
-    def append(self, element):
-        if element is None:
-            return
-        list.append(self, element)
 
 
 class AnatomicalAssignment:
@@ -110,7 +98,7 @@ class AnatomicalAnchor:
 
     _MATCH_MEMO = {}
 
-    def __init__(self, location: Location = None, region: Union[str, Region] = None, species: str = None):
+    def __init__(self, location: Location = None, region: Union[str, Region] = None, species: Union[str, Set[str]] = None):
 
         if not any(s is not None for s in [location, region]):
             raise ValueError(
@@ -118,7 +106,7 @@ class AnatomicalAnchor:
                 "location needs to be specified."
             )
         self.location = location
-        self.species = species
+        self.species = {species} if isinstance(species, str) else species
         self._assignments = {}
         if isinstance(region, Region):
             self._regions_cached = [region]
@@ -130,24 +118,29 @@ class AnatomicalAnchor:
 
     @property
     def regions(self):
+        # decoding region strings is quite compute intensive, so we cache this at the class level
         if self._regions_cached is None:
-            if self._regionspec is not None:
-                # decode the region specification into a set of region objects
-                self._regions_cached = {
-                    r: AssignmentQualification['EXACT']
-                    for r in Parcellation.find_regions(self._regionspec, self.species)
-                }
-                # add more regions from possible aliases of the region spec
-                region_aliases = REGION_ALIASES.get(self.species, {}).get(self._regionspec, {})
-                for species, aliases in region_aliases.items():
-                    for regionspec, qualificationspec in aliases.items():
-                        for r in Parcellation.find_regions(regionspec, species):
-                            if r not in self._regions_cached:
-                                logger.info(f"Adding region {r.name} in {species} from alias to {self._regionspec}")
-                                self._regions_cached[r] = qualificationspec
-            else:
+            if self._regionspec is None:
                 self._regions_cached = []
-
+            else:
+                if self._regionspec not in self.__class__._MATCH_MEMO:
+                    # decode the region specification into a set of region objects
+                    regions = {
+                        r: AssignmentQualification['EXACT']
+                        for species in self.species
+                        for r in Parcellation.find_regions(self._regionspec, species)
+                    }
+                    # add more regions from possible aliases of the region spec
+                    for species in self.species:
+                        region_aliases = REGION_ALIASES.get(species, {}).get(self._regionspec, {})
+                        for alt_species, aliases in region_aliases.items():
+                            for regionspec, qualificationspec in aliases.items():
+                                for r in Parcellation.find_regions(regionspec, alt_species):
+                                    if r not in self._regions_cached:
+                                        logger.info(f"Adding region {r.name} in {alt_species} from alias to {self._regionspec}")
+                                        regions[r] = qualificationspec
+                    self.__class__._MATCH_MEMO[self._regionspec] = regions
+                self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
         return self._regions_cached
 
     def __str__(self):
@@ -161,10 +154,11 @@ class AnatomicalAnchor:
         Match this anchoring to an atlas concept.
         """
         if concept not in self._assignments:
-            matches = ListWithoutNone()
+            matches = []
             if isinstance(concept, Region):
-                for region in self.regions:
-                    matches.append(AnatomicalAnchor.match_regions(region, concept))
+                if concept.matches(self._regionspec):  # dramatic speedup, since decoding _regionspec is expensive
+                    for r in self.regions:
+                        matches.append(AnatomicalAnchor.match_regions(r, concept))
                 if self.location is not None:
                     matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
             elif isinstance(concept, Location):
@@ -173,7 +167,7 @@ class AnatomicalAnchor:
                 for region in self.regions:
                     match = AnatomicalAnchor.match_location_to_region(concept, region)
                     matches.append(None if match is None else match.invert())
-            self._assignments[concept] = sorted(matches)
+            self._assignments[concept] = sorted(m for m in matches if m is not None)
         return self._assignments[concept]
 
     def matches(self, concept: AtlasConcept):
@@ -200,7 +194,6 @@ class AnatomicalAnchor:
     def match_regions(cls, region1: Region, region2: Region):
         assert all(isinstance(r, Region) for r in [region1, region2])
         if (region1, region2) not in cls._MATCH_MEMO:
-            logger.debug(f"match region {region1} to region '{region2}'")
             if region1 == region2:
                 res = AnatomicalAssignment(region2, AssignmentQualification.EXACT)
             elif region1 in region2:

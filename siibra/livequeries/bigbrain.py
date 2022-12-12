@@ -14,14 +14,13 @@
 # limitations under the License.
 
 
-from .query import LiveQuery
+from . import query
 
 from ..commons import logger
-from ..locations import PointSet, Point
-from ..core.space import Space
-from ..core.region import Region
-from ..retrieval import HttpRequest
-from ..features import BigBrainIntensityFingerprint, BigBrainIntensityProfile
+from ..locations import point, pointset
+from ..core import space, region
+from ..retrieval import requests
+from ..features import profiles, fingerprints, anchor
 
 import numpy as np
 from typing import List
@@ -35,105 +34,106 @@ class WagstylProfileLoader:
     THICKNESSES_FILE = "data/thicknesses_left.npy"
     MESH_FILE = "data/gray_left_327680.surf.gii"
 
-    profiles = None
-    vertices = None
-    boundary_depths = None
+    _profiles = None
+    _vertices = None
+    _boundary_depths = None
 
     def __init__(self):
-        if self.profiles is None:
+        if self._profiles is None:
             self.__class__._load()
 
     @property
     def profile_labels(self):
-        return np.arange(0, 1, 1 / self.profiles.shape[1])
+        return np.arange(0, 1, 1 / self._profiles.shape[1])
 
     @classmethod
     def _load(cls):
         # read thicknesses, in mm, and normalize by their last columsn which is the total thickness
-        mesh_left = HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
-        T = HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
+        mesh_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
+        T = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
         total = T[:, :-1].sum(1)
         valid = np.where(total > 0)[0]
         boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
         boundary_depths[:, -1] = 1
 
         # read profiles with valid thickenss
-        req = HttpRequest(
+        req = requests.HttpRequest(
             f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}",
             msg_if_not_cached="First request to BigBrain profiles. Downloading and preprocessing the data now. This may take a little."
         )
 
-        cls.boundary_depths = boundary_depths
-        cls.vertices = mesh_left.darrays[0].data[valid, :]
-        cls.profiles = req.data[valid, :]
-        logger.debug(f"{cls.profiles.shape[0]} BigBrain intensity profiles.")
-        assert cls.vertices.shape[0] == cls.profiles.shape[0]
+        cls._boundary_depths = boundary_depths
+        cls._vertices = mesh_left.darrays[0].data[valid, :]
+        cls._profiles = req.data[valid, :]
+        logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
+        assert cls._vertices.shape[0] == cls._profiles.shape[0]
 
     def __len__(self):
-        return self.vertices.shape[0]
+        return self._vertices.shape[0]
 
-    def match(self, region: Region):
-        assert isinstance(region, Region)
-        logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {region}")
+    def match(self, regionobj: region.Region):
+        assert isinstance(regionobj, region.Region)
+        logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
 
-        for space in region.supported_spaces:
-            if not space.is_surface:
+        for spaceobj in regionobj.supported_spaces:
+            if not spaceobj.is_surface:
                 try:
-                    mask = region.build_mask(space=space, maptype="labelled")
+                    mask = regionobj.build_mask(space=spaceobj, maptype="labelled")
                 except RuntimeError:
                     continue
-                logger.info(f"Assigning {len(self)} profile locations to {region} in {space}...")
-                pts = PointSet(self.vertices, space="bigbrain").warp(space)
+                logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {spaceobj}...")
+                pts = pointset.PointSet(self._vertices, space="bigbrain").warp(spaceobj)
                 inside = [i for i, p in enumerate(pts) if p.contained_in(mask)]
                 break
         else:
-            raise RuntimeError(f"Could not filter big brain profiles by {region}")
+            raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
 
         return (
-            self.profiles[inside, :],
-            self.boundary_depths[inside, :],
-            self.vertices[inside, :]
+            self._profiles[inside, :],
+            self._boundary_depths[inside, :],
+            self._vertices[inside, :]
         )
 
 
-class BigBrainProfileQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityProfile):
+class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=profiles.BigBrainIntensityProfile):
 
     def __init__(self):
-        LiveQuery.__init__(self)
+        query.LiveQuery.__init__(self)
 
-    def query(self, region: Region, **kwargs) -> List[BigBrainIntensityProfile]:
-        assert isinstance(region, Region)
-        profiles = WagstylProfileLoader()
+    def query(self, regionobj: region.Region, **kwargs) -> List[profiles.BigBrainIntensityProfile]:
+        assert isinstance(regionobj, region.Region)
+        loader = WagstylProfileLoader()
 
         features = []
-        for subregion in region.leaves:
-            matched_profiles, boundary_depths, coords = profiles.match(subregion)
-            bbspace = Space.get_instance('bigbrain')
-            features.extend(
-                BigBrainIntensityProfile(
+        for subregion in regionobj.leaves:
+            matched_profiles, boundary_depths, coords = loader.match(subregion)
+            bbspace = space.Space.get_instance('bigbrain')
+            for i, profile in enumerate(matched_profiles):
+                prof = profiles.BigBrainIntensityProfile(
                     regionname=subregion.name,
-                    depths=profiles.profile_labels,
+                    depths=loader.profile_labels,
                     values=profile,
                     boundaries=boundary_depths[i, :],
-                    location=Point(coords[i, :], bbspace)
+                    location=point.Point(coords[i, :], bbspace),
                 )
-                for i, profile in enumerate(matched_profiles)
-            )
+                assert prof.matches(subregion)  # to create an assignment result
+                features.append(prof)
+            
         return features
 
 
-class BigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityFingerprint):
+class BigBrainIntensityFingerprintQuery(query.LiveQuery, args=[], FeatureType=fingerprints.BigBrainIntensityFingerprint):
 
     def __init__(self):
-        LiveQuery.__init__(self)
+        query.LiveQuery.__init__(self)
 
-    def query(self, region: Region, **kwargs) -> List[BigBrainIntensityFingerprint]:
-        assert isinstance(region, Region)
-        profiles = WagstylProfileLoader()
+    def query(self, regionobj: region.Region, **kwargs) -> List[fingerprints.BigBrainIntensityFingerprint]:
+        assert isinstance(regionobj, region.Region)
+        loader = WagstylProfileLoader()
 
         result = []
-        for subregion in region.leaves:
-            matched_profiles, boundary_depths, coords = profiles.match(subregion)
+        for subregion in regionobj.leaves:
+            matched_profiles, boundary_depths, coords = loader.match(subregion)
 
             # compute array of layer labels for all coefficients in profiles_left
             N = matched_profiles.shape[1]
@@ -143,11 +143,12 @@ class BigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrain
                 for b in boundary_depths
             ]).squeeze()
 
-            fp = BigBrainIntensityFingerprint(
+            fp = fingerprints.BigBrainIntensityFingerprint(
                 regionname=subregion.name,
                 means=[matched_profiles[region_labels == _].mean() for _ in range(1, 7)],
                 stds=[matched_profiles[region_labels == _].std() for _ in range(1, 7)],
             )
+            assert fp.matches(subregion)  # to create an assignment result
             result.append(fp)
 
         return result

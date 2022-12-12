@@ -44,4 +44,5 @@ class LiveQuery(ABC):
 
     @abstractmethod
     def query(self, concept: AtlasConcept, **kwargs) -> List[Feature]:
+        raise NotImplementedError(f"Dervied class {self.__class__} needs to implement query()")
         pass

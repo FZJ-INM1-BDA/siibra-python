@@ -96,7 +96,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
     def query(self, region: Region) -> List[GeneExpression]:
         assert isinstance(region, Region)
         mask = region.build_mask("mni152", "labelled")
-        return (f for f in self if f.anchor.location.intersects(mask))
+        for f in self:
+            if f.anchor.location.intersects(mask):
+                assert f.matches(region)
+                yield f
 
     def __iter__(self):
 
