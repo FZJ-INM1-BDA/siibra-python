@@ -49,7 +49,7 @@ class NiftiFetcher(volume.VolumeProvider, srctype="nii"):
             self._image_cached = self._image_loader()
         return self._image_cached
 
-    def fetch(self, resolution_mm=None, voi=None):
+    def fetch(self, resolution_mm=None, voi=None, **kwargs):
         """
         Loads and returns a Nifti1Image object
 

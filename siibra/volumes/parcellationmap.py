@@ -278,6 +278,8 @@ class Map(region.Region, configuration_folder="maps"):
             mapindex = self.get_index(regionspec)
         elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
             mapindex = self.get_index(vol)
+        elif isinstance(vol, int):
+            mapindex = MapIndex(volume=vol, label=None)
         else:
             if format in volume.Volume.SURFACE_FORMATS:
                 mapindex = next(iter(self._indices.values()))[0]

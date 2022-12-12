@@ -256,7 +256,7 @@ class NeuroglancerScale:
             np.save(cachefile, chunk_zyx)
         return chunk_zyx
 
-    def fetch(self, voi: boundingbox.BoundingBox = None):
+    def fetch(self, voi: boundingbox.BoundingBox = None, **kwargs):
 
         # define the bounding box in this scale's voxel space
         if voi is None:
@@ -322,7 +322,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None):
+    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, **kwargs):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is  a dictionary with the keys:
