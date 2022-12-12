@@ -47,8 +47,13 @@ class Feature:
         """
         self.measuretype = measuretype
         self._description = description
-        self.anchor = anchor
+        self._anchor_cached = anchor
         self.datasets = datasets
+
+    @property
+    def anchor(self):
+        # allows subclasses to implement lazy loading of an anchor
+        return self._anchor_cached
 
     def __init_subclass__(cls, configuration_folder=None):
         cls.modalities.add(cls.__name__, cls)
