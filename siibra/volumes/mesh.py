@@ -18,10 +18,12 @@ from .volume import VolumeProvider
 from ..commons import logger
 from ..retrieval import HttpRequest, SiibraHttpRequestError
 from ..retrieval.requests import DECODERS
+from ..locations import boundingbox
 
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 from io import BytesIO
 import numpy as np
+from typing import Union
 
 
 class GiftiSurface(VolumeProvider, srctype="gii-mesh"):
@@ -29,26 +31,26 @@ class GiftiSurface(VolumeProvider, srctype="gii-mesh"):
     A (set of) surface meshes in Gifti format.
     """
 
-    def __init__(self, url, volume=None):
+    def __init__(self, url: Union[str, dict], volume=None):
         self.volume = volume
         if isinstance(url, str):
-            # a single url
-            self._loaders = {"name": url}
+            self._loaders = {"name": HttpRequest(url)}
         elif isinstance(url, dict):
-            self._loaders = {
-                label: HttpRequest(url)
-                for label, url in url.items()
-            }
+            self._loaders = {lbl: HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
-    def fetch(self, name=None):
+    def fetch(self, name=None, resolution_mm: float = None, voi: boundingbox.BoundingBox = None):
         """
         Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
         and an Mx3 array of face definitions using row indices of the vertex array.
 
         If name is specified, only submeshes matching this name are included, otherwise all meshes are combined.
         """
+        if resolution_mm is not None:
+            raise NotImplementedError(f"Resolution specification for {self.__class__} not yet implemented.")
+        if voi is not None:
+            raise NotImplementedError(f"Volume of interest extraction for {self.__class__} not yet implemented.")
         vertices = np.empty((0, 3))
         faces = np.empty((0, 3), dtype='int')
         for n, loader in self._loaders.items():
@@ -81,7 +83,7 @@ class GiftiSurfaceLabeling():
     A mesh labeling, specified by a gifti file.
     """
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         self._loader = HttpRequest(self.url)
 
     def fetch(self):

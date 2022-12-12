@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import volume, nifti, util
+from . import volume, nifti
 
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel
 from ..core import concept, space, parcellation, region
 from ..locations import point, pointset, boundingbox
 
@@ -707,7 +707,7 @@ class Map(region.Region, configuration_folder="maps"):
                 logger.debug(
                     f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
                 )
-                kernel = util.create_gaussian_kernel(sigma_vox, 3)
+                kernel = create_gaussian_kernel(sigma_vox, 3)
                 r = int(kernel.shape[0] / 2)  # effective radius
                 xyz_vox = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")
                 shift = np.identity(4)
