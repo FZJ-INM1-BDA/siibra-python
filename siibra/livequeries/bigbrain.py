@@ -74,7 +74,7 @@ class WagstylProfileLoader:
 
     def match(self, region: Region):
         assert isinstance(region, Region)
-        logger.info(f"Matching locations of {len(self)} BigBrain profiles to {region}")
+        logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {region}")
 
         for space in region.supported_spaces:
             if not space.is_surface:
@@ -107,7 +107,7 @@ class BigBrainProfileQuery(LiveQuery, args=[], FeatureType=BigBrainIntensityProf
 
         features = []
         for subregion in region.leaves:
-            matched_profiles, boundary_depths, coords = profiles.match(region)
+            matched_profiles, boundary_depths, coords = profiles.match(subregion)
             bbspace = Space.get_instance('bigbrain')
             features.extend(
                 BigBrainIntensityProfile(
