@@ -52,17 +52,14 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
         try:
             res = requests.HttpRequest(f"{self.url}/transform.json").get()
         except requests.SiibraHttpRequestError:
-            logger.warn(f"No transform.json found at {self.url}")
             res = None
         if res is not None:
-            logger.debug(
-                "Found global affine transform file, intrepreted in nanometer space."
-            )
             self._transform_nm = np.array(res)
+            logger.info("Affine transform found, intrepreted in nanometer space.")
             return self._transform_nm
 
         self._transform_nm = np.identity(1)
-        logger.debug("Fall back, using identity")
+        logger.warn(f"No transform.json found at {self.url}, using identity.")
         return self._transform_nm
 
     @transform_nm.setter
@@ -107,11 +104,7 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
 
     def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox = None):
         # the caller has to make sure voi is defined in the correct reference space
-        scale = self._select_scale(resolution_mm=resolution_mm)
-        logger.debug(
-            f"Fetching resolution "
-            f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm "
-        )
+        scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
         return scale.fetch(voi)
 
     def get_shape(self, resolution_mm=None):
@@ -122,7 +115,6 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
         return self.dtype.kind == "f"
 
     def _select_scale(self, resolution_mm: float, bbox: boundingbox.BoundingBox = None):
-
         if resolution_mm is None:
             suitable = self.scales
         elif resolution_mm < 0:
@@ -140,14 +132,17 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
                 f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
             )
 
+        scale_changed = False
         while scale._estimate_nbytes(bbox) > self.MAX_BYTES:
             scale = scale.next()
+            scale_changed = True
             if scale is None:
                 raise RuntimeError(
                     f"Fetching bounding box {bbox} is infeasible "
                     f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
                 )
-
+        if scale_changed:
+            logger.warn(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
         return scale
 
 
