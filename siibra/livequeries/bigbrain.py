@@ -17,8 +17,7 @@
 from .query import LiveQuery
 
 from ..commons import logger
-from ..core.location import PointSet, Point
-from ..core.parcellation import Parcellation
+from ..locations import PointSet, Point
 from ..core.space import Space
 from ..core.region import Region
 from ..retrieval import HttpRequest
@@ -133,7 +132,7 @@ class BigBrainIntensityFingerprintQuery(LiveQuery, args=[], FeatureType=BigBrain
         profiles = WagstylProfileLoader()
 
         result = []
-        for subregion in region.leaves: 
+        for subregion in region.leaves:
             matched_profiles, boundary_depths, coords = profiles.match(region)
 
             # compute array of layer labels for all coefficients in profiles_left

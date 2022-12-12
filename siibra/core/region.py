@@ -15,7 +15,7 @@
 
 from .concept import AtlasConcept
 from .space import Space
-from .location import PointSet, Point, BoundingBox
+from ..locations import PointSet, Point, BoundingBox
 
 from ..commons import (
     logger,
@@ -335,7 +335,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def build_mask(
         self,
         space,
-        maptype: MapType=SIIBRA_DEFAULT_MAPTYPE,
+        maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
         threshold_continuous: float = SIIBRA_DEFAULT_MAP_THRESHOLD
     ):
         """

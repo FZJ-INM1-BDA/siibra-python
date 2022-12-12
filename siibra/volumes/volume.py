@@ -16,7 +16,7 @@
 from .. import logger
 from ..commons import MapType
 from ..retrieval import HttpRequest, ZipfileRequest, CACHE, SiibraHttpRequestError
-from ..core.location import BoundingBox, PointSet
+from ..locations import BoundingBox, PointSet
 from ..core.space import Space
 
 import numpy as np

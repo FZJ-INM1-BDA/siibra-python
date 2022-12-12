@@ -16,7 +16,7 @@
 from .feature import Feature
 
 from ..commons import PolyLine, logger, create_key, decode_receptor_tsv
-from ..core.location import Point
+from ..locations import Point
 from ..retrieval.requests import HttpRequest
 from ..vocabularies import RECEPTOR_SYMBOLS
 

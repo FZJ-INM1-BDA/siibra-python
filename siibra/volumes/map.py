@@ -21,7 +21,7 @@ from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
 from ..core.concept import AtlasConcept
 from ..core.space import Space
 from ..core.parcellation import Parcellation
-from ..core.location import Point, PointSet, BoundingBox
+from ..locations import Point, PointSet, BoundingBox
 from ..core.region import Region
 
 import numpy as np

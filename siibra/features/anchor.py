@@ -16,7 +16,7 @@
 from .. import logger, find_regions
 
 from ..core.concept import AtlasConcept
-from ..core.location import Location
+from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 

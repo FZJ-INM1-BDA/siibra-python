@@ -20,7 +20,8 @@ from ..core.atlas import Atlas
 from ..core.parcellation import Parcellation, ParcellationVersion
 from ..core.space import Space
 from ..core.region import Region
-from ..core.location import Point, PointSet
+from ..locations.point import Point
+from ..locations.pointset import PointSet
 
 from ..retrieval.datasets import EbrainsDataset
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
@@ -33,6 +34,7 @@ from ..volumes.sparsemap import SparseMap
 from ..features.fingerprints import ReceptorDensityFingerprint, CellDensityFingerprint
 from ..features.profiles import CellDensityProfile, ReceptorDensityProfile
 from ..features.connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
+from ..features.voi import VolumeOfInterest
 
 from os import path
 import json
@@ -53,6 +55,7 @@ BUILDFUNCS = {
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
     "siibra/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
+    "siibra/feature/voi/v0.1": "build_volume_of_interest",
 }
 
 
@@ -322,6 +325,19 @@ class Factory:
             patch=spec['patch'],
             url=spec['file'],
             anchor=cls.extract_anchor(spec),
+            datasets=cls.extract_datasets(spec),
+        )
+
+    @classmethod
+    def build_volume_of_interest(cls, spec):
+        return VolumeOfInterest(
+            name=spec.get('name', ""),
+            space_spec=spec.get('space', {}),
+            measuretype=spec.get('modality'),
+            volumes=cls.extract_volumes(
+                spec,
+                space_id=spec.get("space", {}).get("@id")
+            ),
             datasets=cls.extract_datasets(spec),
         )
 

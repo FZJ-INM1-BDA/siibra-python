@@ -18,7 +18,7 @@ from ..feature import SpatialFeature
 from ... import logger
 from ...configuration.configuration import REGISTRY, Query
 from ...retrieval.datasets import EbrainsDataset
-from ...core.location import Point, PointSet, WholeBrain
+from ...locations import Point, PointSet, WholeBrain
 from ...retrieval.repositories import GitlabConnector
 
 import re

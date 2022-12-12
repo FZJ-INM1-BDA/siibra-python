@@ -17,7 +17,7 @@ from .query import LiveQuery
 
 from ..features.simple import GeneExpression
 from ..commons import logger
-from ..core.location import Point
+from ..locations import Point
 from ..core.region import Region
 from ..retrieval import HttpRequest
 

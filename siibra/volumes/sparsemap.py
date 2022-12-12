@@ -16,7 +16,7 @@
 from .map import Map
 
 from ..commons import MapIndex, logger
-from ..core.location import BoundingBox
+from ..locations import BoundingBox
 from ..retrieval import CACHE
 
 from os import path
