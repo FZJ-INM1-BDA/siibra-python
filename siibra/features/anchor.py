@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import logger, find_regions
+from ..commons import logger
 
 from ..core.concept import AtlasConcept
 from ..locations.location import Location
@@ -135,13 +135,13 @@ class AnatomicalAnchor:
                 # decode the region specification into a set of region objects
                 self._regions_cached = {
                     r: AssignmentQualification['EXACT']
-                    for r in find_regions(self._regionspec, self.species)
+                    for r in Parcellation.find_regions(self._regionspec, self.species)
                 }
                 # add more regions from possible aliases of the region spec
                 region_aliases = REGION_ALIASES.get(self.species, {}).get(self._regionspec, {})
                 for species, aliases in region_aliases.items():
                     for regionspec, qualificationspec in aliases.items():
-                        for r in find_regions(regionspec, species):
+                        for r in Parcellation.find_regions(regionspec, species):
                             if r not in self._regions_cached:
                                 logger.info(f"Adding region {r.name} in {species} from alias to {self._regionspec}")
                                 self._regions_cached[r] = qualificationspec
@@ -237,17 +237,18 @@ class AnatomicalAnchor:
                     )
                     if mask is not None:
                         break
+            loc_warped = location.warp(mask_space)
             if mask is None:
                 logger.warn(
                     f"'{region.name}' provides no mask in a space "
                     f"to which {location} can be warped."
                 )
                 res = None
-            elif location.warp(mask_space).contained_in(mask):
+            elif loc_warped.contained_in(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.CONTAINED, expl)
-            elif location.warp(mask_space).contains(mask):
+            elif loc_warped.contains(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.CONTAINS, expl)
-            elif location.warp(mask_space).intersects(mask):
+            elif loc_warped.intersects(mask):
                 res = AnatomicalAssignment(region, AssignmentQualification.OVERLAPS, expl)
             else:
                 logger.debug(

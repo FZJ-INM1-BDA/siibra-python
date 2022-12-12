@@ -15,6 +15,8 @@
 
 from .query import LiveQuery
 
+from ..core import space
+from ..features import anchor
 from ..features.simple import GeneExpression
 from ..commons import logger
 from ..locations import Point
@@ -184,9 +186,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         152 space to generate a SpatialFeature object for each sample.
         """
 
-        from ..features.anchor import AnatomicalAnchor
-        from ..core.space import Space
-        space = Space.get_instance('mni152')
+        spaceobj = space.Space.get_instance('mni152')
 
         if len(probe_ids) == 0:
             return
@@ -222,7 +222,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=AnatomicalAnchor(location=Point(icbm_coord, space)),
+                anchor=anchor.AnatomicalAnchor(location=Point(icbm_coord, spaceobj)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],

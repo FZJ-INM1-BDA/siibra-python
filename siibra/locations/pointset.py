@@ -13,17 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .location import Location
-from .point import Point
+from . import location, point, boundingbox
 
 from ..retrieval.requests import HttpRequest
 
 import numbers
 import json
 import numpy as np
+from nibabel import Nifti1Image
+from typing import Union
 
 
-class PointSet(Location):
+class PointSet(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
@@ -40,21 +41,27 @@ class PointSet(Location):
         sigma_mm : float, or list of float
             Optional standard deviation of point locations.
         """
-        Location.__init__(self, space)
+        location.Location.__init__(self, space)
         if isinstance(sigma_mm, numbers.Number):
-            self.points = [Point(c, self.space, sigma_mm) for c in coordinates]
+            self.points = [point.Point(c, self.space, sigma_mm) for c in coordinates]
         else:
             self.points = [
-                Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
+                point.Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
             ]
 
-    def intersection(self, mask: Nifti1Image):
+    def intersection(self, other: Union[location.Location, Nifti1Image]):
         """Return the subset of points that are inside the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        inside = [p for p in self if p.intersects(mask)]
+        if isinstance(other, point.Point):
+            return self if other in self else None
+        elif isinstance(other, PointSet):
+            return [p for p in self if p in other]
+        elif isinstance(other, boundingbox.BoundingBox):
+            return [p for p in self if p.contained_in(other)]
+        inside = [p for p in self if p.intersects(other)]
         if len(inside) == 0:
             return None
         elif len(inside) == 1:
@@ -83,19 +90,19 @@ class PointSet(Location):
         spaceobj = Space.get_instance(space)
         if spaceobj == self.space:
             return self
-        if any(_ not in Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
+        if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
 
         data = json.dumps({
-            "source_space": Location.SPACEWARP_IDS[self.space.id],
-            "target_space": Location.SPACEWARP_IDS[spaceobj.id],
+            "source_space": location.Location.SPACEWARP_IDS[self.space.id],
+            "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
             "source_points": self.as_list()
         })
 
         response = HttpRequest(
-            url=f"{Location.SPACEWARP_SERVER}/transform-points",
+            url=f"{location.Location.SPACEWARP_SERVER}/transform-points",
             post=True,
             headers={
                 "accept": "application/json",
@@ -164,7 +171,7 @@ class PointSet(Location):
 
     @property
     def centroid(self):
-        return Point(self.homogeneous[:, :3].mean(0), space=self.space)
+        return point.Point(self.homogeneous[:, :3].mean(0), space=self.space)
 
     @property
     def volume(self):

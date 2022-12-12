@@ -13,16 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .location import Location
-from .point import Point
-from .pointset import PointSet
+from . import point, pointset, location, boundingbox
 
 import hashlib
 import numpy as np
 from typing import Union
+from nibabel import Nifti1Image
 
 
-class BoundingBox(Location):
+class BoundingBox(location.Location):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
     The box does not necessarily store the given points,
@@ -49,11 +48,11 @@ class BoundingBox(Location):
             Minimum size along each dimension. If not None, the maxpoint will
             be adjusted to match the minimum size, if needed.
         """
-        Location.__init__(self, space)
-        xyz1 = Point.parse(point1)
-        xyz2 = Point.parse(point2)
-        self.minpoint = Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
-        self.maxpoint = Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
+        location.Location.__init__(self, space)
+        xyz1 = point.Point.parse(point1)
+        xyz2 = point.Point.parse(point2)
+        self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
+        self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
         if minsize is not None:
             for d in range(3):
                 if self.shape[d] < minsize:
@@ -108,7 +107,7 @@ class BoundingBox(Location):
         else:
             bounds = np.dot(image.affine, bounds)
             target_space = space
-        return cls(point1=bounds[:3, 0], point2=bounds[:3, 1], space=target_space)
+        return BoundingBox(point1=bounds[:3, 0], point2=bounds[:3, 1], space=target_space)
 
     def __str__(self):
         if self.space is None:
@@ -116,35 +115,33 @@ class BoundingBox(Location):
         else:
             return f"Bounding box from {tuple(self.minpoint)}mm to {tuple(self.maxpoint)}mm in {self.space.name} space"
 
-    def contains(self, other: Location):
+    def contains(self, other: location.Location):
         """Returns true if the bounding box contains the given location."""
-        if isinstance(other, Point):
+        if isinstance(other, point.Point):
             return (other >= self.minpoint) and (other <= self.maxpoint)
-        elif isinstance(other, PointSet):
+        elif isinstance(other, pointset.PointSet):
             return all(self.contains(p) for p in other)
-        elif isinstance(other, BoundingBox):
-            return (other.minpoint >= self.minpoint) and (
+        elif isinstance(other, boundingbox.BoundingBox):
+            return all([
+                other.minpoint >= self.minpoint,
                 other.maxpoint <= self.maxpoint
-            )
+            ])
+        elif isinstance(other, Nifti1Image):
+            return self.contains(BoundingBox.from_image(other, space=self.space))
         else:
             raise NotImplementedError(
                 f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
             )
 
-    def contained_in(self, other: Union[Location, Nifti1Image]):
-        if isinstance(other, Location):
+    def contained_in(self, other: Union[location.Location, Nifti1Image]):
+        if isinstance(other, location.Location):
             return other.contains(self)
         elif isinstance(other, Nifti1Image):
-            arr = np.asanyarray(other.dataobj)
-            for p in [self.minpoint, self.maxpoint]:
-                x, y, z = map(int, p.transform(np.linalg.inv(other.affine)))
-                if arr[x, y, z] == 0:
-                    return False
-            return True
+            return self.contained_in(BoundingBox.from_image(other, space=self.space))
         else:
             raise RuntimeError(f"Cannot test containedness of {self} in type {other.__class__}")
 
-    def intersects(self, other: Union[Location, Nifti1Image]):
+    def intersects(self, other: Union[location.Location, Nifti1Image]):
         return self.intersection(other).volume > 0
 
     def intersection(self, other, dims=[0, 1, 2]):
@@ -198,8 +195,8 @@ class BoundingBox(Location):
                 result_maxpt.append(B[dim])
 
         bbox = BoundingBox(
-            point1=Point(result_minpt, self.space),
-            point2=Point(result_maxpt, self.space),
+            point1=point.Point(result_minpt, self.space),
+            point2=point.Point(result_maxpt, self.space),
             space=self.space,
         )
         return bbox if bbox.volume > 0 else None
@@ -225,9 +222,9 @@ class BoundingBox(Location):
         if XYZ.shape[0] == 0:
             return None
         elif XYZ.shape[0] == 1:
-            return Point(XYZ.flatten(), space=self.space)
+            return point.Point(XYZ.flatten(), space=self.space)
         else:
-            return PointSet(XYZ, space=self.space)
+            return pointset.PointSet(XYZ, space=self.space)
 
     def union(self, other):
         """Computes the union of this boudning box with another one.
@@ -252,7 +249,7 @@ class BoundingBox(Location):
         """
         return self.intersection(
             BoundingBox(
-                Point(xyzmin, self.space), Point(xyzmax, self.space), self.space
+                point.Point(xyzmin, self.space), point.Point(xyzmax, self.space), self.space
             )
         )
 

@@ -13,21 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .location import Location
-
+from . import location, boundingbox, pointset
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
 
 from nibabel.affines import apply_affine
+from nibabel import Nifti1Image
 from urllib.parse import quote
 import re
 import numpy as np
 import json
 import numbers
 import hashlib
+from typing import Union
 
 
-class Point(Location):
+class Point(location.Location):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -84,7 +85,7 @@ class Point(Location):
             Optional location uncertainy of the point
             (will be intrepreded as the isotropic standard deviation of location)
         """
-        Location.__init__(self, space)
+        location.Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
         self.sigma = sigma_mm
         if isinstance(coordinatespec, Point):
@@ -97,42 +98,63 @@ class Point(Location):
         obtained by appending '1' to the original 3-tuple."""
         return self.coordinate + (1,)
 
-    def intersection(self, mask: Nifti1Image):
-        if self.intersects(mask):
-            return self
+    def intersection(self, other: Union[location.Location, Nifti1Image]) -> "Point":
+        if isinstance(other, Point):
+            return self if self == other else None
+        elif isinstance(other, pointset.PointSet):
+            return self if self in other else None
+        elif isinstance(other, boundingbox.BoundingBox):
+            return self if other.contains(self) else None
+        elif isinstance(other, Nifti1Image):
+            return self if self.intersects(other) else None
         else:
-            return None
+            raise NotImplementedError(
+                f"Intersection of {self.__class__.__name__} with "
+                f"{other.__class__.__name__} not implemented"
+            )
 
-    def intersects(self, mask: Nifti1Image):
+    def intersects(self, other: Union[location.Location, Nifti1Image]) -> bool:
         """Returns true if this point lies in the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
         # transform physical coordinates to voxel coordinates for the query
-        def check(mask, c):
+        def coordinate_inside_mask(mask, c):
             voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
             if np.any(voxel >= mask.dataobj.shape):
                 return False
-            if np.any(voxel < 0):
+            elif np.any(voxel < 0):
                 return False
-            if mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
+            elif mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
                 return False
-            return True
+            else:
+                return True
 
-        if mask.ndim == 4:
-            return any(
-                check(mask.slicer[:, :, :, i], self.coordinate)
-                for i in range(mask.shape[3])
-            )
+        if isinstance(other, location.Location):
+            return (self.intersection(other) is not None)
+        elif isinstance(other, Nifti1Image):
+            if other.ndim == 4:
+                return any(
+                    coordinate_inside_mask(other.slicer[:, :, :, i], self.coordinate)
+                    for i in range(other.shape[3])
+                )
+            else:
+                return coordinate_inside_mask(other, self.coordinate)
         else:
-            return check(mask, self.coordinate)
+            raise NotImplementedError(
+                f"Intersection test of {self.__class__.__name__} with "
+                f"{other.__class__.__name__} not implemented"
+            )
 
-    def contained_in(self, mask: Nifti1Image):
-        return self.intersects(mask)
+    def contained_in(self, other: Union[location.Location, Nifti1Image]):
+        return self.intersects(other)
 
-    def contains(self, mask: Nifti1Image):
-        return False
+    def contains(self, other: Union[location.Location, Nifti1Image]):
+        if isinstance(other, Point):
+            return self == other
+        else:
+            return False
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
@@ -140,14 +162,14 @@ class Point(Location):
         spaceobj = Space.get_instance(space)
         if spaceobj == self.space:
             return self
-        if any(_ not in Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
+        if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
             raise ValueError(
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
         url = "{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}".format(
-            server=Location.SPACEWARP_SERVER,
-            src=quote(Location.SPACEWARP_IDS[self.space.id]),
-            tgt=quote(Location.SPACEWARP_IDS[space.id]),
+            server=location.Location.SPACEWARP_SERVER,
+            src=quote(location.Location.SPACEWARP_IDS[self.space.id]),
+            tgt=quote(location.Location.SPACEWARP_IDS[space.id]),
             x=self.coordinate[0],
             y=self.coordinate[1],
             z=self.coordinate[2],
@@ -175,7 +197,7 @@ class Point(Location):
         return all(self[i] < o[i] for i in range(3))
 
     def __gt__(self, other):
-        o = other if self.space_id is None else other.warp(self.space)
+        o = other if self.space is None else other.warp(self.space)
         return all(self[i] > o[i] for i in range(3))
 
     def __eq__(self, other):
@@ -262,7 +284,7 @@ class Point(Location):
         which corresponds to this point. If the point is given
         in another space, a warping to BigBrain space will be tried.
         """
-        if self.space.id == Location.BIGBRAIN_ID:
+        if self.space.id == location.Location.BIGBRAIN_ID:
             coronal_position = self[1]
         else:
             try:

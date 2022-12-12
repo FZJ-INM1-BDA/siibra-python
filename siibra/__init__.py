@@ -14,7 +14,8 @@
 # limitations under the License.
 
 from .commons import logger, QUIET, VERBOSE, MapType, MapIndex, set_log_level, __version__
-from .core import Atlas, Parcellation, Space, Point, PointSet, BoundingBox
+from .core import Atlas, Parcellation, Space
+from .locations import Point, PointSet, BoundingBox
 from .retrieval import EbrainsRequest, CACHE
 from .configuration import Configuration
 from .features import Feature
