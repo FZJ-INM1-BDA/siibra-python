@@ -279,8 +279,11 @@ class Map(region.Region, configuration_folder="maps"):
         elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
             mapindex = self.get_index(vol)
         else:
-            logger.info("Neither volume nor index defined, assuming vol=0 for fetch()")
-            mapindex = MapIndex(volume=0, label=None)
+            if format in volume.Volume.SURFACE_FORMATS:
+                mapindex = next(iter(self._indices.values()))[0]
+            else:
+                mapindex = MapIndex(volume=0, label=None)
+            logger.info(f"No volume or index defined, assuming {mapindex} for fetch()")
 
         if len(self) > 1 and mapindex.volume is None:
             raise ValueError(
