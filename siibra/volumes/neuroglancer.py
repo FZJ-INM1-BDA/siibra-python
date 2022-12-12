@@ -21,6 +21,8 @@ from ..locations import boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
+from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
+from io import BytesIO
 import nibabel as nib
 import os
 import numpy as np
@@ -301,3 +303,59 @@ class NeuroglancerScale:
             data_zyx[z0: z0 + zd, y0: y0 + yd, x0: x0 + xd],
             np.dot(self.affine, np.dot(shift, trans)),
         )
+
+
+class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"):
+    """
+    A surface mesh provided as neuroglancer precomputed mesh.
+    """
+    def __init__(self, url, volume=None):
+        self.volume = volume
+        self.url = url
+        self.meshinfo = requests.HttpRequest(url=self.url + "/info", func=requests.DECODERS['.json']).data
+        self.mesh_key = self.meshinfo.get('mesh')
+
+    @staticmethod
+    def _fetch_fragment(url: str, transform_nm: np.ndarray):
+        r = requests.HttpRequest(url, func=lambda b: BytesIO(b))
+        (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)
+        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
+        vertices /= 1e6
+        return vertices, triangles
+
+    def fetch(self, resolution_mm: float = None, mesh_index: int = None, voi=None):
+        """
+        Returns the list of fragment meshes found under the given mesh index.
+        Each mesh is  a dictionary with the keys:
+        - vertices: an Nx3 array of coordinates (in nanometer)
+        - faces: an MX3 array containing connection data of vertices
+        - name: name of the fragment
+        """
+        if voi:
+            raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
+        try: 
+            resp = requests.HttpRequest(
+                url=f"{self.url}/{self.mesh_key}/{str(mesh_index)}:0",
+                func=requests.DECODERS['.json']
+            ).data
+            fragments = resp.get('fragments') if resp else None
+        except requests.SiibraHttpRequestError:
+            logger.error(f"Source {self} does not provide a mesh with index {mesh_index}.")
+            return None
+        
+        transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
+        mesh_fragments = [
+            self._fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm)
+            for f in fragments
+        ]
+        return [
+            dict(zip(['verts', 'faces', 'name'], [vertices, faces, fragments[i]]))
+            for i, (vertices, faces) in enumerate(mesh_fragments)
+        ]
+
+    @property
+    def variants(self):
+        return list(self._loaders.keys()) # rewrite the code above to have _loaders instead
+
+    def fetch_iter(self):
+        return (self.fetch(v) for v in self.variants)
