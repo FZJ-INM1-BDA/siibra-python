@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
+from . import feature, anchor
 
-from ..commons import PolyLine, logger, create_key, decode_receptor_tsv
-from ..locations import Point
-from ..retrieval.requests import HttpRequest
-from ..vocabularies import RECEPTOR_SYMBOLS
+from .. import commons, vocabularies
+
+from ..locations import point
+from ..retrieval import requests
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ from skimage.draw import polygon
 from skimage.transform import resize
 
 
-class CorticalProfile(Feature):
+class CorticalProfile(feature.Feature):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
     measured at relative depths between 0 representing the pial surface,
@@ -53,7 +53,7 @@ class CorticalProfile(Feature):
         self,
         description: str,
         modality: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
         unit: str = None,
@@ -87,7 +87,13 @@ class CorticalProfile(Feature):
             datasets : list
                 list of datasets corresponding to this feature
         """
-        Feature.__init__(self, modality=modality, description=description, anchor=anchor, datasets=datasets)
+        feature.Feature.__init__(
+            self,
+            modality=modality,
+            description=description,
+            anchor=anchor,
+            datasets=datasets
+        )
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
@@ -249,7 +255,7 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
         section: int,
         patch: int,
         url: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         datasets: list = []
     ):
         """
@@ -259,15 +265,15 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
         CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="cell density",
+            modality="Segmented cell body density",
             unit="detected cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
         )
         self._step = 0.01
         self._url = url
-        self._cell_loader = HttpRequest(url, self.CELL_READER)
-        self._layer_loader = HttpRequest(
+        self._cell_loader = requests.HttpRequest(url, self.CELL_READER)
+        self._layer_loader = requests.HttpRequest(
             url.replace("segments", "layerinfo"), self.LAYER_READER
         )
         self._density_image = None
@@ -297,7 +303,7 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
             *(self.LAYERS[layer] for layer in boundary)
         ).replace("0_I", "0")
         url = self._url.replace("segments.txt", basename)
-        poly = self.poly_srt(np.array(HttpRequest(url).get()["segments"]))
+        poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
 
         # ensure full width
         poly[0, 0] = 0
@@ -342,9 +348,9 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
             hsteps = np.arange(0, 1 + vstep, hstep)
 
             # build straight profiles between outer and inner cortical boundary
-            s0 = PolyLine(self.boundary_annotation((0, 1)) * scale).sample(hsteps)
-            s1 = PolyLine(self.boundary_annotation((6, 7)) * scale).sample(hsteps)
-            profiles = [PolyLine(_.reshape(2, 2)) for _ in np.hstack((s0, s1))]
+            s0 = commons.PolyLine(self.boundary_annotation((0, 1)) * scale).sample(hsteps)
+            s1 = commons.PolyLine(self.boundary_annotation((6, 7)) * scale).sample(hsteps)
+            profiles = [commons.PolyLine(_.reshape(2, 2)) for _ in np.hstack((s0, s1))]
 
             # write sample depths to their location in the depth image
             for prof in profiles:
@@ -375,7 +381,7 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
     @property
     def density_image(self):
         if self._density_image is None:
-            logger.debug("Computing density image for", self._url)
+            commons.logger.debug("Computing density image for", self._url)
             # we integrate cell counts into 2D bins
             # of square shape with a fixed sidelength
             pixel_size_micron = 100
@@ -428,7 +434,7 @@ class CellDensityProfile(CorticalProfile, configuration_folder="features/profile
     @property
     def key(self):
         assert len(self.species) == 1
-        return create_key("{}_{}_{}_{}_{}".format(
+        return commons.create_key("{}_{}_{}_{}_{}".format(
             self.id,
             self.species[0]['name'],
             self.regionspec,
@@ -455,7 +461,7 @@ class BigBrainIntensityProfile(CorticalProfile):
         depths: list,
         values: list,
         boundaries: list,
-        location: Point
+        location: point.Point
     ):
         from .anchor import AnatomicalAnchor
         anchor = AnatomicalAnchor(
@@ -466,7 +472,7 @@ class BigBrainIntensityProfile(CorticalProfile):
         CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="BigBrain cortical intensity profile",
+            modality="Modified silver staining",
             anchor=anchor,
             depths=depths,
             values=values,
@@ -492,7 +498,7 @@ class ReceptorDensityProfile(CorticalProfile, configuration_folder="features/pro
         self,
         receptor: str,
         tsvfile: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         datasets: list = []
     ):
         """Generate a receptor density profile from a URL to a .tsv file
@@ -507,34 +513,34 @@ class ReceptorDensityProfile(CorticalProfile, configuration_folder="features/pro
         )
         self.type = receptor
         self._data_cached = None
-        self._loader = HttpRequest(
+        self._loader = requests.HttpRequest(
             tsvfile,
-            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
+            lambda url: self.parse_tsv_data(commons.decode_receptor_tsv(url)),
         )
         self._unit_cached = None
 
     @property
     def key(self):
         return "{}_{}_{}_{}_{}".format(
-            create_key(self.__class__.__name__),
+            commons.create_key(self.__class__.__name__),
             self.id,
-            create_key(self.species_name),
-            create_key(self.regionspec),
-            create_key(self.type)
+            commons.create_key(self.species_name),
+            commons.create_key(self.regionspec),
+            commons.create_key(self.type)
         )
 
     @property
     def receptor(self):
         return "{} ({})".format(
             self.type,
-            RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
+            vocabularies.RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
         )
 
     @property
     def neurotransmitter(self):
         return "{} ({})".format(
-            RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['label'],
-            RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['name'],
+            vocabularies.RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['label'],
+            vocabularies.RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['name'],
         )
 
     @property

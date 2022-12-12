@@ -17,9 +17,8 @@ from . import volume, nifti, util
 
 from .. import logger, QUIET
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
-from ..core import concept, space, parcellation
+from ..core import concept, space, parcellation, region
 from ..locations import point, pointset, boundingbox
-from ..core.region import Region
 
 import numpy as np
 from tqdm import tqdm
@@ -32,7 +31,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(Region, configuration_folder="maps"):
+class Map(region.Region, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -129,7 +128,7 @@ class Map(Region, configuration_folder="maps"):
         for v in self.volumes:
             v._space_spec = space_spec
 
-    def get_index(self, region: Union[str, Region]):
+    def get_index(self, regionspec: Union[str, region.Region]):
         """
         Returns the unique index corresponding to the specified region,
         assuming that the specification matches one unique region
@@ -137,23 +136,23 @@ class Map(Region, configuration_folder="maps"):
         If not unique, or not defined, an exception will be thrown.
         See find_indices() for a less strict search returning all matches.
         """
-        matches = self.find_indices(region)
+        matches = self.find_indices(regionspec)
         if len(matches) > 1:
             raise RuntimeError(
-                f"The specification '{region}' matches multiple mapped "
+                f"The specification '{regionspec}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
             raise RuntimeError(
-                f"The specification '{region}' does not match to any structure mapped in {self}"
+                f"The specification '{regionspec}' does not match to any structure mapped in {self}"
             )
         else:
             return next(iter(matches))
 
-    def find_indices(self, region: Union[str, Region]):
+    def find_indices(self, regionspec: Union[str, region.Region]):
         """ Returns the volume/label indices in this map
         which match the given region specification"""
-        regionname = region.name if isinstance(region, Region) else region
+        regionname = regionspec.name if isinstance(regionspec, region.Region) else regionspec
         matched_region_names = set(_.name for _ in self.parcellation.find(regionname))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
@@ -462,8 +461,8 @@ class Map(Region, configuration_folder="maps"):
         for volidx, vol in enumerate(self.fetch_iter()):
             img = np.asanyarray(vol.dataobj)
             maxarr = np.zeros_like(img)
-            for region, value in values.items():
-                index = self.get_index(region)
+            for r, value in values.items():
+                index = self.get_index(r)
                 if index.volume != volidx:
                     continue
                 if result is None:
@@ -881,9 +880,9 @@ class LabelledSurface:
                 'labels': np.zeros_like(mesh['labels']),
                 'name': mesh['name'],
             }
-            for region, value in values.items():
+            for r, value in values.items():
                 try:
-                    indices = self.get_index(region)
+                    indices = self.get_index(r)
                 except IndexError:
                     continue
                 for index in indices:

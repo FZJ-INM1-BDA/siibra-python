@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .parcellationmap import Map
+from . import parcellationmap
 
 from ..commons import MapIndex, logger
-from ..locations import BoundingBox
-from ..retrieval import CACHE
+from ..locations import boundingbox
+from ..retrieval import cache
 
 from os import path
 import gzip
@@ -108,9 +108,9 @@ class SparseIndex:
     def to_cache(self, prefix: str):
         """ Serialize this index to the cache,
         using the given prefix for the cache filenames. """
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        voxelfile = CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
         Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
         with gzip.open(probsfile, 'wt') as f:
             for D in self.probs:
@@ -132,9 +132,9 @@ class SparseIndex:
         Returns None if cached files are not found or suitable.
         """
 
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        voxelfile = CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
         if not all(path.isfile(f) for f in [probsfile, bboxfile, voxelfile]):
             return None
 
@@ -173,7 +173,7 @@ class SparseIndex:
         return result
 
 
-class SparseMap(Map):
+class SparseMap(parcellationmap.Map):
     """A sparse representation of list of continuous (e.g. probabilistic) brain region maps.
 
     It represents the 3D continuous maps of N brain regions by two data structures:
@@ -210,7 +210,7 @@ class SparseMap(Map):
         publications: list = [],
         datasets: list = [],
     ):
-        Map.__init__(
+        parcellationmap.Map.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -262,7 +262,7 @@ class SparseMap(Map):
         self,
         volume: int = None,
         resolution_mm: float = None,
-        voi: BoundingBox = None,
+        voi: boundingbox.BoundingBox = None,
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
@@ -384,7 +384,7 @@ class SparseMap(Map):
 
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        for mode, modeimg in Map.iterate_connected_components(queryimg):
+        for mode, modeimg in parcellationmap.Map.iterate_connected_components(queryimg):
 
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
@@ -394,7 +394,7 @@ class SparseMap(Map):
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
 
-            bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
+            bbox2 = boundingbox.BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
             if bbox2.volume == 0:
                 continue
 
@@ -407,7 +407,7 @@ class SparseMap(Map):
                 unit=" map",
                 disable=logger.level > 20,
             ):
-                bbox1 = BoundingBox(
+                bbox1 = boundingbox.BoundingBox(
                     self.sparse_index.bboxes[volume]["minpoint"],
                     self.sparse_index.bboxes[volume]["maxpoint"],
                     space=None,

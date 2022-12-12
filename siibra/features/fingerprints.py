@@ -13,12 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .profiles import CorticalProfile
+from . import feature, profiles, anchor
 
-from ..commons import logger, create_key, decode_receptor_tsv
-from ..retrieval.requests import HttpRequest, SiibraHttpRequestError
-from ..vocabularies import RECEPTOR_SYMBOLS
+from .. import commons, vocabularies
+from ..retrieval import requests
 
 from typing import Union
 import pandas as pd
@@ -27,21 +25,27 @@ import numpy as np
 from io import BytesIO
 
 
-class RegionalFingerprint(Feature):
+class RegionalFingerprint(feature.Feature):
     """Represents a fingerprint of multiple variants of averaged measures in a brain region."""
 
     def __init__(
         self,
         description: str,
         modality: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         means: Union[list, np.ndarray] = None,
         labels: Union[list, np.ndarray] = None,
         stds: Union[list, np.ndarray] = None,
         unit: str = None,
         datasets: list = []
     ):
-        Feature.__init__(self, modality=modality, description=description, anchor=anchor, datasets=datasets)
+        feature.Feature.__init__(
+            self,
+            modality=modality,
+            description=description,
+            anchor=anchor,
+            datasets=datasets
+        )
         self._means_cached = means
         self._labels_cached = labels
         self._stds_cached = stds
@@ -97,7 +101,7 @@ class RegionalFingerprint(Feature):
         try:
             import matplotlib.pyplot as plt
         except ImportError:
-            logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+            commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
             return None
         from collections import deque
 
@@ -147,13 +151,13 @@ class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features
         self,
         segmentfiles: list,
         layerfiles: list,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         datasets: list = [],
     ):
         RegionalFingerprint.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Layerwise cell density",
+            modality="Segmented cell body density",
             anchor=anchor,
             datasets=datasets,
             unit="detected cells / 0.1mm3",
@@ -167,11 +171,11 @@ class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features
             density_dict = {}
             for i, (cellfile, layerfile) in enumerate(self._filepairs):
                 try:
-                    cells = HttpRequest(cellfile, func=self.CELL_READER).data
-                    layers = HttpRequest(layerfile, func=self.LAYER_READER).data
-                except SiibraHttpRequestError as e:
+                    cells = requests.HttpRequest(cellfile, func=self.CELL_READER).data
+                    layers = requests.HttpRequest(layerfile, func=self.LAYER_READER).data
+                except requests.SiibraHttpRequestError as e:
                     print(str(e))
-                    logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
+                    commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                     continue
                 counts = cells.layer.value_counts()
                 areas = layers["Area(micron**2)"]
@@ -182,7 +186,7 @@ class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features
 
     @property
     def _labels(self):
-        return [CorticalProfile.LAYERS[_] for _ in self.densities.index]
+        return [profiles.CorticalProfile.LAYERS[_] for _ in self.densities.index]
 
     @property
     def _means(self):
@@ -195,7 +199,7 @@ class CellDensityFingerprint(RegionalFingerprint, configuration_folder="features
     @property
     def key(self):
         assert len(self.species) == 1
-        return create_key("{}_{}_{}".format(
+        return commons.create_key("{}_{}_{}".format(
             self.dataset_id,
             self.species[0]['name'],
             self.regionspec
@@ -230,12 +234,12 @@ class BigBrainIntensityFingerprint(RegionalFingerprint):
         RegionalFingerprint.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Layerwise BigBrain intensities",
+            modality="Modified silver staining",
             anchor=anchor,
             means=means,
             stds=stds,
             unit="staining intensity",
-            labels=list(CorticalProfile.LAYERS.values())[1: -1],
+            labels=list(profiles.CorticalProfile.LAYERS.values())[1: -1],
         )
 
 
@@ -251,7 +255,7 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
     def __init__(
         self,
         tsvfile: str,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         datasets: list = []
     ):
         """ Generate a receptor fingerprint from a URL to a .tsv file
@@ -266,9 +270,9 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
         )
 
         self._data_cached = None
-        self._loader = HttpRequest(
+        self._loader = requests.HttpRequest(
             tsvfile,
-            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
+            lambda url: self.parse_tsv_data(commons.decode_receptor_tsv(url)),
         )
 
     @property
@@ -283,8 +287,8 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
     def neurotransmitters(self):
         return [
             "{} ({})".format(
-                RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
-                RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
+                vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
+                vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
             )
             for t in self.receptors
         ]
@@ -304,10 +308,10 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
     @property
     def key(self):
         return "{}_{}_{}_{}".format(
-            create_key(self.__class__.__name__),
+            commons.create_key(self.__class__.__name__),
             self.id,
-            create_key(self.species_name),
-            create_key(self.regionspec),
+            commons.create_key(self.species_name),
+            commons.create_key(self.regionspec),
         )
 
     @classmethod
@@ -320,7 +324,7 @@ class ReceptorDensityFingerprint(RegionalFingerprint, configuration_folder="feat
             std = [data[_]["density (sd)"] for _ in labels]
         except KeyError as e:
             print(str(e))
-            logger.error("Could not parse fingerprint from this dictionary")
+            commons.logger.error("Could not parse fingerprint from this dictionary")
         return {
             'unit': next(iter(units)),
             'labels': labels,
