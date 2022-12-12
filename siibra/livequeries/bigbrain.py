@@ -20,7 +20,7 @@ from ..commons import logger
 from ..locations import point, pointset
 from ..core import space, region
 from ..retrieval import requests
-from ..features import profiles, fingerprints, anchor
+from ..features import profiles, fingerprints
 
 import numpy as np
 from typing import List
@@ -118,7 +118,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=profiles.BigBra
                 )
                 assert prof.matches(subregion)  # to create an assignment result
                 features.append(prof)
-            
+
         return features
 
 
