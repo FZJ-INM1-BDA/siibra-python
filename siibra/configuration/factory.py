@@ -202,9 +202,9 @@ class Factory:
         providers = []
         provider_types = [
             neuroglancer.NeuroglancerVolumeFetcher,
+            neuroglancer.NeuroglancerMesh,
             nifti.NiftiFetcher,
             nifti.ZipContainedNiftiFetcher,
-            mesh.NeuroglancerMesh,
             mesh.GiftiSurface
         ]
 

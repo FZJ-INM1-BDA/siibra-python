@@ -13,20 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import VolumeProvider
+from . import volume
 
-from ..commons import logger
-from ..retrieval import HttpRequest, SiibraHttpRequestError
-from ..retrieval.requests import DECODERS
+from ..retrieval import requests
 from ..locations import boundingbox
 
-from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
-from io import BytesIO
 import numpy as np
 from typing import Union
 
 
-class GiftiSurface(VolumeProvider, srctype="gii-mesh"):
+class GiftiSurface(volume.VolumeProvider, srctype="gii-mesh"):
     """
     A (set of) surface meshes in Gifti format.
     """
@@ -34,9 +30,9 @@ class GiftiSurface(VolumeProvider, srctype="gii-mesh"):
     def __init__(self, url: Union[str, dict], volume=None):
         self.volume = volume
         if isinstance(url, str):
-            self._loaders = {"name": HttpRequest(url)}
+            self._loaders = {"name": requests.HttpRequest(url)}
         elif isinstance(url, dict):
-            self._loaders = {lbl: HttpRequest(u) for lbl, u in url.items()}
+            self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
@@ -84,65 +80,10 @@ class GiftiSurfaceLabeling():
     """
 
     def __init__(self, url: str):
-        self._loader = HttpRequest(self.url)
+        self._loader = requests.HttpRequest(self.url)
 
     def fetch(self):
         """Returns a 1D numpy array of label indices."""
         assert len(self._loader.data.darrays) == 1
         return self._loader.data.darrays[0].data
 
-
-class NeuroglancerMesh(VolumeProvider, srctype="neuroglancer/precompmesh"):
-    """
-    A surface mesh provided as neuroglancer precomputed mesh.
-    """
-    def __init__(self, url, volume=None):
-        self.volume = volume
-        self.url = url
-        self.meshinfo = HttpRequest(url=self.url + "/info", func=DECODERS['.json']).data
-        self.mesh_key = self.meshinfo.get('mesh')
-
-    @staticmethod
-    def _fetch_fragment(url: str, transform_nm: np.ndarray):
-        r = HttpRequest(url, func=lambda b: BytesIO(b))
-        (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)
-        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
-        vertices /= 1e6
-        return vertices, triangles
-
-    def fetch(self, resolution_mm: float = None, mesh_index: int = None, voi=None):
-        """
-        Returns the list of fragment meshes found under the given mesh index.
-        Each mesh is  a dictionary with the keys:
-        - vertices: an Nx3 array of coordinates (in nanometer)
-        - faces: an MX3 array containing connection data of vertices
-        - name: name of the fragment
-        """
-        if voi:
-            raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
-        try: 
-            resp = HttpRequest(
-                url=f"{self.url}/{self.mesh_key}/{str(mesh_index)}:0",
-                func=DECODERS['.json']
-            ).data
-            fragments = resp.get('fragments') if resp else None
-        except SiibraHttpRequestError:
-            logger.error(f"Source {self} does not provide a mesh with index {mesh_index}.")
-            return None
-        
-        transform_nm = np.array(HttpRequest(f"{self.url}/transform.json").data)
-        mesh_fragments = [
-            self._fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm)
-            for f in fragments
-        ]
-        return [
-            dict(zip(['verts', 'faces', 'name'], [vertices, faces, fragments[i]]))
-            for i, (vertices, faces) in enumerate(mesh_fragments)
-        ]
-
-    @property
-    def variants(self):
-        return list(self._loaders.keys()) # rewrite the code above to have _loaders instead
-
-    def fetch_iter(self):
-        return (self.fetch(v) for v in self.variants)
