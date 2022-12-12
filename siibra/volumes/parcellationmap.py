@@ -308,12 +308,13 @@ class Map(region.Region, configuration_folder="maps"):
     def affine(self):
         if self._affine_cached is None:
             # we compute the affine from a volumetric volume provider
-            for format in volume.Volume.PREFERRED_FORMATS - volume.Volume.SURFACE_FORMATS:
-                try:
-                    self._affine_cached = self.fetch(volume=0, format=format).affine
-                    break
-                except RuntimeError:
-                    continue
+            for fmt in volume.Volume.PREFERRED_FORMATS:
+                if fmt not in volume.Volume.SURFACE_FORMATS:
+                    try:
+                        self._affine_cached = self.fetch(volume=0, format=fmt).affine
+                        break
+                    except RuntimeError:
+                        continue
             else:
                 raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
         if not isinstance(self._affine_cached, np.ndarray):
