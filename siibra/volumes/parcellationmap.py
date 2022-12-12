@@ -16,7 +16,7 @@
 from . import volume, nifti
 
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, is_mesh
 from ..core import concept, space, parcellation, region
 from ..locations import point, pointset, boundingbox
 
@@ -235,10 +235,14 @@ class Map(region.Region, configuration_folder="maps"):
         index: MapIndex = None,
     ):
         """
-        Fetches one particular mapped volume of this mapped.
-        If there's only one map,  this is the default, otherwise the
-        volume index needs to be specified, or fetch_iter() should be used
-        to iterate the volumes.
+        Fetches one particular volume of this parcellation map.
+        If there's only one map, this is the default, otherwise further 
+        specication is requested: 
+        - the volume index, 
+        - the MapIndex (which results in a regional map being returned)
+
+        You might also consider fetch_iter() to iterate the volumes, or compress()
+        to produce a single-volume parcellation map.
 
         Parameters
         ----------
@@ -248,6 +252,8 @@ class Map(region.Region, configuration_folder="maps"):
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        index: MapIndex
+            a full map index (specifying volume and label indexs)
         voi: VolumeOfInterest
             bounding box specification
         variant : str
@@ -257,48 +263,53 @@ class Map(region.Region, configuration_folder="maps"):
             optional specification of the volume format to use (e.g. "nii", "neuroglancer/precomputed")
         """
         assert len(self) > 0
-        if index is not None:
+
+        # determine the actual mapindex resulting from the parameters
+        if index is not None:  # if a map index is provided, we expect no volume
             assert vol is None
             assert isinstance(index, MapIndex)
-            vol = index.volume
-        elif isinstance(vol, MapIndex):
-            # be kind if an index is passed as the first parameter
-            vol = vol.volume
-            index = vol
-        elif isinstance(vol, str):
-            # be kind if a region name is passed as the first parameter
-            index = self.get_index(vol)
-            vol = index.volume
-        if len(self) > 1:
-            if vol is None:
-                raise ValueError(
-                    f"{self} provides {len(self)} mapped volumes, please specify which "
-                    "one to fetch, or use fetch_iter() to iterate over all volumes."
-                )
-            else:
-                if not isinstance(vol, int):
-                    raise ValueError(f"Parameter 'volume' should be an integer, but '{type(vol).__name__}' was provided.")
-                if vol >= len(self):
-                    raise ValueError(
-                        f"{self} provides only {len(self)} mapped volumes, "
-                        f"but #{vol} was requested."
-                    )
+            mapindex = index
+        elif isinstance(vol, MapIndex):  # tolerate if the first parameter is a MapIndex
+            mapindex = vol
+        elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
+            mapindex = self.get_index(vol)
+        else:
+            logger.info(f"Neither volume nor index defined, assuming vol=0 for fetch()")
+            mapindex = MapIndex(volume=0, label=None)
+
+        if len(self) > 1 and mapindex.volume is None:
+            raise ValueError(
+                f"{self} provides {len(self)} mapped volumes, please specify which "
+                "one to fetch, or use fetch_iter() to iterate over all volumes."
+            )
+
+        if mapindex.volume >= len(self):
+            raise ValueError(
+                f"{self} provides only {len(self)} mapped volumes, but #{mapindex.volume} was requested."
+            )
+
         result = self.volumes[vol or 0].fetch(
             resolution_mm=resolution_mm,
             format=format,
             voi=voi,
-            variant=variant
+            variant=variant,
+            meshindex=index.label,
         )
+
         if result is None:
             raise RuntimeError(f"Error fetching volume {vol} from {self}.")
         elif index is None or index.label is None:
             return result
-        else:
+        elif is_mesh(result):
+            return result
+        elif isinstance(result, Nifti1Image): 
             logger.debug(f"Creating binary mask for label {index.label} from volume {vol}")
             return Nifti1Image(
                 (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
                 result.affine
             )
+        else:
+            raise RuntimeError(f"Error fetching volume {vol} from {self}.")
 
     @property
     def is_surface(self):

@@ -77,7 +77,7 @@ class Volume:
         else:
             return f"{self.__class__.__name__} {self.name} in {self.space.name}"
 
-    def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None):
+    def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None, **kwargs):
         """ fetch the data in a requested format from one of the providers. """
         if (voi is not None) and (voi.space != self.space):
             logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")
@@ -92,7 +92,7 @@ class Volume:
             if fmt in self.formats:
                 try:
                     return self._providers[fmt].fetch(
-                        resolution_mm=resolution_mm, voi=voi
+                        resolution_mm=resolution_mm, voi=voi, **kwargs
                     )
                 except requests.SiibraHttpRequestError as e:
                     logger.error(f"Cannot access {self._providers[fmt]}")

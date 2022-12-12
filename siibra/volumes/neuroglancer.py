@@ -57,7 +57,6 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
             res = None
         if res is not None:
             self._transform_nm = np.array(res)
-            logger.info("Affine transform found, intrepreted in nanometer space.")
             return self._transform_nm
 
         self._transform_nm = np.identity(1)
@@ -104,7 +103,7 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
             self._bootstrap()
         return self._scales_cached
 
-    def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox = None):
+    def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox = None, **kwargs):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
         return scale.fetch(voi)
@@ -323,7 +322,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, resolution_mm: float = None, mesh_index: int = None, voi=None):
+    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is  a dictionary with the keys:
@@ -331,16 +330,21 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         - faces: an MX3 array containing connection data of vertices
         - name: name of the fragment
         """
+        if resolution_mm is not None:
+            logger.warn(f"{self.__class__}.fetch() ignores 'resolution_mm' argument")
+        if voi is not None:
+            logger.warn(f"{self.__class__}.fetch() ignores 'voi' argument")
         if voi:
             raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
-        try: 
+        try:
             resp = requests.HttpRequest(
-                url=f"{self.url}/{self.mesh_key}/{str(mesh_index)}:0",
+                url=f"{self.url}/{self.mesh_key}/{str(meshindex)}:0",
                 func=requests.DECODERS['.json']
             ).data
             fragments = resp.get('fragments') if resp else None
-        except requests.SiibraHttpRequestError:
-            logger.error(f"Source {self} does not provide a mesh with index {mesh_index}.")
+        except requests.SiibraHttpRequestError as e:
+            print(str(e))
+            logger.error(f"Source {self} does not provide a mesh with index {meshindex}.")
             return None
         
         transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)

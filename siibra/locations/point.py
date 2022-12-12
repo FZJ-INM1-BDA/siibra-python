@@ -83,7 +83,7 @@ class Point(location.Location):
             The reference space
         sigma_mm : float
             Optional location uncertainy of the point
-            (will be intrepreded as the isotropic standard deviation of location)
+            (will be interpreted as the isotropic standard deviation of location)
         """
         location.Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)

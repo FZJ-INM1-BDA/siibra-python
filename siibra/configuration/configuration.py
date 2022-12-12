@@ -119,13 +119,15 @@ class Configuration:
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
-        # FIXME determine how to deal with cleanup funcs
         if isinstance(conn, str):
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls.CONFIGURATION_EXTENSIONS.append(conn)
+        # call registered cleanup functions
+        for func in cls._cleanup_funcs:
+            func()
 
     @classmethod
     def register_cleanup(cls, func):

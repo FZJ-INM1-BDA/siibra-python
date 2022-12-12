@@ -570,3 +570,12 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     assert (Hx + Hy) > 0
     NMI = 2 * MI / (Hx + Hy)
     return NMI
+
+
+def is_mesh(structure: Union[list, dict]):
+    if isinstance(structure, dict):
+        return all(k in structure for k in ["verts", "faces"])
+    elif isinstance(structure, list):
+        return all(map(is_mesh, structure))
+    else:
+        return False
