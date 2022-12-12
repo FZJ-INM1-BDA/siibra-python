@@ -79,6 +79,9 @@ class Volume:
 
     def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None):
         """ fetch the data in a requested format from one of the providers. """
+        if (voi is not None) and (voi.space != self.space):
+            logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")
+            voi = voi.warp(self.space)
         if variant is not None:
             logger.warn(
                 f"Variant {variant} requested, but {self.__class__.__name__} "

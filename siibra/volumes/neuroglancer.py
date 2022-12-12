@@ -106,8 +106,7 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
         return self._scales_cached
 
     def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox = None):
-        if voi is not None:
-            assert voi.space == self.space
+        # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm)
         logger.debug(
             f"Fetching resolution "
