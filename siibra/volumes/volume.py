@@ -368,6 +368,8 @@ class NeuroglancerVolumeFetcher(VolumeProvider, srctype="neuroglancer/precompute
 class NeuroglancerScale:
     """One scale of a NeuroglancerVolume."""
 
+    color_warning_issued = False
+
     def __init__(self, volume: NeuroglancerVolumeFetcher, scaleinfo: dict):
         self.volume = volume
         self.chunk_sizes = np.array(scaleinfo["chunk_sizes"]).squeeze()
@@ -461,10 +463,11 @@ class NeuroglancerScale:
         z0 = gz * self.chunk_sizes[2]
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
-        if not chunk_czyx.shape[0] == 1:
+        if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
             logger.warn(
                 "Color channel data is not yet supported. Returning first channel only."
             )
+            self.color_warning_issued = True
         chunk_zyx = chunk_czyx[0]
 
         if self.volume.USE_CACHE:
