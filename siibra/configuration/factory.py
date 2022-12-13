@@ -236,7 +236,13 @@ class Factory:
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
-        Maptype = parcellationmap.Map if len(volumes) < 10 else sparsemap.SparseMap
+        Maptype = parcellationmap.Map
+        if len(volumes) > 50:
+            logger.info(
+                f"Using sparse map for {spec['filename']} "
+                f"due to the number of {len(volumes)} volumes."
+            ) 
+            Maptype = sparsemap.SparseMap
 
         return Maptype(
             identifier=spec.get("@id", identifier),

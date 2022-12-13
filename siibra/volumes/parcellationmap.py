@@ -153,6 +153,11 @@ class Map(region.Region, configuration_folder="maps"):
     def find_indices(self, regionspec: Union[str, region.Region]):
         """ Returns the volume/label indices in this map
         which match the given region specification"""
+        if regionspec in self._indices:
+            return {
+                idx: regionspec
+                for idx in self._indices[regionspec]
+            }
         regionname = regionspec.name if isinstance(regionspec, region.Region) else regionspec
         matched_region_names = set(_.name for _ in self.parcellation.find(regionname))
         matches = matched_region_names & self._indices.keys()

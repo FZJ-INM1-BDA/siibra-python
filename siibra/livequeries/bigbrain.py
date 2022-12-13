@@ -48,7 +48,7 @@ class WagstylProfileLoader:
 
     @classmethod
     def _load(cls):
-        # read thicknesses, in mm, and normalize by their last columsn which is the total thickness
+        # read thicknesses, in mm, and normalize by their last column which is the total thickness
         mesh_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
         T = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
         total = T[:, :-1].sum(1)

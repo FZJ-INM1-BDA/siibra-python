@@ -30,6 +30,7 @@ import sys
 from io import BytesIO
 import urllib
 import pandas as pd
+import numpy as np
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -43,7 +44,8 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: io.imread(BytesIO(b))
+    ".png": lambda b: io.imread(BytesIO(b)),
+    ".npy": lambda b: np.load(BytesIO(b))
 }
 
 
