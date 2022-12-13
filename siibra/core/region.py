@@ -15,7 +15,7 @@
 
 from .concept import AtlasConcept
 from .space import Space
-from .location import PointSet, Point, BoundingBox
+from ..locations import PointSet, Point, BoundingBox
 
 from ..commons import (
     logger,
@@ -26,6 +26,8 @@ from ..commons import (
     create_key,
     clear_name,
     InstanceTable,
+    SIIBRA_DEFAULT_MAPTYPE,
+    SIIBRA_DEFAULT_MAP_THRESHOLD,
 )
 from ..retrieval.repositories import GitlabConnector
 
@@ -297,6 +299,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
         -----
         True or False
         """
+        if regionspec is None:
+            return False
+
         def splitstr(s):
             return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
@@ -330,7 +335,12 @@ class Region(anytree.NodeMixin, AtlasConcept):
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
 
-    def build_mask(self, space, maptype: MapType, threshold_continuous: float = None):
+    def build_mask(
+        self,
+        space,
+        maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
+        threshold_continuous: float = SIIBRA_DEFAULT_MAP_THRESHOLD
+    ):
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
@@ -342,7 +352,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
         for m in Map.registry():
             if all([
                 m.space.matches(space),
+                not m.is_surface,
                 m.maptype == maptype,
+                m.parcellation == self.parcellation,
                 self.name in m.regions
             ]):
                 result = m.fetch(index=m.get_index(self.name))
@@ -365,7 +377,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
                     else:
-                        assert mask.affine == affine
+                        assert np.linalg.norm(mask.affine - affine) < 1e-12
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
             if dataobj is not None:
@@ -380,11 +392,14 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
-        from ..volumes.map import Map
+        from ..volumes.parcellationmap import Map
         for m in Map.registry():
-            if m.space.matches(space):
-                if self.name in m.regions:
-                    return True
+            if all([
+                m.space.matches(space),
+                m.parcellation.matches(self.parcellation),
+                self.name in m.regions,
+            ]):
+                return True
         if not self.is_leaf:
             # check if all children are mapped instead
             return all(c.mapped_in_space(space) for c in self.children)
@@ -412,7 +427,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
             matchfunc=Space.matches,
             elements={s.key: s for s in self.supported_spaces},
         )
-
 
     def __getitem__(self, labelindex):
         """
@@ -452,6 +466,9 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def __str__(self):
         return f"{self.name}"
+
+    def __repr__(self):
+        return self.tree2str()
 
     def tree2str(self):
         return "\n".join(

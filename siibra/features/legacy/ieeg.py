@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import SpatialFeature
+from ..feature import SpatialFeature
 
-from .. import logger
-from ..configuration import REGISTRY, Query
-from ..core.datasets import EbrainsDataset
-from ..core.location import Point, PointSet, WholeBrain
-from ..retrieval.repositories import GitlabConnector
+from ... import logger
+from ...configuration.configuration import REGISTRY, Query
+from ...retrieval.datasets import EbrainsDataset
+from ...locations import Point, PointSet, WholeBrain
+from ...retrieval.repositories import GitlabConnector
 
 import re
 

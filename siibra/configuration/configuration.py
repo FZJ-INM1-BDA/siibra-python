@@ -13,14 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger, __version__, SIIBRA_USE_CONFIGURATION
-from .retrieval.repositories import GitlabConnector, RepositoryConnector
-from .retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
-from .retrieval.requests import SiibraHttpRequestError
+from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION
+from ..retrieval.repositories import GitlabConnector, RepositoryConnector
+from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
+from ..retrieval.requests import SiibraHttpRequestError
 
 from typing import Union
 from collections import defaultdict
 from requests.exceptions import ConnectionError
+from tqdm import tqdm
 
 from os import path
 
@@ -53,6 +54,8 @@ class Configuration:
     # loaded and fed to the Factory.from_json
     # to produce the corresponding object.
     spec_loaders = defaultdict(list)
+
+    _cleanup_funcs = []
 
     @staticmethod
     def get_folders(connector: RepositoryConnector):
@@ -110,6 +113,9 @@ class Configuration:
             raise RuntimeError("Configuration needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Using custom configuration from {str(conn)}")
         cls.CONFIGURATIONS = [conn]
+        # call registered cleanup functions
+        for func in cls._cleanup_funcs:
+            func()
 
     @classmethod
     def extend_configuration(cls, conn: Union[str, RepositoryConnector]):
@@ -119,6 +125,17 @@ class Configuration:
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Extending configuration with {str(conn)}")
         cls.CONFIGURATION_EXTENSIONS.append(conn)
+        # call registered cleanup functions
+        for func in cls._cleanup_funcs:
+            func()
+
+    @classmethod
+    def register_cleanup(cls, func):
+        """
+        Register an arbitrary function that should be executed when the
+        configuration is changed, e.g. with use_configuration().
+        """
+        cls._cleanup_funcs.append(func)
 
     def build_objects(self, folder: str, **kwargs):
         """
@@ -131,8 +148,19 @@ class Configuration:
             return result
 
         from .factory import Factory
-        objtype = None
-        for fname, loader in self.spec_loaders.get(folder, []):
+        specloaders = self.spec_loaders.get(folder, [])
+        if len(specloaders) == 0:
+            return result
+        else:
+            fname0, spec0 = specloaders[0]
+            obj0 = Factory.from_json(dict(spec0.data, **{'filename': fname0}))
+            objtype = obj0.__class__
+
+        for fname, loader in tqdm(
+            specloaders,
+            total=len(specloaders),
+            desc=f"Configuring {objtype.__name__} objects"
+        ):
             # filename is used by Factory to create an object identifier if none is provided.
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
             result.append(obj)

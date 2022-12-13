@@ -15,8 +15,8 @@
 
 
 from ..commons import logger
-from ..configuration import REGISTRY
-from ..core.space import Point, PointSet
+from ..configuration.configuration import REGISTRY
+from ..locations import Point, PointSet
 
 from ctypes import ArgumentError
 import numpy as np

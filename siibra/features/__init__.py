@@ -14,9 +14,14 @@
 # limitations under the License.
 
 from .feature import Feature
-get_features = Feature.match
+from .simple import GeneExpression, EbrainsAnchoredDataset
+from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint
+from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
+from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
+from .voi import VolumeOfInterest
 
-# __all__ = []
-# from .genes import GENE_NAMES as gene_names
-# modalities = AnchoredFeature.get_modalities()
-# __all__ += ['gene_names', 'modalities']
+from ..livequeries.bigbrain import BigBrainProfileQuery, BigBrainIntensityFingerprintQuery
+from ..livequeries.allen import AllenBrainAtlasQuery
+from ..livequeries.ebrains import EbrainsFeatureQuery
+
+get_features = Feature.match

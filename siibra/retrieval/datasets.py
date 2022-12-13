@@ -23,6 +23,7 @@ from typing import Union
 class EbrainsDataset:
 
     def __init__(self, id, name=None, embargo_status=None, *, cached_data=None):
+
         self.id = id
         self._cached_data = cached_data
         self.embargo_status = embargo_status
@@ -102,5 +103,3 @@ class EbrainsDataset:
         if isinstance(spec, str):
             return self.id == spec
         raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsDataset")
-
-

@@ -20,7 +20,8 @@ from nibabel import Nifti1Image
 import logging
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
-
+from io import BytesIO
+from skimage.filters import gaussian
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -123,7 +124,7 @@ class InstanceTable(Generic[T], Iterable):
             Matched object
         """
         if spec is None:
-            raise IndexError(f"{__class__.__name__} indexed with None")
+            return None
         elif spec == "":
             raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)
@@ -274,12 +275,14 @@ class MapType(Enum):
     CONTINUOUS = 2
 
 
+SIIBRA_DEFAULT_MAPTYPE = None
+SIIBRA_DEFAULT_MAP_THRESHOLD = None
+
+
 REMOVE_FROM_NAME = [
     "hemisphere",
     " -",
     "-brain",
-    # region string used in receptor features sometimes contains both/Both keywords
-    # when they are present, the regions cannot be parsed properly
     "both",
     "Both",
 ]
@@ -415,3 +418,165 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
         "contains": intersection / N2,
         "correlation": r,
     }
+
+
+class PolyLine:
+    """Simple polyline representation which allows equidistant sampling.."""
+
+    def __init__(self, pts):
+        self.pts = pts
+        self.lengths = [
+            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
+            for i in range(1, pts.shape[0])
+        ]
+
+    def length(self):
+        return sum(self.lengths)
+
+    def sample(self, d):
+
+        # if d is interable, we assume a list of sample positions
+        try:
+            iter(d)
+        except TypeError:
+            positions = [d]
+        else:
+            positions = d
+
+        samples = []
+        for s_ in positions:
+            s = min(max(s_, 0), 1)
+            target_distance = s * self.length()
+            current_distance = 0
+            for i, length in enumerate(self.lengths):
+                current_distance += length
+                if current_distance >= target_distance:
+                    p1 = self.pts[i, :]
+                    p2 = self.pts[i + 1, :]
+                    r = (target_distance - current_distance + length) / length
+                    samples.append(p1 + (p2 - p1) * r)
+                    break
+
+        if len(samples) == 1:
+            return samples[0]
+        else:
+            return np.array(samples)
+
+
+def unify_stringlist(L: list):
+    """Adds asterisks to strings that appear multiple times, so the resulting
+    list has only unique strings but still the same length, order, and meaning.
+    For example:
+        unify_stringlist(['a','a','b','a','c']) -> ['a','a*','b','a**','c']
+    """
+    assert all([isinstance(_, str) for _ in L])
+    return [L[i] + "*" * L[:i].count(L[i]) for i in range(len(L))]
+
+
+def decode_receptor_tsv(bytearray):
+    bytestream = BytesIO(bytearray)
+    header = bytestream.readline()
+    lines = [_.strip() for _ in bytestream.readlines() if len(_.strip()) > 0]
+    sep = b"{" if b"{" in lines[0] else b"\t"
+    keys = unify_stringlist(
+        [
+            n.decode("utf8").replace('"', "").replace("'", "").strip()
+            for n in header.split(sep)
+        ]
+    )
+    if any(k.endswith("*") for k in keys):
+        logger.warning("Redundant headers in receptor file")
+    assert len(keys) == len(set(keys))
+    return {
+        _.split(sep)[0].decode("utf8"): dict(
+            zip(
+                keys,
+                [re.sub(r"\\+", r"\\", v.decode("utf8").strip()) for v in _.split(sep)],
+            )
+        )
+        for _ in lines
+    }
+
+
+def create_gaussian_kernel(sigma=1, sigma_point=3):
+    """
+    Compute a 3D Gaussian kernel of the given bandwidth.
+    """
+    r = int(sigma_point * sigma)
+    k_size = 2 * r + 1
+    impulse = np.zeros((k_size, k_size, k_size))
+    impulse[r, r, r] = 1
+    kernel = gaussian(impulse, sigma)
+    kernel /= kernel.sum()
+    return kernel
+
+
+def argmax_dim4(img, dim=-1):
+    """
+    Given a nifti image object with four dimensions, returns a modified object
+    with 3 dimensions that is obtained by taking the argmax along one of the
+    four dimensions (default: the last one). To distinguish the pure background
+    voxels from the foreground voxels of channel 0, the argmax indices are
+    incremented by 1 and label index 0 is kept to represent the background.
+    """
+    assert len(img.shape) == 4
+    assert dim >= -1 and dim < 4
+    newarr = np.asarray(img.dataobj).argmax(dim) + 1
+    # reset the true background voxels to zero
+    newarr[np.asarray(img.dataobj).max(dim) == 0] = 0
+    return Nifti1Image(dataobj=newarr, header=img.header, affine=img.affine)
+
+
+def MI(arr1, arr2, nbins=100, normalized=True):
+    """
+    Compute the mutual information between two 3D arrays, which need to have the same shape.
+
+    Parameters:
+    arr1 : First 3D array
+    arr2 : Second 3D array
+    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized : Boolean, default:True
+        if True, the normalized MI of arrays X and Y will be returned,
+        leading to a range of values between 0 and 1. Normalization is
+        achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
+    """
+
+    assert all(len(arr.shape) == 3 for arr in [arr1, arr2])
+    assert (all(arr.size > 0) for arr in [arr1, arr2])
+
+    # compute the normalized joint 2D histogram as an
+    # empirical measure of the joint probabily of arr1 and arr2
+    pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
+    pxy /= pxy.sum()
+
+    # extract the empirical propabilities of intensities
+    # from the joint histogram
+    px = np.sum(pxy, axis=1)  # marginal for x over y
+    py = np.sum(pxy, axis=0)  # marginal for y over x
+
+    # compute the mutual information
+    px_py = px[:, None] * py[None, :]
+    nzs = pxy > 0  # nonzero value indices
+    MI = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    if not normalized:
+        return MI
+
+    # normalize, using the sum of their individual entropies H
+    def entropy(p):
+        nz = p > 0
+        assert np.count_nonzero(nz) > 0
+        return -np.sum(p[nz] * np.log(p[nz]))
+
+    Hx, Hy = [entropy(p) for p in [px, py]]
+    assert (Hx + Hy) > 0
+    NMI = 2 * MI / (Hx + Hy)
+    return NMI
+
+
+def is_mesh(structure: Union[list, dict]):
+    if isinstance(structure, dict):
+        return all(k in structure for k in ["verts", "faces"])
+    elif isinstance(structure, list):
+        return all(map(is_mesh, structure))
+    else:
+        return False

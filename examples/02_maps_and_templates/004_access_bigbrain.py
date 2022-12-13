@@ -46,14 +46,17 @@ plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 # two corner points in the histological space. We specify the points with
 # a string representation, which could be conveniently copy pasted from the
 # interactive viewer `siibra explorer <https://atlases.ebrains.eu/viewer>`_.
-# Of course we can also specify coordinates by a 3-tuple, and in other ways.
-voi = siibra.BoundingBox(
-    point1="-30.590mm, 3.270mm, 47.814mm",
-    point2="-26.557mm, 6.277mm, 50.631mm",
-    space=siibra.spaces['bigbrain']
-)
+# Note that the coordinates can be specified by 3-tuples, and in other ways.
+space = siibra.spaces['bigbrain']
+voi = space.get_bounding_box(point1="-30.590mm, 3.270mm, 47.814mm",
+    point2="-26.557mm, 6.277mm, 50.631mm")
 bigbrain_chunk = bigbrain.fetch(voi=voi, resolution_mm=0.02)
 plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
+
+# BUG: The NeuroglancerVolumeFetcher object has no attribute 'space'.
+# `if voi is not None: assert voi.space == self.space`
+# The object never establishes the space. Instead of asserting, perhaps it should set based on the voi provided.
+# (The rest of the code should be working if above solution is implemented.)
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly

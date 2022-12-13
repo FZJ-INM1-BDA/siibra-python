@@ -27,10 +27,10 @@ setup(
     include_package_data=True,
     package_data={
         'siibra': [
-            'features/region_aliases_human.json',
             'VERSION',
             'vocabularies/gene_names.json',
-            'vocabularies/receptory_symbols.json',
+            'vocabularies/receptor_symbols.json',
+            'vocabularies/region_aliases.json'
         ]
     },
     classifiers=[

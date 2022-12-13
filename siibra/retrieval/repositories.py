@@ -99,25 +99,6 @@ class RepositoryConnector(ABC):
                 f"connector from url '{url}'."
             )
 
-    @classmethod
-    def _from_json(cls, spec):
-        spectype = spec["@type"]
-        if spectype == "siibra/repository/zippedfile/v1.0.0":
-            return ZipfileConnector(
-                spec['url']
-            )
-        elif spectype == "siibra/repository/gitlab/v1.0.0":
-            return GitlabConnector(
-                server=spec['server'],
-                project=spec['project'],
-                reftag=spec['branch']
-            )
-        else:
-            raise TypeError(
-                "Do not know how to create a repository "
-                f"connector from specification type {spectype}."
-            )
-
 
 class LocalFileRepository(RepositoryConnector):
 

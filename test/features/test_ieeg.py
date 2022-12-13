@@ -1,6 +1,6 @@
 import pytest
 from siibra import parcellations
-from siibra.features.ieeg import IEEG_Session, IEEG_SessionQuery, IEEGSessionModel
+from siibra.features.legacy.ieeg import IEEG_Session, IEEG_SessionQuery, IEEGSessionModel
 
 ieeg_query = IEEG_SessionQuery()
 

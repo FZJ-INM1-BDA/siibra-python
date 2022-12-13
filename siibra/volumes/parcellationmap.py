@@ -13,20 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import Volume, NiftiFetcher, Subvolume
-from .util import create_gaussian_kernel
+from . import volume, nifti
 
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key
-from ..core.concept import AtlasConcept
-from ..core.space import Space
-from ..core.parcellation import Parcellation
-from ..core.location import Point, PointSet, BoundingBox
-from ..core.region import Region
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, is_mesh
+from ..core import concept, space, parcellation, region
+from ..locations import point, pointset, boundingbox
+from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
-from typing import Union, Dict
+from typing import Union, Dict, List
 
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
@@ -35,7 +32,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(AtlasConcept, configuration_folder="maps"):
+class Map(region.Region, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -85,7 +82,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
         datasets : list
             datasets associated with this concept
         """
-        AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -106,17 +103,17 @@ class Map(AtlasConcept, configuration_folder="maps"):
             k = clear_name(regionname)
             self._indices[k] = []
             for index in indexlist:
-                volume = 0 if index.get('volume') is None else index['volume']
-                assert volume in range(len(volumes))
+                vol = 0 if index.get('volume') is None else index['volume']
+                assert vol in range(len(volumes))
                 z = index.get('z')
-                if (volume, z) not in remap_volumes:
+                if (vol, z) not in remap_volumes:
                     if z is None:
-                        self.volumes.append(volumes[volume])
+                        self.volumes.append(volumes[vol])
                     else:
-                        self.volumes.append(Subvolume(volumes[volume], z))
-                    remap_volumes[volume, z] = len(self.volumes) - 1
+                        self.volumes.append(volume.Subvolume(volumes[vol], z))
+                    remap_volumes[vol, z] = len(self.volumes) - 1
                 self._indices[k].append(
-                    MapIndex(volume=remap_volumes[volume, z], label=index.get('label'))
+                    MapIndex(volume=remap_volumes[vol, z], label=index.get('label'))
                 )
 
         # make sure the indices are unique - each map/label pair should appear at most once
@@ -128,10 +125,11 @@ class Map(AtlasConcept, configuration_folder="maps"):
 
         self._space_spec = space_spec
         self._parcellation_spec = parcellation_spec
+        self._affine_cached = None
         for v in self.volumes:
             v._space_spec = space_spec
 
-    def get_index(self, region: Union[str, Region]):
+    def get_index(self, regionspec: Union[str, region.Region]):
         """
         Returns the unique index corresponding to the specified region,
         assuming that the specification matches one unique region
@@ -139,23 +137,23 @@ class Map(AtlasConcept, configuration_folder="maps"):
         If not unique, or not defined, an exception will be thrown.
         See find_indices() for a less strict search returning all matches.
         """
-        matches = self.find_indices(region)
+        matches = self.find_indices(regionspec)
         if len(matches) > 1:
             raise RuntimeError(
-                f"The specification '{region}' matches multiple mapped "
+                f"The specification '{regionspec}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
             raise RuntimeError(
-                f"The specification '{region}' does not match to any structure mapped in {self}"
+                f"The specification '{regionspec}' does not match to any structure mapped in {self}"
             )
         else:
             return next(iter(matches))
 
-    def find_indices(self, region: Union[str, Region]):
+    def find_indices(self, regionspec: Union[str, region.Region]):
         """ Returns the volume/label indices in this map
         which match the given region specification"""
-        regionname = region.name if isinstance(region, Region) else region
+        regionname = regionspec.name if isinstance(regionspec, region.Region) else regionspec
         matched_region_names = set(_.name for _ in self.parcellation.find(regionname))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
@@ -166,10 +164,10 @@ class Map(AtlasConcept, configuration_folder="maps"):
             for idx in self._indices[regionname]
         }
 
-    def get_region(self, label: int = None, volume: int = None, index: MapIndex = None):
+    def get_region(self, label: int = None, vol: int = None, index: MapIndex = None):
         """ Returns the region mapped by the given index, if any. """
         if index is None:
-            index = MapIndex(volume, label)
+            index = MapIndex(vol, label)
         matches = [
             regionname
             for regionname, indexlist in self._indices.items()
@@ -188,14 +186,14 @@ class Map(AtlasConcept, configuration_folder="maps"):
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return Space.get_instance(self._space_spec[key])
-        return Space(None, "Unspecified space")
+                return space.Space.get_instance(self._space_spec[key])
+        return space.Space(None, "Unspecified space")
 
     @property
     def parcellation(self):
         for key in ["@id", "name"]:
             if key in self._parcellation_spec:
-                return Parcellation.get_instance(self._parcellation_spec[key])
+                return parcellation.Parcellation.get_instance(self._parcellation_spec[key])
         logger.warn(
             f"Cannot determine parcellation of {self.__class__.__name__} "
             f"{self.name} from {self._parcellation_spec}"
@@ -230,86 +228,126 @@ class Map(AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        volume: int = None,
+        vol: int = None,
         resolution_mm: float = None,
-        voi: BoundingBox = None,
+        voi: boundingbox.BoundingBox = None,
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
+        regionspec: str = None
     ):
         """
-        Fetches one particular mapped volume of this mapped.
-        If there's only one map,  this is the default, otherwise the
-        volume index needs to be specified, or fetch_iter() should be used
-        to iterate the volumes.
+        Fetches one particular volume of this parcellation map.
+        If there's only one map, this is the default, otherwise further 
+        specication is requested: 
+        - the volume index, 
+        - the MapIndex (which results in a regional map being returned)
+
+        You might also consider fetch_iter() to iterate the volumes, or compress()
+        to produce a single-volume parcellation map.
 
         Parameters
         ----------
-        volume : int
+        vol : int
             The index of the mapped volume to be fetched.
         resolution_mm : float or None (optional)
             Physical resolution of the map, used for multi-resolution image volumes.
             If None, the smallest possible resolution will be chosen.
             If -1, the largest feasible resolution will be chosen.
+        index: MapIndex
+            a full map index (specifying volume and label indexs)
         voi: VolumeOfInterest
             bounding box specification
         variant : str
             Optional specification of a specific variant to use for the maps. For example,
             fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
         format: str
-            optional specificatino of the voume format to use (e.g. "nii", "neuroglancer/precomputed")
+            optional specification of the volume format to use (e.g. "nii", "neuroglancer/precomputed")
         """
         assert len(self) > 0
-        if index is not None:
-            assert volume is None
+
+        # determine the actual mapindex resulting from the parameters
+        if index is not None:  # if a map index is provided, we expect no volume
+            assert vol is None
             assert isinstance(index, MapIndex)
-            volume = index.volume
-        elif isinstance(volume, MapIndex):
-            # be kind if an index is passed as the first parameter
-            volume = volume.volume
-            index = volume
-        elif isinstance(volume, str):
-            # be kind if a region name is passed as the first parameter
-            index = self.get_index(volume)
-            volume = index.volume
-        if len(self) > 1:
-            if volume is None:
-                raise ValueError(
-                    f"{self} provides {len(self)} mapped volumes, please specify which "
-                    "one to fetch, or use fetch_iter() to iterate over all volumes."
-                )
-            else:
-                if not isinstance(volume, int):
-                    raise ValueError(f"Parameter 'volume' should be an integer, but '{type(volume).__name__}' was provided.")
-                if volume >= len(self):
-                    raise ValueError(
-                        f"{self} provides only {len(self)} mapped volumes, "
-                        f"but #{volume} was requested."
-                    )
-        result = self.volumes[volume or 0].fetch(
-            resolution_mm=resolution_mm,
-            format=format,
-            voi=voi,
-            variant=variant
-        )
-        if index is None or index.label is None:
-            return result
+            mapindex = index
+        elif isinstance(vol, MapIndex):  # tolerate if the first parameter is a MapIndex
+            mapindex = vol
+        elif regionspec is not None:
+            assert isinstance(regionspec, str)
+            mapindex = self.get_index(regionspec)
+        elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
+            mapindex = self.get_index(vol)
+        elif isinstance(vol, int):
+            mapindex = MapIndex(volume=vol, label=None)
         else:
-            logger.debug(f"Creating binary mask for label {index.label} from volume {volume}")
+            if format in volume.Volume.SURFACE_FORMATS:
+                mapindex = next(iter(self._indices.values()))[0]
+            else:
+                mapindex = MapIndex(volume=0, label=None)
+            logger.info(f"No volume or index defined, assuming {mapindex} for fetch()")
+
+        if len(self) > 1 and mapindex.volume is None:
+            raise ValueError(
+                f"{self} provides {len(self)} mapped volumes, please specify which "
+                "one to fetch, or use fetch_iter() to iterate over all volumes."
+            )
+
+        if mapindex.volume >= len(self):
+            raise ValueError(
+                f"{self} provides only {len(self)} mapped volumes, but #{mapindex.volume} was requested."
+            )
+
+        try:
+            result = self.volumes[mapindex.volume or 0].fetch(
+                resolution_mm=resolution_mm,
+                format=format,
+                voi=voi,
+                variant=variant,
+                meshindex=mapindex.label,
+            )
+        except requests.SiibraHttpRequestError:
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+
+        if result is None:
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+        elif mapindex.label is None:
+            return result
+        elif is_mesh(result):
+            return result
+        elif isinstance(result, Nifti1Image): 
+            logger.debug(f"Creating binary mask for label {mapindex.label} from volume {mapindex.volume}")
             return Nifti1Image(
-                (np.asanyarray(result.dataobj) == index.label).astype("uint8"),
+                (np.asanyarray(result.dataobj) == mapindex.label).astype("uint8"),
                 result.affine
             )
+        raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+
+    @property
+    def is_surface(self):
+        return all(v.is_surface for v in self.volumes)
 
     @property
     def affine(self):
-        with QUIET:
-            return self.fetch(volume=0).affine
+        if self._affine_cached is None:
+            # we compute the affine from a volumetric volume provider
+            for fmt in volume.Volume.PREFERRED_FORMATS:
+                if fmt not in volume.Volume.SURFACE_FORMATS:
+                    try:
+                        self._affine_cached = self.fetch(vol=0, format=fmt).affine
+                        break
+                    except RuntimeError:
+                        continue
+            else:
+                raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
+        if not isinstance(self._affine_cached, np.ndarray):
+            logger.error("invalid affine:", self._affine_cached)
+        return self._affine_cached
 
     def fetch_iter(
         self,
         resolution_mm=None,
-        voi: BoundingBox = None,
+        voi: boundingbox.BoundingBox = None,
         variant: str = None,
         format: str = None
     ):
@@ -338,30 +376,32 @@ class Map(AtlasConcept, configuration_folder="maps"):
     def __iter__(self):
         return self.fetch_iter()
 
-    def compress(self):
+    def compress(self, **kwargs):
         """
         Converts this map into a labelled 3D parcellation map, obtained
         by taking the voxelwise maximum across the mapped volumes, and
         re-labelling regions sequentially.
         """
-        result_nii = None
-        voxelwise_max = None
         next_labelindex = 1
         region_indices = defaultdict(list)
 
-        for volume in tqdm(
+        # initialize empty volume according to the template
+        template = self.space.get_template().fetch(**kwargs)
+        result_data = np.zeros_like(np.asanyarray(template.dataobj))
+        voxelwise_max = np.zeros_like(result_data)
+        result_nii = Nifti1Image(result_data, template.affine)
+        interpolation = 'nearest' if self.maptype == MapType.LABELLED else 'linear'
+
+        for vol in tqdm(
             range(len(self)), total=len(self), unit='maps',
-            desc=f"Building compressed 3D map from {len(self)} {self.maptype.name.lower()} volumes"
+            desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
-            with QUIET:
-                img = self.fetch(volume=volume)
+            img = self.fetch(vol=vol)
+            if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
+                img = image.resample_to_img(img, result_nii, interpolation)
             img_data = np.asanyarray(img.dataobj)
-
-            if result_nii is None:
-                result_data = np.zeros_like(img_data)
-                voxelwise_max = np.zeros_like(img_data)
-                result_nii = Nifti1Image(result_data, img.affine)
 
             if self.maptype == MapType.LABELLED:
                 labels = set(np.unique(img_data)) - {0}
@@ -369,7 +409,11 @@ class Map(AtlasConcept, configuration_folder="maps"):
                 labels = {None}
 
             for label in labels:
-                region = self.get_region(label=label, volume=volume)
+                with QUIET:
+                    region = self.get_region(label=label, vol=vol)
+                if region is None:
+                    logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                    continue
                 region_indices[region.name].append({"volume": 0, "label": next_labelindex})
                 if label is None:
                     update_voxels = (img_data > voxelwise_max)
@@ -386,9 +430,9 @@ class Map(AtlasConcept, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[
-                Volume(
+                volume.Volume(
                     space_spec=self._space_spec,
-                    providers=[NiftiFetcher(result_nii)]
+                    providers=[nifti.NiftiFetcher(result_nii)]
                 )
             ]
         )
@@ -419,7 +463,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
             else:
                 centroid_vox = np.array(np.where(maparr == index.label)).mean(1)
             assert regionname not in centroids
-            centroids[regionname] = Point(
+            centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
             )
         return centroids
@@ -441,8 +485,8 @@ class Map(AtlasConcept, configuration_folder="maps"):
         for volidx, vol in enumerate(self.fetch_iter()):
             img = np.asanyarray(vol.dataobj)
             maxarr = np.zeros_like(img)
-            for region, value in values.items():
-                index = self.get_index(region)
+            for r, value in values.items():
+                index = self.get_index(r)
                 if index.volume != volidx:
                     continue
                 if result is None:
@@ -487,11 +531,11 @@ class Map(AtlasConcept, configuration_folder="maps"):
             np.unravel_index(np.random.choice(len(p), numpoints, p=p), W.shape)
         ).T
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
+        return pointset.PointSet(XYZ, space=self.space)
 
     def assign(
         self,
-        item: Union[Point, PointSet, Nifti1Image],
+        item: Union[point.Point, pointset.PointSet, Nifti1Image],
         msg=None,
         quiet=False,
         minsize_voxel=1,
@@ -545,9 +589,9 @@ class Map(AtlasConcept, configuration_folder="maps"):
         """
 
         components = None
-        if isinstance(item, Point):
-            assignments = self._assign_points(PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
-        elif isinstance(item, PointSet):
+        if isinstance(item, point.Point):
+            assignments = self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+        elif isinstance(item, pointset.PointSet):
             assignments = self._assign_points(item, lower_threshold)
         elif isinstance(item, Nifti1Image):
             assignments = self._assign_image(item, minsize_voxel, lower_threshold)
@@ -564,16 +608,20 @@ class Map(AtlasConcept, configuration_folder="maps"):
         else:
             result = np.array(assignments)
             ind = np.lexsort((-result[:, -1], result[:, 0]))
+            region_lut = {
+                (mi.volume, mi.label): r
+                for r, l in self._indices.items()
+                for mi in l
+            }
+            if self.maptype == MapType.CONTINUOUS:
+                regions = [region_lut[v, None] for v in result[ind, 1].astype('int')]
+            else:
+                regions = [region_lut[v, l] for v, l in result[ind, 1:3].astype('int')]
             df = pd.DataFrame(
                 {
                     "Structure": result[ind, 0].astype("int"),
                     "Volume": result[ind, 1].astype("int"),
-                    "Region": [
-                        self.get_region(volume=m, label=None).name
-                        if self.maptype == MapType.CONTINUOUS
-                        else self.get_region(volume=m, label=result[ind, 2]).name
-                        for m in result[ind, 1]
-                    ],
+                    "Region": regions,
                     "Value": result[ind, 2],
                     "Correlation": result[ind, 6],
                     "IoU": result[ind, 3],
@@ -602,11 +650,24 @@ class Map(AtlasConcept, configuration_folder="maps"):
             for label in component_labels[1:]
         )
 
-    def _read_voxel(self, x, y, z):
-        return [
-            (volume, np.asanyarray(volimg.dataobj)[x, y, z])
-            for volume, volimg in enumerate(self)
-        ]
+    def _read_voxel(
+        self,
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List]
+    ):
+        if isinstance(x, int):
+            return [
+                (None, volume, np.asanyarray(volimg.dataobj)[x, y, z])
+                for volume, volimg in enumerate(self)
+            ]
+        else:
+            return [
+                (pointindex, volume, value)
+                for volume, volimg in enumerate(self)
+                for pointindex, value
+                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+            ]
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -620,7 +681,7 @@ class Map(AtlasConcept, configuration_folder="maps"):
         """
         assignments = []
 
-        if points.space_id != self.space.id:
+        if points.space != self.space:
             logger.info(
                 f"Coordinates will be converted from {points.space.name} "
                 f"to {self.space.name} space for assignment."
@@ -631,27 +692,47 @@ class Map(AtlasConcept, configuration_folder="maps"):
         ).mean()
         phys2vox = np.linalg.inv(self.affine)
 
-        for pointindex, point in enumerate(points.warp(self.space.id)):
+        # if all points have the same sigma, and lead to a standard deviation
+        # below 3 voxels, we are much faster with a multi-coordinate readout.
+        if points.has_constant_sigma:
+            sigma_vox = points.sigma[0] / scaling
+            if sigma_vox < 3:
+                logger.info("Points have constant single-voxel precision, using direct multi-point lookup.")
+                X, Y, Z = (np.dot(phys2vox, points.homogeneous.T) + 0.5).astype("int")[:3]
+                for pointindex, vol, value in self._read_voxel(X, Y, Z):
+                    if value > lower_threshold:
+                        assignments.append(
+                            [pointindex, vol, value, np.nan, np.nan, np.nan, np.nan]
+                        )
+            return assignments
 
-            sigma_vox = point.sigma / scaling
+        # if we get here, we need to handle each point independently.
+        # This is much slower but more precise in dealing with the uncertainties
+        # of the coordinates.
+        for pointindex, pt in tqdm(
+            enumerate(points.warp(self.space.id)),
+            total=len(points), desc="Warping points",
+        ):
+
+            sigma_vox = pt.sigma / scaling
             if sigma_vox < 3:
                 # voxel-precise - just read out the value in the maps
                 N = len(self)
-                logger.debug(f"Assigning coordinate {tuple(point)} to {N} maps")
-                x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[:3]
+                logger.debug(f"Assigning coordinate {tuple(pt)} to {N} maps")
+                x, y, z = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")[:3]
                 vals = self._read_voxel(x, y, z)
-                for volume, value in vals:
+                for _, vol, value in vals:
                     if value > lower_threshold:
                         assignments.append(
                             [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
                 logger.debug(
-                    f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
+                    f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
                 r = int(kernel.shape[0] / 2)  # effective radius
-                xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
+                xyz_vox = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")
                 shift = np.identity(4)
                 shift[:3, -1] = xyz_vox[:3] - r
                 # build niftiimage with the Gaussian blob,
@@ -697,15 +778,15 @@ class Map(AtlasConcept, configuration_folder="maps"):
 
         with QUIET:
             for mode, maskimg in Map.iterate_connected_components(queryimg):
-                for volume, vol_img in enumerate(self):
+                for vol, vol_img in enumerate(self):
                     vol_data = np.asanyarray(vol_img.dataobj)
-                    labels = [v.label for L in self._indices.values() for v in L if v.volume == volume]
+                    labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
                     for label in tqdm(labels):
                         targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                         scores = compare_maps(maskimg, targetimg)
                         if scores["overlap"] > 0:
                             assignments.append(
-                                [mode, volume, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
+                                [mode, vol, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
                             )
 
         return assignments
@@ -717,7 +798,7 @@ class LabelledSurface:
     explicit knowledge about the region information per labelindex or channel.
     """
 
-    def __init__(self, parcellation, space: Space):
+    def __init__(self, parcellation, spaceobj: space.Space):
         """
         Construct a labelled surface for the given parcellation and space.
 
@@ -728,8 +809,8 @@ class LabelledSurface:
         space : Space
             The desired template space to build the map
         """
-        assert space.type == "gii"
-        super().__init__(parcellation, space, MapType.LABELLED)
+        assert spaceobj.type == "gii"
+        super().__init__(parcellation, spaceobj, MapType.LABELLED)
         self.type = "gii-label"
 
     def _define_maps_and_regions(self):
@@ -814,7 +895,7 @@ class LabelledSurface:
         """
 
         result = []
-        for volume, mesh in enumerate(self.fetch_iter(variant=variant)):
+        for vol, mesh in enumerate(self.fetch_iter(variant=variant)):
             if (name is not None) and (name != mesh['name']):
                 continue
             cmesh = {
@@ -823,13 +904,13 @@ class LabelledSurface:
                 'labels': np.zeros_like(mesh['labels']),
                 'name': mesh['name'],
             }
-            for region, value in values.items():
+            for r, value in values.items():
                 try:
-                    indices = self.get_index(region)
+                    indices = self.get_index(r)
                 except IndexError:
                     continue
                 for index in indices:
-                    if index.volume == volume:
+                    if index.volume == vol:
                         cmesh['labels'][mesh['labels'] == index.label] = value
             result.append(cmesh)
 

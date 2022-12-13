@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .map import Map
+from . import parcellationmap
 
 from ..commons import MapIndex, logger
-from ..core.location import BoundingBox
-from ..retrieval import CACHE
+from ..locations import boundingbox
+from ..retrieval import cache
 
 from os import path
 import gzip
@@ -37,7 +37,7 @@ class SparseIndex:
         # these are initialized when adding the first volume, see below
         self.affine: np.ndarray = None
         self.shape = None
-        self.voxels: Nifti1Image = None
+        self.voxels: np.ndarray = None
 
     def add_img(self, img: Nifti1Image):
 
@@ -108,9 +108,9 @@ class SparseIndex:
     def to_cache(self, prefix: str):
         """ Serialize this index to the cache,
         using the given prefix for the cache filenames. """
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        voxelfile = CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
         Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
         with gzip.open(probsfile, 'wt') as f:
             for D in self.probs:
@@ -132,9 +132,9 @@ class SparseIndex:
         Returns None if cached files are not found or suitable.
         """
 
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        voxelfile = CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
         if not all(path.isfile(f) for f in [probsfile, bboxfile, voxelfile]):
             return None
 
@@ -173,7 +173,7 @@ class SparseIndex:
         return result
 
 
-class SparseMap(Map):
+class SparseMap(parcellationmap.Map):
     """A sparse representation of list of continuous (e.g. probabilistic) brain region maps.
 
     It represents the 3D continuous maps of N brain regions by two data structures:
@@ -210,7 +210,7 @@ class SparseMap(Map):
         publications: list = [],
         datasets: list = [],
     ):
-        Map.__init__(
+        parcellationmap.Map.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -234,15 +234,15 @@ class SparseMap(Map):
             spind = SparseIndex.from_cache(prefix)
             if spind is None:
                 spind = SparseIndex()
-                for volume in tqdm(
+                for vol in tqdm(
                     range(len(self)), total=len(self), unit="maps",
                     desc=f"Fetching {len(self)} volumetric maps",
                     disable=logger.level > 20,
                 ):
-                    img = super().fetch(volume=volume)
+                    img = super().fetch(vol=vol)
                     if img is None:
-                        region = self.get_region(volume=volume)
-                        logger.error(f"Cannot retrieve volume #{volume} for {region.name}, it will not be included in the sparse map.")
+                        region = self.get_region(vol=vol)
+                        logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                         continue
                     spind.add_img(img)
                 spind.to_cache(prefix)
@@ -260,9 +260,9 @@ class SparseMap(Map):
 
     def fetch(
         self,
-        volume: int = None,
+        vol: int = None,
         resolution_mm: float = None,
-        voi: BoundingBox = None,
+        voi: boundingbox.BoundingBox = None,
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
@@ -294,19 +294,19 @@ class SparseMap(Map):
 
         """
         if index is not None:
-            assert volume is None
+            assert vol is None
             assert isinstance(index, MapIndex)
-            volume = index.volume
-        elif isinstance(volume, MapIndex):
+            vol = index.volume
+        elif isinstance(vol, MapIndex):
             # be kind if an index is passed as the first parameter
-            volume = volume.volume
-        elif isinstance(volume, str):
+            vol = vol.volume
+        elif isinstance(vol, str):
             # be kind if a region name is passed as the first parameter
             logger.info(
-                f"'{volume}' will be interpreted as a region name to decode the volume index."
+                f"'{vol}' will be interpreted as a region name to decode the volume index."
             )
-            index = self.get_index(volume)
-            volume = index.volume
+            index = self.get_index(vol)
+            vol = index.volume
         if voi is not None:
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support volume of interest fetching yet."
@@ -315,12 +315,12 @@ class SparseMap(Map):
             raise NotImplementedError(
                 f"{self.__class__.__name__} does not support fetching at resolutions other than 1mm yet."
             )
-        if volume is None:
+        if vol is None:
             assert index is not None
-            volume = index.volume
-        assert isinstance(volume, int)
+            vol = index.volume
+        assert isinstance(vol, int)
 
-        x, y, z, v = self.sparse_index.mapped_voxels(volume)
+        x, y, z, v = self.sparse_index.mapped_voxels(vol)
         if cropped:
             bbox = np.array([[min(_), max(_)] for _ in [x, y, z]])
             result = np.zeros(bbox[:, 1] - bbox[:, 0] + 1)
@@ -336,7 +336,18 @@ class SparseMap(Map):
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index
-        return list(spind.probs[spind.voxels[x, y, z]].items())
+        vx = spind.voxels[x, y, z]
+        if isinstance(vx, int):
+            return list(
+                (None, volume, value)
+                for volume, value in spind.probs[vx].items()
+            )
+        else:
+            return list(
+                (pointindex, volume, value)
+                for pointindex, voxel in enumerate(vx)
+                for volume, value in spind.probs[voxel].items()
+            )
 
     def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
         """
@@ -373,7 +384,7 @@ class SparseMap(Map):
 
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        for mode, modeimg in Map.iterate_connected_components(queryimg):
+        for mode, modeimg in parcellationmap.Map.iterate_connected_components(queryimg):
 
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
@@ -383,7 +394,7 @@ class SparseMap(Map):
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
 
-            bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
+            bbox2 = boundingbox.BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
             if bbox2.volume == 0:
                 continue
 
@@ -396,7 +407,7 @@ class SparseMap(Map):
                 unit=" map",
                 disable=logger.level > 20,
             ):
-                bbox1 = BoundingBox(
+                bbox1 = boundingbox.BoundingBox(
                     self.sparse_index.bboxes[volume]["minpoint"],
                     self.sparse_index.bboxes[volume]["maxpoint"],
                     space=None,

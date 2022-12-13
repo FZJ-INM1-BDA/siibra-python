@@ -13,92 +13,52 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import SpatialFeature
+from . import feature, anchor
 
-from .. import QUIET
-from ..volumes.volume import ColorVolumeNotSupported
-from ..core.space import BoundingBox
-from ..core.datasets import EbrainsDataset
-from ..retrieval.repositories import GitlabConnector
+from ..volumes import volume
+from ..core import space
+from ..locations import boundingbox
 
-import numpy as np
-import hashlib
-from os import path
+from typing import List
 
 
-class VolumeOfInterest(SpatialFeature):
+class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="features/volumes"):
 
-    def __init__(self, location, name):
-        SpatialFeature.__init__(self, location)
-        if not hasattr(self, 'name'):
-            self.name = name
-        self.volumes = []
+    def __init__(
+        self,
+        name: str,
+        modality: str,
+        space_spec: dict,
+        providers: List[volume.VolumeProvider],
+        datasets: List = [],
+    ):
+        feature.Feature.__init__(
+            self,
+            modality=modality,
+            description=None,  # lazy implementation below!
+            anchor=None,  # lazy implementation below!
+            datasets=datasets
+        )
+        volume.Volume.__init__(
+            self,
+            space_spec=space_spec,
+            providers=providers,
+            name=name,
 
-    @classmethod
-    def _from_json(cls, definition):
-        spectype = "siibra/feature/voi/v0.0.1"
-        if not definition.get("@type") == spectype:
-            raise TypeError(
-                f"Received specification of type '{definition.get('@type')}', "
-                f"but expected '{spectype}'"
+        )
+
+    @property
+    def anchor(self):
+        if self._anchor_cached is None:
+            bbox = boundingbox.BoundingBox.from_image(self.fetch(), space=self.space)
+            self._anchor_cached = anchor.AnatomicalAnchor(location=bbox)
+        return self._anchor_cached
+
+    @property
+    def description(self):
+        if self._description_cached is None:
+            self._description_cached = (
+                f"Volume of interest with modality {self.modality} "
+                f"at {self.anchor}"
             )
-
-        space = None
-        vsrcs = []
-        minpoints = []
-        maxpoints = []
-        for vsrc_def in definition["volumeSrc"]:
-            try:
-                from ..factory import Factory
-                vsrc = Factory.build_volume({
-                    **definition, # space information is in the parent json
-                    **vsrc_def,
-                })
-                with QUIET:
-                    img = vsrc.fetch()
-                    D = np.asanyarray(img.dataobj).squeeze()
-                    nonzero = np.array(np.where(D > 0))
-                    A = img.affine
-                minpoints.append(np.dot(A, np.r_[nonzero.min(1)[:3], 1])[:3])
-                maxpoints.append(np.dot(A, np.r_[nonzero.max(1)[:3], 1])[:3])
-                vsrcs.append(vsrc)
-
-            except ColorVolumeNotSupported:
-                # If multi channel volume exists rather than short circuit, try to use other volumes to determine the ROI
-                # See PLI hippocampus data feature
-                vsrcs.append(vsrc)
-
-            minpoint = np.array(minpoints).min(0)
-            maxpoint = np.array(maxpoints).max(0)
-            kgId = definition.get("kgId")
-            if kgId is None:
-                result = VolumeOfInterest(
-                    name=definition["name"],
-                    location=BoundingBox(minpoint, maxpoint, space),
-                )
-            else:
-                result = EbrainsVolumeOfInterest(
-                    dataset_id=definition["kgId"],
-                    name=definition["name"],
-                    location=BoundingBox(minpoint, maxpoint, space),
-                )
-            list(map(result.volumes.append, vsrcs))
-            return result
-        return definition
-
-    @classmethod
-    def _bootstrap(cls):
-        """
-        Load default feature specifications for feature modality.
-        """
-        conn = GitlabConnector("https://jugit.fz-juelich.de", 3009, "develop")
-        for _, loader in conn.get_loaders(folder="vois", suffix=".json"):
-            basename = f"{hashlib.md5(loader.url.encode('utf8')).hexdigest()}_{path.basename(_)}"
-            cls._add_spec(loader.data, basename)
-
-
-class EbrainsVolumeOfInterest(VolumeOfInterest, EbrainsDataset):
-    def __init__(self, dataset_id, location, name):
-        EbrainsDataset.__init__(self, dataset_id, name)
-        VolumeOfInterest.__init__(self, location, name)
 

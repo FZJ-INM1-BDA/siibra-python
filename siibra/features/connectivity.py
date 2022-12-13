@@ -14,41 +14,42 @@
 # limitations under the License.
 
 from .feature import Feature
+from . import anchor
 
-from ..configuration import REGISTRY
-from ..commons import logger, QUIET, create_key
+from ..commons import logger, QUIET
 from ..retrieval.repositories import RepositoryConnector
 
 import pandas as pd
-import hashlib
 from io import BytesIO
 
 
-# TODO: check if dataset_id is ebrains, then create the corresponding dataset
-# in general, it should be cleaner to model for all features an attribute wether the come from an EBRAINS dataset,
-# instead of implementing additional classes of objects which are ebrainsdatasets.
 class ConnectivityMatrix(Feature):
-
     """Connectivity matrix grouped by a parcellation."""
 
     def __init__(
         self,
-        parcellation_id: str,
         cohort: str,
+        subject: str,
+        modality: str,
         connector: RepositoryConnector,
-        datafile: str,
-        headerfile: str,
-        subject: str = None,
-        dataset_id: str = None,
+        files: dict,
+        anchor: anchor.AnatomicalAnchor,
+        description: str = "",
+        datasets: list = [],
     ):
         """Construct a parcellation-averaged connectivty matrix."""
-        Feature.__init__(self)
+        Feature.__init__(
+            self,
+            modality=modality,
+            description=description,
+            anchor=anchor,
+            datasets=datasets,
+        )
         self.cohort = cohort.upper()
         self.subject = subject
-        self.dataset_id = dataset_id
         self._connector = connector
-        self._datafile = datafile
-        self._headerfile = headerfile
+        self._datafile = files.get("data", "")
+        self._headerfile = files.get("header", "")
         self._matrix_cached = None
         self.modality = None
 
@@ -60,10 +61,6 @@ class ConnectivityMatrix(Feature):
                 + list(self.src_info.keys())
             )
         )
-
-    @property
-    def key(self):
-        return create_key(f"{self.__str__()} {self.dataset_id}")
 
     @property
     def matrix(self):
@@ -89,7 +86,9 @@ class ConnectivityMatrix(Feature):
         """
         Extract connectivity matrix.
         """
-        parcellation = REGISTRY.Parcellation[self.spec]
+        parcellations = self.anchor.represented_parcellations()
+        assert len(parcellations) == 1
+        parc = next(iter(parcellations))
         loader = self._connector.get_loader(self._datafile, decode_func=lambda b: b)
         try:
             matrix = pd.read_csv(
@@ -117,7 +116,7 @@ class ConnectivityMatrix(Feature):
         ]
         with QUIET:
             indexmap = {
-                int(line[0]): parcellation.get_region(line[1])
+                int(line[0]): parc.get_region(line[1], build_group=True)
                 for line in lines
                 if len(line) == 2 and line[0].isnumeric()
             }
@@ -128,11 +127,11 @@ class ConnectivityMatrix(Feature):
             }
             matrix = matrix.rename(index=remapper).rename(columns=remapper)
         else:
-            labels = {r.index.label for r in parcellation.regiontree} - {None}
+            labels = {r.index.label for r in parc.regiontree} - {None}
             if max(labels) - min(labels) + 1 == nrows:
                 indexmap = {
                     r.index.label - min(labels): r
-                    for r in parcellation.regiontree
+                    for r in parc.regiontree
                     if r.index.label is not None
                 }
                 matrix = matrix.rename(index=indexmap).rename(columns=indexmap)
@@ -142,127 +141,84 @@ class ConnectivityMatrix(Feature):
         return matrix
 
 
-    @property
-    def id(self):
-        return f"siibra/features/connectivity/{hashlib.md5(str(self).encode('utf-8')).hexdigest()}"
-
-    @id.setter
-    def id(self, val):
-        logger.warn(f"Connectivity matrix defines id as a property decorator")
-
-
-class StreamlineCounts(ConnectivityMatrix):
+class StreamlineCounts(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/streamlinecounts"):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
-    @classmethod
-    def get_model_type(Cls):
-        return "siibra/features/connectivity/streamlineCounts"
-
     def __init__(
         self,
-        parcellation_id: str,
         cohort: str,
+        subject: str,
+        modality: str,
         connector: RepositoryConnector,
-        datafile: str,
-        headerfile: str,
-        subject: str = None,
-        dataset_id: str = None,
+        files: dict,
+        anchor: anchor.AnatomicalAnchor,
+        description: str = "",
+        datasets: list = [],
     ):
-        super().__init__(
-            parcellation_id, cohort, connector, datafile, headerfile, subject, dataset_id
-        )
-        self.modality = "StreamlineCounts"
-
-    @classmethod
-    def _from_json(cls, spec):
-        spectype = "siibra/resource/feature/connectivitymatrix/v1.0.0"
-        assert spec.get("@type") == spectype
-        conn = RepositoryConnector._from_json(spec['data']['repository'])
-        return cls(
-            parcellation_id=spec["parcellation_id"],
-            cohort=spec["cohort"],
-            connector=conn,
-            datafile=spec['data']['datafile'],
-            headerfile=spec['data']['headerfile'],
-            subject=spec["subject"],
-            dataset_id=spec["kgId"],
+        ConnectivityMatrix.__init__(
+            self,
+            cohort=cohort,
+            subject=subject,
+            modality=modality,
+            connector=connector,
+            files=files,
+            anchor=anchor,
+            description=description,
+            datasets=datasets
         )
 
 
-class StreamlineLengths(ConnectivityMatrix):
-    """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-
-    @classmethod
-    def get_model_type(Cls):
-        return "siibra/features/connectivity/streamlineLengths"
+class FunctionalConnectivity(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/functional"):
+    """Functional connectivity matrix grouped by a parcellation."""
 
     def __init__(
         self,
-        parcellation_id: str,
         cohort: str,
-        connector: RepositoryConnector,
-        datafile: str,
-        headerfile: str,
-        subject: str = None,
-        dataset_id: str = None,
-    ):
-        super().__init__(
-            parcellation_id, cohort, connector, datafile, headerfile, subject, dataset_id
-        )
-        self.modality = "StreamlineLengths"
-
-    @classmethod
-    def _from_json(cls, spec):
-        spectype = "siibra/resource/feature/connectivitymatrix/v1.0.0"
-        assert spec.get("@type") == spectype
-        conn = RepositoryConnector._from_json(spec['data']['repository'])
-        return cls(
-            parcellation_id=spec["parcellation_id"],
-            cohort=spec["cohort"],
-            connector=conn,
-            datafile=spec['data']['datafile'],
-            headerfile=spec['data']['headerfile'],
-            subject=spec["subject"],
-            dataset_id=spec["kgId"],
-        )
-
-
-class FunctionalConnectivity(ConnectivityMatrix):
-    """Functional connectivity matrix, grouped by a parcellation."""
-
-    @classmethod
-    def get_model_type(Cls):
-        return "siibra/features/connectivity/functional"
-
-    def __init__(
-        self,
+        subject: str,
+        modality: str,
         paradigm: str,
-        parcellation_id: str,
-        cohort: str,
         connector: RepositoryConnector,
-        datafile: str,
-        headerfile: str,
-        subject: str = None,
-        dataset_id: str = None,
+        files: dict,
+        anchor: anchor.AnatomicalAnchor,
+        description: str = "",
+        datasets: list = [],
     ):
-        super().__init__(
-            parcellation_id, cohort, connector, datafile, headerfile, subject, dataset_id
+        ConnectivityMatrix.__init__(
+            self,
+            cohort=cohort,
+            subject=subject,
+            modality=modality,
+            connector=connector,
+            files=files,
+            anchor=anchor,
+            description=description,
+            datasets=datasets
         )
-        self.modality = "FunctionalConnectivity"
         self.paradigm = paradigm
 
-    @classmethod
-    def _from_json(cls, spec):
-        spectype = "siibra/resource/feature/connectivitymatrix/v1.0.0"
-        assert spec.get("@type") == spectype
-        conn = RepositoryConnector._from_json(spec['data']['repository'])
-        return cls(
-            parcellation_id=spec["parcellation_id"],
-            cohort=spec["cohort"],
-            connector=conn,
-            datafile=spec['data']['datafile'],
-            headerfile=spec['data']['headerfile'],
-            subject=spec["subject"],
-            dataset_id=spec["kgId"],
-            paradigm=spec["paradigm"],
+
+class StreamlineLengths(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/streamlinelengths"):
+    """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
+
+    def __init__(
+        self,
+        cohort: str,
+        subject: str,
+        modality: str,
+        connector: RepositoryConnector,
+        files: dict,
+        anchor: anchor.AnatomicalAnchor,
+        description: str = "",
+        datasets: list = [],
+    ):
+        ConnectivityMatrix.__init__(
+            self,
+            cohort=cohort,
+            subject=subject,
+            modality=modality,
+            connector=connector,
+            files=files,
+            anchor=anchor,
+            description=description,
+            datasets=datasets
         )

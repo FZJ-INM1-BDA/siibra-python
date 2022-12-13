@@ -15,7 +15,7 @@
 
 
 from .concept import AtlasConcept
-from .location import Point, BoundingBox
+from ..locations import Point, BoundingBox
 
 from ..commons import logger
 

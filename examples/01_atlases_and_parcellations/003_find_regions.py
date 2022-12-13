@@ -28,32 +28,34 @@ julich_brain = atlas.get_parcellation('julich 2.9')
 
 # %%
 # The most basic way is to search for all regions matching a particular string:
-julich_brain.regiontree.find('V1')
+julich_brain.find('V1')
 
 # %%
-# For convenience, querying the root node can be done directly from the
-# parcellation object:
-julich_brain.find_regions('V1')
+# You can filter the children and querying the root node by:
+julich_brain.find('v1', filter_children=True)
 
 # %%
-# For more fine grained searches, powerful regular expressions can be used. Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.
+# # For more fine grained searches, powerful regular expressions can be used. Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.
 import re
 # find hOc2 or hOc4 in the right hemisphere
-julich_brain.find_regions(re.compile('hOc[24].*right'))
+julich_brain.find(re.compile('hOc[24].*right'))
 
 # %%
 # Searching for more general brain regions, we see that areas often appear
 # three times: Julich-Brain defines them separately for the left and right
-# hemisphere, and additionally defines a common parent region. 
-for r in julich_brain.find_regions('amygdala'):
+# hemisphere, and additionally defines a common parent region.
+for r in julich_brain.find('amygdala'):
     print(r.name)
 
 # %%
 # Regions can also be search right away from the atlas object.
 # However, it will return matching regions from all its known parcellations.
 # search all regions known by the atlas
-for region in atlas.find_regions('amygdala'):
-    print(f"{region.name:30.30} {region.parcellation}")
+for r in atlas.find_regions('amygdala'):
+    print(f"{r.name:30.30} {r.parcellation}")
+
+
+# NOTE: the output is different. For example, couldn't find anything from VEP Atlas.
 
 
 # %%
@@ -72,7 +74,7 @@ julich_brain.get_region('amygdala')
 
 # %%
 # Atlas objects provide direct access to the `get_region()` method of their
-# parcellations. This way the above can also be done without explictly
+# parcellations. This way the above can also be done without explicitly
 # accessing the parcellation object:
 atlas.get_region('amygdala', parcellation='julich')
 
