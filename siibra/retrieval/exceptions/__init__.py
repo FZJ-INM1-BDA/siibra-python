@@ -1,3 +1,3 @@
 class NoSiibraConfigMirrorsAvailableException(Exception): pass
 class TagNotFoundException(Exception): pass
-class EbrainsAuthenticationError(Excception): pass
+class EbrainsAuthenticationError(Exception): pass
