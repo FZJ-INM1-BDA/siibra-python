@@ -164,9 +164,9 @@ class Parcellation(Region, configuration_folder="parcellations"):
         import numpy as np
 
         colors = {
-            r.index.label: r.attrs["rgb"]
+            r.index.label: r.rgb
             for r in self
-            if "rgb" in r.attrs and r.index.label
+            if "rgb" in r and r.index.label
         }
         pallette = np.array(
             [

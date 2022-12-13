@@ -129,7 +129,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         # create an isolated object, detached from the other's tree
         region = Region(other.name, other.parcellation, other.index, other.attrs)
-
+        # Potenially a BUG: region does not have attrs anymore.
         # Build the new subtree recursively
         region.children = tuple(Region.copy(c) for c in other.children)
         for c in region.children:
@@ -138,7 +138,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     @property
     def labels(self):
-        return {r.index.label for r in self if r.index.label is not None}
+        return {r.index.label for r in self if r.index.label is not None} # Potenially a BUG
 
     @property
     def names(self):
