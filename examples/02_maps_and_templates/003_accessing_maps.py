@@ -56,7 +56,7 @@ print(len(julich_mpm))
 # any image data yet, since siibra uses a lazy strategy for loading data.
 # To access the actual image data, we call the fetch() method.
 # This gives us a Nifti1Image object defined in the reference space.
-mapimg = julich_mpm.fetch(volume=0) # need to specify which volume is fetched 
+mapimg = julich_mpm.fetch(vol=0) # need to specify which volume is fetched 
 print(type(mapimg))
 
 # we can now plot the image with nilearn
@@ -92,7 +92,7 @@ print(len(julich_pmaps))
 # %%
 # Again, we can iterate over all pmaps using `fetch_iter()`,
 # but for simplicity, we just access a random index here.
-pmap = julich_pmaps.fetch(volume=102)
+pmap = julich_pmaps.fetch(vol=102)
 plotting.plot_stat_map(pmap)
 
 # %%
