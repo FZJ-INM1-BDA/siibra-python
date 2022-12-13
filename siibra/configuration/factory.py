@@ -41,7 +41,7 @@ BUILDFUNCS = {
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
     "siibra/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
-}
+} # Question:  why siibra/space/v0.0.1": "build_space" is written twice?
 
 
 class Factory:
@@ -219,9 +219,11 @@ class Factory:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
+        name = spec.get("name", {})
         result = volume.Volume(
             space_spec=spec.get("space", {}),
-            providers=providers
+            providers=providers,
+            name=f"{name}"
         )
 
         return result
