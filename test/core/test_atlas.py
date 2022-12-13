@@ -3,7 +3,7 @@ from unittest.mock import patch, PropertyMock, MagicMock
 from parameterized import parameterized
 
 import siibra
-from siibra.factory import Factory
+from siibra.configuration.factory import Factory
 from siibra.core.atlas import Atlas, Parcellation, Space
 
 human_atlas_json = {
