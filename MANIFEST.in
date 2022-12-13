@@ -1,1 +1,3 @@
 include siibra/features/gene_names.json
+include siibra/vocabularies/gene_names.json
+include siibra/vocabularies/receptory_symbols.json
