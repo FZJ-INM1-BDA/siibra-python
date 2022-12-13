@@ -205,7 +205,8 @@ class Factory:
             neuroglancer.NeuroglancerMesh,
             nifti.NiftiFetcher,
             nifti.ZipContainedNiftiFetcher,
-            mesh.GiftiSurface
+            mesh.GiftiSurface,
+            mesh.GiftiSurfaceLabeling
         ]
 
         for srctype, url in spec.get("urls", {}).items():

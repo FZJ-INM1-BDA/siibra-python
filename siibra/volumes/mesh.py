@@ -74,13 +74,13 @@ class GiftiSurface(volume.VolumeProvider, srctype="gii-mesh"):
         return (self.fetch(v) for v in self.variants)
 
 
-class GiftiSurfaceLabeling():
+class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     """
     A mesh labeling, specified by a gifti file.
     """
 
     def __init__(self, url: str):
-        self._loader = requests.HttpRequest(self.url)
+        self._loader = requests.HttpRequest(url)
 
     def fetch(self):
         """Returns a 1D numpy array of label indices."""
