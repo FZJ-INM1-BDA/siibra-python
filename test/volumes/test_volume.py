@@ -46,10 +46,8 @@ class TestVolume(unittest.TestCase):
         self.volume = TestVolume.get_instance(space_spec=set_space_spec)
 
         with patch.object(space.Space, 'get_instance') as mock_get_instance:
-            if returned_space:
-                mock_get_instance.return_value = space.Space(None, "Returned Space")
-            else:
-                mock_get_instance.return_value = None
+            return_space = space.Space(None, "Returned Space") if returned_space else None
+            mock_get_instance.return_value = return_space
 
             actual_returned_space = self.volume.space
 
@@ -61,10 +59,7 @@ class TestVolume(unittest.TestCase):
             if not called_get_instance:
                 assert actual_returned_space.name == "Unspecified space"
             else:
-                if returned_space:
-                    assert actual_returned_space.name == "Returned Space"
-                else:
-                    assert actual_returned_space is None
+                assert actual_returned_space is return_space
 
     def test_fetch(self):
         # TODO add after tests for boudningbox are added

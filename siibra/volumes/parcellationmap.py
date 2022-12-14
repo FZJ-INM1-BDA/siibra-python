@@ -233,7 +233,7 @@ class Map(region.Region, configuration_folder="maps"):
 
     def fetch(
         self,
-        vol: int = None,
+        fuzzy_index: Union[int, MapIndex, str] = None, /, *,
         resolution_mm: float = None,
         voi: boundingbox.BoundingBox = None,
         variant: str = None,
@@ -253,7 +253,7 @@ class Map(region.Region, configuration_folder="maps"):
 
         Parameters
         ----------
-        vol : int
+        fuzzy_index : int or MapIndex or str
             The index of the mapped volume to be fetched.
         resolution_mm : float or None (optional)
             Physical resolution of the map, used for multi-resolution image volumes.
@@ -273,18 +273,18 @@ class Map(region.Region, configuration_folder="maps"):
 
         # determine the actual mapindex resulting from the parameters
         if index is not None:  # if a map index is provided, we expect no volume
-            assert vol is None
+            assert fuzzy_index is None
             assert isinstance(index, MapIndex)
             mapindex = index
-        elif isinstance(vol, MapIndex):  # tolerate if the first parameter is a MapIndex
-            mapindex = vol
+        elif isinstance(fuzzy_index, MapIndex):  # tolerate if the first parameter is a MapIndex
+            mapindex = fuzzy_index
         elif regionspec is not None:
             assert isinstance(regionspec, str)
             mapindex = self.get_index(regionspec)
-        elif isinstance(vol, str):   # be kind if a region name is passed as the first parameter
-            mapindex = self.get_index(vol)
-        elif isinstance(vol, int):
-            mapindex = MapIndex(volume=vol, label=None)
+        elif isinstance(fuzzy_index, str):   # be kind if a region name is passed as the first parameter
+            mapindex = self.get_index(fuzzy_index)
+        elif isinstance(fuzzy_index, int):
+            mapindex = MapIndex(volume=fuzzy_index, label=None)
         else:
             if format in volume.Volume.SURFACE_FORMATS:
                 mapindex = next(iter(self._indices.values()))[0]
@@ -349,7 +349,7 @@ class Map(region.Region, configuration_folder="maps"):
             for fmt in volume.Volume.PREFERRED_FORMATS:
                 if fmt not in volume.Volume.SURFACE_FORMATS:
                     try:
-                        self._affine_cached = self.fetch(vol=0, format=fmt).affine
+                        self._affine_cached = self.fetch(0, format=fmt).affine
                         break
                     except RuntimeError:
                         continue
@@ -412,7 +412,7 @@ class Map(region.Region, configuration_folder="maps"):
             desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
-            img = self.fetch(vol=vol)
+            img = self.fetch(vol)
             if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
                 logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
                 img = image.resample_to_img(img, result_nii, interpolation)

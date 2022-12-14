@@ -239,7 +239,7 @@ class SparseMap(parcellationmap.Map):
                     desc=f"Fetching {len(self)} volumetric maps",
                     disable=logger.level > 20,
                 ):
-                    img = super().fetch(vol=vol)
+                    img = super().fetch(vol)
                     if img is None:
                         region = self.get_region(vol=vol)
                         logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
