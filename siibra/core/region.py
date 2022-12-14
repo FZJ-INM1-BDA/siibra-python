@@ -49,10 +49,6 @@ class Region(anytree.NodeMixin, AtlasConcept):
     Representation of a region with name and more optional attributes
     """
 
-    CONNECTOR = GitlabConnector(
-        server="https://jugit.fz-juelich.de", project=3009, reftag="master"
-    )
-
     def __init__(
         self,
         name: str,
@@ -122,16 +118,22 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return self.root
 
     @staticmethod
-    def copy(other):
+    def copy(other: 'Region'):
         """
         copy contructor must detach the parent to avoid problems with
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
-        region = Region(other.name, other.parcellation, other.index, other.attrs)
-        # Potenially a BUG: region does not have attrs anymore.
-        # Build the new subtree recursively
-        region.children = tuple(Region.copy(c) for c in other.children)
+        region = Region(name=other.name,
+            children=[Region.copy(c) for c in other.children],
+            parent=None,
+            shortname=other.shortname,
+            description=other.description,
+            modality=other.modality,
+            publications=other.publications,
+            datasets=other.datasets,
+            rgb=other.rgb)
+        
         for c in region.children:
             c.parent = region
         return region
@@ -175,7 +177,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         regionspec,
         filter_children=False,
         find_topmost=True,
-    ):
+    ) -> List['Region']:
         """
         Find regions that match the given region specification in the subtree
         headed by this region.
@@ -541,6 +543,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         pmap: continuous map
         """
         spaceobj = Space.get_instance(space)
+        # TODO fix
+        raise NotImplementedError(f"Region.get_regional_map has been deprecated")
         pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
         if pmap is None:
             logger.warn(
@@ -677,22 +681,3 @@ class Region(anytree.NodeMixin, AtlasConcept):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
-
-
-if __name__ == "__main__":
-
-    definition = {
-        "name": "Interposed Nucleus (Cerebellum) - left hemisphere",
-        "rgb": [170, 29, 10],
-        "labelIndex": 251,
-        "ngId": "jubrain mni152 v18 left",
-        "children": [],
-        "position": [-9205882, -57128342, -32224599],
-        "originDatasets": [
-            {
-                "kgId": "658a7f71-1b94-4f4a-8f15-726043bbb52a",
-                "kgSchema": "minds/core/dataset/v1.0.0",
-                "filename": "Interposed Nucleus (Cerebellum) [v6.2, ICBM 2009c Asymmetric, left hemisphere]",
-            }
-        ],
-    }

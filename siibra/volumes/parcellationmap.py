@@ -96,14 +96,14 @@ class Map(region.Region, configuration_folder="maps"):
         # Since the volumes might include 4D arrays, where the actual
         # volume index points to a z coordinate, we create subvolume
         # indexers from the given volume provider if 'z' is specified.
-        self._indices = {}
-        self.volumes = []
+        self._indices: Dict[str, List[MapIndex]] = {}
+        self.volumes: List[volume.Volume] = []
         remap_volumes = {}
         for regionname, indexlist in indices.items():
             k = clear_name(regionname)
             self._indices[k] = []
             for index in indexlist:
-                vol = 0 if index.get('volume') is None else index['volume']
+                vol = index.get('volume', 0)
                 assert vol in range(len(volumes))
                 z = index.get('z')
                 if (vol, z) not in remap_volumes:

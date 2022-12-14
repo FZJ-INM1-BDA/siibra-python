@@ -1,114 +1,103 @@
 import unittest
 import pytest
+from unittest.mock import patch
 from siibra.commons import MapType
+from siibra.volumes.volume import Volume, VolumeProvider, space
+from parameterized import parameterized
 
-from siibra.volumes.volume import VolumeSrc, RemoteNiftiVolume, Dataset
-from siibra import spaces, parcellations
-from siibra.volumes.volume import NeuroglancerVolumeFetcher
+class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"): pass
 
+class TestVolumeProvider(unittest.TestCase):
 
-class TestVolumeSrc(unittest.TestCase):
-    def test_volumes_init(self):
-        id = "test_id"
-        name = "test_name"
-        url = "http://localhost/test"
-        volume_src = VolumeSrc(id, name, url, spaces[0])
-        self.assertIsNotNone(volume_src)
-        self.assertEqual(volume_src.url, url)
+    @staticmethod
+    def get_instance():
+        return DummyVolumeProvider()
+    
+    def test_volume_srctype(self):
+        self.assertEqual(DummyVolumeProvider.srctype, "foo-bar")
 
-    def test_volume_from_valid_json(self):
-        v_json = {
-            "@id": "json_id",
-            "@type": "fzj/tmp/volume_type/v0.0.1",
-            "name": "json_name",
-            "space_id": spaces[0],
-            "volume_type": "nii",
-            "url": "http://localhost/test",
-        }
-        output = VolumeSrc._from_json(v_json)
-        self.assertIsInstance(output, VolumeSrc)
-        self.assertIsInstance(output, RemoteNiftiVolume)
+class TestVolume(unittest.TestCase):
 
-    def test_volume_from_invalid_json(self):
-        v_invalid_json = {
-            "@id": "json_id",
-            "@type": "fzj/tmp/not_volume_type/v0.0.1",
-            "name": "json_name",
-            "volume_type": "json_volume_type",
-            "url": "http://localhost/test",
-        }
-        with self.assertRaises(NotImplementedError):
-            VolumeSrc._from_json(v_invalid_json)
+    @staticmethod
+    def get_instance(space_spec={}):
+        return Volume(space_spec=space_spec, providers=[TestVolumeProvider.get_instance()], name="test-volume")
 
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.volume = TestVolume.get_instance()
 
-space_volumes = [volume
-                 for space in spaces
-                 for volume in space.volumes]
+    def test_init(self):
+        self.assertIsNotNone(self.volume)
+    
+    def test_formats(self):
+        self.assertSetEqual(self.volume.formats, {'foo-bar'})
 
+    def test_is_surface(self):
+        self.assertFalse(self.volume.is_surface)
+    
+    @parameterized.expand([
+        ({ "@id": "foo" }, "foo", True, True),
+        ({ "name": "bar" }, "bar", True, False),
+        ({ "buzz": "bay" }, None, False, None),
+        ({}, None, False, None),
+    ])
+    def test_space(self, set_space_spec, called_arg, called_get_instance, returned_space):
+        
+        self.volume = TestVolume.get_instance(space_spec=set_space_spec)
 
-@pytest.mark.parametrize("volume", space_volumes)
-def test_space_volumes(volume: VolumeSrc):
-    model = volume.to_model()
-    import re
-    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
+        with patch.object(space.Space, 'get_instance') as mock_get_instance:
+            if returned_space:
+                mock_get_instance.return_value = space.Space(None, "Returned Space")
+            else:
+                mock_get_instance.return_value = None
 
+            actual_returned_space = self.volume.space
 
-parcs_volumes = [volume
-                 for parc in parcellations
-                 for volume in parc.volumes]
+            if called_get_instance:
+                mock_get_instance.assert_called_once_with(called_arg)
+            else:
+                mock_get_instance.assert_not_called()
+            
+            if not called_get_instance:
+                assert actual_returned_space.name == "Unspecified space"
+            else:
+                if returned_space:
+                    assert actual_returned_space.name == "Returned Space"
+                else:
+                    assert actual_returned_space is None
 
-
-@pytest.mark.parametrize("volume", parcs_volumes)
-def test_parc_volumes(volume: VolumeSrc):
-    model = volume.to_model()
-    import re
-    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
-    assert model.type != Dataset.get_model_type()
-    assert Dataset.get_model_type() not in model.id
-
-
-region_volmes = [volume
-                 for parc in parcellations
-                 for region in parc
-                 for volume in region.volumes]
+    def test_fetch(self):
+        # TODO add after tests for boudningbox are added
+        pass
 
 
-@pytest.mark.parametrize("volume", region_volmes)
-def test_region_volumes(volume: VolumeSrc):
-    model = volume.to_model()
-    import re
-    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
-
-    assert model.type != Dataset.get_model_type()
-    assert Dataset.get_model_type() not in model.id
+# TODO move to int test
+# fetch_ng_volume_fetchable_params = [
+#     ("ID", "NAME", "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210927-waxholm-v4/precomputed/segmentations/WHS_SD_rat_atlas_v4", None, None)
+# ]
 
 
-fetch_ng_volume_fetchable_params = [
-    ("ID", "NAME", "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210927-waxholm-v4/precomputed/segmentations/WHS_SD_rat_atlas_v4", None, None)
-]
+# @pytest.mark.parametrize("identifier,name,url,space,detail", fetch_ng_volume_fetchable_params)
+# def test_ng_volume(identifier, name, url, space, detail):
+#     vol = NeuroglancerVolumeFetcher(identifier, name, url, space, detail)
+#     vol.fetch()
 
 
-@pytest.mark.parametrize("identifier,name,url,space,detail", fetch_ng_volume_fetchable_params)
-def test_ng_volume(identifier, name, url, space, detail):
-    vol = NeuroglancerVolumeFetcher(identifier, name, url, space, detail)
-    vol.fetch()
+# volume_map_types = [
+#     ("difumo 64", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+#     ("difumo 128", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+#     ("difumo 256", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+#     ("difumo 512", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+#     ("difumo 1024", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
+# ]
 
 
-volume_map_types = [
-    ("difumo 64", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
-    ("difumo 128", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
-    ("difumo 256", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
-    ("difumo 512", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
-    ("difumo 1024", NeuroglancerVolumeFetcher, 0, MapType.LABELLED),
-]
+# @pytest.mark.parametrize("parc_id,volume_cls,volume_index,map_type", volume_map_types)
+# def test_volume_map_types(parc_id, volume_cls, volume_index, map_type):
+#     parc = parcellations[parc_id]
+#     v: VolumeSrc = [v for v in parc.volumes if isinstance(v, volume_cls)][volume_index]
+#     assert v.map_type is map_type
 
 
-@pytest.mark.parametrize("parc_id,volume_cls,volume_index,map_type", volume_map_types)
-def test_volume_map_types(parc_id, volume_cls, volume_index, map_type):
-    parc = parcellations[parc_id]
-    v: VolumeSrc = [v for v in parc.volumes if isinstance(v, volume_cls)][volume_index]
-    assert v.map_type is map_type
-
-
-if __name__ == "__main__":
-    unittest.main()
+# if __name__ == "__main__":
+#     unittest.main()

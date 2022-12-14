@@ -57,7 +57,7 @@ class ParcellationVersion:
         yield "next", self.next_id
         yield "deprecated", self.deprecated
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'ParcellationVersion'):
         """
         < operator, useful for sorting by version
         FIXME: this is only by name, not recursing into parcellations, to avoid importing the registry here.

@@ -20,6 +20,8 @@ from ..core import space
 import numpy as np
 import nibabel as nib
 from abc import ABC
+from typing import List
+from ..locations import boundingbox
 
 
 class ColorVolumeNotSupported(NotImplementedError):
@@ -38,7 +40,7 @@ class Volume:
     def __init__(
         self,
         space_spec: dict,
-        providers: list,
+        providers: List['VolumeProvider'],
         name: str = ""
     ):
         self._name_cached = name  # see lazy implementation below
@@ -77,7 +79,7 @@ class Volume:
         else:
             return f"{self.__class__.__name__} {self.name} in {self.space.name}"
 
-    def fetch(self, resolution_mm: float = None, voi=None, format: str = None, variant: str = None, **kwargs):
+    def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox=None, format: str = None, variant: str = None, **kwargs):
         """ fetch the data in a requested format from one of the providers. """
         if (voi is not None) and (voi.space != self.space):
             logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")

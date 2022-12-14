@@ -24,6 +24,7 @@ from ..features import profiles, fingerprints, connectivity, voi
 from os import path
 import json
 import numpy as np
+from typing import List, Type
 
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
@@ -199,8 +200,8 @@ class Factory:
 
     @classmethod
     def build_volume(cls, spec):
-        providers = []
-        provider_types = [
+        providers: List[volume.VolumeProvider] = []
+        provider_types: List[Type[volume.VolumeProvider]] = [
             neuroglancer.NeuroglancerVolumeFetcher,
             neuroglancer.NeuroglancerMesh,
             nifti.NiftiFetcher,
@@ -219,6 +220,7 @@ class Factory:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
+        assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
