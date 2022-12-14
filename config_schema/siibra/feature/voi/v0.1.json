@@ -7,10 +7,18 @@
     }],
     "properties": {
         "@type": {
-            "const": "siibra/volume/v0.0.1"
+            "const": "siibra/feature/voi/v0.1"
+        },
+        "space": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "modality": {
+            "type": "string"
         }
     },
     "required": [
-        "@type"
+        "@type",
+        "space",
+        "modality"
     ]
 }

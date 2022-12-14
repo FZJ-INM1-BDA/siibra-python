@@ -9,6 +9,9 @@
                 },
                 "minds/core/parcellationregion/v1.0.0": {
                     "type": "string"
+                },
+                "minds/core/species/v1.0.0": {
+                    "type": "string"
                 }
             },
             "additionalProperties": false

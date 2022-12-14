@@ -1,0 +1,59 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/connectivitymatrix/v0.1"
+        },
+        "modality": {
+            "type": "string"
+        },
+        "paradigm": {
+            "type": "string"
+        },
+        "parcellation": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "cohort": {
+            "type": "string"
+        },
+        "subject": {
+            "type": "string"
+        },
+        "repository": {
+            "anyOf": [{
+                "$ref": "/config_schema/siibra/repository/gitlab/v1.0.0.json"
+            }, {
+                "$ref": "/config_schema/siibra/repository/zippedfile/v1.0.0.json"
+            }]
+        },
+        "files": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "header": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "data",
+                "header"
+            ],
+            "additionalProperties": false
+        }
+    },
+    "required": [
+        "@type",
+        "modality",
+        "paradigm",
+        "parcellation",
+        "cohort",
+        "subject",
+        "repository",
+        "files"
+    ]
+}

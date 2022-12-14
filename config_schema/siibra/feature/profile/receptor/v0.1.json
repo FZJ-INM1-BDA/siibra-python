@@ -1,0 +1,28 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_region.json"
+    }, {
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/profile/receptor/v0.1"
+        },
+        "receptor": {
+            "type": "string"
+        },
+        "species": {
+            "type": "string"
+        },
+        "file": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "receptor",
+        "species",
+        "file"
+    ]
+}

@@ -17,15 +17,7 @@ skip_path = (
     "snapshots/ebrainsquery/v1",
 )
 
-skip_types = (
-    "siibra/resource/feature/connectivitymatrix/v1.0.0",
-    "siibra/resource/feature/fingerprint/celldensity/v1.0.0",
-    "siibra/feature/fingerprint/receptor/v1.0.0",
-    "siibra/resource/feature/profile/celldensity/v1.0.0",
-    "siibra/feature/profile/receptor/v1.0.0",
-    "siibra/feature/fingerprint/celldensity/v1.0.0",
-    "siibra/feature/profile/celldensity/v1.0.0"
-)
+skip_types = []
 
 class ValidationResult(Enum):
     SKIPPED="SKIPPED"
