@@ -233,7 +233,7 @@ class Map(region.Region, configuration_folder="maps"):
 
     def fetch(
         self,
-        fuzzy_index: Union[int, MapIndex, str] = None, /, *,
+        fuzzy_index: Union[int, MapIndex, str] = None, *, # Position only parameter syntax was introduced in py3.8. Removed for support of Py3.7
         resolution_mm: float = None,
         voi: boundingbox.BoundingBox = None,
         variant: str = None,
