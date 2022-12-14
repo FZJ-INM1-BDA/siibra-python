@@ -316,11 +316,13 @@ class Map(region.Region, configuration_folder="maps"):
 
         if isinstance(result, dict):
             # the result is a mesh which should be in dict format
-            assert "labels" in result
-            mesh = self.space.get_template().fetch(
-                format="gii-mesh", variant=variant, voi=voi, meshindex=mapindex.label
-                )
-            result = dict(**result, **mesh)
+            if "labels" in result:
+                mesh = self.space.get_template(variant=variant).fetch(
+                    format="gii-mesh", variant=variant, voi=voi, meshindex=mapindex.label
+                    )
+                result = dict(**result, **mesh)
+            else:
+                assert ("verts" in result) and ("faces" in result) # neuroglancer meshes
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
