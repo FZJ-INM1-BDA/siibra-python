@@ -83,11 +83,18 @@ class AtlasConcept:
             objects = conf.build_objects(cls._configuration_folder)
             logger.info(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
             assert len(objects) > 0
-            assert all([
-                all([hasattr(o, 'key') for o in objects]),
-                len({ o.__class__ for o in objects }) == 1,
-                hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
-            ])
+            assert all([hasattr(o, 'key') for o in objects])
+
+            # TODO Map.registry() returns InstanceTable that contains two different types, SparseMap and Map
+            # Since we take the objects[0].__class__.match, if the first element happen to be SparseMap, this could result.
+            # Code to reproduce:
+            """
+            import siibra
+            r = siibra.volumes.Map.registry()
+            """
+            if len({ o.__class__ for o in objects }) > 1:
+                logger.warning(f"{cls.__name__} registry contains multiple classes: {', '.join(list({o.__class__.__name__ for o in objects}))}")
+            assert hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
             cls._registry_cached = InstanceTable(
                 elements={o.key: o for o in objects},
                 matchfunc=objects[0].__class__.match
