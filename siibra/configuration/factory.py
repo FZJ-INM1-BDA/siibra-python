@@ -219,11 +219,10 @@ class Factory:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-        name = spec.get("name", {})
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
-            name=f"{name}"
+            name=spec.get("name", {})
         )
 
         return result
