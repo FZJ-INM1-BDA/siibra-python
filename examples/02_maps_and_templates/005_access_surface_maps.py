@@ -32,15 +32,16 @@ jubrain = siibra.parcellations["julich"]
 for space in jubrain.spaces:
     if space.is_surface: print(space)
 
-# BUG: the gii-mesh could not be fetched. When there is a single url, GiftiSurface.fetch doesn't work.
-# NOTE: I think it would be beneficial to add a method (to map?) that lists possible variants.
+# %%
+# We then select the desired space from the available spaces that provide surfaces
+space = jubrain.spaces['fsaverage6']
 
-# The surface map is accessed in just the same way as volumetric maps, using the `get map` method.
-# Note that we call the method here on the parcellation object, while previous examples usually
-# called it on an atlas object.
-# For surfaces however, the `fetch()` method accepts an additional parameter 'variant' to select
-# between 'white matter', 'pial' and 'inflated' surface. 
-surfmap = jubrain.get_map('fsaverage6').fetch(variant="inflated")
+# The surface meshes are accessed using the `get_template` method through spaces.
+template = space.get_template()
+print(template)
+
+# we can then fetch the mesh by
+surfmap = template.fetch()
 
 # %%
 # The returned structure is a dictionary of three numpy arrays representing the vertices, faces, and labels respectively. 
@@ -49,13 +50,20 @@ surfmap = jubrain.get_map('fsaverage6').fetch(variant="inflated")
 print(surfmap.keys())
 
 # %%
-# For plotting meshes, most python libraries can be employes.
+# For plotting meshes, most python libraries can be employed.
 # We recommend again the plotting module of `nilearn <https://nilearn.github.io>`_. 
-# We use Julich-Brain's native colormap for plotting.
 from nilearn import plotting
-jubrain_cmap = jubrain.get_colormap()
-plotting.view_surf(
-    surf_mesh = [surfmap['verts'], surfmap['faces']], 
-    surf_map = surfmap['labels'], 
-    cmap = jubrain_cmap, symmetric_cmap=False, colorbar=False
-)
+plotting.view_surf((surfmap['verts'], surfmap['faces']))
+
+# %%
+# Note from the output of the get_template that, for surfaces, the `get_template()` method accepts an additional parameter
+# 'variant' to select between avalbable surfaces, in this case,'white matter', 'pial' and 'inflated' surface (left and right for each).
+template2 = space.get_template(variant="inflated/right")
+print(template2)
+surfmap2 = template2.fetch()
+plotting.view_surf((surfmap2['verts'], surfmap2['faces']))
+
+# %%
+# We can alternatively get a template from siibra module as a handy shortcut and fetch the mesh
+surfmap3 = siibra.get_template(space_spec="fsaverage6", variant="pial/left").fetch()
+plotting.view_surf((surfmap3['verts'], surfmap3['faces']))

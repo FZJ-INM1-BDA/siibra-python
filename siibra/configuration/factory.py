@@ -18,7 +18,7 @@ from ..features import anchor
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
-from ..volumes import volume, nifti, neuroglancer, mesh, sparsemap, parcellationmap
+from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
 from ..features import profiles, fingerprints, connectivity, voi
 
 from os import path
@@ -205,8 +205,8 @@ class Factory:
             neuroglancer.NeuroglancerMesh,
             nifti.NiftiFetcher,
             nifti.ZipContainedNiftiFetcher,
-            mesh.GiftiSurface,
-            mesh.GiftiSurfaceLabeling
+            gifti.GiftiSurface,
+            gifti.GiftiSurfaceLabeling
         ]
 
         for srctype, url in spec.get("urls", {}).items():
