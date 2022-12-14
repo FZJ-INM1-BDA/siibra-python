@@ -214,7 +214,7 @@ class Map(region.Region, configuration_folder="maps"):
         return {d.label for v in self._indices.values() for d in v}
 
     @property
-    def maptype(self):
+    def maptype(self) -> MapType:
         if all(isinstance(_, int) for _ in self.labels):
             return MapType.LABELLED
         elif self.labels == {None}:

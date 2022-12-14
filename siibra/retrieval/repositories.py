@@ -22,6 +22,7 @@ from urllib.parse import quote
 from tqdm import tqdm
 from os import path, walk
 from zipfile import ZipFile
+from typing import List
 
 
 class RepositoryConnector(ABC):
@@ -33,7 +34,7 @@ class RepositoryConnector(ABC):
         self.base_url = base_url
 
     @abstractmethod
-    def search_files(folder: str, suffix: str, recursive: bool = False):
+    def search_files(folder: str, suffix: str, recursive: bool = False) -> List[str]:
         pass
 
     @abstractmethod
@@ -73,7 +74,7 @@ class RepositoryConnector(ABC):
         Returns an iterator with lazy loaders for the files in a given folder.
         In each iteration, a tuple (filename,file content) is returned.
         """
-        fnames = self.search_files(folder, suffix, recursive)
+        fnames: List[str] = self.search_files(folder, suffix, recursive)
         result = [
             (fname, self.get_loader(fname, decode_func=decode_func)) for fname in fnames
         ]

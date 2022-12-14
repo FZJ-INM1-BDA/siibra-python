@@ -1,0 +1,5 @@
+parameterized==0.8.1
+pytest
+flake8
+pytest-cov
+coverage

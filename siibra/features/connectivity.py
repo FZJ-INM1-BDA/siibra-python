@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .feature import Feature
+from . import anchor
 
 from ..commons import logger, QUIET
 from ..retrieval.repositories import RepositoryConnector
@@ -32,7 +33,7 @@ class ConnectivityMatrix(Feature):
         modality: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
     ):
@@ -150,7 +151,7 @@ class StreamlineCounts(ConnectivityMatrix, configuration_folder="features/connec
         modality: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
     ):
@@ -178,7 +179,7 @@ class FunctionalConnectivity(ConnectivityMatrix, configuration_folder="features/
         paradigm: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
     ):
@@ -206,7 +207,7 @@ class StreamlineLengths(ConnectivityMatrix, configuration_folder="features/conne
         modality: str,
         connector: RepositoryConnector,
         files: dict,
-        anchor: "AnatomicalAnchor",
+        anchor: anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
     ):

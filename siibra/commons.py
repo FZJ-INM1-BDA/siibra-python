@@ -19,7 +19,7 @@ from enum import Enum
 from nibabel import Nifti1Image
 import logging
 import numpy as np
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from io import BytesIO
 from skimage.filters import gaussian
 
@@ -63,14 +63,14 @@ class InstanceTable(Generic[T], Iterable):
 
         assert hasattr(matchfunc, "__call__")
         if elements is None:
-            self._elements = {}
+            self._elements: Dict[str, T] = {}
         else:
             assert isinstance(elements, dict)
             assert all(isinstance(k, str) for k in elements.keys())
-            self._elements = elements
+            self._elements: Dict[str, T] = elements
         self._matchfunc = matchfunc
 
-    def add(self, key: Union[str, int], value: T) -> None:
+    def add(self, key: str, value: T) -> None:
         """Add a key/value pair to the registry.
 
         Args:
@@ -97,11 +97,12 @@ class InstanceTable(Generic[T], Iterable):
         """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
 
-    def __contains__(self, key) -> bool:
-        """Test wether the given key is defined by the registry."""
-        return (
-            key in self._elements
-        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
+    def __contains__(self, key: Union[str, T]) -> bool:
+        """Test wether the given key or element is defined by the registry."""
+        if isinstance(key, str):
+            return key in self._elements
+        return key in [item for _, item in self._elements.values()]
+
 
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
