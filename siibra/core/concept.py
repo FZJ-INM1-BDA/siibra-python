@@ -83,6 +83,11 @@ class AtlasConcept:
             objects = conf.build_objects(cls._configuration_folder)
             logger.info(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
             assert len(objects) > 0
+            assert all([
+                all([hasattr(o, 'key') for o in objects]),
+                len({ o.__class__ for o in objects }) == 1,
+                hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
+            ])
             cls._registry_cached = InstanceTable(
                 elements={o.key: o for o in objects},
                 matchfunc=objects[0].__class__.match
