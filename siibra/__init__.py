@@ -83,7 +83,7 @@ def get_region(parcellation: str, region: str):
     return (
         Parcellation
         .get_instance(parcellation)
-        .get_region(region=region)
+        .get_region(region)
     )
 
 
