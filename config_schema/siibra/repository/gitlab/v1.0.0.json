@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "@type": {
+            "const": "siibra/repository/gitlab/v1.0.0"
+        },
+        "server": {
+            "type": "string"
+        },
+        "project": {
+            "type": "number"
+        },
+        "branch": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "server",
+        "project",
+        "branch"
+    ],
+    "additionalProperties": false
+}

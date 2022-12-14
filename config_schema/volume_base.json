@@ -1,0 +1,40 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "urls": {
+            "type": "object",
+            "properties": {
+                "neuroglancer/precomputed": {
+                    "type": "string"
+                },
+                "neuroglancer/precompmesh": {
+                    "type": "string"
+                },
+                "nii": {
+                    "type": "string"
+                },
+                "zip/nii": {
+                    "type": "string",
+                    "pattern": "^.+\\s.+$"
+                },
+                "gii-label": {
+                    "type": "string"
+                },
+                "gii-mesh": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
+        },
+        "detail": {
+            "type": "object"
+        },
+        "name": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "urls"
+    ]
+}
