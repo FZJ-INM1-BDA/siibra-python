@@ -302,7 +302,6 @@ class Map(region.Region, configuration_folder="maps"):
             raise ValueError(
                 f"{self} provides only {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
-
         try:
             result = self.volumes[mapindex.volume or 0].fetch(
                 resolution_mm=resolution_mm,
@@ -311,8 +310,17 @@ class Map(region.Region, configuration_folder="maps"):
                 variant=variant,
                 meshindex=mapindex.label,
             )
+            
         except requests.SiibraHttpRequestError:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+
+        if isinstance(result, dict):
+            # the result is a mesh which should be in dict format
+            assert "labels" in result
+            mesh = self.space.get_template().fetch(
+                format="gii-mesh", variant=variant, voi=voi, meshindex=mapindex.label
+                )
+            result = dict(**result, **mesh)
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
@@ -320,7 +328,7 @@ class Map(region.Region, configuration_folder="maps"):
             return result
         elif is_mesh(result):
             return result
-        elif isinstance(result, Nifti1Image): 
+        elif isinstance(result, Nifti1Image):
             logger.debug(f"Creating binary mask for label {mapindex.label} from volume {mapindex.volume}")
             return Nifti1Image(
                 (np.asanyarray(result.dataobj) == mapindex.label).astype("uint8"),
@@ -505,6 +513,28 @@ class Map(region.Region, configuration_folder="maps"):
                     result[img == index.label] = value
 
         return Nifti1Image(result, affine)
+
+    def get_colormap(self):
+        """Generate a matplotlib colormap from known rgb values of label indices."""
+        from matplotlib.colors import ListedColormap
+        import numpy as np
+
+        colors = {}
+        for regionname, indices in self._indices.items():
+            for index in indices:
+                if index.label is None:
+                    continue
+                region = self.get_region(index=index)
+                if region.rgb is not None:
+                    colors[index.label] = region.rgb
+
+        pallette = np.array(
+            [
+                list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
+                for i in range(max(colors.keys()) + 1)
+            ]
+        ) / [255, 255, 255, 1]
+        return ListedColormap(pallette)
 
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.

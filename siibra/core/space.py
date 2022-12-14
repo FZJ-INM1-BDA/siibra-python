@@ -73,7 +73,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         for v in self.volumes:
             v.space_info = {"@id": self.id}
 
-    def get_template(self, variant=None):
+    def get_template(self, variant=None, **kwargs):
         """
         Get the volumetric reference template for this space.
 

@@ -32,8 +32,8 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = ["nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", "neuroglancer/precompmesh"]
-    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh"]
+    PREFERRED_FORMATS = ["nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", "neuroglancer/precompmesh", "gii-label"]
+    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh", "gii-label"]
 
     def __init__(
         self,

@@ -36,7 +36,7 @@ class GiftiSurface(volume.VolumeProvider, srctype="gii-mesh"):
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
-    def fetch(self, name=None, resolution_mm: float = None, voi: boundingbox.BoundingBox = None):
+    def fetch(self, name=None, resolution_mm: float = None, voi: boundingbox.BoundingBox = None, **kwargs):
         """
         Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
         and an Mx3 array of face definitions using row indices of the vertex array.
@@ -82,8 +82,8 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     def __init__(self, url: str):
         self._loader = requests.HttpRequest(url)
 
-    def fetch(self):
+    def fetch(self, **kwargs):
         """Returns a 1D numpy array of label indices."""
         assert len(self._loader.data.darrays) == 1
-        return self._loader.data.darrays[0].data
+        return {"labels": self._loader.data.darrays[0].data}
 

@@ -161,24 +161,6 @@ class Parcellation(Region, configuration_folder="parcellations"):
             logger.warn(f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first.")
         return candidates[0]
 
-    def get_colormap(self):
-        """Generate a matplotlib colormap from known rgb values of label indices."""
-        from matplotlib.colors import ListedColormap
-        import numpy as np
-
-        colors = {
-            r.index.label: r.rgb
-            for r in self
-            if "rgb" in r and r.index.label
-        }
-        pallette = np.array(
-            [
-                colors[i] + [1] if i in colors else [0, 0, 0, 0]
-                for i in range(max(colors.keys()) + 1)
-            ]
-        ) / [255, 255, 255, 1]
-        return ListedColormap(pallette)
-
     @classmethod
     def find_regions(cls, region_spec: str, parents_only=True):
         MEM = cls._CACHED_REGION_SEARCHES
