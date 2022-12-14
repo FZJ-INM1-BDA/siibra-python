@@ -146,7 +146,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
 
-        from ..volumes.map import Map
+        from ..volumes.parcellationmap import Map
         candidates = [
             m for m in Map.registry()
             if m.space.matches(space)
