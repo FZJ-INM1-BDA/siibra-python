@@ -340,6 +340,10 @@ class Map(region.Region, configuration_folder="maps"):
             )
         raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
 
+    def find_layer_thickness(self, mesh_0: dict, mesh_1: dict):
+        """Returns a 1D numpy array with the thickness of the given layers."""
+        return np.linalg.norm(mesh_0["verts"] - mesh_1["verts"], axis=1)
+
     @property
     def is_surface(self):
         return all(v.is_surface for v in self.volumes)

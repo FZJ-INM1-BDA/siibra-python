@@ -73,9 +73,6 @@ class GiftiSurface(volume.VolumeProvider, srctype="gii-mesh"):
         """
         return (self.fetch(v) for v in self.variants)
 
-    def find_layer_thickness(self, layer0: int = 1, layer1: int = None):
-        raise NotImplementedError("Calculation of layer thickness from Gifti meshes is not yet implemented.")
-
 
 class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     """

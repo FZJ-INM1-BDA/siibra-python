@@ -359,25 +359,11 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             vertices = np.concatenate((data[0][0], data[1][0]))
             faces = np.concatenate((data[0][1], data[1][1] + len(data[0][0])))
         elif hemisphere.casefold() == "left":
-            (vertices, faces) = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
+            vertices, faces = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
         elif hemisphere.casefold() == "right":
-            (vertices, faces) = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
+            vertices, faces = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
         else:
             raise RuntimeError(f"hemisphere={hemisphere} is not a valid option. Options are 'left', 'right', or 'all'.")
 
-        logger.warn("Labels are not yet implemented.")
+        logger.warn("Labels are not yet implemented for Neuroglancer meshes.")
         return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
-    
-    def find_layer_thickness(self, meshindex_0: int = 0, meshindex_1: int = None):
-        """
-        Returns a dictionary with keys as the hemisphere and
-        the value of the thickness of the given layers.
-        """
-        # TODO: implement cache check
-        mesh_0 = self.fetch(meshindex=meshindex_0)
-        if meshindex_1 is None:
-            meshindex_1 = 7
-            logger.warn(f"Second layer is not given. Automatically selecting non-cortical layer.")
-        mesh_1 = self.fetch(meshindex=meshindex_1)
-
-        return np.linalg.norm(mesh_0["verts"] - mesh_1["verts"], axis=1)
