@@ -32,7 +32,6 @@ BUILDFUNCS = {
     "siibra/parcellation/v0.0.1": "build_parcellation",
     "siibra/volume/v0.0.1": "build_volume",
     "siibra/map/v0.0.1": "build_map",
-    "siibra/space/v0.0.1": "build_space",
     "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
     "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
     "tmp/poly": "build_pointset",
@@ -42,7 +41,7 @@ BUILDFUNCS = {
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
     "siibra/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
-} # Question:  why siibra/space/v0.0.1": "build_space" is written twice?
+}
 
 
 class Factory:
