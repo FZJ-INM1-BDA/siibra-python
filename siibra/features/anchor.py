@@ -127,6 +127,7 @@ class AnatomicalAnchor:
             else:
                 if self._regionspec not in self.__class__._MATCH_MEMO:
                     # decode the region specification into a set of region objects
+                    # raise NotImplementedError(f"Parcellation.find_regions has incorrect call signature")
                     regions = {
                         r: AssignmentQualification['EXACT']
                         for species in self.species

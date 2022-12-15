@@ -19,6 +19,10 @@ from ..locations import Point, BoundingBox
 
 from ..commons import logger
 
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..volumes import volume
 
 class Space(AtlasConcept, configuration_folder="spaces"):
     """
@@ -29,7 +33,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         self,
         identifier: str,
         name: str,
-        volumes: list = [],
+        volumes: List['volume.Volume'] = [],
         shortname: str = "",
         description: str = "",
         modality: str = "",
