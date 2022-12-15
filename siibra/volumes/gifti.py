@@ -15,7 +15,6 @@
 
 from . import volume
 
-from ..commons import logger
 from ..retrieval import requests
 from ..locations import boundingbox
 
