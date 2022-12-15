@@ -358,9 +358,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             name = "whole"
             mesh_fragment_left = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
             mesh_fragment_right = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
-
             vertices = np.concatenate((mesh_fragment_left[0], mesh_fragment_right[0]))
-            faces = np.concatenate((mesh_fragment_left[1], mesh_fragment_right[1] + len(mesh_fragment_left[1])) )
+            faces = np.concatenate((mesh_fragment_left[1], mesh_fragment_right[1] + len(mesh_fragment_left[0])) )
         elif hemisphere.casefold() == "left":
             name = "left"
             (vertices, faces) = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
@@ -370,24 +369,13 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
 
         logger.warn("Labels are not yet implemented.")
         return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
-        
-        
-
-    @property
-    def variants(self):
-        return list(self._loaders.keys()) # rewrite the code above to have _loaders instead
-
-    def fetch_iter(self):
-        return (self.fetch(v) for v in self.variants)
     
- 
     def find_layer_thickness(self, meshindex_0: int = 0, meshindex_1: int = None):
         """
         Returns a dictionary with keys as the hemisphere and
         the value of the thickness of the given layers.
         """
         # TODO: implement cache check
-        print(type(self))
         mesh_0 = self.fetch(meshindex=meshindex_0)
         if meshindex_1 is None:
             meshindex_1 = 7

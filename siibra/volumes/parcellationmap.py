@@ -239,7 +239,8 @@ class Map(region.Region, configuration_folder="maps"):
         variant: str = None,
         format: str = None,
         index: MapIndex = None,
-        regionspec: str = None
+        regionspec: str = None,
+        **kwargs
     ):
         """
         Fetches one particular volume of this parcellation map.
@@ -309,6 +310,7 @@ class Map(region.Region, configuration_folder="maps"):
                 voi=voi,
                 variant=variant,
                 meshindex=mapindex.label,
+                **kwargs,
             )
             
         except requests.SiibraHttpRequestError:
