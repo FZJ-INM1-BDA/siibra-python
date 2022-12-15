@@ -322,7 +322,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, hemisphere: str = "left", **kwargs):
+    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, hemisphere: str = None, **kwargs):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is  a dictionary with the keys:
@@ -350,22 +350,20 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
 
         if hemisphere is None:
-            logger.warn("No hemisphere is selected. Returning both in one mesh.")
+            logger.warn("No hemisphere is selected. Returning both in one mesh. Options you could choose are 'left', 'right', 'all'.")
             hemisphere = "all"
+        name = hemisphere.lower()
 
-        if (hemisphere.casefold() == "all") or (hemisphere.casefold() == "whole"):
-            logger.warn("Currently, whole brain cannot be displayed.")
-            name = "whole"
-            mesh_fragment_left = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
-            mesh_fragment_right = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
-            vertices = np.concatenate((mesh_fragment_left[0], mesh_fragment_right[0]))
-            faces = np.concatenate((mesh_fragment_left[1], mesh_fragment_right[1] + len(mesh_fragment_left[0])) )
+        if hemisphere.casefold() == "all":
+            data = [self._fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm) for f in fragments]
+            vertices = np.concatenate((data[0][0], data[1][0]))
+            faces = np.concatenate((data[0][1], data[1][1] + len(data[0][0])))
         elif hemisphere.casefold() == "left":
-            name = "left"
             (vertices, faces) = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
         elif hemisphere.casefold() == "right":
-            name = "right"
             (vertices, faces) = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
+        else:
+            raise RuntimeError(f"hemisphere={hemisphere} is not a valid option. Options are 'left', 'right', or 'all'.")
 
         logger.warn("Labels are not yet implemented.")
         return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
