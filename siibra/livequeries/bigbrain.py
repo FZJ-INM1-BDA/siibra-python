@@ -19,11 +19,12 @@ from . import query
 from ..commons import logger
 from ..locations import point, pointset
 from ..core import space, region
-from ..retrieval import requests
+from ..retrieval import requests, cache
 from ..features import profiles, fingerprints
 
 import numpy as np
 from typing import List
+from os import path
 
 
 class WagstylProfileLoader:
@@ -57,10 +58,14 @@ class WagstylProfileLoader:
         boundary_depths[:, -1] = 1
 
         # read profiles with valid thickenss
-        req = requests.HttpRequest(
-            f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}",
-            msg_if_not_cached="First request to BigBrain profiles. Downloading and preprocessing the data now. This may take a little."
-        )
+        url = f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}"
+        if not path.exists(cache.CACHE.build_filename(url)):
+            logger.info(
+                "First request to BigBrain profiles. "
+                "Downloading and preprocessing the data now. "
+                "This may take a little."
+            )
+        req = requests.HttpRequest(url)
 
         cls._boundary_depths = boundary_depths
         cls._vertices = mesh_left.darrays[0].data[valid, :]
@@ -82,8 +87,14 @@ class WagstylProfileLoader:
                 except RuntimeError:
                     continue
                 logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {spaceobj}...")
-                pts = pointset.PointSet(self._vertices, space="bigbrain").warp(spaceobj)
-                inside = [i for i, p in enumerate(pts) if p.contained_in(mask)]
+                voxels = (
+                    pointset.PointSet(self._vertices, space="bigbrain")
+                    .warp(spaceobj)
+                    .transform(np.linalg.inv(mask.affine), space=None)
+                )
+                arr = np.asanyarray(mask.dataobj)
+                X, Y, Z = np.split(np.array(voxels.as_list()).astype('int'), 3, axis=1)
+                inside = np.where(arr[X, Y, Z] > 0)[0]
                 break
         else:
             raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
@@ -116,7 +127,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=profiles.BigBra
                     boundaries=boundary_depths[i, :],
                     location=point.Point(coords[i, :], bbspace),
                 )
-                assert prof.matches(subregion)  # to create an assignment result
+                # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim 
                 features.append(prof)
 
         return features

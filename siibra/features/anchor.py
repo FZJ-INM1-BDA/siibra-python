@@ -19,6 +19,7 @@ from ..core.concept import AtlasConcept
 from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region
+from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
@@ -108,6 +109,7 @@ class AnatomicalAnchor:
         self.location = location
         self.species = {species} if isinstance(species, str) else species
         self._assignments = {}
+        self._last_matched_concept = None
         if isinstance(region, Region):
             self._regions_cached = [region]
             self._regionspec = None
@@ -149,13 +151,22 @@ class AnatomicalAnchor:
         separator = " " if min(len(region), len(location)) > 0 else ""
         return region + separator + location
 
+    def __repr__(self):
+        return self.__str__()
+
     def assign(self, concept: AtlasConcept):
         """
         Match this anchoring to an atlas concept.
         """
         if concept not in self._assignments:
             matches = []
-            if isinstance(concept, Region):
+            if isinstance(concept, Space):
+                if self.location is not None and \
+                    self.location.space == concept:
+                    matches.append(
+                        AnatomicalAssignment(concept, AssignmentQualification.EXACT)
+                    )
+            elif isinstance(concept, Region):
                 if concept.matches(self._regionspec):  # dramatic speedup, since decoding _regionspec is expensive
                     for r in self.regions:
                         matches.append(AnatomicalAnchor.match_regions(r, concept))
@@ -168,6 +179,9 @@ class AnatomicalAnchor:
                     match = AnatomicalAnchor.match_location_to_region(concept, region)
                     matches.append(None if match is None else match.invert())
             self._assignments[concept] = sorted(m for m in matches if m is not None)
+        self._last_matched_concept = concept \
+            if len(self._assignments[concept]) > 0 \
+            else None
         return self._assignments[concept]
 
     def matches(self, concept: AtlasConcept):
@@ -259,3 +273,7 @@ class AnatomicalAnchor:
             r for r in self.regions
             if isinstance(r, Parcellation)
         ]
+
+    @property
+    def last_match_result(self):
+        return self._assignments.get(self._last_matched_concept)

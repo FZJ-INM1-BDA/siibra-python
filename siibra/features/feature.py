@@ -50,7 +50,6 @@ class Feature:
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
-        self._last_matched_concept = None
 
     @property
     def modality(self):
@@ -112,16 +111,15 @@ class Feature:
 
     def matches(self, concept: concept.AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
-            self._last_matched_concept = concept
+            self.anchor._last_matched_concept = concept
             return True
-        self._last_matched_concept = None
+        self.anchor._last_matched_concept = None
         return False
 
     @property
     def last_match_result(self):
-        if self.anchor is None:
-            return None
-        return self.anchor._assignments.get(self._last_matched_concept)
+        return None if self.anchor is None \
+            else self.anchor.last_match_result
 
     @classmethod
     def match(cls, concept: concept.AtlasConcept, modality: Union[str, type], **kwargs):
