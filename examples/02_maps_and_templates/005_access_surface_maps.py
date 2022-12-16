@@ -20,6 +20,7 @@ Access parcellation maps in surface space
 ``siibra`` also provides basic access to surfaces. 
 A popular reference space for the human brain is the freesurfer fsaverage surface.
 It comes in three variants: white matter surface, pial surface, and inflated surface.
+Each is shipped with left and right hemispheres separately.
 """
 
 # %%
@@ -33,37 +34,35 @@ for space in jubrain.spaces:
     if space.is_surface: print(space)
 
 # %%
-# We then select the desired space from the available spaces that provide surfaces
-space = jubrain.spaces['fsaverage6']
-
-# The surface meshes are accessed using the `get_template` method through spaces.
-template = space.get_template()
-print(template)
-
-# we can then fetch the mesh by
-surfmap = template.fetch()
+# The surface map is accessed using the `get map` method where we specify the space. Note that
+# we call the method here on the parcellation object, while previous examples usually called it
+# on an atlas object.
+mp = jubrain.get_map(space='fsaverage6')
 
 # %%
+# For surfaces, the `fetch()` method accepts an additional parameter 'variant'. If not specified,
+# siibra displays the possible options as a list fetches the first one from the list.
+mesh = mp.fetch()
+
+# Now let us fetch a specific variant
+mesh = mp.fetch(variant="inflated/left")
+
 # The returned structure is a dictionary of three numpy arrays representing the vertices, faces, and labels respectively. 
 # Each vertex defines a 3D surface point, while the faces are triplets of indices into the list of vertices, defining surface triangles.
 # The labels provide the label index associated with each vertex.
-print(surfmap.keys())
+print(mesh.keys())
 
 # %%
 # For plotting meshes, most python libraries can be employed.
 # We recommend again the plotting module of `nilearn <https://nilearn.github.io>`_. 
 from nilearn import plotting
-plotting.view_surf((surfmap['verts'], surfmap['faces']))
 
-# %%
-# Note from the output of the get_template that, for surfaces, the `get_template()` method accepts an additional parameter
-# 'variant' to select between avalbable surfaces, in this case,'white matter', 'pial' and 'inflated' surface (left and right for each).
-template2 = space.get_template(variant="inflated/right")
-print(template2)
-surfmap2 = template2.fetch()
-plotting.view_surf((surfmap2['verts'], surfmap2['faces']))
+# Most meshes are shipped with a color map which we can fetch from the map object by 
+jubrain_cmap = mp.get_colormap()
 
-# %%
-# We can alternatively get a template from siibra module as a handy shortcut and fetch the mesh
-surfmap3 = siibra.get_template(space_spec="fsaverage6", variant="pial/left").fetch()
-plotting.view_surf((surfmap3['verts'], surfmap3['faces']))
+# Now we can plot the mesh
+plotting.view_surf(
+    surf_mesh = [mesh['verts'], mesh['faces']], 
+    surf_map = mesh['labels'], 
+    cmap = jubrain_cmap, symmetric_cmap=False, colorbar=False
+)
