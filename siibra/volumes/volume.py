@@ -41,7 +41,7 @@ class Volume:
         self,
         space_spec: dict,
         providers: List['VolumeProvider'],
-        name: str = ""
+        name: str = "",
     ):
         self._name_cached = name  # see lazy implementation below
         self._space_spec = space_spec

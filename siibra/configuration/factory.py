@@ -58,13 +58,17 @@ class Factory:
         return result
 
     @classmethod
-    def extract_volumes(cls, spec, space_id: str = None):
+    def extract_volumes(cls, spec, space_id: str = None, name: str = None):
         volume_specs = spec.get("volumes", [])
-        if space_id:
-            for vspec in volume_specs:
+        for vspec in volume_specs:
+            if space_id:
                 if 'space' in vspec:
                     logger.warn(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
                 vspec['space'] = {"@id": space_id}
+            if name:
+                if 'name' in vspec:
+                    logger.warn(f"Replacing name {vspec['name']} in volume spec with {name}")
+                vspec['name'] = name
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
@@ -142,7 +146,7 @@ class Factory:
         return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
-            volumes=cls.extract_volumes(spec, space_id=spec.get("@id")),
+            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name","")),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),
@@ -209,21 +213,27 @@ class Factory:
             gifti.GiftiSurfaceLabeling
         ]
 
+        affine = np.array(spec["affine"]) if "affine" in spec else None
+
         for srctype, url in spec.get("urls", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
-                    providers.append(ProviderType(url))
+                    if affine is None:
+                        providers.append(ProviderType(url))
+                    else:
+                        providers.append(ProviderType(url, transform_nm=affine))
                     break
             else:
                 if srctype not in cls._warnings_issued:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
+
         assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
-            name=spec.get("name", {})
+            name=spec.get("name", {}),
         )
 
         return result

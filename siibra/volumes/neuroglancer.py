@@ -39,13 +39,12 @@ class NeuroglancerVolumeFetcher(volume.VolumeProvider, srctype="neuroglancer/pre
     def MAX_BYTES(self):
         return self.MAX_GiB * 1024 ** 3
 
-    def __init__(self, url: str):
+    def __init__(self, url: str, transform_nm: np.ndarray = None):
         volume.VolumeProvider.__init__(self)
         self.url = url
         self._scales_cached = None
         self._io = None
-
-    _transform_nm = None
+        self._transform_nm = transform_nm
 
     @property
     def transform_nm(self):

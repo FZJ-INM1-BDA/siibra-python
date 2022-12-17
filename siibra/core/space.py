@@ -98,9 +98,9 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         result = next(iter(candidates))
         if len(candidates) > 1:
             logger.warn(
-                f"Multiple template variants available for {self.name}. "
+                f"Multiple volumes/formats available for {self.name}. "
                 f"Returning the first, {result.name}, but you could have chosen "
-                f"any of {', '.join(v.name for v in candidates)}."
+                f"any of {', '.join(f'{v.name}@{fmt}' for v in candidates for fmt in v.formats)}."
             )
         return result
 

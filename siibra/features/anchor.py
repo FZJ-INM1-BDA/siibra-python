@@ -161,8 +161,7 @@ class AnatomicalAnchor:
         if concept not in self._assignments:
             matches = []
             if isinstance(concept, Space):
-                if self.location is not None and \
-                    self.location.space == concept:
+                if self.location is not None and self.location.space == concept:
                     matches.append(
                         AnatomicalAssignment(concept, AssignmentQualification.EXACT)
                     )
