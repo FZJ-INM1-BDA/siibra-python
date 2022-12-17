@@ -65,9 +65,7 @@ class Factory:
                 if 'space' in vspec:
                     logger.warn(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
                 vspec['space'] = {"@id": space_id}
-            if name:
-                if 'name' in vspec:
-                    logger.warn(f"Replacing name {vspec['name']} in volume spec with {name}")
+            if name and vspec.get('name') is None:  # only use provided name if the volume has no specific name
                 vspec['name'] = name
         return list(map(cls.build_volume, volume_specs))
 

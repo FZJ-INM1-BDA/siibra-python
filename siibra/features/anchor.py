@@ -101,12 +101,7 @@ class AnatomicalAnchor:
 
     def __init__(self, location: Location = None, region: Union[str, Region] = None, species: Union[str, Set[str]] = None):
 
-        if not any(s is not None for s in [location, region]):
-            raise ValueError(
-                "To define a localization, a region and/or "
-                "location needs to be specified."
-            )
-        self.location = location
+        self._location_cached = location
         self.species = {species} if isinstance(species, str) else species
         self._assignments = {}
         self._last_matched_concept = None
@@ -117,6 +112,19 @@ class AnatomicalAnchor:
             assert isinstance(region, Union[str, None])
             self._regions_cached = None
             self._regionspec = region
+
+    @property
+    def location(self):
+        # allow to overwrite in derived classes
+        return self._location_cached
+
+    @property
+    def space(self):
+        # may be overriden by derived classes, e.g. in features.VolumeOfInterestAnchor
+        if self.location is None:
+            return None
+        else:
+            return self.location.space
 
     @property
     def regions(self):
@@ -162,7 +170,7 @@ class AnatomicalAnchor:
         if concept not in self._assignments:
             matches = []
             if isinstance(concept, Space):
-                if self.location is not None and self.location.space == concept:
+                if self.space == concept:
                     matches.append(
                         AnatomicalAssignment(concept, AssignmentQualification.EXACT)
                     )

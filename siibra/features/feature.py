@@ -128,7 +128,6 @@ class Feature:
         """
         if isinstance(modality, str):
             modality = cls.modalities[modality]
-        logger.info(f"Matching {modality.__name__} to {concept}")
         msg = f"Matching {modality.__name__} to {concept}"
         instances = modality.get_instances()
         preconfigured_instances = [
