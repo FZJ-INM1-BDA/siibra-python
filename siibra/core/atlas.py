@@ -241,6 +241,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
                     filter_children=filter_children,
                 )
                 if build_groups:
+                    # TODO match will never be None
                     if match is not None:
                         result.append(match)
                 else:

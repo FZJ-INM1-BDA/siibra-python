@@ -1,10 +1,12 @@
 import unittest
-from unittest.mock import patch, PropertyMock, MagicMock
+from unittest.mock import patch, PropertyMock, MagicMock, call
 from parameterized import parameterized
 
 import siibra
 from siibra.configuration.factory import Factory
 from siibra.core.atlas import Atlas, Parcellation, Space
+from siibra.core.region import Region
+from itertools import product, repeat
 
 human_atlas_json = {
     "@id": "juelich/iav/atlas/v1.0.0/1",
@@ -40,6 +42,11 @@ human_atlas_json = {
 class MockObj:
     def __init__(self, name=None):
         self.name = name
+
+class MockParc:
+    def __init__(self, is_newest_version=True) -> None:
+        self.is_newest_version = is_newest_version
+        self.find = MagicMock()
 
 
 class TestAtlas(unittest.TestCase):
@@ -181,9 +188,49 @@ class TestAtlas(unittest.TestCase):
             get_space_mock.assert_called_once_with(space_arg)
             fn_mock.assert_called_once_with(*arg, **kwarg)
     
-    @unittest.skip("TODO add test for Atlas.find_regions")
-    def test_find_regions(self):
-        pass
+    @parameterized.expand(
+        product(
+            ["str-input", 3, Region("hello world")],
+            product(
+                [True, False],
+                repeat=3
+            )
+        )
+    )
+    def test_find_regions(self, regionspec, bool_flags):
+        all_versions, filter_children, build_groups = bool_flags
+        with patch.object(Parcellation, 'get_instance') as get_instance_mock:
+
+            parc1 = MockParc(True)
+            parc1.find.return_value = [MockObj(), MockObj(), MockObj()]
+            parc2 = MockParc(False)
+            parc2.find.return_value = [MockObj(), MockObj(), MockObj()]
+            parc3 = MockParc(True)
+            parc3.find.return_value = [MockObj(), MockObj(), MockObj()]
+            parc4 = MockParc(True)
+            parc4.find.return_value = []
+
+            get_instance_mock.side_effect = [parc1, parc2, parc3, *repeat(parc4, 35)]
+
+            actual_result = self.atlas.find_regions(regionspec, all_versions, filter_children, build_groups)
+
+            get_instance_mock.assert_has_calls(
+                [call(pid) for pid in human_atlas_json.get("parcellations")]
+            )
+            for p in [parc1, parc2, parc3]:
+                if all_versions or p.is_newest_version:
+                    p.find.assert_called_once_with(regionspec, filter_children=filter_children)
+
+            if build_groups:
+                self.assertTrue([ isinstance(p, list) for p in actual_result] and [ isinstance(p, MockObj) for l in actual_result for p in l])
+            else:
+                self.assertTrue(isinstance(p, MockObj) for p in actual_result)
+            flattened = [p
+                for l in actual_result
+                for p in (l if build_groups else [l])]
+            for parc in [parc1, parc2, parc3]:
+                for reg in parc.find.return_value:
+                    self.assertTrue((reg in flattened) is (all_versions or parc.is_newest_version) )
     
 if __name__ == "__main__":
     unittest.main()

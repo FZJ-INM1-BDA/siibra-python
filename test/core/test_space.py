@@ -1,86 +1,41 @@
-from siibra.retrieval.requests import HttpRequest, ZipfileRequest
 import unittest
-import pytest
 
-from siibra import atlases, spaces
-from siibra.core import Space
+from siibra.core.space import Space
+from uuid import uuid4
+from parameterized import parameterized
+import inspect
+
+class DummyCls:
+    def __init__(self, name) -> None:
+        self.name = name
 
 
 class TestSpaces(unittest.TestCase):
 
-    space_id = "space_id"
-    name = "space name"
-    url = "space_url"
-    ziptarget = "space_zip_target"
-    template = "temp_file"
-    ttype = "nii"
+    @staticmethod
+    def get_instance(volumes=[]):
+        return Space(str(uuid4()), "foo-bar", volumes=volumes)
 
-    json_space_with_zip = {
-        "@id": "space1/minds/core/referencespace/v1.0.0",
-        "name": name,
-        "shortName": name,
-        "templateType": ttype,
-        "datasets": [
-            {
-                "@type": "fzj/tmp/volume_type/v0.0.1",
-                "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-                "space_id": "space1/minds/core/referencespace/v1.0.0",
-                "name": "icbm152_2009c_nonlin_asym/nifti",
-                "volume_type": ttype,
-                "url": url,
-                "zipped_file": ziptarget,
-            }
-        ],
-    }
-
-    json_space_without_zip = {
-        "@id": "space1/minds/core/referencespace/v1.0.0",
-        "name": name,
-        "shortName": name,
-        "templateUrl": url,
-        "templateFile": ziptarget,
-        "templateType": ttype,
-        "datasets": [
-            {
-                "@type": "fzj/tmp/volume_type/v0.0.1",
-                "@id": "fzj/tmp/volume_type/v0.0.1/icbm152_2009c_nonlin_asym/nifti",
-                "space_id": "space1/minds/core/referencespace/v1.0.0",
-                "name": "icbm152_2009c_nonlin_asym/nifti",
-                "volume_type": "nii",
-                "url": "http://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_asym_09c_nifti.nii",
-            }
-        ],
-    }
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.space = TestSpaces.get_instance()
 
     def test_space_init(self):
-        space = Space(self.space_id, self.name, self.url, self.ziptarget)
-        self.assertIsNotNone(space)
+        self.assertIsNotNone(self.space)
+        self.assertIsInstance(self.space, Space)
+    
 
-    def test_space__from_json_with_zip(self):
-        space = Space._from_json(self.json_space_with_zip)
-        spaces.add(space.key, space)
-        self.assertTrue(self.name in str(space))
-        self.assertEqual(len(space.volumes), 1)
-        vsrc = space.volumes[0]
-        self.assertEqual(space.type, self.ttype)
-        self.assertTrue(isinstance(vsrc._image_loader, ZipfileRequest))
-        self.assertEqual(vsrc._image_loader.filename, self.ziptarget)
-
-    def test_space__from_json_without_zip(self):
-        space = Space._from_json(self.json_space_without_zip)
-        spaces.add(space.key, space)
-        self.assertTrue(self.name in str(space))
-        self.assertEqual(len(space.volumes), 1)
-        vsrc = space.volumes[0]
-        self.assertTrue(isinstance(vsrc._image_loader, HttpRequest))
-
-    def test_space_registry(self):
-        spaces = atlases.MULTILEVEL_HUMAN_ATLAS.spaces
-        self.assertEqual(len(spaces), 4)
-
-
-all_spaces = [space for space in spaces]
-
-
-if __name__ == "__main__":
-    unittest.main()
+    @parameterized.expand([
+        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], None, 0),
+        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "foo", 0),
+        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "bar", 1),
+        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "baz", AssertionError),
+    ])
+    def test_space_get_template(self, volumes, variant, result_idx):
+        self.space = TestSpaces.get_instance(volumes=volumes)
+        if inspect.isclass(result_idx) and issubclass(result_idx, Exception):
+            with self.assertRaises(result_idx):
+                self.space.get_template(variant)
+            return
+        actual_result = self.space.get_template(variant)
+        self.assertIs(actual_result, volumes[result_idx])

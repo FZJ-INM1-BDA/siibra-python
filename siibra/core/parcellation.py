@@ -17,7 +17,7 @@ from .region import Region
 
 from ..commons import logger, MapType, MapIndex
 
-from typing import Union, List
+from typing import Union, List, Dict
 import re
 
 
@@ -67,7 +67,7 @@ class ParcellationVersion:
 
 class Parcellation(Region, configuration_folder="parcellations"):
 
-    _CACHED_REGION_SEARCHES = {}
+    _CACHED_REGION_SEARCHES: Dict[str, List[Region]] = {}
 
     def __init__(
         self,
@@ -173,7 +173,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         if parents_only:
             return [
                 r for r in MEM[region_spec]
-                if not any(_ in r.children for _ in MEM[region_spec])
+                if r.parent not in MEM[region_spec]
             ]
         else:
             return MEM[region_spec]
