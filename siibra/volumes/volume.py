@@ -126,8 +126,10 @@ class Volume:
             requested_formats = self.SURFACE_FORMATS
         elif format in ['voxels', 'volumetric']:
             requested_formats = set(self.PREFERRED_FORMATS) - set(self.SURFACE_FORMATS)
+        elif format in self.PREFERRED_FORMATS:
+            requested_formats = [format]
         else:
-            requested_formats = []
+            raise ValueError(f"Invalid format requested: {format}")
 
         for fmt in requested_formats:
             if fmt in self.formats:
@@ -137,7 +139,6 @@ class Volume:
                     logger.error(f"Cannot access {self._providers[fmt]}")
                     print(str(e))
                     continue
-        logger.error(f"Formats {requested_formats} not available for volume {self}")
         return None
 
 

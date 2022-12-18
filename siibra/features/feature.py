@@ -21,6 +21,7 @@ from ..core import concept
 from typing import Union
 from tqdm import tqdm
 
+
 class Feature:
     """
     Base class for anatomically anchored data features.

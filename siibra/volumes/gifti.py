@@ -96,11 +96,21 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     A mesh labeling, specified by a gifti file.
     """
 
-    def __init__(self, url: str):
-        self._loader = requests.HttpRequest(url)
+    def __init__(self, url: Union[str, dict]):
+        if isinstance(url, str):  # single mesh labelling
+            self._loaders = {None: requests.HttpRequest(url)}
+        elif isinstance(url, dict):   # labelling for multiple mesh fragments
+            self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
+        else:
+            raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
-    def fetch(self, **kwargs):
+    def fetch(self, fragment: str = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
-        assert len(self._loader.data.darrays) == 1
-        return {"labels": self._loader.data.darrays[0].data}
+        labels = []
+        for fragment_name, loader in self._loaders.items():
+            if fragment is not None and fragment.lower() not in fragment_name.lower():
+                continue
+            assert len(loader.data.darrays) == 1
+            labels.append(loader.data.darrays[0].data)
+        return {"labels": np.hstack(labels)}
 

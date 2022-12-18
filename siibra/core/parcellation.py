@@ -16,6 +16,7 @@
 from .region import Region
 
 from ..commons import logger, MapType, MapIndex
+from ..volumes import parcellationmap
 
 from typing import Union, List, Dict
 import re
@@ -142,13 +143,11 @@ class Parcellation(Region, configuration_folder="parcellations"):
         ------
         A ParcellationMap representing the volumetric map.
         """
-        from ..volumes import Map
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
 
-        from ..volumes.parcellationmap import Map
         candidates = [
-            m for m in Map.registry()
+            m for m in parcellationmap.Map.registry()
             if m.space.matches(space)
             and m.maptype == maptype
             and m.parcellation

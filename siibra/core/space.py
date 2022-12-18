@@ -24,6 +24,7 @@ from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
     from ..volumes import volume
 
+
 class Space(AtlasConcept, configuration_folder="spaces"):
     """
     A particular brain reference space.
@@ -99,7 +100,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         """
         tests = []
         if variant is not None:
-            tests.append(lambda v: v.variant == variant)
+            tests.append(lambda v: variant.lower() in v.variant.lower())
         candidates = [v for v in self.volumes if all(t(v) for t in tests)]
 
         if len(candidates) == 0:

@@ -71,11 +71,11 @@ def get_template(space_spec: str, **kwargs):
         .get_template(**kwargs)
     )
 
-def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED):
+def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
     return (
         Parcellation
         .get_instance(parcellation)
-        .get_map(space=space, maptype=maptype)
+        .get_map(space=space, maptype=maptype, **kwargs)
     )
 
 

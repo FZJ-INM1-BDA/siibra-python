@@ -231,7 +231,6 @@ class Factory:
             space_spec=spec.get("space", {}),
             providers=providers,
             name=spec.get("name", {}),
-            fragment=spec.get("fragment"),
             variant=spec.get("variant"),
         )
 

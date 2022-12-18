@@ -247,27 +247,36 @@ class MapIndex:
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
 
-    def __init__(self, volume: int, label: int):
+    def __init__(self, volume: int, label: int, fragment: int = None):
         self.volume = volume
         self.label = label
+        self.fragment = fragment
 
     @classmethod
     def from_dict(cls, spec: dict):
         assert all(k in spec for k in ['volume', 'label'])
-        return cls(spec['volume'], spec['label'])
+        return cls(
+            volume=spec['volume'],
+            label=spec['label'],
+            fragment=spec.get('fragment')
+        )
 
     def __str__(self):
-        return f"(volume:{self.volume}, label:{self.label})"
+        return f"(volume:{self.volume}, label:{self.label}, fragment:{self.fragment})"
 
     def __repr__(self):
         return f"{self.__class__.__name__}{str(self)}"
 
     def __eq__(self, other):
         assert isinstance(other, self.__class__)
-        return all([self.volume == other.volume, self.label == other.label])
+        return all([
+            self.volume == other.volume,
+            self.label == other.label,
+            self.fragment == other.fragment
+        ])
 
     def __hash__(self):
-        return hash((self.volume, self.label))
+        return hash((self.volume, self.label, self.fragment))
 
 
 class MapType(Enum):
