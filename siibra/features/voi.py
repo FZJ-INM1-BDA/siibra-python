@@ -30,7 +30,6 @@ class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
     @property
     def location(self):
         """ loads the bounding box only if required, since it demands image data access. """
-        print("lazy access to VOI anchor location")
         if self._location_cached is None:
             self._location_cached = boundingbox.BoundingBox.from_image(
                 self.volume.fetch(), space=self.volume.space
@@ -40,6 +39,9 @@ class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
     @property
     def space(self):
         return self.volume.space
+
+    def __str__(self):
+        return f"bounding box of volume"
 
 
 class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="features/volumes"):

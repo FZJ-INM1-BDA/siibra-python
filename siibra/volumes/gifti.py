@@ -16,48 +16,65 @@
 from . import volume
 
 from ..retrieval import requests
-from ..locations import boundingbox
+from ..commons import logger
 
 import numpy as np
 from typing import Union
 
 
-class GiftiSurface(volume.VolumeProvider, srctype="gii-mesh"):
+class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
     """
-    A (set of) surface meshes in Gifti format.
+    One or more surface mesh fragments in Gifti format.
     """
 
     def __init__(self, url: Union[str, dict], volume=None):
         self.volume = volume
-        if isinstance(url, str):
-            self._loaders = {"name": requests.HttpRequest(url)}
-        elif isinstance(url, dict):
+        if isinstance(url, str):  # single mesh
+            self._loaders = {None: requests.HttpRequest(url)}
+        elif isinstance(url, dict):   # named mesh fragments
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+    
+    @property
+    def fragments(self):
+        return [k for k in self._loaders if k is not None]
 
-    def fetch(self, name=None, resolution_mm: float = None, voi: boundingbox.BoundingBox = None, **kwargs):
+    def fetch(self, fragment: str = None, **kwargs):
         """
         Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
         and an Mx3 array of face definitions using row indices of the vertex array.
 
-        If name is specified, only submeshes matching this name are included, otherwise all meshes are combined.
+        A fragment name can be specified to choose from multiple fragments. 
+        If not specified, multiple fragments will be merged into one mesh.
         """
-        if resolution_mm is not None:
-            raise NotImplementedError(f"Resolution specification for {self.__class__} not yet implemented.")
-        if voi is not None:
-            raise NotImplementedError(f"Volume of interest extraction for {self.__class__} not yet implemented.")
-        vertices = np.empty((0, 3))
-        faces = np.empty((0, 3), dtype='int')
-        for n, loader in self._loaders.items():
-            npoints = vertices.shape[0]
-            if (name is not None) & (n != name):
+        for arg in ["resolution_mm", "voi"]:
+            if kwargs.get(arg):
+                raise NotImplementedError(f"Parameter {arg} ignored by {self.__class__}.")
+
+        verts = []
+        faces = []
+        num_verts = 0
+        fragments_included = []
+        for fragment_name, loader in self._loaders.items():
+            if fragment and fragment.lower() not in fragment_name.lower():
                 continue
             assert len(loader.data.darrays) > 1
-            vertices = np.append(vertices, loader.data.darrays[0].data, axis=0)
-            faces = np.append(faces, loader.data.darrays[1].data + npoints, axis=0)
+            verts.append(loader.data.darrays[0].data)
+            faces.append(loader.data.darrays[1].data + num_verts)
+            num_verts += verts[-1].shape[0]
+            fragments_included.append(fragment_name)
 
-        return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
+        if len(fragments_included) > 1:
+            logger.info(
+               f"The mesh fragments [{', '.join(fragments_included)}] were merged. "
+               f"You could select one with the 'fragment' parameter in fetch()."
+            )
+
+        return {
+            "verts": np.vstack(verts),
+            "faces": np.vstack(faces)
+        }
 
     @property
     def variants(self):

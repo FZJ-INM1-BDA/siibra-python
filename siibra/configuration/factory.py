@@ -144,7 +144,7 @@ class Factory:
         return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
-            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name","")),
+            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name")),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),
@@ -207,7 +207,7 @@ class Factory:
             neuroglancer.NeuroglancerMesh,
             nifti.NiftiFetcher,
             nifti.ZipContainedNiftiFetcher,
-            gifti.GiftiSurface,
+            gifti.GiftiMesh,
             gifti.GiftiSurfaceLabeling
         ]
 
@@ -226,12 +226,13 @@ class Factory:
                     logger.warn(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-
         assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
             name=spec.get("name", {}),
+            fragment=spec.get("fragment"),
+            variant=spec.get("variant"),
         )
 
         return result

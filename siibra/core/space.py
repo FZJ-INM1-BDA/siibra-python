@@ -77,7 +77,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         for v in self.volumes:
             v.space_info = {"@id": self.id}
 
-    def get_template(self, variant=None, **kwargs):
+    def get_template(self, variant: str = None, format: str = None):
         """
         Get the volumetric reference template for this space.
 
@@ -89,24 +89,32 @@ class Space(AtlasConcept, configuration_folder="spaces"):
             inflated surface for left and right hemispheres (6 variants).
             This field could be used to request a specific variant.
             Per default, the first found variant is returned.
+        format: str (optional)
+            Volumes are typically available in multiple formats.
+            Use this to select a specific one, if needed.
 
         Yields
         ------
         A VolumeSrc object representing the reference template, or None if not available.
         """
-        if variant is None:
-            candidates = self.volumes
-        else:
-            candidates = [v for v in self.volumes if v.name == variant]
-        assert len(candidates) > 0
-        result = next(iter(candidates))
+        tests = []
+        if variant is not None:
+            tests.append(lambda v: v.variant == variant)
+        candidates = [v for v in self.volumes if all(t(v) for t in tests)]
+
+        if len(candidates) == 0:
+            msg = f"Volume variant {variant} not available for '{self.name}'. " \
+                if variant else f"No volumes available for '{self.name}'. "
+            raise RuntimeError(msg)
+
         if len(candidates) > 1:
-            logger.warn(
-                f"Multiple volumes/formats available for {self.name}. "
-                f"Returning the first, {result.name}, but you could have chosen "
-                f"any of {', '.join(f'{v.name}@{fmt}' for v in candidates for fmt in v.formats)}."
+            logger.info(
+                f"Multiple template variants available for '{self.name}': "
+                f"{', '.join(c.variant for c in candidates)}. "
+                f"'{candidates[0].variant}' is chosen, but you might specify another with the 'variant' parameter."
             )
-        return result
+
+        return candidates[0]
 
     @property
     def is_surface(self):

@@ -42,9 +42,11 @@ class Volume:
         space_spec: dict,
         providers: List['VolumeProvider'],
         name: str = "",
+        variant: str = None,
     ):
         self._name_cached = name  # see lazy implementation below
         self._space_spec = space_spec
+        self.variant = variant
         self._providers = {}
         for provider in providers:
             srctype = provider.srctype
@@ -67,6 +69,10 @@ class Volume:
         return all(f in self.SURFACE_FORMATS for f in self.formats)
 
     @property
+    def fragments(self):
+        return {f for p in self._providers.values() for f in p.fragments}
+
+    @property
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
@@ -79,23 +85,54 @@ class Volume:
         else:
             return f"{self.__class__.__name__} {self.name} in {self.space.name}"
 
-    def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox=None, format: str = None, variant: str = None, **kwargs):
-        """ fetch the data in a requested format from one of the providers. """
-        if (voi is not None) and (voi.space != self.space):
+    def fetch(
+        self,
+        voi: boundingbox.BoundingBox = None,
+        format: str = None,
+        **kwargs
+    ):
+        """
+        Fetch a volumetric or surface representation from one of the providers.
+
+        Parameters
+        ----------
+        resolution_mm: float
+            Desired voxel spacing in mm,
+            currently only applicable for neuroglancer volumes.
+        voi: BoundingBox
+            Desired volume of interest, given as a bounding box,
+            currently only applicable for neuroglancer volumes.
+        format: str
+            Requested format. Per default, several formats are tried,
+            starting with volumetric formats. You may explicitly specify:
+            - 'surface' or 'mesh' to fetch a surface format
+            - 'volumetric' or 'voxel' to fetch a volumetric format
+            - supported format types, see Volume.PREFERRED_FORMATS. This includes
+              "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", 
+              "neuroglancer/precompmesh", "gii-label"
+        variant: str
+            Some volume providers allow acces to different variants, such as
+            freesurfer surface meshes which are available in the pial, white matter,
+            or inflated variant. If not used, multiple variants will be combined into
+            a multi-fragment mesh.
+        """
+        if voi and (voi.space != self.space):
             logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")
             voi = voi.warp(self.space)
-        if variant is not None:
-            logger.warn(
-                f"Variant {variant} requested, but {self.__class__.__name__} "
-                "does not provide volume variants."
-            )
-        requested_formats = self.PREFERRED_FORMATS if format is None else [format]
+
+        if format is None:
+            requested_formats = self.PREFERRED_FORMATS
+        elif format in ['surface', 'mesh']:
+            requested_formats = self.SURFACE_FORMATS
+        elif format in ['voxels', 'volumetric']:
+            requested_formats = set(self.PREFERRED_FORMATS) - set(self.SURFACE_FORMATS)
+        else:
+            requested_formats = []
+
         for fmt in requested_formats:
             if fmt in self.formats:
                 try:
-                    return self._providers[fmt].fetch(
-                        resolution_mm=resolution_mm, voi=voi, **kwargs
-                    )
+                    return self._providers[fmt].fetch(**kwargs)
                 except requests.SiibraHttpRequestError as e:
                     logger.error(f"Cannot access {self._providers[fmt]}")
                     print(str(e))
@@ -124,6 +161,10 @@ class VolumeProvider(ABC):
     def __init_subclass__(cls, srctype: str) -> None:
         cls.srctype = srctype
         return super().__init_subclass__()
+
+    @property
+    def fragments(self):
+        return []
 
 
 class SubvolumeProvider(VolumeProvider, srctype="subvolume"):

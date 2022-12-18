@@ -81,7 +81,7 @@ class AtlasConcept:
             Configuration.register_cleanup(cls.clear_registry)
             assert cls._configuration_folder in conf.folders
             objects = conf.build_objects(cls._configuration_folder)
-            logger.info(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
+            logger.debug(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
             assert len(objects) > 0
             assert all([hasattr(o, 'key') for o in objects])
 
