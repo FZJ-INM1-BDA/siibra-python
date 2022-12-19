@@ -311,23 +311,23 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         self.volume = volume
         self.url = url
         self.meshinfo = requests.HttpRequest(url=self.url + "/info", func=requests.DECODERS['.json']).data
-        self.mesh_key = self.meshinfo.get('mesh')
+        self._mesh_key = self.meshinfo.get('mesh')
+        self._transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
 
-    @staticmethod
-    def _fetch_fragment(url: str, transform_nm: np.ndarray):
+    def _fetch_fragment(self, url: str):
         r = requests.HttpRequest(url, func=lambda b: BytesIO(b))
         (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)
-        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
+        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, self._transform_nm)
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, hemisphere: str = None, **kwargs):
+    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is  a dictionary with the keys:
-        - vertices: an Nx3 array of coordinates (in nanometer)
+        - verts: an Nx3 array of coordinates (in nanometer)
         - faces: an MX3 array containing connection data of vertices
-        - name: name of the fragment
+        - fragment: name of the fragment
         """
         if resolution_mm is not None:
             logger.warn(f"{self.__class__}.fetch() ignores 'resolution_mm' argument")
@@ -337,32 +337,31 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
         try:
             resp = requests.HttpRequest(
-                url=f"{self.url}/{self.mesh_key}/{str(meshindex)}:0",
+                url=f"{self.url}/{self._mesh_key}/{str(meshindex)}:0",
                 func=requests.DECODERS['.json']
             ).data
-            fragments = resp.get('fragments') if resp else None
+            fragment_urls = [f"{self.url}/{self._mesh_key}/{f}" for f in resp.get('fragments')]
+            if len(fragment_urls) == 0:
+                raise RuntimeError("Could not fetch the fragments due to non-standard url structure.")
         except requests.SiibraHttpRequestError as e:
             print(str(e))
             logger.error(f"Source {self} does not provide a mesh with index {meshindex}.")
             return None
-        
-        transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
 
-        if hemisphere is None:
-            logger.warn("No hemisphere is selected. Returning both in one mesh. Options you could choose are 'left', 'right', 'all'.")
-            hemisphere = "all"
-        name = hemisphere.lower()
+        if fragment is None:
+            logger.warn("No fragment is selected. Returning both in one mesh. Options you could choose are 'left', 'right', 'all'.")
+            fragment = "all"
 
-        if hemisphere.casefold() == "all":
-            data = [self._fetch_fragment(f"{self.url}/{self.mesh_key}/{f}", transform_nm) for f in fragments]
+        if "all" in fragment.lower():
+            data = [self._fetch_fragment(u) for u in fragment_urls]
             vertices = np.concatenate((data[0][0], data[1][0]))
             faces = np.concatenate((data[0][1], data[1][1] + len(data[0][0])))
-        elif hemisphere.casefold() == "left":
-            vertices, faces = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[0]}", transform_nm)
-        elif hemisphere.casefold() == "right":
-            vertices, faces = self._fetch_fragment(f"{self.url}/{self.mesh_key}/{fragments[1]}", transform_nm)
+        elif "left" in fragment.lower():
+            vertices, faces = self._fetch_fragment(fragment_urls[0])
+        elif "right" in fragment.lower():
+            vertices, faces = self._fetch_fragment(fragment_urls[1])
         else:
-            raise RuntimeError(f"hemisphere={hemisphere} is not a valid option. Options are 'left', 'right', or 'all'.")
+            raise RuntimeError(f"fragment={fragment} is not a valid option. Options are 'left', 'right', or 'all'.")
 
         logger.warn("Labels are not yet implemented for Neuroglancer meshes.")
-        return dict(zip(['verts', 'faces', 'name'], [vertices, faces, name]))
+        return dict(zip(['verts', 'faces', 'fragment'], [vertices, faces, fragment.lower()]))
