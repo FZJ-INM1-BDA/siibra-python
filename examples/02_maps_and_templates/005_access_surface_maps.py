@@ -44,8 +44,8 @@ mp = jubrain.get_map(space='fsaverage6')
 # siibra displays the possible options as a list fetches the first one from the list.
 mesh = mp.fetch()
 
-# Now let us fetch a specific variant
-mesh = mp.fetch(variant="inflated/left")
+# Now let us fetch a specific variant and also the hemisphere fragment
+mesh = mp.fetch(variant="inflated", fragment="left")
 
 # The returned structure is a dictionary of three numpy arrays representing the vertices, faces, and labels respectively. 
 # Each vertex defines a 3D surface point, while the faces are triplets of indices into the list of vertices, defining surface triangles.

@@ -28,14 +28,14 @@ mp = siibra.parcellations["layers"].get_map(space="big brain")
 
 # %%
 # We can fetch the layer by speficifying the name.
-mesh = mp.fetch("layer 1", format="neuroglancer/precompmesh")
+mesh = mp.fetch(meshindex=1, format="neuroglancer/precompmesh")
 plotting.view_surf((mesh['verts'], mesh['faces'])) # TODO: implement a basic color map
 
 # %%
 # We can also choose the hemisphere and also calculate the thickness between two layers.
 # First, fetch two layers:
-mesh_r_1 = mp.fetch("layer 1", format="neuroglancer/precompmesh", hemisphere="right")
-mesh_r_7 = mp.fetch("non-cortical", format="neuroglancer/precompmesh", hemisphere="right")
+mesh_r_1 = mp.fetch(meshindex=1, format="neuroglancer/precompmesh", fragment="right")
+mesh_r_7 = mp.fetch(meshindex=7, format="neuroglancer/precompmesh", fragment="right")
 
 # then calculate the thickness using the map obejct created above
 thickness = mp.find_layer_thickness(mesh_r_1, mesh_r_7)
