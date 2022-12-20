@@ -775,7 +775,7 @@ class Map(region.Region, configuration_folder="maps"):
                 for _, vol, value in vals:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan] # TODO: volume is not defined here. Replace/remore/define.
                         )
             else:
                 logger.debug(
