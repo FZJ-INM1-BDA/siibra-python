@@ -108,7 +108,7 @@ class Volume:
             - 'surface' or 'mesh' to fetch a surface format
             - 'volumetric' or 'voxel' to fetch a volumetric format
             - supported format types, see Volume.PREFERRED_FORMATS. This includes
-              "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", 
+              "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh",
               "neuroglancer/precompmesh", "gii-label"
         """
         if voi and (voi.space != self.space):

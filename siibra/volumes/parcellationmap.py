@@ -259,7 +259,7 @@ class Map(region.Region, configuration_folder="maps"):
         index: MapIndex
             Explicit specification of the map index, typically resulting
             in a regional map (mask or continuous map) to be returned.
-            Note that supplying 'region' will result in retrieving the map index of that region 
+            Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
         variant : str
             Optional specification of a specific volume variant. For example,
@@ -316,7 +316,7 @@ class Map(region.Region, configuration_folder="maps"):
                 fragment=mapindex.fragment,
                 **kwargs,
             )
-            
+
         except requests.SiibraHttpRequestError:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
 
@@ -332,7 +332,7 @@ class Map(region.Region, configuration_folder="maps"):
                 assert mesh is not None
                 result = dict(**result, **mesh)
             else:
-                assert ("verts" in result) and ("faces" in result) # neuroglancer meshes
+                assert ("verts" in result) and ("faces" in result)  # neuroglancer meshes
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
@@ -775,7 +775,7 @@ class Map(region.Region, configuration_folder="maps"):
                 for _, vol, value in vals:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, volume, value, np.nan, np.nan, np.nan, np.nan] # TODO: volume is not defined here. Replace/remore/define.
+                            [pointindex, vol, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
                 logger.debug(

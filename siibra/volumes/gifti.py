@@ -35,7 +35,7 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
-    
+
     @property
     def fragments(self):
         return [k for k in self._loaders if k is not None]
@@ -45,7 +45,7 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
         Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
         and an Mx3 array of face definitions using row indices of the vertex array.
 
-        A fragment name can be specified to choose from multiple fragments. 
+        A fragment name can be specified to choose from multiple fragments.
         If not specified, multiple fragments will be merged into one mesh. In such a case,
         the verts and faces arrays of different fragments are appended to one another.
         """
@@ -68,8 +68,8 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
 
         if len(fragments_included) > 1:
             logger.info(
-               f"The mesh fragments [{', '.join(fragments_included)}] were merged (by appending the arrays of the fragments.)"
-               f"You could select one with the 'fragment' parameter in fetch()."
+                f"The mesh fragments [{', '.join(fragments_included)}] were merged (by appending the arrays of the fragments.)"
+                f"You could select one with the 'fragment' parameter in fetch()."
             )
 
         return {
@@ -114,4 +114,3 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
             assert len(loader.data.darrays) == 1
             labels.append(loader.data.darrays[0].data)
         return {"labels": np.hstack(labels)}
-
