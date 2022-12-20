@@ -46,7 +46,8 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
         and an Mx3 array of face definitions using row indices of the vertex array.
 
         A fragment name can be specified to choose from multiple fragments. 
-        If not specified, multiple fragments will be merged into one mesh.
+        If not specified, multiple fragments will be merged into one mesh. In such a case,
+        the verts and faces arrays of different fragments are appended to one another.
         """
         for arg in ["resolution_mm", "voi"]:
             if kwargs.get(arg):
@@ -67,7 +68,7 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
 
         if len(fragments_included) > 1:
             logger.info(
-               f"The mesh fragments [{', '.join(fragments_included)}] were merged. "
+               f"The mesh fragments [{', '.join(fragments_included)}] were merged (by appending the arrays of the fragments.)"
                f"You could select one with the 'fragment' parameter in fetch()."
             )
 
