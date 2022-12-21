@@ -314,6 +314,7 @@ class Map(region.Region, configuration_folder="maps"):
             result = self.volumes[mapindex.volume or 0].fetch(
                 variant=variant,
                 fragment=mapindex.fragment,
+                mapindex=mapindex,
                 **kwargs,
             )
 

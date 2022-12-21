@@ -321,13 +321,21 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
+    def fetch(self, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
         """
         Returns the list of fragment meshes found under the given mesh index.
         Each mesh is a dictionary with the keys:
         - verts: an Nx3 array of coordinates (in nanometer)
         - faces: an MX3 array containing connection data of vertices
         """
+        if "mapindex" in kwargs.keys():
+            meshindex = kwargs["mapindex"].label
+            if meshindex is None:
+                raise RuntimeError(f"MapIndex label cannot be {meshindex}.")
+        else:
+            logger.info("No map index is specified. Fetching the first one."
+                        "To list the options use `parcellationmap.find_indices("")`")
+            meshindex = 1
         if resolution_mm is not None:
             logger.warn(f"{self.__class__}.fetch() ignores 'resolution_mm' argument")
         if voi is not None:
