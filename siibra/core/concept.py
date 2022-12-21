@@ -17,7 +17,7 @@
 from ..commons import create_key, clear_name, logger, InstanceTable
 
 import re
-from typing import Generic, TypeVar, Type
+from typing import TypeVar, Type
 
 T = TypeVar("T", bound="AtlasConcept")
 
@@ -92,7 +92,7 @@ class AtlasConcept:
             import siibra
             r = siibra.volumes.Map.registry()
             """
-            if len({ o.__class__ for o in objects }) > 1:
+            if len({o.__class__ for o in objects}) > 1:
                 logger.warning(f"{cls.__name__} registry contains multiple classes: {', '.join(list({o.__class__.__name__ for o in objects}))}")
             assert hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
             cls._registry_cached = InstanceTable(

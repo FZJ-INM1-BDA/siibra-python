@@ -127,7 +127,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=profiles.BigBra
                     boundaries=boundary_depths[i, :],
                     location=point.Point(coords[i, :], bbspace),
                 )
-                # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim 
+                # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim
                 features.append(prof)
 
         return features

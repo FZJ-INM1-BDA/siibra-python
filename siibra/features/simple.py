@@ -25,6 +25,7 @@ try:
 except ImportError:
     from typing_extensions import TypedDict
 
+
 class DonorDict(TypedDict):
     id: int
     name: str

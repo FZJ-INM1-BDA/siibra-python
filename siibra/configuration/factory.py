@@ -249,7 +249,7 @@ class Factory:
             logger.info(
                 f"Using sparse map for {spec['filename']} "
                 f"due to the number of {len(volumes)} volumes."
-            ) 
+            )
             Maptype = sparsemap.SparseMap
 
         return Maptype(
