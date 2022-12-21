@@ -17,6 +17,7 @@ from . import anchor
 
 from ..commons import logger, InstanceTable
 from ..core import concept
+from ..core import space, region, parcellation
 
 from typing import Union
 from tqdm import tqdm
@@ -123,12 +124,25 @@ class Feature:
             else self.anchor.last_match_result
 
     @classmethod
-    def match(cls, concept: concept.AtlasConcept, modality: Union[str, type], **kwargs):
+    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], modality: Union[str, type], **kwargs):
         """
         Retrieve data features of the desired modality.
+
+        Parameters
+        ----------
+        concept: AtlasConcept
+            An anatomical concept, typically a brain region or parcellation.
+        modality: subclass of Feature
+            specififies the type of features ("modality")
         """
         if isinstance(modality, str):
             modality = cls.modalities[modality]
+        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
+            raise ValueError(
+                "Feature.match / siibra.get_features only accepts Region, "
+                "Space and Parcellation objects as concept."
+            )
+
         msg = f"Matching {modality.__name__} to {concept}"
         instances = modality.get_instances()
         preconfigured_instances = [
