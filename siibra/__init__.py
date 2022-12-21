@@ -71,6 +71,7 @@ def get_template(space_spec: str, **kwargs):
         .get_template(**kwargs)
     )
 
+
 def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
     return (
         Parcellation

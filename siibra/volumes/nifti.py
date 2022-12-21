@@ -33,11 +33,12 @@ class NiftiFetcher(volume.VolumeProvider, srctype="nii"):
         """
         volume.VolumeProvider.__init__(self)
         self._image_cached = None
+        self._src = src
         if isinstance(src, nib.Nifti1Image):
             self._image_cached = src
         elif isinstance(src, str):
             if os.path.isfile(src):
-                self._image_loader = lambda fn=self.url: nib.load(fn)
+                self._image_loader = lambda fn=self._src: nib.load(fn)
             else:
                 self._image_loader = lambda u=src: requests.HttpRequest(u).data
         else:

@@ -109,7 +109,7 @@ class AnatomicalAnchor:
             self._regions_cached = [region]
             self._regionspec = None
         else:
-            assert isinstance(region, Union[str, None])
+            assert isinstance(region, (str, None))
             self._regions_cached = None
             self._regionspec = region
 
@@ -120,7 +120,7 @@ class AnatomicalAnchor:
 
     @property
     def space(self):
-        # may be overriden by derived classes, e.g. in features.VolumeOfInterestAnchor
+        # may be overriden by derived classes, e.g. in features.VolumeOfInterest
         if self.location is None:
             return None
         else:
