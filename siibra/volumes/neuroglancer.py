@@ -321,14 +321,21 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return vertices, triangles
 
-    def fetch(self, meshindex: int, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
+    def fetch(self, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
         """
         Returns the list of fragment meshes found under the given mesh index.
-        Each mesh is  a dictionary with the keys:
+        Each mesh is a dictionary with the keys:
         - verts: an Nx3 array of coordinates (in nanometer)
         - faces: an MX3 array containing connection data of vertices
-        - fragment: name of the fragment
         """
+        if "mapindex" in kwargs.keys():
+            meshindex = kwargs["mapindex"].label
+            if meshindex is None:
+                raise RuntimeError(f"MapIndex label cannot be {meshindex}.")
+        else:
+            logger.info("No map index is specified. Fetching the first one."
+                        "To list the options use `parcellationmap.find_indices("")`")
+            meshindex = 1
         if resolution_mm is not None:
             logger.warn(f"{self.__class__}.fetch() ignores 'resolution_mm' argument")
         if voi is not None:
@@ -336,6 +343,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         if voi:
             raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
         try:
+            # NOTE: not sure `resp` is necessary if we know how the fragments are stored. Can we some how
+            # streamline this?
             resp = requests.HttpRequest(
                 url=f"{self.url}/{self._mesh_key}/{str(meshindex)}:0",
                 func=requests.DECODERS['.json']
@@ -349,19 +358,20 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             return None
 
         if fragment is None:
-            logger.warn("No fragment is selected. Returning both in one mesh. Options you could choose are 'left', 'right', 'all'.")
+            logger.warn("No fragment is selected. Returning both in one, larger mesh. "
+                        "Options you could choose are 'left', 'right', 'all'.")
             fragment = "all"
 
         if "all" in fragment.lower():
             data = [self._fetch_fragment(u) for u in fragment_urls]
-            vertices = np.concatenate((data[0][0], data[1][0]))
+            verts = np.concatenate((data[0][0], data[1][0]))
             faces = np.concatenate((data[0][1], data[1][1] + len(data[0][0])))
         elif "left" in fragment.lower():
-            vertices, faces = self._fetch_fragment(fragment_urls[0])
+            verts, faces = self._fetch_fragment(fragment_urls[0])
         elif "right" in fragment.lower():
-            vertices, faces = self._fetch_fragment(fragment_urls[1])
+            verts, faces = self._fetch_fragment(fragment_urls[1])
         else:
             raise RuntimeError(f"fragment={fragment} is not a valid option. Options are 'left', 'right', or 'all'.")
 
         logger.warn("Labels are not yet implemented for Neuroglancer meshes.")
-        return dict(zip(['verts', 'faces', 'fragment'], [vertices, faces, fragment.lower()]))
+        return dict(zip(['verts', 'faces'], [verts, faces]))

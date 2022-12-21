@@ -87,3 +87,66 @@ following this scheme:
                 self._heavy_property_cached = some_heavy_computation()
             return self._heavy_property_cached
 
+
+The design of volumes and fetching mechanism 
+--------------------------------------------
+
+**Basic definitions and notes**
+
+- Volume: is a complete 3D object, typically a complete brain.
+- Volume provider: is a resource that provides access to volumes. A volume can have multiple
+providers in different formats.
+- Variant: refers to alternative representations of the same volume. (e.g. inflated surface)
+    - If the volume has variants, they need to be listed in the configuration file.
+- Fragments: are individually addressable components of a volume.
+    - If a volume has fragments, either the user or the code needs to retrieve from multiple
+    sources to access the complete volume.
+    - Fragments need to be named (e.g. left and right hemisphere), because they inevitably
+    split the whole object into distinct anatomical parts that require semantic labeling. 
+- Brain regions (label): are structures mapped inside a specific volume or fragment.
+    - The structure appears by interpreting the labels inside the volume listed in the
+    configuration file.
+        - In special cases, a brain region could be represented by the complete volume or
+        fragment.
+- Volume index: the index of the volume in case there is more than one; typically used for
+probability maps, where each area has a different volume.
+- Z: for 4D volumes, it specifies the 4th coordinate identifying an actual 3D volume. It has
+a similar function as the volume index, only that the volumes are concatenated in one array and
+share the same affine transformation.
+- Source type (format): the format of the volume data. 
+    - See PREFERRED_FORMATS and SURFACE_FORMATS at volumes.volume.py for the currently
+    supported formats.
+
+**Fetching volumes**
+
+Fetching volumes occurs in two main stages:
+1) The determination of the volume by the user
+    - The user sets the object they would like to fetch a volume from:
+        i) a space template -> using get_template() which provides a volume template.
+        ii) or a map -> getting the desired map by setting desired specs.
+    - The user invokes fetch() method to retrieve the volume from the template or map.
+        i) template directly access to volume.fetch()
+        ii) fetch() first goes through map.fetch()
+2) Actual retrieval of the volume object by siibra after the user asks for the volume via
+`fetch()` method. When fetch() is invoked it accesses to corresponding volume provider
+based on the specifications given by volume index, fragment, z, label, variant, and format.
+According to the source type, the provider invokes the correct class and fetches the
+data accordingly.
+
+Defaults:
+- Volume with several variants: the first variant listed in the configuration is fetched.
+The user is informed along with a list of possible variants.
+- Volume with several fragments: All fragments are retrieved and combined to provide
+the whole volume. (This may cause some array length issues on the user end so the user
+should be informed. Potentially, this may be changed to fetch only the first fragment
+along with info and a list of options.)
+
+Implementation Notes:
+- When adjusting to a new type of data or special cases, it is highly encouraged to use
+one of the existing parameters.
+- Always inform a user when there are options available and the default is chosen.
+
+TO-DO:
+- Remove meshindex parameter from NGmesh and replace it with one of the other parameters.  
+- Implement a default way to list the variants and fragments?
+- A new mesh_util module or a toolbox/extension to handle mesh-related computations?

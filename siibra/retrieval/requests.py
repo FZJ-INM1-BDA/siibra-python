@@ -176,7 +176,7 @@ class HttpRequest:
             # if that happens, remove cachefile and
             try:
                 os.unlink(self.cachefile)
-            except:
+            except:  # TODO: do not use bare except
                 pass
             raise e
 
@@ -244,13 +244,12 @@ class EbrainsRequest(HttpRequest):
             cls._IAM_TOKEN_ENDPOINT = json_resp.get("token_endpoint")
         else:
             logger.warn("expect token endpoint in .well-known/openid-configuration, but was not present")
-        
+
         if "device_authorization_endpoint" in json_resp:
             logger.debug(f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}")
             cls._IAM_DEVICE_ENDPOINT = json_resp.get("device_authorization_endpoint")
         else:
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
-
 
     @classmethod
     def fetch_token(cls):
@@ -266,7 +265,7 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def device_flow(cls):
-        
+
         if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
             raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
 
@@ -280,7 +279,7 @@ class EbrainsRequest(HttpRequest):
         resp.raise_for_status()
         resp_json = resp.json()
         logger.debug("device flow, request full json:", resp_json)
-        
+
         assert "verification_uri_complete" in resp_json
         assert "device_code" in resp_json
 
@@ -289,15 +288,15 @@ class EbrainsRequest(HttpRequest):
         print("***")
         print(f"To continue, please go to {resp_json.get('verification_uri_complete')}")
         print("***")
-        
+
         attempt_number = 0
         sleep_timer = cls._IAM_DEVICE_POLLING_INTERVAL_SEC
         while True:
-            # TODO the polling is a little busted at the moment. 
+            # TODO the polling is a little busted at the moment.
             # need to speak to axel to shorten the polling duration
             sleep(sleep_timer)
-            
-            logger.debug(f"Calling endpoint")
+
+            logger.debug("Calling endpoint")
             if attempt_number > cls._IAM_DEVICE_MAXTRIES:
                 message = f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
                 logger.error(message)
@@ -314,7 +313,7 @@ class EbrainsRequest(HttpRequest):
 
             if resp.status_code == 200:
                 json_resp = resp.json()
-                logger.debug(f"Device flow sucessful:", json_resp)
+                logger.debug("Device flow sucessful:", json_resp)
                 cls._KG_API_TOKEN = json_resp.get("access_token")
                 print("ebrains token successfuly set.")
                 break
@@ -324,11 +323,10 @@ class EbrainsRequest(HttpRequest):
                 error = json_resp.get("error")
                 if error == "slow_down":
                     sleep_timer += 1
-                logger.debug(f"400 error:", resp.content)
+                logger.debug("400 error:", resp.content)
                 continue
 
             raise EbrainsAuthenticationError(resp.content)
-
 
     @property
     def kg_token(self):

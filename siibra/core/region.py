@@ -29,7 +29,6 @@ from ..commons import (
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD,
 )
-from ..retrieval.repositories import GitlabConnector
 
 import numpy as np
 import re
@@ -124,7 +123,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
-        region = Region(name=other.name,
+        region = Region(
+            name=other.name,
             children=[Region.copy(c) for c in other.children],
             parent=None,
             shortname=other.shortname,
@@ -133,14 +133,14 @@ class Region(anytree.NodeMixin, AtlasConcept):
             publications=other.publications,
             datasets=other.datasets,
             rgb=other.rgb)
-        
+
         for c in region.children:
             c.parent = region
         return region
 
     @property
     def labels(self):
-        return {r.index.label for r in self if r.index.label is not None} # Potenially a BUG
+        return {r.index.label for r in self if r.index.label is not None}  # Potenially a BUG
 
     @property
     def names(self):
@@ -544,7 +544,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         spaceobj = Space.get_instance(space)
         # TODO fix
-        raise NotImplementedError(f"Region.get_regional_map has been deprecated")
+        raise NotImplementedError("Region.get_regional_map has been deprecated")
         pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
         if pmap is None:
             logger.warn(

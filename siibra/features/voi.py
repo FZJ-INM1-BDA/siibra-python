@@ -41,7 +41,7 @@ class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
         return self.volume.space
 
     def __str__(self):
-        return f"bounding box of volume"
+        return "bounding box of volume"
 
 
 class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="features/volumes"):
@@ -76,4 +76,3 @@ class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="fea
                 f"Volume of interest with modality {self.modality} "
                 f"at {self.anchor}"
             )
-

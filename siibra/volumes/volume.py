@@ -108,13 +108,8 @@ class Volume:
             - 'surface' or 'mesh' to fetch a surface format
             - 'volumetric' or 'voxel' to fetch a volumetric format
             - supported format types, see Volume.PREFERRED_FORMATS. This includes
-              "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", 
+              "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh",
               "neuroglancer/precompmesh", "gii-label"
-        variant: str
-            Some volume providers allow acces to different variants, such as
-            freesurfer surface meshes which are available in the pial, white matter,
-            or inflated variant. If not used, multiple variants will be combined into
-            a multi-fragment mesh.
         """
         if voi and (voi.space != self.space):
             logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")

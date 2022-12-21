@@ -212,7 +212,7 @@ class Factory:
         ]
 
         affine = np.array(spec["affine"]) if "affine" in spec else None
-
+        # TODO: urls->providers
         for srctype, url in spec.get("urls", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
@@ -249,7 +249,7 @@ class Factory:
             logger.info(
                 f"Using sparse map for {spec['filename']} "
                 f"due to the number of {len(volumes)} volumes."
-            ) 
+            )
             Maptype = sparsemap.SparseMap
 
         return Maptype(

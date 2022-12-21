@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 import os
-import re
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 

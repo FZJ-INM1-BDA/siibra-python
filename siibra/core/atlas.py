@@ -101,7 +101,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
             if len(self._parcellation_ids) > 1:
                 logger.info(f"No parcellation specified, using default: '{parcellation_obj.name}'.")
             return parcellation_obj
-        
+
         if isinstance(parcellation, Parcellation):
             assert parcellation in self.parcellations
             return parcellation
@@ -120,7 +120,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
             if len(self._space_ids) > 1:
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
             return space_obj
-        
+
         if isinstance(space, Space):
             assert space in self.spaces
             return space

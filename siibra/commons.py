@@ -103,7 +103,6 @@ class InstanceTable(Generic[T], Iterable):
             return key in self._elements
         return key in [item for _, item in self._elements.values()]
 
-
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
         return len(self._elements)
