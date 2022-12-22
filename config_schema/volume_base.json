@@ -34,6 +34,10 @@
                 "neuroglancer/precompmesh": {
                     "$ref": "#/definitions/provider"
                 },
+                "neuroglancer/precompmesh/surface": {
+                    "$ref": "#/definitions/provider",
+                    "pattern": "^.+\\s[0-9]+$"
+                },
                 "nii": {
                     "$ref": "#/definitions/provider"
                 },
