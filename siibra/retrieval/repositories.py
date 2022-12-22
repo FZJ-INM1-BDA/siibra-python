@@ -117,13 +117,13 @@ class LocalFileRepository(RepositoryConnector):
         of cached http requests used in other connectors.
         """
         def __init__(self, file_url, decode_func):
-            self.file_url = file_url
+            self.url = file_url
             self.func = decode_func
             self.cached = True
 
         @property
         def data(self):
-            with open(self.file_url, 'rb') as f:
+            with open(self.url, 'rb') as f:
                 return self.func(f.read())
 
     def get_loader(self, filename, folder="", decode_func=None):
