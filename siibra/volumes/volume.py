@@ -16,12 +16,12 @@
 from .. import logger
 from ..retrieval import requests
 from ..core import space
+from ..locations import boundingbox
 
 import numpy as np
 import nibabel as nib
-from abc import ABC
-from typing import List
-from ..locations import boundingbox
+from abc import ABC, abstractmethod
+from typing import List, Dict, Union
 
 
 class ColorVolumeNotSupported(NotImplementedError):
@@ -47,7 +47,7 @@ class Volume:
         self._name_cached = name  # see lazy implementation below
         self._space_spec = space_spec
         self.variant = variant
-        self._providers = {}
+        self._providers: Dict[str, 'VolumeProvider'] = {}
         for provider in providers:
             srctype = provider.srctype
             assert srctype not in self._providers
@@ -151,6 +151,8 @@ class Subvolume(Volume):
             ]
         )
 
+# TODO add mesh primitive. Check nibabel implementation? Use trimesh? Do we want to add yet another dependency?
+VolumeData = Union[nib.Nifti1Image, Dict]
 
 class VolumeProvider(ABC):
 
@@ -161,6 +163,10 @@ class VolumeProvider(ABC):
     @property
     def fragments(self):
         return []
+    
+    @abstractmethod
+    def fetch(self, *args, **kwargs) -> VolumeData:
+        raise NotImplementedError
 
 
 class SubvolumeProvider(VolumeProvider, srctype="subvolume"):

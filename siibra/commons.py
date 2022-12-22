@@ -38,7 +38,7 @@ SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
 SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
-    __version__ = fp.read()
+    __version__ = fp.read().strip()
 
 
 T = TypeVar("T")
@@ -246,7 +246,7 @@ class MapIndex:
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
 
-    def __init__(self, volume: int, label: int, fragment: int = None):
+    def __init__(self, volume: int, label: int, fragment: str = None):
         self.volume = volume
         self.label = label
         self.fragment = fragment

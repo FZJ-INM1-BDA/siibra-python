@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from siibra.volumes.parcellationmap import Map, space, parcellation, MapType
+from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex
 from uuid import uuid4
 from parameterized import parameterized
 import random
@@ -14,6 +14,7 @@ volume_fetch_param = {
     "format": ("foo", "bar", "buzz"),
     "voi": ( DummyCls(), DummyCls() ),
     "variant": ("hello", "world"),
+    "fragment": ("foo-fragment", None)
 }
 
 def get_randomised_fetch_params():
@@ -177,7 +178,7 @@ class TestMap(unittest.TestCase):
         self.assertListEqual(self.map.regions, expected_regions)
 
     @parameterized.expand([
-        ((0,), { **get_randomised_fetch_params() }, {
+        (("region-foo",), { **get_randomised_fetch_params() }, {
             "foo": [{
                 "volume": 0,
                 "label": 1
@@ -190,19 +191,22 @@ class TestMap(unittest.TestCase):
     ])
     def test_fetch(self, args, kwargs, indices, mock_fetch_idx, expected_meshindex):
 
-        volumes = [DummyCls() for _ in range(5)]
-        selected_volume = volumes[mock_fetch_idx]
-        selected_volume.fetch = MagicMock()
-        selected_volume.fetch.return_value = DummyCls()
-        self.map=TestMap.get_instance(indices=indices, volumes=volumes)
-        
-        actual_fetch_result = self.map.fetch(*args, **kwargs)
-        fetch_call_params = {
-            key: kwargs.get(key) for key in volume_fetch_param
-        }
-        selected_volume.fetch.assert_called_once_with(
-            **fetch_call_params,
-            meshindex=expected_meshindex
-        )
-        self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
+        with patch.object(Map, 'get_index') as get_index_mock:
+            get_index_mock.return_value = MapIndex(0, 0)
+            
+            volumes = [DummyCls() for _ in range(5)]
+            selected_volume = volumes[mock_fetch_idx]
+            selected_volume.fetch = MagicMock()
+            selected_volume.fetch.return_value = DummyCls()
+            self.map=TestMap.get_instance(indices=indices, volumes=volumes)
+            
+            actual_fetch_result = self.map.fetch(*args, **kwargs)
+            fetch_call_params = {
+                key: kwargs.get(key) for key in volume_fetch_param
+            }
+            selected_volume.fetch.assert_called_once_with(
+                **fetch_call_params,
+                mapindex=get_index_mock.return_value
+            )
+            self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
 

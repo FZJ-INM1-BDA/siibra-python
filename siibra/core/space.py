@@ -100,7 +100,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         """
         tests = []
         if variant is not None:
-            tests.append(lambda v: variant.lower() in v.variant.lower())
+            tests.append(lambda v: hasattr(v, 'variant') and variant.lower() in v.variant.lower())
         candidates = [v for v in self.volumes if all(t(v) for t in tests)]
 
         if len(candidates) == 0:

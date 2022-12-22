@@ -212,8 +212,7 @@ class Factory:
         ]
 
         affine = np.array(spec["affine"]) if "affine" in spec else None
-        # TODO: urls->providers
-        for srctype, url in spec.get("urls", {}).items():
+        for srctype, url in spec.get("providers", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
                     if affine is None:
