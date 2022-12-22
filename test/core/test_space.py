@@ -8,6 +8,7 @@ import inspect
 class DummyCls:
     def __init__(self, name) -> None:
         self.name = name
+        self.variant = name
 
 
 class TestSpaces(unittest.TestCase):
@@ -29,7 +30,7 @@ class TestSpaces(unittest.TestCase):
         ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], None, 0),
         ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "foo", 0),
         ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "bar", 1),
-        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "baz", AssertionError),
+        ([ DummyCls("foo"), DummyCls("bar"), DummyCls("bar") ], "baz", RuntimeError),
     ])
     def test_space_get_template(self, volumes, variant, result_idx):
         self.space = TestSpaces.get_instance(volumes=volumes)

@@ -40,7 +40,7 @@ class Map(region.Region, configuration_folder="maps"):
         name: str,
         space_spec: dict,
         parcellation_spec: dict,
-        indices: Dict[str, MapType],
+        indices: Dict[str, Dict],
         volumes: list = [],
         shortname: str = "",
         description: str = "",
@@ -159,7 +159,7 @@ class Map(region.Region, configuration_folder="maps"):
                 for idx in self._indices[regionspec]
             }
         regionname = regionspec.name if isinstance(regionspec, region.Region) else regionspec
-        matched_region_names = set(_.name for _ in self.parcellation.find(regionname))
+        matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
             logger.warn(f"Region {regionname} not defined in {self}")
@@ -302,8 +302,7 @@ class Map(region.Region, configuration_folder="maps"):
 
         if "fragment" in kwargs:
             assert (mapindex.fragment is None) or (mapindex.fragment == kwargs['fragment'])
-            mapindex.fragment = kwargs['fragment']
-            kwargs.pop('fragment', None)
+            mapindex.fragment = kwargs.pop("fragment")
 
         if mapindex.volume >= len(self):
             raise ValueError(
@@ -323,6 +322,7 @@ class Map(region.Region, configuration_folder="maps"):
 
         if isinstance(result, dict):
             # the result is a mesh which should be in dict format
+            # TODO move this to Volume.fetch?
             if "labels" in result:
                 mesh = self.space.get_template(variant=variant).fetch(
                     format="gii-mesh",
@@ -337,17 +337,15 @@ class Map(region.Region, configuration_folder="maps"):
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
-        elif mapindex.label is None:
-            return result
-        elif is_mesh(result):
-            return result
-        elif isinstance(result, Nifti1Image):
+
+        # TODO move this to Volume.fetch?
+        if mapindex.label is not None and isinstance(result, Nifti1Image):
             logger.debug(f"Creating binary mask for label {mapindex.label} from volume {mapindex.volume}")
             return Nifti1Image(
                 (np.asanyarray(result.dataobj) == mapindex.label).astype("uint8"),
                 result.affine
             )
-        raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+        return result
 
     def find_layer_thickness(self, mesh_0: dict, mesh_1: dict):
         """Returns a 1D numpy array with the thickness of the given layers."""

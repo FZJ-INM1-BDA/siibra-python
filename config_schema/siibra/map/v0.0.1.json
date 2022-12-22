@@ -29,15 +29,19 @@
                             },
                             "label": {
                                 "anyOf": [{
-                                    "type": "number"
+                                   
                                 }, {
                                     "type": "null"
                                 }]
+                            },
+                            "fragment": {
+                                "type": "string"
+                            },
+                            "z": {
+                                "type": "number"
                             }
                         },
-                        "required": [
-                            "volume"
-                        ]
+                        "additionalProperties": false
                     }
                 }
             }

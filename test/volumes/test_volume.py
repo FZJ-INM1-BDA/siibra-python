@@ -5,7 +5,8 @@ from siibra.commons import MapType
 from siibra.volumes.volume import Volume, VolumeProvider, space
 from parameterized import parameterized
 
-class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"): pass
+class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
+    def fetch(self, *args, **kwargs): pass
 
 class TestVolumeProvider(unittest.TestCase):
 

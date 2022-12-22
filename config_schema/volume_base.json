@@ -1,29 +1,8 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
     "properties": {
-        "urls": {
-            "type": "object",
-            "properties": {
-                "neuroglancer/precomputed": {
-                    "type": "string"
-                },
-                "neuroglancer/precompmesh": {
-                    "type": "string"
-                },
-                "nii": {
-                    "type": "string"
-                },
-                "zip/nii": {
-                    "type": "string",
-                    "pattern": "^.+\\s.+$"
-                },
-                "gii-label": {
-                    "type": "string"
-                },
-                "gii-mesh": {
-                    "type": "string"
-                }
-            },
+        "providers": {
+            "$ref": "#/definitions/providers",
             "additionalProperties": false
         },
         "detail": {
@@ -33,8 +12,46 @@
             "type": "string"
         }
     },
+    "definitions": {
+        "provider": {
+            "anyOf": [{
+                "type": "string"
+            }, {
+                "type": "object",
+                "patternProperties": {
+                    ".+": {
+                        "type": "string"
+                    }
+                }
+            }]
+        },
+        "providers": {
+            "type": "object",
+            "properties": {
+                "neuroglancer/precomputed": {
+                    "$ref": "#/definitions/provider"
+                },
+                "neuroglancer/precompmesh": {
+                    "$ref": "#/definitions/provider"
+                },
+                "nii": {
+                    "$ref": "#/definitions/provider"
+                },
+                "zip/nii": {
+                    "$ref": "#/definitions/provider",
+                    "pattern": "^.+\\s.+$"
+                },
+                "gii-label": {
+                    "$ref": "#/definitions/provider"
+                },
+                "gii-mesh": {
+                    "$ref": "#/definitions/provider"
+                }
+            }
+        }
+    },
     "required": [
         "@type",
-        "urls"
+        "providers"
     ]
 }
