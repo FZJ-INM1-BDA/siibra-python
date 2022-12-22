@@ -172,7 +172,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         if parents_only:
             return [
                 r for r in MEM[region_spec]
-                if r.parent not in MEM[region_spec]
+                if (r.parent is None) or (r.parent not in MEM[region_spec])
             ]
         else:
             return MEM[region_spec]
