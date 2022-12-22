@@ -22,7 +22,6 @@ from typing import Union
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 from tqdm import tqdm
-
 from os import path
 
 
@@ -149,19 +148,15 @@ class Configuration:
 
         from .factory import Factory
         specloaders = self.spec_loaders.get(folder, [])
-        if len(specloaders) == 0:
+        if len(specloaders) == 0:  # no loaders found in this configuration folder!
             return result
-        else:
-            fname0, spec0 = specloaders[0]
-            obj0 = Factory.from_json(dict(spec0.data, **{'filename': fname0}))
-            objtype = obj0.__class__
 
         for fname, loader in tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured {objtype.__name__} objects"
+            desc=f"Loading preconfigured objects from {folder}"
         ):
-            # filename is used by Factory to create an object identifier if none is provided.
+            # filename is added to allow Factory creating reasonable default object identifiers
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
             result.append(obj)
 
@@ -170,8 +165,8 @@ class Configuration:
     def __getitem__(self, folder: str):
         return self.build_objects(folder)
 
-    def __getattr__(self, folder: str):
-        return self.build_objects(folder)
+    #def __getattr__(self, folder: str):
+    #    return self.build_objects(folder)
 
 
 if SIIBRA_USE_CONFIGURATION:
