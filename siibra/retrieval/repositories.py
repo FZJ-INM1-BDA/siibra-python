@@ -133,8 +133,7 @@ class LocalFileRepository(RepositoryConnector):
         if url is None:
             raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
         if decode_func is None:
-            def decode_func():
-                return lambda b: self._decode_response(b, filename)
+            decode_func = lambda b: self._decode_response(b, filename)
         return self.FileLoader(url, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
@@ -236,13 +235,20 @@ class ZipfileConnector(RepositoryConnector):
 
     def __init__(self, url: str):
         RepositoryConnector.__init__(self, base_url="")
-        if path.isfile(path.abspath(path.expanduser(url))):
-            self.zipfile = path.abspath(path.expanduser(url))
-        else:
-            # assume the url is web URL to download the zip!
-            req = HttpRequest(url)
-            req._retrieve()
-            self.zipfile = req.cachefile
+        self.url = url
+        self._zipfile_cached = None
+
+    @property 
+    def zipfile(self):
+        if self._zipfile_cached is None:
+            if path.isfile(path.abspath(path.expanduser(self.url))):
+                self._zipfile_cached = path.abspath(path.expanduser(self.url))
+            else:
+                # assume the url is web URL to download the zip!
+                req = HttpRequest(self.url)
+                req._retrieve()
+                self._zipfile_cached = req.cachefile
+        return self._zipfile_cached
 
     def _build_url(self, folder="", filename=None):
         return path.join(folder, filename)
