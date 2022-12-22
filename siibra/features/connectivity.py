@@ -51,7 +51,6 @@ class ConnectivityMatrix(Feature):
         self._datafile = files.get("data", "")
         self._headerfile = files.get("header", "")
         self._matrix_cached = None
-        self.modality = None
 
     def __dir__(self):
         return sorted(
