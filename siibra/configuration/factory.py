@@ -25,6 +25,8 @@ from os import path
 import json
 import numpy as np
 from typing import List, Type
+import pandas as pd
+from io import BytesIO
 
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
@@ -39,7 +41,7 @@ BUILDFUNCS = {
     "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
-    "siibra/feature/connectivitymatrix/v0.1": "build_connectivity_matrix",
+    "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
 }
 
@@ -84,6 +86,17 @@ class Factory:
         else:
             logger.error(f"Species specifications '{(idspec, namespec)}' unexpected - check if supported.")
             return None
+
+    @classmethod
+    def extract_decoder(cls, spec):
+        decoder_spec = spec.get("decoder", {})
+        if decoder_spec["@type"].endswith('csv'):
+            kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
+            return lambda b: pd.read_csv(BytesIO(b), **kwargs)
+        else:
+            logger.warn("Decoder spec unknown, returning identify function")
+            print(decoder_spec)
+            return lambda b: b
 
     @classmethod
     def extract_anchor(cls, spec):
@@ -344,11 +357,13 @@ class Factory:
         modality = spec["modality"]
         kwargs = {
             "cohort": spec["cohort"],
-            "subject": spec["subject"],
             "modality": modality,
+            "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
-            "files": spec.get('files', {}),
+            "decode_func": cls.extract_decoder(spec),
+            "files": spec.get("files", {}),
             "anchor": cls.extract_anchor(spec),
+            "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
         }
         if modality == "StreamlineCounts":

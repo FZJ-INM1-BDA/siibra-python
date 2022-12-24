@@ -176,7 +176,7 @@ class HttpRequest:
             # if that happens, remove cachefile and
             try:
                 os.unlink(self.cachefile)
-            except:  # TODO: do not use bare except
+            except Exception:
                 pass
             raise e
 

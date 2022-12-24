@@ -119,6 +119,10 @@ class AnatomicalAnchor:
         return self._location_cached
 
     @property
+    def parcellations(self):
+        return list({region.root for region in self.regions})
+
+    @property
     def space(self):
         # may be overriden by derived classes, e.g. in features.VolumeOfInterest
         if self.location is None:
@@ -135,7 +139,6 @@ class AnatomicalAnchor:
             else:
                 if self._regionspec not in self.__class__._MATCH_MEMO:
                     # decode the region specification into a set of region objects
-                    # raise NotImplementedError(f"Parcellation.find_regions has incorrect call signature")
                     regions = {
                         r: AssignmentQualification['EXACT']
                         for species in self.species

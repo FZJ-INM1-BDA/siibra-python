@@ -133,8 +133,9 @@ class LocalFileRepository(RepositoryConnector):
         if url is None:
             raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
         if decode_func is None:
-            decode_func = lambda b: self._decode_response(b, filename)
-        return self.FileLoader(url, decode_func)
+            return self.FileLoader(url, lambda b: self._decode_response(b, filename))
+        else:
+            return self.FileLoader(url, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
         exclude = ['.', '~']
@@ -238,7 +239,7 @@ class ZipfileConnector(RepositoryConnector):
         self.url = url
         self._zipfile_cached = None
 
-    @property 
+    @property
     def zipfile(self):
         if self._zipfile_cached is None:
             if path.isfile(path.abspath(path.expanduser(self.url))):
@@ -287,9 +288,9 @@ class ZipfileConnector(RepositoryConnector):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
         if decode_func is None:
-            def decode_func():
-                return lambda b: self._decode_response(b, filename)
-        return self.FileLoader(self.zipfile, filename, decode_func)
+            return self.FileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
+        else:
+            return self.FileLoader(self.zipfile, filename, decode_func)
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.zipfile}"

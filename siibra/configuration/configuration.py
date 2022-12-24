@@ -151,10 +151,12 @@ class Configuration:
         if len(specloaders) == 0:  # no loaders found in this configuration folder!
             return result
 
+        obj0 = Factory.from_json(specloaders[0][1].data)
+
         for fname, loader in tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured objects from {folder}"
+            desc=f"Loading preconfigured {obj0.__class__.__name__} objects"
         ):
             # filename is added to allow Factory creating reasonable default object identifiers
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
