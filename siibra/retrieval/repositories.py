@@ -315,9 +315,12 @@ class OwncloudConnector(RepositoryConnector):
 class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
     the Human Data Gateway (HDG) via the data proxy API.
+    
+    Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
     """
 
-    base_url = "https://data-proxy.ebrains.eu/api/datasets"
+    api_version = "v1"
+    base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
     maxentries = 1000
 
     def __init__(self, dataset_id):
