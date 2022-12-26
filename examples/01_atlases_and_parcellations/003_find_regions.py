@@ -17,14 +17,14 @@
 Find brain regions in a parcellation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We can use Parcellation objects to find individual brain regions.
+We can use Parcellation objects to find child brain regions.
 """
 
 # %%
 # We start by seleting an atlas and a parcellation.
 import siibra
-atlas = siibra.atlases['human']
-julich_brain = atlas.get_parcellation('julich 2.9')
+atlas = siibra.atlases.get('human')
+julich_brain = atlas.parcellations.get('julich 2.9')
 
 # %%
 # The most basic way is to search for all regions matching a particular string:
@@ -35,7 +35,8 @@ julich_brain.find('V1')
 julich_brain.find('v1', filter_children=True)
 
 # %%
-# # For more fine grained searches, powerful regular expressions can be used. Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.
+# For more powerful searches,  regular expressions can be used. 
+# Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.
 import re
 # find hOc2 or hOc4 in the right hemisphere
 julich_brain.find(re.compile('hOc[24].*right'))
@@ -55,16 +56,26 @@ for r in atlas.find_regions('amygdala'):
     print(f"{r.name:30.30} {r.parcellation}")
 
 
+# %%
+# In fact, siibra provides a package-level function
+# to search through regions of all parcellations.
+siibra.find_regions('amygdala')
+
+
 # NOTE: the output is different. For example, couldn't find anything from VEP Atlas.
 
 
 # %%
 # Often however, we want to access one particular region, given a unique specification,
-# and not obtain a list of many possible matches. This can be done using the 
-# `get_region` method. It assumes that the provided region specification is 
-# unique, and returns the single exact match. 
+# and not obtain a list of many possible matches. This can be done using the
+# `get_region` method. It assumes that the provided region specification is
+# unique, and returns the single exact match.
 # Note that if the specification is not unique, this method will raise an exception!
 julich_brain.get_region('v1 left')
+
+# %%
+# siibra provides a package-level shortcut function for this as well:
+siibra.get_region('julich 2.9', 'v1 left')
 
 # %%
 # In case that the given specification matches multiple regions, which however represent
