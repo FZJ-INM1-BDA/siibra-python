@@ -18,24 +18,28 @@ Basic brain region properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` makes no distinction between brain regions and region trees: Each
-`siibra.core.Region` object represents itself a subtree with a (possibly empty)
+`siibra.core.Region` object represents a subtree with a (possibly empty)
 set of child regions, and has a pointer to its parent region in the hierarchy.
-It also has a pointer to the parcellation it belongs to.
+As mentioned before, Parcellation objects are also special regions,
+with no parent and additional functionalities. 
+Consequently, the parcellation of a region can be accessed as the region's
+"root" attribute (but "parcellation" is also provided as a shortcut property to this)
 """
 
 # %%
-# We start by selecting an atlas.
+# Start by importing the package.
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
-# Let's fetch the region representing the primary visual cortex.
-v1 = atlas.get_region('v1', parcellation='julich')
-v1
+# Let's fetch the region from the Julich-Brain parcellation 
+# representing the primary visual cortex.
+v1 = siibra.get_region('julich 2.9', 'v1')
 
 # %%
-# The region belongs to a particular parcellation object:
-v1.parcellation
+# The corresponding parcellation is just the root region:
+print(v1.root)
+print(v1.parcellation)
+
 
 # %%
 # The primary visual cortex is part of the occipital cortex:
@@ -51,15 +55,6 @@ print(repr(v1))
 # return the actual list of child region objects
 v1.children
 
-# fetch one child
-v1l = v1.children[0]
-
-# NOTE: Is metadata fetching without programmatic permissions possible?
-# %%
-# Regions contain metadata. In some cases, they even represent individual EBRAINS datasets.
-# In this case we can retrieve more detailed information from the EBRAINS Knowledge Graph.
-# print some metadata of the brain region. (Requires programmatic access to EBRAINS)
-for infodata in v1l.infos:
-    print(infodata.description); print()
-    for p in infodata.publications:
-        print(p['cite']); print()
+# we can access children with fuzzy string matching using "find"
+# as well as by their index
+v1l = v1.find("left")
