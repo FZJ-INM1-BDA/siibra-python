@@ -412,13 +412,15 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
     maxentries = 1000
 
-    def __init__(self, dataset_id: str = None, title: str = None, in_progress=False):
+    def __init__(self, dataset_id: str = None, version_id: str = None, title: str = None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
         ----------
         dataset_id : str
             EBRAINS dataset id of a public dataset in KG v3.
+        version_id : str
+            Version id to pick from the dataset (optional)
         title: str
             Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
@@ -459,13 +461,18 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         self._description += data.get("description", "")
         self._name += data.get("name", "")
         self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
-        self.use_version = sorted(list(self.versions.keys()))[-1]
-        if len(self.versions) > 1:
-            logger.info(
-                f"Found {len(self.versions)} versions for dataset '{data['name']}' "
-                f"({', '.join(self.versions.keys())}). "
-                f"Will use {self.use_version} per default."
-            )
+        if version_id is None:
+            self.use_version = sorted(list(self.versions.keys()))[-1]
+            if len(self.versions) > 1:
+                logger.info(
+                    f"Found {len(self.versions)} versions for dataset '{data['name']}' "
+                    f"({', '.join(self.versions.keys())}). "
+                    f"Will use {self.use_version} per default."
+                )
+        else:
+            assert version_id in self.versions
+            self.use_version = version_id
+
 
     @property
     def name(self):

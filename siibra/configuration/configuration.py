@@ -167,9 +167,6 @@ class Configuration:
     def __getitem__(self, folder: str):
         return self.build_objects(folder)
 
-    #def __getattr__(self, folder: str):
-    #    return self.build_objects(folder)
-
 
 if SIIBRA_USE_CONFIGURATION:
     logger.warn(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")

@@ -25,10 +25,11 @@ import numpy as np
 from tqdm import tqdm
 
 
-class ConnectivityMatrix(Feature):
+class ParcellationAveragedConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more
     matrices of a given modality for a given parcellation.
+
     """
 
     def __init__(
@@ -114,7 +115,7 @@ class ConnectivityMatrix(Feature):
                     for fname in tqdm(
                         self._files.values(),
                         total=len(self),
-                        desc=f"Computer average of {len(self)} individual matrices"
+                        desc=f"Averaging {len(self)} connectivity matrices"
                     )
                 ]
                 self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
@@ -150,7 +151,7 @@ class ConnectivityMatrix(Feature):
 
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
-        Convert a numpy array with the connectivity matrix to 
+        Convert a numpy array with the connectivity matrix to
         a dataframe with regions as column and row headers.
         """
         df = pd.DataFrame(array)
@@ -197,23 +198,23 @@ class ConnectivityMatrix(Feature):
         return self._array_to_dataframe(array)
 
 
-class StreamlineCounts(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/streamlinecounts"):
+class StreamlineCounts(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/streamlinecounts"):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
     def __init__(self, **kwargs):
-        ConnectivityMatrix.__init__(self, **kwargs)
+        ParcellationAveragedConnectivity.__init__(self, **kwargs)
 
 
-class FunctionalConnectivity(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/functional"):
+class FunctionalConnectivity(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/functional"):
     """Functional connectivity matrix grouped by a parcellation."""
 
     def __init__(self, paradigm: str, **kwargs):
-        ConnectivityMatrix.__init__(self, **kwargs)
+        ParcellationAveragedConnectivity.__init__(self, **kwargs)
         self.paradigm = paradigm
 
 
-class StreamlineLengths(ConnectivityMatrix, configuration_folder="features/connectivitymatrix/streamlinelengths"):
+class StreamlineLengths(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/streamlinelengths"):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
 
     def __init__(self, **kwargs):
-        ConnectivityMatrix.__init__(self, **kwargs)
+        ParcellationAveragedConnectivity.__init__(self, **kwargs)
