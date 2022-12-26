@@ -315,7 +315,7 @@ class OwncloudConnector(RepositoryConnector):
 class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
     the Human Data Gateway (HDG) via the data proxy API.
-    
+
     Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
     """
 
@@ -472,7 +472,6 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         else:
             assert version_id in self.versions
             self.use_version = version_id
-
 
     @property
     def name(self):
