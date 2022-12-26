@@ -17,14 +17,19 @@
 Explore brain region hierarchies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Each parcellation provides access to a tree of brain regions. 
+Each parcellation is the root element of a tree of brain regions.
+In fact, Parcellation objects are special Region objects, so they
+inherit all functionalities of a region, while providing additional
+capabilities such as access to parcellation maps. 
+Other then "standard" Region objects, parcellations do not have a
+parent region.
 """
 
 # %%
 # We start by selecting an atlas and a parcellation
 import siibra
-atlas = siibra.atlases['human']
-julich_brain = atlas.get_parcellation('julich 2.9')
+atlas = siibra.atlases.get('human')
+julich_brain = atlas.parcellations.get('julich 2.9')
 julich_brain
 
 # %%
@@ -43,4 +48,3 @@ print(julich_brain.tree2str())
 # %%
 # We can also iterate only the leaves of the tree
 [region.name for region in julich_brain.leaves]
-
