@@ -40,8 +40,9 @@ modalities = Feature.modalities
 find_regions = Parcellation.find_regions
 
 
-# lazy access to class registries
-# (should only be executed on request, not on package intialization)
+# provide siibra.atlases, siibra.spaces, ...
+# To avoid instantiation on package import, we implement
+# lazy access of these attributes.
 def __getattr__(attr: str):
 
     aliases = {
@@ -50,20 +51,13 @@ def __getattr__(attr: str):
         'parcellations': Parcellation,
     }
 
-    # provide siibra.atlases, siibra.spaces, ...
     if attr in aliases:
         return aliases[attr].registry()
-
-    # provide siibra.get_atlas(..), ...
-    if attr.startswith('get_'):
-        name = attr.split('_')[1].capitalize()
-        for cls in aliases.values():
-            if cls.__name__ == name:
-                return cls.get_instance
 
     raise AttributeError(f"siibra has no attribute named {attr}")
 
 
+# convenient access to reference space templates
 def get_template(space_spec: str, **kwargs):
     return (
         Space
@@ -72,6 +66,7 @@ def get_template(space_spec: str, **kwargs):
     )
 
 
+# convenient access to parcellation maps
 def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
     return (
         Parcellation
@@ -80,6 +75,7 @@ def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, 
     )
 
 
+# convenient access to regions of a parcellation
 def get_region(parcellation: str, region: str):
     return (
         Parcellation
