@@ -151,7 +151,12 @@ class Configuration:
         if len(specloaders) == 0:  # no loaders found in this configuration folder!
             return result
 
-        obj0 = Factory.from_json(specloaders[0][1].data)
+        obj0 = Factory.from_json(
+            dict(
+                specloaders[0][1].data,
+                **{'filename': specloaders[0][0]}
+            )
+        )
 
         for fname, loader in tqdm(
             specloaders,
