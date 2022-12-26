@@ -17,12 +17,14 @@
 Find predefined reference spaces
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Just as atlas and parcellation objects, `siibra` provides a registry of predefined
-reference space objects that will be bootstrapped when you load the library for
+Just as atlas and parcellation objects, `siibra` provides an instance table of
+preconfigured reference spaces that will be populated when accessed for
 the first time, and stay in your local file cache for future use. Reference
-spaces are semantic objects which define a brain coordinate system. Associated
-to each reference space are one or more reference templates, representing a
-concrete reference image or surface representation of the brain.
+spaces are purely semantic objects which define a brain coordinate system.
+
+Associated to each reference space however are one or more reference templates,
+representing a concrete reference image or surface representation of the brain.
+These are demonstrated in the following example.
 """
 
 # %%
@@ -33,24 +35,23 @@ dir(siibra.spaces)
 
 # %%
 # Fetching an object works in the same way as for e.g. `siibra.atlases` (see :ref:`atlases`)
-space = siibra.spaces['mni152']
+space = siibra.spaces.get('icbm 2009c asym')
 print(space)
 
 # %%
 # Typically however, we are only interested in the reference spaces supported by
-# a given atlas. Atlases provide their own space registry for this
+# a given atlas. Atlases provide their own reference space table for this
 # purpose, which includes the relevant subset of the spaces.
-atlas = siibra.atlases['human']
+atlas = siibra.atlases.get('human')
 dir(atlas.spaces)
 
 # %%
 # These can be used like any other registry object:
-space2 = atlas.spaces['colin27']
-print(space2)
+colin_space = atlas.spaces.get('colin27')
+print(colin_space)
 
 # %%
 # We can also explicitely request a supported space object from the
 # atlas, which has the same effect as accessing the Registry.
-space3 = atlas.get_space('bigbrain')
-print(space3)
-
+bigbrain_space = atlas.get_space('bigbrain')
+print(bigbrain_space)
