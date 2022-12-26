@@ -14,12 +14,11 @@
 # limitations under the License.
 
 """
-Find predefined parcellations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Selecting preconfigured parcellations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Just as for atlas objects, `siibra` provides an instance table of predefined
-parcellation objects. They will be generated when you access the table for
-the first time, and stay in your local file cache for future use.
+Just as for atlas objects, `siibra` provides an instance table of preconfigured
+brain parcellations.
 """
 
 # %%
@@ -33,7 +32,7 @@ dir(siibra.parcellations)
 
 # %%
 # Fetching an object works in the same way as for `siibra.atlases` (see :ref:`atlases`)
-julich_brain = siibra.parcellations['julich']
+julich_brain = siibra.parcellations.get('julich')
 
 # %%
 # Parcellations typically refer to entities in the EBRAINS knowledge graph,
@@ -46,31 +45,31 @@ print(julich_brain.id)
 # Typically however, we are only interested in the parcellatioins supported by
 # a given atlas. Atlases provide their own parcellation table for this
 # purpose, which includes the relevant subset of the parcellations.
-atlas = siibra.atlases['human']
+atlas = siibra.atlases.get('human')
 dir(atlas.parcellations)
 
 # %%
-# These can be used like any other registry object:
-atlas.parcellations['julich']
+# These are instance tables, and can be used just like siibra.parcellations:
+atlas.parcellations.get('julich')
 
 # %%
 # Note that this specification matched multiple objects. Since `siibra` was
 # able to sort them, it returned the first in the list, which is the one with
 # the newest version. We can of course refine the specification to fetch
 # another version.
-print(atlas.parcellations['julich'].version)
-atlas.parcellations['julich 1.18'].version
+print(atlas.parcellations.get('julich').version)
+atlas.parcellations.get('julich 1.18').version
 
 # %%
 # We can also explicitely request a supported parcellation object from the
 # atlas, which has the same effect as accessing the Registry.
-atlas.get_parcellation('long bundle')
+atlas.parcellations.get('long bundle')
 
-jubrain = atlas.get_parcellation('julich') # will return the latest version per default
+jubrain = atlas.parcellations.get('julich')  # will return the latest version per default
 
 # %%
-# The resulting parcellation is a semantic object, including 
-# 
+# The resulting parcellation is a semantic object, including
+#
 # - general information like the parcellation name, a description and related publications
 # - the region hierarchy
 # - functions to access parcellation maps in different reference spaces
@@ -86,6 +85,3 @@ print(jubrain.description)
 print()
 for p in jubrain.publications:
     print(p['citation'])
-
-
-# %%
