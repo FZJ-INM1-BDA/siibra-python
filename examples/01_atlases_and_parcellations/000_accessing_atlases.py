@@ -16,59 +16,73 @@
 """
 .. _atlases:
 
-Selecting a predefined atlas
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Selecting a preconfigured atlas from an instance table
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`siibra` provides a registry of predefined atlas objects of different species. 
+`siibra` provides a table of preconfigured atlas objects of
+different species. 
+Atlas objects are very simple structures: They are mostly used to group
+a set of preconfigured parcellations and reference spaces by species.
+They do not provide much further functionality on their own.
 """
 
 # %%
-# Predefined atlas objects are stored in `siibra.atlases`, which is just a shortcut to
-# the object registry `siibra.REGISTRY.Atlas`. This container of predefined objects
-# will be populated at the first time you request it. This will require an internet connection 
-# to retrieve the configuration information. After the initial call, the atlas definitions are cached 
-# on the local disk, so they can be accessed offline from then on.
+# We start by loading the library
 import siibra
 
-# %% 
-# `siibra.atlases` is an instance table, a siibra object which allows 
-# to access objects by name and autocompletion.
+# %%
+# Preconfigured atlas objects are accessible via the instance table `siibra.atlases`,
+# which is a shortcut to `siibra.Atlas.registry()`.
+# Instance tables are simple container structures, populated with preconfigured objects
+# when accessed for the first time. The first call will require an internet connection to
+# retrieve the initial configuration information. After initial access, the configuration
+# information will cached on the local disk and can be accessed offline.
 type(siibra.atlases)
 
 # %%
 # siibra uses instance tables not only for atlases, but also for parcellations
-# (`siibra.parcellations`), reference spaces (`siibra.spaces`) or data
-# modalities (`siibra.modalilities`). These will be adressed in subsequent
-# examples. 
+# (`siibra.parcellations`), reference spaces (`siibra.spaces`) or feature
+# modalities (`siibra.modalilities`), as will be shown in later code examples.
 #
 # Objects stored in a siibra instance table can be accessed in
 # different ways:
 #
-#  1. You can iterate over all objects
-#  2. An integer index gives sequential access to individual elements
-#  3. A string index will be matched against the name of objects
-#  4. Object keys can be tab-completed as attributes of the registry
-#
+#  1. In "list-style": by iterating over all objects or using the index operator "[]"
+#  2. By fuzzy keyword matching via the get() function or index operator
+#  3. By tab-completion of their "keys"
+
 # We can print the keys of all predefined atlas objects in the registry:
 dir(siibra.atlases)
 
-# %% 
-# These keys can be used to fetch an atlas object, supported by autocompletion
-# when you hit <TAB>. This makes it convenient to find the right name. 
+# %%
+# The keys can be used to select atlas object by autocompletion
+# when you hit <TAB>. This makes it convenient to find the right name
+# in an interactive shell.
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 atlas
 
 # %%
-# We can also select the atlas by specifying the key as an index:
-siibra.atlases["MULTILEVEL HUMAN ATLAS"]
+# We can also select an atlas by specifying the key as a string
+# in the get() method:
+siibra.atlases.get("MULTILEVEL HUMAN ATLAS")
 
 # %%
-# We can fetch the first available atlas:
-siibra.atlases[0]
+# More importantly, we can use an arbitrary set of words
+# matching the name or key of atlas. This is usually the simplest way
+# to select from a Registry. It will fail if no unique match is found.
+siibra.atlases.get('human')
 
 # %%
-# Most importantly, we can use arbitrary strings matching the name of atlas
-# uniquely. This is usually the simplest way to select from a Registry.
+# Of course, ass in a list, we can also iterate over the objects in the
+# instance table or use the index operator to fetch an objects by its position:
+for atlas in siibra.atlases:
+    print(atlas.name)
+print(siibra.atlases[0])
+
+# %%
+# Fuzyy string matching also works in the index operator.
+# For legibility however, we typically prefer the "get()" form
+# in our code examples.
 siibra.atlases['human']
 
 # %%
@@ -79,6 +93,3 @@ atlas.species
 # Furthermore, an atlas provides its own registries of supported spaces and parcellations. 
 # We will cover these in the next examples.
 dir(atlas.spaces)
-
-
-# %%
