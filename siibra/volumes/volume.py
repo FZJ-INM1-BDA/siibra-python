@@ -88,9 +88,12 @@ class Volume:
 
     def __str__(self):
         if self.space is None:
-            return f"{self.__class__.__name__} {self.name}"
+            return f"{self.__class__.__name__} '{self.name}'"
         else:
-            return f"{self.__class__.__name__} {self.name} in {self.space.name}"
+            return f"{self.__class__.__name__} '{self.name}' in space '{self.space.name}'"
+
+    def __repr__(self):
+        return self.__str__()
 
     def fetch(
         self,
@@ -102,12 +105,6 @@ class Volume:
 
         Parameters
         ----------
-        resolution_mm: float
-            Desired voxel spacing in mm,
-            currently only applicable for neuroglancer volumes.
-        voi: BoundingBox
-            Desired volume of interest, given as a bounding box,
-            currently only applicable for neuroglancer volumes.
         format: str
             Requested format. Per default, several formats are tried,
             starting with volumetric formats. You may explicitly specify:
@@ -117,15 +114,12 @@ class Volume:
               "nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh",
               "neuroglancer/precompmesh", "gii-label"
         """
-        if voi and (voi.space != self.space):
-            logger.info(f"Warping volume of interest from {voi.space.name} to {self.space.name}.")
-            voi = voi.warp(self.space)
 
         if format is None:
             requested_formats = self.PREFERRED_FORMATS
         elif format in ['surface', 'mesh']:
             requested_formats = self.SURFACE_FORMATS
-        elif format in ['voxels', 'volumetric']:
+        elif format in ['voxels', 'image']:
             requested_formats = set(self.PREFERRED_FORMATS) - set(self.SURFACE_FORMATS)
         elif format in self.PREFERRED_FORMATS:
             requested_formats = [format]

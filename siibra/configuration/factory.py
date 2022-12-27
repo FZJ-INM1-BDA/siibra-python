@@ -216,7 +216,7 @@ class Factory:
     def build_volume(cls, spec):
         providers: List[volume.VolumeProvider] = []
         provider_types: List[Type[volume.VolumeProvider]] = [
-            neuroglancer.NeuroglancerVolumeFetcher,
+            neuroglancer.NeuroglancerVolume,
             neuroglancer.NeuroglancerMesh,
             neuroglancer.NeuroglancerSurfaceMesh,
             nifti.NiftiFetcher,

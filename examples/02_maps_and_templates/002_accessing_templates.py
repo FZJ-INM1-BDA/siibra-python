@@ -19,40 +19,74 @@
 Accessing brain reference templates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Other than the reference space itself, a reference template is a spatial object -
-more precisely an image volume or surface mesh. Since reference templates are directly
-linked to their corresponding brain reference space, we access templates by specifying
-the space. Like all image and mesh objects in `siibra`, reference template implement lazy
-loading: The actual image or mesh data is only fetched from the corresponding online
-resource when explicitly calling a "fetch" method.
+Other than a reference space, which is only a semantic entity, a reference template
+is a spatial object representing the brain volume in the form of a 3D image or 
+3D surface mesh.
+Since each reference template is uniquely linked to one particular brain reference
+space, we access templates by the `get_template()` method of `Space` objects.
+
+In `siibra`, reference templates are `Volume` objects. 
+Volumes allow fetching volumetric data from different types of "volume providers"
+throught their `fetch()` method.
+
+It is important to note that the same volume (such as the BigBrain 3D model)
+can be provided through different resources and formats,
+which represent it as an image or surface mesh, each possibly through multiple
+formats.
+Therefore, a Volume object can have multiple volume providers, which are 
+selected depending on the parameters passed to `fetch()`. 
+This example will show some typical settings.
 """
 
 
 # %%
-# We choose the MNI152 space, and then request the template that `siibra`
-# linked to it. In this concrete case, it turns out to be a NIfTI file stored
-# on a remote server
+# We choose the ICBM 2009c onlinear asymmetirc space,
+# and then request the template that `siibra`
+# linked to it. As expected, the template is an object of type `Volume`.
 import siibra
-mni152tpl = siibra.spaces.get('mni152').get_template()
-type(mni152tpl)
+icbm_tpl = siibra.spaces.get('icbm 2009c nonl asym').get_template()
+icbm_tpl
 
 # %%
-# Alternatively, a template can be retrieved from an atlas,
-# or right away from the siibra package:
-mni152tpl = siibra.atlases.get('human').get_template(space="mni152")
-mni152tpl = siibra.get_template("icbm 152 asym")
+# We can fetch data from the template. By default (and if available),
+# this gives us a 3D image in the form of a Nifti1Image object
+# as defined and supported by the commonly used
+# `nibabel <https://nipy.org/nibabel/index.html>`_ 
+# library.
+icbm_img = icbm_tpl.fetch()
+print(type(icbm_img))
 
 # %%
-# To load the actual image object, we use the template's fetch() method.
-# This gives us a Nifti1Image object with spatial metadata, compatible with
-# the wonderful nibabel library and other common neuroimaging toolboxes.
-img = mni152tpl.fetch()
-img
-
-# %%
-# We can easily display this template with common visualization tools.
+# We can  display this template with common neuroimaging visualization tools.
 # Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
 from nilearn import plotting
-plotting.view_img(img, bg_img=None, cmap='gray')
+plotting.view_img(icbm_img, bg_img=None, cmap='gray')
 
 # %%
+# As desribed above however, the template has multiple volume providers, representing different
+# resources and formats.
+icbm_tpl.formats
+
+# %%
+# Although the particular source format is usually not of interest to us,
+# we want to distinguish image and mesh representations of course.
+# We can use the `format` parameter of `fetch()` to specify "mesh" or "image",
+# or to fetch from one particular resource format.
+# Meshes are provided as a dictionary with an Nx3 array of N vertices,
+# and an Mx3 array of M triangles defined from the vertices.
+# we can pre-check wether a volume provides image or mesh data
+# explicitly using `provides_mesh` and `provides_image`
+assert icbm_tpl.provides_mesh
+icbm_mesh = icbm_tpl.fetch(format='mesh')
+print(type(icbm_mesh))
+
+# %%
+# We can likewise visulizae the mesh using 
+# plotting functions of `nilearn <https://nilearn.github.io>`_
+plotting.view_surf(surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']])
+
+# %%
+# For convenience, templates may also be requested from an atlas,
+# or right away from the siibra package.
+mni152tpl = siibra.atlases.get('human').get_template(space="mni152")
+mni152tpl = siibra.get_template("icbm 152 asym")
