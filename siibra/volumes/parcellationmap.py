@@ -16,7 +16,7 @@
 from . import volume as _volume, nifti
 
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, is_mesh
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel
 from ..core import concept, space, parcellation, region
 from ..locations import point, pointset, boundingbox
 from ..retrieval import requests

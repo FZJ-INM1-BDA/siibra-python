@@ -15,7 +15,7 @@
 
 from . import volume
 
-from ..commons import logger, MapType
+from ..commons import logger, MapType, MapIndex
 from ..retrieval import requests, cache
 from ..locations import boundingbox
 
@@ -310,8 +310,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     def __init__(self, url, volume=None):
         self.volume = volume
         self.url = url
-        self.meshinfo = requests.HttpRequest(url=self.url + "/info", func=requests.DECODERS['.json']).data
-        self._mesh_key = self.meshinfo.get('mesh')
+        self._mesh_info = requests.HttpRequest(url=self.url + "/info", func=requests.DECODERS['.json']).data
+        self._mesh_key = self._mesh_info.get('mesh')
         self._transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
 
     def _fetch_fragment(self, url: str):
@@ -323,25 +323,25 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
 
     def fetch(self, resolution_mm: float = None, voi=None, fragment: str = None, **kwargs):
         """
-        Returns the list of fragment meshes found under the given mesh index.
-        Each mesh is a dictionary with the keys:
+        Fetches a particular mesh. Each mesh is a dictionary with the keys:
+
         - verts: an Nx3 array of coordinates (in nanometer)
         - faces: an MX3 array containing connection data of vertices
         """
-        if "mapindex" in kwargs.keys():
+        if "mapindex" in kwargs:
             meshindex = kwargs["mapindex"].label
             if meshindex is None:
-                raise RuntimeError(f"MapIndex label cannot be {meshindex}.")
+                raise ValueError(f"{self.__class___} requires a label to be specified throught the 'mapindex' parameter.")
         else:
-            logger.info("No map index is specified. Fetching the first one."
-                        "To list the options use `parcellationmap.find_indices("")`")
+            logger.info(
+                f"'mapindex' not specified when fetching from {self.__class__}. "
+                "Trying to fetch label 1."
+            )
             meshindex = 1
         if resolution_mm is not None:
             logger.warn(f"{self.__class__}.fetch() ignores 'resolution_mm' argument")
         if voi is not None:
             logger.warn(f"{self.__class__}.fetch() ignores 'voi' argument")
-        if voi:
-            raise RuntimeError("Volume of interests cannot yet be fetched from neuroglancer meshes.")
         try:
             # NOTE: not sure `resp` is necessary if we know how the fragments are stored. Can we some how
             # streamline this?
@@ -375,3 +375,28 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
 
         logger.warn("Labels are not yet implemented for Neuroglancer meshes.")
         return dict(zip(['verts', 'faces'], [verts, faces]))
+
+
+class NeuroglancerSurfaceMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh/surface"):
+    """
+    Only shadows NeuroglancerMesh for the special surface srctype,
+    which provides a mesh urls plus a label index for identifying the surface.
+    Behaves like NeuroglancerMesh otherwise.
+
+    TODO this class might be replaced by implementing a default label index for the parent class.
+    """
+    def __init__(self, spec: str, **kwargs):
+        # we expect a string of the form "<url> <labelindex>",
+        # and use this to set the url and label index in the parent class.
+        assert ' ' in spec
+        url, labelindex_, *args = spec.split(' ')
+        assert labelindex_.isnumeric()
+        if 'mapindex' in kwargs:
+            self._mapindex = kwargs['mapindex']
+            self._mapindex.label = int(labelindex_)
+        else:
+            self._mapindex = MapIndex(volume=None, label=int(labelindex_))
+        NeuroglancerMesh.__init__(self, url=url, **kwargs)
+
+    def fetch(self, **kwargs):
+        return NeuroglancerMesh.fetch(self, mapindex=self._mapindex, **kwargs)

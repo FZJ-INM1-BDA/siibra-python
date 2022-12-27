@@ -16,7 +16,6 @@
 from .. import logger
 from ..retrieval import requests
 from ..core import space
-from ..locations import boundingbox
 
 import numpy as np
 import nibabel as nib
@@ -35,7 +34,7 @@ class Volume:
     """
 
     PREFERRED_FORMATS = ["nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", "neuroglancer/precompmesh", "gii-label"]
-    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh", "gii-label"]
+    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh", "neuroglancer/precompmesh/surface", "gii-label"]
 
     def __init__(
         self,
@@ -66,7 +65,15 @@ class Volume:
 
     @property
     def is_surface(self):
-        return all(f in self.SURFACE_FORMATS for f in self.formats)
+        return self.provides_mesh and not self.provides_image
+
+    @property
+    def provides_mesh(self):
+        return any(f in self.SURFACE_FORMATS for f in self.formats)
+
+    @property
+    def provides_image(self):
+        return any(f not in self.SURFACE_FORMATS for f in self.formats)
 
     @property
     def fragments(self):
@@ -87,7 +94,6 @@ class Volume:
 
     def fetch(
         self,
-        voi: boundingbox.BoundingBox = None,
         format: str = None,
         **kwargs
     ):
@@ -141,6 +147,7 @@ class Subvolume(Volume):
     """
     Wrapper class for exposing a z level of a 4D volume to be used like a 3D volume.
     """
+
     def __init__(self, parent_volume: Volume, z: int):
         Volume.__init__(
             self,
@@ -151,8 +158,10 @@ class Subvolume(Volume):
             ]
         )
 
+
 # TODO add mesh primitive. Check nibabel implementation? Use trimesh? Do we want to add yet another dependency?
 VolumeData = Union[nib.Nifti1Image, Dict]
+
 
 class VolumeProvider(ABC):
 
@@ -163,7 +172,7 @@ class VolumeProvider(ABC):
     @property
     def fragments(self):
         return []
-    
+
     @abstractmethod
     def fetch(self, *args, **kwargs) -> VolumeData:
         raise NotImplementedError
@@ -177,6 +186,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
     of a 4D volume provider as a 3D volume under the
     interface of a normal volume provider.
     """
+
     def __init__(self, parent_provider: VolumeProvider, z: int):
         VolumeProvider.__init__(self)
         self.provider = parent_provider

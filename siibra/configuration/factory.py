@@ -218,6 +218,7 @@ class Factory:
         provider_types: List[Type[volume.VolumeProvider]] = [
             neuroglancer.NeuroglancerVolumeFetcher,
             neuroglancer.NeuroglancerMesh,
+            neuroglancer.NeuroglancerSurfaceMesh,
             nifti.NiftiFetcher,
             nifti.ZipContainedNiftiFetcher,
             gifti.GiftiMesh,
@@ -225,13 +226,13 @@ class Factory:
         ]
 
         affine = np.array(spec["affine"]) if "affine" in spec else None
-        for srctype, url in spec.get("providers", {}).items():
+        for srctype, provider_spec in spec.get("providers", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
                     if affine is None:
-                        providers.append(ProviderType(url))
+                        providers.append(ProviderType(provider_spec))
                     else:
-                        providers.append(ProviderType(url, transform_nm=affine))
+                        providers.append(ProviderType(provider_spec, transform_nm=affine))
                     break
             else:
                 if srctype not in cls._warnings_issued:
