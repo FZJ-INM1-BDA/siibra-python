@@ -20,12 +20,12 @@ Accessing brain reference templates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Other than a reference space, which is only a semantic entity, a reference template
-is a spatial object representing the brain volume in the form of a 3D image or 
+is a spatial object representing the brain volume in the form of a 3D image or
 3D surface mesh.
 Since each reference template is uniquely linked to one particular brain reference
 space, we access templates by the `get_template()` method of `Space` objects.
 
-In `siibra`, reference templates are `Volume` objects. 
+In `siibra`, reference templates are `Volume` objects.
 Volumes allow fetching volumetric data from different types of "volume providers"
 throught their `fetch()` method.
 
@@ -33,17 +33,20 @@ It is important to note that the same volume (such as the BigBrain 3D model)
 can be provided through different resources and formats,
 which represent it as an image or surface mesh, each possibly through multiple
 formats.
-Therefore, a Volume object can have multiple volume providers, which are 
-selected depending on the parameters passed to `fetch()`. 
+Therefore, a Volume object can have multiple volume providers, which are
+selected depending on the parameters passed to `fetch()`.
 This example will show some typical settings.
 """
 
 
 # %%
+import siibra
+from nilearn import plotting
+
+# %%
 # We choose the ICBM 2009c onlinear asymmetric space,
 # and then request the template `siibra` linked to it.
 # As expected, the template is an object of type `Volume`.
-import siibra
 icbm_tpl = siibra.spaces.get('icbm 2009c nonl asym').get_template()
 icbm_tpl
 
@@ -60,7 +63,6 @@ print(type(icbm_img))
 # %%
 # We can  display this template with common neuroimaging visualization tools.
 # Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
-from nilearn import plotting
 plotting.view_img(icbm_img, bg_img=None, cmap='gray')
 
 # %%
@@ -82,7 +84,7 @@ icbm_mesh = icbm_tpl.fetch(format='mesh')
 print(type(icbm_mesh))
 
 # %%
-# We can likewise visulizae the mesh using 
+# We can likewise visulizae the mesh using
 # plotting functions of `nilearn <https://nilearn.github.io>`_
 plotting.view_surf(
     surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']]
