@@ -33,8 +33,22 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    PREFERRED_FORMATS = ["nii", "zip/nii", "neuroglancer/precomputed", "gii-mesh", "neuroglancer/precompmesh", "gii-label"]
-    SURFACE_FORMATS = ["gii-mesh", "neuroglancer/precompmesh", "neuroglancer/precompmesh/surface", "gii-label"]
+    SUPPORTED_FORMATS = [
+        "nii",
+        "zip/nii",
+        "neuroglancer/precomputed",
+        "neuroglancer/precompmesh",
+        "neuroglancer/precompmesh/surface",
+        "gii-mesh",
+        "gii-label"
+    ]
+
+    MESH_FORMATS = [
+        "neuroglancer/precompmesh",
+        "neuroglancer/precompmesh/surface",
+        "gii-mesh",
+        "gii-label"
+    ]
 
     def __init__(
         self,
@@ -61,23 +75,31 @@ class Volume:
 
     @property
     def formats(self):
-        return set(self._providers.keys())
-
-    @property
-    def is_surface(self):
-        return self.provides_mesh and not self.provides_image
+        result = set()
+        for fmt in self._providers:
+            result.add(fmt)
+            result.add('mesh' if fmt in self.MESH_FORMATS else 'image')
+        return result
 
     @property
     def provides_mesh(self):
-        return any(f in self.SURFACE_FORMATS for f in self.formats)
+        return any(f in self.MESH_FORMATS for f in self.formats)
 
     @property
     def provides_image(self):
-        return any(f not in self.SURFACE_FORMATS for f in self.formats)
+        return any(f not in self.MESH_FORMATS for f in self.formats)
 
     @property
     def fragments(self):
-        return {f for p in self._providers.values() for f in p.fragments}
+        result = {}
+        for srctype, p in self._providers.items():
+            t = 'mesh' if srctype in self.MESH_FORMATS else 'image'
+            for fragment_name in p.fragments:
+                if t in result:
+                    result[t].append(fragment_name)
+                else:
+                    result[t] = [fragment_name]
+        return result
 
     @property
     def space(self):
@@ -116,12 +138,12 @@ class Volume:
         """
 
         if format is None:
-            requested_formats = self.PREFERRED_FORMATS
-        elif format in ['surface', 'mesh']:
-            requested_formats = self.SURFACE_FORMATS
-        elif format in ['voxels', 'image']:
-            requested_formats = set(self.PREFERRED_FORMATS) - set(self.SURFACE_FORMATS)
-        elif format in self.PREFERRED_FORMATS:
+            requested_formats = self.SUPPORTED_FORMATS
+        elif format == 'mesh':
+            requested_formats = self.MESH_FORMATS
+        elif format == 'image':
+            requested_formats = set(self.SUPPORTED_FORMATS) - set(self.MESH_FORMATS)
+        elif format in self.SUPPORTED_FORMATS:
             requested_formats = [format]
         else:
             raise ValueError(f"Invalid format requested: {format}")
@@ -129,7 +151,13 @@ class Volume:
         for fmt in requested_formats:
             if fmt in self.formats:
                 try:
-                    return self._providers[fmt].fetch(**kwargs)
+                    if fmt == "gii-label":
+                        tpl = self.space.get_template(variant=kwargs.get('variant'), format=format)
+                        mesh = tpl.fetch(**kwargs)
+                        labels = self._providers[fmt].fetch(**kwargs)
+                        return dict(**mesh, **labels)
+                    else:
+                        return self._providers[fmt].fetch(**kwargs)
                 except requests.SiibraHttpRequestError as e:
                     logger.error(f"Cannot access {self._providers[fmt]}")
                     print(str(e))

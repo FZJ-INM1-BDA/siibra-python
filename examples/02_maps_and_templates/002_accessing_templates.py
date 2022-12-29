@@ -40,18 +40,19 @@ This example will show some typical settings.
 
 
 # %%
-# We choose the ICBM 2009c onlinear asymmetirc space,
-# and then request the template that `siibra`
-# linked to it. As expected, the template is an object of type `Volume`.
+# We choose the ICBM 2009c onlinear asymmetric space,
+# and then request the template `siibra` linked to it.
+# As expected, the template is an object of type `Volume`.
 import siibra
 icbm_tpl = siibra.spaces.get('icbm 2009c nonl asym').get_template()
 icbm_tpl
 
 # %%
-# We can fetch data from the template. By default (and if available),
-# this gives us a 3D image in the form of a Nifti1Image object
+# We can now fetch data from the template.
+# By default (and if available), this gives us a 3D image
+# in the form of a Nifti1Image object
 # as defined and supported by the commonly used
-# `nibabel <https://nipy.org/nibabel/index.html>`_ 
+# `nibabel <https://nipy.org/nibabel/index.html>`_
 # library.
 icbm_img = icbm_tpl.fetch()
 print(type(icbm_img))
@@ -64,14 +65,14 @@ plotting.view_img(icbm_img, bg_img=None, cmap='gray')
 
 # %%
 # As desribed above however, the template has multiple volume providers, representing different
-# resources and formats.
+# resources and formats. The Volume object has a list of accepted format specifiers:
 icbm_tpl.formats
 
 # %%
 # Although the particular source format is usually not of interest to us,
 # we want to distinguish image and mesh representations of course.
 # We can use the `format` parameter of `fetch()` to specify "mesh" or "image",
-# or to fetch from one particular resource format.
+# or to fetch from a concrete resource format.
 # Meshes are provided as a dictionary with an Nx3 array of N vertices,
 # and an Mx3 array of M triangles defined from the vertices.
 # we can pre-check wether a volume provides image or mesh data
@@ -83,7 +84,23 @@ print(type(icbm_mesh))
 # %%
 # We can likewise visulizae the mesh using 
 # plotting functions of `nilearn <https://nilearn.github.io>`_
-plotting.view_surf(surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']])
+plotting.view_surf(
+    surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']]
+)
+
+# %%
+# Some volumes are split into fragments. When fetching them,
+# siibra merges these fragments into a single
+# data structure, which also happened for the template mesh.
+# We can also fetch individual fragments individually.
+# Available fragment names are displayed when fetching,
+# but we can also request an overview from the template volume.
+# For fetching fragments, it is sufficient to use descriptive
+# substrings.
+print(icbm_tpl.fragments)
+icbm_mesh_r = icbm_tpl.fetch(format='mesh', fragment='right')
+plotting.view_surf(
+    surf_mesh=[icbm_mesh_r['verts'], icbm_mesh_r['faces']])
 
 # %%
 # For convenience, templates may also be requested from an atlas,

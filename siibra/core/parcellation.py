@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .region import Region
+from . import region
 
 from ..commons import logger, MapType, MapIndex
 from ..volumes import parcellationmap
@@ -66,15 +66,15 @@ class ParcellationVersion:
         return self.name < other.name
 
 
-class Parcellation(Region, configuration_folder="parcellations"):
+class Parcellation(region.Region, configuration_folder="parcellations"):
 
-    _CACHED_REGION_SEARCHES: Dict[str, List[Region]] = {}
+    _CACHED_REGION_SEARCHES: Dict[str, List[region.Region]] = {}
 
     def __init__(
         self,
         identifier: str,
         name: str,
-        regions: Union[List[Region], Region] = (),
+        regions: Union[List[region.Region], region.Region] = (),
         shortname: str = "",
         description: str = "",
         version: ParcellationVersion = None,
@@ -105,7 +105,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         datasets : list
             datasets associated with this region
         """
-        Region.__init__(
+        region.Region.__init__(
             self,
             name=name,
             children=regions,
@@ -203,7 +203,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         else:
             return [spec]
 
-    def get_region(self, regionspec: Union[str, int, MapIndex, Region], find_topmost=True, build_group=False):
+    def get_region(self, regionspec: Union[str, int, MapIndex, region.Region], find_topmost=True, build_group=False):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -233,7 +233,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
         ------
         Region object
         """
-        if isinstance(regionspec, Region) and (regionspec.parcellation == self):
+        if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
 
         if regionspec.startswith("Group"):
@@ -262,7 +262,7 @@ class Parcellation(Region, configuration_folder="parcellations"):
             return candidates[0]
         else:
             if build_group:
-                return Region(
+                return region.Region(
                     name="Group: " + ", ".join(c.name for c in candidates),
                     children=candidates, parent=self
                 )

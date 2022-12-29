@@ -219,8 +219,8 @@ class Factory:
             neuroglancer.NeuroglancerVolume,
             neuroglancer.NeuroglancerMesh,
             neuroglancer.NeuroglancerSurfaceMesh,
-            nifti.NiftiFetcher,
-            nifti.ZipContainedNiftiFetcher,
+            nifti.NiftiProvider,
+            nifti.ZipContainedNiftiProvider,
             gifti.GiftiMesh,
             gifti.GiftiSurfaceLabeling
         ]
@@ -259,7 +259,7 @@ class Factory:
         volumes = cls.extract_volumes(spec)
         Maptype = parcellationmap.Map
         if len(volumes) > 50:
-            logger.info(
+            logger.debug(
                 f"Using sparse map for {spec['filename']} "
                 f"due to the number of {len(volumes)} volumes."
             )

@@ -169,7 +169,7 @@ class Point(location.Location):
         url = "{server}/transform-point?source_space={src}&target_space={tgt}&x={x}&y={y}&z={z}".format(
             server=location.Location.SPACEWARP_SERVER,
             src=quote(location.Location.SPACEWARP_IDS[self.space.id]),
-            tgt=quote(location.Location.SPACEWARP_IDS[space.id]),
+            tgt=quote(location.Location.SPACEWARP_IDS[spaceobj.id]),
             x=self.coordinate[0],
             y=self.coordinate[1],
             z=self.coordinate[2],

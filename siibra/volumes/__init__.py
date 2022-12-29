@@ -16,5 +16,5 @@
 
 from .parcellationmap import Map
 from .neuroglancer import NeuroglancerVolume, NeuroglancerMesh
-from .nifti import NiftiFetcher
+from .nifti import NiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh

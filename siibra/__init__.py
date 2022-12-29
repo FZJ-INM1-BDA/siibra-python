@@ -14,7 +14,9 @@
 # limitations under the License.
 
 from .commons import logger, QUIET, VERBOSE, MapType, MapIndex, set_log_level, __version__
-from .core import Atlas, Parcellation, Space
+from .core.atlas import Atlas
+from .core.parcellation import Parcellation
+from .core.space import Space
 from .locations import Point, PointSet, BoundingBox
 from .retrieval import EbrainsRequest, CACHE
 from .configuration import Configuration
@@ -58,10 +60,10 @@ def __getattr__(attr: str):
 
 
 # convenient access to reference space templates
-def get_template(space_spec: str, **kwargs):
+def get_template(space: str, **kwargs):
     return (
         Space
-        .get_instance(space_spec)
+        .get_instance(space)
         .get_template(**kwargs)
     )
 

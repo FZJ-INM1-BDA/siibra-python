@@ -13,7 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .atlas import Atlas
-from .parcellation import Parcellation
-from .space import Space
-from .region import Region
+from . import atlas, parcellation, space

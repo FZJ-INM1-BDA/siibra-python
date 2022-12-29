@@ -13,9 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
-from .space import Space
-from ..locations import PointSet, Point, BoundingBox
+from . import space as _space, concept
+
+from ..locations import boundingbox, point
+from ..volumes import parcellationmap
 
 from ..commons import (
     logger,
@@ -43,7 +44,7 @@ REGEX_TYPE = type(re.compile("test"))
 THRESHOLD_CONTINUOUS_MAPS = None
 
 
-class Region(anytree.NodeMixin, AtlasConcept):
+class Region(anytree.NodeMixin, concept.AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
@@ -83,7 +84,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             Hexcode of preferred color of this region (e.g. "#9FE770")
         """
         anytree.NodeMixin.__init__(self)
-        AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=None,  # Region overwrites the property function below!
             name=clear_name(name),
@@ -341,30 +342,30 @@ class Region(anytree.NodeMixin, AtlasConcept):
         self,
         space,
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
-        threshold_continuous: float = SIIBRA_DEFAULT_MAP_THRESHOLD
+        threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD
     ):
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
         """
-        from ..volumes import Map  # keep here to avoid circular import
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         result = None
-        for m in Map.registry():
-            if all([
-                m.space.matches(space),
-                not m.is_surface,
-                m.maptype == maptype,
-                m.parcellation == self.parcellation,
-                self.name in m.regions
-            ]):
+        for m in parcellationmap.Map.registry():
+            if all(
+                [
+                    m.space.matches(space),
+                    m.provides_image,
+                    m.maptype == maptype,
+                    m.parcellation == self.parcellation,
+                    self.name in m.regions
+                ]
+            ):
                 result = m.fetch(index=m.get_index(self.name))
-                if threshold_continuous is not None:
-                    assert maptype == MapType.CONTINUOUS
-                    logger.info(f"Thresholding continuous map at {threshold_continuous}")
+                if maptype == MapType.CONTINUOUS:
+                    logger.info(f"Thresholding continuous map at {threshold}")
                     result = Nifti1Image(
-                        (result.get_fdata() > threshold_continuous).astype('uint8'),
+                        (result.get_fdata() > threshold).astype('uint8'),
                         result.affine
                     )
                 break
@@ -374,7 +375,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             affine = None
             if all(c.mapped_in_space(space) for c in self.children):
                 for c in self.children:
-                    mask = c.build_mask(space, maptype, threshold_continuous)
+                    mask = c.build_mask(space, maptype, threshold)
                     if dataobj is None:
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
@@ -408,16 +409,16 @@ class Region(anytree.NodeMixin, AtlasConcept):
         return False
 
     @property
-    def supported_spaces(self) -> Set[Space]:
+    def supported_spaces(self) -> Set[_space.Space]:
         """
         The set of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = {s for s in Space.registry() if self.mapped_in_space(s)}
+            self._supported_spaces = {s for s in _space.Space.registry() if self.mapped_in_space(s)}
         return self._supported_spaces
 
-    def supports_space(self, space: Space):
+    def supports_space(self, space: _space.Space):
         """
         Return true if this region supports the given space, else False.
         """
@@ -426,7 +427,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     @property
     def spaces(self):
         return InstanceTable(
-            matchfunc=Space.matches,
+            matchfunc=_space.Space.matches,
             elements={s.key: s for s in self.supported_spaces},
         )
 
@@ -480,7 +481,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def get_bounding_box(
         self,
-        space: Space,
+        space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_continuous=None,
     ):
@@ -500,25 +501,25 @@ class Region(anytree.NodeMixin, AtlasConcept):
         Returns:
             BoundingBox
         """
-        spaceobj = Space.get_instance(space)
+        spaceobj = _space.Space.get_instance(space)
         try:
             mask = self.build_mask(
-                spaceobj, maptype=maptype, threshold_continuous=threshold_continuous
+                spaceobj, maptype=maptype, threshold=threshold_continuous
             )
-            return BoundingBox.from_image(mask, space=spaceobj)
+            return boundingbox.BoundingBox.from_image(mask, space=spaceobj)
         except (RuntimeError, ValueError):
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
                     mask = self.build_mask(
                         other_space,
                         maptype=maptype,
-                        threshold_continuous=threshold_continuous,
+                        threshold=threshold_continuous,
                     )
                     logger.warn(
                         f"No bounding box for {self.name} defined in {spaceobj.name}, "
                         f"will warp the bounding box from {other_space.name} instead."
                     )
-                    bbox = BoundingBox.from_image(mask, space=other_space)
+                    bbox = boundingbox.BoundingBox.from_image(mask, space=other_space)
                     if bbox is not None:
                         return bbox.warp(spaceobj)
                 except RuntimeError:
@@ -526,51 +527,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
-    def find_peaks(self, space: Space, min_distance_mm=5):
-        """
-        Find peaks of the region's continuous map in the given space, if any.
-
-        Arguments:
-        ----------
-        space : Space
-            requested reference space
-        min_distance_mm : float
-            Minimum distance between peaks in mm
-
-        Returns:
-        --------
-        peaks: PointSet
-        pmap: continuous map
-        """
-        spaceobj = Space.get_instance(space)
-        # TODO fix
-        raise NotImplementedError("Region.get_regional_map has been deprecated")
-        pmap = self.get_regional_map(spaceobj, MapType.CONTINUOUS)
-        if pmap is None:
-            logger.warn(
-                f"No continuous map found for {self.name} in {spaceobj.name}, "
-                "cannot compute peaks."
-            )
-            return PointSet([], space)
-
-        from skimage.feature.peak import peak_local_max
-
-        img = pmap.fetch()
-        dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
-        voxels = peak_local_max(
-            img.get_fdata(),
-            exclude_border=False,
-            min_distance=dist,
-        )
-        return (
-            PointSet(
-                [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
-                space=spaceobj,
-            ),
-            img,
-        )
-
-    def centroids(self, space: Space) -> List[Point]:
+    def centroids(self, space: _space.Space) -> List[point.Point]:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids
@@ -581,7 +538,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
     def spatial_props(
         self,
-        space: Space,
+        space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_continuous=None,
     ):
@@ -590,7 +547,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         Parameters
         ----------
-        space : Space
+        space : _space.Space
             the space in which the computation shall be performed
         maptype: MapType
             Type of map to build ('labelled' will result in a binary mask,
@@ -606,8 +563,8 @@ class Region(anytree.NodeMixin, AtlasConcept):
         """
         from skimage import measure
 
-        if not isinstance(space, Space):
-            space = Space.get_instance(space)
+        if not isinstance(space, _space.Space):
+            space = _space.Space.get_instance(space)
 
         if not self.mapped_in_space(space):
             raise RuntimeError(
@@ -618,7 +575,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
 
         # build binary mask of the image
         pimg = self.build_mask(
-            space, maptype=maptype, threshold_continuous=threshold_continuous
+            space, maptype=maptype, threshold=threshold_continuous
         )
 
         # determine scaling factor from voxels to cube mm
@@ -633,7 +590,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
         for label in range(1, C.max() + 1):
             props = {}
             nonzero = np.c_[np.nonzero(C == label)]
-            props["centroid"] = Point(
+            props["centroid"] = point.Point(
                 np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3], space=space
             )
             props["volume"] = nonzero.shape[0] * scale
@@ -645,7 +602,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
     def compare(
         self,
         img: Nifti1Image,
-        space: Space,
+        space: _space.Space,
         use_maptype: MapType = MapType.CONTINUOUS,
         threshold_continuous: float = None,
         resolution_mm: float = None,
@@ -671,7 +628,7 @@ class Region(anytree.NodeMixin, AtlasConcept):
             space,
             resolution_mm,
             maptype=use_maptype,
-            threshold_continuous=threshold_continuous,
+            threshold=threshold_continuous,
         )
         return compare_maps(mask, img)
 

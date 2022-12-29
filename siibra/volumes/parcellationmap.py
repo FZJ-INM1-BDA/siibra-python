@@ -17,13 +17,16 @@ from . import volume as _volume, nifti
 
 from .. import logger, QUIET
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel
-from ..core import concept, space, parcellation, region
-from ..locations import point, pointset, boundingbox
+from ..core import concept, space, parcellation, region as _region
+from ..locations import point, pointset
 from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
-from typing import Union, Dict, List
+from typing import Union, Dict, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..core.region import Region
 
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
@@ -32,7 +35,7 @@ from nilearn import image
 import pandas as pd
 
 
-class Map(region.Region, configuration_folder="maps"):
+class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -129,7 +132,7 @@ class Map(region.Region, configuration_folder="maps"):
         for v in self.volumes:
             v._space_spec = space_spec
 
-    def get_index(self, regionspec: Union[str, region.Region]):
+    def get_index(self, region: Union[str, "Region"]):
         """
         Returns the unique index corresponding to the specified region,
         assuming that the specification matches one unique region
@@ -137,28 +140,29 @@ class Map(region.Region, configuration_folder="maps"):
         If not unique, or not defined, an exception will be thrown.
         See find_indices() for a less strict search returning all matches.
         """
-        matches = self.find_indices(regionspec)
+        matches = self.find_indices(region)
         if len(matches) > 1:
+            print(matches)
             raise RuntimeError(
-                f"The specification '{regionspec}' matches multiple mapped "
+                f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
             raise RuntimeError(
-                f"The specification '{regionspec}' does not match to any structure mapped in {self}"
+                f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
             return next(iter(matches))
 
-    def find_indices(self, regionspec: Union[str, region.Region]):
+    def find_indices(self, region: Union[str, "Region"]):
         """ Returns the volume/label indices in this map
         which match the given region specification"""
-        if regionspec in self._indices:
+        if region in self._indices:
             return {
-                idx: regionspec
-                for idx in self._indices[regionspec]
+                idx: region
+                for idx in self._indices[region]
             }
-        regionname = regionspec.name if isinstance(regionspec, region.Region) else regionspec
+        regionname = region.name if isinstance(region, _region.Region) else region
         matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
@@ -169,10 +173,10 @@ class Map(region.Region, configuration_folder="maps"):
             for idx in self._indices[regionname]
         }
 
-    def get_region(self, label: int = None, vol: int = None, index: MapIndex = None):
+    def get_region(self, label: int = None, volume: int = None, index: MapIndex = None):
         """ Returns the region mapped by the given index, if any. """
         if index is None:
-            index = MapIndex(vol, label)
+            index = MapIndex(volume, label)
         matches = [
             regionname
             for regionname, indexlist in self._indices.items()
@@ -234,9 +238,7 @@ class Map(region.Region, configuration_folder="maps"):
     def fetch(
         self,
         region: str = None,
-        volume: int = None,
         index: MapIndex = None,
-        variant: str = None,
         **kwargs
     ):
         """
@@ -251,8 +253,6 @@ class Map(region.Region, configuration_folder="maps"):
 
         Parameters
         ----------
-        volume: int
-            Explicit index of the parcellation volume to fetch, in case there are multiple.
         region: str
             Specification of a region name, resulting in a regional map
             (mask or continuous map) to be returned.
@@ -261,106 +261,63 @@ class Map(region.Region, configuration_folder="maps"):
             in a regional map (mask or continuous map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
-        variant : str
-            Optional specification of a specific volume variant. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-        format: str
-            optional specification of the volume format to use (e.g. "nii", "neuroglancer/precomputed")
-            You can also use "surface" or "volumetric" to restrict formats.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        voi: VolumeOfInterest
-            bounding box specification
         """
-        num_mandatory_specs = sum(_ is not None for _ in [volume, region, index])
-        if num_mandatory_specs > 1:
-            raise ValueError("Only one of volume, region or index needs to be specified for 'fetch()'.")
-        if len(self) > 1 and num_mandatory_specs == 0:
-            raise ValueError(
-                f"{self} provides {len(self)} mapped volumes, please specify which "
-                "one to fetch, or use fetch_iter() to iterate over all volumes."
-            )
+        if not any(_ is None for _ in [region, index]):
+            raise ValueError("'Region' and 'volume' cannot be specified at the same time in fetch().")
 
-        # determine the actual mapindex resulting from the parameters
-        if volume is not None:
-            assert isinstance(volume, int)
-            mapindex = MapIndex(volume=volume, label=None)
-        elif region is not None:
-            assert isinstance(region, str)
+        if isinstance(region, str):
             mapindex = self.get_index(region)
         elif index is not None:
             assert isinstance(index, MapIndex)
             mapindex = index
+        elif len(self.volumes) == 1:  # only 1 volume, can fetch without index/region
+            mapindex = MapIndex(volume=0, label=None)
         else:
-            if format in _volume.Volume.SURFACE_FORMATS:
-                mapindex = next(iter(self._indices.values()))[0]
-            else:
-                mapindex = MapIndex(volume=0, label=None)
-            logger.info(f"No volume or index defined, assuming {mapindex} for fetch()")
+            raise ValueError(
+                "Map provides multiple volumes, use 'index' or "
+                "'region' to specify which one to fetch."
+            )
 
         if "fragment" in kwargs:
-            assert (mapindex.fragment is None) or (mapindex.fragment == kwargs['fragment'])
+            if (mapindex.fragment is not None) and (kwargs['fragment'] != mapindex.fragment):
+                raise ValueError(
+                    "Conflicting specifications for fetching volume fragment: "
+                    f"{mapindex.fragment} / {kwargs['fragment']}"
+                )
             mapindex.fragment = kwargs.pop("fragment")
 
-        if mapindex.volume >= len(self):
+        if mapindex.volume >= len(self.volumes):
             raise ValueError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
 
         try:
-            result = self.volumes[mapindex.volume or 0].fetch(
-                variant=variant,
-                fragment=mapindex.fragment,
-                mapindex=mapindex,
-                **kwargs,
-            )
-
-        except requests.SiibraHttpRequestError:
-            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
-
-        if isinstance(result, dict):
-            # the result is a mesh which should be in dict format
-            # TODO move this to Volume.fetch?
-            if "labels" in result:
-                mesh = self.space.get_template(variant=variant).fetch(
-                    format="gii-mesh",
-                    variant=variant,
-                    fragment=mapindex.fragment,
-                    **kwargs
-                )
-                assert mesh is not None
-                result = dict(**result, **mesh)
-            else:
-                assert ("verts" in result) and ("faces" in result)  # neuroglancer meshes
+            result = self.volumes[mapindex.volume or 0].fetch(index=mapindex, **kwargs)
+        except requests.SiibraHttpRequestError as e:
+            print(str(e))
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
-
-        # TODO move this to Volume.fetch?
-        if mapindex.label is not None and isinstance(result, Nifti1Image):
-            logger.debug(f"Creating binary mask for label {mapindex.label} from volume {mapindex.volume}")
-            return Nifti1Image(
-                (np.asanyarray(result.dataobj) == mapindex.label).astype("uint8"),
-                result.affine
-            )
         return result
 
-    def find_layer_thickness(self, mesh_0: dict, mesh_1: dict):
-        """Returns a 1D numpy array with the thickness of the given layers."""
-        return np.linalg.norm(mesh_0["verts"] - mesh_1["verts"], axis=1)
+    @property
+    def provides_image(self):
+        return any(v.provides_image for v in self.volumes)
 
     @property
-    def is_surface(self):
-        return all(v.is_surface for v in self.volumes)
+    def provides_mesh(self):
+        return any(v.provides_mesh for v in self.volumes)
+
+    @property
+    def formats(self):
+        return {f for v in self.volumes for f in v.formats}
 
     @property
     def affine(self):
         if self._affine_cached is None:
             # we compute the affine from a volumetric volume provider
-            for fmt in _volume.Volume.PREFERRED_FORMATS:
-                if fmt not in _volume.Volume.SURFACE_FORMATS:
+            for fmt in _volume.Volume.SUPPORTED_FORMATS:
+                if fmt not in _volume.Volume.MESH_FORMATS:
                     try:
                         self._affine_cached = self.fetch(0, format=fmt).affine
                         break
@@ -372,32 +329,13 @@ class Map(region.Region, configuration_folder="maps"):
             logger.error("invalid affine:", self._affine_cached)
         return self._affine_cached
 
-    def fetch_iter(
-        self,
-        resolution_mm=None,
-        voi: boundingbox.BoundingBox = None,
-        variant: str = None,
-        format: str = None
-    ):
+    def fetch_iter(self, **kwargs):
         """
         Returns an iterator to fetch all mapped volumes sequentially.
-
-        Parameters
-        ----------
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        voi: VolumeOfInterest
-            bounding box specification
-        variant : str
-            Optional specification of a specific variant to use for the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-        format: str
-            optional specificatino of the voume format to use (e.g. "nii", "neuroglancer/precomputed")
+        All arguments are passed on to func:`~siibra.Map.fetch`
         """
         return (
-            self.fetch(i, resolution_mm=resolution_mm, voi=voi, variant=variant, format=format)
+            self.fetch(MapIndex(volume=i, label=None), **kwargs)
             for i in range(len(self))
         )
 
@@ -438,7 +376,7 @@ class Map(region.Region, configuration_folder="maps"):
 
             for label in labels:
                 with QUIET:
-                    region = self.get_region(label=label, vol=vol)
+                    region = self.get_region(label=label, volume=vol)
                 if region is None:
                     logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
                     continue
@@ -460,7 +398,7 @@ class Map(region.Region, configuration_folder="maps"):
             volumes=[
                 _volume.Volume(
                     space_spec=self._space_spec,
-                    providers=[nifti.NiftiFetcher(result_nii)]
+                    providers=[nifti.NiftiProvider(result_nii)]
                 )
             ]
         )
@@ -586,8 +524,6 @@ class Map(region.Region, configuration_folder="maps"):
     def assign(
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
-        msg=None,
-        quiet=False,
         minsize_voxel=1,
         lower_threshold=0.0,
     ):
@@ -605,11 +541,6 @@ class Map(region.Region, configuration_folder="maps"):
             transforation differs from that of the parcellation map.
             Resampling will use linear interpolation for float image types,
             otherwise nearest neighbor.
-        msg: str, or None
-            An optional message to be shown with the progress bar. This is
-            useful if you use assign() in a loop.
-        quiet: Bool, default: False
-            If True, no outputs will be generated.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
@@ -748,7 +679,7 @@ class Map(region.Region, configuration_folder="maps"):
             sigma_vox = points.sigma[0] / scaling
             if sigma_vox < 3:
                 logger.info("Points have constant single-voxel precision, using direct multi-point lookup.")
-                X, Y, Z = (np.dot(phys2vox, points.homogeneous.T) + 0.5).astype("int")[:3]
+                X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, value in self._read_voxel(X, Y, Z):
                     if value > lower_threshold:
                         assignments.append(
@@ -763,7 +694,6 @@ class Map(region.Region, configuration_folder="maps"):
             enumerate(points.warp(self.space.id)),
             total=len(points), desc="Warping points",
         ):
-
             sigma_vox = pt.sigma / scaling
             if sigma_vox < 3:
                 # voxel-precise - just read out the value in the maps
@@ -840,131 +770,3 @@ class Map(region.Region, configuration_folder="maps"):
                             )
 
         return assignments
-
-
-class LabelledSurface:
-    """
-    Represents a brain map in a surface space, with
-    explicit knowledge about the region information per labelindex or channel.
-    """
-
-    def __init__(self, parcellation, spaceobj: space.Space):
-        """
-        Construct a labelled surface for the given parcellation and space.
-
-        Parameters
-        ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        """
-        assert spaceobj.type == "gii"
-        super().__init__(parcellation, spaceobj, MapType.LABELLED)
-        self.type = "gii-label"
-
-    def _define_maps_and_regions(self):
-        self._maploaders_cached = []
-        self._regions_cached = {}
-
-        with QUIET:
-            tpl = self.space.get_template()
-        for meshindex, meshname in enumerate(tpl.variants):
-
-            labelsets = [
-                v
-                for v in self.parcellation.get_volumes(self.space)
-                if v.volume_type == self.type and v.name == meshname
-            ]
-            assert len(labelsets) == 1
-            labels = labelsets[0].fetch()
-            unmatched = []
-            for labelindex in np.unique(labels):
-                if labelindex != 0:
-                    pindex = MapIndex(map=meshindex, label=labelindex)
-                    try:
-                        region = self.parcellation.get_region(pindex)
-                        if labelindex > 0:
-                            self._regions_cached[pindex] = region
-                    except ValueError:
-                        unmatched.append(pindex)
-            if unmatched:
-                logger.warning(
-                    f"{len(unmatched)} parcellation indices in labelled surface couldn't "
-                    f"be matched to region definitions in {self.parcellation.name}"
-                )
-
-            self._maploaders_cached.append(
-                lambda res=None, voi=None, variant=None, name=meshname, labels=labels: {
-                    **self.space.get_template(variant=variant).fetch(name=name),
-                    "labels": labels,
-                }
-            )
-
-    def fetch_all(self, variant=None):
-        """Get the combined mesh composed of all found submeshes (e.g. both hemispheres).
-
-        Parameters
-        -----------
-        variant : str
-            Optional specification of variant of the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-        """
-        vertices = np.empty((0, 3))
-        faces = np.empty((0, 3))
-        labels = np.empty((0))
-        for surfmap in self.fetch_iter(variant=variant):
-            npoints = vertices.shape[0]
-            vertices = np.append(vertices, surfmap["verts"], axis=0)
-            faces = np.append(faces, surfmap["faces"] + npoints, axis=0)
-            labels = np.append(labels, surfmap["labels"], axis=0)
-
-        return dict(zip(["verts", "faces", "labels"], [vertices, faces, labels]))
-
-    def colorize(self, values: dict, name: str = None, variant: str = None):
-        """Colorize the parcellation mesh with the provided regional values.
-
-        Parameters
-        ----------
-        values : dict
-            Dictionary mapping regions to values
-        name : str
-            If specified, only submeshes matching this name are included, otherwise all meshes included.
-        variant : str
-            Optional specification of a specific variant to use for the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-
-        Return
-        ------
-        List of recolored parcellation meshes, each represented as a dictionary
-        with elements
-        - 'verts': An Nx3 array of vertex coordinates,
-        - 'faces': an Mx3 array of face definitions using row indices of the vertex array
-        - 'name': Name of the of the mesh variant
-        NOTE: If a specific name was requested, the single mesh is returned instead of a list.
-        """
-
-        result = []
-        for vol, mesh in enumerate(self.fetch_iter(variant=variant)):
-            if (name is not None) and (name != mesh['name']):
-                continue
-            cmesh = {
-                'verts': mesh['verts'],
-                'faces': mesh['faces'],
-                'labels': np.zeros_like(mesh['labels']),
-                'name': mesh['name'],
-            }
-            for r, value in values.items():
-                try:
-                    indices = self.get_index(r)
-                except IndexError:
-                    continue
-                for index in indices:
-                    if index.volume == vol:
-                        cmesh['labels'][mesh['labels'] == index.label] = value
-            result.append(cmesh)
-
-        if len(result) == 1:
-            return result[0]
-        else:
-            return result

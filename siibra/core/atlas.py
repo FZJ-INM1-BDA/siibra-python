@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .concept import AtlasConcept
-from .space import Space
-from .parcellation import Parcellation
+from . import concept, space as _space, parcellation as _parcellation
 
 from ..commons import MapType, logger, InstanceTable
 
@@ -25,7 +23,7 @@ from typing import List
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class Atlas(AtlasConcept, configuration_folder="atlases"):
+class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference
@@ -61,7 +59,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
     def __init__(self, identifier, name, species=None):
         """Construct an empty atlas object with a name and identifier."""
 
-        AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -79,17 +77,17 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
     @property
     def spaces(self):
         """Access a registry of reference spaces supported by this atlas."""
-        return InstanceTable[Space](
-            elements={s.key: s for s in Space.registry() if s.id in self._space_ids},
-            matchfunc=Space.match,
+        return InstanceTable[_space.Space](
+            elements={s.key: s for s in _space.Space.registry() if s.id in self._space_ids},
+            matchfunc=_space.Space.match,
         )
 
     @property
     def parcellations(self):
         """Access a registry of parcellations supported by this atlas."""
-        return InstanceTable[Parcellation](
-            elements={p.key: p for p in Parcellation.registry() if p.id in self._parcellation_ids},
-            matchfunc=Parcellation.match,
+        return InstanceTable[_parcellation.Parcellation](
+            elements={p.key: p for p in _parcellation.Parcellation.registry() if p.id in self._parcellation_ids},
+            matchfunc=_parcellation.Parcellation.match,
         )
 
     def get_parcellation(self, parcellation=None):
@@ -102,7 +100,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
                 logger.info(f"No parcellation specified, using default: '{parcellation_obj.name}'.")
             return parcellation_obj
 
-        if isinstance(parcellation, Parcellation):
+        if isinstance(parcellation, _parcellation.Parcellation):
             assert parcellation in self.parcellations
             return parcellation
 
@@ -121,7 +119,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
                 logger.info(f"No space specified, using default '{space_obj.name}'.")
             return space_obj
 
-        if isinstance(space, Space):
+        if isinstance(space, _space.Space):
             assert space in self.spaces
             return space
 
@@ -129,8 +127,8 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
 
     def get_map(
         self,
-        space: Space = None,
-        parcellation: Parcellation = None,
+        space: _space.Space = None,
+        parcellation: _parcellation.Parcellation = None,
         maptype: MapType = MapType.LABELLED,
     ):
         """Returns a parcellation map in the given space.
@@ -167,7 +165,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
         """
         return self.get_parcellation(parcellation).get_region(region)
 
-    def get_template(self, space: Space = None, variant: str = None):
+    def get_template(self, space: _space.Space = None, variant: str = None):
         """
         Returns the reference template in the desired reference space.
         If no reference space is given, the default from `Atlas.space()` is used.
@@ -185,7 +183,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
         """
         return self.get_space(space).get_template(variant=variant)
 
-    def get_voi(self, space: Space, point1: tuple, point2: tuple):
+    def get_voi(self, space: _space.Space, point1: tuple, point2: tuple):
         """Get a volume of interest spanned by two points in the given reference space.
 
         Args:
@@ -234,7 +232,7 @@ class Atlas(AtlasConcept, configuration_folder="atlases"):
         """
         result = []
         for p in self._parcellation_ids:
-            parcobj = Parcellation.get_instance(p)
+            parcobj = _parcellation.Parcellation.get_instance(p)
             if parcobj.is_newest_version or all_versions:
                 match = parcobj.find(
                     regionspec,

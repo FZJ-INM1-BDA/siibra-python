@@ -15,7 +15,7 @@
 
 from . import volume
 
-from ..commons import logger, MapType, MapIndex
+from ..commons import logger, MapType, MapIndex, merge_meshes
 from ..retrieval import requests, cache
 from ..locations import boundingbox
 
@@ -26,6 +26,7 @@ from io import BytesIO
 import nibabel as nib
 import os
 import numpy as np
+from typing import Union
 
 
 class NeuroglancerVolume(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -307,113 +308,164 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     """
     A surface mesh provided as neuroglancer precomputed mesh.
     """
-    def __init__(self, url, volume=None):
-        self.volume = volume
-        self.url = url
-        self._info_request = requests.HttpRequest(url=self.url + "/info", func=requests.DECODERS['.json'])
-        self._transform_nm = np.array(requests.HttpRequest(f"{self.url}/transform.json").data)
 
-    @property
-    def info(self):
-        # HttpRequest already implements lazy loading & caching for us
-        return self._info_request.data
-
-    def _get_fragment_urls(self, meshindex: int) -> dict:
-        # extract available fragment urls with their names for the given mesh index
-        mesh_key = self.info.get('mesh')
-        meshurl = f"{self.url}/{mesh_key}/{str(meshindex)}:0"
-        meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
-        fragment_urls = {
-            fragment_name: f"{self.url}/{mesh_key}/{fragment_name}"
-            for fragment_name in meshinfo.get('fragments')
+    @staticmethod
+    def _fragmentinfo(url: str) -> dict:
+        """ Prepare basic mesh fragment information from url. """
+        return {
+            "url": url,
+            "transform_nm": np.array(requests.HttpRequest(f"{url}/transform.json").data),
+            "info": requests.HttpRequest(url=f"{url}/info", func=requests.DECODERS['.json']).data
         }
-        if len(fragment_urls) == 0:
-            raise RuntimeError("No fragments found at {meshurl}")
-        return fragment_urls
 
-    def _fetch_fragment(self, url: str):
+    def __init__(self, resource: Union[str, dict], volume=None):
+        self.volume = volume
+        if isinstance(resource, str):
+            self._meshes = {None: self._fragmentinfo(resource)}
+        elif isinstance(resource, dict):
+            self._meshes = {n: self._fragmentinfo(u) for n, u in resource.items()}
+        else:
+            raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
+
+    def _get_fragment_info(self, meshindex: int) -> dict:
+        # extract available fragment urls with their names for the given mesh index
+        result = {}
+
+        for name, spec in self._meshes.items():
+            mesh_key = spec.get('info', {}).get('mesh')
+            meshurl = f"{spec['url']}/{mesh_key}/{str(meshindex)}:0"
+            transform = spec.get('transform_nm')
+            try:
+                meshinfo = requests.HttpRequest(url=meshurl, func=requests.DECODERS['.json']).data
+            except requests.SiibraHttpRequestError:
+                continue
+            fragment_names = meshinfo.get('fragments')
+
+            if len(fragment_names) == 0:
+                raise RuntimeError("No fragments found at {meshurl}")
+            elif len(self._meshes) > 1:
+                # multiple meshes were configured, so we expect only one fragment under each mesh url
+                if len(fragment_names) > 1:
+                    raise RuntimeError(
+                        f"{self.__class__.__name__} was configured with multiple mesh fragments "
+                        f"({', '.join(self._meshes.keys())}), but unexpectedly even more fragmentations "
+                        f"were found at {spec['url']}."
+                    )
+                result[name] = (f"{spec['url']}/{mesh_key}/{fragment_names[0]}", transform)
+            else:
+                # only one mesh was configures, so we might still
+                # see muliple fragments under the mesh url
+                for fragment_name in fragment_names:
+                    result[fragment_name] = (f"{spec['url']}/{mesh_key}/{fragment_name}", transform)
+
+        return result
+
+    def _fetch_fragment(self, url: str, transform_nm: np.ndarray):
         r = requests.HttpRequest(url, func=lambda b: BytesIO(b))
         (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)
-        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, self._transform_nm)
+        vertices, triangles = affine_transform_mesh(vertices_vox, triangles_vox, transform_nm)
         vertices /= 1e6
-        return vertices, triangles
+        return {'verts': vertices, 'faces': triangles}
 
-    def fetch(self, fragment: str = None, **kwargs):
+    @staticmethod
+    def _extract_meshindex(**kwargs):
+        # extract a meshindex from the given kwargs
+        if "index" in kwargs:
+            meshindex = kwargs.get("index").label
+            if meshindex is None:
+                raise ValueError(
+                    f"NeuroglancerMesh requires label to be set in 'index' for fetch()."
+                )
+        else:
+            logger.info(
+                "'index' not specified when fetching from NeuroglancerMesh. "
+                "Trying to fetch a mesh labelled 1."
+            )
+            meshindex = 1
+        return meshindex
+
+    def fetch(self, **kwargs):
         """
-        Fetches a particular mesh. Each mesh is a dictionary with the keys:
+        Fetches a particular mesh. Each mesh is a dictionary with keys:
 
         - verts: an Nx3 array of coordinates (in nanometer)
         - faces: an MX3 array containing connection data of vertices
         """
 
-        # extract the label index to identify the mesh
-        if "mapindex" in kwargs:
-            meshindex = kwargs.pop("mapindex").label
-            if meshindex is None:
-                raise ValueError(
-                    f"{self.__class___.__name__} requires label to be set in 'mapindex' for fetch()."
-                )
+        # check which mesh and wether a mesh fragment was specified
+        meshindex = self._extract_meshindex(**kwargs)
+        if 'fragment' in kwargs:
+            fragment = kwargs.pop('fragment')
+            assert isinstance(fragment, str)
+        elif 'index' in kwargs:
+            fragment = kwargs.get('index').fragment
         else:
-            logger.info(
-                f"'mapindex' not specified when fetching from {self.__class__}. "
-                "Trying to fetch a mesh labelled 1."
-            )
-            meshindex = 1
+            fragment = None
 
-        for k, v in kwargs:
-            logger.warn(f"{self.__class__.__name__}.fetch() ignores '{k} argument (={v})")
+        # extract fragment information for the requested mesh
+        fragment_infos = self._get_fragment_info(meshindex)
+        kwargs.pop('index')
+        for k, v in kwargs.items():
+            logger.warn(f"{self.__class__.__name__}.fetch() ignored argument {k}={v}")
 
-        fragment_urls = self._get_fragment_urls(meshindex)
+        if fragment is None:
 
-        if (fragment is None) or (fragment.lower() == "all"):
             # no fragment specified, return merged fragment meshes
-            if len(fragment_urls) == 1:
-                verts, faces = self._fetch_fragment(next(iter(fragment_urls.values())))
+            if len(fragment_infos) == 1:
+                url, transform = next(iter(fragment_infos.values()))
+                return self._fetch_fragment(url, transform)
             else:
                 logger.info(
-                    f"Fragments [{', '.join(fragment_urls.keys())}] are merged during fetch(). "
+                    f"Fragments [{', '.join(fragment_infos.keys())}] are merged during fetch(). "
                     "You can select one of them using the 'fragment' parameter."
                 )
-                fragment_data = [self._fetch_fragment(u) for u in fragment_urls.values()]
-                verts = np.concatenate((fragment_data[0][0], fragment_data[1][0]))
-                faces = np.concatenate((fragment_data[0][1], fragment_data[1][1] + len(fragment_data[0][0])))
-            return dict(zip(['verts', 'faces'], [verts, faces]))
+                return merge_meshes([self._fetch_fragment(u, t) for u, t in fragment_infos.values()])
+
         else:
+
             # match fragment to available fragments
-            matched_urls = [
-                url for name, url in fragment_urls.items()
+            matched = [
+                info for name, info in fragment_infos.items()
                 if fragment.lower() in name
             ]
-            if len(matched_urls) == 1:
-                verts, faces = self._fetch_fragment(matched_urls[0])
-                return dict(zip(['verts', 'faces'], [verts, faces]))
+            if len(matched) == 1:
+                url, transform = next(iter(matched))
+                return self._fetch_fragment(url, transform)
             else:
                 raise ValueError(
-                    f"The requested mesh fragment name '{fragment}' could not be resolved at {meshurl}. "
-                    f"Valid names are: {', '.join(fragment_urls.keys())}"
+                    f"The requested mesh fragment name '{fragment}' could not be resolved. "
+                    f"Valid names are: {', '.join(fragment_infos.keys())}"
                 )
 
 
 class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmesh/surface"):
     """
     Only shadows NeuroglancerMesh for the special surface srctype,
-    which provides a mesh urls plus a label index for identifying the surface.
+    which provides a mesh urls plus a mesh index for identifying the surface.
     Behaves like NeuroglancerMesh otherwise.
 
     TODO this class might be replaced by implementing a default label index for the parent class.
     """
     def __init__(self, spec: str, **kwargs):
-        # we expect a string of the form "<url> <labelindex>",
+        # Here we expect a string of the form "<url> <labelindex>",
         # and use this to set the url and label index in the parent class.
         assert ' ' in spec
         url, labelindex_, *args = spec.split(' ')
         assert labelindex_.isnumeric()
-        if 'mapindex' in kwargs:
-            self._mapindex = kwargs['mapindex']
+        if 'index' in kwargs:
+            self._mapindex = kwargs.pop('index')
             self._mapindex.label = int(labelindex_)
         else:
             self._mapindex = MapIndex(volume=None, label=int(labelindex_))
-        NeuroglancerMesh.__init__(self, url=url, **kwargs)
+        NeuroglancerMesh.__init__(self, resource=url, **kwargs)
+
+    @property
+    def fragments(self, meshindex=1):
+        """
+        Returns the set of fragment names available 
+        for the mesh with the given index.
+        """
+        return set(self._get_fragment_info(self._mapindex.label))
 
     def fetch(self, **kwargs):
         return NeuroglancerMesh.fetch(self, mapindex=self._mapindex, **kwargs)

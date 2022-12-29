@@ -16,7 +16,7 @@
 from . import volume
 
 from ..retrieval import requests
-from ..commons import logger
+from ..commons import logger, merge_meshes
 
 import numpy as np
 from typing import Union
@@ -53,29 +53,26 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
             if kwargs.get(arg):
                 raise NotImplementedError(f"Parameter {arg} ignored by {self.__class__}.")
 
-        verts = []
-        faces = []
-        num_verts = 0
         fragments_included = []
+        meshes = []
         for fragment_name, loader in self._loaders.items():
             if fragment and fragment.lower() not in fragment_name.lower():
                 continue
             assert len(loader.data.darrays) > 1
-            verts.append(loader.data.darrays[0].data)
-            faces.append(loader.data.darrays[1].data + num_verts)
-            num_verts += verts[-1].shape[0]
+            meshes.append({
+                "verts": loader.data.darrays[0].data,
+                "faces": loader.data.darrays[1].data
+            })
             fragments_included.append(fragment_name)
 
         if len(fragments_included) > 1:
             logger.info(
-                f"The mesh fragments [{', '.join(fragments_included)}] were merged (by appending the arrays of the fragments.)"
+                f"The mesh fragments [{', '.join(fragments_included)}] were merged by "
+                "appending vertex information of fragments. "
                 f"You could select one with the 'fragment' parameter in fetch()."
             )
 
-        return {
-            "verts": np.vstack(verts),
-            "faces": np.vstack(faces)
-        }
+        return merge_meshes(meshes)
 
     @property
     def variants(self):
@@ -113,4 +110,5 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
                 continue
             assert len(loader.data.darrays) == 1
             labels.append(loader.data.darrays[0].data)
-        return {"labels": np.hstack(labels)}
+
+        return {"labels": np.vstack(labels)}

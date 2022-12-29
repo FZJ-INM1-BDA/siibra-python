@@ -246,7 +246,11 @@ class MapIndex:
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
 
-    def __init__(self, volume: int, label: int, fragment: str = None):
+    def __init__(self, volume: int = None, label: int = None, fragment: str = None):
+        if volume is None and label is None:
+            raise ValueError(
+                "At least volume or label need to be specified to build a valid map index."
+            )
         self.volume = volume
         self.label = label
         self.fragment = fragment
@@ -588,3 +592,36 @@ def is_mesh(structure: Union[list, dict]):
         return all(map(is_mesh, structure))
     else:
         return False
+
+
+def merge_meshes(meshes: list, labels: list=None):
+    # merge a list of meshes into one
+    # if meshes have no labels, a list of labels of the
+    # same length as the number of meshes can 
+    # be supplied to add a labeling per sub mesh.
+
+    assert len(meshes) > 0
+    if len(meshes) == 1:
+        return meshes[0]
+
+    assert all('verts' in m for m in meshes)
+    assert all('faces' in m for m in meshes)
+    has_labels = all('labels' in m for m in meshes)
+    if has_labels:
+        assert labels is None
+
+    nverts = [0] + [m['verts'].shape[0] for m in meshes[:-1]]
+    verts = np.concatenate([m['verts'] for m in meshes])
+    faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
+    if has_labels:
+        labels = np.concatenate([m['labels'] for m in meshes])
+        return {'verts': verts, 'faces': faces, 'labels': labels}
+    elif labels is not None:
+        assert len(labels) == len(meshes)
+        labels = np.array(
+            [labels[i] for i, m in enumerate(meshes) for v in m['verts']]
+        )
+        return {'verts': verts, 'faces': faces, 'labels': labels}
+    else:
+        return {'verts': verts, 'faces': faces}
+

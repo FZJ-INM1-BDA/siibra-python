@@ -118,8 +118,12 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         return candidates[0]
 
     @property
-    def is_surface(self):
-        return all(v.is_surface for v in self.volumes)
+    def provides_mesh(self):
+        return any(v.provides_mesh for v in self.volumes)
+
+    @property
+    def provides_image(self):
+        return any(v.provides_image for v in self.volumes)
 
     def __getitem__(self, slices):
         """

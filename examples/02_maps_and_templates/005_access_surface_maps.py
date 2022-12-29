@@ -31,7 +31,8 @@ jubrain = siibra.parcellations["julich"]
 # %%
 # We can tell volumetric from surface spaces using their `is_surface` attribute.
 for space in jubrain.spaces:
-    if space.is_surface: print(space)
+    if space.provides_mesh:
+        print(space)
 
 # %%
 # The surface map is accessed using the `get map` method where we specify the space. Note that
@@ -62,7 +63,8 @@ jubrain_cmap = mp.get_colormap()
 
 # Now we can plot the mesh
 plotting.view_surf(
-    surf_mesh = [mesh['verts'], mesh['faces']], 
-    surf_map = mesh['labels'], 
-    cmap = jubrain_cmap, symmetric_cmap=False, colorbar=False
+    surf_mesh=[mesh['verts'], mesh['faces']],
+    surf_map=mesh['labels'],
+    cmap=jubrain_cmap, symmetric_cmap=False, colorbar=False
 )
+# %%

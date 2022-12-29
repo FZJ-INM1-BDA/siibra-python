@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import parcellationmap
+from . import parcellationmap, volume as _volume
 
 from ..commons import MapIndex, logger
 from ..locations import boundingbox
@@ -239,9 +239,11 @@ class SparseMap(parcellationmap.Map):
                     desc=f"Fetching {len(self)} volumetric maps",
                     disable=logger.level > 20,
                 ):
-                    img = super().fetch(vol)
+                    img = super().fetch(
+                        index=MapIndex(volume=vol, label=None)
+                    )
                     if img is None:
-                        region = self.get_region(vol=vol)
+                        region = self.get_region(volume=vol)
                         logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                         continue
                     spind.add_img(img)
@@ -260,13 +262,9 @@ class SparseMap(parcellationmap.Map):
 
     def fetch(
         self,
-        vol: int = None,
-        resolution_mm: float = None,
-        voi: boundingbox.BoundingBox = None,
-        variant: str = None,
-        format: str = None,
         index: MapIndex = None,
-        cropped: bool = False,
+        region: str = None,
+        **kwargs
     ):
         """
         Recreate a particular volumetric map from the sparse
@@ -274,65 +272,42 @@ class SparseMap(parcellationmap.Map):
 
         Arguments
         ---------
-        volume : int
-            The index of the mapped volume to be fetched.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        voi: VolumeOfInterest
-            bounding box specification
-        variant : str
-            Optional specification of a specific variant to use for the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-        format: str
-            optional specificatino of the voume format to use (e.g. "nii", "neuroglancer/precomputed")
-        cropped: Boolean
-            If true, only a cropped image of the nonzero values with
-            appropriate affine matrix is returned, otherwise a full-sized
-            volume with padded zeros (Default: False)
-
+        index : MapIndex
+            The index to be fetched.
+        region: str
+            Region name specification. If given, will be used to
+            decode the map index of a particular region.
         """
+        if kwargs.get('format') in ['mesh'] + _volume.Volume.MESH_FORMATS:
+            # a mesh is requested, this is not handled by the sparse map
+            return super().fetch(index=index, region=region, **kwargs)
+
+        if (index is not None) and (region is not None):
+            raise ValueError(
+                "'index' and 'region' must not be specifiec at the same "
+                f"time in {self.__class__.__name__}.fetch()"
+            )
         if index is not None:
-            assert vol is None
             assert isinstance(index, MapIndex)
             vol = index.volume
-        elif isinstance(vol, MapIndex):
-            # be kind if an index is passed as the first parameter
-            vol = vol.volume
-        elif isinstance(vol, str):
-            # be kind if a region name is passed as the first parameter
-            logger.info(
-                f"'{vol}' will be interpreted as a region name to decode the volume index."
-            )
-            index = self.get_index(vol)
-            vol = index.volume
-        if voi is not None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} does not support volume of interest fetching yet."
-            )
-        if resolution_mm is not None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} does not support fetching at resolutions other than 1mm yet."
-            )
-        if vol is None:
+        elif region is not None:
+            index = self.get_index(region)
             assert index is not None
             vol = index.volume
-        assert isinstance(vol, int)
-
-        x, y, z, v = self.sparse_index.mapped_voxels(vol)
-        if cropped:
-            bbox = np.array([[min(_), max(_)] for _ in [x, y, z]])
-            result = np.zeros(bbox[:, 1] - bbox[:, 0] + 1)
-            x0, y0, z0 = bbox[:, 0]
-            result[x - x0, y - y0, z - z0] = v
-            shift = np.identity(4)
-            shift[:3, -1] = bbox[:, 0]
-            return Nifti1Image(result, np.dot(self.affine, shift))
         else:
-            result = np.zeros(self.shape, dtype=np.float32)
-            result[x, y, z] = v
-            return Nifti1Image(result, self.affine)
+            if len(self) == 1:
+                vol = 0
+            else:
+                raise RuntimeError(
+                    f"{self.__class__.__name__} provides {len(self)} volumes. "
+                    "Specify 'region' or 'index' for fetch() to identify one."
+                )
+
+        assert isinstance(vol, int)
+        x, y, z, v = self.sparse_index.mapped_voxels(vol)
+        result = np.zeros(self.shape, dtype=np.float32)
+        result[x, y, z] = v
+        return Nifti1Image(result, self.affine)
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index

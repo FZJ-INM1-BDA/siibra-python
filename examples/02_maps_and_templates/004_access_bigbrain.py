@@ -30,12 +30,11 @@ amount of image data, or a volume of interest.
 # We start by selecting an atlas.
 import siibra
 from nilearn import plotting
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # Per default, `siibra` will fetch the whole brain volume at a reasonably
 # reduced resolution.
-bigbrain = atlas.get_template('bigbrain')
+bigbrain = siibra.get_template('bigbrain')
 bigbrain_whole = bigbrain.fetch()
 plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 
@@ -47,16 +46,13 @@ plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 # a string representation, which could be conveniently copy pasted from the
 # interactive viewer `siibra explorer <https://atlases.ebrains.eu/viewer>`_.
 # Note that the coordinates can be specified by 3-tuples, and in other ways.
-space = siibra.spaces['bigbrain']
-voi = space.get_bounding_box(point1="-30.590mm, 3.270mm, 47.814mm",
-    point2="-26.557mm, 6.277mm, 50.631mm")
+space = siibra.spaces.get('bigbrain')
+voi = space.get_bounding_box(
+    point1="-30.590mm, 3.270mm, 47.814mm",
+    point2="-26.557mm, 6.277mm, 50.631mm"
+)
 bigbrain_chunk = bigbrain.fetch(voi=voi, resolution_mm=0.02)
 plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
-
-# BUG: The NeuroglancerVolumeFetcher object has no attribute 'space'.
-# `if voi is not None: assert voi.space == self.space`
-# The object never establishes the space. Instead of asserting, perhaps it should set based on the voi provided.
-# (The rest of the code should be working if above solution is implemented.)
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly
@@ -69,7 +65,7 @@ plotting.view_img(bigbrain_chunk, bg_img=bigbrain_whole, cmap='magma', cut_coord
 # labels for the same volume of interest. We choose the cortical layer maps by Wagstyl et al.
 # Note that by specifying "-1" as a resolution, `siibra` will fetch the highest
 # possible resolution.
-layermap = atlas.get_map(space='bigbrain', parcellation='layers')
+layermap = siibra.get_map(space='bigbrain', parcellation='layers')
 mask = layermap.fetch(resolution_mm=-1, voi=voi)
 mask
 
@@ -77,7 +73,7 @@ mask
 # Since we operate in physical coordinates, we can plot both image chunks
 # superimposed, even if their resolution is not exactly identical.
 from nilearn import plotting
-plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.1, symmetric_cmap=False)
+plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
 
 # %%
 # `siibra` can help us to assign a brain region to the position of the volume
@@ -85,6 +81,8 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.1, symmetric_cmap=False)
 # just note that `siibra` can employ spatial objects from different template spaces.
 # Here it automatically warps the centroid of the volume of interst to MNI space
 # for location assignment.
-julich_pmaps = atlas.get_map(space='mni152', parcellation='julich', maptype='continuous')
+julich_pmaps = siibra.get_map(space='mni152', parcellation='julich', maptype='continuous')
 assignments = julich_pmaps.assign(voi.center)
 assignments
+
+# %%

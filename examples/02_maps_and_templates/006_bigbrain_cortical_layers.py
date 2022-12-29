@@ -21,30 +21,57 @@ Access to Big Brain cortical layer meshes
 """
 
 # %%
+# Request the BigBrain cortical layer parcellation by Wagstyl et al.
+# from siibra.
 import siibra
-from nilearn import plotting # for plotting
-# As an alternative to previous examples, we can get the map we want in one line by
-mp = siibra.parcellations["layers"].get_map(space="big brain")
+from nilearn import plotting
+layermap = siibra.get_map(parcellation='layers', space="big brain")
+layermap.regions
+
 
 # %%
-# We can fetch the layer by speficifying the name.
-mesh = mp.fetch(meshindex=1, format="neuroglancer/precompmesh")
-plotting.view_surf((mesh['verts'], mesh['faces'])) # TODO: implement a basic color map
+# We fetch the surface mesh of a layer by specifying a unique part of its name.
+l4_surf_l = layermap.fetch(region="layer 4 left", format="mesh")
 
 # %%
-# We can also choose the hemisphere and also calculate the thickness between two layers.
-# First, fetch two layers:
-mesh_r_1 = mp.fetch(meshindex=1, format="neuroglancer/precompmesh", fragment="right")
-mesh_r_7 = mp.fetch(meshindex=7, format="neuroglancer/precompmesh", fragment="right")
+# We can also choose individual hemispheres, and recombine meshes.
+# For illustration, we create a combined mesh of the white matter surface
+# in the left hemisphere and the layer 1 surface of the right hemisphere.
+wm_surf_r = layermap.fetch(region="non-cortical right", format="mesh")
+mesh = siibra.commons.merge_meshes([l4_surf_l, wm_surf_r], labels=[10, 20])
 
-# then calculate the thickness using the map obejct created above
-thickness = mp.find_layer_thickness(mesh_r_1, mesh_r_7)
+# %%
+plotting.view_surf(
+    (mesh['verts'], mesh['faces']), 
+    surf_map=mesh['labels'],
+    cmap='Set1', vmin=10, vmax=30, symmetric_cmap=False, colorbar=False
+)
 
-# Let us display the histogram of the cortical layer thickness
+# %%
+# Since the cortical layer surfaces share corresponding vertices,
+# we can compute approximate layer thicknesses as Euclidean distances
+# of mesh vertices. Here we compare the layer depth distribution of 
+# layers 4 and 5 across the left hemisphere.
+import numpy as np
 import matplotlib.pyplot as plt
-plt.hist(thickness, 200)
+plt.figure()
+layers = [2, 4, 5]
+thicknesses = {}
+for l in layers:
+    upper_surf = layermap.fetch(f"layer {l+1} left", format="mesh")
+    lower_surf = layermap.fetch(f"layer {l} left", format="mesh")
+    thicknesses[l] = np.linalg.norm(upper_surf['verts'] - lower_surf['verts'], axis=1)
+    plt.hist(thicknesses[l], 200)
+plt.xlabel('Layer depth (left hemisphere)')
+plt.ylabel('# vertices')
+plt.legend([f"Layer {l}" for l in layers])
+plt.grid(True)
 
 # %%
-# We can now show the mesh using the thickness surf map
-plotting.view_surf((mesh_r_1['verts'], mesh_r_1['faces']),
-    surf_map=thickness, symmetric_cmap=False, cmap='winter')
+# We can plot the (last) thickness distribution on the surface
+plotting.view_surf(
+    (lower_surf['verts'], lower_surf['faces']),
+    surf_map=thicknesses[4],
+    symmetric_cmap=False, cmap='magma', vmax=0.3
+)
+# %%
