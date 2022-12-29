@@ -404,7 +404,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
 
         # extract fragment information for the requested mesh
         fragment_infos = self._get_fragment_info(meshindex)
-        kwargs.pop('index')
+        if 'index' in kwargs:
+            kwargs.pop('index')
         for k, v in kwargs.items():
             logger.warn(f"{self.__class__.__name__}.fetch() ignored argument {k}={v}")
 

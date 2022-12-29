@@ -111,4 +111,4 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
             assert len(loader.data.darrays) == 1
             labels.append(loader.data.darrays[0].data)
 
-        return {"labels": np.vstack(labels)}
+        return {"labels": np.hstack(labels)}

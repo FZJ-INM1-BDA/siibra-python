@@ -614,7 +614,7 @@ def merge_meshes(meshes: list, labels: list=None):
     verts = np.concatenate([m['verts'] for m in meshes])
     faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
     if has_labels:
-        labels = np.concatenate([m['labels'] for m in meshes])
+        labels = np.array([l for m in meshes for l in m['labels']])
         return {'verts': verts, 'faces': faces, 'labels': labels}
     elif labels is not None:
         assert len(labels) == len(meshes)

@@ -24,8 +24,13 @@ Each is shipped with left and right hemispheres separately.
 """
 
 # %%
-# Load the Julich-Brain parcellation.
+# For plotting meshes, most python libraries can be employed.
+# We recommend the plotting module of `nilearn <https://nilearn.github.io>`_.
 import siibra
+from nilearn import plotting
+
+# %%
+# Load the Julich-Brain parcellation.
 jubrain = siibra.parcellations["julich"]
 
 # %%
@@ -43,8 +48,6 @@ mp = jubrain.get_map(space='fsaverage6')
 # %%
 # For surfaces, the `fetch()` method accepts an additional parameter 'variant'. If not specified,
 # siibra displays the possible options as a list fetches the first one from the list.
-mesh = mp.fetch()
-
 # Now let us fetch a specific variant and also the hemisphere fragment
 mesh = mp.fetch(variant="inflated", fragment="left")
 
@@ -54,10 +57,6 @@ mesh = mp.fetch(variant="inflated", fragment="left")
 print(mesh.keys())
 
 # %%
-# For plotting meshes, most python libraries can be employed.
-# We recommend again the plotting module of `nilearn <https://nilearn.github.io>`_. 
-from nilearn import plotting
-
 # Most meshes are shipped with a color map which we can fetch from the map object by 
 jubrain_cmap = mp.get_colormap()
 

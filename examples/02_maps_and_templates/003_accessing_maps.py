@@ -116,6 +116,3 @@ hoc5L = siibra.get_region(parcellation='julich 2.9', region='hoc5 left')
 hoc5L_mask = hoc5L.build_mask(space="mni152", maptype="labelled")
 plotting.plot_roi(hoc5L_mask, title=f"Mask of {hoc5L.name}")
 
-# 
-
-# %%
