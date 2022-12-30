@@ -80,7 +80,7 @@ class AnatomicalAssignment:
         return self.qualification == AssignmentQualification.EXACT
 
     def __str__(self):
-        msg = f"Element {self.qualification.verb} '{self.assigned_structure}'."
+        msg = f"{self.qualification.verb} '{self.assigned_structure}'"
         return msg if self.explanation == "" else f"{msg} ({self.explanation})."
 
     def invert(self):
@@ -178,7 +178,7 @@ class AnatomicalAnchor:
                         AnatomicalAssignment(concept, AssignmentQualification.EXACT)
                     )
             elif isinstance(concept, Region):
-                if concept.matches(self._regionspec):  # dramatic speedup, since decoding _regionspec is expensive
+                if any(_.matches(self._regionspec) for _ in concept):  # dramatic speedup, since decoding _regionspec is expensive
                     for r in self.regions:
                         matches.append(AnatomicalAnchor.match_regions(r, concept))
                 if self.location is not None:
@@ -288,3 +288,7 @@ class AnatomicalAnchor:
     @property
     def last_match_result(self):
         return self._assignments.get(self._last_matched_concept)
+    
+    @property
+    def print_last_match(self):
+        return f"{self} " + ' and '.join(str(_) for _ in self.last_match_result)
