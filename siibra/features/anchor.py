@@ -103,7 +103,7 @@ class AnatomicalAnchor:
 
     def __init__(self, species: Union[List[Species], Species], location: Location = None, region: Union[str, Region] = None):
 
-        if isinstance(species, [str, Species]):
+        if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
         elif isinstance(species, list):
             assert all(isinstance(_, Species) for _ in species)
