@@ -29,7 +29,122 @@ import numpy as np
 from typing import Union
 
 
-class NeuroglancerVolume(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
+class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
+
+    def __init__(self, url: Union[str, dict]):
+        volume.VolumeProvider.__init__(self)
+        if isinstance(url, str):  # one single image to load
+            self._fragments = {None: NeuroglancerVolume(url)}
+        elif isinstance(url, dict):  # assuming multiple for fragment images
+            self._fragments = {n: NeuroglancerVolume(u) for n, u in url.items()}
+        else:
+            raise ValueError(f"Invalid url specified for {self.__class__.__name__}: {url}")
+
+    def fetch(
+        self,
+        fragment: str = None,
+        resolution_mm: float = None,
+        voi: boundingbox.BoundingBox = None,
+        **kwargs
+    ) -> nib.Nifti1Image:
+        """
+        Fetch 3D image data from neuroglancer volume.
+
+        Parameters
+        ----------
+        fragment: str
+            Optional name of a fragment volume to fetch, if any.
+            For example, some volumes are split into left and right hemisphere fragments.
+            see :func:`~siibra.volumes.Volume.fragments`
+        resolution_mm: float
+            Specify the resolugion
+        voi : BoundingBox
+            optional specification of a volume of interst to fetch.
+        """
+
+        if 'index' in kwargs:
+            index = kwargs.pop('index')
+            if fragment is not None:
+                assert fragment == index.fragment
+            fragment = index.fragment
+
+        if len(self._fragments) > 1:
+            if fragment is None:
+                raise RuntimeError(
+                    f"Merging of fragments not yet implemented in {self.__class__.__name__}. "
+                    f"Specify one of [{', '.join(self._fragments.keys())}] using fetch(fragment=<name>). "
+                )
+            else:
+                matched_names = [n for n in self._fragments if fragment.lower() in n.lower()]
+                if len(matched_names) != 1:
+                    raise ValueError(
+                        f"Requested fragment '{fragment}' could not be matched uniquely "
+                        f"to [{', '.join(self._fragments)}]"
+                    )
+                else:
+                    return self._fragments[matched_names[0]].fetch(
+                        resolution_mm=resolution_mm, voi=voi, **kwargs
+                    )
+        else:
+            assert len(self._fragments) > 0
+            fragment_name, ngvol = next(iter(self._fragments.items()))
+            if fragment is not None:
+                assert fragment.lower() in fragment_name.lower()
+            return ngvol.fetch(
+                resolution_mm=resolution_mm, voi=voi, **kwargs
+            )
+
+    @property
+    def bounding_box(self):
+        """
+        Return the bounding box in physical coordinates
+        of the union of fragments in this neuroglancer volume.
+        """
+        bbox = None
+        for frag in self._fragments.values():
+            next_bbox = boundingbox.BoundingBox((0, 0, 0), frag.shape, space=None) \
+                .transform(frag.affine)
+            bbox = next_bbox if bbox is None else bbox.union(next_bbox)
+        return bbox
+
+    def _merge_fragments(self) -> nib.Nifti1Image:
+        # TODO this only performs nearest neighbor interpolation, optimized for float types.
+        bbox = self.bounding_box
+        num_conflicts = 0
+        result = None
+
+        for loader in self._img_loaders.values():
+            img = loader()
+            if result is None:
+                # build the empty result image with its own affine and voxel space
+                s0 = np.identity(4)
+                s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
+                result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
+                voxdims = np.dot(np.linalg.inv(result_affine), np.r_[bbox.shape, 1])[:3]
+                result_arr = np.zeros((voxdims + .5).astype('int'))
+                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
+
+            arr = np.asanyarray(img.dataobj)
+            Xs, Ys, Zs = np.where(arr != 0)
+            Xt, Yt, Zt, _ = np.split(
+                (np.dot(
+                    np.linalg.inv(result_affine),
+                    np.dot(img.affine, np.c_[Xs, Ys, Zs, Zs * 0 + 1].T)
+                ) + .5).astype('int'),
+                4, axis=0
+            )
+            num_conflicts += np.count_nonzero(result_arr[Xt, Yt, Zt])
+            result_arr[Xt, Yt, Zt] = arr[Xs, Ys, Zs]
+
+        if num_conflicts > 0:
+            num_voxels = np.count_nonzero(result_arr)
+            logger.warn(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+
+        return result
+
+
+class NeuroglancerVolume:
+
     # Number of bytes at which an image array is considered to large to fetch
     MAX_GiB = 0.2
 
@@ -40,12 +155,13 @@ class NeuroglancerVolume(volume.VolumeProvider, srctype="neuroglancer/precompute
     def MAX_BYTES(self):
         return self.MAX_GiB * 1024 ** 3
 
-    def __init__(self, url: str, transform_nm: np.ndarray = None):
+    def __init__(self, url: str):
         volume.VolumeProvider.__init__(self)
+        assert isinstance(url, str)
         self.url = url
         self._scales_cached = None
         self._io = None
-        self._transform_nm = transform_nm
+        self._transform_nm = None
 
     @property
     def transform_nm(self):
@@ -152,7 +268,7 @@ class NeuroglancerScale:
 
     color_warning_issued = False
 
-    def __init__(self, volume: NeuroglancerVolume, scaleinfo: dict):
+    def __init__(self, volume: NeuroglancerProvider, scaleinfo: dict):
         self.volume = volume
         self.chunk_sizes = np.array(scaleinfo["chunk_sizes"]).squeeze()
         self.encoding = scaleinfo["encoding"]
@@ -374,7 +490,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             meshindex = kwargs.get("index").label
             if meshindex is None:
                 raise ValueError(
-                    f"NeuroglancerMesh requires label to be set in 'index' for fetch()."
+                    "NeuroglancerMesh requires label to be set in 'index' for fetch()."
                 )
         else:
             logger.info(
@@ -463,7 +579,7 @@ class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmes
     @property
     def fragments(self, meshindex=1):
         """
-        Returns the set of fragment names available 
+        Returns the set of fragment names available
         for the mesh with the given index.
         """
         return set(self._get_fragment_info(self._mapindex.label))

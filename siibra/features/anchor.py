@@ -83,7 +83,7 @@ class AnatomicalAssignment:
 
     def __str__(self):
         msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
-        return msg if self.explanation == "" else f"{msg} ({self.explanation})."
+        return msg if self.explanation == "" else f"{msg} - {self.explanation}"
 
     def invert(self):
         return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
@@ -124,7 +124,8 @@ class AnatomicalAnchor:
         elif isinstance(region, str):
             self._regionspec = region
         else:
-            raise ValueError(f"Invalid region specification: {region}")
+            if region is not None:
+                raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
 
     @property
@@ -205,7 +206,7 @@ class AnatomicalAnchor:
                     )
             elif isinstance(concept, Region):
                 if any(_.matches(self._regionspec) for _ in concept) \
-                    or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
+                        or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
                     for r in self.regions:
                         matches.append(AnatomicalAnchor.match_regions(r, concept))
                 if self.location is not None:
@@ -274,7 +275,7 @@ class AnatomicalAnchor:
                 )
             else:
                 for space in region.supported_spaces:
-                    if space.is_surface:  # siibra does not yet match locations to surface spaces
+                    if not space.provides_image:  # siibra does not yet match locations to surface spaces
                         continue
                     mask = region.build_mask(space=space, maptype='labelled')
                     mask_space = space

@@ -15,7 +15,7 @@
 
 from . import feature, anchor
 
-from ..volumes import volume
+from ..volumes import volume as _volume
 from ..locations import boundingbox
 
 from typing import List
@@ -23,9 +23,14 @@ from typing import List
 
 class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
 
-    def __init__(self, vol: volume.Volume):
-        anchor.AnatomicalAnchor.__init__(self, location=None, region=None)
-        self.volume = vol
+    def __init__(self, volume: _volume.Volume):
+        anchor.AnatomicalAnchor.__init__(
+            self,
+            species=volume.space.species,
+            location=None,
+            region=None
+        )
+        self.volume = volume
 
     @property
     def location(self):
@@ -44,14 +49,14 @@ class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
         return "bounding box of volume"
 
 
-class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="features/volumes"):
+class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="features/volumes"):
 
     def __init__(
         self,
         name: str,
         modality: str,
         space_spec: dict,
-        providers: List[volume.VolumeProvider],
+        providers: List[_volume.VolumeProvider],
         datasets: List = [],
     ):
         feature.Feature.__init__(
@@ -61,7 +66,7 @@ class VolumeOfInterest(feature.Feature, volume.Volume, configuration_folder="fea
             anchor=None,  # lazy implementation below!
             datasets=datasets
         )
-        volume.Volume.__init__(
+        _volume.Volume.__init__(
             self,
             space_spec=space_spec,
             providers=providers,

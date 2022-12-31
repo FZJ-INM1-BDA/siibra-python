@@ -370,7 +370,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                     self.name in m.regions
                 ]
             ):
-                result = m.fetch(index=m.get_index(self.name))
+                result = m.fetch(index=m.get_index(self.name), format='image')
                 if maptype == MapType.CONTINUOUS:
                     logger.info(f"Thresholding continuous map at {threshold}")
                     result = Nifti1Image(

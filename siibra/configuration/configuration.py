@@ -161,7 +161,7 @@ class Configuration:
         for fname, loader in tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured {obj0.__class__.__name__} objects"
+            desc=f"Loading preconfigured {obj0.__class__.__name__} instances"
         ):
             # filename is added to allow Factory creating reasonable default object identifiers
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))

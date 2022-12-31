@@ -33,14 +33,10 @@ class Volume:
     which can be accessible via multiple providers in different formats.
     """
 
-    SUPPORTED_FORMATS = [
+    IMAGE_FORMATS = [
         "nii",
         "zip/nii",
-        "neuroglancer/precomputed",
-        "neuroglancer/precompmesh",
-        "neuroglancer/precompmesh/surface",
-        "gii-mesh",
-        "gii-label"
+        "neuroglancer/precomputed"
     ]
 
     MESH_FORMATS = [
@@ -49,6 +45,8 @@ class Volume:
         "gii-mesh",
         "gii-label"
     ]
+
+    SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
 
     def __init__(
         self,
@@ -87,7 +85,7 @@ class Volume:
 
     @property
     def provides_image(self):
-        return any(f not in self.MESH_FORMATS for f in self.formats)
+        return any(f in self.IMAGE_FORMATS for f in self.formats)
 
     @property
     def fragments(self):

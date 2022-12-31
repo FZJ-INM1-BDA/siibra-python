@@ -111,9 +111,15 @@ class BoundingBox(location.Location):
 
     def __str__(self):
         if self.space is None:
-            return f"Bounding box {tuple(self.minpoint)} -> {tuple(self.maxpoint)}"
+            return (
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)}) mm"
+            )
         else:
-            return f"Bounding box from {tuple(self.minpoint)}mm to {tuple(self.maxpoint)}mm in {self.space.name} space"
+            return (
+                f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
+            )
 
     def contains(self, other: location.Location):
         """Returns true if the bounding box contains the given location."""
