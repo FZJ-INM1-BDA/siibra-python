@@ -98,7 +98,13 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         mask = region.build_mask("mni152", "labelled")
         for f in self:
             if f.anchor.location.intersects(mask):
-                assert f.matches(region)
+                ass = anchor.AnatomicalAssignment(
+                    f.anchor.location,
+                    region,
+                    anchor.AssignmentQualification.CONTAINED
+                )
+                f.anchor._assignments[region] = ass
+                f.anchor._last_matched_concept = region
                 yield f
 
     def __iter__(self):
@@ -118,7 +124,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         url = self._QUERY["probe"].format(gene=self.gene)
         if not isinstance(self.gene, str):
             url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g}'" for g in self.gene]))
-
         response = HttpRequest(url).get()
         if "site unavailable" in response.decode().lower():
             # When the Allen site is not available, they still send a status code 200.

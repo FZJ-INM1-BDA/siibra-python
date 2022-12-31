@@ -31,7 +31,7 @@ import siibra
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
 for m in siibra.modalities:
-    print(m.feature_type)
+    print(m)
 
 # %%
 # Regional features

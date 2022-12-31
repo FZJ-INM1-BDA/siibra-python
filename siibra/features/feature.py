@@ -166,7 +166,4 @@ class Feature:
             q = QueryType(**kwargs)
             live_instances.extend(q.query(concept))
 
-        for k, v in kwargs:
-            logger.warn(f"Argument {k}={v} not used in get_features.")
-
         return preconfigured_instances + live_instances
