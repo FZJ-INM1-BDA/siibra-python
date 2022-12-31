@@ -136,4 +136,4 @@ print(features[0].last_match_description)
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
 features = siibra.get_features(v1, siibra.modalities.GeneExpression, gene="TAC1")
-print(features[0].match_description)
+print(features[0].last_match_description)

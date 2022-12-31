@@ -34,7 +34,7 @@ print("Receptor density fingerprints found at the following anatomical anchoring
 print("\n".join(str(f.anchor) for f in all_features))
 
 # %%
-# When providing a particular region instead, the returned list is filtered accordingly. 
+# When providing a particular region instead, the returned list is filtered accordingly.
 # So we can directly retrieve densities for the primary visual cortex:
 v1_fingerprints = siibra.get_features(
     siibra.get_region('julich 2.9', 'v1'),

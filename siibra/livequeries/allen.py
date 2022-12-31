@@ -15,7 +15,7 @@
 
 from .query import LiveQuery
 
-from ..core import space
+from ..core import space as _space
 from ..features import anchor
 from ..features.simple import GeneExpression
 from ..commons import logger, Species
@@ -83,6 +83,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
     _specimen = None
     factors = None
+    space = _space.Space.registry().get('mni152')
 
     def __init__(self, **kwargs):
         """
@@ -95,15 +96,25 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
     def query(self, region: Region) -> List[GeneExpression]:
         assert isinstance(region, Region)
-        mask = region.build_mask("mni152", "labelled")
+        mask = region.build_mask(self.space, "labelled")
         for f in self:
             if f.anchor.location.intersects(mask):
+                # we construct the assignment manually,
+                # although f.matches(region) would do it
+                # for us, because the latter would add
+                # signfiicant computational overhead for
+                # re-doing the spatial assignment we
+                # did already.
                 ass = anchor.AnatomicalAssignment(
                     f.anchor.location,
                     region,
-                    anchor.AssignmentQualification.CONTAINED
+                    anchor.AssignmentQualification.CONTAINED,
+                    explanation=(
+                        f"{f.anchor.location} was compared with the mask "
+                        f"of query region '{region.name}' in {self.space}."
+                    )
                 )
-                f.anchor._assignments[region] = ass
+                f.anchor._assignments[region] = [ass]
                 f.anchor._last_matched_concept = region
                 yield f
 
@@ -194,8 +205,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         152 space to generate a SpatialFeature object for each sample.
         """
 
-        spaceobj = space.Space.get_instance('mni152')
-
         if len(probe_ids) == 0:
             return
 
@@ -232,7 +241,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, spaceobj)),
+                anchor=anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, cls.space)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],
