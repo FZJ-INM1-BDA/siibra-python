@@ -18,7 +18,7 @@ from .query import LiveQuery
 from ..core import space
 from ..features import anchor
 from ..features.simple import GeneExpression
-from ..commons import logger
+from ..commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
 from ..retrieval import HttpRequest
@@ -207,6 +207,8 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         # store probes
         probes, samples = [response["msg"][n] for n in ["probes", "samples"]]
 
+        species = Species.decode('homo sapiens')
+
         # store samples. Convert their MRI coordinates of the samples to ICBM
         # MNI152 space
         for i, sample in enumerate(samples):
@@ -225,7 +227,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=anchor.AnatomicalAnchor(location=Point(icbm_coord, spaceobj)),
+                anchor=anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, spaceobj)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],
