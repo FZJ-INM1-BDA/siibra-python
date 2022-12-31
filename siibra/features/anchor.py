@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger
+from ..commons import logger, Species
 
 from ..core.concept import AtlasConcept
 from ..locations.location import Location
@@ -23,7 +23,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, Set
+from typing import Union, List
 from enum import Enum
 
 
@@ -67,10 +67,12 @@ class AnatomicalAssignment:
 
     def __init__(
         self,
+        query_structure: Union[Region, Location],
         assigned_structure: Union[Region, Location],
         qualification: AssignmentQualification,
         explanation: str = ""
     ):
+        self.query_structure = query_structure
         self.assigned_structure = assigned_structure
         self.qualification = qualification
         self.explanation = explanation.strip()
@@ -80,11 +82,11 @@ class AnatomicalAssignment:
         return self.qualification == AssignmentQualification.EXACT
 
     def __str__(self):
-        msg = f"{self.qualification.verb} '{self.assigned_structure}'"
+        msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
         return msg if self.explanation == "" else f"{msg} ({self.explanation})."
 
     def invert(self):
-        return AnatomicalAssignment(self.assigned_structure, self.qualification.invert(), self.explanation)
+        return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
 
     def __lt__(self, other):
         return self.qualification.value < other.qualification.value
@@ -99,19 +101,31 @@ class AnatomicalAnchor:
 
     _MATCH_MEMO = {}
 
-    def __init__(self, location: Location = None, region: Union[str, Region] = None, species: Union[str, Set[str]] = None):
+    def __init__(self, species: Union[List[Species], Species], location: Location = None, region: Union[str, Region] = None):
 
+        if isinstance(species, [str, Species]):
+            self.species = {Species.decode(species)}
+        elif isinstance(species, list):
+            assert all(isinstance(_, Species) for _ in species)
+            self.species = set(species)
+        else:
+            sp = Species.decode(species)
+            if sp is None:
+                raise ValueError(f"Invalid species specification: {species}")
+            else:
+                self.species = {sp}
         self._location_cached = location
-        self.species = {species} if isinstance(species, str) else species
         self._assignments = {}
         self._last_matched_concept = None
+        self._regions_cached = None
+        self._regionspec = None
         if isinstance(region, Region):
             self._regions_cached = [region]
-            self._regionspec = None
-        else:
-            assert isinstance(region, (str, None))
-            self._regions_cached = None
+        elif isinstance(region, str):
             self._regionspec = region
+        else:
+            raise ValueError(f"Invalid region specification: {region}")
+        self._aliases_cached = None
 
     @property
     def location(self):
@@ -131,6 +145,20 @@ class AnatomicalAnchor:
             return self.location.space
 
     @property
+    def region_aliases(self):
+        if self._aliases_cached is None:
+            self._aliases_cached = {
+                k: v
+                for s in self.species
+                for k, v in REGION_ALIASES.get(str(s), {}).get(self._regionspec, {}).items()
+            }
+        return self._aliases_cached
+
+    @property
+    def has_region_aliases(self):
+        return len(self.region_aliases) > 0
+
+    @property
     def regions(self):
         # decoding region strings is quite compute intensive, so we cache this at the class level
         if self._regions_cached is None:
@@ -138,6 +166,7 @@ class AnatomicalAnchor:
                 self._regions_cached = []
             else:
                 if self._regionspec not in self.__class__._MATCH_MEMO:
+                    self._regions_cached = []
                     # decode the region specification into a set of region objects
                     regions = {
                         r: AssignmentQualification['EXACT']
@@ -145,14 +174,11 @@ class AnatomicalAnchor:
                         for r in Parcellation.find_regions(self._regionspec, species)
                     }
                     # add more regions from possible aliases of the region spec
-                    for species in self.species:
-                        region_aliases = REGION_ALIASES.get(species, {}).get(self._regionspec, {})
-                        for alt_species, aliases in region_aliases.items():
-                            for regionspec, qualificationspec in aliases.items():
-                                for r in Parcellation.find_regions(regionspec, alt_species):
-                                    if r not in self._regions_cached:
-                                        logger.info(f"Adding region {r.name} in {alt_species} from alias to {self._regionspec}")
-                                        regions[r] = qualificationspec
+                    for alt_species, aliases in self.region_aliases.items():
+                        for regionspec, qualificationspec in aliases.items():
+                            for r in Parcellation.find_regions(regionspec, alt_species):
+                                if r not in self._regions_cached:
+                                    regions[r] = qualificationspec
                     self.__class__._MATCH_MEMO[self._regionspec] = regions
                 self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
         return self._regions_cached
@@ -175,10 +201,11 @@ class AnatomicalAnchor:
             if isinstance(concept, Space):
                 if self.space == concept:
                     matches.append(
-                        AnatomicalAssignment(concept, AssignmentQualification.EXACT)
+                        AnatomicalAssignment(self.space, concept, AssignmentQualification.EXACT)
                     )
             elif isinstance(concept, Region):
-                if any(_.matches(self._regionspec) for _ in concept):  # dramatic speedup, since decoding _regionspec is expensive
+                if any(_.matches(self._regionspec) for _ in concept) \
+                    or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
                     for r in self.regions:
                         matches.append(AnatomicalAnchor.match_regions(r, concept))
                 if self.location is not None:
@@ -190,9 +217,11 @@ class AnatomicalAnchor:
                     match = AnatomicalAnchor.match_location_to_region(concept, region)
                     matches.append(None if match is None else match.invert())
             self._assignments[concept] = sorted(m for m in matches if m is not None)
+
         self._last_matched_concept = concept \
             if len(self._assignments[concept]) > 0 \
             else None
+
         return self._assignments[concept]
 
     def matches(self, concept: AtlasConcept):
@@ -203,13 +232,13 @@ class AnatomicalAnchor:
         assert all(isinstance(loc, Location) for loc in [location1, location2])
         if (location1, location2) not in cls._MATCH_MEMO:
             if location1 == location2:
-                res = AnatomicalAssignment(location2, AssignmentQualification.EXACT)
+                res = AnatomicalAssignment(location1, location2, AssignmentQualification.EXACT)
             elif location1.contained_in(location2):
-                res = AnatomicalAssignment(location2, AssignmentQualification.CONTAINED)
+                res = AnatomicalAssignment(location1, location2, AssignmentQualification.CONTAINED)
             elif location1.contains(location2):
-                res = AnatomicalAssignment(location2, AssignmentQualification.CONTAINS)
+                res = AnatomicalAssignment(location1, location2, AssignmentQualification.CONTAINS)
             elif location1.intersects(location2):
-                res = AnatomicalAssignment(location2, AssignmentQualification.OVERLAPS)
+                res = AnatomicalAssignment(location1, location2, AssignmentQualification.OVERLAPS)
             else:
                 res = None
             cls._MATCH_MEMO[location1, location2] = res
@@ -220,11 +249,11 @@ class AnatomicalAnchor:
         assert all(isinstance(r, Region) for r in [region1, region2])
         if (region1, region2) not in cls._MATCH_MEMO:
             if region1 == region2:
-                res = AnatomicalAssignment(region2, AssignmentQualification.EXACT)
+                res = AnatomicalAssignment(region1, region2, AssignmentQualification.EXACT)
             elif region1 in region2:
-                res = AnatomicalAssignment(region2, AssignmentQualification.CONTAINED)
+                res = AnatomicalAssignment(region1, region2, AssignmentQualification.CONTAINED)
             elif region2 in region1:
-                res = AnatomicalAssignment(region2, AssignmentQualification.CONTAINS)
+                res = AnatomicalAssignment(region1, region2, AssignmentQualification.CONTAINS)
             else:
                 res = None
             cls._MATCH_MEMO[region1, region2] = res
@@ -263,11 +292,11 @@ class AnatomicalAnchor:
                 )
                 res = None
             elif loc_warped.contained_in(mask):
-                res = AnatomicalAssignment(region, AssignmentQualification.CONTAINED, expl)
+                res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINED, expl)
             elif loc_warped.contains(mask):
-                res = AnatomicalAssignment(region, AssignmentQualification.CONTAINS, expl)
+                res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINS, expl)
             elif loc_warped.intersects(mask):
-                res = AnatomicalAssignment(region, AssignmentQualification.OVERLAPS, expl)
+                res = AnatomicalAssignment(location, region, AssignmentQualification.OVERLAPS, expl)
             else:
                 logger.debug(
                     f"{location} does not match mask of '{region.name}' in {mask_space.name}."
@@ -288,7 +317,7 @@ class AnatomicalAnchor:
     @property
     def last_match_result(self):
         return self._assignments.get(self._last_matched_concept)
-    
+
     @property
-    def print_last_match(self):
-        return f"{self} " + ' and '.join(str(_) for _ in self.last_match_result)
+    def last_match_description(self):
+        return ' and '.join({str(_) for _ in self.last_match_result})

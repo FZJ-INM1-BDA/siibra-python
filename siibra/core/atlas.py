@@ -15,7 +15,7 @@
 
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..commons import MapType, logger, InstanceTable
+from ..commons import MapType, logger, InstanceTable, Species
 
 from typing import List
 
@@ -30,43 +30,17 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
     spaces, as well as common functionalities of those.
     """
 
-    # TODO move this to configuration?
-    @staticmethod
-    def get_species_id(species_str: str):
-        if species_str == 'human':
-            return {
-                "kg_v1_id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/0ea4e6ba-2681-4f7d-9fa9-49b915caaac9",
-                "id": "https://openminds.ebrains.eu/instances/species/homoSapiens",
-            }
-        if species_str == 'rat':
-            return {
-                "kg_v1_id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/f3490d7f-8f7f-4b40-b238-963dcac84412",
-                "id": "https://openminds.ebrains.eu/instances/species/rattusNorvegicus",
-            }
-        if species_str == 'mouse':
-            return {
-                "kg_v1_id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/cfc1656c-67d1-4d2c-a17e-efd7ce0df88c",
-                "id": "https://openminds.ebrains.eu/instances/species/musMusculus",
-            }
-        # TODO this may not be correct. Wait for feedback and get more accurate
-        if species_str == 'monkey':
-            return {
-                "kg_v1_id": "https://nexus.humanbrainproject.org/v0/data/minds/core/species/v1.0.0/c541401b-69f4-4809-b6eb-82594fc90551",
-                "id": "https://openminds.ebrains.eu/instances/species/macacaFascicularis",
-            }
-        raise ValueError(f'species with spec {species_str} cannot be decoded')
-
-    def __init__(self, identifier, name, species=None):
+    def __init__(self, identifier: str, name: str, species: Species):
         """Construct an empty atlas object with a name and identifier."""
 
         concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
+            species=species
         )
         self._parcellation_ids: List[str] = []
         self._space_ids: List[str] = []
-        self.species = species
 
     def _register_space(self, space_id: str):
         self._space_ids.append(space_id)

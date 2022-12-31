@@ -108,6 +108,11 @@
 				"None": "exact"
 			}
 		},
+		"primary visual cortex": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
+			}
+		},
 		"primary visual cortex (V1)": {
 			"Homo sapiens": {
 				"Area hOc1 (V1, 17, CalcS)": "exact"

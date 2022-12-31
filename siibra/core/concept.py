@@ -14,10 +14,10 @@
 # limitations under the License.
 
 
-from ..commons import create_key, clear_name, logger, InstanceTable
+from ..commons import create_key, clear_name, logger, InstanceTable, Species
 
 import re
-from typing import TypeVar, Type
+from typing import TypeVar, Type, Union
 
 T = TypeVar("T", bound="AtlasConcept")
 
@@ -34,6 +34,7 @@ class AtlasConcept:
         self,
         identifier: str,
         name: str,
+        species: Union[str, Species],
         shortname: str = None,
         description: str = None,
         modality: str = "",
@@ -49,6 +50,8 @@ class AtlasConcept:
                 Unique identifier of the parcellation
             name : str
                 Human-readable name of the parcellation
+            species: Species or string
+                Specification of the species
             shortname: str
                 Shortform of human-readable name (optional)
             description: str
@@ -63,11 +66,20 @@ class AtlasConcept:
         """
         self._id = identifier
         self.name = name
+        self._species_cached = None if species is None \
+            else Species.decode(species)  # overwritable property implementation below
         self.shortname = shortname
         self.modality = modality
         self.description = description
         self.publications = publications
         self.datasets = datasets
+
+    @property
+    def species(self) -> Species:
+        # Allow derived classes to implement a lazy loader (e.g. in Map)
+        if self._species_cached is None:
+            raise RuntimeError(f"No species defined for {self}.")
+        return self._species_cached
 
     @classmethod
     def registry(cls: Type[T]) -> InstanceTable[T]:

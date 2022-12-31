@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger
+from ..commons import logger, Species
 from ..features import anchor
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
@@ -72,22 +72,6 @@ class Factory:
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
-    def extract_species(cls, spec):
-        species_map = {
-            "Homo sapiens": "Homo sapiens",
-            "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": "Homo sapiens",
-        }
-        idspec = spec.get("ebrains", {}).get("minds/core/species/v1.0.0")
-        namespec = spec.get("species")
-        if idspec in species_map:
-            return species_map[idspec]
-        elif namespec in species_map:
-            return species_map[namespec]
-        else:
-            logger.error(f"Species specifications '{(idspec, namespec)}' unexpected - check if supported.")
-            return None
-
-    @classmethod
     def extract_decoder(cls, spec):
         decoder_spec = spec.get("decoder", {})
         if decoder_spec["@type"].endswith('csv'):
@@ -117,7 +101,7 @@ class Factory:
         return anchor.AnatomicalAnchor(
             region=region,
             location=None,
-            species=cls.extract_species(spec)
+            species=anchor.Species.decode(spec)
         )
 
     @classmethod
@@ -144,7 +128,7 @@ class Factory:
         a = atlas.Atlas(
             spec["@id"],
             spec["name"],
-            species=spec["species"]
+            species=Species.decode(spec),
         )
         for space_id in spec["spaces"]:
             a._register_space(space_id)
@@ -157,6 +141,7 @@ class Factory:
         return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
+            species=Species.decode(spec),
             volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name")),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
@@ -189,6 +174,7 @@ class Factory:
         p = parcellation.Parcellation(
             identifier=spec["@id"],
             name=spec["name"],
+            species=Species.decode(spec),
             regions=regions,
             shortname=spec.get("shortName", ""),
             description=spec.get("description", ""),

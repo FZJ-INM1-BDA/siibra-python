@@ -594,10 +594,10 @@ def is_mesh(structure: Union[list, dict]):
         return False
 
 
-def merge_meshes(meshes: list, labels: list=None):
+def merge_meshes(meshes: list, labels: list = None):
     # merge a list of meshes into one
     # if meshes have no labels, a list of labels of the
-    # same length as the number of meshes can 
+    # same length as the number of meshes can
     # be supplied to add a labeling per sub mesh.
 
     assert len(meshes) > 0
@@ -614,7 +614,7 @@ def merge_meshes(meshes: list, labels: list=None):
     verts = np.concatenate([m['verts'] for m in meshes])
     faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
     if has_labels:
-        labels = np.array([l for m in meshes for l in m['labels']])
+        labels = np.array([_ for m in meshes for _ in m['labels']])
         return {'verts': verts, 'faces': faces, 'labels': labels}
     elif labels is not None:
         assert len(labels) == len(meshes)
@@ -624,4 +624,68 @@ def merge_meshes(meshes: list, labels: list=None):
         return {'verts': verts, 'faces': faces, 'labels': labels}
     else:
         return {'verts': verts, 'faces': faces}
+
+
+class Species(Enum):
+
+    HOMO_SAPIENS = 1
+    RATTUS_NORVEGICUS = 2
+    MUS_MUSCULUS = 3
+    MACACA_FASCICULARIS = 4
+    MACACA_MULATTA = 5
+    MACACA_FUSCATA = 6
+    CHLOROCEBUS_AETHIOPS_SABAEUS = 7
+
+    @classmethod
+    def decode(cls, spec: Union[str, dict]):
+
+        MINDS_IDS = {
+            "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": 1,
+            "f3490d7f-8f7f-4b40-b238-963dcac84412": 2,
+            "cfc1656c-67d1-4d2c-a17e-efd7ce0df88c": 3,
+            "c541401b-69f4-4809-b6eb-82594fc90551": 4,
+            "745712aa-fad1-47c4-8ab6-088063f78f64": 5,
+            "ed8254b1-519c-4356-b1c9-7ead5aa1e3e1": 6,
+            "e578d886-c55d-4174-976b-3cf43b142203": 7
+        }
+
+        OPENMINDS_IDS = {
+            "homoSapiens": 1,
+            "rattusNorvegicus": 2,
+            "musMusculus:": 3,
+            "macacaFascicularis": 4
+        }
+
+        if isinstance(spec, Species):
+            return spec
+        elif isinstance(spec, str):
+            spec_f = cls.format_str(spec)
+            if spec.split('/')[-1] in MINDS_IDS:
+                return cls(MINDS_IDS[spec])
+            if spec.split('/')[-1] in OPENMINDS_IDS:
+                return cls(OPENMINDS_IDS[spec])
+            if spec_f in cls.__members__.keys():
+                return getattr(cls, spec_f)
+        else:
+            if isinstance(spec, list):
+                next_specs = spec
+            elif isinstance(spec, dict):
+                next_specs = spec.values()
+            else:
+                next_specs = []
+            for s in next_specs:
+                result = cls.decode(s)
+                if result is not None:
+                    return result
+        return None
+
+    @staticmethod
+    def format_str(spec: str):
+        return re.sub(r'\s+', '_', spec.strip()).upper()
+
+    def __str__(self):
+        return f"{self.name.lower().replace('_', ' ')}".capitalize()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {str(self)}"
 

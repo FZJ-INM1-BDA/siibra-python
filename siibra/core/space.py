@@ -17,9 +17,9 @@
 from .concept import AtlasConcept
 from ..locations import Point, BoundingBox
 
-from ..commons import logger
+from ..commons import logger, Species
 
-from typing import List, TYPE_CHECKING
+from typing import List, TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from ..volumes import volume
@@ -34,6 +34,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         self,
         identifier: str,
         name: str,
+        species: Union[str, Species],
         volumes: List['volume.Volume'] = [],
         shortname: str = "",
         description: str = "",
@@ -50,6 +51,8 @@ class Space(AtlasConcept, configuration_folder="spaces"):
             Unique identifier of the space
         name : str
             Human-readable name of the space
+        species: str or Species
+            Specification of the species
         volumes: list of template volumes
         shortname: str
             Shortform of human-readable name (optional)
@@ -68,6 +71,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
             self,
             identifier=identifier,
             name=name,
+            species=species,
             shortname=shortname,
             description=description,
             modality=modality,

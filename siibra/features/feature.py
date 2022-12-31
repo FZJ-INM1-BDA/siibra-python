@@ -123,6 +123,11 @@ class Feature:
         return None if self.anchor is None \
             else self.anchor.last_match_result
 
+    @property
+    def last_match_description(self):
+        return "" if self.anchor is None \
+            else self.anchor.last_match_description
+
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], modality: Union[str, type], **kwargs):
         """
@@ -152,8 +157,16 @@ class Feature:
 
         live_instances = []
         for QueryType in modality._live_queries:
-            logger.info(f"Running live query for {cls.__name__} objects linked to {concept} with args {kwargs}")
+            argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
+                if len(kwargs) > 0 else ""
+            logger.info(
+                f"Running live query for {QueryType.feature_type.__name__} "
+                f"objects linked to {str(concept)}{argstr}"
+            )
             q = QueryType(**kwargs)
             live_instances.extend(q.query(concept))
+
+        for k, v in kwargs:
+            logger.warn(f"Argument {k}={v} not used in get_features.")
 
         return preconfigured_instances + live_instances

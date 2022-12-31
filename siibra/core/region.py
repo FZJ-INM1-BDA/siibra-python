@@ -29,6 +29,7 @@ from ..commons import (
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD,
+    Species
 )
 
 import numpy as np
@@ -86,8 +87,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         anytree.NodeMixin.__init__(self)
         concept.AtlasConcept.__init__(
             self,
-            identifier=None,  # Region overwrites the property function below!
+            identifier=None,  # lazy property implementation below
             name=clear_name(name),
+            species=None,  # lazy property implementation below
             shortname=shortname,
             description=description,
             modality=modality,
@@ -116,6 +118,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     @property
     def parcellation(self):
         return self.root
+
+    @property
+    def species(self):
+        # lazy request of the root parcellation's species
+        if self._species_cached is None:
+            self._species_cached = self.parcellation.species
+        return self._species_cached
 
     @staticmethod
     def copy(other: 'Region'):

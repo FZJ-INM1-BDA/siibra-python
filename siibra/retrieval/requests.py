@@ -133,16 +133,11 @@ class HttpRequest:
         # if None is returned.
 
         if self.cached and not self.refresh:
-            # in cache. Just load the file
-            logger.debug(
-                f"Already in cache at {os.path.basename(self.cachefile)}: {self.url}"
-            )
             return
         else:
             # not yet in cache, perform http request.
-            logger.debug(f"Loading {self.url} to {os.path.basename(self.cachefile)}")
             if self.msg_if_not_cached is not None:
-                logger.info(self.msg_if_not_cached)
+                logger.debug(self.msg_if_not_cached)
             headers = self.kwargs.get('headers', {})
             other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
             if self.post:

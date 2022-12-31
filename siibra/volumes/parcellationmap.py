@@ -16,7 +16,7 @@
 from . import volume as _volume, nifti
 
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
 from ..core import concept, space, parcellation, region as _region
 from ..locations import point, pointset
 from ..retrieval import requests
@@ -89,6 +89,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             self,
             identifier=identifier,
             name=name,
+            species=None,  # inherits species from space
             shortname=shortname,
             description=description,
             publications=publications,
@@ -131,6 +132,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self._affine_cached = None
         for v in self.volumes:
             v._space_spec = space_spec
+
+    @property
+    def species(self) -> Species:
+        # lazy implementation
+        if self._species_cached is None:
+            self._species_cached = self.space.species
+        return self.space._species_cached
 
     def get_index(self, region: Union[str, "Region"]):
         """

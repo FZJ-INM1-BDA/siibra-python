@@ -15,7 +15,7 @@
 
 from . import region
 
-from ..commons import logger, MapType, MapIndex
+from ..commons import logger, MapType, MapIndex, Species
 from ..volumes import parcellationmap
 
 from typing import Union, List, Dict
@@ -74,6 +74,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         self,
         identifier: str,
         name: str,
+        species: Union[Species, str],
         regions: Union[List[region.Region], region.Region] = (),
         shortname: str = "",
         description: str = "",
@@ -91,6 +92,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             Unique identifier of the parcellation
         name : str
             Human-readable name of the parcellation
+        species: str or Species
+            Specification of the species
         regions: list or Region
         shortname: str
             Shortform of human-readable name (optional)
@@ -116,6 +119,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             datasets=datasets,
             modality=modality
         )
+        self._species_cached = Species.decode(species)
         self._id = identifier
         self.version = version
 
