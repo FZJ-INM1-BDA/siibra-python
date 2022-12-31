@@ -22,32 +22,32 @@ EBRAINS provides transmitter receptor density measurments linked to a selection 
 
 
 # %%
-# We start by selecting an atlas.
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # If we query this modality for the whole atlas instead of a particular
 # brain region, all linked receptor density features
 # will be returned.
-all_features = siibra.get_features(atlas, siibra.modalities.ReceptorDistribution)
-print("Receptor density features found for the following regions:")
-print("\n".join(f.regionspec for f in all_features))
+parcellation = siibra.parcellations.get('julich 2.9')
+all_features = siibra.get_features(parcellation, siibra.modalities.ReceptorDensityFingerprint)
+print("Receptor density fingerprints found at the following anatomical anchorings:")
+print("\n".join(str(f.anchor) for f in all_features))
 
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly. 
 # So we can directly retrieve densities for the primary visual cortex:
-v1_features = siibra.get_features(atlas.get_region('v1'), siibra.modalities.ReceptorDistribution)
-for f in v1_features:
-    fig = f.plot()
+v1_fingerprints = siibra.get_features(
+    siibra.get_region('julich 2.9', 'v1'),
+    siibra.modalities.ReceptorDensityFingerprint
+)
+for fp in v1_fingerprints:
+    fig = fp.plot()
 
 # %%
 # Each feature includes a data structure for the fingerprint, with mean and
 # standard values for different receptors. The following table thus gives
 # us the same values as shown in the polar plot above:
-fp = v1_features[0].fingerprint
-for label, mean, std in zip(fp.labels, fp.meanvals, fp.stdvals):
-    print(f"{label:20.20} {mean:10.0f} {fp.unit}      +/-{std:4.0f}")
+v1_fingerprints[0].data
 
 # %%
 # Many of the receptor features also provide a profile of density measurements
@@ -55,19 +55,16 @@ for label, mean, std in zip(fp.labels, fp.meanvals, fp.stdvals):
 # distribution from the white matter towards the pial surface.
 # The profile is stored as a dictionary of density measures from 0 to 100%
 # cortical depth.
-p_ampa = v1_features[0].profiles['AMPA']
-import matplotlib.pyplot as plt
-plt.plot(p_ampa.densities.keys(), p_ampa.densities.values())
-plt.title(f"Cortical profile of AMPA densities in V1")
-plt.xlabel("Cortical depth (%)")
-plt.ylabel(p_ampa.unit)
-plt.grid(True)
+v1_profiles = siibra.get_features(
+    siibra.get_region('julich 2.9', 'v1'),
+    siibra.modalities.ReceptorDensityProfile
+)
+for p in v1_profiles:
+    print(p.receptor)
+    if "GABAA" in p.receptor:
+        print(p.receptor)
+        break
+p.plot()
+p.data
 
 # %%
-# Lastly, many receptor features provide a sample 2D cortical patch of the
-# color-coded autoradiograph for illustration.
-img = v1_features[0].autoradiographs['AMPA']
-plt.imshow(img)
-plt.axis('off')
-plt.title(f"Sample color-coded autoradiography patch for AMPA in V1")
-

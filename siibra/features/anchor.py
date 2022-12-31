@@ -279,10 +279,16 @@ class AnatomicalAnchor:
                         continue
                     mask = region.build_mask(space=space, maptype='labelled')
                     mask_space = space
-                    expl = (
-                        f"{location} was warped from {location.space.name} and then compared "
-                        f"in this space with the mask of query region '{region.name}'."
-                    )
+                    if location.space == mask_space:
+                        expl = (
+                            f"{location} was compared with the mask of query region '{region.name}' "
+                            f"in {mask_space}."
+                        )
+                    else:
+                        expl = (
+                            f"{location} was warped from {location.space.name} and then compared "
+                            f"in this space with the mask of query region '{region.name}'."
+                        )
                     if mask is not None:
                         break
             loc_warped = location.warp(mask_space)
