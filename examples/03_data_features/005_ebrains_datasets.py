@@ -30,17 +30,9 @@ The returned features can thus actually have different modalities, and might inc
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 region = atlas.get_region("v2")
-features = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+features = siibra.get_features(region, siibra.modalities.EbrainsAnchoredDataset)
 for feature in features:
    print(f" - {feature.name}")
-
-# %%
-# Since these features represent EBRAINS datasets which are linked to brain regions, 
-# they are instances of both the "RegionalFeature" class and the "EbrainsDataset" class.
-print(
-   f"The last returned feature was of type '{feature.__class__.__name__}', "
-   f"derived from {' and '.join(b.__name__ for b in feature.__class__.__bases__)}."
-)
 
 
 # %%
@@ -55,3 +47,5 @@ print(feature.description)
 # We can use the url of the feature to access their full inforamtion in the Knowledge Graph. 
 # Just click on the link to test it.
 print(feature.url)
+
+# %%
