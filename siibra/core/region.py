@@ -537,7 +537,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
-    def centroids(self, space: _space.Space) -> List[point.Point]:
+    def compute_centroids(self, space: _space.Space) -> List[point.Point]:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids

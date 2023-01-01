@@ -17,43 +17,49 @@
 Connectivity matrices
 ~~~~~~~~~~~~~~~~~~~~~
 
-`siibra` provides access to connectivity matrices from different sources containing averaged connectivity information for brain parcellations.
-These matrices are modelled as ParcellationFeature types, so they match against a complete parcellation.
+`siibra` provides access to parcellation-averaged connectivity matrices.
 Several types of connectivity are supported.
-As of now, these include the feature modalities "StreamlineCounts", "StreamlineLengths", and "FunctionalConnectivity".
+As of now, these include "StreamlineCounts", "StreamlineLengths", and "FunctionalConnectivity".
 """
 
+# %%
 from nilearn import plotting
 import siibra
+import numpy as np
 
 
 # %%
 # We start by selecting an atlas parcellation.
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-jubrain = atlas.get_parcellation("julich 2.9")
+jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
-# The matrices are queried as expected, using `siibra.get_features`, and passing the parcellation as a concept.
+# The matrices are queried as expected, using `siibra.get_features`,
+# passing the parcellation as a concept.
 # Here, we query for structural connectivity matrices.
 features = siibra.get_features(jubrain, siibra.modalities.StreamlineCounts)
 print(f"Found {len(features)} streamline count matrices.")
 
 # %%
-# We fetch the first result and have a look at it.
-# It is a specific `StreamlineCounts` object, but it is derived from the more general `ConnectivityMatrix` class.
-# The `src_info` attribute contains more detailed metadata information about each matrix.
+# We fetch the first result, which is a specific `StreamlineCounts` object
+# expressing structural connectivity in the form of numbers of streamlines 
+# connecting pairs of brain regions as estimated from tractography on diffusion imaging.
+# Typically, connectivity features provide a range of region-to-region
+# connectivity matrices for different subjects from an imaging cohort.
 conn = features[0]
-print(f"Matrix reflects {conn.modality()} for subject {conn.subject} of {conn.cohort}.")
-print("\n" + "; ".join(conn.authors))
+print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort.")
 print(conn.name)
-print("Dataset id: " + conn.dataset_id)
 print("\n" + conn.description)
+
+## Subjects are encoded via anonymized ids:
+print(conn.subjects)
 
 
 # %%
-# Connectivity matrix objects provide a pandas DataFrame for the connectivity measures,
-# with full region objects as index.
-conn.matrix
+# The connectivity matrices are provided as pandas DataFrames,
+# with region objects as index.
+subject = conn.subjects[0]
+matrix = conn.get_matrix(subject)
+matrix
 
 # %%
 # We can create a 3D visualization of the connectivity using
@@ -63,32 +69,28 @@ conn.matrix
 # This requires is to 1) compute centroids, and 2) organize the centroids
 # in the sequence of connectivity matrix rows.
 #
-# We start by computing the centroids for each region in the parcellation map in MNI152 space.
-parcmap = jubrain.get_map(space="mni152")
-centroids = parcmap.compute_centroids()
-
-# %%
-# The centroids are a dictionary by region object, and each centroid is a proper siibra.Point object.
-# We look at the first pair.
-region, centroid = next(iter(centroids.items()))
-print(region)
-print(centroid)
-
-# %%
-# We extract a list of coordinate tuples by
-# decoding each connectivity matrix region into the corresponding region of the parcellation map,
-# and then fetching the coordinate tuple of its corresponding centroid.
-node_coords = [tuple(centroids[parcmap.get_region(r)]) for r in conn.matrix.index]
+# We start by computing the centroids for each region
+# in the matrix as defined by its mask in MNI152 space.
+# Note that we need to transform the centroids from voxels into 
+# physical space, using the affine matrix stored in the mask.
+node_coords = [
+    tuple(region.centroids('mni152')[0])
+    for region in matrix.index
+]
 
 # %%
 # Now we can plot the structural connectome.
 view = plotting.plot_connectome(
-    adjacency_matrix=conn.matrix,
+    adjacency_matrix=matrix,
     node_coords=node_coords,
     edge_threshold="80%",
     node_size=10,
 )
 view.title(
-    f"{conn.modality()} {conn.src_info['cohort']}/{conn.src_info['subject']} on {jubrain.name}",
+    f"{conn.modality} of subject {subject} in {conn.cohort} cohort "
+    f"averaged on {jubrain.name}",
     size=10,
 )
+
+
+# %%

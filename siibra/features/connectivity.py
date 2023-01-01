@@ -60,8 +60,8 @@ class ParcellationAveragedConnectivity(Feature):
         decode_func: function
             Function to convert the bytestream of a loaded file into an array
         files: dict
-            maps names of matrices to the relative filenames of
-            the data array(s) in the repository connector.
+            A dictionary linking names of matrices (typically subject ids)
+            to the relative filenames of the data array(s) in the repository connector.
         anchor: AnatomicalAnchor
             anatomical localization of the matrix, expected to encode the parcellation
             in the region attribute.
