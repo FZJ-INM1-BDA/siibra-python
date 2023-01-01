@@ -28,6 +28,8 @@ from typing import List, Type
 import pandas as pd
 from io import BytesIO
 
+MIN_VOLUMES_FOR_SPARSE_MAP = 150
+
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
     "siibra/space/v0.0.1": "build_space",
@@ -36,7 +38,9 @@ BUILDFUNCS = {
     "siibra/map/v0.0.1": "build_map",
     "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
     "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
+    "siibra/location/point/v0.1": "build_point",
     "tmp/poly": "build_pointset",
+    "siibra/location/pointset/v0.1": "build_pointset",
     "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
     "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
@@ -94,13 +98,19 @@ class Factory:
             region = spec['parcellation']['name']
         else:
             region = None
-        if region is None:
-            print("no region in spec!")
+
+        if 'location' in spec:
+            location = cls.from_json(spec['location'])
+        else:
+            location = None
+
+        if (region is None) and (location is None):
             print(spec)
-            raise RuntimeError
+            raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
+
         return anchor.AnatomicalAnchor(
             region=region,
-            location=None,
+            location=location,
             species=anchor.Species.decode(spec)
         )
 
@@ -244,7 +254,7 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
         Maptype = parcellationmap.Map
-        if len(volumes) > 50:
+        if len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
             logger.debug(
                 f"Using sparse map for {spec['filename']} "
                 f"due to the number of {len(volumes)} volumes."
@@ -276,21 +286,32 @@ class Factory:
 
     @classmethod
     def build_point(cls, spec):
-        space_id = spec["coordinateSpace"]["@id"]
-        assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
+        if spec.get('@type') == "https://openminds.ebrains.eu/sands/CoordinatePoint":
+            space_id = spec["coordinateSpace"]["@id"]
+            coord = list(np.float16(c["value"]) for c in spec["coordinates"])
+            assert all(c["unit"]["@id"] == "id.link/mm" for c in spec["coordinates"])
+        elif spec.get('@type') == "siibra/location/point/v0.1":
+            space_id = spec.get("space").get("@id")
+            coord = spec.get("coordinate")
+        else:
+            raise ValueError(f"Unknown point specification: {spec}")
         return point.Point(
-            list(np.float16(c["value"]) for c in spec["coordinates"]),
-            space_id=space_id,
+            coordinatespec=coord,
+            space=space_id,
         )
 
     @classmethod
     def build_pointset(cls, spec):
-        space_id = spec["coordinateSpace"]["@id"]
-        coords = []
-        for coord in spec["coordinates"]:
-            assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
-            coords.append(list(np.float16(c["value"]) for c in coord))
-        return pointset.PointSet(coords, space_id=space_id)
+        if spec.get('@type') == '/tmp/poly':
+            space_id = spec["coordinateSpace"]["@id"]
+            coords = []
+            for coord in spec["coordinates"]:
+                assert all(c["unit"]["@id"] == "id.link/mm" for c in coord)
+                coords.append(list(np.float16(c["value"]) for c in coord))
+        elif spec.get('@type') == 'siibra/location/pointset/v0.1':
+            space_id = spec.get("space").get("@id")
+            coords = [tuple(c) for c in spec.get("coordinates")]
+        return pointset.PointSet(coords, space=space_id)
 
     @classmethod
     def build_receptor_density_fingerprint(cls, spec):
