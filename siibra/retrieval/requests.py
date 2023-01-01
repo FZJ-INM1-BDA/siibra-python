@@ -31,6 +31,7 @@ from io import BytesIO
 import urllib
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -125,7 +126,7 @@ class HttpRequest:
     def cached(self):
         return os.path.isfile(self.cachefile)
 
-    def _retrieve(self):
+    def _retrieve(self, block_size=1024, progress_bar_from_bytes=2e8):
         # Loads the data from http if required.
         # If the data is already cached, None is returned,
         # otherwise data (as it is already in memory anyway).
@@ -144,19 +145,30 @@ class HttpRequest:
                 r = requests.post(self.url, headers={
                     **USER_AGENT_HEADER,
                     **headers,
-                }, **other_kwargs)
+                }, **other_kwargs, stream=True)
             else:
                 r = requests.get(self.url, headers={
                     **USER_AGENT_HEADER,
                     **headers,
-                }, **other_kwargs)
+                }, **other_kwargs, stream=True)
             if r.ok:
+                size_bytes = int(r.headers.get('content-length', 0))
+                if size_bytes > progress_bar_from_bytes:
+                    progress_bar = tqdm(
+                        total=size_bytes, unit='iB', unit_scale=True,
+                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+                    )
                 with open(self.cachefile, "wb") as f:
-                    f.write(r.content)
+                    for data in r.iter_content(block_size):
+                        if size_bytes > progress_bar_from_bytes:
+                            progress_bar.update(len(data))
+                        f.write(data)
+                if size_bytes > progress_bar_from_bytes:
+                    progress_bar.close()
                 self.refresh = False
                 return r.content
             else:
-                raise SiibraHttpRequestError(r)
+                raise SiibraHttpRequestError()
 
     def get(self):
         data = self._retrieve()
