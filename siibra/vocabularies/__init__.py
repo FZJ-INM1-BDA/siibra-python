@@ -29,7 +29,12 @@ def runtime_path(fname: str):
 
 with open(runtime_path('gene_names.json'), 'r') as f:
     _gene_names = json.load(f)
-    GENE_NAMES = InstanceTable[str](elements={k: v for k, v in _gene_names.items()})
+    GENE_NAMES = InstanceTable[str](
+        elements={
+            k: {'symbol': k, 'description': v}
+            for k, v in _gene_names.items()
+        }
+    )
 
 
 with open(runtime_path('receptor_symbols.json'), 'r') as f:

@@ -30,31 +30,30 @@ region mask to filter the probes.
 """
 
 # %%
-# We start by selecting an atlas.
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
+from nilearn import plotting
 
 # %%
 # We select a brain region and query for expression levels of GABARAPL2.
-region = atlas.get_region("V1")
+region = siibra.get_region("julich", "V1")
 features = siibra.get_features(
     region, siibra.modalities.GeneExpression,
-    gene=siibra.features.gene_names.GABARAPL2,
-    maptype=siibra.commons.MapType.CONTINUOUS,
-    threshold_continuous=0.2)
+    gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
+)
 print(features[0])
 
 # %%
 # Since gene expressions are spatial features,
 # let's check the reference space of the results.
-space = features[0].space
-assert(all(f.space==space for f in features))
+space = features[0].anchor.space
+assert(all(f.anchor.space == space for f in features))
 
 # %%
 # Plot the locations of the probes that were found, together with the region
 # mask of V1.
-from nilearn import plotting
-all_coords = [tuple(g.location) for g in features]
+all_coords = [tuple(g.anchor.location) for g in features]
 mask = region.build_mask(space)
 display = plotting.plot_roi(mask)
-display.add_markers(all_coords,marker_size=5)
+display.add_markers(all_coords, marker_size=5)
+
+# %%

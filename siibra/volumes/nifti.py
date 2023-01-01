@@ -106,7 +106,6 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         self,
         fragment: str = None,
         voi: boundingbox.BoundingBox = None,
-        **kwargs
     ):
         """
         Loads and returns a Nifti1Image object
@@ -120,11 +119,6 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         voi : BoundingBox
             optional specification of a volume of interst to fetch.
         """
-        if 'index' in kwargs:
-            index = kwargs.pop('index')
-            if fragment is not None:
-                assert fragment == index.fragment
-            fragment = index.fragment
 
         result = None
         if len(self._img_loaders) > 1:

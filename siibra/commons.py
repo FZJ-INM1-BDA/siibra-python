@@ -187,6 +187,9 @@ class InstanceTable(Generic[T], Iterable):
                     if all(w.lower() in k.lower() for w in spec.split())
                 ]
             return matches
+    
+    def values(self):
+        return self._elements.values()
 
     def __getattr__(self, index) -> T:
         """Access elements by using their keys as attributes.
@@ -286,10 +289,8 @@ class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
 
-
-SIIBRA_DEFAULT_MAPTYPE = None
+SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
 SIIBRA_DEFAULT_MAP_THRESHOLD = None
-
 
 REMOVE_FROM_NAME = [
     "hemisphere",

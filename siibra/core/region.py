@@ -360,13 +360,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         result = None
+
         for m in parcellationmap.Map.registry():
             if all(
                 [
                     m.space.matches(space),
+                    m.parcellation == self.parcellation,
                     m.provides_image,
                     m.maptype == maptype,
-                    m.parcellation == self.parcellation,
                     self.name in m.regions
                 ]
             ):

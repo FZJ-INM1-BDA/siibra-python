@@ -300,9 +300,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
 
         try:
-            result = self.volumes[mapindex.volume or 0].fetch(index=mapindex, **kwargs)
+            result = self.volumes[mapindex.volume or 0].fetch(fragment=mapindex.fragment, **kwargs)
         except requests.SiibraHttpRequestError as e:
             print(str(e))
+        
+        if mapindex.label is not None:  # label requested, convert result map to region mask
+            result = Nifti1Image(
+                (result.get_fdata() == mapindex.label).astype('uint8'),
+                result.affine
+            )
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")

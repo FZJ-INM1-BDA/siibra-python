@@ -22,6 +22,7 @@ from ..commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
 from ..retrieval import HttpRequest
+from ..vocabularies import GENE_NAMES
 
 from typing import Iterable, Union, List
 from xml.etree import ElementTree
@@ -92,7 +93,21 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         TODO check that this is only called for ICBM space
         """
         LiveQuery.__init__(self, **kwargs)
-        self.gene: Union[str, Iterable[str]] = kwargs['gene']
+        gene = kwargs.get('gene')
+
+        def parse_gene(spec):
+            if isinstance(spec, str):
+                return GENE_NAMES.get(gene)
+            elif isinstance(spec, dict):
+                assert all(k in spec for k in ['symbol', 'description'])
+                assert spec['symbol'] in GENE_NAMES
+                return gene
+            elif isinstance(spec, list):
+                return [parse_gene(spec) for spec in gene]
+            else:
+                raise ValueError("Enexpected specification of gene: ", spec)
+
+        self.gene = parse_gene(gene)
 
     def query(self, region: Region) -> List[GeneExpression]:
         assert isinstance(region, Region)
@@ -131,10 +146,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
             print(GeneExpression.ALLEN_ATLAS_NOTIFICATION)
             self.__class__._notification_shown = True
 
-        logger.info("Retrieving probe ids for gene {}".format(self.gene))
-        url = self._QUERY["probe"].format(gene=self.gene)
-        if not isinstance(self.gene, str):
-            url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g}'" for g in self.gene]))
+        logger.info("Retrieving probe ids for gene {}".format(self.gene['symbol']))
+        url = self._QUERY["probe"].format(gene=self.gene['symbol'])
+        if isinstance(self.gene, list):
+            url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g['symbol']}'" for g in self.gene]))
         response = HttpRequest(url).get()
         if "site unavailable" in response.decode().lower():
             # When the Allen site is not available, they still send a status code 200.
@@ -165,12 +180,12 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
             for donor_id in self._DONOR_IDS:
-                if isinstance(self.gene, str):
-                    for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene, donor_id, probe_ids):
+                if isinstance(self.gene, dict):
+                    for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene['symbol'], donor_id, probe_ids):
                         yield gene_feature
                 else:
                     for gene in self.gene:
-                        for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene, donor_id, probe_ids):
+                        for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene['symbol'], donor_id, probe_ids):
                             yield gene_feature
 
     @staticmethod
