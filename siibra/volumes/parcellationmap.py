@@ -457,6 +457,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         result = None
         for volidx, vol in enumerate(self.fetch_iter()):
+            if isinstance(vol, dict):
+                raise NotImplementedError(f"Map colorization not yet implemented for meshes.")
             img = np.asanyarray(vol.dataobj)
             maxarr = np.zeros_like(img)
             for r, value in values.items():
