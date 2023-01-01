@@ -74,7 +74,7 @@ matrix
 # Note that we need to transform the centroids from voxels into 
 # physical space, using the affine matrix stored in the mask.
 node_coords = [
-    tuple(region.centroids('mni152')[0])
+    tuple(region.compute_centroids('mni152')[0])
     for region in matrix.index
 ]
 
