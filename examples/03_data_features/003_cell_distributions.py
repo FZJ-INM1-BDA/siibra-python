@@ -22,16 +22,16 @@ Another regional data feature are cortical distributions of cell bodies. The dis
 
 
 # %%
-# We start by selecting an atlas.
 import siibra
+import matplotlib.pyplot as plt
+from nilearn import plotting
 
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 
 # %%
 # Find cell density features for V1
-v1 = atlas.get_region("v1")
-features = siibra.get_features(v1, siibra.modalities.CorticalCellDistribution)
-print(f"{len(features)} found for region {v1.name}")
+v1 = siibra.get_region("julich 2.9", "v1")
+features = siibra.get_features(v1, siibra.modalities.CellDensityProfile)
+print(f"{len(features)} cell density profiles found for region {v1.name}")
 
 # %%
 # Look at the default visualization the first of them.
@@ -42,22 +42,22 @@ features[0].plot()
 # The segmented cells are stored in each feature as a numpy array with named columns.
 # For example, to plot the 2D distribution of the cell locations colored by
 # layers, we can do:
-import matplotlib.pyplot as plt
-
 c = features[0].cells
-plt.scatter(c["x"], c["y"], c=c["layer"], s=0.1)
+plt.scatter(c["x"], c["y"], c=c["layer"], s=0.2)
 plt.title(f"Cell distributions in {v1.name}")
 plt.grid(True)
-plt.axis("square")
+plt.axis("equal")
+plt.tight_layout()
 
 # %%
 # The features also have location information. We can plot their location in
 # BigBrain space:
-location = features[0].location
+location = features[0].anchor.location
+location
 
 # fetch the template of the location's space
 template = location.space.get_template().fetch()
-from nilearn import plotting
-
 view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
 view.add_markers([tuple(location)])
+
+# %%
