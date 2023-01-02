@@ -187,7 +187,7 @@ class InstanceTable(Generic[T], Iterable):
                     if all(w.lower() in k.lower() for w in spec.split())
                 ]
             return matches
-    
+
     def values(self):
         return self._elements.values()
 
@@ -288,6 +288,7 @@ class MapIndex:
 class MapType(Enum):
     LABELLED = 1
     CONTINUOUS = 2
+
 
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
 SIIBRA_DEFAULT_MAP_THRESHOLD = None
@@ -660,13 +661,14 @@ class Species(Enum):
         if isinstance(spec, Species):
             return spec
         elif isinstance(spec, str):
-            spec_f = cls.format_str(spec)
             if spec.split('/')[-1] in MINDS_IDS:
                 return cls(MINDS_IDS[spec])
             if spec.split('/')[-1] in OPENMINDS_IDS:
                 return cls(OPENMINDS_IDS[spec])
-            if spec_f in cls.__members__.keys():
-                return getattr(cls, spec_f)
+            key = cls.name_to_key(spec)
+            if key in cls.__members__.keys():
+                return getattr(cls, key)
+            raise ValueError(f"Species specification string cannot be decoded: {spec}")
         else:
             if isinstance(spec, list):
                 next_specs = spec
@@ -678,15 +680,18 @@ class Species(Enum):
                 result = cls.decode(s)
                 if result is not None:
                     return result
-        return None
+        raise ValueError(f"Species specification cannot be decoded: {spec}")
 
     @staticmethod
-    def format_str(spec: str):
-        return re.sub(r'\s+', '_', spec.strip()).upper()
+    def name_to_key(name: str):
+        return re.sub(r'\s+', '_', name.strip()).upper()
+
+    @staticmethod
+    def key_to_name(key: str):
+        return re.sub(r'_', ' ', key.strip()).lower()
 
     def __str__(self):
         return f"{self.name.lower().replace('_', ' ')}".capitalize()
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {str(self)}"
-

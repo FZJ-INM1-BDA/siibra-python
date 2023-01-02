@@ -20,7 +20,7 @@ Selecting a preconfigured atlas from an instance table
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` provides a table of preconfigured atlas objects of
-different species. 
+different species.
 Atlas objects are very simple structures: They are mostly used to group
 a set of preconfigured parcellations and reference spaces by species.
 They do not provide much further functionality on their own.
@@ -90,6 +90,6 @@ siibra.atlases['human']
 atlas.species
 
 # %%
-# Furthermore, an atlas provides its own registries of supported spaces and parcellations. 
+# Furthermore, an atlas provides its own registries of supported spaces and parcellations.
 # We will cover these in the next examples.
 dir(atlas.spaces)

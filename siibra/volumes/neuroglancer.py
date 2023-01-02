@@ -585,4 +585,4 @@ class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmes
         return set(self._get_fragment_info(self._mapindex.label))
 
     def fetch(self, **kwargs):
-        return NeuroglancerMesh.fetch(self, mapindex=self._mapindex, **kwargs)
+        return NeuroglancerMesh.fetch(self, index=self._mapindex, **kwargs)

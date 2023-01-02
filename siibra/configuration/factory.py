@@ -111,7 +111,7 @@ class Factory:
         return anchor.AnatomicalAnchor(
             region=region,
             location=location,
-            species=anchor.Species.decode(spec)
+            species=anchor.Species.decode(spec.get('species', {}))
         )
 
     @classmethod
@@ -138,7 +138,7 @@ class Factory:
         a = atlas.Atlas(
             spec["@id"],
             spec["name"],
-            species=Species.decode(spec),
+            species=Species.decode(spec.get('species')),
         )
         for space_id in spec["spaces"]:
             a._register_space(space_id)
@@ -151,7 +151,7 @@ class Factory:
         return space.Space(
             identifier=spec["@id"],
             name=spec["name"],
-            species=Species.decode(spec),
+            species=Species.decode(spec.get('species')),
             volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name")),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
@@ -184,7 +184,7 @@ class Factory:
         p = parcellation.Parcellation(
             identifier=spec["@id"],
             name=spec["name"],
-            species=Species.decode(spec),
+            species=Species.decode(spec.get('species')),
             regions=regions,
             shortname=spec.get("shortName", ""),
             description=spec.get("description", ""),

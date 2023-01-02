@@ -51,16 +51,16 @@ DECODERS = {
 
 
 class SiibraHttpRequestError(Exception):
-    def __init__(self, response, msg="Cannot execute http request."):
-        self.response = response
+
+    def __init__(self, url: str, status_code: int, msg="Cannot execute http request."):
+        self.url = url
+        self.status_code = status_code
         self.msg = msg
         Exception.__init__(self)
 
     def __str__(self):
         return (
-            f"{self.msg}\n"
-            f"    Status code: {self.response.status_code}\n"
-            f"    Url:         {self.response.url}\n"
+            f"{self.msg}\n\tStatus code:{self.status_code:68.68}\n\tUrl:{self.response.url:76.76}"
         )
 
 
@@ -126,7 +126,7 @@ class HttpRequest:
     def cached(self):
         return os.path.isfile(self.cachefile)
 
-    def _retrieve(self, block_size=1024, progress_bar_from_bytes=2e8):
+    def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
         # Loads the data from http if required.
         # If the data is already cached, None is returned,
         # otherwise data (as it is already in memory anyway).
@@ -153,22 +153,23 @@ class HttpRequest:
                 }, **other_kwargs, stream=True)
             if r.ok:
                 size_bytes = int(r.headers.get('content-length', 0))
-                if size_bytes > progress_bar_from_bytes:
+                if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar = tqdm(
                         total=size_bytes, unit='iB', unit_scale=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
                     )
                 with open(self.cachefile, "wb") as f:
                     for data in r.iter_content(block_size):
-                        if size_bytes > progress_bar_from_bytes:
+                        if size_bytes > min_bytesize_with_no_progress_info:
                             progress_bar.update(len(data))
                         f.write(data)
-                if size_bytes > progress_bar_from_bytes:
+                if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar.close()
                 self.refresh = False
-                return r.content
+                with open(self.cachefile, 'rb') as f:
+                    return f.read()
             else:
-                raise SiibraHttpRequestError()
+                raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
 
     def get(self):
         data = self._retrieve()

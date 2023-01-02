@@ -25,7 +25,7 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 # %%
 from nilearn import plotting
 import siibra
-import numpy as np
+from tqdm import tqdm
 
 
 # %%
@@ -41,7 +41,7 @@ print(f"Found {len(features)} streamline count matrices.")
 
 # %%
 # We fetch the first result, which is a specific `StreamlineCounts` object
-# expressing structural connectivity in the form of numbers of streamlines 
+# expressing structural connectivity in the form of numbers of streamlines
 # connecting pairs of brain regions as estimated from tractography on diffusion imaging.
 # Typically, connectivity features provide a range of region-to-region
 # connectivity matrices for different subjects from an imaging cohort.
@@ -50,7 +50,7 @@ print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort."
 print(conn.name)
 print("\n" + conn.description)
 
-## Subjects are encoded via anonymized ids:
+# Subjects are encoded via anonymized ids:
 print(conn.subjects)
 
 
@@ -71,11 +71,11 @@ matrix
 #
 # We start by computing the centroids for each region
 # in the matrix as defined by its mask in MNI152 space.
-# Note that we need to transform the centroids from voxels into 
+# Note that we need to transform the centroids from voxels into
 # physical space, using the affine matrix stored in the mask.
 node_coords = [
     tuple(region.compute_centroids('mni152')[0])
-    for region in matrix.index
+    for region in tqdm(matrix.index)
 ]
 
 # %%
