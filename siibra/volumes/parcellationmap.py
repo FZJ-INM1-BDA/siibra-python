@@ -708,17 +708,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # if all points have the same sigma, and lead to a standard deviation
         # below 3 voxels, we are much faster with a multi-coordinate readout.
         if points.has_constant_sigma:
-            print("constant sigma")
             sigma_vox = points.sigma[0] / scaling
             if sigma_vox < 3:
-                logger.info("Points have constant single-voxel precision, using direct multi-point lookup.")
+                logger.debug("Points have constant single-voxel precision, using direct multi-point lookup.")
                 X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
                     if value > lower_threshold:
                         assignments.append(
                             [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
-            return assignments
+                return assignments
 
         # if we get here, we need to handle each point independently.
         # This is much slower but more precise in dealing with the uncertainties
@@ -740,7 +739,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
-                logger.debug(
+                logger.info(
                     f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
@@ -751,7 +750,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                T, _ = self.assign(W, lower_threshold=lower_threshold)
+                T = self.assign(W, lower_threshold=lower_threshold)
                 assignments.extend(
                     [
                         [pointindex, volume, fragment, value, iou, contained, contains, rho]
@@ -774,25 +773,26 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         assignments = []
 
-        # resample query image into this image's voxel space, if required
-        if (queryimg.affine - self.affine).sum() == 0:
-            queryimg = queryimg
-        else:
-            if issubclass(np.asanyarray(queryimg.dataobj).dtype.type, np.integer):
-                interp = "nearest"
+        def resample(img: Nifti1Image, affine: np.ndarray, shape: tuple):
+            # resample query image into this image's voxel space, if required
+            if (img.affine - self.affine).sum() == 0:
+                return img
             else:
-                interp = "linear"
-            queryimg = image.resample_img(
-                queryimg,
-                target_affine=self.affine,
-                target_shape=self.shape,
-                interpolation=interp,
-            )
+                interp = "nearest" \
+                    if issubclass(np.asanyarray(img.dataobj).dtype.type, np.integer) \
+                    else "linear"
+                return image.resample_img(
+                    img,
+                    target_affine=affine,
+                    target_shape=shape,
+                    interpolation=interp,
+                )
 
         with QUIET:
-            for mode, maskimg in Map.iterate_connected_components(queryimg):
-                for frag in self.fragments or {None}:
-                    for vol, vol_img in enumerate(self):
+            for frag in self.fragments or {None}:
+                for vol, vol_img in enumerate(self.fetch_iter(fragment=frag)):
+                    queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
+                    for mode, maskimg in Map.iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
                         labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
                         for label in tqdm(labels):
@@ -800,7 +800,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             scores = compare_maps(maskimg, targetimg)
                             if scores["overlap"] > 0:
                                 assignments.append(
-                                    [mode, vol, frag, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
+                                    [mode, vol, frag, label, scores["overlap"], scores["contained"], scores["contains"], scores["correlation"]]
                                 )
 
         return assignments
