@@ -73,7 +73,7 @@ siibra.atlases.get("MULTILEVEL HUMAN ATLAS")
 siibra.atlases.get('human')
 
 # %%
-# Of course, ass in a list, we can also iterate over the objects in the
+# Of course, as in a list, we can also iterate over the objects in the
 # instance table or use the index operator to fetch an objects by its position:
 for atlas in siibra.atlases:
     print(atlas.name)
