@@ -483,24 +483,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         vertices /= 1e6
         return {'verts': vertices, 'faces': triangles}
 
-    @staticmethod
-    def _extract_meshindex(**kwargs):
-        # extract a meshindex from the given kwargs
-        if "index" in kwargs:
-            meshindex = kwargs.get("index").label
-            if meshindex is None:
-                raise ValueError(
-                    "NeuroglancerMesh requires label to be set in 'index' for fetch()."
-                )
-        else:
-            logger.info(
-                "'index' not specified when fetching from NeuroglancerMesh. "
-                "Trying to fetch a mesh labelled 1."
-            )
-            meshindex = 1
-        return meshindex
-
-    def fetch(self, **kwargs):
+    def fetch(self, label: int, fragment: str):
         """
         Fetches a particular mesh. Each mesh is a dictionary with keys:
 
@@ -508,22 +491,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         - faces: an MX3 array containing connection data of vertices
         """
 
-        # check which mesh and wether a mesh fragment was specified
-        meshindex = self._extract_meshindex(**kwargs)
-        if 'fragment' in kwargs:
-            fragment = kwargs.pop('fragment')
-            assert isinstance(fragment, str)
-        elif 'index' in kwargs:
-            fragment = kwargs.get('index').fragment
-        else:
-            fragment = None
-
         # extract fragment information for the requested mesh
-        fragment_infos = self._get_fragment_info(meshindex)
-        if 'index' in kwargs:
-            kwargs.pop('index')
-        for k, v in kwargs.items():
-            logger.warn(f"{self.__class__.__name__}.fetch() ignored argument {k}={v}")
+        fragment_infos = self._get_fragment_info(label)
 
         if fragment is None:
 

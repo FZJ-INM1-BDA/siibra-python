@@ -294,17 +294,22 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
             mapindex.fragment = kwargs.pop("fragment")
 
+        if mapindex.volume is None:
+            mapindex.volume = 0
         if mapindex.volume >= len(self.volumes):
             raise ValueError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
 
         try:
-            result = self.volumes[mapindex.volume or 0].fetch(fragment=mapindex.fragment, **kwargs)
+            result = self.volumes[mapindex.volume or 0].fetch(
+                fragment=mapindex.fragment, label=mapindex.label, **kwargs
+            )
         except requests.SiibraHttpRequestError as e:
             print(str(e))
         
-        if mapindex.label is not None:  # label requested, convert result map to region mask
+        if mapindex.label is not None and isinstance(result, Nifti1Image): 
+            # label requested for niftt volume, convert result map to region mask
             result = Nifti1Image(
                 (result.get_fdata() == mapindex.label).astype('uint8'),
                 result.affine
