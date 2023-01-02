@@ -639,7 +639,7 @@ class Species(Enum):
     CHLOROCEBUS_AETHIOPS_SABAEUS = 7
 
     @classmethod
-    def decode(cls, spec: Union[str, dict]):
+    def decode(cls, spec: Union[str, dict], fail_if_not_successful=True):
 
         MINDS_IDS = {
             "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": 1,
@@ -668,19 +668,23 @@ class Species(Enum):
             key = cls.name_to_key(spec)
             if key in cls.__members__.keys():
                 return getattr(cls, key)
-            raise ValueError(f"Species specification string cannot be decoded: {spec}")
         else:
             if isinstance(spec, list):
                 next_specs = spec
             elif isinstance(spec, dict):
                 next_specs = spec.values()
             else:
-                next_specs = []
+                raise ValueError(f"Species specification cannot be decoded: {spec}")
             for s in next_specs:
-                result = cls.decode(s)
+                result = cls.decode(s, fail_if_not_successful=False)
                 if result is not None:
                     return result
-        raise ValueError(f"Species specification cannot be decoded: {spec}")
+
+        # if we get here, spec was not decoded into a species
+        if fail_if_not_successful:
+            raise ValueError(f"Species specification cannot be decoded: {spec}")
+        else:
+            return None
 
     @staticmethod
     def name_to_key(name: str):
