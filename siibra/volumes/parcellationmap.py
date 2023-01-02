@@ -35,6 +35,11 @@ from nilearn import image
 import pandas as pd
 
 
+class ExcessiveArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError): pass
+
+
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def __init__(
@@ -203,7 +208,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for key in ["@id", "name"]:
             if key in self._space_spec:
                 return space.Space.get_instance(self._space_spec[key])
-        return space.Space(None, "Unspecified space")
+        return space.Space(None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES)
 
     @property
     def parcellation(self):
@@ -270,7 +275,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             automatically.
         """
         if not any(_ is None for _ in [region, index]):
-            raise ValueError("'Region' and 'volume' cannot be specified at the same time in fetch().")
+            raise ExcessiveArgumentException("'Region' and 'volume' cannot be specified at the same time in fetch().")
 
         if isinstance(region, str):
             mapindex = self.get_index(region)
@@ -280,23 +285,24 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         elif len(self.volumes) == 1:  # only 1 volume, can fetch without index/region
             mapindex = MapIndex(volume=0, label=None)
         else:
-            raise ValueError(
+            raise InsufficientArgumentException(
                 "Map provides multiple volumes, use 'index' or "
                 "'region' to specify which one to fetch."
             )
 
-        if "fragment" in kwargs:
-            if (mapindex.fragment is not None) and (kwargs['fragment'] != mapindex.fragment):
-                raise ValueError(
+        kwargs_fragment = kwargs.pop("fragment", None)
+        if kwargs_fragment is not None:
+            if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
+                raise ConflictingArgumentException(
                     "Conflicting specifications for fetching volume fragment: "
-                    f"{mapindex.fragment} / {kwargs['fragment']}"
+                    f"{mapindex.fragment} / {kwargs_fragment}"
                 )
-            mapindex.fragment = kwargs.pop("fragment")
+            mapindex.fragment = kwargs_fragment
 
         if mapindex.volume is None:
             mapindex.volume = 0
         if mapindex.volume >= len(self.volumes):
-            raise ValueError(
+            raise IndexError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
 

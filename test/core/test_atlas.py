@@ -4,7 +4,9 @@ from parameterized import parameterized
 
 import siibra
 from siibra.configuration.factory import Factory
-from siibra.core.atlas import Atlas, Parcellation, Space
+from siibra.core.atlas import Atlas
+from siibra import Parcellation, Space
+from siibra.commons import Species
 from siibra.core.region import Region
 from itertools import product, repeat
 
@@ -12,7 +14,10 @@ human_atlas_json = {
     "@id": "juelich/iav/atlas/v1.0.0/1",
     "@type": "juelich/iav/atlas/v1.0.0",
     "name": "Multilevel Human Atlas",
-    "species": "human",
+	"species": "homo sapiens",
+	"ebrains": {
+		"minds/core/species/v1.0.0": "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9"
+	},
     "order": 1,
     "spaces": [
         "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
@@ -60,7 +65,7 @@ class TestAtlas(unittest.TestCase):
         cls.atlas = Factory.build_atlas(human_atlas_json)
 
     def test_species(self):
-        self.assertEqual(self.atlas.species, human_atlas_json.get("species"))
+        self.assertEqual(self.atlas.species, Species.HOMO_SAPIENS)
     
     def test_id(self):
         self.assertEqual(self.atlas.id, human_atlas_json.get("@id"))

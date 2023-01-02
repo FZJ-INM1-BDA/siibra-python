@@ -104,7 +104,7 @@ class Volume:
         for key in ["@id", "name"]:
             if key in self._space_spec:
                 return space.Space.get_instance(self._space_spec[key])
-        return space.Space(None, "Unspecified space")
+        return space.Space(None, "Unspecified space", species=space.Species.UNSPECIFIED_SPECIES)
 
     def __str__(self):
         if self.space is None:

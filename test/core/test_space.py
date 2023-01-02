@@ -1,6 +1,7 @@
 import unittest
 
 from siibra.core.space import Space
+from siibra.commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 import inspect
@@ -15,7 +16,7 @@ class TestSpaces(unittest.TestCase):
 
     @staticmethod
     def get_instance(volumes=[]):
-        return Space(str(uuid4()), "foo-bar", volumes=volumes)
+        return Space(str(uuid4()), "foo-bar", volumes=volumes, species=Species.HOMO_SAPIENS)
 
     @classmethod
     def setUpClass(cls) -> None:

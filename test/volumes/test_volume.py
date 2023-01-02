@@ -31,10 +31,7 @@ class TestVolume(unittest.TestCase):
         self.assertIsNotNone(self.volume)
     
     def test_formats(self):
-        self.assertSetEqual(self.volume.formats, {'foo-bar'})
-
-    def test_is_surface(self):
-        self.assertFalse(self.volume.is_surface)
+        self.assertSetEqual(self.volume.formats, {'foo-bar', 'image'})
     
     @parameterized.expand([
         ({ "@id": "foo" }, "foo", True, True),
@@ -47,7 +44,7 @@ class TestVolume(unittest.TestCase):
         self.volume = TestVolume.get_instance(space_spec=set_space_spec)
 
         with patch.object(space.Space, 'get_instance') as mock_get_instance:
-            return_space = space.Space(None, "Returned Space") if returned_space else None
+            return_space = space.Space(None, "Returned Space", space.Species.UNSPECIFIED_SPECIES) if returned_space else None
             mock_get_instance.return_value = return_space
 
             actual_returned_space = self.volume.space

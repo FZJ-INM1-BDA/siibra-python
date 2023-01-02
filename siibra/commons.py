@@ -254,6 +254,10 @@ class MapIndex:
             raise ValueError(
                 "At least volume or label need to be specified to build a valid map index."
             )
+        if volume is not None:
+            assert isinstance(volume, int)
+        if label is not None:
+            assert isinstance(label, int)
         self.volume = volume
         self.label = label
         self.fragment = fragment
@@ -637,6 +641,8 @@ class Species(Enum):
     MACACA_MULATTA = 5
     MACACA_FUSCATA = 6
     CHLOROCEBUS_AETHIOPS_SABAEUS = 7
+
+    UNSPECIFIED_SPECIES = 999
 
     @classmethod
     def decode(cls, spec: Union[str, dict], fail_if_not_successful=True):
