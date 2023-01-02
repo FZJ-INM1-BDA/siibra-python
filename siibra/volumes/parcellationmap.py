@@ -185,6 +185,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """ Returns the region mapped by the given index, if any. """
         if index is None:
             index = MapIndex(volume, label)
+        print(label)
         matches = [
             regionname
             for regionname, indexlist in self._indices.items()
@@ -317,6 +318,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return any(v.provides_image for v in self.volumes)
 
     @property
+    def fragments(self):
+        return {
+            index.fragment
+            for indices in self._indices.values()
+            for index in indices
+            if index.fragment is not None
+        }
+
+    @property
     def provides_mesh(self):
         return any(v.provides_mesh for v in self.volumes)
 
@@ -346,8 +356,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Returns an iterator to fetch all mapped volumes sequentially.
         All arguments are passed on to func:`~siibra.Map.fetch`
         """
+        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
         return (
-            self.fetch(MapIndex(volume=i, label=None), **kwargs)
+            self.fetch(
+                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
+            )
             for i in range(len(self))
         )
 
@@ -598,30 +611,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=["Structure", "Volume", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
+                columns=["Structure", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
             result = np.array(assignments)
-            ind = np.lexsort((-result[:, -1], result[:, 0]))
-            region_lut = {
-                (mi.volume, mi.label): r
-                for r, l in self._indices.items()
-                for mi in l
-            }
-            if self.maptype == MapType.CONTINUOUS:
-                regions = [region_lut[v, None] for v in result[ind, 1].astype('int')]
-            else:
-                regions = [region_lut[v, l] for v, l in result[ind, 1:3].astype('int')]
+            ind = np.lexsort((-result[:, -1].astype('float'), result[:, 0].astype('float')))
+            regions = [
+                self.get_region(
+                    index=MapIndex(
+                        volume=int(v),
+                        label=int(l) if l != 'nan' else None,
+                        fragment=f
+                    )
+                )
+                for _, v, f, l, _, _, _, _ in result
+            ]
             df = pd.DataFrame(
                 {
                     "Structure": result[ind, 0].astype("int"),
                     "Volume": result[ind, 1].astype("int"),
+                    "Fragment": result[ind, 2],
                     "Region": regions,
-                    "Value": result[ind, 2],
-                    "Correlation": result[ind, 6],
-                    "IoU": result[ind, 3],
-                    "Contains": result[ind, 5],
-                    "Contained": result[ind, 4],
+                    "Value": result[ind, 3],
+                    "Correlation": result[ind, 7],
+                    "IoU": result[ind, 4],
+                    "Contains": result[ind, 6],
+                    "Contained": result[ind, 5],
                 }
             ).dropna(axis=1, how="all")
 
@@ -651,15 +666,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
+        fragments = self.fragments or {None}
         if isinstance(x, int):
             return [
-                (None, volume, np.asanyarray(volimg.dataobj)[x, y, z])
-                for volume, volimg in enumerate(self)
+                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
             ]
         else:
             return [
-                (pointindex, volume, value)
-                for volume, volimg in enumerate(self)
+                (pointindex, volume, fragment, value)
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
                 for pointindex, value
                 in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
             ]
@@ -690,14 +708,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # if all points have the same sigma, and lead to a standard deviation
         # below 3 voxels, we are much faster with a multi-coordinate readout.
         if points.has_constant_sigma:
+            print("constant sigma")
             sigma_vox = points.sigma[0] / scaling
             if sigma_vox < 3:
                 logger.info("Points have constant single-voxel precision, using direct multi-point lookup.")
                 X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
-                for pointindex, vol, value in self._read_voxel(X, Y, Z):
+                for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, vol, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
             return assignments
 
@@ -714,11 +733,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 N = len(self)
                 logger.debug(f"Assigning coordinate {tuple(pt)} to {N} maps")
                 x, y, z = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")[:3]
-                vals = self._read_voxel(x, y, z)
-                for _, vol, value in vals:
+                values = self._read_voxel(x, y, z)
+                for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, vol, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
                 logger.debug(
@@ -735,8 +754,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 T, _ = self.assign(W, lower_threshold=lower_threshold)
                 assignments.extend(
                     [
-                        [pointindex, volume, value, iou, contained, contains, rho]
-                        for (_, volume, _, value, rho, iou, contains, contained) in T.values
+                        [pointindex, volume, fragment, value, iou, contained, contains, rho]
+                        for (_, volume, fragment, _, value, rho, iou, contains, contained) in T.values
                     ]
                 )
         return assignments
@@ -772,15 +791,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         with QUIET:
             for mode, maskimg in Map.iterate_connected_components(queryimg):
-                for vol, vol_img in enumerate(self):
-                    vol_data = np.asanyarray(vol_img.dataobj)
-                    labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
-                    for label in tqdm(labels):
-                        targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
-                        scores = compare_maps(maskimg, targetimg)
-                        if scores["overlap"] > 0:
-                            assignments.append(
-                                [mode, vol, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
-                            )
+                for frag in self.fragments or {None}:
+                    for vol, vol_img in enumerate(self):
+                        vol_data = np.asanyarray(vol_img.dataobj)
+                        labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
+                        for label in tqdm(labels):
+                            targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                            scores = compare_maps(maskimg, targetimg)
+                            if scores["overlap"] > 0:
+                                assignments.append(
+                                    [mode, vol, frag, label, scores["iou"], scores["contained"], scores["contains"], scores["correlation"]]
+                                )
 
         return assignments
