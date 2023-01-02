@@ -1,0 +1,43 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "@type": {
+            "const": "siibra/decoder/csv"
+        },
+        "delimiter": {
+            "$ref": "#/definitions/delimiter"
+        },
+        "engine": {
+            "anyOf": [{
+                "const": "python"
+            }]
+        },
+        "header": {
+            "anyOf": [{
+                "type": "string"
+            }, {
+                "type": "null"
+            }]
+        },
+        "index_col": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "@type",
+        "delimiter",
+        "engine",
+        "header",
+        "index_col"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+        "delimiter": {
+            "anyOf": [{
+                "const": ","
+            }, {
+                "const": " "
+            }]
+        }
+    }
+}

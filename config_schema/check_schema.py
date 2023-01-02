@@ -10,11 +10,13 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 from urllib.parse import urljoin
 import sys
+from itertools import repeat
 
 use_thread = True
 
 skip_path = (
     "snapshots/ebrainsquery/v1",
+    "venv"
 )
 
 skip_types = []
@@ -51,7 +53,7 @@ def get_ref(schema):
             
     return resolver
 
-def validate_json(path_to_json):
+def validate_json(path_to_json, fail_fast=False):
     if any([path_fragment in path_to_json for path_fragment in skip_path]):
         return (
             path_to_json,
@@ -70,6 +72,9 @@ def validate_json(path_to_json):
         )
     _type = json_obj.get("@type", None)
     if not _type:
+        # TODO consolidate how error are raied
+        if fail_fast:
+            raise ValidationError(f"type does not exist: {path_to_json}")
         return (
             path_to_json,
             ValidationResult.FAILED,
@@ -102,6 +107,9 @@ def validate_json(path_to_json):
         resolver = get_ref(schema)
         validate(json_obj, schema, resolver=resolver)
     except ValidationError as e:
+        if fail_fast:
+            # TODO consolidate how error are raied
+            raise e
         return (
             path_to_json,
             ValidationResult.FAILED,
@@ -120,6 +128,8 @@ def main(path_to_configuration: str, *args):
                     for filename in filenames
                     if filename.endswith(".json")
                 ]
+    # TODO use argparse
+    fail_fast = "--fail-fast" in args
     if use_thread:
         
         with ThreadPoolExecutor(max_workers=4) as executor:
@@ -127,11 +137,12 @@ def main(path_to_configuration: str, *args):
                 executor.map(
                     validate_json,
                     json_files,
+                    repeat(fail_fast)
                 ),
                 total=len(json_files)
             )]
     else:
-        result = [validate_json(f) for f in json_files]
+        result = [validate_json(f, fail_fast) for f in json_files]
 
     passed = [r for r in result if r[1] == ValidationResult.PASSED]
     failed = [r for r in result if r[1] == ValidationResult.FAILED]
@@ -140,6 +151,7 @@ def main(path_to_configuration: str, *args):
 
     if len(failed) > 0:
         print(failed)
+        # TODO consolidate how error are raied
         raise ValidationError(message="\n-----\n".join([f"{f[0]}: {str(f[2])}" for f in failed]))
 
 if __name__ == "__main__":
