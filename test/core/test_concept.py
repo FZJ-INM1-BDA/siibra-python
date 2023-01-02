@@ -1,8 +1,7 @@
 from siibra.core import concept
-from unittest.mock import MagicMock, PropertyMock, call
-from siibra.retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
-from urllib3.exceptions import NewConnectionError
+from unittest.mock import MagicMock, PropertyMock
 from siibra.core.concept import AtlasConcept, InstanceTable
+from siibra.commons import Species
 import siibra
 from unittest.mock import patch
 from uuid import uuid4
@@ -30,7 +29,7 @@ class TestAtlasConcept(unittest.TestCase):
     def test_init(self):
         assert issubclass(DummyClsKwarg, AtlasConcept)
         assert DummyClsKwarg._configuration_folder == CONF_FOLDER
-        instance = DummyClsKwarg(identifier=IDENTIFIER, name=NAME)
+        instance = DummyClsKwarg(identifier=IDENTIFIER, name=NAME, species=Species.HOMO_SAPIENS)
         assert isinstance(instance, AtlasConcept)
 
     def test_class_registry_init(self):

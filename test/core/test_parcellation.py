@@ -1,12 +1,13 @@
 import unittest
-from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, MapIndex, Region
+from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, MapIndex
+from siibra.core.region import Region
+from siibra.commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock
 import inspect
-from typing import List, Tuple, Union, NamedTuple
+from typing import Tuple, Union, NamedTuple
 from itertools import product, starmap
-from collections import namedtuple
 
 correct_json={
     'name': 'foobar',
@@ -93,6 +94,7 @@ class TestParcellation(unittest.TestCase):
             description="test parc desc",
             version=TestParcellationVersion.get_instance(),
             modality="test parc modality",
+            species=Species.HOMO_SAPIENS,
         )
 
 
