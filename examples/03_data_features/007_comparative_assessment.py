@@ -18,11 +18,12 @@ Comparative analysis of brain organisation in two brain regions¶
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-`siibra` data features simplify analysis of multimodal aspects of distinct brain regions.
+`siibra` data features simplify analysis of multimodal aspects of brain regions.
 In this example, we select a region from the Broca region in the inferior frontal gyrus, IFG 44,
 involved in language proceessing, and a region from the visual system in the occipital cortex, V1.
 """
 
+# %%
 import siibra
 import matplotlib.pyplot as plt
 import numpy as np
@@ -30,9 +31,8 @@ import numpy as np
 # %%
 # We start by selecting the two region objects from the parcellation,
 # using simple keyword specifications.
-jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
 specs = ['ifg 44', 'hoc1']
-regions = [jubrain.get_region(spec) for spec in specs]
+regions = [siibra.get_region('julich 2.9', spec) for spec in specs]
 
 # %%
 # Next, we choose a set of feature modalities that we're interested in.
@@ -40,7 +40,7 @@ regions = [jubrain.get_region(spec) for spec in specs]
 # which provide average measurements across multiple
 # samples, and can be easily compared visually.
 modalities = [
-    siibra.modalities.ReceptorFingerprint,
+    siibra.modalities.ReceptorDensityFingerprint,
     siibra.modalities.CellDensityFingerprint,
     siibra.modalities.BigBrainIntensityFingerprint,
 ]
@@ -52,9 +52,12 @@ f, axs = plt.subplots(len(modalities), len(regions))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
-        fp = siibra.get_features(region, modality)[-1]
-        fp.barplot(ax=axs[j, i])
-        axs[j, i].set_ylim(0, ymax[j])
+        features = siibra.get_features(region, modality)
+        print(region, modality, len(features))
+        if len(features) > 0:
+            fp = features[-1]
+            fp.barplot(ax=axs[j, i])
+            axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
 
 # %%

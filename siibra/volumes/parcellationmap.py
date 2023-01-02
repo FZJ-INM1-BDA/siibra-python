@@ -35,9 +35,16 @@ from nilearn import image
 import pandas as pd
 
 
-class ExcessiveArgumentException(ValueError): pass
-class InsufficientArgumentException(ValueError): pass
-class ConflictingArgumentException(ValueError): pass
+class ExcessiveArgumentException(ValueError):
+    pass
+
+
+class InsufficientArgumentException(ValueError):
+    pass
+
+
+class ConflictingArgumentException(ValueError):
+    pass
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -646,7 +653,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Contained": result[ind, 5],
                 }
             )
-        
+
         return df
 
     @staticmethod

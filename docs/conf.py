@@ -21,7 +21,7 @@ print("Path:", sys.path)
 # -- Project information -----------------------------------------------------
 
 project = "siibra-python"
-copyright = "2020-2021, Forschungszentrum Juelich GmbH"
+copyright = "2020-2023, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 
 
@@ -68,7 +68,7 @@ sphinx_gallery_conf = {
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "legacy"]
 
 
 # -- Options for HTML output -------------------------------------------------

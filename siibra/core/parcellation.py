@@ -127,6 +127,15 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
     def id(self):
         return self._id
 
+    def matches(self, spec):
+        if isinstance(spec, str):
+            if all(
+                w in self.shortname.lower()
+                for w in re.split(r'\s+', spec.lower())
+            ):
+                return True
+        return super().matches(spec)
+
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
         Get the maps for the parcellation in the requested

@@ -93,7 +93,11 @@ class WagstylProfileLoader:
                     .transform(np.linalg.inv(mask.affine), space=None)
                 )
                 arr = np.asanyarray(mask.dataobj)
-                X, Y, Z = np.split(np.array(voxels.as_list()).astype('int'), 3, axis=1)
+                XYZ = np.array(voxels.as_list()).astype('int')
+                X, Y, Z = np.split(
+                    XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
+                    3, axis=1
+                )
                 inside = np.where(arr[X, Y, Z] > 0)[0]
                 break
         else:
@@ -145,10 +149,11 @@ class BigBrainIntensityFingerprintQuery(query.LiveQuery, args=[], FeatureType=fi
         result = []
         for subregion in regionobj.leaves:
             matched_profiles, boundary_depths, coords = loader.match(subregion)
+            if matched_profiles.shape[0] == 0:
+                continue
 
             # compute array of layer labels for all coefficients in profiles_left
             N = matched_profiles.shape[1]
-            print(f"{N} profiles matched!")
             prange = np.arange(N)
             region_labels = 7 - np.array([
                 [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
