@@ -19,7 +19,7 @@ from ..commons import logger
 from ..retrieval import requests
 from ..locations import pointset, boundingbox
 
-from typing import Union
+from typing import Union, Dict
 import nibabel as nib
 import os
 import numpy as np
@@ -27,11 +27,13 @@ import numpy as np
 
 class NiftiProvider(volume.VolumeProvider, srctype="nii"):
 
-    def __init__(self, src: Union[str, dict, nib.Nifti1Image]):
+    def __init__(self, src: Union[str, Dict[str, str], nib.Nifti1Image]):
         """
         Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
         volume.VolumeProvider.__init__(self)
+
+        self._provided_volumes: Union[str, Dict[str, str]] = None
 
         def loader(url):
             if os.path.isfile(url):
@@ -48,6 +50,13 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             self._img_loaders = {lbl: loader(url) for lbl, url in src.items()}
         else:
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
+        
+        if not isinstance(src, nib.Nifti1Image):
+            self._provided_volumes = src
+
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        return self._provided_volumes
 
     @property
     def fragments(self):
@@ -226,3 +235,6 @@ class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):
         zipurl, zipped_file = src.split(" ")
         req = requests.ZipfileRequest(zipurl, zipped_file)
         self._img_loaders = {None: lambda req=req: req.data}
+
+        # required for self.provided_volumes property
+        self._provided_volumes = src

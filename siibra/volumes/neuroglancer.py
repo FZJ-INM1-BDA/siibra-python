@@ -26,19 +26,25 @@ from io import BytesIO
 import nibabel as nib
 import os
 import numpy as np
-from typing import Union
+from typing import Union, Dict, Union, Tuple
 
 
 class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
 
-    def __init__(self, url: Union[str, dict]):
+    def __init__(self, url: Union[str, Dict[str, str]]):
         volume.VolumeProvider.__init__(self)
+        self._provided_volumes = url
+        # TODO duplicated code to giftimesh
         if isinstance(url, str):  # one single image to load
             self._fragments = {None: NeuroglancerVolume(url)}
         elif isinstance(url, dict):  # assuming multiple for fragment images
             self._fragments = {n: NeuroglancerVolume(u) for n, u in url.items()}
         else:
             raise ValueError(f"Invalid url specified for {self.__class__.__name__}: {url}")
+
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        return self._provided_volumes
 
     def fetch(
         self,
@@ -174,6 +180,7 @@ class NeuroglancerVolume:
         return self.MAX_GiB * 1024 ** 3
 
     def __init__(self, url: str):
+        # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
         volume.VolumeProvider.__init__(self)
         assert isinstance(url, str)
         self.url = url
@@ -444,16 +451,18 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     """
 
     @staticmethod
-    def _fragmentinfo(url: str) -> dict:
+    def _fragmentinfo(url: str) -> Dict[str, Union[str, np.ndarray, Dict]]:
         """ Prepare basic mesh fragment information from url. """
         return {
             "url": url,
             "transform_nm": np.array(requests.HttpRequest(f"{url}/transform.json").data),
             "info": requests.HttpRequest(url=f"{url}/info", func=requests.DECODERS['.json']).data
         }
-
+    
+    # TODO check resource typing?
     def __init__(self, resource: Union[str, dict], volume=None):
         self.volume = volume
+        self._provided_volumes = resource
         if isinstance(resource, str):
             self._meshes = {None: self._fragmentinfo(resource)}
         elif isinstance(resource, dict):
@@ -461,7 +470,11 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
         else:
             raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
 
-    def _get_fragment_info(self, meshindex: int) -> dict:
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        return self._provided_volumes
+
+    def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:
         # extract available fragment urls with their names for the given mesh index
         result = {}
 
@@ -570,4 +583,4 @@ class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmes
     def fetch(self, **kwargs):
         if 'fragment' not in kwargs:
             kwargs['fragment'] = None
-        return NeuroglancerMesh.fetch(self, label=self.label, **kwargs)
+        return super().fetch(label=self.label, **kwargs)

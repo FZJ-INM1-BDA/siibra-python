@@ -19,7 +19,7 @@ from ..retrieval import requests
 from ..commons import logger, merge_meshes
 
 import numpy as np
-from typing import Union
+from typing import Union, Dict
 
 
 class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
@@ -27,14 +27,20 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
     One or more surface mesh fragments in Gifti format.
     """
 
-    def __init__(self, url: Union[str, dict], volume=None):
+    def __init__(self, url: Union[str, Dict[str, str]], volume=None):
+        self._provided_volumes = url
         self.volume = volume
+        # TODO duplicated code to NgMesh
         if isinstance(url, str):  # single mesh
             self._loaders = {None: requests.HttpRequest(url)}
         elif isinstance(url, dict):   # named mesh fragments
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        return self._provided_volumes
 
     @property
     def fragments(self):

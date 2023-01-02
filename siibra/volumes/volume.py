@@ -20,7 +20,7 @@ from ..core import space
 import numpy as np
 import nibabel as nib
 from abc import ABC, abstractmethod
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Set
 
 
 class ColorVolumeNotSupported(NotImplementedError):
@@ -70,9 +70,15 @@ class Volume:
     def name(self):
         """ allows derived classes to implemente a lazy name specification."""
         return self._name_cached
+    
+    @property
+    def providers(self):
+        return {
+            srctype: prov.provided_volumes for srctype, prov in self._providers.items()
+        }
 
     @property
-    def formats(self):
+    def formats(self) -> Set[str]:
         result = set()
         for fmt in self._providers:
             result.add(fmt)
@@ -88,7 +94,7 @@ class Volume:
         return any(f in self.IMAGE_FORMATS for f in self.formats)
 
     @property
-    def fragments(self):
+    def fragments(self) -> Dict[str, List[str]]:
         result = {}
         for srctype, p in self._providers.items():
             t = 'mesh' if srctype in self.MESH_FORMATS else 'image'
@@ -190,12 +196,21 @@ class VolumeProvider(ABC):
         return super().__init_subclass__()
 
     @property
-    def fragments(self):
+    def fragments(self) -> List[str]:
         return []
 
     @abstractmethod
     def fetch(self, *args, **kwargs) -> VolumeData:
         raise NotImplementedError
+    
+    @property
+    @abstractmethod
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        """
+        This is needed to provide urls to applications that can utilise such resources directly.
+        e.g. siibra-api
+        """
+        return {}
 
 
 class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
@@ -222,3 +237,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
 
     def __getattr__(self, attr):
         return self.provider.__getattribute__(attr)
+
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        raise super().provided_volumes
