@@ -150,7 +150,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         matches = self.find_indices(region)
         if len(matches) > 1:
-            print(matches)
             raise RuntimeError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
@@ -185,7 +184,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """ Returns the region mapped by the given index, if any. """
         if index is None:
             index = MapIndex(volume, label)
-        print(label)
         matches = [
             regionname
             for regionname, indexlist in self._indices.items()
@@ -335,6 +333,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         return {f for v in self.volumes for f in v.formats}
 
     @property
+    def is_labelled(self):
+        return self.maptype == MapType.LABELLED
+
+    @property
     def affine(self):
         if self._affine_cached is None:
             # we compute the affine from a volumetric volume provider
@@ -381,7 +383,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         result_data = np.zeros_like(np.asanyarray(template.dataobj))
         voxelwise_max = np.zeros_like(result_data)
         result_nii = Nifti1Image(result_data, template.affine)
-        interpolation = 'nearest' if self.maptype == MapType.LABELLED else 'linear'
+        interpolation = 'nearest' if self.is_labelled else 'linear'
 
         for vol in tqdm(
             range(len(self)), total=len(self), unit='maps',
@@ -394,7 +396,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 img = image.resample_to_img(img, result_nii, interpolation)
             img_data = np.asanyarray(img.dataobj)
 
-            if self.maptype == MapType.LABELLED:
+            if self.is_labelled:
                 labels = set(np.unique(img_data)) - {0}
             else:
                 labels = {None}
@@ -449,7 +451,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 maparr = np.asanyarray(mapimg.dataobj)
             if index.label is None:
                 # should be a continous map then
-                assert self.maptype == MapType.CONTINUOUS
+                assert not self.is_labelled
                 centroid_vox = np.array(np.where(maparr > 0)).mean(1)
             else:
                 centroid_vox = np.array(np.where(maparr == index.label)).mean(1)
@@ -552,7 +554,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
         minsize_voxel=1,
-        lower_threshold=0.0,
+        lower_threshold=0.0
     ):
         """Assign an input image to brain regions.
 
@@ -596,7 +598,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assignment table. If the input was a Point or PointSet, this is None.
         """
 
-        components = None
         if isinstance(item, point.Point):
             assignments = self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
         elif isinstance(item, pointset.PointSet):
@@ -620,7 +621,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 self.get_region(
                     index=MapIndex(
                         volume=int(v),
-                        label=int(l) if l != 'nan' else None,
+                        label=int(l) if (l != 'nan') and (self.is_labelled) else None,
                         fragment=f
                     )
                 )
@@ -638,12 +639,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Contains": result[ind, 6],
                     "Contained": result[ind, 5],
                 }
-            ).dropna(axis=1, how="all")
-
-        if components is None:
-            return df
-        else:
-            return df
+            )
+        
+        return df
 
     @staticmethod
     def iterate_connected_components(img: Nifti1Image):
@@ -710,7 +708,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if points.has_constant_sigma:
             sigma_vox = points.sigma[0] / scaling
             if sigma_vox < 3:
-                logger.debug("Points have constant single-voxel precision, using direct multi-point lookup.")
                 X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
                     if value > lower_threshold:
@@ -798,9 +795,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         for label in tqdm(labels):
                             targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
-                            if scores["overlap"] > 0:
+                            if scores["IoU"] > 0:
                                 assignments.append(
-                                    [mode, vol, frag, label, scores["overlap"], scores["contained"], scores["contains"], scores["correlation"]]
+                                    [mode, vol, frag, label, scores["IoU"], scores["contained"], scores["contains"], scores["correlation"]]
                                 )
 
         return assignments

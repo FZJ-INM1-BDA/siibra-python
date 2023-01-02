@@ -314,12 +314,12 @@ class SparseMap(parcellationmap.Map):
         vx = spind.voxels[x, y, z]
         if isinstance(vx, int):
             return list(
-                (None, volume, value)
+                (None, volume, None, value)
                 for volume, value in spind.probs[vx].items()
             )
         else:
             return list(
-                (pointindex, volume, value)
+                (pointindex, volume, None, value)
                 for pointindex, voxel in enumerate(vx)
                 for volume, value in spind.probs[voxel].items()
             )
@@ -338,7 +338,6 @@ class SparseMap(parcellationmap.Map):
             Lower threshold on values in the continuous map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
-
         assignments = []
         components = None
 
@@ -436,7 +435,7 @@ class SparseMap(parcellationmap.Map):
                 maxval = v1.max()
 
                 assignments.append(
-                    [mode, volume, maxval, iou, contained, contains, rho]
+                    [mode, volume, None, maxval, iou, contained, contains, rho]
                 )
 
         return assignments
