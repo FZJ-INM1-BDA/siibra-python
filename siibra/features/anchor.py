@@ -209,7 +209,7 @@ class AnatomicalAnchor:
                         or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
                     for r in self.regions:
                         matches.append(AnatomicalAnchor.match_regions(r, concept))
-                if concept.root.find(self._regionspec) == 0:
+                if len(concept.root.find(self._regionspec)) == 0:
                     # We perform the (quite expensive) location-to-region test
                     # only if this anchor's regionspec is not known to the
                     # parcellation of the query region. Otherwise we can rely
