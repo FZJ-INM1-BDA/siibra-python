@@ -26,6 +26,7 @@ from distutils.version import LooseVersion
 from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
+
 class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAnchoredDataset):
 
     # in EBRAINS knowledge graph prior to v3, versions were modelled
@@ -77,8 +78,10 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAn
                 if "dataset" not in ds_id:
                     continue
                 ds_embargo_status = ds_spec.get("embargo_status")
-                ds_species = anchor.Species.decode(ds_spec)
-                if ds_species is None:
+
+                try:
+                    ds_species = anchor.Species.decode(ds_spec)
+                except ValueError:
                     invalid_species_datasets[ds_id] = ds_name
                     continue
 
@@ -106,7 +109,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAn
                 else:  # store version, add only the latest version after the loop
                     name, version = version_match.groups()
                     versioned_datasets[name][version] = dset
-    
+
         if len(invalid_species_datasets) > 0:
             with NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
                 for dsid, dsname in invalid_species_datasets.items():

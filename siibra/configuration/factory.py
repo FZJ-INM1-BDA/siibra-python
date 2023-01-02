@@ -108,10 +108,17 @@ class Factory:
             print(spec)
             raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
 
+        if 'species' in spec:
+            species = Species.decode(spec['species'])
+        elif ('ebrains' in spec):
+            species = Species.decode(spec['ebrains'])
+        else:
+            raise ValueError(f"No species information found in spec {spec}")
+
         return anchor.AnatomicalAnchor(
             region=region,
             location=location,
-            species=anchor.Species.decode(spec.get('species', {}))
+            species=species
         )
 
     @classmethod

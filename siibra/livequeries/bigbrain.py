@@ -81,7 +81,7 @@ class WagstylProfileLoader:
         logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
 
         for spaceobj in regionobj.supported_spaces:
-            if not spaceobj.is_surface:
+            if spaceobj.provides_image:
                 try:
                     mask = regionobj.build_mask(space=spaceobj, maptype="labelled")
                 except RuntimeError:
@@ -148,6 +148,7 @@ class BigBrainIntensityFingerprintQuery(query.LiveQuery, args=[], FeatureType=fi
 
             # compute array of layer labels for all coefficients in profiles_left
             N = matched_profiles.shape[1]
+            print(f"{N} profiles matched!")
             prange = np.arange(N)
             region_labels = 7 - np.array([
                 [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]

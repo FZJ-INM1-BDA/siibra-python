@@ -440,12 +440,12 @@ class EbrainsKgQuery(EbrainsRequest):
         try:
             result = EbrainsRequest.get(self)
         except SiibraHttpRequestError as e:
-            if e.response.status_code in self.SC_MESSAGES:
-                raise RuntimeError(self.SC_MESSAGES[e.response.status_code])
+            if e.status_code in self.SC_MESSAGES:
+                raise RuntimeError(self.SC_MESSAGES[e.status_code])
             else:
                 raise RuntimeError(
                     f"Could not process HTTP request (status code: "
-                    f"{e.response.status_code}). Message was: {e.msg}"
-                    f"URL was: {e.response.url}"
+                    f"{e.status_code}). Message was: {e.msg}"
+                    f"URL was: {e.url}"
                 )
         return result
