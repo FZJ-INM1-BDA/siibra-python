@@ -307,13 +307,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         except requests.SiibraHttpRequestError as e:
             print(str(e))
-        
-        if mapindex.label is not None and isinstance(result, Nifti1Image): 
-            # label requested for niftt volume, convert result map to region mask
-            result = Nifti1Image(
-                (result.get_fdata() == mapindex.label).astype('uint8'),
-                result.affine
-            )
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
@@ -469,7 +462,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         result = None
         for volidx, vol in enumerate(self.fetch_iter()):
             if isinstance(vol, dict):
-                raise NotImplementedError(f"Map colorization not yet implemented for meshes.")
+                raise NotImplementedError("Map colorization not yet implemented for meshes.")
             img = np.asanyarray(vol.dataobj)
             maxarr = np.zeros_like(img)
             for r, value in values.items():

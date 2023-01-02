@@ -82,7 +82,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
                 voxdims = np.dot(np.linalg.inv(result_affine), np.r_[bbox.shape, 1])[:3]
                 result_arr = np.zeros((voxdims + .5).astype('int'))
-                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)                
+                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             arr = np.asanyarray(img.dataobj)
             Xs, Ys, Zs = np.where(arr != 0)
@@ -99,13 +99,14 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
             logger.warn(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
-        
+
         return result
 
     def fetch(
         self,
         fragment: str = None,
         voi: boundingbox.BoundingBox = None,
+        label: int = None
     ):
         """
         Loads and returns a Nifti1Image object
@@ -118,6 +119,10 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             see :func:`~siibra.volumes.Volume.fragments`
         voi : BoundingBox
             optional specification of a volume of interst to fetch.
+        label: int or None
+            Optional: a label index can be provided. Then the mask of the
+            3D volume will be returned, where voxels matching this label
+            are marked as "1".
         """
 
         result = None
@@ -143,18 +148,24 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             if fragment is not None:
                 assert fragment.lower() in fragment_name.lower()
             result = loader()
-            
-        if voi is None:
-            return result
-        else:
+
+        if voi is not None:
             bb_vox = voi.transform_bbox(np.linalg.inv(result.affine))
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
-            return nib.Nifti1Image(
+            result = nib.Nifti1Image(
                 dataobj=result.dataobj[x0:x1, y0:y1, z0:z1],
                 affine=np.dot(result.affine, shift),
             )
+
+        if label is not None:
+            result = nib.Nifti1Image(
+                (result.get_fdata() == label).astype('uint8'),
+                result.affine
+            )
+
+        return result
 
     def get_shape(self, resolution_mm=None):
         if resolution_mm is not None:

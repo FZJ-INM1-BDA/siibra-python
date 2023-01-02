@@ -62,6 +62,8 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
             optional specification of a volume of interst to fetch.
         """
 
+        result = None
+
         if 'index' in kwargs:
             index = kwargs.pop('index')
             if fragment is not None:
@@ -82,7 +84,7 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
                         f"to [{', '.join(self._fragments)}]"
                     )
                 else:
-                    return self._fragments[matched_names[0]].fetch(
+                    result = self._fragments[matched_names[0]].fetch(
                         resolution_mm=resolution_mm, voi=voi, **kwargs
                     )
         else:
@@ -90,9 +92,25 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
             fragment_name, ngvol = next(iter(self._fragments.items()))
             if fragment is not None:
                 assert fragment.lower() in fragment_name.lower()
-            return ngvol.fetch(
+            result = ngvol.fetch(
                 resolution_mm=resolution_mm, voi=voi, **kwargs
             )
+
+        # if a label is specified, mask the resulting image.
+        if result is not None:
+            if 'label' in kwargs:
+                label = kwargs['label']
+            elif ('index') in kwargs:
+                label = kwargs['index'].label
+            else:
+                label = None
+            if label is not None:
+                result = nib.Nifti1Image(
+                    (result.get_fdata() == label).astype('uint8'),
+                    result.affine
+                )
+
+        return result
 
     @property
     def bounding_box(self):
@@ -536,13 +554,9 @@ class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmes
         # Here we expect a string of the form "<url> <labelindex>",
         # and use this to set the url and label index in the parent class.
         assert ' ' in spec
-        url, labelindex_, *args = spec.split(' ')
-        assert labelindex_.isnumeric()
-        if 'index' in kwargs:
-            self._mapindex = kwargs.pop('index')
-            self._mapindex.label = int(labelindex_)
-        else:
-            self._mapindex = MapIndex(volume=None, label=int(labelindex_))
+        url, labelindex, *args = spec.split(' ')
+        assert labelindex.isnumeric()
+        self.label = int(labelindex)
         NeuroglancerMesh.__init__(self, resource=url, **kwargs)
 
     @property
@@ -551,7 +565,9 @@ class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmes
         Returns the set of fragment names available
         for the mesh with the given index.
         """
-        return set(self._get_fragment_info(self._mapindex.label))
+        return set(self._get_fragment_info(self.label))
 
     def fetch(self, **kwargs):
-        return NeuroglancerMesh.fetch(self, index=self._mapindex, **kwargs)
+        if 'fragment' not in kwargs:
+            kwargs['fragment'] = None
+        return NeuroglancerMesh.fetch(self, label=self.label, **kwargs)
