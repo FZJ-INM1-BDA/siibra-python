@@ -101,6 +101,7 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     """
 
     def __init__(self, url: Union[str, dict]):
+        self._provided_volumes = url
         if isinstance(url, str):  # single mesh labelling
             self._loaders = {None: requests.HttpRequest(url)}
         elif isinstance(url, dict):   # labelling for multiple mesh fragments
@@ -118,3 +119,7 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
             labels.append(loader.data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
+
+    @property
+    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+        return self._provided_volumes
