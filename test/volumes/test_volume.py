@@ -8,6 +8,10 @@ from parameterized import parameterized
 class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
     def fetch(self, *args, **kwargs): pass
 
+    @property
+    def provided_volumes(self):
+        return {}
+
 class TestVolumeProvider(unittest.TestCase):
 
     @staticmethod
