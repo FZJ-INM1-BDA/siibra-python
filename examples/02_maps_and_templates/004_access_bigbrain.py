@@ -72,7 +72,6 @@ mask
 # %%
 # Since we operate in physical coordinates, we can plot both image chunks
 # superimposed, even if their resolution is not exactly identical.
-from nilearn import plotting
 plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
 
 # %%
