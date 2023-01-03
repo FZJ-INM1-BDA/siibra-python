@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from ..commons import create_key, clear_name, logger, InstanceTable, Species
+from .._commons import create_key, clear_name, logger, InstanceTable, Species
 
 import re
 from typing import TypeVar, Type, Union
@@ -86,7 +86,7 @@ class AtlasConcept:
         if cls._configuration_folder is None:
             return None
         if cls._registry_cached is None:
-            from ..configuration import Configuration
+            from .._configuration import Configuration
             conf = Configuration()
             # visit the configuration to provide a cleanup function
             # in case the user changes the configuration during runtime.

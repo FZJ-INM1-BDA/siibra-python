@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import logger
-from ..retrieval import requests
+from .._retrieval import requests
 from ..core import space
 
 import numpy as np
@@ -70,7 +70,7 @@ class Volume:
     def name(self):
         """ allows derived classes to implemente a lazy name specification."""
         return self._name_cached
-    
+
     @property
     def providers(self):
         return {
@@ -202,7 +202,7 @@ class VolumeProvider(ABC):
     @abstractmethod
     def fetch(self, *args, **kwargs) -> VolumeData:
         raise NotImplementedError
-    
+
     @property
     @abstractmethod
     def provided_volumes(self) -> Union[str, Dict[str, str]]:

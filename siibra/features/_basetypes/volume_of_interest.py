@@ -13,18 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import feature, anchor
+from . import feature
 
-from ..volumes import volume as _volume
-from ..locations import boundingbox
+from .. import _anchor
+
+from ...volumes import volume as _volume
+from ...locations import boundingbox
 
 from typing import List
 
 
-class VolumeOfInterestAnchor(anchor.AnatomicalAnchor):
+class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
 
     def __init__(self, volume: _volume.Volume):
-        anchor.AnatomicalAnchor.__init__(
+        _anchor.AnatomicalAnchor.__init__(
             self,
             species=volume.space.species,
             location=None,

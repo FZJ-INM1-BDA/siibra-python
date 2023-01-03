@@ -16,15 +16,15 @@
 from .query import LiveQuery
 
 from ..core import space as _space
-from ..features import anchor
-from ..features.fingerprints import GeneExpression
-from ..commons import logger, Species
+from ..features import _anchor
+from ..features.molecular._gene_expression import GeneExpression
+from .._commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
-from ..retrieval import HttpRequest
+from .._retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable, Union, List
+from typing import Iterable, List
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -120,10 +120,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 # signfiicant computational overhead for
                 # re-doing the spatial assignment we
                 # did already.
-                ass = anchor.AnatomicalAssignment(
+                ass = _anchor.AnatomicalAssignment(
                     f.anchor.location,
                     region,
-                    anchor.AssignmentQualification.CONTAINED,
+                    _anchor.AssignmentQualification.CONTAINED,
                     explanation=(
                         f"{f.anchor.location} was compared with the mask "
                         f"of query region '{region.name}' in {self.space}."
@@ -256,7 +256,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, cls.space)),
+                anchor=_anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, cls.space)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],

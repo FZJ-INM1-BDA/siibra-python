@@ -13,15 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .simple import EbrainsAnchoredDataset
-from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint, GeneExpression
-from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
-from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
-from .voi import VolumeOfInterest
+__all__ = ["cellular", "molecular", "fibres", "connectivity", "external"]
 
-from ..livequeries.bigbrain import BigBrainProfileQuery, BigBrainIntensityFingerprintQuery
-from ..livequeries.allen import AllenBrainAtlasQuery
-from ..livequeries.ebrains import EbrainsFeatureQuery
+from . import (
+    cellular,
+    molecular,
+    fibres,
+    connectivity,
+    external
+)
 
-get_features = Feature.match
+from ._basetypes.feature import Feature as _Feature
+from ._basetypes.cortical_profile import CorticalProfile as _CorticalProfile
+get = _Feature.match
+
+
+ALL = _Feature._get_visible_subclass_names()
+PROFILES = _CorticalProfile._get_visible_subclass_names()

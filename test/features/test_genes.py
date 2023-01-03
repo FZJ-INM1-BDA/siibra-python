@@ -1,13 +1,13 @@
 import pytest
 import siibra
-from siibra.livequeries.genes import GeneExpression
+from siibra._livequeries.genes import GeneExpression
 
 test_params = [
     ("hoc1 left", "MAOA")
 ]
 
 @pytest.mark.parametrize("region_spec,gene", test_params)
-def test_genes(region_spec:str, gene: str):
+def test_genes(region_spec: str, gene: str):
     parc = siibra.parcellations['2.9']
     region = parc.get_region(region_spec)
     features = siibra.get_features(region, "gene", gene=gene)

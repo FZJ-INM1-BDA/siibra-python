@@ -4,7 +4,7 @@ import siibra
 siibra.features.EbrainsRegionalFeatureQuery.COMPACT_FEATURE_LIST = False
 import pytest
 from siibra.core import Parcellation, Atlas, Region
-from siibra.features.feature import Feature
+from siibra.features.basetypes.feature import Feature
 
 class TestEbrainsQuery(unittest.TestCase):
     @classmethod

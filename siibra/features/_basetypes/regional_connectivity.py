@@ -14,10 +14,11 @@
 # limitations under the License.
 
 from .feature import Feature
-from . import anchor
 
-from ..commons import logger, QUIET
-from ..retrieval.repositories import RepositoryConnector
+from .. import _anchor
+
+from ..._commons import logger, QUIET
+from ..._retrieval.repositories import RepositoryConnector
 
 from typing import Callable
 import pandas as pd
@@ -25,7 +26,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class ParcellationAveragedConnectivity(Feature):
+class RegionalConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more
     matrices of a given modality for a given parcellation.
@@ -40,7 +41,7 @@ class ParcellationAveragedConnectivity(Feature):
         connector: RepositoryConnector,
         decode_func: Callable,
         files: dict,
-        anchor: anchor.AnatomicalAnchor,
+        anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
     ):
@@ -196,25 +197,3 @@ class ParcellationAveragedConnectivity(Feature):
                 f"from {self._files[subject]} in {str(self._connector)}"
             )
         return self._array_to_dataframe(array)
-
-
-class StreamlineCounts(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/streamlinecounts"):
-    """Structural connectivity matrix of streamline counts grouped by a parcellation."""
-
-    def __init__(self, **kwargs):
-        ParcellationAveragedConnectivity.__init__(self, **kwargs)
-
-
-class FunctionalConnectivity(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/functional"):
-    """Functional connectivity matrix grouped by a parcellation."""
-
-    def __init__(self, paradigm: str, **kwargs):
-        ParcellationAveragedConnectivity.__init__(self, **kwargs)
-        self.paradigm = paradigm
-
-
-class StreamlineLengths(ParcellationAveragedConnectivity, configuration_folder="features/connectivitymatrix/streamlinelengths"):
-    """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-
-    def __init__(self, **kwargs):
-        ParcellationAveragedConnectivity.__init__(self, **kwargs)

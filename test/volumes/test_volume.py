@@ -1,7 +1,7 @@
 import unittest
 import pytest
 from unittest.mock import patch
-from siibra.commons import MapType
+from siibra._commons import MapType
 from siibra.volumes.volume import Volume, VolumeProvider, space
 from parameterized import parameterized
 

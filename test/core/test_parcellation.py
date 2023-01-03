@@ -1,7 +1,7 @@
 import unittest
 from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType, MapIndex
 from siibra.core.region import Region
-from siibra.commons import Species
+from siibra._commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock

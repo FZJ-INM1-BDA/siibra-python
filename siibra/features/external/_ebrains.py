@@ -15,18 +15,19 @@
 
 # simple data features anchored to a point in space
 
-from . import feature, anchor
+from .. import _anchor
+from .._basetypes import feature
 
-from ..retrieval import datasets
+from ..._retrieval import datasets
 
 
-class EbrainsAnchoredDataset(feature.Feature, datasets.EbrainsDataset):
+class EbrainsDataset(feature.Feature, datasets.EbrainsDataset):
 
     def __init__(
         self,
         dataset_id: str,
         name: str,
-        anchor: anchor.AnatomicalAnchor,
+        anchor: _anchor.AnatomicalAnchor,
         embargo_status: str = None,
     ):
         feature.Feature.__init__(

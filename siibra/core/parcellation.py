@@ -15,7 +15,7 @@
 
 from . import region
 
-from ..commons import logger, MapType, MapIndex, Species
+from .._commons import logger, MapType, MapIndex, Species
 from ..volumes import parcellationmap
 
 from typing import Union, List, Dict
@@ -149,7 +149,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         space : Space or str
             template space specification
         maptype : MapType (default: MapType.LABELLED)
-            Type of map requested (e.g., continous or labelled, see commons.MapType)
+            Type of map requested (e.g., continous or labelled, see _commons.MapType)
             Use MapType.CONTINUOUS to request probability maps.
 
         Yields

@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import concept, space as _space, parcellation as _parcellation
+from . import _concept, space as _space, parcellation as _parcellation
 
-from ..commons import MapType, logger, InstanceTable, Species
+from .._commons import MapType, logger, InstanceTable, Species
 
 from typing import List
 
@@ -23,7 +23,7 @@ from typing import List
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
+class Atlas(_concept.AtlasConcept, configuration_folder="atlases"):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference
@@ -33,7 +33,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
     def __init__(self, identifier: str, name: str, species: Species):
         """Construct an empty atlas object with a name and identifier."""
 
-        concept.AtlasConcept.__init__(
+        _concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -225,3 +225,4 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         We sort atlases by their names
         """
         return self.name < other.name
+

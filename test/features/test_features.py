@@ -1,8 +1,8 @@
 import pytest
 import siibra
 from unittest.mock import MagicMock, patch
-from siibra.commons import MapType
-from siibra.features.feature import SpatialFeature
+from siibra._commons import MapType
+from siibra.features.basetypes.feature import SpatialFeature
 import random
 
 def test_spatial_feature_continuous_map():

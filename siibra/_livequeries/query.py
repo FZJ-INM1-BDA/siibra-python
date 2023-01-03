@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..features.feature import Feature
-from ..core.concept import AtlasConcept
+from ..features._basetypes.feature import Feature
+from ..core._concept import AtlasConcept
 
 from abc import ABC, abstractmethod
 from typing import List

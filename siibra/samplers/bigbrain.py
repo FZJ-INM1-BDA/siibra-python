@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from ..commons import logger
+from .._commons import logger
 from ..configuration.configuration import REGISTRY
 from ..locations import Point, PointSet
 

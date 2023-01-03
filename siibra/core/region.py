@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import space as _space, concept
+from . import _concept, space as _space
 
 from ..locations import boundingbox, point
 from ..volumes import parcellationmap
 
-from ..commons import (
+from .._commons import (
     logger,
     MapIndex,
     MapType,
@@ -28,8 +28,7 @@ from ..commons import (
     clear_name,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
-    SIIBRA_DEFAULT_MAP_THRESHOLD,
-    Species
+    SIIBRA_DEFAULT_MAP_THRESHOLD
 )
 
 import numpy as np
@@ -45,7 +44,7 @@ REGEX_TYPE = type(re.compile("test"))
 THRESHOLD_CONTINUOUS_MAPS = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept):
+class Region(anytree.NodeMixin, _concept.AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
@@ -85,7 +84,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             Hexcode of preferred color of this region (e.g. "#9FE770")
         """
         anytree.NodeMixin.__init__(self)
-        concept.AtlasConcept.__init__(
+        _concept.AtlasConcept.__init__(
             self,
             identifier=None,  # lazy property implementation below
             name=clear_name(name),

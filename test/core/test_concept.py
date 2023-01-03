@@ -1,7 +1,7 @@
-from siibra.core import concept
+from siibra.core import _concept
 from unittest.mock import MagicMock, PropertyMock
-from siibra.core.concept import AtlasConcept, InstanceTable
-from siibra.commons import Species
+from siibra.core._concept import AtlasConcept, InstanceTable
+from siibra._commons import Species
 import siibra
 from unittest.mock import patch
 from uuid import uuid4

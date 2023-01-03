@@ -13,33 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from .._commons import InstanceTable
-
-import json
-from os import path
+from .._basetypes import regional_connectivity
 
 
-RT_DIR = path.dirname(__file__)
+class StreamlineCounts(
+    regional_connectivity.RegionalConnectivity,
+    configuration_folder="features/connectivitymatrix/streamlinecounts"
+):
+    """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
-
-def runtime_path(fname: str):
-    return path.join(RT_DIR, fname)
-
-
-with open(runtime_path('gene_names.json'), 'r') as f:
-    _gene_names = json.load(f)
-    GENE_NAMES = InstanceTable[str](
-        elements={
-            k: {'symbol': k, 'description': v}
-            for k, v in _gene_names.items()
-        }
-    )
-
-
-with open(runtime_path('receptor_symbols.json'), 'r') as f:
-    RECEPTOR_SYMBOLS = json.load(f)
-
-
-with open(runtime_path('region_aliases.json'), 'r') as f:
-    REGION_ALIASES = json.load(f)
+    def __init__(self, **kwargs):
+        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

@@ -21,10 +21,14 @@ Access to Big Brain cortical layer meshes
 """
 
 # %%
-# Request the BigBrain cortical layer parcellation by Wagstyl et al.
-# from siibra.
 import siibra
 from nilearn import plotting
+import numpy as np
+import matplotlib.pyplot as plt
+
+# %%
+# Request the BigBrain cortical layer parcellation by Wagstyl et al.
+# from siibra.
 layermap = siibra.get_map(parcellation='layers', space="big brain")
 layermap.regions
 
@@ -38,11 +42,11 @@ l4_surf_l = layermap.fetch(region="layer 4 left", format="mesh")
 # For illustration, we create a combined mesh of the white matter surface
 # in the left hemisphere and the layer 1 surface of the right hemisphere.
 wm_surf_r = layermap.fetch(region="non-cortical right", format="mesh")
-mesh = siibra.commons.merge_meshes([l4_surf_l, wm_surf_r], labels=[10, 20])
+mesh = siibra._commons.merge_meshes([l4_surf_l, wm_surf_r], labels=[10, 20])
 
 # %%
 plotting.view_surf(
-    (mesh['verts'], mesh['faces']), 
+    (mesh['verts'], mesh['faces']),
     surf_map=mesh['labels'],
     cmap='Set1', vmin=10, vmax=30, symmetric_cmap=False, colorbar=False
 )
@@ -50,21 +54,19 @@ plotting.view_surf(
 # %%
 # Since the cortical layer surfaces share corresponding vertices,
 # we can compute approximate layer thicknesses as Euclidean distances
-# of mesh vertices. Here we compare the layer depth distribution of 
+# of mesh vertices. Here we compare the layer depth distribution of
 # layers 4 and 5 across the left hemisphere.
-import numpy as np
-import matplotlib.pyplot as plt
 plt.figure()
 layers = [2, 4, 5]
 thicknesses = {}
-for l in layers:
-    upper_surf = layermap.fetch(f"layer {l+1} left", format="mesh")
-    lower_surf = layermap.fetch(f"layer {l} left", format="mesh")
-    thicknesses[l] = np.linalg.norm(upper_surf['verts'] - lower_surf['verts'], axis=1)
-    plt.hist(thicknesses[l], 200)
+for layer in layers:
+    upper_surf = layermap.fetch(f"layer {layer+1} left", format="mesh")
+    lower_surf = layermap.fetch(f"layer {layer} left", format="mesh")
+    thicknesses[layer] = np.linalg.norm(upper_surf['verts'] - lower_surf['verts'], axis=1)
+    plt.hist(thicknesses[layer], 200)
 plt.xlabel('Layer depth (left hemisphere)')
 plt.ylabel('# vertices')
-plt.legend([f"Layer {l}" for l in layers])
+plt.legend([f"Layer {_}" for _ in layers])
 plt.grid(True)
 
 # %%

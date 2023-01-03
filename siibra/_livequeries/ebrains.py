@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from ..features.external import _ebrains
 from . import query
 
-from ..commons import logger
-from ..features import simple, anchor
-from ..retrieval import requests, datasets
+from .._commons import logger
+from ..features import _anchor
+from .._retrieval import requests, datasets
 from ..core import parcellation, region
 
 from collections import defaultdict
@@ -27,7 +28,7 @@ from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
 
-class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAnchoredDataset):
+class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataset):
 
     # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
@@ -80,7 +81,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAn
                 ds_embargo_status = ds_spec.get("embargo_status")
 
                 try:
-                    ds_species = anchor.Species.decode(ds_spec)
+                    ds_species = _anchor.Species.decode(ds_spec)
                 except ValueError:
                     invalid_species_datasets[ds_id] = ds_name
                     continue
@@ -91,10 +92,10 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=simple.EbrainsAn
                     if any(e.lower() in ds_name.lower() for e in self._BLACKLIST):
                         continue
 
-                dset = simple.EbrainsAnchoredDataset(
+                dset = _ebrains.EbrainsDataset(
                     dataset_id=ds_id,
                     name=ds_name,
-                    anchor=anchor.AnatomicalAnchor(
+                    anchor=_anchor.AnatomicalAnchor(
                         region=alias or regionname,
                         species=ds_species,
                     ),

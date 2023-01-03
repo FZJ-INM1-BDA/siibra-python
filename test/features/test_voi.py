@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from siibra.features.voi import VolumeOfInterestQuery, VolumeOfInterest
+from siibra.features.basetypes.volume_of_interest import VolumeOfInterestQuery, VolumeOfInterest
 
 
 query = VolumeOfInterestQuery()

@@ -13,16 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger, QUIET, VERBOSE, MapType, MapIndex, set_log_level, __version__
-from .core.atlas import Atlas
-from .core.parcellation import Parcellation
-from .core.space import Space
-from .locations import Point, PointSet, BoundingBox
-from .retrieval import EbrainsRequest, CACHE
-from .configuration import Configuration
-from .features.feature import Feature
+from ._commons import (
+    logger,
+    QUIET,
+    VERBOSE,
+    MapType,
+    MapIndex,
+    set_log_level,
+    __version__
+)
 
-import os
+from .core import (
+    atlas as _atlas,
+    parcellation as _parcellation,
+    space as _space
+)
+from ._retrieval.requests import (
+    EbrainsRequest as _EbrainsRequest,
+    CACHE as cache
+)
+from ._configuration import Configuration as _Configuration
+from . import (
+    features,
+    locations,
+    _livequeries
+)
+
+import os as _os
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -30,38 +47,22 @@ logger.info(
 )
 
 # forward access to some functions
-set_ebrains_token = EbrainsRequest.set_token
-fetch_ebrains_token = EbrainsRequest.fetch_token
-clear_cache = CACHE.clear
-get_features = Feature.match
-use_configuration = Configuration.use_configuration
-extend_configuration = Configuration.extend_configuration
-modalities = Feature.modalities
-find_regions = Parcellation.find_regions
+set_ebrains_token = _EbrainsRequest.set_token
+fetch_ebrains_token = _EbrainsRequest.fetch_token
+use_configuration = _Configuration.use_configuration
+extend_configuration = _Configuration.extend_configuration
+find_regions = _parcellation.Parcellation.find_regions
 
-
-# provide siibra.atlases, siibra.spaces, ...
-# To avoid instantiation on package import, we implement
-# lazy access of these attributes.
-def __getattr__(attr: str):
-
-    aliases = {
-        'atlases': Atlas,
-        'spaces': Space,
-        'parcellations': Parcellation,
-    }
-
-    if attr in aliases:
-        return aliases[attr].registry()
-
-    raise AttributeError(f"siibra has no attribute named {attr}")
+atlases = _atlas.Atlas.registry()
+spaces = _space.Space.registry()
+parcellations = _parcellation.Parcellation.registry()
 
 
 # convenient access to reference space templates
-def get_template(space: str, **kwargs):
+def get_template(space_spec: str, **kwargs):
     return (
-        Space
-        .get_instance(space)
+        _space.Space
+        .get_instance(space_spec)
         .get_template(**kwargs)
     )
 
@@ -69,7 +70,7 @@ def get_template(space: str, **kwargs):
 # convenient access to parcellation maps
 def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
     return (
-        Parcellation
+        _parcellation.Parcellation
         .get_instance(parcellation)
         .get_map(space=space, maptype=maptype, **kwargs)
     )
@@ -78,7 +79,7 @@ def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, 
 # convenient access to regions of a parcellation
 def get_region(parcellation: str, region: str):
     return (
-        Parcellation
+        _parcellation.Parcellation
         .get_instance(parcellation)
         .get_region(region)
     )
@@ -92,9 +93,9 @@ def set_feasible_download_size(maxsize_gbyte):
 
 def set_cache_size(maxsize_gbyte: int):
     assert maxsize_gbyte >= 0
-    CACHE.SIZE_GIB = maxsize_gbyte
+    cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
 
-if "SIIBRA_CACHE_SIZE_GIB" in os.environ:
-    set_cache_size(float(os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
+if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
+    set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))

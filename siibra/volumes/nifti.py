@@ -15,8 +15,8 @@
 
 from . import volume
 
-from ..commons import logger
-from ..retrieval import requests
+from .._commons import logger
+from .._retrieval import requests
 from ..locations import pointset, boundingbox
 
 from typing import Union, Dict
@@ -207,7 +207,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         """
 
         from skimage.feature.peak import peak_local_max
-        from ..commons import affine_scaling
+        from .._commons import affine_scaling
 
         img = self.fetch()
         dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)

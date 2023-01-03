@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, Species
+from .._commons import logger, Species
 
-from ..core.concept import AtlasConcept
+from ..core._concept import AtlasConcept
 from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region

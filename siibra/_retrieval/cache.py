@@ -18,7 +18,7 @@ import os
 from appdirs import user_cache_dir
 import tempfile
 
-from ..commons import logger, SIIBRA_CACHEDIR
+from .._commons import logger, SIIBRA_CACHEDIR
 
 
 def assert_folder(folder):

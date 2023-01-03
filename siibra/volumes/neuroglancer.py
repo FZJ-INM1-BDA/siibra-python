@@ -15,8 +15,8 @@
 
 from . import volume
 
-from ..commons import logger, MapType, MapIndex, merge_meshes
-from ..retrieval import requests, cache
+from .._commons import logger, MapType, MapIndex, merge_meshes
+from .._retrieval import requests, cache
 from ..locations import boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset

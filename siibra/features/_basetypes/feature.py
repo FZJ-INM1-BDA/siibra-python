@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import anchor
+from .. import _anchor
 
-from ..commons import logger, InstanceTable
-from ..core import concept
-from ..core import space, region, parcellation
+from ..._commons import logger
+from ...core import _concept
+from ...core import space, region, parcellation
 
 from typing import Union
 from tqdm import tqdm
@@ -28,13 +28,13 @@ class Feature:
     Base class for anatomically anchored data features.
     """
 
-    modalities = InstanceTable()
+    VISIBLE_SUBCLASSES = {}
 
     def __init__(
         self,
         modality: str,
         description: str,
-        anchor: anchor.AnatomicalAnchor,
+        anchor: _anchor.AnatomicalAnchor,
         datasets: list = []
     ):
         """
@@ -63,8 +63,18 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
+    @classmethod
+    def _get_visible_subclass_names(cls):
+        """ Returns the name of all visible subclasses. """
+        return [
+            c.__name__ for c in cls.VISIBLE_SUBCLASSES.values()
+            if issubclass(c, cls)
+        ]
+
     def __init_subclass__(cls, configuration_folder=None):
-        cls.modalities.add(cls.__name__, cls)
+        if not cls.__name__.startswith('_'):
+            assert cls.__name__ not in cls.VISIBLE_SUBCLASSES
+            cls.VISIBLE_SUBCLASSES[cls.__name__] = cls
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
@@ -91,7 +101,7 @@ class Feature:
             if cls._configuration_folder is None:
                 cls._preconfigured_instances = []
             else:
-                from ..configuration.configuration import Configuration
+                from ...configuration.configuration import Configuration
                 conf = Configuration()
                 Configuration.register_cleanup(cls.clean_instances)
                 assert cls._configuration_folder in conf.folders
@@ -111,7 +121,7 @@ class Feature:
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: concept.AtlasConcept) -> bool:
+    def matches(self, concept: _concept.AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True
@@ -129,7 +139,7 @@ class Feature:
             else self.anchor.last_match_description
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], modality: Union[str, type], **kwargs):
+    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs):
         """
         Retrieve data features of the desired modality.
 
@@ -140,23 +150,27 @@ class Feature:
         modality: subclass of Feature
             specififies the type of features ("modality")
         """
-        if isinstance(modality, str):
-            modality = cls.modalities[modality]
+        if isinstance(feature_type, list):
+            assert all(isinstance(t, (str, cls)) for t in feature_type)
+            return sum((cls.match(concept, t) for t in feature_type), [])
+        elif isinstance(feature_type, str):
+            feature_type = cls.VISIBLE_SUBCLASSES[feature_type]
+
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
             raise ValueError(
                 "Feature.match / siibra.get_features only accepts Region, "
                 "Space and Parcellation objects as concept."
             )
 
-        msg = f"Matching {modality.__name__} to {concept}"
-        instances = modality.get_instances()
+        msg = f"Matching {feature_type.__name__} to {concept}"
+        instances = feature_type.get_instances()
         preconfigured_instances = [
             f for f in tqdm(instances, desc=msg, total=len(instances))
             if f.matches(concept)
         ]
 
         live_instances = []
-        for QueryType in modality._live_queries:
+        for QueryType in feature_type._live_queries:
             argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
                 if len(kwargs) > 0 else ""
             logger.info(

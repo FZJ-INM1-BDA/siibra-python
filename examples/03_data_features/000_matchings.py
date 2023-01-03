@@ -27,11 +27,10 @@ import siibra
 
 
 # %%
-# Available modalities are defined in the registry ``siibra.modalities``.
+# Available feature types are listed in the module `siibra.features`.
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
-for m in siibra.modalities:
-    print(m)
+print(siibra.features.ALL)
 
 # %%
 # Regional features
@@ -39,8 +38,8 @@ for m in siibra.modalities:
 #
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
-region = siibra.get_region("julich 2.9", "v2")
-features = siibra.get_features(region, siibra.modalities.EbrainsAnchoredDataset)
+v2 = siibra.get_region("julich 2.9", "v2")
+features = siibra.features.get(v2, siibra.features.external.EbrainsDataset)
 for feature in features:
     print(f" - {feature.name}")
 
@@ -69,7 +68,7 @@ selected_ids = [
     "7269d1a2-c7ad-4745-972c-10dbf5a022b7",
 ]
 occ = siibra.get_region("julich 2.9", "occipital")
-for f in siibra.get_features(occ, "ebrains"):
+for f in siibra.features.get(occ, "ebrains"):
     if any(_ in f.id for _ in selected_ids):
         print(f.name)
         print(" -> ", f.last_match_description)
