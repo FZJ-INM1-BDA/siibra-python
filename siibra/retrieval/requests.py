@@ -354,7 +354,7 @@ class EbrainsRequest(HttpRequest):
         if KEYCLOAK_CLIENT_ID is not None and KEYCLOAK_CLIENT_SECRET is not None:
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
-                self.__class__.keycloak_endpoint,
+                self.__class__._IAM_TOKEN_ENDPOINT,
                 data=(
                     f"grant_type=client_credentials&client_id={KEYCLOAK_CLIENT_ID}"
                     f"&client_secret={KEYCLOAK_CLIENT_SECRET}"
