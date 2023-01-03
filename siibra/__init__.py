@@ -35,9 +35,9 @@ from ._retrieval.requests import (
 from ._configuration import Configuration as _Configuration
 from . import (
     features,
-    locations,
     _livequeries
 )
+from siibra.locations import Point, PointSet
 
 import os as _os
 logger.info(f"Version: {__version__}")
