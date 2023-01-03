@@ -20,11 +20,9 @@ from .core.space import Space
 from .locations import Point, PointSet, BoundingBox
 from .retrieval import EbrainsRequest, CACHE
 from .configuration import Configuration
-from .features import Feature
+from .features.feature import Feature
 
 import os
-
-
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(

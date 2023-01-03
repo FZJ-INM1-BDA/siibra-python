@@ -196,7 +196,9 @@ class InstanceTable(Generic[T], Iterable):
         Keys are auto-generated from the provided names to be uppercase,
         with words delimited using underscores.
         """
-        if index in self._elements:
+        if index in ["keys", "names"]:
+            return list(self._elements.keys())
+        elif index in self._elements:
             return self._elements[index]
         else:
             hint = ""

@@ -14,8 +14,8 @@
 # limitations under the License.
 
 from .feature import Feature
-from .simple import GeneExpression, EbrainsAnchoredDataset
-from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint
+from .simple import EbrainsAnchoredDataset
+from .fingerprints import CellDensityFingerprint, BigBrainIntensityFingerprint, ReceptorDensityFingerprint, GeneExpression
 from .connectivity import StreamlineCounts, StreamlineLengths, FunctionalConnectivity
 from .profiles import ReceptorDensityProfile, BigBrainIntensityProfile
 from .voi import VolumeOfInterest
