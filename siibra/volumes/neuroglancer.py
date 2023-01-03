@@ -33,7 +33,7 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
 
     def __init__(self, url: Union[str, Dict[str, str]]):
         volume.VolumeProvider.__init__(self)
-        self._provided_volumes = url
+        self._init_url = url
         # TODO duplicated code to giftimesh
         if isinstance(url, str):  # one single image to load
             self._fragments = {None: NeuroglancerVolume(url)}
@@ -43,8 +43,8 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
             raise ValueError(f"Invalid url specified for {self.__class__.__name__}: {url}")
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        return self._provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
 
     def fetch(
         self,
@@ -462,7 +462,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     # TODO check resource typing?
     def __init__(self, resource: Union[str, dict], volume=None):
         self.volume = volume
-        self._provided_volumes = resource
+        self._init_url = resource
         if isinstance(resource, str):
             self._meshes = {None: self._fragmentinfo(resource)}
         elif isinstance(resource, dict):
@@ -471,8 +471,8 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        return self._provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
 
     def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:
         # extract available fragment urls with their names for the given mesh index

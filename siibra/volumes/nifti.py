@@ -33,7 +33,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         """
         volume.VolumeProvider.__init__(self)
 
-        self._provided_volumes: Union[str, Dict[str, str]] = None
+        self._init_url: Union[str, Dict[str, str]] = None
 
         def loader(url):
             if os.path.isfile(url):
@@ -52,11 +52,11 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
         
         if not isinstance(src, nib.Nifti1Image):
-            self._provided_volumes = src
+            self._init_url = src
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        return self._provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
 
     @property
     def fragments(self):
@@ -236,5 +236,5 @@ class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):
         req = requests.ZipfileRequest(zipurl, zipped_file)
         self._img_loaders = {None: lambda req=req: req.data}
 
-        # required for self.provided_volumes property
-        self._provided_volumes = src
+        # required for self._url property
+        self._init_url = src

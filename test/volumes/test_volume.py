@@ -9,7 +9,7 @@ class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
     def fetch(self, *args, **kwargs): pass
 
     @property
-    def provided_volumes(self):
+    def _url(self):
         return {}
 
 class TestVolumeProvider(unittest.TestCase):

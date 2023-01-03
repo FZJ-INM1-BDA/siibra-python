@@ -28,7 +28,7 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
     """
 
     def __init__(self, url: Union[str, Dict[str, str]], volume=None):
-        self._provided_volumes = url
+        self._init_url = url
         self.volume = volume
         # TODO duplicated code to NgMesh
         if isinstance(url, str):  # single mesh
@@ -39,8 +39,8 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        return self._provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
 
     @property
     def fragments(self):
@@ -101,7 +101,7 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
     """
 
     def __init__(self, url: Union[str, dict]):
-        self._provided_volumes = url
+        self._init_url = url
         if isinstance(url, str):  # single mesh labelling
             self._loaders = {None: requests.HttpRequest(url)}
         elif isinstance(url, dict):   # labelling for multiple mesh fragments
@@ -121,5 +121,5 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
         return {"labels": np.hstack(labels)}
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        return self._provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        return self._init_url
