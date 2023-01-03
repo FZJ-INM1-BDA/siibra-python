@@ -128,10 +128,8 @@ class ReceptorDensityFingerprint(
 
         # default args
         wrapwidth = 40
-        y = kwargs.pop("y")
-        if y is None:
-            y = self.data.columns[0]
-        yerr = kwargs.pop("yerr")
+        y = kwargs.pop("y") if "y" in kwargs else self.data.columns[0]
+        yerr = kwargs.pop("yerr") if "yerr" in kwargs else None
         if yerr is None:
             yerr = 'std' if 'std' in self.data.columns else None
         ax = kwargs.get("ax", None)
