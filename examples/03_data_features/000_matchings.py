@@ -17,7 +17,7 @@
 Understanding links between data features and anatomical locations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-All data features are requested with the same function, ``siibra.get_features()``.
+All data features are requested with the same function, ``siibra.features.get()``.
 The type of feature (spatial, regional, or parcellation feature), and thus the way it is linked to an anatomical concept depends on the requested modality.
 This example shows how some features are linked to anatomical regions in different ways.
 """
@@ -77,7 +77,7 @@ for f in siibra.features.get(occ, "ebrains"):
 # %%
 # If we query a rather specific region, we get more exact matches.
 v1 = siibra.get_region("julich 2.9", "v1")
-for f in siibra.get_features(v1, "ebrains"):
+for f in siibra.features.get(v1, "ebrains"):
     if any(_ in f.id for _ in selected_ids):
         print(f.name)
         print(" -> ", f.last_match_description)
@@ -92,7 +92,7 @@ dataset_id = "de7a6c44-8167-44a8-9cf4-435a3dab61ed"
 
 # %%
 # When querying for datasets related to V1, the match is qualified as an exact coincidence.
-for f in siibra.get_features(v1, "ebrains"):
+for f in siibra.features.get(v1, "ebrains"):
     if f.id.endswith(dataset_id):
         print(f.name)
         print(" -> ", f.last_match_description)
@@ -102,7 +102,7 @@ for f in siibra.get_features(v1, "ebrains"):
 # When querying for datasets related to only the left hemisphere of v1,
 # the match is qualified as "contains":
 v1l = siibra.get_region("julich 2.9", "v1 left")
-for f in siibra.get_features(v1l, "ebrains"):
+for f in siibra.features.get(v1l, "ebrains"):
     if dataset_id in f.id:
         print(f.name)
         print(" -> ", f.last_match_description)
@@ -110,7 +110,7 @@ for f in siibra.get_features(v1l, "ebrains"):
 
 # %%
 # Lastly, when querying for datasets related to the occipial cortex, the match is qualified as "contained":
-for f in siibra.get_features(occ, "ebrains"):
+for f in siibra.features.get(occ, "ebrains"):
     if f.id.endswith(dataset_id):
         print(f.last_match_description)
 
@@ -125,7 +125,7 @@ for f in siibra.get_features(occ, "ebrains"):
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
 ca1 = siibra.get_region("julich 2.9", "ca1")
-features = siibra.get_features(ca1, siibra.modalities.VolumeOfInterest)
+features = siibra.features.get(ca1, siibra.modalities.VolumeOfInterest)
 print(features[0].name)
 print(features[0].last_match_description)
 
@@ -134,5 +134,5 @@ print(features[0].last_match_description)
 # Another example are gene expressions retrieved from the Allen atlas.
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.get_features(v1, siibra.modalities.GeneExpression, gene="TAC1")
+features = siibra.features.get(v1, siibra.modalities.GeneExpression, gene="TAC1")
 print(features[0].last_match_description)

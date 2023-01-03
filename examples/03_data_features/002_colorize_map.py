@@ -31,7 +31,7 @@ jubrain = atlas.get_parcellation('julich 2.9')
 # %%
 # As in the previous example, we extract all receptor density features linked
 # to Julich-Brain.
-fingerprints = siibra.get_features(jubrain, siibra.modalities.ReceptorDensityFingerprint)
+fingerprints = siibra.features.get(jubrain, siibra.modalities.ReceptorDensityFingerprint)
 fingerprints[0].data
 
 # %%

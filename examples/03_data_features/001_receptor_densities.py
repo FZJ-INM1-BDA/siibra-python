@@ -17,7 +17,7 @@
 Neurotransmitter receptor densities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-EBRAINS provides transmitter receptor density measurments linked to a selection of cytoarchitectonic brain regions in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the ``siibra.get_features()`` method with the ``siibra.modalities.ReceptorDistribution`` modality, and by specifying a cytoarchitectonic region. Receptor densities come as a structured datatype which includes a regional fingerprint with average densities for different transmitters, as well as often an additional cortical density profile and a sample autoradiograph patch. They bring their own `plot()` method to produce a quick illustration.
+EBRAINS provides transmitter receptor density measurments linked to a selection of cytoarchitectonic brain regions in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the ``siibra.features.get()`` method with the ``siibra.modalities.ReceptorDistribution`` modality, and by specifying a cytoarchitectonic region. Receptor densities come as a structured datatype which includes a regional fingerprint with average densities for different transmitters, as well as often an additional cortical density profile and a sample autoradiograph patch. They bring their own `plot()` method to produce a quick illustration.
 """
 
 
@@ -29,14 +29,14 @@ import siibra
 # brain region, all linked receptor density features
 # will be returned.
 parcellation = siibra.parcellations.get('julich 2.9')
-all_features = siibra.get_features(parcellation, siibra.modalities.ReceptorDensityFingerprint)
+all_features = siibra.features.get(parcellation, siibra.modalities.ReceptorDensityFingerprint)
 print("Receptor density fingerprints found at the following anatomical anchorings:")
 print("\n".join(str(f.anchor) for f in all_features))
 
 # %%
 # When providing a particular region instead, the returned list is filtered accordingly.
 # So we can directly retrieve densities for the primary visual cortex:
-v1_fingerprints = siibra.get_features(
+v1_fingerprints = siibra.features.get(
     siibra.get_region('julich 2.9', 'v1'),
     siibra.modalities.ReceptorDensityFingerprint
 )
@@ -55,7 +55,7 @@ v1_fingerprints[0].data
 # distribution from the white matter towards the pial surface.
 # The profile is stored as a dictionary of density measures from 0 to 100%
 # cortical depth.
-v1_profiles = siibra.get_features(
+v1_profiles = siibra.features.get(
     siibra.get_region('julich 2.9', 'v1'),
     siibra.modalities.ReceptorDensityProfile
 )

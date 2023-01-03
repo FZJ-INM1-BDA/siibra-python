@@ -34,8 +34,8 @@ def test_gene_exp():
         'gene': "MAOA",
         'maptype': MapType.CONTINUOUS
     }
-    features_higher = siibra.get_features(*args, threshold_continuous=0.9, **kwargs)
-    features_lower = siibra.get_features(*args, threshold_continuous=0.2, **kwargs)
+    features_higher = siibra.features.get(*args, threshold_continuous=0.9, **kwargs)
+    features_lower = siibra.features.get(*args, threshold_continuous=0.2, **kwargs)
 
     # Using higher threshold == smaller number of features
     assert len(features_lower) > len(features_higher)

@@ -151,14 +151,31 @@ class Feature:
             specififies the type of features ("modality")
         """
         if isinstance(feature_type, list):
+            # detect a set of feature types recursively
             assert all(isinstance(t, (str, cls)) for t in feature_type)
             return sum((cls.match(concept, t) for t in feature_type), [])
         elif isinstance(feature_type, str):
-            feature_type = cls.VISIBLE_SUBCLASSES[feature_type]
+            # one feature type given as a string
+            if feature_type in cls.VISIBLE_SUBCLASSES:
+                feature_type = cls.VISIBLE_SUBCLASSES[feature_type]
+            else:
+                candidates = [
+                    feattype
+                    for featname, feattype in cls.VISIBLE_SUBCLASSES.items()
+                    if all(w.lower() in featname.lower() for w in feature_type.split())
+                ]
+                if len(candidates) == 1:
+                    feature_type = candidates[0]
+                else:
+                    print(candidates)
+                    raise ValueError(
+                        f"Feature type '{feature_type}' cannot be matched uniquely to "
+                        f"{', '.join(cls.VISIBLE_SUBCLASSES.keys())}"
+                    )
 
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
             raise ValueError(
-                "Feature.match / siibra.get_features only accepts Region, "
+                "Feature.match / siibra.features.get only accepts Region, "
                 "Space and Parcellation objects as concept."
             )
 

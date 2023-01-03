@@ -10,7 +10,7 @@ test_params = [
 def test_genes(region_spec: str, gene: str):
     parc = siibra.parcellations['2.9']
     region = parc.get_region(region_spec)
-    features = siibra.get_features(region, "gene", gene=gene)
+    features = siibra.features.get(region, "gene", gene=gene)
     assert len(features) > 0, f"expecting at least 1 gene feature"
     assert all([
         isinstance(f, GeneExpression) for f in features

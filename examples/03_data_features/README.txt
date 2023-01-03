@@ -3,7 +3,7 @@
 Multimodal data features
 ------------------------
 
-``siibra`` provides access to data features of different modalities using ``siibra.get_features()``, which accepts an **anatomical concept** like a brain region, parcellation, or reference space, and a feature modality as listed in the ``siibra.modalities`` registry. 
+``siibra`` provides access to data features of different modalities using ``siibra.features.get()``, which accepts an **anatomical concept** like a brain region, parcellation, or reference space, and a feature modality as listed in the ``siibra.modalities`` registry. 
 Currently available data features include neurotransmitter densities, regional connectivity profiles, connectivity matrices, high-resolution volumes of interest, gene expressions, and cell distributions. 
 Additional features, including functional activation maps and electrophysiologal recordings, will become available soon. 
 ``siibra`` implements a unified handling for querying different types of features, broadly categorized into

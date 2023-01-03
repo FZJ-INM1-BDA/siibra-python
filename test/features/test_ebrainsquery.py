@@ -11,7 +11,7 @@ class TestEbrainsQuery(unittest.TestCase):
     def setUpClass(cls):
         atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         region = atlas.get_region("hoc1 left")
-        cls.feat = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+        cls.feat = siibra.features.get(region, siibra.modalities.EbrainsRegionalDataset)
 
     def test_some_result_returned(self):
         assert len(self.feat) > 0
@@ -69,7 +69,7 @@ def test_species(atlas_id,parc_id,region_id,inc_exc):
     parc:Parcellation = atlas.parcellations[parc_id]
     r:Region = parc.get_region(region_id)
     print("ID", region_id, "REGION", r)
-    features: List[Feature] = siibra.get_features(r, 'ebrains')
+    features: List[Feature] = siibra.features.get(r, 'ebrains')
     feature_names = [f.name for f in features]
 
     excludes: List[str] = inc_exc.get('exclude')

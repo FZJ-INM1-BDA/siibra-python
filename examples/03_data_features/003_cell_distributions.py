@@ -30,7 +30,7 @@ from nilearn import plotting
 # %%
 # Find cell density features for V1
 v1 = siibra.get_region("julich 2.9", "v1")
-features = siibra.get_features(v1, siibra.modalities.CellDensityProfile)
+features = siibra.features.get(v1, siibra.modalities.CellDensityProfile)
 print(f"{len(features)} cell density profiles found for region {v1.name}")
 
 # %%

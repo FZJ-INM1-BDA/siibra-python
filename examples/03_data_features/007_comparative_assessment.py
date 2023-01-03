@@ -52,7 +52,7 @@ f, axs = plt.subplots(len(modalities), len(regions))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
-        features = siibra.get_features(region, modality)
+        features = siibra.features.get(region, modality)
         print(region, modality, len(features))
         if len(features) > 0:
             fp = features[-1]
@@ -76,7 +76,7 @@ ymax = [3500, 150, 30000]
 for i, region in enumerate(regions):
     for j, (modality, filterfunc) in enumerate(modalities):
         features = list(
-            filter(filterfunc, siibra.get_features(region, modality))
+            filter(filterfunc, siibra.features.get(region, modality))
         )
         # fetch a random sample from the available ones
         p = features[int(np.random.rand() * (len(features)))]
