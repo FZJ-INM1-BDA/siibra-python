@@ -11,7 +11,7 @@ class TestEbrainsQuery(unittest.TestCase):
     def setUpClass(cls):
         atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         region = atlas.get_region("hoc1 left")
-        cls.feat = siibra.features.get(region, siibra.modalities.EbrainsRegionalDataset)
+        cls.feat = siibra.features.get(region, siibra.features.external.EbrainsDataset)
 
     def test_some_result_returned(self):
         assert len(self.feat) > 0

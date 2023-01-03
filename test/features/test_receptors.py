@@ -28,7 +28,7 @@ receptor_query = ReceptorQuery()
 def test_get_hoc1_left_density():
     atlas = siibra.atlases['human']
     region = atlas.get_region("hoc1 left", parcellation="2.9")
-    features = siibra.features.get(region, siibra.modalities.ReceptorDistribution)
+    features = siibra.features.get(region, siibra.features.molecular.ReceptorDensityFingerprint)
     assert len(features) == 1, f"expect only 1 result from getting hoc1 left receptor, but got {len(features)}"
     expected_name = "Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]"
     assert features[0].name == expected_name, f"name of fetched receptor does not match. Expected {expected_name}, got {features[0].name}"

@@ -24,6 +24,7 @@ from . import (
 )
 
 from ._basetypes.feature import Feature as _Feature
+from ._basetypes.volume_of_interest import VolumeOfInterest
 from ._basetypes.cortical_profile import CorticalProfile as _CorticalProfile
 get = _Feature.match
 

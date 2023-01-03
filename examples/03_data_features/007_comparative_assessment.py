@@ -40,9 +40,9 @@ regions = [siibra.get_region('julich 2.9', spec) for spec in specs]
 # which provide average measurements across multiple
 # samples, and can be easily compared visually.
 modalities = [
-    siibra.modalities.ReceptorDensityFingerprint,
-    siibra.modalities.CellDensityFingerprint,
-    siibra.modalities.BigBrainIntensityFingerprint,
+    siibra.features.molecular.ReceptorDensityFingerprint,
+    siibra.features.cellular.LayerwiseCellDensity,
+    siibra.features.cellular.LayerwiseBigBrainIntensities,
 ]
 
 # %%
@@ -66,9 +66,9 @@ f.tight_layout()
 # boundary in individual tissue samples. For the receptor measurments, we
 # supply now an additional filter to choose only GABAB profiles.
 modalities = [
-    (siibra.modalities.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
-    (siibra.modalities.CellDensityProfile, lambda p: True),
-    (siibra.modalities.BigBrainIntensityProfile, lambda p: True),
+    (siibra.features.molecular.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
+    (siibra.features.cellular.CellDensityProfile, lambda p: True),
+    (siibra.features.cellular.BigBrainIntensityProfile, lambda p: True),
 ]
 f, axs = plt.subplots(len(modalities), len(regions))
 ymax = [3500, 150, 30000]

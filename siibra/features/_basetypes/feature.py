@@ -101,7 +101,7 @@ class Feature:
             if cls._configuration_folder is None:
                 cls._preconfigured_instances = []
             else:
-                from ...configuration.configuration import Configuration
+                from ..._configuration.configuration import Configuration
                 conf = Configuration()
                 Configuration.register_cleanup(cls.clean_instances)
                 assert cls._configuration_folder in conf.folders

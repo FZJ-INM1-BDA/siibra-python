@@ -36,7 +36,7 @@ jubrain = siibra.parcellations.get("julich 2.9")
 # The matrices are queried as expected, using `siibra.features.get`,
 # passing the parcellation as a concept.
 # Here, we query for structural connectivity matrices.
-features = siibra.features.get(jubrain, siibra.modalities.StreamlineCounts)
+features = siibra.features.get(jubrain, siibra.features.connectivity.StreamlineCounts)
 print(f"Found {len(features)} streamline count matrices.")
 
 # %%

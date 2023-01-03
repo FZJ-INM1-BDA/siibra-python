@@ -125,7 +125,7 @@ for f in siibra.features.get(occ, "ebrains"):
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
 ca1 = siibra.get_region("julich 2.9", "ca1")
-features = siibra.features.get(ca1, siibra.modalities.VolumeOfInterest)
+features = siibra.features.get(ca1, siibra.features.VolumeOfInterest)
 print(features[0].name)
 print(features[0].last_match_description)
 
@@ -134,5 +134,5 @@ print(features[0].last_match_description)
 # Another example are gene expressions retrieved from the Allen atlas.
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.features.get(v1, siibra.modalities.GeneExpression, gene="TAC1")
+features = siibra.features.get(v1, siibra.features.molecular.GeneExpression, gene="TAC1")
 print(features[0].last_match_description)
