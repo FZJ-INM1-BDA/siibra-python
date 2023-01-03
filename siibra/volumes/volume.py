@@ -74,7 +74,7 @@ class Volume:
     @property
     def providers(self):
         return {
-            srctype: prov.provided_volumes for srctype, prov in self._providers.items()
+            srctype: prov._url for srctype, prov in self._providers.items()
         }
 
     @property
@@ -205,7 +205,7 @@ class VolumeProvider(ABC):
     
     @property
     @abstractmethod
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
+    def _url(self) -> Union[str, Dict[str, str]]:
         """
         This is needed to provide urls to applications that can utilise such resources directly.
         e.g. siibra-api
@@ -239,5 +239,5 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         return self.provider.__getattribute__(attr)
 
     @property
-    def provided_volumes(self) -> Union[str, Dict[str, str]]:
-        raise super().provided_volumes
+    def _url(self) -> Union[str, Dict[str, str]]:
+        raise super()._url
