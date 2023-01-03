@@ -132,9 +132,7 @@ class ReceptorDensityFingerprint(
         yerr = kwargs.pop("yerr") if "yerr" in kwargs else None
         if yerr is None:
             yerr = 'std' if 'std' in self.data.columns else None
-        ax = kwargs.get("ax", None)
-        if ax is None:
-            ax = plt.subplot(111, projection="polar")
+        ax = kwargs.pop("ax") if "ax" in kwargs else plt.subplot(111, projection="polar")
 
         datafield = y or self.data.columns[0]
         if yerr is None and 'std' in self.data.columns:

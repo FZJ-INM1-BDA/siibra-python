@@ -56,7 +56,7 @@ for i, region in enumerate(regions):
         print(region, modality, len(features))
         if len(features) > 0:
             fp = features[-1]
-            fp.barplot(ax=axs[j, i])
+            fp.plot(ax=axs[j, i])
             axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
 
