@@ -438,6 +438,6 @@ class GeneExpression(RegionalFingerprint):
                 "Expression: ["
                 + ",".join(["%4.1f" % v for v in self.data.expression_level])
                 + "]",
-                "Z-score: [" + ",".join(["%4.1f" % v for v in self.z_scores]) + "]",
+                "Z-score: [" + ",".join(["%4.1f" % v for v in self.data.z_score]) + "]",
             ]
         )
