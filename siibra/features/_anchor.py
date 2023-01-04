@@ -272,7 +272,7 @@ class AnatomicalAnchor:
         if (location, region) not in cls._MATCH_MEMO:
             # compute mask of the region
             if location.space in region.supported_spaces:
-                mask = region.build_mask(space=location.space, maptype='labelled')
+                mask = region.fetch_regional_map(space=location.space, maptype='labelled')
                 mask_space = location.space
                 expl = (
                     f"{location} was compared with the mask of query region "
@@ -282,7 +282,7 @@ class AnatomicalAnchor:
                 for space in region.supported_spaces:
                     if not space.provides_image:  # siibra does not yet match locations to surface spaces
                         continue
-                    mask = region.build_mask(space=space, maptype='labelled')
+                    mask = region.fetch_regional_map(space=space, maptype='labelled')
                     mask_space = space
                     if location.space == mask_space:
                         expl = (

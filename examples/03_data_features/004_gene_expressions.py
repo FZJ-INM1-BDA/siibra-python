@@ -52,7 +52,7 @@ assert(all(f.anchor.space == space for f in features))
 # Plot the locations of the probes that were found, together with the region
 # mask of V1.
 all_coords = [tuple(g.anchor.location) for g in features]
-mask = region.build_mask(space)
+mask = region.fetch_regional_map(space)
 display = plotting.plot_roi(mask)
 display.add_markers(all_coords, marker_size=5)
 

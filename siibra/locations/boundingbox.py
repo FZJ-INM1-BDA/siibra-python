@@ -276,7 +276,7 @@ class BoundingBox(location.Location):
                 space=spaceobj,
             )
 
-    def build_mask(self):
+    def fetch_regional_map(self):
         """Generate a volumetric binary mask of this
         bounding box in the reference template space."""
         tpl = self.space.get_template().fetch()

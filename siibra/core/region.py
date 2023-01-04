@@ -346,7 +346,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
             )
 
-    def build_mask(
+    def fetch_regional_map(
         self,
         space,
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
@@ -371,7 +371,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
                 ]
             ):
                 result = m.fetch(index=m.get_index(self.name), format='image')
-                if maptype == MapType.CONTINUOUS:
+                if (maptype == MapType.CONTINUOUS) and (threshold is not None):
                     logger.info(f"Thresholding continuous map at {threshold}")
                     result = Nifti1Image(
                         (result.get_fdata() > threshold).astype('uint8'),
@@ -384,7 +384,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             affine = None
             if all(c.mapped_in_space(space) for c in self.children):
                 for c in self.children:
-                    mask = c.build_mask(space, maptype, threshold)
+                    mask = c.fetch_regional_map(space, maptype, threshold)
                     if dataobj is None:
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
@@ -487,6 +487,12 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             "%s%s" % (pre, node.name)
             for pre, _, node in anytree.RenderTree(self)
         )
+    
+    def render_tree(self):
+        for pre, _, node in anytree.RenderTree(
+            self, style=anytree.render.ContRoundStyle
+        ):
+            print(f"{pre}{node.name}")
 
     def get_bounding_box(
         self,
@@ -512,14 +518,14 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         """
         spaceobj = _space.Space.get_instance(space)
         try:
-            mask = self.build_mask(
+            mask = self.fetch_regional_map(
                 spaceobj, maptype=maptype, threshold=threshold_continuous
             )
             return boundingbox.BoundingBox.from_image(mask, space=spaceobj)
         except (RuntimeError, ValueError):
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
-                    mask = self.build_mask(
+                    mask = self.fetch_regional_map(
                         other_space,
                         maptype=maptype,
                         threshold=threshold_continuous,
@@ -583,7 +589,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             )
 
         # build binary mask of the image
-        pimg = self.build_mask(
+        pimg = self.fetch_regional_map(
             space, maptype=maptype, threshold=threshold_continuous
         )
 
@@ -633,7 +639,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             if not None, masks will be preferably constructed by thresholding
             continuous maps with the given value.
         """
-        mask = self.build_mask(
+        mask = self.fetch_regional_map(
             space,
             resolution_mm,
             maptype=use_maptype,

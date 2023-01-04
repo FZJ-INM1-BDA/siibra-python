@@ -11,7 +11,7 @@ def test_spatial_feature_continuous_map():
 
     r = siibra.parcellations['2.9'].get_region('fp1 left')
 
-    with patch.object(r, 'build_mask', MagicMock()) as mock:
+    with patch.object(r, 'fetch_regional_map', MagicMock()) as mock:
         mock.side_effect = ExpectedException
 
         space_of_interest = siibra.spaces['mni152']
@@ -21,9 +21,9 @@ def test_spatial_feature_continuous_map():
         spatial_feature = SpatialFeature(point)
         try:
             spatial_feature.match(r, maptype=MapType.CONTINUOUS, threshold_continuous=random_threshold)
-            raise Exception(f"build_mask should have raised ExpectedException, but did not.")
+            raise Exception(f"fetch_regional_map should have raised ExpectedException, but did not.")
         except ExpectedException:
-            r.build_mask.assert_called_once_with(space=space_of_interest, maptype=MapType.CONTINUOUS, threshold_continuous=random_threshold)
+            r.fetch_regional_map.assert_called_once_with(space=space_of_interest, maptype=MapType.CONTINUOUS, threshold_continuous=random_threshold)
         except Exception as e:
             raise e
 

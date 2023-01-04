@@ -83,7 +83,7 @@ class WagstylProfileLoader:
         for spaceobj in regionobj.supported_spaces:
             if spaceobj.provides_image:
                 try:
-                    mask = regionobj.build_mask(space=spaceobj, maptype="labelled")
+                    mask = regionobj.fetch_regional_map(space=spaceobj, maptype="labelled")
                 except RuntimeError:
                     continue
                 logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {spaceobj}...")
