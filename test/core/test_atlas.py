@@ -3,12 +3,15 @@ from unittest.mock import patch, PropertyMock, MagicMock, call
 from parameterized import parameterized
 
 import siibra
-from siibra.configuration.factory import Factory
+from siibra._configuration.factory import Factory
+from siibra import _space, _parcellation
 from siibra.core.atlas import Atlas
-from siibra import Parcellation, Space
 from siibra._commons import Species
 from siibra.core.region import Region
 from itertools import product, repeat
+
+Space = _space.Space
+Parcellation = _parcellation.Parcellation
 
 human_atlas_json = {
     "@id": "juelich/iav/atlas/v1.0.0/1",

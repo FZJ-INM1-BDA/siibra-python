@@ -1,6 +1,8 @@
 from unittest.mock import patch, MagicMock
+from siibra import _parcellation
+from siibra import get_region
 
-from siibra import Parcellation, get_region
+Parcellation = _parcellation.Parcellation
 
 def test_get_region():
     class DummyCls:

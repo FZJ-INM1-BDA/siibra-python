@@ -1,4 +1,3 @@
-from siibra.core import _concept
 from unittest.mock import MagicMock, PropertyMock
 from siibra.core._concept import AtlasConcept, InstanceTable
 from siibra._commons import Species
@@ -6,6 +5,7 @@ import siibra
 from unittest.mock import patch
 from uuid import uuid4
 import unittest
+from siibra._configuration.configuration import Configuration
 
 CONF_FOLDER = "CONF_FOLDER"
 IDENTIFIER = "my-id"
@@ -33,9 +33,9 @@ class TestAtlasConcept(unittest.TestCase):
         assert isinstance(instance, AtlasConcept)
 
     def test_class_registry_init(self):
-        with patch.object(siibra.configuration.Configuration, 'register_cleanup') as mock_register_cleanup:
-            with patch.object(siibra.configuration.Configuration, 'build_objects') as mock_build_objects:
-                with patch.object(siibra.configuration.Configuration, 'folders', new_callable=PropertyMock, return_value=[CONF_FOLDER]) as mock_folder_prop:
+        with patch.object(Configuration, 'register_cleanup') as mock_register_cleanup:
+            with patch.object(Configuration, 'build_objects') as mock_build_objects:
+                with patch.object(Configuration, 'folders', new_callable=PropertyMock, return_value=[CONF_FOLDER]) as mock_folder_prop:
                     mock_build_objects.return_value = [DummyItem(), DummyItem()]
                     reg = DummyClsKwarg.registry()
                     assert isinstance(reg, InstanceTable)
