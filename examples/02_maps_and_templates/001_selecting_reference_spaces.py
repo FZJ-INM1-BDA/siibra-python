@@ -51,7 +51,7 @@ colin_space = atlas.spaces.get('colin27')
 print(colin_space)
 
 # %%
-# We can also explicitely request a supported space object from the
+# We can also explicitly request a supported space object from the
 # atlas, which has the same effect as accessing the Registry.
 bigbrain_space = atlas.get_space('bigbrain')
 print(bigbrain_space)

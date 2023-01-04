@@ -42,7 +42,7 @@ julich_brain = siibra.parcellations.get('julich')
 print(julich_brain.id)
 
 # %%
-# Typically however, we are only interested in the parcellatioins supported by
+# Typically however, we are only interested in the parcellations supported by
 # a given atlas. Atlases provide their own parcellation table for this
 # purpose, which includes the relevant subset of the parcellations.
 atlas = siibra.atlases.get('human')
@@ -61,7 +61,7 @@ print(atlas.parcellations.get('julich').version)
 atlas.parcellations.get('julich 1.18').version
 
 # %%
-# We can also explicitely request a supported parcellation object from the
+# We can also explicitly request a supported parcellation object from the
 # atlas, which has the same effect as accessing the Registry.
 atlas.parcellations.get('long bundle')
 

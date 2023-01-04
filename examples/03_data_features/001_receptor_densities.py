@@ -17,7 +17,7 @@
 Neurotransmitter receptor densities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-EBRAINS provides transmitter receptor density measurments linked to a selection of cytoarchitectonic brain regions
+EBRAINS provides transmitter receptor density measurements linked to a selection of cytoarchitectonic brain regions
 in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the 
 ``siibra.features.get()`` method with feature types in ``siibra.features.molecular`` modality, and by
 specifying a cytoarchitectonic region. Receptor densities come as cortical profiles and regional fingerprints,
@@ -34,7 +34,7 @@ import siibra
 # will be returned.
 parcellation = siibra.parcellations.get('julich 2.9')
 all_features = siibra.features.get(parcellation, siibra.features.molecular.ReceptorDensityFingerprint)
-print("Receptor density fingerprints found at the following anatomical anchorings:")
+print("Receptor density fingerprints found at the following anatomical anchors:")
 print("\n".join(str(f.anchor) for f in all_features))
 
 # %%

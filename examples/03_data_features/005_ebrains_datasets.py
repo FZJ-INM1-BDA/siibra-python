@@ -44,7 +44,7 @@ print(feature.name)
 print(feature.description)
 
 # %%
-# We can use the url of the feature to access their full inforamtion in the Knowledge Graph. 
+# We can use the url of the feature to access their full information in the Knowledge Graph. 
 # Just click on the link to test it.
 print(feature.url)
 

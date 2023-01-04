@@ -20,7 +20,7 @@ Access BigBrain high-resolution data
 siibra provides access to high-resolution image data parcellation maps defined
 for the 20 micrometer BigBrain space.
 The BigBrain is very different from other templates. Its native resolution is
-20 micrometer, resulting in about one Terybyte of image data. Yet, fetchig the
+20 micrometer, resulting in about one Terabyte of image data. Yet, fetching the
 template works the same way as for the MNI templates, with the difference that
 we can specify a reduced resolution or volume of interest to fetch a feasible
 amount of image data, or a volume of interest.
@@ -78,7 +78,7 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
 # `siibra` can help us to assign a brain region to the position of the volume
 # of interest. This is covered in more detail in :ref:`assignment`. For now,
 # just note that `siibra` can employ spatial objects from different template spaces.
-# Here it automatically warps the centroid of the volume of interst to MNI space
+# Here it automatically warps the centroid of the volume of interest to MNI space
 # for location assignment.
 julich_pmaps = siibra.get_map(space='mni152', parcellation='julich', maptype='continuous')
 assignments = julich_pmaps.assign(voi.center)

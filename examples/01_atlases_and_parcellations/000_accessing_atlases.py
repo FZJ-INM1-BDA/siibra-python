@@ -42,7 +42,7 @@ type(siibra.atlases)
 # %%
 # siibra uses instance tables not only for atlases, but also for parcellations
 # (`siibra.parcellations`), reference spaces (`siibra.spaces`) or feature
-# modalities (`siibra.modalilities`), as will be shown in later code examples.
+# modalities (`siibra.modalities`), as will be shown in later code examples.
 #
 # Objects stored in a siibra instance table can be accessed in
 # different ways:
@@ -80,7 +80,7 @@ for atlas in siibra.atlases:
 print(siibra.atlases[0])
 
 # %%
-# Fuzyy string matching also works in the index operator.
+# Fuzy string matching also works in the index operator.
 # For legibility however, we typically prefer the "get()" form
 # in our code examples.
 siibra.atlases['human']

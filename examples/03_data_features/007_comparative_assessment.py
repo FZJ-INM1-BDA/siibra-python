@@ -20,7 +20,7 @@ Comparative analysis of brain organisation in two brain regions¶
 
 `siibra` data features simplify analysis of multimodal aspects of brain regions.
 In this example, we select a region from the Broca region in the inferior frontal gyrus, IFG 44,
-involved in language proceessing, and a region from the visual system in the occipital cortex, V1.
+involved in language processing, and a region from the visual system in the occipital cortex, V1.
 """
 
 # %%
@@ -61,9 +61,9 @@ for i, region in enumerate(regions):
 f.tight_layout()
 
 # %%
-# For the same measurment types, we can also sample individual cortical profiles,
+# For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. For the receptor measurments, we
+# boundary in individual tissue samples. For the receptor measurements, we
 # supply now an additional filter to choose only GABAB profiles.
 modalities = [
     (siibra.features.molecular.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
