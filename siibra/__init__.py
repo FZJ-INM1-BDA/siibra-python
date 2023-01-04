@@ -32,7 +32,7 @@ from ._retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
     CACHE as cache
 )
-from ._configuration import Configuration as _Configuration
+from . import _configuration
 from . import (
     features,
     _livequeries
@@ -49,13 +49,22 @@ logger.info(
 # forward access to some functions
 set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
-use_configuration = _Configuration.use_configuration
-extend_configuration = _Configuration.extend_configuration
 find_regions = _parcellation.Parcellation.find_regions
 
-atlases = _atlas.Atlas.registry()
-spaces = _space.Space.registry()
-parcellations = _parcellation.Parcellation.registry()
+def __getattr__(attr: str):
+    # lazy loading of some classes for package-level functions.
+    if attr == 'atlases':
+        return _atlas.Atlas.registry()
+    elif attr == 'spaces':
+        return _space.Space.registry()
+    elif attr == 'parcellations':
+        return _parcellation.Parcellation.registry()
+    elif attr == 'use_configuration':
+        return _configuration.Configuration.use_configuration
+    elif attr == 'extend_configuration':
+        return _configuration.Configuration.extend_configuration
+    else:
+        raise AttributeError(f"No such attribute: {__name__}.{attr}")
 
 
 # convenient access to reference space templates
@@ -99,3 +108,4 @@ def set_cache_size(maxsize_gbyte: int):
 
 if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
+

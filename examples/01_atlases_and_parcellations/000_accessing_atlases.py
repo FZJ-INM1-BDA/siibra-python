@@ -37,7 +37,7 @@ import siibra
 # when accessed for the first time. The first call will require an internet connection to
 # retrieve the initial configuration information. After initial access, the configuration
 # information will cached on the local disk and can be accessed offline.
-type(siibra.atlases)
+print(type(siibra.atlases))
 
 # %%
 # siibra uses instance tables not only for atlases, but also for parcellations
