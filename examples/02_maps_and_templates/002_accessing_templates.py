@@ -27,7 +27,7 @@ space, we access templates by the `get_template()` method of `Space` objects.
 
 In `siibra`, reference templates are `Volume` objects.
 Volumes allow fetching volumetric data from different types of "volume providers"
-throught their `fetch()` method.
+through their `fetch()` method.
 
 It is important to note that the same volume (such as the BigBrain 3D model)
 can be provided through different resources and formats,
@@ -44,7 +44,7 @@ import siibra
 from nilearn import plotting
 
 # %%
-# We choose the ICBM 2009c onlinear asymmetric space,
+# We choose the ICBM 2009c on linear asymmetric space,
 # and then request the template `siibra` linked to it.
 # As expected, the template is an object of type `Volume`.
 icbm_tpl = siibra.spaces.get('icbm 2009c nonl asym').get_template()
@@ -66,7 +66,7 @@ print(type(icbm_img))
 plotting.view_img(icbm_img, bg_img=None, cmap='gray')
 
 # %%
-# As desribed above however, the template has multiple volume providers, representing different
+# As described above however, the template has multiple volume providers, representing different
 # resources and formats. The Volume object has a list of accepted format specifiers:
 icbm_tpl.formats
 
@@ -84,7 +84,7 @@ icbm_mesh = icbm_tpl.fetch(format='mesh')
 print(type(icbm_mesh))
 
 # %%
-# We can likewise visulizae the mesh using
+# We can likewise visualize the mesh using
 # plotting functions of `nilearn <https://nilearn.github.io>`_
 plotting.view_surf(
     surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']]

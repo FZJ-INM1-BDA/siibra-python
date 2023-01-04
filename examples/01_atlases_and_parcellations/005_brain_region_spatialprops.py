@@ -51,7 +51,7 @@ pprint(props)
 # The returned centroid is `siibra.Point` object. Such spatial primitives are
 # covered in more detail in :ref:`locations`. For now, we just acknowledge
 # that this minimizes misinterpretation of the coordinates, since a siibra
-# Point is explicitely linked to its space.
+# Point is explicitly linked to its space.
 centroid = props['components'][0]['centroid']
 print(centroid)
 centroid.space.name

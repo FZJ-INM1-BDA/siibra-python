@@ -60,7 +60,7 @@ plotting.view_img(
 # %%
 # This "fake functional map" has two modes, one in each hemisphere.
 # We now assign cytoarchitectonic regions to this functional map.
-# Since we are here ususally interested in correlations of the modes,
+# Since we are here usually interested in correlations of the modes,
 # we filter the result by significant (positive) correlations.
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(img)

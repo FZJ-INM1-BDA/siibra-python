@@ -21,7 +21,7 @@ We can use Parcellation objects to find child brain regions.
 """
 
 # %%
-# We start by seleting an atlas and a parcellation.
+# We start by selecting an atlas and a parcellation.
 import siibra
 atlas = siibra.atlases.get('human')
 julich_brain = atlas.parcellations.get('julich 2.9')
