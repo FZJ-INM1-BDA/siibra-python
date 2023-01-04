@@ -84,7 +84,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
     _specimen = None
     factors = None
-    space = _space.Space.registry().get('mni152')
 
     def __init__(self, **kwargs):
         """
@@ -111,7 +110,8 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
     def query(self, region: Region) -> List[GeneExpression]:
         assert isinstance(region, Region)
-        mask = region.build_mask(self.space, "labelled")
+        space = _space.Space.registry().get('mni152')
+        mask = region.build_mask(space, "labelled")
         for f in self:
             if f.anchor.location.intersects(mask):
                 # we construct the assignment manually,
@@ -126,7 +126,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                     _anchor.AssignmentQualification.CONTAINED,
                     explanation=(
                         f"{f.anchor.location} was compared with the mask "
-                        f"of query region '{region.name}' in {self.space}."
+                        f"of query region '{region.name}' in {space}."
                     )
                 )
                 f.anchor._assignments[region] = [ass]
@@ -240,6 +240,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
         # store samples. Convert their MRI coordinates of the samples to ICBM
         # MNI152 space
+        space = _space.Space.registry().get('mni152')
         for i, sample in enumerate(samples):
 
             # coordinate conversion to ICBM152 standard space
@@ -256,7 +257,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 z_scores=[float(p["z-score"][i]) for p in probes],
                 probe_ids=[p["id"] for p in probes],
                 donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=_anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, cls.space)),
+                anchor=_anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, space)),
                 mri_coord=sample["sample"]["mri"],
                 structure=sample["structure"],
                 top_level_structure=sample["top_level_structure"],

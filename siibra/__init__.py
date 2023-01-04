@@ -33,10 +33,7 @@ from ._retrieval.requests import (
     CACHE as cache
 )
 from . import _configuration
-from . import (
-    features,
-    _livequeries
-)
+from . import features, _livequeries
 from siibra.locations import Point, PointSet
 
 import os as _os
@@ -50,6 +47,7 @@ logger.info(
 set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.Parcellation.find_regions
+
 
 def __getattr__(attr: str):
     # lazy loading of some classes for package-level functions.
