@@ -115,6 +115,8 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         self._indices: Dict[str, List[MapIndex]] = {}
         self.volumes: List[_volume.Volume] = []
         remap_volumes = {}
+        # TODO: This assumes knowledge of the preconfigruation specs wrt. z.
+        # z to subvolume conversion should probably go to the factory.
         for regionname, indexlist in indices.items():
             k = clear_name(regionname)
             self._indices[k] = []
@@ -670,6 +672,30 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         return (
             (label, Nifti1Image((components == label).astype('uint8'), img.affine))
             for label in component_labels[1:]
+        )
+
+    def _to_sparse(self):
+        """ Creates a sparse parcellation map from this object. """
+        from .sparsemap import SparseMap
+        indices = {
+            regionname: [
+                {'volume': idx.volume, 'label': idx.label, 'fragment': idx.fragment}
+                for idx in indexlist
+            ]
+            for regionname, indexlist in self._indices.items()
+        }
+        return SparseMap(
+            identifier=self.id,
+            name=self.name,
+            space_spec={'@id': self.space.id},
+            parcellation_spec={'@id': self.parcellation.id},
+            indices=indices,
+            volumes=self.volumes,
+            shortname=self.shortname,
+            description=self.description,
+            modality=self.modality,
+            publications=self.publications,
+            datasets=self.datasets
         )
 
     def _read_voxel(
