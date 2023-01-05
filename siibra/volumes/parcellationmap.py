@@ -674,7 +674,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             for label in component_labels[1:]
         )
 
-    def _to_sparse(self):
+    def to_sparse(self):
         """ Creates a sparse parcellation map from this object. """
         from .sparsemap import SparseMap
         indices = {
