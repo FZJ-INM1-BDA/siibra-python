@@ -356,7 +356,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             for fmt in _volume.Volume.SUPPORTED_FORMATS:
                 if fmt not in _volume.Volume.MESH_FORMATS:
                     try:
-                        self._affine_cached = self.fetch(0, format=fmt).affine
+                        self._affine_cached = self.fetch(index=MapIndex(volume=0), format=fmt).affine
                         break
                     except RuntimeError:
                         continue
@@ -625,7 +625,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=["Structure", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
+                columns=["Structure", "Centroid", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
             result = np.array(assignments)
@@ -638,19 +638,20 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                         fragment=f
                     )
                 )
-                for _, v, f, l, _, _, _, _ in result
+                for _, _, v, f, l, _, _, _, _ in result
             ]
             df = pd.DataFrame(
                 {
                     "Structure": result[ind, 0].astype("int"),
-                    "Volume": result[ind, 1].astype("int"),
-                    "Fragment": result[ind, 2],
+                    "Centroid": result[ind, 1],
+                    "Volume": result[ind, 2].astype("int"),
+                    "Fragment": result[ind, 3],
                     "Region": regions,
-                    "Value": result[ind, 3],
-                    "Correlation": result[ind, 7],
-                    "IoU": result[ind, 4],
-                    "Contains": result[ind, 6],
-                    "Contained": result[ind, 5],
+                    "Value": result[ind, 4],
+                    "Correlation": result[ind, 8],
+                    "IoU": result[ind, 5],
+                    "Contains": result[ind, 7],
+                    "Contained": result[ind, 6],
                 }
             )
 
@@ -723,9 +724,11 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             if sigma_vox < 3:
                 X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
+                    x, y, z = [V[pointindex] for V in [X, Y, Z]]
                     if value > lower_threshold:
+                        position = np.dot(self.affine, np.r_[x, y, z, 1])[:3]
                         assignments.append(
-                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, tuple(position.round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
                 return assignments
 
@@ -746,7 +749,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, tuple(pt), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
                 logger.info(
@@ -763,7 +766,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 T = self.assign(W, lower_threshold=lower_threshold)
                 assignments.extend(
                     [
-                        [pointindex, volume, fragment, value, iou, contained, contains, rho]
+                        [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
                         for (_, volume, fragment, _, value, rho, iou, contains, contained) in T.values
                     ]
                 )
@@ -804,13 +807,23 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
                     for mode, maskimg in Map.iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
+                        position = np.array(np.where(maskimg.get_fdata()).T).mean(0)
                         labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
                         for label in tqdm(labels):
                             targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
                             if scores["IoU"] > 0:
                                 assignments.append(
-                                    [mode, vol, frag, label, scores["IoU"], scores["contained"], scores["contains"], scores["correlation"]]
+                                    [
+                                        mode,
+                                        tuple(position.round(2)),
+                                        vol,
+                                        frag,
+                                        label,
+                                        scores["IoU"],
+                                        scores["contained"],
+                                        scores["contains"],
+                                        scores["correlation"]]
                                 )
 
         return assignments

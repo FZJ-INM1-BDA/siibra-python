@@ -363,6 +363,7 @@ class SparseMap(parcellationmap.Map):
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
             XYZ2 = np.array(np.where(modemask)).T
+            position = np.dot(modeimg.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
                 components[modemask] == 0
                 continue
@@ -434,8 +435,16 @@ class SparseMap(parcellationmap.Map):
 
                 maxval = v1.max()
 
-                assignments.append(
-                    [mode, volume, None, maxval, iou, contained, contains, rho]
-                )
+                assignments.append([
+                    mode,
+                    tuple(position.round(2)),
+                    volume,
+                    None,
+                    maxval,
+                    iou,
+                    contained,
+                    contains,
+                    rho
+                ])
 
         return assignments
