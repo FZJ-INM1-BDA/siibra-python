@@ -19,9 +19,13 @@ from ..._commons import logger
 from ...core import _concept
 from ...core import space, region, parcellation
 
-from typing import Union
+from typing import Union, TYPE_CHECKING, List
 from tqdm import tqdm
+from hashlib import md5
 
+if TYPE_CHECKING:
+    from ..._retrieval.datasets import EbrainsDataset
+    TypeDataset = EbrainsDataset
 
 class Feature:
     """
@@ -35,7 +39,7 @@ class Feature:
         modality: str,
         description: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: List['TypeDataset'] = []
     ):
         """
         Parameters
@@ -137,6 +141,13 @@ class Feature:
     def last_match_description(self):
         return "" if self.anchor is None \
             else self.anchor.last_match_description
+    
+    @property
+    def id(self):
+        id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
+        if len(id_set) == 1:
+            return list(id_set)[0]
+        return md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs):
