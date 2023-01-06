@@ -5,8 +5,10 @@ jobs:
   unit-tests:
     runs-on: ubuntu-latest
     env:
-      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
-      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+      # unit tests should not need tokens
+      
+      # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+      # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
       # SIIBRA_LOG_LEVEL: DEBUG
     strategy:
       fail-fast: false
@@ -41,6 +43,39 @@ jobs:
           export FAST_RUN=1
         fi
         pytest -rx
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    env:
+      KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
+      KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ '3.10', '3.9', '3.8', '3.7' ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install -U .
+        pip install -r requirements-test.txt
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Install test dependencies
+      run:  pip install pytest pytest-cov coverage
+    - name: Run test with pytest
+      run: |
+        echo "Using github.ref: $GITHUB_REF"
+        if [[ "$GITHUB_REF" != "refs/heads/main" ]]
+        then
+          export FAST_RUN=1
+        fi
+        pytest -rx e2e
 
   check-importable:
     runs-on: ubuntu-latest

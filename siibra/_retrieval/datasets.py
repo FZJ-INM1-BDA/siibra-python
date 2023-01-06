@@ -47,7 +47,7 @@ class EbrainsDataset:
 
     def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus]=None, *, cached_data=None):
 
-        self.id = id
+        self._id = id
         self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
@@ -60,6 +60,10 @@ class EbrainsDataset:
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
+    
+    @property
+    def id(self):
+        return self._id
 
     @property
     def detail(self):
