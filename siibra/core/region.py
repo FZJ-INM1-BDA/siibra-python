@@ -406,11 +406,13 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         """
         from ..volumes.parcellationmap import Map
         for m in Map.registry():
-            if all([
-                m.space.matches(space),
-                m.parcellation.matches(self.parcellation),
-                self.name in m.regions,
-            ]):
+            # Use and operant for efficiency (short circuiting logic)
+            # Put the most inexpensive logic first
+            if (
+                self.name in m.regions and
+                m.space.matches(space) and
+                m.parcellation.matches(self.parcellation)
+            ):
                 return True
         if not self.is_leaf:
             # check if all children are mapped instead
