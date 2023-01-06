@@ -18,7 +18,7 @@ from . import feature
 from .. import _anchor
 
 import pandas as pd
-from typing import Union
+from typing import Union, Dict, Tuple
 from textwrap import wrap
 import numpy as np
 
@@ -51,7 +51,7 @@ class CorticalProfile(feature.Feature):
         depths: Union[list, np.ndarray] = None,
         values: Union[list, np.ndarray] = None,
         unit: str = None,
-        boundary_positions: dict = None,
+        boundary_positions: Dict[Tuple[int, int], float] = None,
         datasets: list = []
     ):
         """Initialize profile.
@@ -110,7 +110,7 @@ class CorticalProfile(feature.Feature):
             )
 
     @property
-    def unit(self):
+    def unit(self) -> str:
         """Optionally overridden in derived classes."""
         if self._unit is None:
             raise NotImplementedError(f"'unit' not set for {self.__class__.__name__}.")

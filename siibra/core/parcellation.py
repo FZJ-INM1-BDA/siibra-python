@@ -245,6 +245,11 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         Return
         ------
         Region object
+
+        Raises
+        ------
+        RuntimeError: if the spec matches multiple regions
+        ValueError: if the spec cannot be matched against any region
         """
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
