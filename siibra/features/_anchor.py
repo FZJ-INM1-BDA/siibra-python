@@ -59,6 +59,12 @@ class AssignmentQualification(Enum):
         }
         return AssignmentQualification[inverses[self.name]]
 
+    def __str__(self):
+        return f"{self.__class__.__name__}={self.name.lower()}"
+
+    def __repr__(self):
+        return str(self)
+
 
 class AnatomicalAssignment:
     """
