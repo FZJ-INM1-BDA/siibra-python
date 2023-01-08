@@ -241,6 +241,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.z = z
 
     def fetch(self, **kwargs):
+        # activate caching at the caller using "with SubvolumeProvider.UseCaching():""
         if self.__class__._USE_CACHING:
             data_key = json.dumps(self.provider._url, sort_keys=True) \
                 + json.dumps(kwargs, sort_keys=True)

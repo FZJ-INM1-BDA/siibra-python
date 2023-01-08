@@ -564,6 +564,67 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
         return pointset.PointSet(XYZ, space=self.space)
 
+    @staticmethod
+    def iterate_connected_components(img: Nifti1Image):
+        """
+        Provide an iterator over masks of connected components in the given image.
+        """
+        from skimage import measure
+        imgdata = np.asanyarray(img.dataobj).squeeze()
+        components = measure.label(imgdata > 0)
+        component_labels = np.unique(components)
+        assert component_labels[0] == 0
+        return (
+            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+            for label in component_labels[1:]
+        )
+
+    def to_sparse(self):
+        """ Creates a sparse parcellation map from this object. """
+        from .sparsemap import SparseMap
+        indices = {
+            regionname: [
+                {'volume': idx.volume, 'label': idx.label, 'fragment': idx.fragment}
+                for idx in indexlist
+            ]
+            for regionname, indexlist in self._indices.items()
+        }
+        return SparseMap(
+            identifier=self.id,
+            name=self.name,
+            space_spec={'@id': self.space.id},
+            parcellation_spec={'@id': self.parcellation.id},
+            indices=indices,
+            volumes=self.volumes,
+            shortname=self.shortname,
+            description=self.description,
+            modality=self.modality,
+            publications=self.publications,
+            datasets=self.datasets
+        )
+
+    def _read_voxel(
+        self,
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List]
+    ):
+        fragments = self.fragments or {None}
+        if isinstance(x, int):
+            return [
+                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+            ]
+        else:
+            return [
+                (pointindex, volume, fragment, value)
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+                for pointindex, value
+                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+            ]
+
     def assign(
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
@@ -639,7 +700,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                         fragment=f
                     )
                 )
-                for _, _, v, f, l, _, _, _, _ in result
+                for _, _, v, f, l, _, _, _, _ in result[ind]
             ]
             df = pd.DataFrame(
                 {
@@ -657,67 +718,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             )
 
         return df
-
-    @staticmethod
-    def iterate_connected_components(img: Nifti1Image):
-        """
-        Provide an iterator over masks of connected components in the given image.
-        """
-        from skimage import measure
-        imgdata = np.asanyarray(img.dataobj).squeeze()
-        components = measure.label(imgdata > 0)
-        component_labels = np.unique(components)
-        assert component_labels[0] == 0
-        return (
-            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-            for label in component_labels[1:]
-        )
-
-    def to_sparse(self):
-        """ Creates a sparse parcellation map from this object. """
-        from .sparsemap import SparseMap
-        indices = {
-            regionname: [
-                {'volume': idx.volume, 'label': idx.label, 'fragment': idx.fragment}
-                for idx in indexlist
-            ]
-            for regionname, indexlist in self._indices.items()
-        }
-        return SparseMap(
-            identifier=self.id,
-            name=self.name,
-            space_spec={'@id': self.space.id},
-            parcellation_spec={'@id': self.parcellation.id},
-            indices=indices,
-            volumes=self.volumes,
-            shortname=self.shortname,
-            description=self.description,
-            modality=self.modality,
-            publications=self.publications,
-            datasets=self.datasets
-        )
-
-    def _read_voxel(
-        self,
-        x: Union[int, np.ndarray, List],
-        y: Union[int, np.ndarray, List],
-        z: Union[int, np.ndarray, List]
-    ):
-        fragments = self.fragments or {None}
-        if isinstance(x, int):
-            return [
-                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-            ]
-        else:
-            return [
-                (pointindex, volume, fragment, value)
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                for pointindex, value
-                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
-            ]
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -813,7 +813,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
 
         def resample(img: Nifti1Image, affine: np.ndarray, shape: tuple):
             # resample query image into this image's voxel space, if required
-            if (img.affine - self.affine).sum() == 0:
+            if (img.affine - affine).sum() == 0:
                 return img
             else:
                 interp = "nearest" \
@@ -844,12 +844,13 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                     for mode, maskimg in Map.iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
                         position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
-                        labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
+                        labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
                         for label in progress(
-                            labels, 
+                            labels,
                             desc=f"Assigning to {len(labels)} labelled structures"
                         ):
-                            targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                            targetimg = vol_img if label is None \
+                                else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
                             if scores["IoU"] > 0:
                                 assignments.append(
