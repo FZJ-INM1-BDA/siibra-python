@@ -21,6 +21,7 @@ import numpy as np
 import nibabel as nib
 from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Set
+import json
 
 
 class ColorVolumeNotSupported(NotImplementedError):
@@ -222,6 +223,17 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
     interface of a normal volume provider.
     """
 
+    _USE_CACHING = False
+    _FETCHED_VOLUMES = {}
+
+    class UseCaching:
+        def __enter__(self):
+            SubvolumeProvider._USE_CACHING = True
+
+        def __exit__(self, et, ev, tb):
+            SubvolumeProvider._USE_CACHING = False
+            SubvolumeProvider._FETCHED_VOLUMES = {}
+
     def __init__(self, parent_provider: VolumeProvider, z: int):
         VolumeProvider.__init__(self)
         self.provider = parent_provider
@@ -229,11 +241,22 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.z = z
 
     def fetch(self, **kwargs):
-        vol = self.provider.fetch(**kwargs)
+        if self.__class__._USE_CACHING:
+            data_key = json.dumps(self.provider._url, sort_keys=True) \
+                + json.dumps(kwargs, sort_keys=True)
+            if data_key not in self.__class__._FETCHED_VOLUMES:
+                vol = self.provider.fetch(**kwargs)
+                self.__class__._FETCHED_VOLUMES[data_key] = vol
+            vol = self.__class__._FETCHED_VOLUMES[data_key]
+        else:
+            vol = self.provider.fetch(**kwargs)
         arr = np.asanyarray(vol.dataobj)
         assert len(arr.shape) == 4
         assert self.z in range(arr.shape[3])
-        return nib.Nifti1Image(arr[:, :, :, self.z].squeeze(), vol.affine)
+        return nib.Nifti1Image(
+            arr[:, :, :, self.z].squeeze(),
+            vol.affine
+        )
 
     def __getattr__(self, attr):
         return self.provider.__getattribute__(attr)
