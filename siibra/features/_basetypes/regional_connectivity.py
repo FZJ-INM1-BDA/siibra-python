@@ -20,7 +20,7 @@ from .. import _anchor
 from ..._commons import logger, QUIET
 from ..._retrieval.repositories import RepositoryConnector
 
-from typing import Callable
+from typing import Callable, Dict
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -40,7 +40,7 @@ class RegionalConnectivity(Feature):
         regions: list,
         connector: RepositoryConnector,
         decode_func: Callable,
-        files: dict,
+        files: Dict[str, str],
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],

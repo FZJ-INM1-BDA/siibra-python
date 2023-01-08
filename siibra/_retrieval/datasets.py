@@ -17,14 +17,37 @@
 from .requests import EbrainsKgQuery
 
 import re
-from typing import Union
+from typing import Union, List
+
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
+
+class EbrainsDatasetUrl(TypedDict):
+    url: str
+
+EbrainsDatasetPerson = TypedDict('EbrainsDatasetPerson', {
+    '@id': str,
+    'schema.org/shortName': str,
+    'identifier': str,
+    'shortName': str,
+    'name': str
+})
+
+EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
+    "@id": str,
+    'name': str,
+    'identifier': List[str]
+})
 
 
 class EbrainsDataset:
 
-    def __init__(self, id, name=None, embargo_status=None, *, cached_data=None):
+    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus]=None, *, cached_data=None):
 
-        self.id = id
+        self._id = id
         self._cached_data = cached_data
         self.embargo_status = embargo_status
         self._name_cached = name
@@ -37,6 +60,10 @@ class EbrainsDataset:
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
+    
+    @property
+    def id(self):
+        return self._id
 
     @property
     def detail(self):
@@ -50,26 +77,26 @@ class EbrainsDataset:
         return self._cached_data
 
     @property
-    def name(self):
+    def name(self) -> str:
         if self._name_cached is None:
             self._name_cached = self.detail.get("name")
         return self._name_cached
 
     @property
-    def urls(self):
+    def urls(self) -> List[EbrainsDatasetUrl]:
         return [
             {
-                "doi": f,
+                "url": f if f.startswith("http") else f"https://doi.org/{f}",
             }
             for f in self.detail.get("kgReference", [])
         ]
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self.detail.get("description")
 
     @property
-    def contributors(self):
+    def contributors(self) -> List[EbrainsDatasetPerson]:
         return self.detail.get("contributors")
 
     @property
@@ -77,7 +104,7 @@ class EbrainsDataset:
         return f"https://search.kg.ebrains.eu/instances/{self.id}"
 
     @property
-    def custodians(self):
+    def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
     @property

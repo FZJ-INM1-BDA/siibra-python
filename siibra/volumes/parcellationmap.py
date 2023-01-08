@@ -445,7 +445,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             ]
         )
 
-    def compute_centroids(self):
+    def compute_centroids(self) -> Dict[str, point.Point]:
         """
         Compute a dictionary of the centroids of all regions in this map.
         """

@@ -17,10 +17,23 @@
 from .._commons import create_key, clear_name, logger, InstanceTable, Species
 
 import re
-from typing import TypeVar, Type, Union
+from typing import TypeVar, Type, Union, List, TYPE_CHECKING
+
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 T = TypeVar("T", bound="AtlasConcept")
 
+class TypePublication(TypedDict):
+    citation: str
+    url: str
+
+if TYPE_CHECKING:
+    from .._retrieval.datasets import EbrainsDataset
+    TypeDataset = EbrainsDataset
 
 class AtlasConcept:
     """
@@ -38,8 +51,8 @@ class AtlasConcept:
         shortname: str = None,
         description: str = None,
         modality: str = "",
-        publications: list = [],
-        datasets: list = [],
+        publications: List[TypePublication] = [],
+        datasets: List['TypeDataset'] = [],
     ):
         """
         Construct a new atlas concept base object.
@@ -122,6 +135,10 @@ class AtlasConcept:
         """
         Returns an instance of this class matching the given specification
         from its registry, if possible, otherwise None.
+
+        Raises
+        -------
+        IndexError: if spec cannot match any instance
         """
         if cls.registry() is not None:
             return cls.registry().get(spec)
