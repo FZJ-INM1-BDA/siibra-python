@@ -263,9 +263,14 @@ class Factory:
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
+        max_z = max(
+            d.get('z', 0) 
+            for r, l in spec.get("indices", {}).items()
+            for d in l
+        )
         Maptype = parcellationmap.Map
-        if len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
-            logger.debug(
+        if max(len(volumes), max_z) > MIN_VOLUMES_FOR_SPARSE_MAP:
+            logger.info(
                 f"Using sparse map for {spec['filename']} "
                 f"due to the number of {len(volumes)} volumes."
             )
