@@ -479,22 +479,20 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         return None
 
     def __str__(self):
-        return f"{self.name}"
+        return f"Region '{self.name}' in '{self.parcellation}'"
 
     def __repr__(self):
-        return self.tree2str()
+        return self.__str__()
 
     def tree2str(self):
         return "\n".join(
             "%s%s" % (pre, node.name)
-            for pre, _, node in anytree.RenderTree(self)
+            for pre, _, node
+            in anytree.RenderTree(self, style=anytree.render.ContRoundStyle)
         )
-    
+
     def render_tree(self):
-        for pre, _, node in anytree.RenderTree(
-            self, style=anytree.render.ContRoundStyle
-        ):
-            print(f"{pre}{node.name}")
+        print(self.tree2str())
 
     def get_bounding_box(
         self,
@@ -585,7 +583,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
 
         if not self.mapped_in_space(space):
             raise RuntimeError(
-                f"Spatial properties of {self.name} cannot be computed in {space.name}. "
+                f"Spatial properties of {self.name} cannot be computed in {space.name}. "
                 "This region is only mapped in these spaces: "
                 ", ".join(s.name for s in self.supported_spaces)
             )
