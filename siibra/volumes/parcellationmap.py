@@ -314,7 +314,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             raise IndexError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
-
         try:
             result = self.volumes[mapindex.volume or 0].fetch(
                 fragment=mapindex.fragment, label=mapindex.label, **kwargs
@@ -325,6 +324,19 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
         return result
+
+    def fetch_iter(self, **kwargs):
+        """
+        Returns an iterator to fetch all mapped volumes sequentially.
+        All arguments are passed on to func:`~siibra.Map.fetch`
+        """
+        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
+        return (
+            self.fetch(
+                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
+            )
+            for i in range(len(self))
+        )
 
     @property
     def provides_image(self):
@@ -367,19 +379,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if not isinstance(self._affine_cached, np.ndarray):
             logger.error("invalid affine:", self._affine_cached)
         return self._affine_cached
-
-    def fetch_iter(self, **kwargs):
-        """
-        Returns an iterator to fetch all mapped volumes sequentially.
-        All arguments are passed on to func:`~siibra.Map.fetch`
-        """
-        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
-        return (
-            self.fetch(
-                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
-            )
-            for i in range(len(self))
-        )
 
     def __iter__(self):
         return self.fetch_iter()
@@ -827,15 +826,29 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                     interpolation=interp,
                 )
 
-        with QUIET:
+        def progress(it, N: int = None, desc: str = "", min_elements=5):
+            # wraps a progress indicator around the given iterator,
+            # but only if the sequence is long.
+            seqlen = N or len(it)
+            return iter(it) if seqlen < min_elements \
+                else tqdm(it, desc=desc, total=N)
+
+        with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
-                for vol, vol_img in enumerate(self.fetch_iter(fragment=frag)):
+                for vol, vol_img in progress(
+                    enumerate(self.fetch_iter(fragment=frag)),
+                    N=len(self),
+                    desc=f"Assigning to {len(self)} volumes"
+                ):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
                     for mode, maskimg in Map.iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
-                        position = np.array(np.where(maskimg.get_fdata()).T).mean(0)
+                        position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
                         labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
-                        for label in tqdm(labels):
+                        for label in progress(
+                            labels, 
+                            desc=f"Assigning to {len(labels)} labelled structures"
+                        ):
                             targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
                             if scores["IoU"] > 0:
