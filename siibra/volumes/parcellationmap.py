@@ -532,6 +532,28 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
 
+    def get_region_colormap(self, regionname):
+        """Generate a matplotlib colormap from known rgb values of label indices for a given region."""
+        from matplotlib.colors import ListedColormap
+        import numpy as np
+
+        colors = {}
+        indices = self._indices[regionname]
+        for index in indices:
+            if index.label is None:
+                continue
+            region = self.get_region(index=index)
+            if region.rgb is not None:
+                colors[index.label] = region.rgb
+
+        pallette = np.array(
+            [
+                list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
+                for i in range(max(colors.keys()) + 1)
+            ]
+        ) / [255, 255, 255, 1]
+        return ListedColormap(pallette)
+        
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
 
