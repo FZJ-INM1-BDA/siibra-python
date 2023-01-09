@@ -150,7 +150,7 @@ class Feature:
         return md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs):
+    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 
