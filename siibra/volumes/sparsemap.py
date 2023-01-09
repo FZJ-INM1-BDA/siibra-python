@@ -232,23 +232,24 @@ class SparseMap(parcellationmap.Map):
         if self._sparse_index_cached is None:
             prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
             spind = SparseIndex.from_cache(prefix)
-            if spind is None:
-                spind = SparseIndex()
-                for vol in tqdm(
-                    range(len(self)), total=len(self), unit="maps",
-                    desc=f"Fetching {len(self)} volumetric maps",
-                    disable=logger.level > 20,
-                ):
-                    img = super().fetch(
-                        index=MapIndex(volume=vol, label=None)
-                    )
-                    if img is None:
-                        region = self.get_region(volume=vol)
-                        logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
-                        continue
-                    spind.add_img(img)
+            with _volume.SubvolumeProvider.UseCaching():
+                if spind is None:
+                    spind = SparseIndex()
+                    for vol in tqdm(
+                        range(len(self)), total=len(self), unit="maps",
+                        desc=f"Fetching {len(self)} volumetric maps",
+                        disable=logger.level > 20,
+                    ):
+                        img = super().fetch(
+                            index=MapIndex(volume=vol, label=None)
+                        )
+                        if img is None:
+                            region = self.get_region(volume=vol)
+                            logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
+                            continue
+                        spind.add_img(img)
                 spind.to_cache(prefix)
-            self._sparse_index_cached = spind
+                self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
 
@@ -377,7 +378,7 @@ class SparseMap(parcellationmap.Map):
 
             for volume in tqdm(
                 range(len(self)),
-                desc=f"Assigning to {len(self)} sparse maps",
+                desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
                 total=len(self),
                 unit=" map",
                 disable=logger.level > 20,

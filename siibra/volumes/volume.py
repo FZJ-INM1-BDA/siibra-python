@@ -251,13 +251,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
             vol = self.__class__._FETCHED_VOLUMES[data_key]
         else:
             vol = self.provider.fetch(**kwargs)
-        arr = np.asanyarray(vol.dataobj)
-        assert len(arr.shape) == 4
-        assert self.z in range(arr.shape[3])
-        return nib.Nifti1Image(
-            arr[:, :, :, self.z].squeeze(),
-            vol.affine
-        )
+        return vol.slicer[:, :, :, self.z]
 
     def __getattr__(self, attr):
         return self.provider.__getattribute__(attr)

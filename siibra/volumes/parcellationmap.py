@@ -866,4 +866,4 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                                         scores["correlation"]]
                                 )
 
-        return assignments
+        return assignments.convert()  # convert will guess numeric column types

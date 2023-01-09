@@ -117,7 +117,7 @@ class ReceptorDensityFingerprint(
             'stds': [float(s) if s.isnumeric() else 0 for s in std],
         }
 
-    def plot(self, **kwargs):
+    def polar_plot(self, **kwargs):
         """ Create a polar plot of the fingerprint. """
         try:
             import matplotlib.pyplot as plt

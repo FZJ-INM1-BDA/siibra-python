@@ -163,7 +163,7 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # detect a set of feature types recursively
-            assert all(isinstance(t, (str, cls)) for t in feature_type)
+            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
             return sum((cls.match(concept, t) for t in feature_type), [])
         elif isinstance(feature_type, str):
             # one feature type given as a string
