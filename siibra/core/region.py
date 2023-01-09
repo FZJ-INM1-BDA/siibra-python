@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import _concept, space as _space
+from . import _concept, space as _space, parcellation as _parcellation
 
 from ..locations import boundingbox, point
 from ..volumes import parcellationmap
@@ -116,7 +116,10 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
 
     @property
     def parcellation(self):
-        return self.root
+        if isinstance(self.root, _parcellation.Parcellation):
+            return self.root
+        else:
+            return None
 
     @property
     def species(self):

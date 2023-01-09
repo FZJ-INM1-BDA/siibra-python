@@ -62,7 +62,7 @@ class EbrainsDataset:
             )
     
     @property
-    def id(self):
+    def id(self) -> str:
         return self._id
 
     @property
