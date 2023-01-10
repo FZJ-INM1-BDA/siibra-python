@@ -717,7 +717,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 }
             )
 
-        return df
+        return df.convert_dtypes()  # convert will guess numeric column types
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -866,4 +866,4 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                                         scores["correlation"]]
                                 )
 
-        return assignments.convert()  # convert will guess numeric column types
+        return assignments

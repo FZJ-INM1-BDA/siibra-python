@@ -152,6 +152,7 @@ class ReceptorDensityFingerprint(
             plt.plot(angles + [angles[0]], bounds1, "k", lw=0.5, **kwargs)
         ax.set_xticks(angles)
         ax.set_xticklabels([_ for _ in self.data.index])
+        ax.set_ylabel(self.unit)
         ax.set_title(
             "\n".join(wrap(f"{self.modality} anchored at {self.anchor._regionspec}", wrapwidth))
         )
@@ -159,3 +160,7 @@ class ReceptorDensityFingerprint(
         ax.tick_params(axis="y", labelsize=8)
         plt.tight_layout()
         return ax
+
+    def plot(self, **kwargs):
+        kwargs['xlabel'] = ""
+        return super().plot(**kwargs)

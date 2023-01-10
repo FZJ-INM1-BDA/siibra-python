@@ -112,6 +112,7 @@ class GeneExpressions(tabular.Tabular):
             data=data,
             datasets=datasets
         )
+        self.unit = "expression level"
 
     def plot(self, **kwargs):
         """ Create a bar plot of the average per gene."""
@@ -133,10 +134,11 @@ class GeneExpressions(tabular.Tabular):
         kwargs["legend"] = kwargs.get("legend", False)
 
         # ax = plot_data.plot(kind="bar", **kwargs)
-        ax = self.data.boxplot(column=['level'], by='gene')
+        ax = self.data.boxplot(column=['level'], by='gene', ax=kwargs.get('ax', None), showfliers=False)
         plt.title('')
         plt.suptitle('')
         ax.set_title(title, fontsize="medium")
         ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+        ax.set_xlabel("")
 
         plt.tight_layout()
