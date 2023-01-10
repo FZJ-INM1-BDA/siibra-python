@@ -510,39 +510,23 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
 
         return Nifti1Image(result, affine)
 
-    def get_colormap(self):
+    def get_colormap(self, region_spec=None):
         """Generate a matplotlib colormap from known rgb values of label indices."""
         from matplotlib.colors import ListedColormap
         import numpy as np
 
         colors = {}
-        for regionname, indices in self._indices.items():
-            for index in indices:
-                if index.label is None:
-                    continue
-                region = self.get_region(index=index)
-                if region.rgb is not None:
-                    colors[index.label] = region.rgb
-
-        pallette = np.array(
-            [
-                list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
-                for i in range(max(colors.keys()) + 1)
-            ]
-        ) / [255, 255, 255, 1]
-        return ListedColormap(pallette)
-
-    def get_region_colormap(self, regionname):
-        """Generate a matplotlib colormap from known rgb values of label indices for a given region."""
-        from matplotlib.colors import ListedColormap
-        import numpy as np
-
-        colors = {}
-        indices = self._indices[regionname]
-        for index in indices:
-            if index.label is None:
-                continue
-            region = self.get_region(index=index)
+        if region_spec is None:
+            for regionname, indices in self._indices.items():
+                for index in indices:
+                    if index.label is None:
+                        continue
+                    region = self.get_region(index=index)
+                    if region.rgb is not None:
+                        colors[index.label] = region.rgb
+        else:
+            region = self.parcellation.get_region(region_spec)
+            index = self._indices[region.name][0]
             if region.rgb is not None:
                 colors[index.label] = region.rgb
 
