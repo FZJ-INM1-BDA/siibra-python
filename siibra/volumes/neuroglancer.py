@@ -215,7 +215,7 @@ class NeuroglancerVolume:
         return (
             MapType.LABELLED
             if self._io.info.get("type") == "segmentation"
-            else MapType.CONTINUOUS
+            else MapType.STATISTICAL
         )
 
     @map_type.setter

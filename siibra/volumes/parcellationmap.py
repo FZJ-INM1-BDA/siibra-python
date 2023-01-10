@@ -243,7 +243,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if all(isinstance(_, int) for _ in self.labels):
             return MapType.LABELLED
         elif self.labels == {None}:
-            return MapType.CONTINUOUS
+            return MapType.STATISTICAL
         else:
             raise RuntimeError(
                 f"Inconsistent label indices encountered in {self}"
@@ -276,10 +276,10 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         ----------
         region: str
             Specification of a region name, resulting in a regional map
-            (mask or continuous map) to be returned.
+            (mask or statistical map) to be returned.
         index: MapIndex
             Explicit specification of the map index, typically resulting
-            in a regional map (mask or continuous map) to be returned.
+            in a regional map (mask or statistical map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
         """
@@ -555,7 +555,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             # a binary mask - use distance transform to get sampling weights
             W = distance_transform_edt(np.asanyarray(mask.dataobj))**2
         else:
-            # a continuous map - interpret directly as weights
+            # a statistical map - interpret directly as weights
             W = arr
         p = (W / W.sum()).ravel()
         XYZ_ = np.array(
@@ -648,7 +648,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
 
         Return
@@ -726,7 +726,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         Parameters:
         -----------
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
@@ -806,7 +806,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []

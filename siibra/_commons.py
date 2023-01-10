@@ -293,7 +293,7 @@ class MapIndex:
 
 class MapType(Enum):
     LABELLED = 1
-    CONTINUOUS = 2
+    STATISTICAL = 2
 
 
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED

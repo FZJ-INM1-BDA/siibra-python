@@ -174,9 +174,9 @@ class SparseIndex:
 
 
 class SparseMap(parcellationmap.Map):
-    """A sparse representation of list of continuous (e.g. probabilistic) brain region maps.
+    """A sparse representation of list of statistical (e.g. probabilistic) brain region maps.
 
-    It represents the 3D continuous maps of N brain regions by two data structures:
+    It represents the 3D statistical maps of N brain regions by two data structures:
         1) 'spatial_index', a 3D volume where non-negative values represent unique
             indices into a list of region assignments
         2) 'probs', a list of region assignments where each entry is a dict
@@ -336,7 +336,7 @@ class SparseMap(parcellationmap.Map):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []

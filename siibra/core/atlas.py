@@ -115,7 +115,7 @@ class Atlas(_concept.AtlasConcept, configuration_folder="atlases"):
         parcellation: Parcellation
             The requested parcellation. If None, the default is used.
         maptype: MapType
-            Type of the map (labelled or continuous/probabilistic)
+            Type of the map (labelled or statistical/probabilistic)
 
         Returns
         -------

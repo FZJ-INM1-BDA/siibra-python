@@ -109,7 +109,7 @@ class TestParcellation(unittest.TestCase):
             product(
                 starmap(MapConfig, product(
                     # maptype of the maps in the registry
-                    [MapType.LABELLED, MapType.CONTINUOUS],
+                    [MapType.LABELLED, MapType.STATISTICAL],
                     starmap(
                         # whether map.{space,parcellation}.matches should return True/False
                         MapSPMatch,

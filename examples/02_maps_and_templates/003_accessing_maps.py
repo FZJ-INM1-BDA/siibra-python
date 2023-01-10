@@ -71,7 +71,7 @@ plotting.plot_roi(
 # The maximum probability map is just a simplified representation, displaying
 # for each voxel the label of the brain region with highest probability. We can
 # access the probabilistic information by requesting the
-# "continuous" maptype (`siibra.maptype.CONTINUOUS`).
+# "statistical" maptype (`siibra.maptype.STATISTICAL`).
 # Note that since the set of probability maps are usually a large number of
 # sparsely populated image volumes, `siibra` will load the volumetric data only
 # once and then convert it to a sparse index format, that is much more
@@ -79,11 +79,11 @@ plotting.plot_roi(
 # therefore subsequent use of probability maps will be much faster.
 with siibra.QUIET:  # suppress progress output
     julich_pmaps = siibra.get_map(
-        space="mni152", parcellation="julich", maptype="continuous"
+        space="mni152", parcellation="julich", maptype="statistical"
     )
 julich_pmaps
 
-# Since the continuous maps overlap, this map provides access to several
+# Since the statistical maps overlap, this map provides access to several
 # hundreds of brain volumes.
 print(len(julich_pmaps))
 

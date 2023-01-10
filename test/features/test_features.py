@@ -5,7 +5,7 @@ from siibra._commons import MapType
 from siibra.features.basetypes.feature import SpatialFeature
 import random
 
-def test_spatial_feature_continuous_map():
+def test_spatial_feature_statistical_map():
     
     class ExpectedException(Exception): pass
 
@@ -20,10 +20,10 @@ def test_spatial_feature_continuous_map():
 
         spatial_feature = SpatialFeature(point)
         try:
-            spatial_feature.match(r, maptype=MapType.CONTINUOUS, threshold_continuous=random_threshold)
+            spatial_feature.match(r, maptype=MapType.STATISTICAL, threshold_statistical=random_threshold)
             raise Exception(f"fetch_regional_map should have raised ExpectedException, but did not.")
         except ExpectedException:
-            r.fetch_regional_map.assert_called_once_with(space=space_of_interest, maptype=MapType.CONTINUOUS, threshold_continuous=random_threshold)
+            r.fetch_regional_map.assert_called_once_with(space=space_of_interest, maptype=MapType.STATISTICAL, threshold_statistical=random_threshold)
         except Exception as e:
             raise e
 
@@ -32,10 +32,10 @@ def test_gene_exp():
     args = (r, "gene")
     kwargs = {
         'gene': "MAOA",
-        'maptype': MapType.CONTINUOUS
+        'maptype': MapType.STATISTICAL
     }
-    features_higher = siibra.features.get(*args, threshold_continuous=0.9, **kwargs)
-    features_lower = siibra.features.get(*args, threshold_continuous=0.2, **kwargs)
+    features_higher = siibra.features.get(*args, threshold_statistical=0.9, **kwargs)
+    features_lower = siibra.features.get(*args, threshold_statistical=0.2, **kwargs)
 
     # Using higher threshold == smaller number of features
     assert len(features_lower) > len(features_higher)

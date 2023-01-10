@@ -151,7 +151,7 @@ class TestMap(unittest.TestCase):
             "bar": [{
                 "volume": 1
             }]
-        }, MapType.CONTINUOUS, None),
+        }, MapType.STATISTICAL, None),
         ({
             "foo": [{
                 "volume": 0,

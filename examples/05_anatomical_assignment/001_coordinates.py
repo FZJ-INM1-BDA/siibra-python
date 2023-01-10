@@ -17,7 +17,7 @@
 Assigning coordinates to brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-`siibra` can use continuous parcellations maps to make a probabilistic assignment of exact and imprecise coordinates to brain regions.
+`siibra` can use statistical parcellations maps to make a probabilistic assignment of exact and imprecise coordinates to brain regions.
 We start by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment.
 """
 
@@ -31,7 +31,7 @@ with siibra.QUIET:  # suppress progress output
     julich_pmaps = siibra.get_map(
         parcellation="julich 2.9",
         space="mni152",
-        maptype="continuous"
+        maptype="statistical"
     )
 
 # %%

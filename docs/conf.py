@@ -14,6 +14,7 @@ import os
 import sys
 from sphinx_gallery.sorting import FileNameSortKey
 
+os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
 

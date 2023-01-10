@@ -156,6 +156,7 @@ class HttpRequest:
                 if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar = tqdm(
                         total=size_bytes, unit='iB', unit_scale=True,
+                        position=0, leave=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
                     )
                 with open(self.cachefile, "wb") as f:

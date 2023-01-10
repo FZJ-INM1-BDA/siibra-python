@@ -41,7 +41,7 @@ from difflib import SequenceMatcher
 
 REGEX_TYPE = type(re.compile("test"))
 
-THRESHOLD_CONTINUOUS_MAPS = None
+THRESHOLD_STATISTICAL_MAPS = None
 
 
 class Region(anytree.NodeMixin, _concept.AtlasConcept):
@@ -374,8 +374,8 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
                 ]
             ):
                 result = m.fetch(index=m.get_index(self.name), format='image')
-                if (maptype == MapType.CONTINUOUS) and (threshold is not None):
-                    logger.info(f"Thresholding continuous map at {threshold}")
+                if (maptype == MapType.STATISTICAL) and (threshold is not None):
+                    logger.info(f"Thresholding statistical map at {threshold}")
                     result = Nifti1Image(
                         (result.get_fdata() > threshold).astype('uint8'),
                         result.affine
@@ -501,7 +501,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
-        threshold_continuous=None,
+        threshold_statistical=None,
     ):
         """Compute the bounding box of this region in the given space.
 
@@ -511,18 +511,18 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             Requested reference space
         maptype: MapType
             Type of map to build ('labelled' will result in a binary mask,
-            'continuous' attempts to build a continuous mask, possibly by
-            elementwise maximum of continuous maps of children )
-        threshold_continuous: float, or None
+            'statistical' attempts to build a statistical mask, possibly by
+            elementwise maximum of statistical maps of children )
+        threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
-            continuous maps with the given value.
+            statistical maps with the given value.
         Returns:
             BoundingBox
         """
         spaceobj = _space.Space.get_instance(space)
         try:
             mask = self.fetch_regional_map(
-                spaceobj, maptype=maptype, threshold=threshold_continuous
+                spaceobj, maptype=maptype, threshold=threshold_statistical
             )
             return boundingbox.BoundingBox.from_image(mask, space=spaceobj)
         except (RuntimeError, ValueError):
@@ -531,7 +531,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
                     mask = self.fetch_regional_map(
                         other_space,
                         maptype=maptype,
-                        threshold=threshold_continuous,
+                        threshold=threshold_statistical,
                     )
                     logger.warn(
                         f"No bounding box for {self.name} defined in {spaceobj.name}, "
@@ -558,7 +558,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
-        threshold_continuous=None,
+        threshold_statistical=None,
     ):
         """
         Compute spatial properties for connected components of this region in the given space.
@@ -569,11 +569,11 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             the space in which the computation shall be performed
         maptype: MapType
             Type of map to build ('labelled' will result in a binary mask,
-            'continuous' attempts to build a continuous mask, possibly by
-            elementwise maximum of continuous maps of children )
-        threshold_continuous: float, or None
+            'statistical' attempts to build a statistical mask, possibly by
+            elementwise maximum of statistical maps of children )
+        threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
-            continuous maps with the given value.
+            statistical maps with the given value.
 
         Return
         ------
@@ -593,7 +593,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
 
         # build binary mask of the image
         pimg = self.fetch_regional_map(
-            space, maptype=maptype, threshold=threshold_continuous
+            space, maptype=maptype, threshold=threshold_statistical
         )
 
         # determine scaling factor from voxels to cube mm
@@ -621,8 +621,8 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
         self,
         img: Nifti1Image,
         space: _space.Space,
-        use_maptype: MapType = MapType.CONTINUOUS,
-        threshold_continuous: float = None,
+        use_maptype: MapType = MapType.STATISTICAL,
+        threshold_statistical: float = None,
         resolution_mm: float = None,
     ):
         """
@@ -636,17 +636,17 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             Reference space to use
         use_maptype: MapType
             Type of map to build ('labelled' will result in a binary mask,
-            'continuous' attempts to build a continuous mask, possibly by
-            elementwise maximum of continuous maps of children )
-        threshold_continuous: float, or None
+            'statistical' attempts to build a statistical mask, possibly by
+            elementwise maximum of statistical maps of children )
+        threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
-            continuous maps with the given value.
+            statistical maps with the given value.
         """
         mask = self.fetch_regional_map(
             space,
             resolution_mm,
             maptype=use_maptype,
-            threshold=threshold_continuous,
+            threshold=threshold_statistical,
         )
         return compare_maps(mask, img)
 
