@@ -192,10 +192,10 @@ class Feature:
 
         msg = f"Matching {feature_type.__name__} to {concept}"
         instances = feature_type.get_instances()
-        preconfigured_instances = [
-            f for f in tqdm(instances, desc=msg, total=len(instances))
-            if f.matches(concept)
-        ]
+        if logger.getEffectiveLevel() > 20:
+            preconfigured_instances = [f for f in instances if f.matches(concept)]
+        else:
+            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = []
         for QueryType in feature_type._live_queries:
