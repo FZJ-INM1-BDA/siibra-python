@@ -159,11 +159,11 @@ class RegionalConnectivity(Feature):
                 f"Averaged {self.modality}" if subject is None \
                 else f"{self.modality}"
             series = matrix[regions[0]]
-            last_index = len(series)-1 if max_rows is None \
+            last_index = len(series) - 1 if max_rows is None \
                 else min(max_rows, len(series)-1)
             return Tabular(
                 description=self.description,
-                modality=self.modality,
+                modality=f"{self.modality} {self.cohort}",
                 anchor=_anchor.AnatomicalAnchor(
                     species=list(self.anchor.species)[0],
                     region=regions[0]
