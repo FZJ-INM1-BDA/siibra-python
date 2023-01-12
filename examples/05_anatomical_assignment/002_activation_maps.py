@@ -17,7 +17,7 @@
 Assign modes in activation maps to brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Continuous parcellations maps can also assign regions to image volumes.
+Statistical parcellations maps can also assign regions to image volumes.
 If given a ``Nifti1Image`` object as input, the assignment method will interpret it as a measurement of a spatial distribution.
 It will first split the image volume into disconnected components, i.e. any subvolumes which are clearly separated by zeros.
 Then, each component will be compared to each statistical maps in the same way that the Gaussian blobs representing uncertain points
