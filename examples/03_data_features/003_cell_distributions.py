@@ -40,9 +40,12 @@ features[0].plot()
 
 # %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-# For example, to plot the 2D distribution of the cell locations colored by
-# layers, we can do:
 c = features[0].cells
+print("Number of segmented cells:", len(c))
+c.head()
+
+# %%
+# We can, for example, plot the 2D distribution of the cell locations colored by layers:
 plt.scatter(c["x"], c["y"], c=c["layer"], s=0.2)
 plt.title(f"Cell distributions in {v1.name}")
 plt.grid(True)
@@ -50,10 +53,20 @@ plt.axis("equal")
 plt.tight_layout()
 
 # %%
+# Having the data in data frame format allows further flexibility such as:
+layer1_cells = c[c["layer"]==1]
+plt.scatter(
+    layer1_cells["x"], layer1_cells["y"],
+    s=layer1_cells["area(micron**2)"], c=layer1_cells["label"]
+    )
+mean_cell_area_layer_1 = layer1_cells["area(micron**2)"].mean()
+plt.title(f"Mean cell area in layer 1: {mean_cell_area_layer_1}")
+
+# %%
 # The features also have location information. We can plot their location in
 # BigBrain space:
 location = features[0].anchor.location
-location
+print(location)
 
 # fetch the template of the location's space
 template = location.space.get_template().fetch()
