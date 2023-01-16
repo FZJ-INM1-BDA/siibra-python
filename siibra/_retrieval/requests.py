@@ -332,7 +332,7 @@ class EbrainsRequest(HttpRequest):
                 error = json_resp.get("error")
                 if error == "slow_down":
                     sleep_timer += 1
-                logger.debug("400 error:", resp.content)
+                logger.debug(f"400 error: {resp.content}")
                 continue
 
             raise EbrainsAuthenticationError(resp.content)
