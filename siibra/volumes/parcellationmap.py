@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from ..core.region import Region
 
 from scipy.ndimage.morphology import distance_transform_edt
-from collections import defaultdict
+from collections import defaultdict, Iterable
 from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
@@ -510,20 +510,24 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
 
         return Nifti1Image(result, affine)
 
-    def get_colormap(self, region_specs : Iterable=None):
+    def get_colormap(self, region_specs: Iterable=None):
         """Generate a matplotlib colormap from known rgb values of label indices."""
         from matplotlib.colors import ListedColormap
         import numpy as np
 
         colors = {}
-        include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs } if region_specs is not None else None
+        if region_specs is not None:
+            include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs }
+        else:
+            include_region_names = None
+
         for regionname, indices in self._indices.items():
             for index in indices:
                 if index.label is None:
                     continue
                     
-                if include_region_names is not None and regionname not in include_region_names:
-                    colors[index.label] = [0, 0, 0] # black as default... potentially use a white default?
+                if (include_region_names is not None) and (regionname not in include_region_names):
+                    colors[index.label] = [0, 0, 0]
                     
                 region = self.get_region(index=index)
                 if region.rgb is not None:
