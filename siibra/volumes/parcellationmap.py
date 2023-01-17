@@ -23,13 +23,13 @@ from .._retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
-from typing import Union, Dict, List, TYPE_CHECKING
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable
 
 if TYPE_CHECKING:
     from ..core.region import Region
 
 from scipy.ndimage.morphology import distance_transform_edt
-from collections import defaultdict, Iterable
+from collections import defaultdict
 from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
