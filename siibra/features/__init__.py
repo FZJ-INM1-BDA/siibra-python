@@ -42,4 +42,6 @@ def __dir__():
         "external",
         "Feature",
         "get",
-        "CorticalProfile"]
+        "CorticalProfile",
+        "VolumeOfInterest"
+    ]

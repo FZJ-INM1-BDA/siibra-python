@@ -107,6 +107,7 @@ def set_cache_size(maxsize_gbyte: int):
 if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
+
 def __dir__():
     return [
         "atlases",
