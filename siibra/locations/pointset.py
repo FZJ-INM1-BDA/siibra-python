@@ -16,13 +16,13 @@
 from . import location, point, boundingbox
 
 from .._retrieval.requests import HttpRequest
+from .._commons import logger
 
 import numbers
 import json
 import numpy as np
 from nibabel import Nifti1Image
 from typing import Union
-from tqdm import tqdm
 
 
 class PointSet(location.Location):
@@ -99,11 +99,9 @@ class PointSet(location.Location):
         src_points = self.as_list()
         tgt_points = []
         N = len(src_points)
-        for i0 in tqdm(
-            range(0, N, chunksize),
-            desc=f"Warping {N // chunksize} chunks of points to {spaceobj.name} space",
-            total=N // chunksize
-        ):
+        if N > 10e5:
+            logger.info(f"Warping {N} points from {self.space.name} to {spaceobj.name} space")
+        for i0 in range(0, N, chunksize):
 
             i1 = min(i0 + chunksize, N)
             data = json.dumps({
