@@ -231,14 +231,10 @@ class Factory:
             gifti.GiftiSurfaceLabeling
         ]
 
-        affine = np.array(spec["affine"]) if "affine" in spec else None
         for srctype, provider_spec in spec.get("providers", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
-                    if affine is None:
-                        providers.append(ProviderType(provider_spec))
-                    else:
-                        providers.append(ProviderType(provider_spec, transform_nm=affine))
+                    providers.append(ProviderType(provider_spec))
                     break
             else:
                 if srctype not in cls._warnings_issued:
