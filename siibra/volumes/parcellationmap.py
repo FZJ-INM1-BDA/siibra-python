@@ -766,7 +766,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                         assignments.append(
                             [pointindex, tuple(np.array(position).round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
-                print("done warping points")
                 return assignments
 
         # if we get here, we need to handle each point independently.
