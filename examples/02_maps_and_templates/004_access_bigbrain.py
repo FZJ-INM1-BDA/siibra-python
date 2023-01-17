@@ -80,7 +80,7 @@ plotting.view_img(mask, bg_img=bigbrain_chunk, opacity=.2, symmetric_cmap=False)
 # just note that `siibra` can employ spatial objects from different template spaces.
 # Here it automatically warps the centroid of the volume of interest to MNI space
 # for location assignment.
-julich_pmaps = siibra.get_map(space='mni152', parcellation='julich', maptype='continuous')
+julich_pmaps = siibra.get_map(space='mni152', parcellation='julich', maptype='statistical')
 assignments = julich_pmaps.assign(voi.center)
 assignments
 

@@ -174,9 +174,9 @@ class SparseIndex:
 
 
 class SparseMap(parcellationmap.Map):
-    """A sparse representation of list of continuous (e.g. probabilistic) brain region maps.
+    """A sparse representation of list of statistical (e.g. probabilistic) brain region maps.
 
-    It represents the 3D continuous maps of N brain regions by two data structures:
+    It represents the 3D statistical maps of N brain regions by two data structures:
         1) 'spatial_index', a 3D volume where non-negative values represent unique
             indices into a list of region assignments
         2) 'probs', a list of region assignments where each entry is a dict
@@ -232,23 +232,24 @@ class SparseMap(parcellationmap.Map):
         if self._sparse_index_cached is None:
             prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
             spind = SparseIndex.from_cache(prefix)
-            if spind is None:
-                spind = SparseIndex()
-                for vol in tqdm(
-                    range(len(self)), total=len(self), unit="maps",
-                    desc=f"Fetching {len(self)} volumetric maps",
-                    disable=logger.level > 20,
-                ):
-                    img = super().fetch(
-                        index=MapIndex(volume=vol, label=None)
-                    )
-                    if img is None:
-                        region = self.get_region(volume=vol)
-                        logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
-                        continue
-                    spind.add_img(img)
+            with _volume.SubvolumeProvider.UseCaching():
+                if spind is None:
+                    spind = SparseIndex()
+                    for vol in tqdm(
+                        range(len(self)), total=len(self), unit="maps",
+                        desc=f"Fetching {len(self)} volumetric maps",
+                        disable=logger.level > 20,
+                    ):
+                        img = super().fetch(
+                            index=MapIndex(volume=vol, label=None)
+                        )
+                        if img is None:
+                            region = self.get_region(volume=vol)
+                            logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
+                            continue
+                        spind.add_img(img)
                 spind.to_cache(prefix)
-            self._sparse_index_cached = spind
+                self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
 
@@ -335,7 +336,7 @@ class SparseMap(parcellationmap.Map):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
@@ -363,6 +364,7 @@ class SparseMap(parcellationmap.Map):
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
             XYZ2 = np.array(np.where(modemask)).T
+            position = np.dot(modeimg.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
                 components[modemask] == 0
                 continue
@@ -376,7 +378,7 @@ class SparseMap(parcellationmap.Map):
 
             for volume in tqdm(
                 range(len(self)),
-                desc=f"Assigning to {len(self)} sparse maps",
+                desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
                 total=len(self),
                 unit=" map",
                 disable=logger.level > 20,
@@ -434,8 +436,16 @@ class SparseMap(parcellationmap.Map):
 
                 maxval = v1.max()
 
-                assignments.append(
-                    [mode, volume, None, maxval, iou, contained, contains, rho]
-                )
+                assignments.append([
+                    mode,
+                    tuple(position.round(2)),
+                    volume,
+                    None,
+                    maxval,
+                    iou,
+                    contained,
+                    contains,
+                    rho
+                ])
 
         return assignments

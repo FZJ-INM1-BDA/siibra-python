@@ -37,7 +37,7 @@ from nilearn import plotting
 # We select a brain region and query for expression levels of GABARAPL2.
 region = siibra.get_region("julich", "V1")
 features = siibra.features.get(
-    region, siibra.features.molecular.GeneExpression,
+    region, siibra.features.molecular.GeneExpressions,
     gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
 )
 print(features[0])

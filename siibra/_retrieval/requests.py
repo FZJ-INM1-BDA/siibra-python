@@ -156,6 +156,7 @@ class HttpRequest:
                 if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar = tqdm(
                         total=size_bytes, unit='iB', unit_scale=True,
+                        position=0, leave=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
                     )
                 with open(self.cachefile, "wb") as f:
@@ -224,13 +225,13 @@ class EbrainsRequest(HttpRequest):
     """
 
     _KG_API_TOKEN: str = None
-    _IAM_ENDPOING: str = "https://iam.ebrains.eu/auth/realms/hbp"
+    _IAM_ENDPOINT: str = "https://iam.ebrains.eu/auth/realms/hbp"
     _IAM_DEVICE_ENDPOINT: str = None
     _IAM_DEVICE_MAXTRIES = 12
     _IAM_DEVICE_POLLING_INTERVAL_SEC = 5
     _IAM_DEVICE_FLOW_CLIENTID = "siibra"
 
-    _IAM_TOKEN_ENDPOINT: str = f"{_IAM_ENDPOING}/protocol/openid-connect/token"
+    _IAM_TOKEN_ENDPOINT: str = f"{_IAM_ENDPOINT}/protocol/openid-connect/token"
 
     def __init__(
         self, url, decoder=None, params={}, msg_if_not_cached=None, post=False
@@ -245,7 +246,7 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def init_oidc(cls):
-        resp = requests.get(f"{cls._IAM_ENDPOING}/.well-known/openid-configuration")
+        resp = requests.get(f"{cls._IAM_ENDPOINT}/.well-known/openid-configuration")
         json_resp = resp.json()
         if "token_endpoint" in json_resp:
             logger.debug(f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}")
@@ -331,7 +332,7 @@ class EbrainsRequest(HttpRequest):
                 error = json_resp.get("error")
                 if error == "slow_down":
                     sleep_timer += 1
-                logger.debug("400 error:", resp.content)
+                logger.debug(f"400 error: {resp.content}")
                 continue
 
             raise EbrainsAuthenticationError(resp.content)

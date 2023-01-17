@@ -200,7 +200,9 @@ class Point(location.Location):
         o = other if self.space is None else other.warp(self.space)
         return all(self[i] > o[i] for i in range(3))
 
-    def __eq__(self, other):
+    def __eq__(self, other: 'Point'):
+        if not isinstance(other, Point):
+            return False
         o = other if self.space is None else other.warp(self.space)
         return all(self[i] == o[i] for i in range(3))
 

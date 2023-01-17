@@ -16,8 +16,10 @@
 from .. import _anchor
 from .._basetypes import tabular
 
+from ... import _commons
+
 import pandas as pd
-import numpy as np
+from textwrap import wrap
 from typing import List
 try:
     from typing import TypedDict
@@ -25,9 +27,10 @@ except ImportError:
     from typing_extensions import TypedDict
 
 
-class GeneExpression(tabular.Tabular):
+class GeneExpressions(tabular.Tabular):
     """
-    A spatial feature type for gene expressions.
+    A set gene expressions for different candidate genes 
+    measured inside a brain structure.
     """
 
     DESCRIPTION = """
@@ -42,14 +45,14 @@ class GeneExpression(tabular.Tabular):
     as specified at https://alleninstitute.org/legal/terms-use/.
     """
 
-    class DonorDict(TypedDict):
+    class _DonorDict(TypedDict):
         id: int
         name: str
         race: str
         age: int
         gender: str
 
-    class SampleStructure(TypedDict):
+    class _SampleStructure(TypedDict):
         id: int
         name: str
         abbreviation: str
@@ -57,71 +60,86 @@ class GeneExpression(tabular.Tabular):
 
     def __init__(
         self,
-        gene: str,
-        expression_levels: List[float],
+        levels: List[float],
         z_scores: List[float],
-        probe_ids: List[int],
-        donor_info: DonorDict,
+        genes: List[str],
+        additional_columns: dict,
         anchor: _anchor.AnatomicalAnchor,
-        mri_coord: List[int] = None,
-        structure: SampleStructure = None,
-        top_level_structure: SampleStructure = None,
         datasets: List = []
     ):
         """
-        Construct the spatial feature for gene expressions measured in a sample.
+        Construct gene expression table.
 
         Parameters
         ----------
-        gene : str
-            Name of gene
-        expression_levels : list of float
-            expression levels measured in possibly multiple probes of the same sample
+        levels : list of float
+            Expression levels measured
         z_scores : list of float
-            z scores measured in possibly multiple probes of the same sample
-        probe_ids : list of int
-            The probe_ids corresponding to each z_score element
-        donor_info : dict (keys: age, race, gender, donor, speciment)
-            Dictionary of donor attributes
-        mri_coord : tuple  (optional)
-            coordinates in original mri space
+            corresponding z scores measured
+        genes : list of str
+            Name of the gene corresponding to each measurement
+        additional_columns : dict of list
+            columns with additional data to be added to the tabular feature.
+            Keys give column names, values are lists with the column data.
+            Each list given needs to have the same length as expression_levels
         anchor: AnatomicalAnchor
         datasets : list
             list of datasets corresponding to this feature
         """
+        assert len(z_scores) == len(levels)
+        assert len(genes) == len(levels)
+        if additional_columns is not None:
+            assert all(len(lst) == len(levels) for lst in additional_columns.values())
+        else:
+            additional_columns = {}
+
         data = pd.DataFrame(
-            np.array([expression_levels, z_scores]).T,
-            columns=['expression_level', 'z_score'],
-            index=probe_ids
+            dict(
+                **{'level': levels, 'zscore': z_scores, 'gene': genes},
+                **additional_columns
+            )
         )
-        data.index.name = 'probe_id'
+        # data.index.name = 'probe_id'
         tabular.Tabular.__init__(
             self,
-            description=self.DESCRIPTION + self.ALLEN_ATLAS_NOTIFICATION,
+            description=(
+                (self.DESCRIPTION + self.ALLEN_ATLAS_NOTIFICATION)
+                .replace('\n', ' ')
+                .replace('\t', '')
+                .strip()
+            ),
             modality="Gene expression",
             anchor=anchor,
             data=data,
             datasets=datasets
         )
-        self.donor_info = donor_info
-        self.gene = gene
-        self.mri_coord = mri_coord
-        self.structure = structure
-        self.top_level_structure = top_level_structure
+        self.unit = "expression level"
 
-    def __repr__(self):
-        return " ".join(
-            [
-                "At (" + ",".join("{:4.0f}".format(v) for v in self.anchor.location) + ")",
-                " ".join(
-                    [
-                        "{:>7.7}:{:7.7}".format(k, str(v))
-                        for k, v in self.donor_info.items()
-                    ]
-                ),
-                "Expression: ["
-                + ",".join(["%4.1f" % v for v in self.data.expression_level])
-                + "]",
-                "Z-score: [" + ",".join(["%4.1f" % v for v in self.data.z_score]) + "]",
-            ]
-        )
+    def plot(self, **kwargs):
+        """ Create a bar plot of the average per gene."""
+
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            _commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+            return None
+
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+
+        for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
+            assert arg not in kwargs
+
+        title = kwargs.pop("title", None) \
+            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
+        kwargs["grid"] = kwargs.get("grid", True)
+        kwargs["legend"] = kwargs.get("legend", False)
+
+        # ax = plot_data.plot(kind="bar", **kwargs)
+        ax = self.data.boxplot(column=['level'], by='gene', ax=kwargs.get('ax', None), showfliers=False)
+        plt.title('')
+        plt.suptitle('')
+        ax.set_title(title, fontsize="medium")
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+        ax.set_xlabel("")
+
+        plt.tight_layout()

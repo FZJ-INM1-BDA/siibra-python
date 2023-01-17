@@ -15,4 +15,4 @@
 
 from ._receptor_density_profile import ReceptorDensityProfile
 from ._receptor_density_fingerprint import ReceptorDensityFingerprint
-from ._gene_expression import GeneExpression
+from ._gene_expression import GeneExpressions

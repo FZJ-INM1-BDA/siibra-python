@@ -293,7 +293,7 @@ class MapIndex:
 
 class MapType(Enum):
     LABELLED = 1
-    CONTINUOUS = 2
+    STATISTICAL = 2
 
 
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
@@ -397,7 +397,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     m1, m2 = ((_ > 0).astype("uint8") for _ in [v1, v2])
     intersection = np.minimum(m1, m2).sum()
     if intersection == 0:
-        return {"overlap": 0, "contained": 0, "contains": 0, "correlation": 0}
+        return {"IoU": 0, "contained": 0, "contains": 0, "correlation": 0}
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
     XYZnz1 = nonzero_coordinates(a1)
@@ -433,7 +433,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     by = (y > 0).astype("uint8")
 
     return {
-        "overlap": intersection / np.maximum(bx, by).sum(),
+        "IoU": intersection / np.maximum(bx, by).sum(),
         "contained": intersection / N1,
         "contains": intersection / N2,
         "correlation": r,

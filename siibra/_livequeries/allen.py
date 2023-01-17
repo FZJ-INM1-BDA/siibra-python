@@ -17,7 +17,7 @@ from .query import LiveQuery
 
 from ..core import space as _space
 from ..features import _anchor
-from ..features.molecular._gene_expression import GeneExpression
+from ..features.molecular._gene_expression import GeneExpressions
 from .._commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
@@ -28,12 +28,13 @@ from typing import Iterable, List
 from xml.etree import ElementTree
 import numpy as np
 import json
+import pandas as pd
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
 
-class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression):
+class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions):
     """
     Interface to Allen Human Brain Atlas microarray data.
 
@@ -52,7 +53,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
       the corresponding donor for the given gene.
     """
 
-    _FEATURETYPE = GeneExpression
+    _FEATURETYPE = GeneExpressions
 
     _notification_shown = False
 
@@ -84,58 +85,83 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
 
     _specimen = None
     factors = None
+    species = Species.decode('homo sapiens')
 
     def __init__(self, **kwargs):
         """
-        Retrieves probes IDs for the given gene, then collects the
-        Microarray probes, samples and z-scores for each donor.
-        TODO check that this is only called for ICBM space
+        Each instance of this live query retrieves the probe IDs
+        containing measurements for any gene in the given set 
+        of candidate genes.
+        Each probe has expression levels and z-scores for a set of
+        N samples.
+        Each sample is linked to a donor, brain structure, and 
+        ICBM coordinate. 
+        When querying with a brain structure, the ICBM coordinates
+        will be tested agains the region mask in ICBM space
+        to produce a table of outputs. 
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
 
         def parse_gene(spec):
             if isinstance(spec, str):
-                return GENE_NAMES.get(gene)
+                return [GENE_NAMES.get(spec)]
             elif isinstance(spec, dict):
                 assert all(k in spec for k in ['symbol', 'description'])
                 assert spec['symbol'] in GENE_NAMES
-                return gene
+                return [spec]
             elif isinstance(spec, list):
-                return [parse_gene(spec) for spec in gene]
+                return [g for s in spec for g in parse_gene(s)]
             else:
                 raise ValueError("Enexpected specification of gene: ", spec)
 
-        self.gene = parse_gene(gene)
+        self.genes = parse_gene(gene)
 
-    def query(self, region: Region) -> List[GeneExpression]:
+    def query(self, region: Region) -> List[GeneExpressions]:
         assert isinstance(region, Region)
         space = _space.Space.registry().get('mni152')
         mask = region.fetch_regional_map(space, "labelled")
-        for f in self:
-            if f.anchor.location.intersects(mask):
-                # we construct the assignment manually,
-                # although f.matches(region) would do it
-                # for us, because the latter would add
-                # signfiicant computational overhead for
-                # re-doing the spatial assignment we
-                # did already.
-                ass = _anchor.AnatomicalAssignment(
-                    f.anchor.location,
-                    region,
-                    _anchor.AssignmentQualification.CONTAINED,
-                    explanation=(
-                        f"{f.anchor.location} was compared with the mask "
-                        f"of query region '{region.name}' in {space}."
-                    )
-                )
-                f.anchor._assignments[region] = [ass]
-                f.anchor._last_matched_concept = region
-                yield f
+
+        anchor = _anchor.AnatomicalAnchor(
+            species=self.species, region=region.name
+        )
+        ass = _anchor.AnatomicalAssignment(
+            query_structure=region,
+            assigned_structure=region,
+            qualification=_anchor.AssignmentQualification.CONTAINED,
+            explanation=(f"MNI coordinates of tissue samples were compared with mask of '{region.name}' in {space}.")
+        )
+        anchor._assignments[region] = [ass]
+        anchor._last_matched_concept = region
+
+        measures = []
+        contained = {}
+        for measure in self:
+            location = Point(measure['mni_xyz'], space=space)
+            if location not in contained:  # cache redundant intersection tests
+                contained[location] = location.intersects(mask)
+            if contained[location]:
+                measures.append(measure)
+
+        yield GeneExpressions(
+            anchor=anchor,
+            genes=[m['gene'] for m in measures],
+            levels=[m['expression_level'] for m in measures],
+            z_scores=[m['z_score'] for m in measures],
+            additional_columns={
+                "race": [m['race'] for m in measures],
+                "gender": [m['gender'] for m in measures],
+                "age": [m['age'] for m in measures],
+                "mni_xyz": [tuple(m['mni_xyz']) for m in measures],
+                "sample": [m['sample_index'] for m in measures],
+                "probe_id": [m['probe_id'] for m in measures],
+                "donor_name": [m['donor_name'] for m in measures],
+            }
+        )
 
     def __iter__(self):
 
-        if self.gene is None:
+        if self.genes is None:
             logger.warning(
                 f"No gene name provided to {self.__class__.__name__}, so no gene expressions will be retrieved. "
                 'Use the "gene=<name>" option in the feature query to specify one.'
@@ -143,13 +169,15 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
             return
 
         if not self.__class__._notification_shown:
-            print(GeneExpression.ALLEN_ATLAS_NOTIFICATION)
+            print(GeneExpressions.ALLEN_ATLAS_NOTIFICATION)
             self.__class__._notification_shown = True
 
-        logger.info("Retrieving probe ids for gene {}".format(self.gene['symbol']))
-        url = self._QUERY["probe"].format(gene=self.gene['symbol'])
-        if isinstance(self.gene, list):
-            url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g['symbol']}'" for g in self.gene]))
+        assert isinstance(self.genes, list)
+        if len(self.genes) == 1:
+            logger.info(f"Retrieving probe ids for gene {self.genes[0]['symbol']}")
+        else:
+            logger.info(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in self.genes)}")
+        url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g['symbol']}'" for g in self.genes]))
         response = HttpRequest(url).get()
         if "site unavailable" in response.decode().lower():
             # When the Allen site is not available, they still send a status code 200.
@@ -180,13 +208,9 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
             for donor_id in self._DONOR_IDS:
-                if isinstance(self.gene, dict):
-                    for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(self.gene['symbol'], donor_id, probe_ids):
-                        yield gene_feature
-                else:
-                    for gene in self.gene:
-                        for gene_feature in AllenBrainAtlasQuery._retrieve_microarray(gene['symbol'], donor_id, probe_ids):
-                            yield gene_feature
+                for item in self._retrieve_microarray(donor_id, probe_ids):
+                    yield item
+
 
     @staticmethod
     def _retrieve_specimen(specimen_id: str):
@@ -213,7 +237,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
         return specimen
 
     @classmethod
-    def _retrieve_microarray(cls, gene: str, donor_id: str, probe_ids: str) -> Iterable[GeneExpression]:
+    def _retrieve_microarray(cls, donor_id: str, probe_ids: str) -> Iterable[GeneExpressions]:
         """
         Retrieve microarray data for several probes of a given donor, and
         compute the MRI position of the corresponding tissue block in the ICBM
@@ -233,32 +257,31 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpression)
                 "Invalid response when retrieving microarray data: {}".format(url)
             )
 
-        # store probes
         probes, samples = [response["msg"][n] for n in ["probes", "samples"]]
 
-        species = Species.decode('homo sapiens')
-
-        # store samples. Convert their MRI coordinates of the samples to ICBM
-        # MNI152 space
-        space = _space.Space.registry().get('mni152')
         for i, sample in enumerate(samples):
 
             # coordinate conversion to ICBM152 standard space
-            donor = {k: sample["donor"][k] for k in ["name", "id"]}
-            icbm_coord = np.matmul(
-                AllenBrainAtlasQuery._specimen[donor["name"]]["donor2icbm"],
+            donor_id = sample["donor"]["id"]
+            donor_name = sample["donor"]["name"]
+            icbm_coord = (np.matmul(
+                AllenBrainAtlasQuery._specimen[donor_name]["donor2icbm"],
                 sample["sample"]["mri"] + [1],
-            ).T
+            ) + .5).astype('int')
 
-            # Create the spatial feature
-            yield GeneExpression(
-                gene,
-                expression_levels=[float(p["expression_level"][i]) for p in probes],
-                z_scores=[float(p["z-score"][i]) for p in probes],
-                probe_ids=[p["id"] for p in probes],
-                donor_info={**AllenBrainAtlasQuery.factors[donor["id"]], **donor},
-                anchor=_anchor.AnatomicalAnchor(species=species, location=Point(icbm_coord, space)),
-                mri_coord=sample["sample"]["mri"],
-                structure=sample["structure"],
-                top_level_structure=sample["top_level_structure"],
-            )
+            for probe in probes:
+                yield {
+                    "gene": probe['gene-symbol'],
+                    "expression_level": float(probe["expression_level"][i]),
+                    "z_score": float(probe["z-score"][i]),
+                    "sample_index": i,
+                    "probe_id": probe["id"],
+                    "donor_id": donor_id,
+                    "donor_name": donor_name,
+                    "race": cls.factors[donor_id]["race"],
+                    "gender": cls.factors[donor_id]["gender"],
+                    "age": cls.factors[donor_id]["age"],
+                    "mni_xyz": icbm_coord[:3],
+                }
+
+

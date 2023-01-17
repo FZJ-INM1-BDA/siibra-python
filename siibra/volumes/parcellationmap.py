@@ -115,6 +115,8 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         self._indices: Dict[str, List[MapIndex]] = {}
         self.volumes: List[_volume.Volume] = []
         remap_volumes = {}
+        # TODO: This assumes knowledge of the preconfigruation specs wrt. z.
+        # z to subvolume conversion should probably go to the factory.
         for regionname, indexlist in indices.items():
             k = clear_name(regionname)
             self._indices[k] = []
@@ -241,7 +243,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if all(isinstance(_, int) for _ in self.labels):
             return MapType.LABELLED
         elif self.labels == {None}:
-            return MapType.CONTINUOUS
+            return MapType.STATISTICAL
         else:
             raise RuntimeError(
                 f"Inconsistent label indices encountered in {self}"
@@ -274,10 +276,10 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         ----------
         region: str
             Specification of a region name, resulting in a regional map
-            (mask or continuous map) to be returned.
+            (mask or statistical map) to be returned.
         index: MapIndex
             Explicit specification of the map index, typically resulting
-            in a regional map (mask or continuous map) to be returned.
+            in a regional map (mask or statistical map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
         """
@@ -312,7 +314,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             raise IndexError(
                 f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
-
         try:
             result = self.volumes[mapindex.volume or 0].fetch(
                 fragment=mapindex.fragment, label=mapindex.label, **kwargs
@@ -321,8 +322,21 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             print(str(e))
 
         if result is None:
-            raise RuntimeError(f"Error fetching {mapindex} from {self} as {format}.")
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs['format']}.")
         return result
+
+    def fetch_iter(self, **kwargs):
+        """
+        Returns an iterator to fetch all mapped volumes sequentially.
+        All arguments are passed on to func:`~siibra.Map.fetch`
+        """
+        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
+        return (
+            self.fetch(
+                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
+            )
+            for i in range(len(self))
+        )
 
     @property
     def provides_image(self):
@@ -356,7 +370,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             for fmt in _volume.Volume.SUPPORTED_FORMATS:
                 if fmt not in _volume.Volume.MESH_FORMATS:
                     try:
-                        self._affine_cached = self.fetch(0, format=fmt).affine
+                        self._affine_cached = self.fetch(index=MapIndex(volume=0), format=fmt).affine
                         break
                     except RuntimeError:
                         continue
@@ -365,19 +379,6 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if not isinstance(self._affine_cached, np.ndarray):
             logger.error("invalid affine:", self._affine_cached)
         return self._affine_cached
-
-    def fetch_iter(self, **kwargs):
-        """
-        Returns an iterator to fetch all mapped volumes sequentially.
-        All arguments are passed on to func:`~siibra.Map.fetch`
-        """
-        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
-        return (
-            self.fetch(
-                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
-            )
-            for i in range(len(self))
-        )
 
     def __iter__(self):
         return self.fetch_iter()
@@ -443,7 +444,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             ]
         )
 
-    def compute_centroids(self):
+    def compute_centroids(self) -> Dict[str, point.Point]:
         """
         Compute a dictionary of the centroids of all regions in this map.
         """
@@ -554,7 +555,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             # a binary mask - use distance transform to get sampling weights
             W = distance_transform_edt(np.asanyarray(mask.dataobj))**2
         else:
-            # a continuous map - interpret directly as weights
+            # a statistical map - interpret directly as weights
             W = arr
         p = (W / W.sum()).ravel()
         XYZ_ = np.array(
@@ -562,6 +563,67 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         ).T
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
         return pointset.PointSet(XYZ, space=self.space)
+
+    @staticmethod
+    def iterate_connected_components(img: Nifti1Image):
+        """
+        Provide an iterator over masks of connected components in the given image.
+        """
+        from skimage import measure
+        imgdata = np.asanyarray(img.dataobj).squeeze()
+        components = measure.label(imgdata > 0)
+        component_labels = np.unique(components)
+        assert component_labels[0] == 0
+        return (
+            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+            for label in component_labels[1:]
+        )
+
+    def to_sparse(self):
+        """ Creates a sparse parcellation map from this object. """
+        from .sparsemap import SparseMap
+        indices = {
+            regionname: [
+                {'volume': idx.volume, 'label': idx.label, 'fragment': idx.fragment}
+                for idx in indexlist
+            ]
+            for regionname, indexlist in self._indices.items()
+        }
+        return SparseMap(
+            identifier=self.id,
+            name=self.name,
+            space_spec={'@id': self.space.id},
+            parcellation_spec={'@id': self.parcellation.id},
+            indices=indices,
+            volumes=self.volumes,
+            shortname=self.shortname,
+            description=self.description,
+            modality=self.modality,
+            publications=self.publications,
+            datasets=self.datasets
+        )
+
+    def _read_voxel(
+        self,
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List]
+    ):
+        fragments = self.fragments or {None}
+        if isinstance(x, int):
+            return [
+                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+            ]
+        else:
+            return [
+                (pointindex, volume, fragment, value)
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+                for pointindex, value
+                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+            ]
 
     def assign(
         self,
@@ -586,7 +648,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
 
         Return
@@ -625,7 +687,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=["Structure", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
+                columns=["Structure", "Centroid", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
             result = np.array(assignments)
@@ -638,60 +700,24 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                         fragment=f
                     )
                 )
-                for _, v, f, l, _, _, _, _ in result
+                for _, _, v, f, l, _, _, _, _ in result[ind]
             ]
             df = pd.DataFrame(
                 {
                     "Structure": result[ind, 0].astype("int"),
-                    "Volume": result[ind, 1].astype("int"),
-                    "Fragment": result[ind, 2],
+                    "Centroid": result[ind, 1],
+                    "Volume": result[ind, 2].astype("int"),
+                    "Fragment": result[ind, 3],
                     "Region": regions,
-                    "Value": result[ind, 3],
-                    "Correlation": result[ind, 7],
-                    "IoU": result[ind, 4],
-                    "Contains": result[ind, 6],
-                    "Contained": result[ind, 5],
+                    "Value": result[ind, 4],
+                    "Correlation": result[ind, 8],
+                    "IoU": result[ind, 5],
+                    "Contains": result[ind, 7],
+                    "Contained": result[ind, 6],
                 }
             )
 
-        return df
-
-    @staticmethod
-    def iterate_connected_components(img: Nifti1Image):
-        """
-        Provide an iterator over masks of connected components in the given image.
-        """
-        from skimage import measure
-        imgdata = np.asanyarray(img.dataobj).squeeze()
-        components = measure.label(imgdata > 0)
-        component_labels = np.unique(components)
-        assert component_labels[0] == 0
-        return (
-            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-            for label in component_labels[1:]
-        )
-
-    def _read_voxel(
-        self,
-        x: Union[int, np.ndarray, List],
-        y: Union[int, np.ndarray, List],
-        z: Union[int, np.ndarray, List]
-    ):
-        fragments = self.fragments or {None}
-        if isinstance(x, int):
-            return [
-                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-            ]
-        else:
-            return [
-                (pointindex, volume, fragment, value)
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                for pointindex, value
-                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
-            ]
+        return df.convert_dtypes()  # convert will guess numeric column types
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -700,7 +726,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         Parameters:
         -----------
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
@@ -723,9 +749,11 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
             if sigma_vox < 3:
                 X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
+                    x, y, z = [V[pointindex] for V in [X, Y, Z]]
                     if value > lower_threshold:
+                        position = np.dot(self.affine, np.r_[x, y, z, 1])[:3]
                         assignments.append(
-                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, tuple(position.round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
                 return assignments
 
@@ -746,7 +774,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, tuple(pt), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
             else:
                 logger.info(
@@ -763,7 +791,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 T = self.assign(W, lower_threshold=lower_threshold)
                 assignments.extend(
                     [
-                        [pointindex, volume, fragment, value, iou, contained, contains, rho]
+                        [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
                         for (_, volume, fragment, _, value, rho, iou, contains, contained) in T.values
                     ]
                 )
@@ -778,14 +806,14 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
 
         def resample(img: Nifti1Image, affine: np.ndarray, shape: tuple):
             # resample query image into this image's voxel space, if required
-            if (img.affine - self.affine).sum() == 0:
+            if (img.affine - affine).sum() == 0:
                 return img
             else:
                 interp = "nearest" \
@@ -798,19 +826,44 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                     interpolation=interp,
                 )
 
-        with QUIET:
+        def progress(it, N: int = None, desc: str = "", min_elements=5):
+            # wraps a progress indicator around the given iterator,
+            # but only if the sequence is long.
+            seqlen = N or len(it)
+            return iter(it) if seqlen < min_elements \
+                else tqdm(it, desc=desc, total=N)
+
+        with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
-                for vol, vol_img in enumerate(self.fetch_iter(fragment=frag)):
+                for vol, vol_img in progress(
+                    enumerate(self.fetch_iter(fragment=frag)),
+                    N=len(self),
+                    desc=f"Assigning to {len(self)} volumes"
+                ):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
                     for mode, maskimg in Map.iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
-                        labels = [v.label for L in self._indices.values() for v in L if v.volume == vol]
-                        for label in tqdm(labels):
-                            targetimg = Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                        position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
+                        labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
+                        for label in progress(
+                            labels,
+                            desc=f"Assigning to {len(labels)} labelled structures"
+                        ):
+                            targetimg = vol_img if label is None \
+                                else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
                             if scores["IoU"] > 0:
                                 assignments.append(
-                                    [mode, vol, frag, label, scores["IoU"], scores["contained"], scores["contains"], scores["correlation"]]
+                                    [
+                                        mode,
+                                        tuple(position.round(2)),
+                                        vol,
+                                        frag,
+                                        label,
+                                        scores["IoU"],
+                                        scores["contained"],
+                                        scores["contains"],
+                                        scores["correlation"]]
                                 )
 
         return assignments

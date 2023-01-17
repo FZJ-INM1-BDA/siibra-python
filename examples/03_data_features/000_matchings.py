@@ -134,5 +134,5 @@ print(features[0].last_match_description)
 # Another example are gene expressions retrieved from the Allen atlas.
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.features.get(v1, siibra.features.molecular.GeneExpression, gene="TAC1")
+features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
 print(features[0].last_match_description)

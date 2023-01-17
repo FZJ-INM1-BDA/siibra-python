@@ -19,9 +19,13 @@ from ..._commons import logger
 from ...core import _concept
 from ...core import space, region, parcellation
 
-from typing import Union
+from typing import Union, TYPE_CHECKING, List
 from tqdm import tqdm
+from hashlib import md5
 
+if TYPE_CHECKING:
+    from ..._retrieval.datasets import EbrainsDataset
+    TypeDataset = EbrainsDataset
 
 class Feature:
     """
@@ -35,7 +39,7 @@ class Feature:
         modality: str,
         description: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: List['TypeDataset'] = []
     ):
         """
         Parameters
@@ -137,9 +141,16 @@ class Feature:
     def last_match_description(self):
         return "" if self.anchor is None \
             else self.anchor.last_match_description
+    
+    @property
+    def id(self):
+        id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
+        if len(id_set) == 1:
+            return list(id_set)[0]
+        return md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs):
+    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 
@@ -152,7 +163,7 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # detect a set of feature types recursively
-            assert all(isinstance(t, (str, cls)) for t in feature_type)
+            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
             return sum((cls.match(concept, t) for t in feature_type), [])
         elif isinstance(feature_type, str):
             # one feature type given as a string
@@ -181,10 +192,10 @@ class Feature:
 
         msg = f"Matching {feature_type.__name__} to {concept}"
         instances = feature_type.get_instances()
-        preconfigured_instances = [
-            f for f in tqdm(instances, desc=msg, total=len(instances))
-            if f.matches(concept)
-        ]
+        if logger.getEffectiveLevel() > 20:
+            preconfigured_instances = [f for f in instances if f.matches(concept)]
+        else:
+            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = []
         for QueryType in feature_type._live_queries:

@@ -215,7 +215,7 @@ class NeuroglancerVolume:
         return (
             MapType.LABELLED
             if self._io.info.get("type") == "segmentation"
-            else MapType.CONTINUOUS
+            else MapType.STATISTICAL
         )
 
     @map_type.setter
@@ -373,6 +373,8 @@ class NeuroglancerScale:
         )
 
     def _read_chunk(self, gx, gy, gz):
+        if any(v < 0 for v in (gx, gy, gz)):
+            raise RuntimeError('Negative tile index observered - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
             cachefile = cache.CACHE.build_filename(
                 "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),

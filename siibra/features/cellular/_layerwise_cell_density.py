@@ -55,12 +55,12 @@ class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/finge
         tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Segmented cell body density",
+            modality="Cell body density",
             anchor=anchor,
             datasets=datasets,
             data=None  # lazy loading below
         )
-        self.unit = "detected cells / 0.1mm3",
+        self.unit = "# detected cells/0.1mm3"
         self._filepairs = list(zip(segmentfiles, layerfiles))
         self._densities = None
 
@@ -102,3 +102,7 @@ class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/finge
             self.species[0]['name'],
             self.regionspec
         ))
+
+    def plot(self, **kwargs):
+        kwargs['ylabel'] = self.unit
+        super().plot(**kwargs)

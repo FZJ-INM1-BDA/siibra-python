@@ -83,6 +83,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                 try:
                     ds_species = _anchor.Species.decode(ds_spec)
                 except ValueError:
+                    logger.debug(f"Cannot decode {ds_spec}")
                     invalid_species_datasets[ds_id] = ds_name
                     continue
 

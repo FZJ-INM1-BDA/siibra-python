@@ -150,7 +150,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             template space specification
         maptype : MapType (default: MapType.LABELLED)
             Type of map requested (e.g., continous or labelled, see _commons.MapType)
-            Use MapType.CONTINUOUS to request probability maps.
+            Use MapType.STATISTICAL to request probability maps.
 
         Yields
         ------
@@ -245,6 +245,11 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         Return
         ------
         Region object
+
+        Raises
+        ------
+        RuntimeError: if the spec matches multiple regions
+        ValueError: if the spec cannot be matched against any region
         """
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec

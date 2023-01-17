@@ -31,7 +31,7 @@ from typing import List, Type
 import pandas as pd
 from io import BytesIO
 
-MIN_VOLUMES_FOR_SPARSE_MAP = 150
+MIN_VOLUMES_FOR_SPARSE_MAP = 50
 
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
@@ -263,13 +263,24 @@ class Factory:
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
+
         Maptype = parcellationmap.Map
         if len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
             logger.debug(
-                f"Using sparse map for {spec['filename']} "
-                f"due to the number of {len(volumes)} volumes."
+                f"Using sparse map for {spec['filename']} to code its {len(volumes)} volumes efficiently."
             )
             Maptype = sparsemap.SparseMap
+        else:
+            max_z = max(
+                d.get('z', 0) 
+                for _, l in spec.get("indices", {}).items()
+                for d in l
+            ) + 1
+            if max_z > MIN_VOLUMES_FOR_SPARSE_MAP:
+                logger.debug(
+                    f"Using sparse map for {spec['filename']} to code its {max_z} z levels efficiently."
+                )
+                Maptype = sparsemap.SparseMap
 
         return Maptype(
             identifier=spec.get("@id", identifier),

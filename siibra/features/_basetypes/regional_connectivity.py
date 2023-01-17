@@ -14,13 +14,15 @@
 # limitations under the License.
 
 from .feature import Feature
+from .tabular import Tabular
 
 from .. import _anchor
 
 from ..._commons import logger, QUIET
+from ...core import region as _region
 from ..._retrieval.repositories import RepositoryConnector
 
-from typing import Callable
+from typing import Callable, Dict, Union
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -40,7 +42,7 @@ class RegionalConnectivity(Feature):
         regions: list,
         connector: RepositoryConnector,
         decode_func: Callable,
-        files: dict,
+        files: Dict[str, str],
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
@@ -132,12 +134,49 @@ class RegionalConnectivity(Feature):
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
 
-    def get_profile(self, subject: str, regionspec):
-        for p in self.parcellations:
-            region = p.get_region(regionspec)
-            assert region.name in self.regions
-            matrix = self.get_matrix(subject)
-            return matrix[region]
+    def get_profile(
+        self,
+        region: Union[str, _region.Region],
+        subject: str = None,
+        min_connectivity: float = 0,
+        max_rows: int = None
+    ):
+        """
+        Extract a regional profile from the matrix, to obtain a tabular data feature
+        with the connectivity as the single column.
+        Rows will be sorted by descending connection strength.
+        Regions with connectivity smaller than "min_connectivity" will be discarded.
+        If max_rows is given, only the subset of regions with highest connectivity is returned.
+        """
+        matrix = self.get_matrix(subject)
+        regions = [r for r in matrix.index if r.matches(region)]
+        if len(regions) == 0:
+            raise ValueError(f"Invalid region specificiation: {region}")
+        elif len(regions) > 1:
+            raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
+        else:
+            name = \
+                f"Averaged {self.modality}" if subject is None \
+                else f"{self.modality}"
+            series = matrix[regions[0]]
+            last_index = len(series) - 1 if max_rows is None \
+                else min(max_rows, len(series)-1)
+            return Tabular(
+                description=self.description,
+                modality=f"{self.modality} {self.cohort}",
+                anchor=_anchor.AnatomicalAnchor(
+                    species=list(self.anchor.species)[0],
+                    region=regions[0]
+                ),
+                data=(
+                    series[:last_index]
+                    .to_frame(name=name)
+                    .query(f'`{name}` > {min_connectivity}')
+                    .sort_values(by=name, ascending=False)
+                    .rename_axis('Target regions')
+                ),
+                datasets=self.datasets
+            )
 
     def __len__(self):
         return len(self._files)

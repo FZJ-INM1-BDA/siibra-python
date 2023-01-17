@@ -73,10 +73,14 @@ class Tabular(feature.Feature):
         kwargs["y"] = kwargs.get("y", self.data.columns[0])
         kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
         kwargs["width"] = kwargs.get("width", 0.95)
-        kwargs["ylabel"] = kwargs.get("ylabel", self.data.columns[0])
+        kwargs["ylabel"] = kwargs.get(
+            "ylabel",
+            f"{kwargs['y']} {self.unit if hasattr(self, 'unit') else ''}"
+        )
+        kwargs["xlabel"] = kwargs.get("xlabel")
         kwargs["title"] = kwargs.get(
             "title",
-            "\n".join(wrap(f"{self.modality} anchored at {self.anchor._regionspec}", wrapwidth))
+            "\n".join(wrap(f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}", wrapwidth))
         )
         kwargs["grid"] = kwargs.get("grid", True)
         kwargs["legend"] = kwargs.get("legend", False)
