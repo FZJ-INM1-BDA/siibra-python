@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import _anchor
-from .._basetypes import tabular
+from .. import anchor as _anchor
+from ..basetypes import tabular
 
 from ... import _commons
 
@@ -29,7 +29,7 @@ except ImportError:
 
 class GeneExpressions(tabular.Tabular):
     """
-    A set gene expressions for different candidate genes 
+    A set gene expressions for different candidate genes
     measured inside a brain structure.
     """
 

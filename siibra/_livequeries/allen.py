@@ -16,8 +16,8 @@
 from .query import LiveQuery
 
 from ..core import space as _space
-from ..features import _anchor
-from ..features.molecular._gene_expression import GeneExpressions
+from ..features import anchor as _anchor
+from ..features.molecular.gene_expression import GeneExpressions
 from .._commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
@@ -28,7 +28,6 @@ from typing import Iterable, List
 from xml.etree import ElementTree
 import numpy as np
 import json
-import pandas as pd
 
 
 BASE_URL = "http://api.brain-map.org/api/v2/data"
@@ -90,15 +89,15 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
     def __init__(self, **kwargs):
         """
         Each instance of this live query retrieves the probe IDs
-        containing measurements for any gene in the given set 
+        containing measurements for any gene in the given set
         of candidate genes.
         Each probe has expression levels and z-scores for a set of
         N samples.
-        Each sample is linked to a donor, brain structure, and 
-        ICBM coordinate. 
+        Each sample is linked to a donor, brain structure, and
+        ICBM coordinate.
         When querying with a brain structure, the ICBM coordinates
         will be tested agains the region mask in ICBM space
-        to produce a table of outputs. 
+        to produce a table of outputs.
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
@@ -113,7 +112,8 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             elif isinstance(spec, list):
                 return [g for s in spec for g in parse_gene(s)]
             else:
-                raise ValueError("Enexpected specification of gene: ", spec)
+                logger.error("Invalid specification of gene:", spec)
+                return []
 
         self.genes = parse_gene(gene)
 
@@ -211,7 +211,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                 for item in self._retrieve_microarray(donor_id, probe_ids):
                     yield item
 
-
     @staticmethod
     def _retrieve_specimen(specimen_id: str):
         """
@@ -283,5 +282,3 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                     "age": cls.factors[donor_id]["age"],
                     "mni_xyz": icbm_coord[:3],
                 }
-
-

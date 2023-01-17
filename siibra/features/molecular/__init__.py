@@ -13,6 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._receptor_density_profile import ReceptorDensityProfile
-from ._receptor_density_fingerprint import ReceptorDensityFingerprint
-from ._gene_expression import GeneExpressions
+from .receptor_density_profile import ReceptorDensityProfile
+from .receptor_density_fingerprint import ReceptorDensityFingerprint
+from .gene_expression import GeneExpressions
+
+
+def __dir__():
+    return [
+        "ReceptorDensityProfile",
+        "ReceptorDensityFingerprint",
+        "GeneExpressions",
+    ]

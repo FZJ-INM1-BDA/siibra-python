@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import _anchor
-from .._basetypes import cortical_profile
+from .. import anchor as _anchor
+from ..basetypes import cortical_profile
 
 from ..._commons import PolyLine, logger, create_key
 from ..._retrieval import requests

@@ -22,6 +22,7 @@ import json
 import numpy as np
 from nibabel import Nifti1Image
 from typing import Union
+from tqdm import tqdm
 
 
 class PointSet(location.Location):
@@ -84,7 +85,7 @@ class PointSet(location.Location):
     def has_constant_sigma(self):
         return len(set(self.sigma)) == 1
 
-    def warp(self, space):
+    def warp(self, space, chunksize=1000):
         """Creates a new point set by warping its points to another space"""
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
@@ -95,26 +96,34 @@ class PointSet(location.Location):
                 f"Cannot convert coordinates between {self.space.id} and {spaceobj.id}"
             )
 
-        data = json.dumps({
-            "source_space": location.Location.SPACEWARP_IDS[self.space.id],
-            "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
-            "source_points": self.as_list()
-        })
+        src_points = self.as_list()
+        tgt_points = []
+        N = len(src_points)
+        for i0 in tqdm(
+            range(0, N, chunksize),
+            desc=f"Warping {N // chunksize} chunks of points to {spaceobj.name} space",
+            total=N // chunksize
+        ):
 
-        response = HttpRequest(
-            url=f"{location.Location.SPACEWARP_SERVER}/transform-points",
-            post=True,
-            headers={
-                "accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            data=data,
-            func=lambda b: json.loads(b.decode()),
-        ).data
+            i1 = min(i0 + chunksize, N)
+            data = json.dumps({
+                "source_space": location.Location.SPACEWARP_IDS[self.space.id],
+                "target_space": location.Location.SPACEWARP_IDS[spaceobj.id],
+                "source_points": src_points[i0:i1]
+            })
+            response = HttpRequest(
+                url=f"{location.Location.SPACEWARP_SERVER}/transform-points",
+                post=True,
+                headers={
+                    "accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                data=data,
+                func=lambda b: json.loads(b.decode()),
+            ).data
+            tgt_points.extend(list(response["target_points"]))
 
-        return self.__class__(
-            coordinates=tuple(response["target_points"]), space=spaceobj
-        )
+        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj)
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new PointSet obtained by transforming the

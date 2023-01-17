@@ -15,7 +15,7 @@
 
 from . import feature
 
-from .. import _anchor
+from .. import anchor as _anchor
 
 import pandas as pd
 from typing import Union, Dict, Tuple

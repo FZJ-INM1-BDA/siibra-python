@@ -13,9 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._functional_connectivity import FunctionalConnectivity
-from ._streamline_counts import StreamlineCounts
-from ._streamline_lengths import StreamlineLengths
+from .functional_connectivity import FunctionalConnectivity
+from .streamline_counts import StreamlineCounts
+from .streamline_lengths import StreamlineLengths
+from .regional_connectivity import RegionalConnectivity
 
-from .._basetypes.regional_connectivity import RegionalConnectivity as _RegionalConnectivity
-ALL = _RegionalConnectivity._get_visible_subclass_names()
+
+def __dir__():
+    return [
+        "RegionalConnectivity",
+        "FunctionalConnectivity",
+        "StreamlineCounts",
+        "StreamlineLengths",
+    ]

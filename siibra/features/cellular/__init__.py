@@ -13,7 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._cell_density_profile import CellDensityProfile
-from ._layerwise_cell_density import LayerwiseCellDensity
-from ._bigbrain_intensity_profile import BigBrainIntensityProfile
-from ._layerwise_bigbrain_intensities import LayerwiseBigBrainIntensities
+from .cell_density_profile import CellDensityProfile
+from .layerwise_cell_density import LayerwiseCellDensity
+from .bigbrain_intensity_profile import BigBrainIntensityProfile
+from .layerwise_bigbrain_intensities import LayerwiseBigBrainIntensities
+
+
+def __dir__():
+    return [
+        "CellDensityProfile",
+        "LayerwiseCellDensity",
+        "BigBrainIntensityProfile",
+        "LayerwiseBigBrainIntensities",
+    ]

@@ -15,8 +15,8 @@
 
 # simple data features anchored to a point in space
 
-from .. import _anchor
-from .._basetypes import feature
+from .. import anchor as _anchor
+from ..basetypes import feature
 
 from ..._retrieval import datasets
 

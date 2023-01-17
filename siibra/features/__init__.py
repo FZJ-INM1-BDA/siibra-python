@@ -23,11 +23,23 @@ from . import (
     external
 )
 
-from ._basetypes.feature import Feature as _Feature
-from ._basetypes.volume_of_interest import VolumeOfInterest
-from ._basetypes.cortical_profile import CorticalProfile as _CorticalProfile
-get = _Feature.match
+from .basetypes.feature import Feature
+from .basetypes.cortical_profile import CorticalProfile
+from .basetypes.volume_of_interest import VolumeOfInterest
+get = Feature.match
 
 
-ALL = _Feature._get_visible_subclass_names()
-PROFILES = _CorticalProfile._get_visible_subclass_names()
+# ALL = Feature._get_visible_subclass_names()
+# PROFILES = _CorticalProfile._get_visible_subclass_names()
+
+
+def __dir__():
+    return [
+        "cellular",
+        "molecular",
+        "fibres",
+        "connectivity",
+        "external",
+        "Feature",
+        "get",
+        "CorticalProfile"]
