@@ -516,19 +516,18 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         import numpy as np
 
         colors = {}
-        if region_spec is None:
-            for regionname, indices in self._indices.items():
-                for index in indices:
-                    if index.label is None:
-                        continue
-                    region = self.get_region(index=index)
-                    if region.rgb is not None:
-                        colors[index.label] = region.rgb
-        else:
-            region = self.parcellation.get_region(region_spec)
-            index = self._indices[region.name][0]
-            if region.rgb is not None:
-                colors[index.label] = region.rgb
+        include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs } if region_specs is not None else None
+        for regionname, indices in self._indices.items():
+            for index in indices:
+                if index.label is None:
+                    continue
+                    
+                if include_region_names is not None and regionname not in include_region_names:
+                    colors[index.label] = [0, 0, 0] # black as default... potentially use a white default?
+                    
+                region = self.get_region(index=index)
+                if region.rgb is not None:
+                    colors[index.label] = region.rgb
 
         pallette = np.array(
             [
