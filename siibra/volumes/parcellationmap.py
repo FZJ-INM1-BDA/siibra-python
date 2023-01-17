@@ -511,7 +511,21 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         return Nifti1Image(result, affine)
 
     def get_colormap(self, region_specs: Iterable=None):
-        """Generate a matplotlib colormap from known rgb values of label indices."""
+        """
+        Generate a matplotlib colormap from known rgb values of label indices.
+        
+        The probability distribution is approximated from the region mask
+        based on the squared distance transform.
+
+        Parameters
+        ----------
+        region_specs: An iterable selection of regions
+            Optional parameter to only color the desired regions.
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+        """
         from matplotlib.colors import ListedColormap
         import numpy as np
 
@@ -527,11 +541,11 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                     continue
                     
                 if (include_region_names is not None) and (regionname not in include_region_names):
-                    colors[index.label] = [0, 0, 0]
-                    
-                region = self.get_region(index=index)
-                if region.rgb is not None:
-                    colors[index.label] = region.rgb
+                    continue
+                else:
+                    region = self.get_region(index=index)
+                    if region.rgb is not None:
+                        colors[index.label] = region.rgb
 
         pallette = np.array(
             [
