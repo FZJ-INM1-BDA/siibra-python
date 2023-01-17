@@ -18,10 +18,10 @@ from .query import LiveQuery
 from ..core import space as _space
 from ..features import anchor as _anchor
 from ..features.molecular.gene_expression import GeneExpressions
-from .._commons import logger, Species
+from ..commons import logger, Species
 from ..locations import Point
 from ..core.region import Region
-from .._retrieval import HttpRequest
+from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
 from typing import Iterable, List

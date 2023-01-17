@@ -16,8 +16,8 @@
 from .. import anchor as _anchor
 from ..basetypes import tabular
 
-from ... import _commons, vocabularies
-from ..._retrieval import requests
+from ... import commons, vocabularies
+from ...retrieval import requests
 
 import pandas as pd
 import numpy as np
@@ -55,7 +55,7 @@ class ReceptorDensityFingerprint(
         )
         self._loader = requests.HttpRequest(
             tsvfile,
-            lambda url: self.parse_tsv_data(_commons.decode_receptor_tsv(url)),
+            lambda url: self.parse_tsv_data(commons.decode_receptor_tsv(url)),
         )
 
     @property
@@ -93,10 +93,10 @@ class ReceptorDensityFingerprint(
     @property
     def key(self):
         return "{}_{}_{}_{}".format(
-            _commons.create_key(self.__class__.__name__),
+            commons.create_key(self.__class__.__name__),
             self.id,
-            _commons.create_key(self.species_name),
-            _commons.create_key(self.regionspec),
+            commons.create_key(self.species_name),
+            commons.create_key(self.regionspec),
         )
 
     @classmethod
@@ -109,7 +109,7 @@ class ReceptorDensityFingerprint(
             std = [data[_]["density (sd)"] for _ in labels]
         except KeyError as e:
             print(str(e))
-            _commons.logger.error("Could not parse fingerprint from this dictionary")
+            commons.logger.error("Could not parse fingerprint from this dictionary")
         return {
             'unit': next(iter(units)),
             'labels': labels,
@@ -122,7 +122,7 @@ class ReceptorDensityFingerprint(
         try:
             import matplotlib.pyplot as plt
         except ImportError:
-            _commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+            commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
             return None
         from collections import deque
 

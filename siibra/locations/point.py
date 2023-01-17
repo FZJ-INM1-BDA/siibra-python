@@ -14,8 +14,8 @@
 # limitations under the License.
 
 from . import location, boundingbox, pointset
-from .._commons import logger
-from .._retrieval.requests import HttpRequest
+from ..commons import logger
+from ..retrieval.requests import HttpRequest
 
 from nibabel.affines import apply_affine
 from nibabel import Nifti1Image

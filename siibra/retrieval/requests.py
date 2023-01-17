@@ -15,7 +15,7 @@
 
 from .cache import CACHE
 from .exceptions import EbrainsAuthenticationError
-from .._commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 from .. import __version__
 
 from time import sleep

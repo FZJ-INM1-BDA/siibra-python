@@ -17,8 +17,8 @@ from .. import anchor as _anchor
 from ..basetypes import cortical_profile
 
 from ... import vocabularies
-from ..._commons import create_key, decode_receptor_tsv
-from ..._retrieval import requests
+from ...commons import create_key, decode_receptor_tsv
+from ...retrieval import requests
 
 
 class ReceptorDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/receptor"):

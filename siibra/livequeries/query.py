@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .._commons import logger
+from ..commons import logger
 from ..features.basetypes.feature import Feature
-from ..core._concept import AtlasConcept
+from ..core.concept import AtlasConcept
 
 from abc import ABC, abstractmethod
 from typing import List

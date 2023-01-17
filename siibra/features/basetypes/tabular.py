@@ -17,7 +17,7 @@ from . import feature
 
 from .. import anchor as _anchor
 
-from ... import _commons
+from ... import commons
 
 import pandas as pd
 from textwrap import wrap
@@ -64,7 +64,7 @@ class Tabular(feature.Feature):
         try:
             import matplotlib.pyplot as plt
         except ImportError:
-            _commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+            commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
             return None
 
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40

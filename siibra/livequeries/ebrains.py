@@ -16,9 +16,9 @@
 from ..features.external import ebrains as _ebrains
 from . import query
 
-from .._commons import logger
+from ..commons import logger
 from ..features import anchor as _anchor
-from .._retrieval import requests, datasets
+from ..retrieval import requests, datasets
 from ..core import parcellation, region
 
 from collections import defaultdict

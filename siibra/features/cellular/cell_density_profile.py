@@ -16,8 +16,8 @@
 from .. import anchor as _anchor
 from ..basetypes import cortical_profile
 
-from ..._commons import PolyLine, logger, create_key
-from ..._retrieval import requests
+from ...commons import PolyLine, logger, create_key
+from ...retrieval import requests
 
 from skimage.draw import polygon
 from skimage.transform import resize

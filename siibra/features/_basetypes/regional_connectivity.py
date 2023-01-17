@@ -18,9 +18,9 @@ from .tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ..._commons import logger, QUIET
+from ...commons import logger, QUIET
 from ...core import region as _region
-from ..._retrieval.repositories import RepositoryConnector
+from ...retrieval.repositories import RepositoryConnector
 
 from typing import Callable, Dict, Union
 import pandas as pd

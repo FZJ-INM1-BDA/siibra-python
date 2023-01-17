@@ -15,8 +15,8 @@
 
 from .. import anchor as _anchor
 
-from ..._commons import logger
-from ...core import _concept
+from ...commons import logger
+from ...core import concept
 from ...core import space, region, parcellation
 
 from typing import Union, TYPE_CHECKING, List
@@ -24,7 +24,7 @@ from tqdm import tqdm
 from hashlib import md5
 
 if TYPE_CHECKING:
-    from ..._retrieval.datasets import EbrainsDataset
+    from ...retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
 
@@ -104,7 +104,7 @@ class Feature:
                 if cls._configuration_folder is None:
                     cls._preconfigured_instances = []
                 else:
-                    from ..._configuration.configuration import Configuration
+                    from ...configuration.configuration import Configuration
                     conf = Configuration()
                     Configuration.register_cleanup(cls.clean_instances)
                     assert cls._configuration_folder in conf.folders
@@ -125,7 +125,7 @@ class Feature:
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: _concept.AtlasConcept) -> bool:
+    def matches(self, concept: concept.AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True

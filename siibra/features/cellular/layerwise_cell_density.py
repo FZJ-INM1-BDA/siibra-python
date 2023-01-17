@@ -16,8 +16,8 @@
 from .. import anchor as _anchor
 from ..basetypes import cortical_profile, tabular
 
-from ... import _commons
-from ..._retrieval import requests
+from ... import commons
+from ...retrieval import requests
 
 import pandas as pd
 import numpy as np
@@ -72,7 +72,7 @@ class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/finge
                 layers = requests.HttpRequest(layerfile, func=self.LAYER_READER).data
             except requests.SiibraHttpRequestError as e:
                 print(str(e))
-                _commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
+                commons.logger.error(f"Skipping to bootstrap a {self.__class__.__name__} feature, cannot access file resource.")
                 continue
             counts = cells.layer.value_counts()
             areas = layers["Area(micron**2)"]
@@ -97,7 +97,7 @@ class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/finge
     @property
     def key(self):
         assert len(self.species) == 1
-        return _commons.create_key("{}_{}_{}".format(
+        return commons.create_key("{}_{}_{}".format(
             self.dataset_id,
             self.species[0]['name'],
             self.regionspec

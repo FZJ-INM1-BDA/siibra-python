@@ -15,8 +15,8 @@
 
 from . import volume
 
-from .._retrieval import requests
-from .._commons import logger, merge_meshes
+from ..retrieval import requests
+from ..commons import logger, merge_meshes
 
 import numpy as np
 from typing import Union, Dict

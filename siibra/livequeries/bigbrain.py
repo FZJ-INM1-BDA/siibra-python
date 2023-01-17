@@ -17,10 +17,10 @@ from . import query
 
 from ..features.cellular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 
-from .._commons import logger
+from ..commons import logger
 from ..locations import point, pointset
 from ..core import space, region
-from .._retrieval import requests, cache
+from ..retrieval import requests, cache
 
 import numpy as np
 from typing import List

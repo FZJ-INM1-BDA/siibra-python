@@ -15,9 +15,9 @@
 
 from . import parcellationmap, volume as _volume
 
-from .._commons import MapIndex, logger
+from ..commons import MapIndex, logger
 from ..locations import boundingbox
-from .._retrieval import cache
+from ..retrieval import cache
 
 from os import path
 import gzip

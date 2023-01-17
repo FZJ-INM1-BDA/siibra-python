@@ -15,8 +15,8 @@
 
 from . import location, point, boundingbox
 
-from .._retrieval.requests import HttpRequest
-from .._commons import logger
+from ..retrieval.requests import HttpRequest
+from ..commons import logger
 
 import numbers
 import json

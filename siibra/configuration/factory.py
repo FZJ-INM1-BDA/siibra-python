@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .._commons import logger, Species
+from ..commons import logger, Species
 from ..features import anchor
 from ..features.molecular import receptor_density_fingerprint, receptor_density_profile
 from ..features.cellular import cell_density_profile, layerwise_cell_density
 from ..features.basetypes import volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
-from .._retrieval import datasets, repositories
+from ..retrieval import datasets, repositories
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
 from ..features import connectivity
 

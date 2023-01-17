@@ -18,7 +18,7 @@
 from .. import anchor as _anchor
 from ..basetypes import feature
 
-from ..._retrieval import datasets
+from ...retrieval import datasets
 
 
 class EbrainsDataset(feature.Feature, datasets.EbrainsDataset):

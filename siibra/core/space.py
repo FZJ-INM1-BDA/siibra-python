@@ -14,10 +14,10 @@
 # limitations under the License.
 
 
-from ._concept import AtlasConcept
+from .concept import AtlasConcept
 
 from ..locations import Point, BoundingBox
-from .._commons import logger, Species
+from ..commons import logger, Species
 
 from typing import List, TYPE_CHECKING, Union
 

@@ -16,10 +16,10 @@
 from . import volume as _volume, nifti
 
 from .. import logger, QUIET
-from .._commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
-from ..core import _concept, space, parcellation, region as _region
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
+from ..core import concept, space, parcellation, region as _region
 from ..locations import point, pointset
-from .._retrieval import requests
+from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
@@ -47,7 +47,7 @@ class ConflictingArgumentException(ValueError):
     pass
 
 
-class Map(_concept.AtlasConcept, configuration_folder="maps"):
+class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         datasets : list
             datasets associated with this concept
         """
-        _concept.AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,

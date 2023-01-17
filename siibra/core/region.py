@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import _concept, space as _space, parcellation as _parcellation
+from . import concept, space as _space, parcellation as _parcellation
 
 from ..locations import boundingbox, point
 from ..volumes import parcellationmap
 
-from .._commons import (
+from ..commons import (
     logger,
     MapIndex,
     MapType,
@@ -44,7 +44,7 @@ REGEX_TYPE = type(re.compile("test"))
 THRESHOLD_STATISTICAL_MAPS = None
 
 
-class Region(anytree.NodeMixin, _concept.AtlasConcept):
+class Region(anytree.NodeMixin, concept.AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
@@ -84,7 +84,7 @@ class Region(anytree.NodeMixin, _concept.AtlasConcept):
             Hexcode of preferred color of this region (e.g. "#9FE770")
         """
         anytree.NodeMixin.__init__(self)
-        _concept.AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=None,  # lazy property implementation below
             name=clear_name(name),

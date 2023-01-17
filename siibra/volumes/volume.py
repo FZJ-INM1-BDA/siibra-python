@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import logger
-from .._retrieval import requests
+from ..retrieval import requests
 from ..core import space
 
 import nibabel as nib

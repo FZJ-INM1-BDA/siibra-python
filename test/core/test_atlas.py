@@ -3,10 +3,10 @@ from unittest.mock import patch, PropertyMock, MagicMock, call
 from parameterized import parameterized
 
 import siibra
-from siibra._configuration.factory import Factory
+from siibra.configuration.factory import Factory
 from siibra import _space, _parcellation
 from siibra.core.atlas import Atlas
-from siibra._commons import Species
+from siibra.commons import Species
 from siibra.core.region import Region
 from itertools import product, repeat
 
@@ -79,7 +79,7 @@ class TestAtlas(unittest.TestCase):
     def test_spaces(self):
         mocked_spaces = []
         with patch.object(Space, "registry", return_value=mocked_spaces) as registry_getitem:
-            with patch.object(siibra._commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
+            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
                 
                 spaces = self.atlas.spaces
                 mock_init_method.assert_called_once_with(
@@ -91,7 +91,7 @@ class TestAtlas(unittest.TestCase):
     def test_parcellations(self):
         mocked_parcellations = []
         with patch.object(Parcellation, "registry", return_value=mocked_parcellations) as registry_getitem:
-            with patch.object(siibra._commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
+            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
                 
                 parcellations = self.atlas.parcellations
                 mock_init_method.assert_called_once_with(
