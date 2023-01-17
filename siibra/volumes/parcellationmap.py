@@ -510,7 +510,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
 
         return Nifti1Image(result, affine)
 
-    def get_colormap(self, region_spec=None):
+    def get_colormap(self, region_specs : Iterable=None):
         """Generate a matplotlib colormap from known rgb values of label indices."""
         from matplotlib.colors import ListedColormap
         import numpy as np
