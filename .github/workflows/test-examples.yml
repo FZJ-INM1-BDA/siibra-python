@@ -3,13 +3,13 @@ name: '[run examples] Run example notebooks'
 on: [push]
 jobs:
   test-examples:
+    runs-on: ubuntu-latest
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
         # TODO
         # only run full suite on merge to main
         # run individual push on 3.7 kernel
