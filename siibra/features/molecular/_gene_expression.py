@@ -20,8 +20,9 @@ from ... import _commons
 
 import pandas as pd
 from textwrap import wrap
+from typing import List
 try:
-    from typing import TypedDict, List
+    from typing import TypedDict
 except ImportError:
     from typing_extensions import TypedDict
 
