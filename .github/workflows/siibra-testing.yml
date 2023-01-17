@@ -43,15 +43,16 @@ jobs:
           export FAST_RUN=1
         fi
         pytest -rx
-
+  
   e2e-tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ 'ubuntu-latest', 'windows-latest' ]
         python-version: [ '3.10', '3.9', '3.8', '3.7' ]
 
     steps:
