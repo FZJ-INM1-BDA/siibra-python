@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .tabular import Tabular
+from ..basetypes.feature import Feature
+from ..basetypes.tabular import Tabular
 
 from .. import anchor as _anchor
 
@@ -160,7 +160,7 @@ class RegionalConnectivity(Feature):
                 else f"{self.modality}"
             series = matrix[regions[0]]
             last_index = len(series) - 1 if max_rows is None \
-                else min(max_rows, len(series) - 1)
+                else min(max_rows, len(series)-1)
             return Tabular(
                 description=self.description,
                 modality=f"{self.modality} {self.cohort}",

@@ -14,10 +14,9 @@
 # limitations under the License.
 
 from .. import logger
-from .._retrieval import requests
+from ..retrieval import requests
 from ..core import space
 
-import numpy as np
 import nibabel as nib
 from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Set

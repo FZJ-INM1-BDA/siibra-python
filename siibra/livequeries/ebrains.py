@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..features.external import _ebrains
+from ..features.external import ebrains as _ebrains
 from . import query
 
-from .._commons import logger
-from ..features import _anchor
-from .._retrieval import requests, datasets
+from ..commons import logger
+from ..features import anchor as _anchor
+from ..retrieval import requests, datasets
 from ..core import parcellation, region
 
 from collections import defaultdict

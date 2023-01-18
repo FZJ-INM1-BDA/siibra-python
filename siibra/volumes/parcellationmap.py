@@ -16,10 +16,10 @@
 from . import volume as _volume, nifti
 
 from .. import logger, QUIET
-from .._commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
-from ..core import _concept, space, parcellation, region as _region
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
+from ..core import concept, space, parcellation, region as _region
 from ..locations import point, pointset
-from .._retrieval import requests
+from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
@@ -47,7 +47,7 @@ class ConflictingArgumentException(ValueError):
     pass
 
 
-class Map(_concept.AtlasConcept, configuration_folder="maps"):
+class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def __init__(
         self,
@@ -97,7 +97,7 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         datasets : list
             datasets associated with this concept
         """
-        _concept.AtlasConcept.__init__(
+        concept.AtlasConcept.__init__(
             self,
             identifier=identifier,
             name=name,
@@ -690,17 +690,28 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
                 columns=["Structure", "Centroid", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
-            result = np.array(assignments)
+            result = np.array(assignments, dtype=object)
             ind = np.lexsort((-result[:, -1].astype('float'), result[:, 0].astype('float')))
-            regions = [
-                self.get_region(
-                    index=MapIndex(
-                        volume=int(v),
-                        label=int(l) if (l != 'nan') and (self.is_labelled) else None,
-                        fragment=f
-                    )
-                )
+
+            # determine the unique set of observed indices in order to do region lookups
+            # only once for each map index occuring in the point list
+            labelled = self.is_labelled  # avoid calling this in a long loop
+
+            def format_label(label):
+                return int(label) if (label != 'nan') and (labelled) else None
+
+            observed_indices = {
+                (v, f, format_label(l))
                 for _, _, v, f, l, _, _, _, _ in result[ind]
+            }
+            region_lut = {
+                (v, f, l): self.get_region(
+                    index=MapIndex(volume=int(v), label=format_label(l), fragment=f)
+                )
+                for v, f, l in observed_indices
+            }
+            regions = [
+                region_lut[v, f, format_label(l)] for _, _, v, f, l, _, _, _, _ in result[ind]
             ]
             df = pd.DataFrame(
                 {
@@ -747,13 +758,13 @@ class Map(_concept.AtlasConcept, configuration_folder="maps"):
         if points.has_constant_sigma:
             sigma_vox = points.sigma[0] / scaling
             if sigma_vox < 3:
-                X, Y, Z = (np.dot(phys2vox, points.warp(self.space.id).homogeneous.T) + 0.5).astype("int")[:3]
+                pts_warped = points.warp(self.space.id)
+                X, Y, Z = (np.dot(phys2vox, pts_warped.homogeneous.T) + 0.5).astype("int")[:3]
                 for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
-                    x, y, z = [V[pointindex] for V in [X, Y, Z]]
                     if value > lower_threshold:
-                        position = np.dot(self.affine, np.r_[x, y, z, 1])[:3]
+                        position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            [pointindex, tuple(position.round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            [pointindex, tuple(np.array(position).round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
                         )
                 return assignments
 

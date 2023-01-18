@@ -13,14 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .._commons import logger, Species
-from ..features import _anchor
-from ..features.molecular import _receptor_density_fingerprint, _receptor_density_profile
-from ..features.cellular import _cell_density_profile, _layerwise_cell_density
-from ..features._basetypes import volume_of_interest
+from ..commons import logger, Species
+from ..features import anchor
+from ..features.molecular import receptor_density_fingerprint, receptor_density_profile
+from ..features.cellular import cell_density_profile, layerwise_cell_density
+from ..features.basetypes import volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
-from .._retrieval import datasets, repositories
+from ..retrieval import datasets, repositories
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
 from ..features import connectivity
 
@@ -31,7 +31,7 @@ from typing import List, Type
 import pandas as pd
 from io import BytesIO
 
-MIN_VOLUMES_FOR_SPARSE_MAP = 50
+MIN_VOLUMES_FOR_SPARSE_MAP = 100
 
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
@@ -118,7 +118,7 @@ class Factory:
         else:
             raise ValueError(f"No species information found in spec {spec}")
 
-        return _anchor.AnatomicalAnchor(
+        return anchor.AnatomicalAnchor(
             region=region,
             location=location,
             species=species
@@ -231,14 +231,10 @@ class Factory:
             gifti.GiftiSurfaceLabeling
         ]
 
-        affine = np.array(spec["affine"]) if "affine" in spec else None
         for srctype, provider_spec in spec.get("providers", {}).items():
             for ProviderType in provider_types:
                 if srctype == ProviderType.srctype:
-                    if affine is None:
-                        providers.append(ProviderType(provider_spec))
-                    else:
-                        providers.append(ProviderType(provider_spec, transform_nm=affine))
+                    providers.append(ProviderType(provider_spec))
                     break
             else:
                 if srctype not in cls._warnings_issued:
@@ -272,7 +268,7 @@ class Factory:
             Maptype = sparsemap.SparseMap
         else:
             max_z = max(
-                d.get('z', 0) 
+                d.get('z', 0)
                 for _, l in spec.get("indices", {}).items()
                 for d in l
             ) + 1
@@ -336,7 +332,7 @@ class Factory:
 
     @classmethod
     def build_receptor_density_fingerprint(cls, spec):
-        return _receptor_density_fingerprint.ReceptorDensityFingerprint(
+        return receptor_density_fingerprint.ReceptorDensityFingerprint(
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
@@ -344,7 +340,7 @@ class Factory:
 
     @classmethod
     def build_cell_density_fingerprint(cls, spec):
-        return _layerwise_cell_density.LayerwiseCellDensity(
+        return layerwise_cell_density.LayerwiseCellDensity(
             segmentfiles=spec['segmentfiles'],
             layerfiles=spec['layerfiles'],
             anchor=cls.extract_anchor(spec),
@@ -353,7 +349,7 @@ class Factory:
 
     @classmethod
     def build_receptor_density_profile(cls, spec):
-        return _receptor_density_profile.ReceptorDensityProfile(
+        return receptor_density_profile.ReceptorDensityProfile(
             receptor=spec['receptor'],
             tsvfile=spec['file'],
             anchor=cls.extract_anchor(spec),
@@ -362,7 +358,7 @@ class Factory:
 
     @classmethod
     def build_cell_density_profile(cls, spec):
-        return _cell_density_profile.CellDensityProfile(
+        return cell_density_profile.CellDensityProfile(
             section=spec['section'],
             patch=spec['patch'],
             url=spec['file'],

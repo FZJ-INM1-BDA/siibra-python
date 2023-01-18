@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..features._basetypes.feature import Feature
-from ..core._concept import AtlasConcept
+from ..commons import logger
+from ..features.basetypes.feature import Feature
+from ..core.concept import AtlasConcept
 
 from abc import ABC, abstractmethod
 from typing import List
@@ -30,7 +31,7 @@ class LiveQuery(ABC):
         if parstr:
             parstr = "with parameters " + parstr
         if not all(p in kwargs for p in self._query_args):
-            raise ValueError(
+            logger.error(
                 f"Incomplete specification for {self.__class__.__name__} query "
                 f"(Mandatory arguments: {', '.join(self._query_args)})"
             )

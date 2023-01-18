@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import _anchor
+from .. import anchor as _anchor
 
-from ..._commons import logger
-from ...core import _concept
+from ...commons import logger
+from ...core import concept
 from ...core import space, region, parcellation
 
 from typing import Union, TYPE_CHECKING, List
@@ -24,15 +24,16 @@ from tqdm import tqdm
 from hashlib import md5
 
 if TYPE_CHECKING:
-    from ..._retrieval.datasets import EbrainsDataset
+    from ...retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
+
 
 class Feature:
     """
     Base class for anatomically anchored data features.
     """
 
-    VISIBLE_SUBCLASSES = {}
+    SUBCLASSES = {}
 
     def __init__(
         self,
@@ -67,18 +68,13 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
-    @classmethod
-    def _get_visible_subclass_names(cls):
-        """ Returns the name of all visible subclasses. """
-        return [
-            c.__name__ for c in cls.VISIBLE_SUBCLASSES.values()
-            if issubclass(c, cls)
-        ]
-
     def __init_subclass__(cls, configuration_folder=None):
-        if not cls.__name__.startswith('_'):
-            assert cls.__name__ not in cls.VISIBLE_SUBCLASSES
-            cls.VISIBLE_SUBCLASSES[cls.__name__] = cls
+        # extend the subclass lists
+        for basecls in cls.__bases__:
+            if basecls.__name__ != cls.__name__:
+                if basecls.__name__ not in cls.SUBCLASSES:
+                    cls.SUBCLASSES[basecls.__name__] = []
+                cls.SUBCLASSES[basecls.__name__].append(cls)
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
@@ -101,31 +97,35 @@ class Feature:
         Objects can be preconfigured in the configuration,
         or delivered by Live queries.
         """
-        if cls._preconfigured_instances is None:
-            if cls._configuration_folder is None:
-                cls._preconfigured_instances = []
-            else:
-                from ..._configuration.configuration import Configuration
-                conf = Configuration()
-                Configuration.register_cleanup(cls.clean_instances)
-                assert cls._configuration_folder in conf.folders
-                cls._preconfigured_instances = [
-                    o for o in conf.build_objects(cls._configuration_folder)
-                    if isinstance(o, cls)
-                ]
-                logger.debug(
-                    f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
-                    f"objects from {cls._configuration_folder}."
-                )
+        result = []
 
-        return cls._preconfigured_instances
+        if hasattr(cls, "_preconfigured_instances"):
+            if cls._preconfigured_instances is None:
+                if cls._configuration_folder is None:
+                    cls._preconfigured_instances = []
+                else:
+                    from ...configuration.configuration import Configuration
+                    conf = Configuration()
+                    Configuration.register_cleanup(cls.clean_instances)
+                    assert cls._configuration_folder in conf.folders
+                    cls._preconfigured_instances = [
+                        o for o in conf.build_objects(cls._configuration_folder)
+                        if isinstance(o, cls)
+                    ]
+                    logger.debug(
+                        f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
+                        f"objects from {cls._configuration_folder}."
+                    )
+            result.extend(cls._preconfigured_instances)
+
+        return result
 
     @classmethod
     def clean_instances(cls):
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: _concept.AtlasConcept) -> bool:
+    def matches(self, concept: concept.AtlasConcept) -> bool:
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True
@@ -162,27 +162,24 @@ class Feature:
             specififies the type of features ("modality")
         """
         if isinstance(feature_type, list):
-            # detect a set of feature types recursively
+            # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
             return sum((cls.match(concept, t) for t in feature_type), [])
-        elif isinstance(feature_type, str):
-            # one feature type given as a string
-            if feature_type in cls.VISIBLE_SUBCLASSES:
-                feature_type = cls.VISIBLE_SUBCLASSES[feature_type]
+
+        if isinstance(feature_type, str):
+            # feature type given as a string. Decode the corresponding class.
+            candidates = [
+                feattype
+                for featname, feattype in cls.SUBCLASSES.items()
+                if all(w.lower() in featname.lower() for w in feature_type.split())
+            ]
+            if len(candidates) == 1:
+                feature_type = candidates[0]
             else:
-                candidates = [
-                    feattype
-                    for featname, feattype in cls.VISIBLE_SUBCLASSES.items()
-                    if all(w.lower() in featname.lower() for w in feature_type.split())
-                ]
-                if len(candidates) == 1:
-                    feature_type = candidates[0]
-                else:
-                    print(candidates)
-                    raise ValueError(
-                        f"Feature type '{feature_type}' cannot be matched uniquely to "
-                        f"{', '.join(cls.VISIBLE_SUBCLASSES.keys())}"
-                    )
+                raise ValueError(
+                    f"Feature type '{feature_type}' cannot be matched uniquely to "
+                    f"{', '.join(cls.SUBCLASSES.keys())}"
+                )
 
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
             raise ValueError(
@@ -192,20 +189,26 @@ class Feature:
 
         msg = f"Matching {feature_type.__name__} to {concept}"
         instances = feature_type.get_instances()
-        if logger.getEffectiveLevel() > 20:
+        if logger.getEffectiveLevel() > 20 and len(instances) > 0:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
             preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = []
-        for QueryType in feature_type._live_queries:
-            argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
-                if len(kwargs) > 0 else ""
-            logger.info(
-                f"Running live query for {QueryType.feature_type.__name__} "
-                f"objects linked to {str(concept)}{argstr}"
-            )
-            q = QueryType(**kwargs)
-            live_instances.extend(q.query(concept))
+        if hasattr(feature_type, "_live_queries"):
+            for QueryType in feature_type._live_queries:
+                argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
+                    if len(kwargs) > 0 else ""
+                logger.info(
+                    f"Running live query for {QueryType.feature_type.__name__} "
+                    f"objects linked to {str(concept)}{argstr}"
+                )
+                q = QueryType(**kwargs)
+                live_instances.extend(q.query(concept))
 
-        return preconfigured_instances + live_instances
+        # collect any matches of subclasses
+        subclass_instances = []
+        for subcls in cls.SUBCLASSES.get(feature_type.__name__, []):
+            subclass_instances.extend(subcls.match(concept, subcls, **kwargs))
+
+        return preconfigured_instances + live_instances + subclass_instances

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._commons import (
+from .commons import (
     logger,
     QUIET,
     VERBOSE,
@@ -28,12 +28,12 @@ from .core import (
     parcellation as _parcellation,
     space as _space
 )
-from ._retrieval.requests import (
+from .retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
     CACHE as cache
 )
-from . import _configuration
-from . import features, _livequeries
+from . import configuration
+from . import features, livequeries
 from siibra.locations import Point, PointSet
 
 import os as _os
@@ -58,9 +58,9 @@ def __getattr__(attr: str):
     elif attr == 'parcellations':
         return _parcellation.Parcellation.registry()
     elif attr == 'use_configuration':
-        return _configuration.Configuration.use_configuration
+        return configuration.Configuration.use_configuration
     elif attr == 'extend_configuration':
-        return _configuration.Configuration.extend_configuration
+        return configuration.Configuration.extend_configuration
     else:
         raise AttributeError(f"No such attribute: {__name__}.{attr}")
 
@@ -107,3 +107,25 @@ def set_cache_size(maxsize_gbyte: int):
 if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
+
+def __dir__():
+    return [
+        "atlases",
+        "spaces",
+        "parcellations",
+        "features",
+        "use_configuration",
+        "extend_configuration",
+        "get_region",
+        "get_map",
+        "get_template",
+        "MapType",
+        "Point",
+        "PointSet",
+        "QUIET",
+        "VERBOSE",
+        "fetch_ebrains_token",
+        "set_ebrains_token",
+        "vocabularies",
+        "__version__",
+    ]

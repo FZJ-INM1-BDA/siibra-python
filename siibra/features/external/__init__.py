@@ -13,4 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ._ebrains import EbrainsDataset
+from .ebrains import EbrainsDataset
+
+def __dir__():
+    return [
+        "EbrainsDataset",
+    ]

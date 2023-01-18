@@ -15,7 +15,7 @@
 
 from . import feature
 
-from .. import _anchor
+from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
 from ...locations import boundingbox

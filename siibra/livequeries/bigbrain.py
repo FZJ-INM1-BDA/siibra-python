@@ -15,12 +15,12 @@
 
 from . import query
 
-from ..features.cellular import _bigbrain_intensity_profile, _layerwise_bigbrain_intensities
+from ..features.cellular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 
-from .._commons import logger
+from ..commons import logger
 from ..locations import point, pointset
 from ..core import space, region
-from .._retrieval import requests, cache
+from ..retrieval import requests, cache
 
 import numpy as np
 from typing import List
@@ -110,12 +110,12 @@ class WagstylProfileLoader:
         )
 
 
-class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=_bigbrain_intensity_profile.BigBrainIntensityProfile):
+class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
 
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, regionobj: region.Region, **kwargs) -> List[_bigbrain_intensity_profile.BigBrainIntensityProfile]:
+    def query(self, regionobj: region.Region, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
@@ -124,7 +124,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=_bigbrain_inten
             matched_profiles, boundary_depths, coords = loader.match(subregion)
             bbspace = space.Space.get_instance('bigbrain')
             for i, profile in enumerate(matched_profiles):
-                prof = _bigbrain_intensity_profile.BigBrainIntensityProfile(
+                prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
                     regionname=subregion.name,
                     depths=loader.profile_labels,
                     values=profile,
@@ -137,12 +137,12 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=_bigbrain_inten
         return features
 
 
-class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=_layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
+class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
 
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, regionobj: region.Region, **kwargs) -> List[_layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
+    def query(self, regionobj: region.Region, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
@@ -160,7 +160,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=_lay
                 for b in boundary_depths
             ]).squeeze()
 
-            fp = _layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
+            fp = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
                 regionname=subregion.name,
                 means=[matched_profiles[region_labels == _].mean() for _ in range(1, 7)],
                 stds=[matched_profiles[region_labels == _].std() for _ in range(1, 7)],

@@ -13,16 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .._basetypes import cortical_profile
+from ..basetypes import cortical_profile, tabular
 
-from ...locations import point
+import pandas as pd
+import numpy as np
 
 
-class BigBrainIntensityProfile(cortical_profile.CorticalProfile):
+class LayerwiseBigBrainIntensities(tabular.Tabular):
 
     DESCRIPTION = (
-        "Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "
-        "as described in the publication 'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
+        "Layerwise averages and standard deviations of of BigBrain staining intensities "
+        "computed by Konrad Wagstyl, as described in the publication "
+        "'Wagstyl, K., et al (2020). BigBrain 3D atlas of "
         "cortical layers: Cortical and laminar thickness gradients diverge in sensory and "
         "motor cortices. PLoS Biology, 18(4), e3000678. "
         "http://dx.doi.org/10.1371/journal.pbio.3000678'."
@@ -33,28 +35,25 @@ class BigBrainIntensityProfile(cortical_profile.CorticalProfile):
     def __init__(
         self,
         regionname: str,
-        depths: list,
-        values: list,
-        boundaries: list,
-        location: point.Point
+        means: list,
+        stds: list,
     ):
-        from .._anchor import AnatomicalAnchor
+
+        from ..anchor import AnatomicalAnchor
         anchor = AnatomicalAnchor(
-            location=location,
             region=regionname,
             species='Homo sapiens'
         )
-        cortical_profile.CorticalProfile.__init__(
+        data = pd.DataFrame(
+            np.array([means, stds]).T,
+            columns=['mean', 'std'],
+            index=list(cortical_profile.CorticalProfile.LAYERS.values())[1: -1]
+        )
+        data.index.name = "layer"
+        tabular.Tabular.__init__(
             self,
             description=self.DESCRIPTION,
             modality="Modified silver staining",
             anchor=anchor,
-            depths=depths,
-            values=values,
-            unit="staining intensity",
-            boundary_positions={
-                b: boundaries[b[0]]
-                for b in cortical_profile.CorticalProfile.BOUNDARIES
-            }
+            data=data
         )
-        self.location = location

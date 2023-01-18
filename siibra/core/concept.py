@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from .._commons import create_key, clear_name, logger, InstanceTable, Species
+from ..commons import create_key, clear_name, logger, InstanceTable, Species
 
 import re
 from typing import TypeVar, Type, Union, List, TYPE_CHECKING
@@ -32,7 +32,7 @@ class TypePublication(TypedDict):
     url: str
 
 if TYPE_CHECKING:
-    from .._retrieval.datasets import EbrainsDataset
+    from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
 class AtlasConcept:
@@ -99,7 +99,7 @@ class AtlasConcept:
         if cls._configuration_folder is None:
             return None
         if cls._registry_cached is None:
-            from .._configuration import Configuration
+            from ..configuration import Configuration
             conf = Configuration()
             # visit the configuration to provide a cleanup function
             # in case the user changes the configuration during runtime.

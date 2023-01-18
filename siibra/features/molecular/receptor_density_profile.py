@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import _anchor
-from .._basetypes import cortical_profile
+from .. import anchor as _anchor
+from ..basetypes import cortical_profile
 
 from ... import vocabularies
-from ..._commons import create_key, decode_receptor_tsv
-from ..._retrieval import requests
+from ...commons import create_key, decode_receptor_tsv
+from ...retrieval import requests
 
 
 class ReceptorDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/receptor"):
