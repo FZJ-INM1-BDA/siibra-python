@@ -113,7 +113,9 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                     versioned_datasets[name][version] = dset
 
         if len(invalid_species_datasets) > 0:
-            with NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            with NamedTemporaryFile(mode='w', suffix='.txt', delete=False
+            # , encoding='utf-8'
+            ) as f:
                 for dsid, dsname in invalid_species_datasets.items():
                     f.write(f"{dsid} {dsname}\n")
                 logger.warn(

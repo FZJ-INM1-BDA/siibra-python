@@ -3,7 +3,7 @@ name: '[run examples] Run example notebooks'
 on: [push]
 jobs:
   test-examples:
-    runs-on: [ubuntu-latest, windows-latest]
+    runs-on: ubuntu-latest
     env:
       KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
