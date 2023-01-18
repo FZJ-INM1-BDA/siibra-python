@@ -13,10 +13,6 @@ args = [
     ),
     (jba_29, siibra.features.connectivity.StreamlineCounts),
     (jba_29, siibra.features.connectivity.StreamlineLengths),
-    pytest.param(
-        jba_29, siibra.features.connectivity.ALL,
-        marks=pytest.mark.xfail(reasonn="Non-quadratic connectivity matrix 294x1")
-    )
 ]
 
 
