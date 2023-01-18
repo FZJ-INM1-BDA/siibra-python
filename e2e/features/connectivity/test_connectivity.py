@@ -7,6 +7,15 @@ from siibra.features.connectivity.regional_connectivity import RegionalConnectiv
 jba_29 = siibra.parcellations["2.9"]
 
 args = [
+    (jba_29, "StreamlineCounts"),
+    pytest.param(
+        jba_29, "RegionalConnectivity",
+        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
+    ),
+    pytest.param(
+        jba_29, RegionalConnectivity,
+        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
+    ),
     pytest.param(
         jba_29, siibra.features.connectivity.FunctionalConnectivity,
         marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")

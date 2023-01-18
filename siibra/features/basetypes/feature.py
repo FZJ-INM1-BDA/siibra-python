@@ -19,7 +19,7 @@ from ...commons import logger
 from ...core import concept
 from ...core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List
+from typing import Union, TYPE_CHECKING, List, Dict, Type
 from tqdm import tqdm
 from hashlib import md5
 
@@ -33,7 +33,8 @@ class Feature:
     Base class for anatomically anchored data features.
     """
 
-    SUBCLASSES = {}
+    SUBCLASSES: Dict[str, List[Type['Feature']]] = {}
+    EXACT_CLASS: Dict[str, Type['Feature']] = {}
 
     def __init__(
         self,
@@ -70,6 +71,9 @@ class Feature:
 
     def __init_subclass__(cls, configuration_folder=None):
         # extend the subclass lists
+        assert cls.__name__ not in cls.EXACT_CLASS, f"feature class {cls.__name__} already registered in sublcass"
+        cls.EXACT_CLASS[cls.__name__] = cls
+
         for basecls in cls.__bases__:
             if basecls.__name__ != cls.__name__:
                 if basecls.__name__ not in cls.SUBCLASSES:
@@ -168,11 +172,20 @@ class Feature:
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
-            candidates = [
+            
+            exact_candidate = [
                 feattype
-                for featname, feattype in cls.SUBCLASSES.items()
+                for featname, feattype in cls.EXACT_CLASS.items()
                 if all(w.lower() in featname.lower() for w in feature_type.split())
             ]
+            sub_candidates = [
+                feattype
+                for featname, feattypes in cls.SUBCLASSES.items()
+                if all(w.lower() in featname.lower() for w in feature_type.split())
+                for feattype in feattypes
+            ]
+            # match against exact candidate first, then subclass candidates
+            candidates = exact_candidate or sub_candidates
             if len(candidates) == 1:
                 feature_type = candidates[0]
             else:
