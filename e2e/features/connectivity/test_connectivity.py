@@ -17,7 +17,7 @@ args = [
         marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
     ),
     pytest.param(
-        jba_29, siibra.features.connectivity.FunctionalConnectivity,
+        jba_29, "connectivity",
         marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
     ),
     (jba_29, siibra.features.connectivity.StreamlineCounts),
