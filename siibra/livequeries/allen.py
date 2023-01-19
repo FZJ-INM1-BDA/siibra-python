@@ -142,6 +142,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                 contained[location] = location.intersects(mask)
             if contained[location]:
                 measures.append(measure)
+                anchor._location_cached = location
 
         yield GeneExpressions(
             anchor=anchor,
