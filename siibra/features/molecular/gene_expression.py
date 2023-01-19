@@ -95,7 +95,7 @@ class GeneExpressions(tabular.Tabular):
 
         data = pd.DataFrame(
             dict(
-                **{'level': levels, 'zscore': z_scores, 'gene': genes},
+                **{'level': levels, 'zscore': z_scores, 'gene': genes, 'anchor': anchor},
                 **additional_columns
             )
         )
