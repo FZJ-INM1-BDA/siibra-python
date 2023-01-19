@@ -41,19 +41,17 @@ features = siibra.features.get(
     gene=siibra.vocabularies.GENE_NAMES.GABARAPL2
 )
 print(features[0])
-# Take a peek at how the data looks
-features[0].data.head()
 
 # %%
 # Since gene expressions are spatial features,
 # let's check the reference space of the results.
 space = features[0].anchor.space
-print(space)
+assert(all(f.anchor.space == space for f in features))
 
 # %%
 # Plot the locations of the probes that were found, together with the region
 # mask of V1.
-all_coords = features[0].data["mni_xyz"].tolist()
+all_coords = [tuple(g.anchor.location) for g in features]
 mask = region.fetch_regional_map(space)
 display = plotting.plot_roi(mask)
 display.add_markers(all_coords, marker_size=5)
