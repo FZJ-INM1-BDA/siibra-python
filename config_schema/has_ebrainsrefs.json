@@ -12,6 +12,12 @@
                 },
                 "minds/core/species/v1.0.0": {
                     "type": "string"
+                },
+                "openminds/Species": {
+                    "type": "string"
+                },
+                "openminds/Dataset": {
+                    "type": "string"
                 }
             },
             "additionalProperties": false
