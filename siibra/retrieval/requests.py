@@ -261,10 +261,13 @@ class EbrainsRequest(HttpRequest):
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
-    def fetch_token(cls):
+    def fetch_token(cls, enable_flow: bool = False):
         """Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         """
+        if enable_flow:
+            from os import environ
+            environ["SIIBRA_ENABLE_DEVICE_FLOW"] = "1"
         cls.device_flow()
 
     @classmethod
