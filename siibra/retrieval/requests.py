@@ -274,9 +274,15 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def device_flow(cls):
-
-        if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
-            raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
+        if all([
+            not sys.__stdout__.isatty(), # if is tty, do not raise
+            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ), # if is notebook environment, do not raise
+            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"), # if explicitly enabled by env var, do not raise
+        ]):
+            raise EbrainsAuthenticationError(
+                "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
+                "and not running in a notebook. Are you running in batch mode?"
+                )
 
         cls.init_oidc()
         resp = requests.post(
