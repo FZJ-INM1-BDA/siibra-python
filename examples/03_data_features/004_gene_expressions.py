@@ -53,7 +53,7 @@ print(space)
 # %%
 # Plot the locations of the probes that were found, together with the region
 # mask of V1.
-all_coords = features[0].data["mni_xyz"].tolist()
+all_coords = [p.coordinate for p in features[0].anchor.location]
 mask = region.fetch_regional_map(space)
 display = plotting.plot_roi(mask)
 display.add_markers(all_coords, marker_size=5)
