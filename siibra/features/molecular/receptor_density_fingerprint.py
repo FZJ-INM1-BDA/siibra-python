@@ -22,6 +22,7 @@ from ...retrieval import requests
 import pandas as pd
 import numpy as np
 from textwrap import wrap
+from typing import List
 
 
 class ReceptorDensityFingerprint(
@@ -59,15 +60,15 @@ class ReceptorDensityFingerprint(
         )
 
     @property
-    def unit(self):
+    def unit(self) -> str:
         return self._loader.data['unit']
 
     @property
-    def receptors(self):
+    def receptors(self) -> List[str]:
         return list(self.data.index)
 
     @property
-    def neurotransmitters(self):
+    def neurotransmitters(self) -> List[str]:
         return [
             "{} ({})".format(
                 vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
@@ -89,15 +90,6 @@ class ReceptorDensityFingerprint(
             )
             self._data_cached.index.name = 'receptor'
         return self._data_cached
-
-    @property
-    def key(self):
-        return "{}_{}_{}_{}".format(
-            commons.create_key(self.__class__.__name__),
-            self.id,
-            commons.create_key(self.species_name),
-            commons.create_key(self.regionspec),
-        )
 
     @classmethod
     def parse_tsv_data(cls, data: dict):
