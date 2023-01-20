@@ -46,6 +46,13 @@ class EbrainsDataset(feature.Feature, datasets.EbrainsDataset):
         self.version = None
         self._next = None
         self._prev = None
+    
+    @property
+    def id(self):
+        # There exists a property name collision (id property implemented by both Feature and dataset.EbrainsDataset)
+        # Explicitly use datasets.EbrainsDataset's implementation of id
+        # We could fix this by reordering the mro, but I feel the below implementation is more explicit.
+        return datasets.EbrainsDataset.id.fget(self)
 
     @property
     def modality(self):

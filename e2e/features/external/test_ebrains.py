@@ -10,4 +10,5 @@ concepts = [
 def test_ebrains_dataset(concept, query_arg):    
     features = siibra.features.get(concept, query_arg)
     assert len(features) > 0
-    
+    for feature in features:
+        print(feature.description)
