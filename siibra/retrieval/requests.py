@@ -268,25 +268,21 @@ class EbrainsRequest(HttpRequest):
         cls.device_flow()
 
     @classmethod
-    def is_jupyter_notebook(cls):
-        """
-        Is the code running in the jupyter environment.
-        Includes -notebook, -lab, vscode notebook, and google colab notebooks. 
-        """
-        return True if any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ) else False
-
-    @classmethod
     def set_token(cls, token):
         logger.info(f"Setting EBRAINS Knowledge Graph authentication token: {token}")
         cls._KG_API_TOKEN = token
 
     @classmethod
     def device_flow(cls):
-        if cls.is_jupyter_notebook():
-            os.environ["SIIBRA_ENABLE_DEVICE_FLOW"] = "1"
-
-        if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
-            raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
+        if all([
+            not sys.__stdout__.isatty(), # if is tty, do not raise
+            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ), # if is notebook environment, do not raise
+            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"), # if explicitly enabled by env var, do not raise
+        ]):
+            raise EbrainsAuthenticationError(
+                "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
+                "and not running in a notebook. Are you running in batch mode?"
+                )
 
         cls.init_oidc()
         resp = requests.post(
