@@ -261,14 +261,19 @@ class EbrainsRequest(HttpRequest):
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
-    def fetch_token(cls, enable_flow: bool = False):
+    def fetch_token(cls):
         """Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         """
-        if enable_flow:
-            from os import environ
-            environ["SIIBRA_ENABLE_DEVICE_FLOW"] = "1"
         cls.device_flow()
+
+    @classmethod
+    def is_jupyter_notebook(cls):
+        """
+        Is the code running in the jupyter environment.
+        Includes -notebook, -lab, vscode notebook, and google colab notebooks. 
+        """
+        return True if any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ) else False
 
     @classmethod
     def set_token(cls, token):
@@ -277,6 +282,8 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def device_flow(cls):
+        if cls.is_jupyter_notebook():
+            os.environ["SIIBRA_ENABLE_DEVICE_FLOW"] = "1"
 
         if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
             raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
