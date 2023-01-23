@@ -148,10 +148,11 @@ class Feature:
     
     @property
     def id(self):
+        prefix=''
         id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
         if len(id_set) == 1:
-            return list(id_set)[0]
-        return md5(self.name.encode("utf-8")).hexdigest()
+            prefix = list(id_set)[0] + '--'
+        return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
