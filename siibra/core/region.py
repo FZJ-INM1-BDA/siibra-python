@@ -199,6 +199,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         regionspec : any of
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
+            - a string in '/pattern/flags' format to use regex search
             - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
             - a full MapIndex
@@ -218,11 +219,23 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         if key in MEM:
             return MEM[key]
 
-        if isinstance(regionspec, str) and regionspec in self.names:
-            # key is given, this gives us an exact region
-            match = anytree.search.find_by_attr(self, regionspec, name="key")
-            MEM[key] = [] if match is None else [match]
-            return MEM[key]
+        if isinstance(regionspec, str):
+            if regionspec in self.names:
+                # key is given, this gives us an exact region
+                match = anytree.search.find_by_attr(self, regionspec, name="key")
+                MEM[key] = [] if match is None else [match]
+                return MEM[key]
+            if (regionspec[0] == '/') and ('/' in regionspec[1:]):
+                import re
+                regex_specs = regionspec.split("/")
+                options = regex_specs[-1] if regex_specs[-1] != '' else None
+                flagmembers = re.RegexFlag.__members__
+                regionspec = re.compile(
+                    regex_specs[1],
+                    flags=0 if options is None else sum(
+                        [flagmembers[k.upper()].value for k in options if k.upper() in flagmembers]
+                        )
+                    )
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
