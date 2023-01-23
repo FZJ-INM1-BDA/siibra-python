@@ -15,7 +15,7 @@
 
 from . import region
 
-from .._commons import logger, MapType, MapIndex, Species
+from ..commons import logger, MapType, MapIndex, Species
 from ..volumes import parcellationmap
 
 from typing import Union, List, Dict

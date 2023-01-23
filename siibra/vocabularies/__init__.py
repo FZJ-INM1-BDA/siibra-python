@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from .._commons import InstanceTable
+from ..commons import InstanceTable
 
 import json
 from os import path

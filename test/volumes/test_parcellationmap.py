@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException
-from siibra._commons import Species
+from siibra.commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 import random

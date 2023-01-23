@@ -42,7 +42,7 @@ l4_surf_l = layermap.fetch(region="layer 4 left", format="mesh")
 # For illustration, we create a combined mesh of the white matter surface
 # in the left hemisphere and the layer 1 surface of the right hemisphere.
 wm_surf_r = layermap.fetch(region="non-cortical right", format="mesh")
-mesh = siibra._commons.merge_meshes([l4_surf_l, wm_surf_r], labels=[10, 20])
+mesh = siibra.commons.merge_meshes([l4_surf_l, wm_surf_r], labels=[10, 20])
 
 # %%
 plotting.view_surf(

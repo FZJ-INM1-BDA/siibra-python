@@ -1,11 +1,11 @@
 from unittest.mock import MagicMock, PropertyMock
-from siibra.core._concept import AtlasConcept, InstanceTable
-from siibra._commons import Species
+from siibra.core.concept import AtlasConcept, InstanceTable
+from siibra.commons import Species
 import siibra
 from unittest.mock import patch
 from uuid import uuid4
 import unittest
-from siibra._configuration.configuration import Configuration
+from siibra.configuration.configuration import Configuration
 
 CONF_FOLDER = "CONF_FOLDER"
 IDENTIFIER = "my-id"
