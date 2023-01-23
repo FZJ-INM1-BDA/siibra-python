@@ -15,9 +15,9 @@
 
 from . import parcellationmap, volume as _volume
 
-from .._commons import MapIndex, logger
+from ..commons import MapIndex, logger
 from ..locations import boundingbox
-from .._retrieval import cache
+from ..retrieval import cache
 
 from os import path
 import gzip
@@ -46,8 +46,8 @@ class SparseIndex:
             self.shape = img.shape
             self.voxels = np.zeros(img.shape, dtype=np.int32) - 1
         else:
-            assert img.shape == self.shape
-            assert (img.affine - self.affine).sum() == 0
+            if (img.shape != self.shape) or ((img.affine - self.affine).sum() != 0):
+                raise RuntimeError(f"Building sparse maps from volumes with different voxel spaces is not yet supported in siibra.")
 
         volume = self.num_volumes
         imgdata = np.asanyarray(img.dataobj)

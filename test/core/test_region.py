@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from siibra.core.region import Region
-from siibra._commons import MapType
+from siibra.commons import MapType
 
 class TestRegion(unittest.TestCase):
 

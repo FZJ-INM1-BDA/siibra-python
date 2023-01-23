@@ -1,7 +1,7 @@
 import unittest
 
 from siibra.core.space import Space
-from siibra._commons import Species
+from siibra.commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 import inspect

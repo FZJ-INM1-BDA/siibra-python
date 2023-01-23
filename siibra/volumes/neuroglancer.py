@@ -15,8 +15,8 @@
 
 from . import volume
 
-from .._commons import logger, MapType, MapIndex, merge_meshes
-from .._retrieval import requests, cache
+from ..commons import logger, MapType, merge_meshes
+from ..retrieval import requests, cache
 from ..locations import boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
@@ -26,7 +26,7 @@ from io import BytesIO
 import nibabel as nib
 import os
 import numpy as np
-from typing import Union, Dict, Union, Tuple
+from typing import Union, Dict, Tuple
 
 
 class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -460,7 +460,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             "transform_nm": np.array(requests.HttpRequest(f"{url}/transform.json").data),
             "info": requests.HttpRequest(url=f"{url}/info", func=requests.DECODERS['.json']).data
         }
-    
+
     # TODO check resource typing?
     def __init__(self, resource: Union[str, dict], volume=None):
         self.volume = volume
