@@ -826,7 +826,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 assignments.extend(
                     [
                         [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
-                        for (_, volume, fragment, _, value, rho, iou, contains, contained) in T.values
+                        for (_, _, volume, fragment, _, value, rho, iou, contains, contained) in T.values
                     ]
                 )
         return assignments
