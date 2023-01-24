@@ -26,7 +26,6 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 from nilearn import plotting
 import siibra
 from tqdm import tqdm
-import random # will only be used for illustration
 
 # %%
 # We start by selecting an atlas parcellation.
@@ -62,25 +61,12 @@ matrix = conn.get_matrix(subject)
 matrix.head()
 
 # %%
-# Using nilearn.plotting the matrix can be visualized. For simplicty, we choose
-# 20 random regions and plot the corresponding matrix
-regionlabels = [l for l in matrix.columns]
-selected_labels = random.sample(regionlabels, 20)
-plotting.plot_matrix(
-    matrix.loc[selected_labels, selected_labels],
-    labels=selected_labels, figure=(15,15)
-    )
-
+# Alternatively, we can visualize the matrix using plot_matrix() method
+conn.plot_matrix(subject=conn.subjects[0])
 # %%
-# Now let us compare this matrix to the average of all subjects
-matrix_av = matrix
-for s in conn.subjects[1:]:
-    matrix_av = matrix_av + conn.get_matrix(s)
-matrix_av = matrix_av / len(conn.subjects)
-plotting.plot_matrix(
-    matrix.loc[selected_labels, selected_labels],
-    labels=selected_labels, figure=(15,15)
-    )
+# The average matrix across all subjects can be displayed by leaving out subjects
+# or setting it to "mean". This time let us display in logscale.
+conn.plot_matrix(logscale=True)
 
 # %%
 # We can create a 3D visualization of the connectivity using
