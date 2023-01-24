@@ -159,7 +159,8 @@ class HttpRequest:
                         position=0, leave=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
                     )
-                with open(self.cachefile, "wb") as f:
+                temp_cachefile = self.cachefile + "_temp"
+                with open(temp_cachefile, "wb") as f:
                     for data in r.iter_content(block_size):
                         if size_bytes > min_bytesize_with_no_progress_info:
                             progress_bar.update(len(data))
@@ -167,6 +168,7 @@ class HttpRequest:
                 if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar.close()
                 self.refresh = False
+                os.rename(temp_cachefile, self.cachefile)
                 with open(self.cachefile, 'rb') as f:
                     return f.read()
             else:
