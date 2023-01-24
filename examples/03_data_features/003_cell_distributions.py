@@ -46,7 +46,7 @@ c.head()
 
 # %%
 # We can, for example, plot the 2D distribution of the cell locations colored by layers:
-plt.scatter(c["x"], c["y"], c=c["layer"], s=0.2)
+plt.scatter(c.x, c.y, c=c.layer, s=0.2)
 plt.title(f"Cell distributions in {v1.name}")
 plt.grid(True)
 plt.axis("equal")
@@ -54,13 +54,13 @@ plt.tight_layout()
 
 # %%
 # Having the data in data frame format allows further flexibility such as:
-layer1_cells = c[c["layer"]==1]
+layer1_cells = c.query('layer == 1')
 plt.scatter(
-    layer1_cells["x"], layer1_cells["y"],
-    s=layer1_cells["area(micron**2)"], c=layer1_cells["label"]
+    layer1_cells.x, layer1_cells.y,
+    s=layer1_cells["area(micron**2)"], c=layer1_cells.label
     )
-mean_cell_area_layer_1 = layer1_cells["area(micron**2)"].mean()
-plt.title(f"Mean cell area in layer 1: {mean_cell_area_layer_1}")
+area_layer1 = layer1_cells["area(micron**2)"]
+plt.title(f"Mean cell area in layer 1: {area_layer1.mean()}")
 
 # %%
 # The features also have location information. We can plot their location in

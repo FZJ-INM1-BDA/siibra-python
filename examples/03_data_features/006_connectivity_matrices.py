@@ -58,7 +58,7 @@ print(conn.subjects)
 # with region objects as index.
 subject = conn.subjects[0]
 matrix = conn.get_matrix(subject)
-matrix.head()
+matrix
 
 # %%
 # Alternatively, we can visualize the matrix using plot_matrix() method

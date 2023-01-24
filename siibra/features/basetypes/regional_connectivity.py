@@ -148,22 +148,21 @@ class RegionalConnectivity(Feature):
             Whether to show the data in log10 scale or not.
         """
         matrix = self.get_matrix(subject=subject)
-        
         if logscale:
-            from numpy import log10
-            matrix = log10(matrix)
+            matrix = np.log10(matrix)
+
         if regions is None:
             # TODO: Fix: self.regions is not equal to matrix.columns.to_list() due to space mismatch
             # After the fix, update this with regions = self.regions
             regions = matrix.columns.to_list()
 
          # default kwargs
-        subject_title = subject if subject is not None else ""
+        subject_title = subject or ""
         kwargs["title"] = kwargs.get(
             "title",
             f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
-        kwargs["figure"] = kwargs.get("figure", (15, 15))
+        #kwargs["figure"] = kwargs.get("figure", (15, 15))
 
         from nilearn import plotting    
         plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
