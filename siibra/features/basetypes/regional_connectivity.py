@@ -131,6 +131,43 @@ class RegionalConnectivity(Feature):
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
 
+    def plot_matrix(self, subject: str = None, regions: list[str] = None, logscale: bool = False, **kwargs):
+        """
+        Plots the heatmap of the connectivity matrix using nilearn.plotting.
+
+        Parameters
+        ----------
+        subject: str
+            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            If "mean" or None is given, the mean is taken in case of multiple
+            available matrices.
+        regions: list[str]
+            Display the matrix only for selected regions. By default, shows all the regions.
+            It can only be a subset of regions of the feature.
+        logscale: bool
+            Whether to show the data in log10 scale or not.
+        """
+        matrix = self.get_matrix(subject=subject)
+        
+        if logscale:
+            from numpy import log10
+            matrix = log10(matrix)
+        if regions is None:
+            # TODO: Fix: self.regions is not equal to matrix.columns.to_list() due to space mismatch
+            # After the fix, update this with regions = self.regions
+            regions = matrix.columns.to_list()
+
+         # default kwargs
+        subject_title = subject if subject is not None else ""
+        kwargs["title"] = kwargs.get(
+            "title",
+            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+        )
+        kwargs["figure"] = kwargs.get("figure", (15, 15))
+
+        from nilearn import plotting    
+        plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
+
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
 
