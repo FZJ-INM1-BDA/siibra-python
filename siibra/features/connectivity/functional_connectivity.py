@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import regional_connectivity
+from ..basetypes import regional_connectivity
 
 
 class FunctionalConnectivity(
