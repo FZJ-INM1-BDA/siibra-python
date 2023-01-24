@@ -49,6 +49,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     Representation of a region with name and more optional attributes
     """
 
+    _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
+    _accepted_flags = "aiLmsux"
+
     def __init__(
         self,
         name: str,
@@ -106,7 +109,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._CACHED_REGION_SEARCHES = {}
-
+        
     @property
     def id(self):
         if self.parent is None:
@@ -199,7 +202,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         regionspec : any of
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
-            - a string in '/pattern/flags' format to use regex search
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux), 
             - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
             - a full MapIndex
@@ -220,22 +223,22 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             return MEM[key]
 
         if isinstance(regionspec, str):
+            regex_match = self._regex_re.match(regionspec)
+            if regex_match:
+                flags = regex_match.group('flags')
+                expression = regex_match.group('expression')
+
+                for flag in flags or []: # catch if flags is nullish
+                    if flag not in self._accepted_flags:
+                        raise Exception(f"only accepted flag are in { self._accepted_flags }. {flag} is not within them")
+                search_regex = (f"(?{flags})" if flags else "") + expression
+                regionspec = re.compile(search_regex)
+                
             if regionspec in self.names:
                 # key is given, this gives us an exact region
                 match = anytree.search.find_by_attr(self, regionspec, name="key")
                 MEM[key] = [] if match is None else [match]
                 return MEM[key]
-            if (regionspec[0] == '/') and ('/' in regionspec[1:]):
-                import re
-                regex_specs = regionspec.split("/")
-                options = regex_specs[-1] if regex_specs[-1] != '' else None
-                flagmembers = re.RegexFlag.__members__
-                regionspec = re.compile(
-                    regex_specs[1],
-                    flags=0 if options is None else sum(
-                        [flagmembers[k.upper()].value for k in options if k.upper() in flagmembers]
-                        )
-                    )
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
