@@ -43,10 +43,17 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         "Automated Anatomical Labeling (AAL1) atlas",
     }
 
-    loader = requests.EbrainsKgQuery(
-        query_id="siibra-kg-feature-summary-0_0_4",
-        schema="parcellationregion",
-        params={"vocab": "https://schema.hbp.eu/myQuery/"},
+    loader = requests.MultiSourcedRequest(
+        requests=[
+            requests.GitlabProxy(
+                flavour=requests.GitlabProxyEnum.PARCELLATIONREGION_V1,
+            ),
+            requests.EbrainsKgQuery(
+                query_id="siibra-kg-feature-summary-0_0_4",
+                schema="parcellationregion",
+                params={"vocab": "https://schema.hbp.eu/myQuery/"},
+            )
+        ]
     )
 
     parcellation_ids = None

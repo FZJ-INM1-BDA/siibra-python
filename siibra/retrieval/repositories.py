@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from .cache import CACHE
 
 from .. import logger
 
@@ -160,7 +161,12 @@ class LocalFileRepository(RepositoryConnector):
 
 class GitlabConnector(RepositoryConnector):
 
-    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):
+    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False, *, archive_mode=False):
+        """
+        archive_mode: in archive mode, the entire repository is downloaded as an archive. This is necessary/could be useful for repositories with numerous files.
+            n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
+            see https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
+        """
         # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert server.startswith("http")
         RepositoryConnector.__init__(
@@ -173,6 +179,7 @@ class GitlabConnector(RepositoryConnector):
         )
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
+        self.archive_mode = archive_mode
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
@@ -230,6 +237,38 @@ class GitlabConnector(RepositoryConnector):
             for e in results
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
+    
+    def get(self, filename, folder="", decode_func=None):
+        if not self.archive_mode:
+            return super().get(filename, folder, decode_func)
+        
+        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
+        import os, requests
+        
+        if not os.path.isdir(archive_directory):
+            
+            url = self.base_url + f"/archive.tar.gz?sha={ref}"
+            resp = requests.get(url)
+            tar_filename = f"{archive_directory}.tar.gz"
+
+            resp.raise_for_status()
+            with open(tar_filename, "wb") as fp:
+                fp.write(resp.content)
+            
+            import tarfile
+            tar = tarfile.open(tar_filename, "r:gz")
+            tar.extractall(archive_directory)
+            for _dir in os.listdir(archive_directory):
+                for file in os.listdir(f"{archive_directory}/{_dir}"):
+                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
+                os.rmdir(f"{archive_directory}/{_dir}")
+            
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
+        decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
+
+        with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
+            return decoder(fp.read())
 
 
 class ZipfileConnector(RepositoryConnector):
