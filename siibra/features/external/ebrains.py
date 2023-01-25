@@ -21,7 +21,7 @@ from ..basetypes import feature
 from ...retrieval import datasets
 
 
-class EbrainsDataset(feature.Feature, datasets.EbrainsDataset):
+class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset):
 
     def __init__(
         self,

@@ -28,7 +28,7 @@ from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
 
-class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataset):
+class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature):
 
     # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
@@ -93,7 +93,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                     if any(e.lower() in ds_name.lower() for e in self._BLACKLIST):
                         continue
 
-                dset = _ebrains.EbrainsDataset(
+                dset = _ebrains.EbrainsDataFeature(
                     dataset_id=ds_id,
                     name=ds_name,
                     anchor=_anchor.AnatomicalAnchor(
