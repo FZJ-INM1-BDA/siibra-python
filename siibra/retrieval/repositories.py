@@ -349,7 +349,7 @@ class EbrainsHdgConnector(RepositoryConnector):
             try:
                 result = EbrainsRequest(url, DECODERS[".json"]).get()
             except SiibraHttpRequestError as e:
-                if e.response.status_code in [401, 422]:
+                if e.status_code in [401, 422]:
                     # Request access to the dataset (401: expired, 422: not yet requested)
                     EbrainsRequest(f"{self.base_url}/{dataset_id}", post=True).get()
                     input(
