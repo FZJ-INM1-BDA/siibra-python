@@ -32,7 +32,7 @@ import urllib
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from typing import List, TYPE_CHECKING
+from typing import List, Callable, Any, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
 
@@ -514,7 +514,7 @@ class GitlabProxy(HttpRequest):
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 
-    def __init__(self, flavour: GitlabProxyEnum, instance_id=None, postprocess=lambda results: {"results": results}):
+    def __init__(self, flavour: GitlabProxyEnum, instance_id=None, postprocess: Callable[['GitlabProxy', Any], Any]=(lambda proxy, obj: obj if hasattr(proxy, "instance_id") and proxy.instance_id else { "results": obj })):
         if flavour not in GitlabProxyEnum:
             raise RuntimeError(f"Can only proxy enum members")
 
@@ -527,8 +527,8 @@ class GitlabProxy(HttpRequest):
 
     def get(self):
         if self.instance_id:
-            return self.postprocess(self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
-        return self.postprocess(self.flavour.get(f"{self.folder}/_all.json"))
+            return self.postprocess(self, self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
+        return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
     
 
 class MultiSourceRequestException(Exception): pass
