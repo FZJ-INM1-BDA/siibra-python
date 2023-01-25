@@ -257,4 +257,4 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
-        raise super()._url
+        return super()._url

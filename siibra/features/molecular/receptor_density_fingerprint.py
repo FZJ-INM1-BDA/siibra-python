@@ -69,11 +69,14 @@ class ReceptorDensityFingerprint(
 
     @property
     def neurotransmitters(self) -> List[str]:
+        # TODO quite a lot of receptor features have undecipherable symbols, mainly double quoted receptor
+        # Likely ill-formed tsv's
         return [
             "{} ({})".format(
                 vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['label'],
                 vocabularies.RECEPTOR_SYMBOLS[t]['neurotransmitter']['name'],
-            )
+            ) if t in vocabularies.RECEPTOR_SYMBOLS else
+            f"{t} (undeciphered)"
             for t in self.receptors
         ]
 

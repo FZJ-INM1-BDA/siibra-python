@@ -75,6 +75,7 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
             name=name,
         )
         self._anchor_cached = VolumeOfInterestAnchor(self)
+        self._description_cached = None
 
     @property
     def description(self):
@@ -83,3 +84,4 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
                 f"Volume of interest with modality {self.modality} "
                 f"at {self.anchor}"
             )
+        return self._description_cached

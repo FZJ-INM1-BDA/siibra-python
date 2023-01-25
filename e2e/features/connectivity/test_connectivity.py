@@ -2,7 +2,7 @@ import siibra
 import pytest
 from typing import List
 
-from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
+from siibra.features.basetypes.regional_connectivity import RegionalConnectivity
 
 jba_29 = siibra.parcellations["2.9"]
 
