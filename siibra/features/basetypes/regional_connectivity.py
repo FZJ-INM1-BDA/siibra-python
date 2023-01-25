@@ -22,7 +22,7 @@ from ...commons import logger, QUIET
 from ...core import region as _region
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -131,7 +131,7 @@ class RegionalConnectivity(Feature):
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
 
-    def plot_matrix(self, subject: str = None, regions: list[str] = None, logscale: bool = False, **kwargs):
+    def plot_matrix(self, subject: str = None, regions: List[str] = None, logscale: bool = False, **kwargs):
         """
         Plots the heatmap of the connectivity matrix using nilearn.plotting.
 
