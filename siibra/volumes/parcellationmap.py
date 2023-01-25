@@ -258,7 +258,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        region: str = None,
+        region: Union[str, "Region"] = None,
         index: MapIndex = None,
         **kwargs
     ):
@@ -285,8 +285,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         if not any(_ is None for _ in [region, index]):
             raise ExcessiveArgumentException("'Region' and 'volume' cannot be specified at the same time in fetch().")
-
-        if isinstance(region, str):
+        
+        from ..core.region import Region
+        
+        if isinstance(region, (str, Region)):
             mapindex = self.get_index(region)
         elif index is not None:
             assert isinstance(index, MapIndex)
