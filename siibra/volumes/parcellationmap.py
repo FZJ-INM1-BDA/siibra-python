@@ -412,14 +412,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         result_nii = Nifti1Image(result_data, template.affine)
         interpolation = 'nearest' if self.is_labelled else 'linear'
 
-        for vol in tqdm(
+        for volidx in tqdm(
             range(len(self)), total=len(self), unit='maps',
             desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
-            img = self.fetch(vol)
+            img = self.fetch(index=MapIndex(volume=volidx, label=None))
             if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
-                logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
+                logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
                 img = image.resample_to_img(img, result_nii, interpolation)
             img_data = np.asanyarray(img.dataobj)
 
@@ -430,7 +430,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
             for label in labels:
                 with QUIET:
-                    region = self.get_region(label=label, volume=vol)
+                    region = self.get_region(label=label, volume=volidx)
                 if region is None:
                     logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
                     continue
@@ -474,7 +474,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if index.volume != current_volume:
                 current_volume = index.volume
                 with QUIET:
-                    mapimg = self.fetch(index.volume)
+                    mapimg = self.fetch(index=index)
                 maparr = np.asanyarray(mapimg.dataobj)
             if index.label is None:
                 # should be a continous map then
