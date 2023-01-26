@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from .requests import EbrainsKgQuery
+from .requests import EbrainsKgQuery, MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
 from typing import Union, List
@@ -69,10 +69,19 @@ class EbrainsDataset:
     def detail(self):
         if not self._cached_data:
             match = re.search(r"([a-f0-9-]+)$", self.id)
-            self._cached_data = EbrainsKgQuery(
-                query_id="interactiveViewerKgQuery-v1_0",
-                instance_id=match.group(1),
-                params={"vocab": "https://schema.hbp.eu/myQuery/"},
+            instance_id = match.group(1)
+            self._cached_data = MultiSourcedRequest(
+                requests=[
+                    GitlabProxy(
+                        GitlabProxyEnum.DATASET_V1,
+                        instance_id=instance_id,
+                    ),
+                    EbrainsKgQuery(
+                        query_id="interactiveViewerKgQuery-v1_0",
+                        instance_id=instance_id,
+                        params={"vocab": "https://schema.hbp.eu/myQuery/"},
+                    )
+                ]
             ).data
         return self._cached_data
 
