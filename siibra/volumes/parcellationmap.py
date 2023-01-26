@@ -548,23 +548,28 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         from matplotlib.colors import ListedColormap
         import numpy as np
 
-        colors = {}
         if region_specs is not None:
             include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs }
         else:
             include_region_names = None
 
+        if "_compressed" in self.id:
+            clrs = self._load_randomized_colormap()
+        
+        colors = {}
         for regionname, indices in self._indices.items():
             for index in indices:
                 if index.label is None:
                     continue
-                    
                 if (include_region_names is not None) and (regionname not in include_region_names):
                     continue
                 else:
-                    region = self.get_region(index=index)
-                    if region.rgb is not None:
-                        colors[index.label] = region.rgb
+                    if "_compressed" in self.id:
+                        colors[index.label] = list(clrs[index.label-1])
+                    else:
+                        region = self.get_region(index=index)
+                        if region.rgb is not None:
+                            colors[index.label] = region.rgb
 
         pallette = np.array(
             [
@@ -573,7 +578,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
-        
+    
+    def _create_randomized_colormap(self):
+        cmap_file = self.id + "_randomized.cmap"
+        from os.path import isfile
+        if isfile(cmap_file):
+            raise RuntimeError(f"There is already a randomized color map for parcellation map {self}")
+
+        logger.info(f"Creating a new colormap for {self.id} and saving in {cmap_file}.")
+        indexcount = len(self._indices)
+        clrs = np.random.randint(0, 255, (indexcount,3))
+        _, i, cnts = np.unique(clrs, return_counts=True, return_index=True, axis=0)
+        repeated = i[cnts>1]
+        if len(repeated) > 0:
+            clrs[repeated] = np.random.randint(0, 255, (len(repeated),3))
+        np.savetxt(cmap_file, clrs, fmt='%3d')
+        return clrs
+
+    def _load_randomized_colormap(self):
+        cmap_file = self.id + "_randomized.cmap"
+        from os.path import isfile
+        if isfile(cmap_file):    
+            logger.info(f"Loading previously created colormap for {self.id}")
+            return np.loadtxt(cmap_file, dtype=int)
+        else:
+            return self._create_randomized_colormap()
+
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
 
