@@ -35,16 +35,9 @@ from nilearn import image
 import pandas as pd
 
 
-class ExcessiveArgumentException(ValueError):
-    pass
-
-
-class InsufficientArgumentException(ValueError):
-    pass
-
-
-class ConflictingArgumentException(ValueError):
-    pass
+class ExcessiveArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError): pass
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -258,8 +251,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        region: Union[str, "Region"] = None,
-        index: MapIndex = None,
+        region_or_index: Union[str, "Region", MapIndex]=None,
+        *,
+        index: MapIndex=None,
+        region: Union[str, "Region"]=None,
         **kwargs
     ):
         """
@@ -274,32 +269,48 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        region: str
-            Specification of a region name, resulting in a regional map
-            (mask or statistical map) to be returned.
+        region_or_index: Union[str, Region, MapIndex]
+            Lazy match the specification.
         index: MapIndex
             Explicit specification of the map index, typically resulting
             in a regional map (mask or statistical map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
+        region: Union[str, Region]
+            Specification of a region name, resulting in a regional map
+            (mask or statistical map) to be returned.
         """
-        if not any(_ is None for _ in [region, index]):
-            raise ExcessiveArgumentException("'Region' and 'volume' cannot be specified at the same time in fetch().")
-        
+        try:
+            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
+            assert length == 1
+        except AssertionError:
+            if length > 1:
+                raise ExcessiveArgumentException(f"One and only one of region_or_index, region, index can be defined for fetch")
+            # user can provide no arguments, which assumes one and only one volume present
+
+        if isinstance(region_or_index, MapIndex):
+            index = region_or_index
+
         from ..core.region import Region
+        if isinstance(region_or_index, (str, Region)):
+            region = region_or_index
         
-        if isinstance(region, (str, Region)):
+        mapindex=None
+        if region is not None:
+            assert isinstance(region, (str, Region))
             mapindex = self.get_index(region)
-        elif index is not None:
+        if index is not None:
             assert isinstance(index, MapIndex)
             mapindex = index
-        elif len(self.volumes) == 1:  # only 1 volume, can fetch without index/region
-            mapindex = MapIndex(volume=0, label=None)
-        else:
-            raise InsufficientArgumentException(
-                "Map provides multiple volumes, use 'index' or "
-                "'region' to specify which one to fetch."
-            )
+        if mapindex is None:
+            try:
+                assert len(self) == 1
+                mapindex = MapIndex(volume=0, label=None)
+            except AssertionError:
+                raise InsufficientArgumentException(
+                    "Map provides multiple volumes, use 'index' or "
+                    "'region' to specify which one to fetch."
+                )
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
@@ -401,14 +412,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         result_nii = Nifti1Image(result_data, template.affine)
         interpolation = 'nearest' if self.is_labelled else 'linear'
 
-        for vol in tqdm(
+        for volidx in tqdm(
             range(len(self)), total=len(self), unit='maps',
             desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
         ):
 
-            img = self.fetch(vol)
+            img = self.fetch(index=MapIndex(volume=volidx, label=None))
             if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
-                logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
+                logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
                 img = image.resample_to_img(img, result_nii, interpolation)
             img_data = np.asanyarray(img.dataobj)
 
@@ -419,7 +430,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
             for label in labels:
                 with QUIET:
-                    region = self.get_region(label=label, volume=vol)
+                    region = self.get_region(label=label, volume=volidx)
                 if region is None:
                     logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
                     continue
@@ -463,7 +474,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if index.volume != current_volume:
                 current_volume = index.volume
                 with QUIET:
-                    mapimg = self.fetch(index.volume)
+                    mapimg = self.fetch(index=index)
                 maparr = np.asanyarray(mapimg.dataobj)
             if index.label is None:
                 # should be a continous map then

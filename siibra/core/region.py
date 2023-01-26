@@ -389,7 +389,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                     self.name in m.regions
                 ]
             ):
-                result = m.fetch(index=m.get_index(self.name), format='image')
+                result = m.fetch(region=self, format='image')
                 if (maptype == MapType.STATISTICAL) and (threshold is not None):
                     logger.info(f"Thresholding statistical map at {threshold}")
                     result = Nifti1Image(
