@@ -402,46 +402,55 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         by taking the voxelwise maximum across the mapped volumes, and
         re-labelling regions sequentially.
         """
-        next_labelindex = 1
-        region_indices = defaultdict(list)
-
+        if len(self.volumes) == 1 and (self.fragments is None):
+            raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
+    
         # initialize empty volume according to the template
         template = self.space.get_template().fetch(**kwargs)
         result_data = np.zeros_like(np.asanyarray(template.dataobj))
         voxelwise_max = np.zeros_like(result_data)
         result_nii = Nifti1Image(result_data, template.affine)
         interpolation = 'nearest' if self.is_labelled else 'linear'
+        next_labelindex = 1
+        region_indices = defaultdict(list)
 
         for volidx in tqdm(
-            range(len(self)), total=len(self), unit='maps',
-            desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
-        ):
+                range(len(self.volumes)), total=len(self.volumes), unit='maps',
+                desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
+                disable=(len(self.volumes) == 1)
+            ):
+                for frag in tqdm(
+                self.fragments, total=len(self.fragments), unit='maps',
+                desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
+                disable=(len(self.fragments) == 1 or self.fragments is None)
+                ):
+                    mapindex = MapIndex(volume=volidx, fragment=frag)
+                    img = self.fetch(mapindex)
+                    if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                        logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
+                        img = image.resample_to_img(img, result_nii, interpolation)
+                    img_data = np.asanyarray(img.dataobj)
 
-            img = self.fetch(index=MapIndex(volume=volidx, label=None))
-            if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
-                logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                img = image.resample_to_img(img, result_nii, interpolation)
-            img_data = np.asanyarray(img.dataobj)
+                    if self.is_labelled:
+                        labels = set(np.unique(img_data)) - {0}
+                    else:
+                        labels = {None}
 
-            if self.is_labelled:
-                labels = set(np.unique(img_data)) - {0}
-            else:
-                labels = {None}
-
-            for label in labels:
-                with QUIET:
-                    region = self.get_region(label=label, volume=volidx)
-                if region is None:
-                    logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
-                    continue
-                region_indices[region.name].append({"volume": 0, "label": next_labelindex})
-                if label is None:
-                    update_voxels = (img_data > voxelwise_max)
-                else:
-                    update_voxels = (img_data == label)
-                result_data[update_voxels] = next_labelindex
-                voxelwise_max[update_voxels] = img_data[update_voxels]
-                next_labelindex += 1
+                    for label in labels:
+                        with QUIET:
+                            mapindex.__setattr__("label", int(label))
+                            region = self.get_region(index=mapindex)
+                        if region is None:
+                            logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                            continue
+                        region_indices[region.name].append({"volume": 0, "label": next_labelindex})
+                        if label is None:
+                            update_voxels = (img_data > voxelwise_max)
+                        else:
+                            update_voxels = (img_data == label)
+                        result_data[update_voxels] = next_labelindex
+                        voxelwise_max[update_voxels] = img_data[update_voxels]
+                        next_labelindex += 1
 
         return Map(
             identifier=f"{create_key(self.name)}_compressed",
