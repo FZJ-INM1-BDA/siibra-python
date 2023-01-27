@@ -146,6 +146,9 @@ class RegionalConnectivity(Feature):
             It can only be a subset of regions of the feature.
         logscale: bool
             Whether to show the data in log10 scale or not.
+        **kwargs:
+            Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
+            https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
         matrix = self.get_matrix(subject=subject)
         if logscale:
