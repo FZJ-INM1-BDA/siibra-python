@@ -28,7 +28,7 @@ from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
 
-class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataset):
+class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature):
 
     # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
@@ -43,10 +43,17 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         "Automated Anatomical Labeling (AAL1) atlas",
     }
 
-    loader = requests.EbrainsKgQuery(
-        query_id="siibra-kg-feature-summary-0_0_4",
-        schema="parcellationregion",
-        params={"vocab": "https://schema.hbp.eu/myQuery/"},
+    loader = requests.MultiSourcedRequest(
+        requests=[
+            requests.GitlabProxy(
+                flavour=requests.GitlabProxyEnum.PARCELLATIONREGION_V1,
+            ),
+            requests.EbrainsKgQuery(
+                query_id="siibra-kg-feature-summary-0_0_4",
+                schema="parcellationregion",
+                params={"vocab": "https://schema.hbp.eu/myQuery/"},
+            )
+        ]
     )
 
     parcellation_ids = None
@@ -93,7 +100,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                     if any(e.lower() in ds_name.lower() for e in self._BLACKLIST):
                         continue
 
-                dset = _ebrains.EbrainsDataset(
+                dset = _ebrains.EbrainsDataFeature(
                     dataset_id=ds_id,
                     name=ds_name,
                     anchor=_anchor.AnatomicalAnchor(

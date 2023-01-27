@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from . import volume as _volume, nifti
-
 from .. import logger, QUIET
 from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
 from ..core import concept, space, parcellation, region as _region
@@ -24,27 +23,18 @@ from ..retrieval import requests
 import numpy as np
 from tqdm import tqdm
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable
-
-if TYPE_CHECKING:
-    from ..core.region import Region
-
 from scipy.ndimage.morphology import distance_transform_edt
 from collections import defaultdict
 from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
 
+if TYPE_CHECKING:
+    from ..core.region import Region
 
-class ExcessiveArgumentException(ValueError):
-    pass
-
-
-class InsufficientArgumentException(ValueError):
-    pass
-
-
-class ConflictingArgumentException(ValueError):
-    pass
+class ExcessiveArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError): pass
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -258,8 +248,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        region: str = None,
-        index: MapIndex = None,
+        region_or_index: Union[str, "Region", MapIndex]=None,
+        *,
+        index: MapIndex=None,
+        region: Union[str, "Region"]=None,
         **kwargs
     ):
         """
@@ -274,30 +266,48 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        region: str
-            Specification of a region name, resulting in a regional map
-            (mask or statistical map) to be returned.
+        region_or_index: Union[str, Region, MapIndex]
+            Lazy match the specification.
         index: MapIndex
             Explicit specification of the map index, typically resulting
             in a regional map (mask or statistical map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
+        region: Union[str, Region]
+            Specification of a region name, resulting in a regional map
+            (mask or statistical map) to be returned.
         """
-        if not any(_ is None for _ in [region, index]):
-            raise ExcessiveArgumentException("'Region' and 'volume' cannot be specified at the same time in fetch().")
+        try:
+            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
+            assert length == 1
+        except AssertionError:
+            if length > 1:
+                raise ExcessiveArgumentException(f"One and only one of region_or_index, region, index can be defined for fetch")
+            # user can provide no arguments, which assumes one and only one volume present
 
-        if isinstance(region, str):
+        if isinstance(region_or_index, MapIndex):
+            index = region_or_index
+
+        from ..core.region import Region
+        if isinstance(region_or_index, (str, Region)):
+            region = region_or_index
+        
+        mapindex=None
+        if region is not None:
+            assert isinstance(region, (str, Region))
             mapindex = self.get_index(region)
-        elif index is not None:
+        if index is not None:
             assert isinstance(index, MapIndex)
             mapindex = index
-        elif len(self.volumes) == 1:  # only 1 volume, can fetch without index/region
-            mapindex = MapIndex(volume=0, label=None)
-        else:
-            raise InsufficientArgumentException(
-                "Map provides multiple volumes, use 'index' or "
-                "'region' to specify which one to fetch."
-            )
+        if mapindex is None:
+            try:
+                assert len(self) == 1
+                mapindex = MapIndex(volume=0, label=None)
+            except AssertionError:
+                raise InsufficientArgumentException(
+                    "Map provides multiple volumes, use 'index' or "
+                    "'region' to specify which one to fetch."
+                )
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
@@ -389,46 +399,55 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         by taking the voxelwise maximum across the mapped volumes, and
         re-labelling regions sequentially.
         """
-        next_labelindex = 1
-        region_indices = defaultdict(list)
-
+        if len(self.volumes) == 1 and (self.fragments is None):
+            raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
+    
         # initialize empty volume according to the template
         template = self.space.get_template().fetch(**kwargs)
         result_data = np.zeros_like(np.asanyarray(template.dataobj))
         voxelwise_max = np.zeros_like(result_data)
         result_nii = Nifti1Image(result_data, template.affine)
         interpolation = 'nearest' if self.is_labelled else 'linear'
+        next_labelindex = 1
+        region_indices = defaultdict(list)
 
-        for vol in tqdm(
-            range(len(self)), total=len(self), unit='maps',
-            desc=f"Compressing {len(self)} {self.maptype.name.lower()} volumes into single-volume parcellation"
+        for volidx in tqdm(
+            range(len(self.volumes)), total=len(self.volumes), unit='maps',
+            desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
+            disable=(len(self.volumes) == 1)
         ):
+            for frag in tqdm(
+                self.fragments, total=len(self.fragments), unit='maps',
+                desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
+                disable=(len(self.fragments) == 1 or self.fragments is None)
+            ):
+                mapindex = MapIndex(volume=volidx, fragment=frag)
+                img = self.fetch(mapindex)
+                if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
+                    img = image.resample_to_img(img, result_nii, interpolation)
+                img_data = np.asanyarray(img.dataobj)
 
-            img = self.fetch(vol)
-            if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
-                logger.debug(f"Compression requires to resample volume {vol} ({interpolation})")
-                img = image.resample_to_img(img, result_nii, interpolation)
-            img_data = np.asanyarray(img.dataobj)
-
-            if self.is_labelled:
-                labels = set(np.unique(img_data)) - {0}
-            else:
-                labels = {None}
-
-            for label in labels:
-                with QUIET:
-                    region = self.get_region(label=label, volume=vol)
-                if region is None:
-                    logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
-                    continue
-                region_indices[region.name].append({"volume": 0, "label": next_labelindex})
-                if label is None:
-                    update_voxels = (img_data > voxelwise_max)
+                if self.is_labelled:
+                    labels = set(np.unique(img_data)) - {0}
                 else:
-                    update_voxels = (img_data == label)
-                result_data[update_voxels] = next_labelindex
-                voxelwise_max[update_voxels] = img_data[update_voxels]
-                next_labelindex += 1
+                    labels = {None}
+
+                for label in labels:
+                    with QUIET:
+                        mapindex.__setattr__("label", int(label))
+                        region = self.get_region(index=mapindex)
+                    if region is None:
+                        logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                        continue
+                    region_indices[region.name].append({"volume": 0, "label": next_labelindex})
+                    if label is None:
+                        update_voxels = (img_data > voxelwise_max)
+                    else:
+                        update_voxels = (img_data == label)
+                    result_data[update_voxels] = next_labelindex
+                    voxelwise_max[update_voxels] = img_data[update_voxels]
+                    next_labelindex += 1
 
         return Map(
             identifier=f"{create_key(self.name)}_compressed",
@@ -461,7 +480,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if index.volume != current_volume:
                 current_volume = index.volume
                 with QUIET:
-                    mapimg = self.fetch(index.volume)
+                    mapimg = self.fetch(index=index)
                 maparr = np.asanyarray(mapimg.dataobj)
             if index.label is None:
                 # should be a continous map then

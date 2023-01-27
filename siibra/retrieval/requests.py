@@ -32,6 +32,12 @@ import urllib
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from typing import List, Callable, Any, TYPE_CHECKING
+from enum import Enum
+from functools import wraps
+
+if TYPE_CHECKING:
+    from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -159,7 +165,8 @@ class HttpRequest:
                         position=0, leave=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
                     )
-                with open(self.cachefile, "wb") as f:
+                temp_cachefile = self.cachefile + "_temp"
+                with open(temp_cachefile, "wb") as f:
                     for data in r.iter_content(block_size):
                         if size_bytes > min_bytesize_with_no_progress_info:
                             progress_bar.update(len(data))
@@ -167,6 +174,7 @@ class HttpRequest:
                 if size_bytes > min_bytesize_with_no_progress_info:
                     progress_bar.close()
                 self.refresh = False
+                os.rename(temp_cachefile, self.cachefile)
                 with open(self.cachefile, 'rb') as f:
                     return f.read()
             else:
@@ -456,3 +464,91 @@ class EbrainsKgQuery(EbrainsRequest):
                     f"URL was: {e.url}"
                 )
         return result
+
+def try_all_connectors():
+    def outer(fn):
+        @wraps(fn)
+        def inner(self: 'GitlabProxyEnum', *args, **kwargs):
+            exceptions = []
+            for connector in self.connectors:
+                try:
+                    return fn(self, *args, connector=connector, **kwargs)
+                except Exception as e:
+                    exceptions.append(e)
+            else:
+                for exc in exceptions:
+                    logger.error(exc)
+                raise Exception("try_all_connectors failed")
+        return inner
+    return outer
+
+class GitlabProxyEnum(Enum):
+    DATASET_V1="DATASET_V1"
+    PARCELLATIONREGION_V1="PARCELLATIONREGION_V1"
+    DATASET_V3="DATASET_V3"
+
+    @property
+    def connectors(self) -> List['GitlabConnector']:
+        servers = [
+            ("https://jugit.fz-juelich.de", 7846),
+            ("https://gitlab.ebrains.eu", 421),
+        ]
+        from .repositories import GitlabConnector
+        return [GitlabConnector(server[0], server[1], "master", archive_mode=True) for server in servers]
+
+    @try_all_connectors()
+    def search_files(self, folder: str, suffix=None, recursive=True, *, connector: 'GitlabConnector'=None) -> List[str]:
+        assert connector
+        return connector.search_files(folder, suffix=suffix, recursive=recursive)
+
+    @try_all_connectors()
+    def get(self, filename, decode_func=None, *, connector: 'GitlabConnector'=None):
+        assert connector
+        return connector.get(filename, "", decode_func)
+
+class GitlabProxy(HttpRequest):
+
+    folder_dict = {
+        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/datasets",
+        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/datasets",
+        GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
+    }
+
+    def __init__(self, flavour: GitlabProxyEnum, instance_id=None, postprocess: Callable[['GitlabProxy', Any], Any]=(lambda proxy, obj: obj if hasattr(proxy, "instance_id") and proxy.instance_id else { "results": obj })):
+        if flavour not in GitlabProxyEnum:
+            raise RuntimeError(f"Can only proxy enum members")
+
+        self.flavour = flavour
+        self.folder = self.folder_dict[flavour]
+        self.postprocess = postprocess
+        self.instance_id = instance_id
+        self._cached_files = None
+
+
+    def get(self):
+        if self.instance_id:
+            return self.postprocess(self, self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
+        return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
+    
+
+class MultiSourceRequestException(Exception): pass
+
+class MultiSourcedRequest:
+    requests: List[HttpRequest] = []
+    
+    def __init__(self, requests: List[HttpRequest]) -> None:
+        self.requests = requests
+    
+    def get(self):
+        exceptions = []
+        for req in self.requests:
+            try:
+                return req.get()
+            except Exception as e:
+                exceptions.append(e)
+        else:
+            raise MultiSourceRequestException("All requests failed:\n" + "\n".join(str(exc) for exc in exceptions))
+
+    @property
+    def data(self):
+        return self.get()

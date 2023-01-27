@@ -30,7 +30,7 @@ The returned features can thus actually have different modalities, and might inc
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 region = atlas.get_region("v2")
-features = siibra.features.get(region, siibra.features.external.EbrainsDataset)
+features = siibra.features.get(region, siibra.features.external.EbrainsDataFeature)
 for feature in features:
    print(f" - {feature.name}")
 
