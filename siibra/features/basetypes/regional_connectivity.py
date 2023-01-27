@@ -165,7 +165,7 @@ class RegionalConnectivity(Feature):
             "title",
             f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
-        #kwargs["figure"] = kwargs.get("figure", (15, 15))
+        kwargs["figure"] = kwargs.get("figure", (15, 15))
 
         from nilearn import plotting    
         plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
