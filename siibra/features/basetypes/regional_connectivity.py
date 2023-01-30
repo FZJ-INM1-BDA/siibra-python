@@ -121,6 +121,15 @@ class RegionalConnectivity(Feature):
                         desc=f"Averaging {len(self)} connectivity matrices"
                     )
                 ]
+                if isinstance(all_arrays[0][0][0], str):
+                    for i, arrayi in enumerate(all_arrays):
+                        temp_array = arrayi[0]
+                        nrow = temp_array.shape[0]
+                        newarray = np.ndarray(shape=(nrow, nrow))
+                        for row, row_str in enumerate(temp_array):
+                            newarray[row][:] = np.array([float(val) for val in row_str.split(" ")])
+                        all_arrays[i] = newarray
+
                 self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
             return self._matrices['mean']
         if subject is None:
@@ -231,8 +240,14 @@ class RegionalConnectivity(Feature):
         array = self._connector.get(self._files[subject], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
-            raise RuntimeError(
-                f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
-                f"from {self._files[subject]} in {str(self._connector)}"
-            )
+            if isinstance(array[0][0], str):
+                temp_array = array[0]
+                array = np.ndarray(shape=(nrows, nrows))
+                for row, row_str in enumerate(temp_array):
+                    array[row][:] = np.array([float(val) for val in row_str.split(" ")])
+            else:
+                raise RuntimeError(
+                    f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
+                    f"from {self._files[subject]} in {str(self._connector)}"
+                )
         return self._array_to_dataframe(array)
