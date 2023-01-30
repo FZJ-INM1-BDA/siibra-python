@@ -35,6 +35,7 @@ class Feature:
     """
 
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
+    ALL =  Dict[str, Type['Feature']]
 
     def __init__(
         self,
@@ -83,6 +84,10 @@ class Feature:
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
         return super().__init_subclass__()
+
+    @classmethod
+    def _get_all_subclass_names(cls):
+        return {Cls.__name__: Cls for Cls in cls.SUBCLASSES}
 
     @property
     def description(self):

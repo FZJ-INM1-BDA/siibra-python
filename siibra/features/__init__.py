@@ -29,7 +29,7 @@ from .basetypes.volume_of_interest import VolumeOfInterest
 get = Feature.match
 
 
-# ALL = Feature._get_visible_subclass_names()
+ALL = Feature._get_all_subclass_names()
 # PROFILES = _CorticalProfile._get_visible_subclass_names()
 
 
