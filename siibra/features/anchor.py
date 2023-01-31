@@ -23,6 +23,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
+from anytree import LevelOrderIter
 from typing import Union, List
 from enum import Enum
 
@@ -275,6 +276,13 @@ class AnatomicalAnchor:
     def match_location_to_region(cls, location: Location, region: Region):
         assert isinstance(location, Location)
         assert isinstance(region, Region)
+        for subregion in region.children:
+            res = cls.match_location_to_region(location, subregion)
+            if res is not None:
+                return res
+        if not region.mapped_in_space(location.space, recurse=False):
+            return None
+
         if (location, region) not in cls._MATCH_MEMO:
             # compute mask of the region
             if location.space in region.supported_spaces:

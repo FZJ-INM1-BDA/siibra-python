@@ -408,7 +408,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
                     else:
-                        assert np.linalg.norm(mask.affine - affine) < 1e-12
+                        if np.linalg.norm(mask.affine - affine) > 1e-12:
+                            raise NotImplementedError(
+                                f"Child regions of {self.name} have different voxel spaces and the aggregated subtree mask is not supported.",
+                                 "Try fetching the masks of the children:", self.children
+                                )
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
             if dataobj is not None:
@@ -419,7 +423,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         return result
 
-    def mapped_in_space(self, space) -> bool:
+    def mapped_in_space(self, space, recurse: bool=True) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
@@ -433,7 +437,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 m.parcellation.matches(self.parcellation)
             ):
                 return True
-        if not self.is_leaf:
+        if  recurse and not self.is_leaf:
             # check if all children are mapped instead
             return all(c.mapped_in_space(space) for c in self.children)
         return False
