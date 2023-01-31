@@ -30,7 +30,7 @@ import siibra
 # Available feature types are listed in the module `siibra.features`.
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
-print(siibra.features.ALL)
+print(siibra.features.Feature.SUBCLASSES) # TODO: This is a temporary fix. 
 
 # %%
 # Regional features
@@ -39,7 +39,7 @@ print(siibra.features.ALL)
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
 v2 = siibra.get_region("julich 2.9", "v2")
-features = siibra.features.get(v2, siibra.features.external.EbrainsDataset)
+features = siibra.features.get(v2, siibra.features.external.EbrainsDataFeature)
 for feature in features:
     print(f" - {feature.name}")
 

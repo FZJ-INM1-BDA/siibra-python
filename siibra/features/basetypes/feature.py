@@ -19,9 +19,10 @@ from ...commons import logger
 from ...core import concept
 from ...core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List
+from typing import Union, TYPE_CHECKING, List, Dict, Type
 from tqdm import tqdm
 from hashlib import md5
+from collections import defaultdict
 
 if TYPE_CHECKING:
     from ...retrieval.datasets import EbrainsDataset
@@ -33,7 +34,7 @@ class Feature:
     Base class for anatomically anchored data features.
     """
 
-    SUBCLASSES = {}
+    SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
 
     def __init__(
         self,
@@ -70,11 +71,14 @@ class Feature:
 
     def __init_subclass__(cls, configuration_folder=None):
         # extend the subclass lists
-        for basecls in cls.__bases__:
-            if basecls.__name__ != cls.__name__:
-                if basecls.__name__ not in cls.SUBCLASSES:
-                    cls.SUBCLASSES[basecls.__name__] = []
-                cls.SUBCLASSES[basecls.__name__].append(cls)
+
+        # Iterate over all mro, not just immediate base classes
+        for BaseCls in cls.__mro__:
+            # some base classes may not be sub class of feature, ignore these
+            if not issubclass(BaseCls, Feature):
+                continue
+            cls.SUBCLASSES[BaseCls].append(cls)
+            
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
@@ -91,7 +95,7 @@ class Feature:
         return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
 
     @classmethod
-    def get_instances(cls, **kwargs):
+    def get_instances(cls, **kwargs) -> List['Feature']:
         """
         Retrieve objects of a particular feature subclass.
         Objects can be preconfigured in the configuration,
@@ -144,13 +148,14 @@ class Feature:
     
     @property
     def id(self):
+        prefix=''
         id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
         if len(id_set) == 1:
-            return list(id_set)[0]
-        return md5(self.name.encode("utf-8")).hexdigest()
+            prefix = list(id_set)[0] + '--'
+        return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, type, list], **kwargs) -> List['Feature']:
+    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 
@@ -164,22 +169,24 @@ class Feature:
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return sum((cls.match(concept, t) for t in feature_type), [])
+            return sum((cls.match(concept, t, **kwargs) for t in feature_type), [])
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
+            # Some string inputs, such as connectivity, may hit multiple matches
+            # In this case
             candidates = [
                 feattype
-                for featname, feattype in cls.SUBCLASSES.items()
-                if all(w.lower() in featname.lower() for w in feature_type.split())
+                for FeatCls, feattypes in cls.SUBCLASSES.items()
+                if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
+                for feattype in feattypes
             ]
-            if len(candidates) == 1:
-                feature_type = candidates[0]
-            else:
-                raise ValueError(
-                    f"Feature type '{feature_type}' cannot be matched uniquely to "
-                    f"{', '.join(cls.SUBCLASSES.keys())}"
-                )
+            if len(candidates) == 0:
+                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
+
+            return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
+        
+        assert issubclass(feature_type, Feature)
 
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
             raise ValueError(
@@ -188,7 +195,10 @@ class Feature:
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"
-        instances = feature_type.get_instances()
+        instances = [instance
+            for f_type in cls.SUBCLASSES[feature_type]
+            for instance in f_type.get_instances()]
+
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
@@ -206,9 +216,4 @@ class Feature:
                 q = QueryType(**kwargs)
                 live_instances.extend(q.query(concept))
 
-        # collect any matches of subclasses
-        subclass_instances = []
-        for subcls in cls.SUBCLASSES.get(feature_type.__name__, []):
-            subclass_instances.extend(subcls.match(concept, subcls, **kwargs))
-
-        return preconfigured_instances + live_instances + subclass_instances
+        return preconfigured_instances + live_instances

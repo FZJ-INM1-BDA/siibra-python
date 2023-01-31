@@ -59,7 +59,7 @@ assignments.sort_values(by=['Value'], ascending=False)
 # standard deviation, and correlate the 3D blob with the maps. We then obtain
 # the weighted average of the map values over the blob, but also additional measures of
 # comparison: A correlation coefficient, the intersection over union (IoU),
-# a containedness score of the blob wrt. the region ("contained"), and a containedness score
+# a containedness score of the blob wrt. the region ("contained"), and a containness score
 # of the region wrt. the blob ("contains"). Per default, the resulting table is sorted
 # by correlation coefficient. Here, we query the assignments with
 # a containedness score of at least 0.5, that is, the regions in which the
@@ -67,10 +67,10 @@ assignments.sort_values(by=['Value'], ascending=False)
 point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=3.)
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(point_uncertain)
-print(assignments.query('Contained >= 0.5').dropna(axis=1))
+assignments.query('Contained >= 0.5').dropna(axis=1)
 
 # %%
 # To verify the result, we plot the assigned probability maps at the requested position.
-for index, assignment in assignments[assignments.Contains >= 0.5].iterrows():
-    pmap = julich_pmaps.fetch(mapindex=assignment.MapIndex)
+for index, assignment in assignments[assignments.Contained >= 0.5].iterrows():
+    pmap = julich_pmaps.fetch(region=assignment.Region)
     plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment.Region)

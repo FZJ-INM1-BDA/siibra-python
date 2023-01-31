@@ -19,7 +19,7 @@ from ..core import space as _space
 from ..features import anchor as _anchor
 from ..features.molecular.gene_expression import GeneExpressions
 from ..commons import logger, Species
-from ..locations import Point
+from ..locations import Point, PointSet
 from ..core.region import Region
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
@@ -133,6 +133,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         )
         anchor._assignments[region] = [ass]
         anchor._last_matched_concept = region
+        anchor._location_cached = PointSet(coordinates=[], space=space)
 
         measures = []
         contained = {}
@@ -142,6 +143,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
                 contained[location] = location.intersects(mask)
             if contained[location]:
                 measures.append(measure)
+                anchor._location_cached.points.append(location)
 
         yield GeneExpressions(
             anchor=anchor,

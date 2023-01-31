@@ -2,21 +2,26 @@ import siibra
 import pytest
 from typing import List
 
-from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
+from siibra.features.basetypes.regional_connectivity import RegionalConnectivity
 
 jba_29 = siibra.parcellations["2.9"]
 
 args = [
+    (jba_29, "StreamlineCounts"),
     pytest.param(
-        jba_29, siibra.features.connectivity.FunctionalConnectivity,
+        jba_29, "RegionalConnectivity",
+        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
+    ),
+    pytest.param(
+        jba_29, RegionalConnectivity,
+        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
+    ),
+    pytest.param(
+        jba_29, "connectivity",
         marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
     ),
     (jba_29, siibra.features.connectivity.StreamlineCounts),
     (jba_29, siibra.features.connectivity.StreamlineLengths),
-    pytest.param(
-        jba_29, siibra.features.connectivity.ALL,
-        marks=pytest.mark.xfail(reasonn="Non-quadratic connectivity matrix 294x1")
-    )
 ]
 
 

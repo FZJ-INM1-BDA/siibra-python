@@ -16,12 +16,10 @@
 from .functional_connectivity import FunctionalConnectivity
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
-from .regional_connectivity import RegionalConnectivity
 
 
 def __dir__():
     return [
-        "RegionalConnectivity",
         "FunctionalConnectivity",
         "StreamlineCounts",
         "StreamlineLengths",

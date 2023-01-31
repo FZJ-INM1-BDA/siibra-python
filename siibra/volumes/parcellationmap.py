@@ -23,7 +23,7 @@ from ..retrieval import requests
 
 import numpy as np
 from tqdm import tqdm
-from typing import Union, Dict, List, TYPE_CHECKING
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable
 
 if TYPE_CHECKING:
     from ..core.region import Region
@@ -258,7 +258,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        region: str = None,
+        region: Union[str, "Region"] = None,
         index: MapIndex = None,
         **kwargs
     ):
@@ -285,8 +285,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         if not any(_ is None for _ in [region, index]):
             raise ExcessiveArgumentException("'Region' and 'volume' cannot be specified at the same time in fetch().")
-
-        if isinstance(region, str):
+        
+        from ..core.region import Region
+        
+        if isinstance(region, (str, Region)):
             mapindex = self.get_index(region)
         elif index is not None:
             assert isinstance(index, MapIndex)
@@ -510,19 +512,42 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         return Nifti1Image(result, affine)
 
-    def get_colormap(self):
-        """Generate a matplotlib colormap from known rgb values of label indices."""
+    def get_colormap(self, region_specs: Iterable=None):
+        """
+        Generate a matplotlib colormap from known rgb values of label indices.
+        
+        The probability distribution is approximated from the region mask
+        based on the squared distance transform.
+
+        Parameters
+        ----------
+        region_specs: An iterable selection of regions
+            Optional parameter to only color the desired regions.
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+        """
         from matplotlib.colors import ListedColormap
         import numpy as np
 
         colors = {}
+        if region_specs is not None:
+            include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs }
+        else:
+            include_region_names = None
+
         for regionname, indices in self._indices.items():
             for index in indices:
                 if index.label is None:
                     continue
-                region = self.get_region(index=index)
-                if region.rgb is not None:
-                    colors[index.label] = region.rgb
+                    
+                if (include_region_names is not None) and (regionname not in include_region_names):
+                    continue
+                else:
+                    region = self.get_region(index=index)
+                    if region.rgb is not None:
+                        colors[index.label] = region.rgb
 
         pallette = np.array(
             [
@@ -531,7 +556,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
-
+        
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
 
@@ -803,7 +828,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 assignments.extend(
                     [
                         [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
-                        for (_, volume, fragment, _, value, rho, iou, contains, contained) in T.values
+                        for (_, _, volume, fragment, _, value, rho, iou, contains, contained) in T.values
                     ]
                 )
         return assignments
