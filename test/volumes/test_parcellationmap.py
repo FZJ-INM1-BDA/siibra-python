@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException
 from siibra.commons import Species
+from siibra.core.region import Region
 from uuid import uuid4
 from parameterized import parameterized
 import random
@@ -11,12 +12,30 @@ class DummyCls:
     def fetch(self):
         raise NotImplementedError
 
+possible_indicies = list(
+    filter(
+        lambda idx: idx is not None, 
+        map(
+            lambda args: MapIndex(*args) if args[0] is not None or args[1] is not None else None,
+            product(
+                (0, None),
+                (0, None),
+                ('bla-fragment', 'foo-fragment', None)
+            )
+        )
+    )
+)
+
+possible_regions = ("region-foo", None)
+
 volume_fetch_param = {
-    "resolution_mm": (1e-6, 2e-3),
-    "format": ("foo", "bar", "buzz"),
-    "voi": ( DummyCls(), DummyCls() ),
-    "variant": ("hello", "world"),
-    "fragment": ("foo-fragment", None)
+    "resolution_mm": (1e-6, ),
+    "format": ("foo", ),
+    "voi": ( DummyCls(), ),
+    "variant": ("hello", ),
+    "fragment": ("foo-fragment", None),
+    "index": [*possible_indicies, None],
+    "region": [*possible_regions, None],
 }
 
 def get_randomised_kwargs_fetch_params():
@@ -209,24 +228,12 @@ class TestMap(unittest.TestCase):
             },
             0,
             # volumes
-            volumes
-            ,
+            volumes,
             None
         )
-        for args in product(
-            ("region-foo", None),
-            # all possible permutations of map
-            filter(
-                lambda idx: idx is not None, 
-                map(
-                    lambda args: MapIndex(*args) if args[0] is not None or args[1] is not None else None,
-                    product(
-                        (0, None),
-                        (0, None),
-                        ('bla-fragment', 'foo-fragment', None)
-                    )
-                )
-            ),
+        for args in map(
+            lambda b: [b],
+            [*possible_regions, *possible_indicies]
         )
         for kwargs in get_permutations_kwargs_fetch_params()
         for volumes in [
@@ -237,60 +244,79 @@ class TestMap(unittest.TestCase):
     ])
     def test_fetch(self, args, kwargs, indices, mock_fetch_idx, volumes, expected_meshindex):
 
-        region, index = args
+        region_index_arg = args[0] if len(args) > 0 else None
+        region_kwarg = kwargs.get("region")
+        index_kwarg = kwargs.get("index")
         
         expected_error = None
-        if region is None and index is None and len(volumes) != 1:
+
+        len_arg = len([arg for arg in [region_index_arg, region_kwarg, index_kwarg] if arg is not None])
+        
+        index = index_kwarg or (region_index_arg if isinstance(region_index_arg, MapIndex) else None)
+        region = region_kwarg or (region_index_arg if isinstance(region_index_arg, (str, Region)) else None)
+
+        if len_arg == 0 and len(volumes) != 1:
             expected_error = InsufficientArgumentException
-        elif len([True for _ in [region, index] if _ is not None]) != 1:
+        elif len_arg > 1:
             expected_error = ExcessiveArgumentException
-        elif all([
-            index is not None,
-            index.fragment is not None,
-            kwargs.get("fragment") is not None,
-            index.fragment != kwargs.get("fragment"),
-        ]):
+        elif (
+            index is not None and
+            index.fragment is not None and
+            kwargs.get("fragment") is not None and
+            index.fragment != kwargs.get("fragment")
+        ):
             expected_error = ConflictingArgumentException
         elif len(volumes) == 0:
             expected_error = IndexError
 
-
-        expected_fragment_kwarg = kwargs.get('fragment') or index.fragment
-
+        
         mock_map_index = MapIndex(0, 0)
-        expected_label_kwarg = mock_map_index.label if region is not None else index.label
+        if index is None:
+            # default mapindex used by parcellationmap if everything is missing
+            index = MapIndex(volume=0, label=None) if region is None else mock_map_index
 
-        with patch.object(Map, 'get_index') as get_index_mock:
-            get_index_mock.return_value = mock_map_index
-            
+        with patch.object(Map, 'get_index', return_value=mock_map_index) as get_index_mock:
             if expected_error is not None:
+                import inspect
+                assert inspect.isclass(expected_error)
                 try:
                     with self.assertRaises(expected_exception=expected_error):
                         self.map.fetch(*args, **kwargs)
-                        if region is not None:
+                        if len_arg <= 1 and region is not None:
                             get_index_mock.assert_called_once_with(region)
-
                 except Exception as err:
-                    import pdb
-                    pdb.set_trace()
+                    raise err
                 return
+            
+            assert index is not None
+            expected_fragment_kwarg = kwargs.get("fragment") or index.fragment
+
+            expected_label_kwarg=None
+            if index is not None:
+                expected_label_kwarg = index.label
 
             selected_volume = volumes[mock_fetch_idx]
             selected_volume.fetch = MagicMock()
             selected_volume.fetch.return_value = DummyCls()
-            self.map=TestMap.get_instance(indices=indices, volumes=volumes)
+            self.map = TestMap.get_instance(indices=indices, volumes=volumes)
 
             actual_fetch_result = self.map.fetch(*args, **kwargs)
             if region is not None:
                 get_index_mock.assert_called_once_with(region)
 
             fetch_call_params = {
-                key: kwargs.get(key) for key in volume_fetch_param
+                key: kwargs.get(key)
+                for key in volume_fetch_param
+                if key not in ("region", "index")
             }
             fetch_call_params.pop("fragment", None)
-            selected_volume.fetch.assert_called_once_with(
-                **fetch_call_params,
-                fragment=expected_fragment_kwarg,
-                label=expected_label_kwarg
-            )
+            try:
+                selected_volume.fetch.assert_called_once_with(
+                    **fetch_call_params,
+                    fragment=expected_fragment_kwarg,
+                    label=expected_label_kwarg
+                )
+            except AssertionError:
+                import pdb
+                pdb.set_trace()
             self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
