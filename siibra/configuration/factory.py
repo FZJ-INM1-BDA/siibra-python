@@ -85,9 +85,7 @@ class Factory:
             kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
             return lambda b: pd.read_csv(BytesIO(b), **kwargs)
         else:
-            logger.warn("Decoder spec unknown, returning identify function")
-            print(decoder_spec)
-            return lambda b: b
+            return None
 
     @classmethod
     def extract_anchor(cls, spec):
