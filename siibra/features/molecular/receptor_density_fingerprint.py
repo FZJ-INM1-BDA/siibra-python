@@ -54,14 +54,11 @@ class ReceptorDensityFingerprint(
             data=None,  # lazy loading below
             datasets=datasets,
         )
-        self._loader = requests.HttpRequest(
-            tsvfile,
-            lambda url: self.parse_tsv_data(commons.decode_receptor_tsv(url)),
-        )
+        self._loader = requests.HttpRequest(tsvfile)
 
     @property
     def unit(self) -> str:
-        return self._loader.data['unit']
+        return self._loader.data.iloc[:, -1][0]
 
     @property
     def receptors(self) -> List[str]:
@@ -83,12 +80,13 @@ class ReceptorDensityFingerprint(
     @property
     def data(self):
         if self._data_cached is None:
+            label_col, mean_col, std_col = list(self._loader.data.columns)[:3]
             self._data_cached = pd.DataFrame(
                 np.array([
-                    self._loader.data['means'],
-                    self._loader.data['stds']
+                    self._loader.data[mean_col],
+                    self._loader.data[std_col]
                 ]).T,
-                index=self._loader.data['labels'],
+                index=self._loader.data[label_col],
                 columns=['mean', 'std']
             )
             self._data_cached.index.name = 'receptor'

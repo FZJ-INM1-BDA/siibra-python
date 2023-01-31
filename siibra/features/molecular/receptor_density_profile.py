@@ -17,7 +17,7 @@ from .. import anchor as _anchor
 from ..basetypes import cortical_profile
 
 from ... import vocabularies
-from ...commons import create_key, decode_receptor_tsv
+from ...commons import create_key
 from ...retrieval import requests
 
 
@@ -49,10 +49,7 @@ class ReceptorDensityProfile(cortical_profile.CorticalProfile, configuration_fol
         )
         self.type = receptor
         self._data_cached = None
-        self._loader = requests.HttpRequest(
-            tsvfile,
-            lambda url: self.parse_tsv_data(decode_receptor_tsv(url)),
-        )
+        self._loader = requests.HttpRequest(tsvfile)
         self._unit_cached = None
 
     @property
@@ -82,16 +79,16 @@ class ReceptorDensityProfile(cortical_profile.CorticalProfile, configuration_fol
     @property
     def unit(self):
         # triggers lazy loading of the HttpRequest
-        return self._loader.data["unit"]
+        return self._loader.data.iloc[:, -1][0]
 
     @property
     def _values(self):
         # triggers lazy loading of the HttpRequest
-        return self._loader.data["density"]
+        return self._loader.data.iloc[:, -2].values
 
     @property
     def _depths(self):
-        return self._loader.data["depth"]
+        return self._loader.data.iloc[:, 0].values / 100.
 
     @classmethod
     def parse_tsv_data(self, data):
