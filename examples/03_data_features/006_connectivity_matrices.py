@@ -60,9 +60,12 @@ subject = conn.subjects[0]
 matrix = conn.get_matrix(subject)
 matrix
 
+
 # %%
 # Alternatively, we can visualize the matrix using plot_matrix() method
 conn.plot_matrix(subject=conn.subjects[0])
+
+
 # %%
 # The average matrix across all subjects can be displayed by leaving out subjects
 # or setting it to "mean".
@@ -73,17 +76,8 @@ conn.plot_matrix()
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-# This requires is to 1) compute centroids, and 2) organize the centroids
-# in the sequence of connectivity matrix rows.
-#
-# We start by computing the centroids for each region
-# in the matrix as defined by its mask in MNI152 space.
-# Note that we need to transform the centroids from voxels into
-# physical space, using the affine matrix stored in the mask.
-node_coords = [
-    tuple(region.compute_centroids('mni152')[0])
-    for region in tqdm(matrix.index)
-]
+node_coords = conn.compute_centroids('mni152')
+
 
 # %%
 # Now we can plot the structural connectome.

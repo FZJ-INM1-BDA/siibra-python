@@ -175,12 +175,12 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         regionspec,
         all_versions=False,
         filter_children=True,
-        build_groups=False,
-        groupname=None,
+        **kwargs
     ):
         """
         Find regions with the given specification in all
-        parcellations offered by the atlas.
+        parcellations offered by the atlas. Additional kwargs
+        are passed on to Parcellation.find().
 
         Parameters
         ----------
@@ -191,14 +191,6 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
             - a region object
         all_versions : Bool, default: False
             If True, matched regions for all versions of a parcellation are returned.
-        filter_children : Boolean
-            If true, children of matched parents will not be returned
-        build_groups : Boolean, default: False
-            If true, a group region will be formed per parellations
-            which includes the resulting elements,
-            in case they do not have a single common parent anyway.
-        groupname : str (optional)
-            Name of the resulting group region, if build_groups is True
 
         Yield
         -----
@@ -208,16 +200,8 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         for p in self._parcellation_ids:
             parcobj = _parcellation.Parcellation.get_instance(p)
             if parcobj.is_newest_version or all_versions:
-                match = parcobj.find(
-                    regionspec,
-                    filter_children=filter_children,
-                )
-                if build_groups:
-                    # TODO match will never be None
-                    if match is not None:
-                        result.append(match)
-                else:
-                    result.extend(match)
+                match = parcobj.find(regionspec, **kwargs)
+                result.extend(match)
         return result
 
     def __lt__(self, other: 'Atlas'):

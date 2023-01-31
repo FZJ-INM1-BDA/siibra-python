@@ -15,7 +15,7 @@
 
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..locations import boundingbox, point
+from ..locations import boundingbox, point, pointset
 from ..volumes import parcellationmap
 
 from ..commons import (
@@ -238,7 +238,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 # key is given, this gives us an exact region
                 match = anytree.search.find_by_attr(self, regionspec, name="key")
                 MEM[key] = [] if match is None else [match]
-                return MEM[key]
+                return list(MEM[key])
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
@@ -302,7 +302,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
         MEM[key] = (
             sorted(
-                found_regions,
+                set(found_regions),
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
@@ -423,7 +423,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         return result
 
-    def mapped_in_space(self, space, recurse: bool=True) -> bool:
+    def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
@@ -437,9 +437,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 m.parcellation.matches(self.parcellation)
             ):
                 return True
-        if  recurse and not self.is_leaf:
+        if recurse and not self.is_leaf:
             # check if all children are mapped instead
-            return all(c.mapped_in_space(space) for c in self.children)
+            return all(c.mapped_in_space(space, recurse=True) for c in self.children)
         return False
 
     @property
@@ -565,14 +565,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
-    def compute_centroids(self, space: _space.Space) -> List[point.Point]:
+    def compute_centroids(self, space: _space.Space) -> pointset.PointSet:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids
         if it has multiple connected components in the map.
         """
         props = self.spatial_props(space)
-        return [c["centroid"] for c in props["components"]]
+        return pointset.PointSet(
+            [tuple(c["centroid"]) for c in props["components"] if "centroid" in c],
+            space=space
+        )
 
     def spatial_props(
         self,
@@ -599,17 +602,19 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         ------
         dictionary of regionprops.
         """
+        result = {"space": space, "components": []}
         from skimage import measure
 
         if not isinstance(space, _space.Space):
             space = _space.Space.get_instance(space)
 
         if not self.mapped_in_space(space):
-            raise RuntimeError(
+            logger.warn(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}. "
                 "This region is only mapped in these spaces: "
-                ", ".join(s.name for s in self.supported_spaces)
+                f"{', '.join(s.name for s in self.supported_spaces)}"
             )
+            return result
 
         # build binary mask of the image
         pimg = self.fetch_regional_map(
@@ -624,7 +629,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         C = measure.label(A)
 
         # compute spatial properties of each connected component
-        result = {"space": space, "components": []}
         for label in range(1, C.max() + 1):
             props = {}
             nonzero = np.c_[np.nonzero(C == label)]

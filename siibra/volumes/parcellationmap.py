@@ -248,10 +248,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def fetch(
         self,
-        region_or_index: Union[str, "Region", MapIndex]=None,
+        region_or_index: Union[str, "Region", MapIndex] = None,
         *,
-        index: MapIndex=None,
-        region: Union[str, "Region"]=None,
+        index: MapIndex = None,
+        region: Union[str, "Region"] = None,
         **kwargs
     ):
         """
@@ -282,17 +282,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise ExcessiveArgumentException(f"One and only one of region_or_index, region, index can be defined for fetch")
+                raise ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
             # user can provide no arguments, which assumes one and only one volume present
 
         if isinstance(region_or_index, MapIndex):
             index = region_or_index
 
-        from ..core.region import Region
-        if isinstance(region_or_index, (str, Region)):
+        if isinstance(region_or_index, (str, _region.Region)):
             region = region_or_index
         
-        mapindex=None
+        mapindex = None
         if region is not None:
             assert isinstance(region, (str, Region))
             mapindex = self.get_index(region)
@@ -482,12 +481,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 with QUIET:
                     mapimg = self.fetch(index=index)
                 maparr = np.asanyarray(mapimg.dataobj)
-            if index.label is None:
-                # should be a continous map then
-                assert not self.is_labelled
-                centroid_vox = np.array(np.where(maparr > 0)).mean(1)
-            else:
-                centroid_vox = np.array(np.where(maparr == index.label)).mean(1)
+            centroid_vox = np.array(np.where(maparr > 0)).mean(1)
             assert regionname not in centroids
             centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space

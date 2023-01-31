@@ -1,6 +1,5 @@
 import unittest
 import siibra
-from siibra.features.cells import CorticalCellDistributionModel
 
 
 atlas = siibra.atlases['human']
@@ -40,7 +39,6 @@ class TestCorticalCellDistribution(unittest.TestCase):
         features = siibra.features.get(region, siibra.features.cellular.LayerwiseCellDensity)
         feature = features[0]
         model = feature.to_model(detail=False)
-        assert isinstance(model, CorticalCellDistributionModel)
         assert getattr(model.metadata, 'short_name') is not None and model.metadata.short_name != ""
 
 

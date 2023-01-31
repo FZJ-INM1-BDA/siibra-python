@@ -20,6 +20,7 @@ from .. import anchor as _anchor
 
 from ...commons import logger, QUIET
 from ...core import region as _region
+from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
 from typing import Callable, Dict, Union, List
@@ -110,7 +111,7 @@ class RegionalConnectivity(Feature):
             # multiple matrices available, but no subject given - return mean matrix
             logger.info(
                 f"No subject name supplied, returning mean connectivity across {len(self)} subjects. "
-                "You might alternatively specifiy an individual subject."
+                "You might alternatively specify an individual subject."
             )
             if "mean" not in self._matrices:
                 all_arrays = [
@@ -149,13 +150,10 @@ class RegionalConnectivity(Feature):
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
         matrix = self.get_matrix(subject=subject)
-
         if regions is None:
-            # TODO: Fix: self.regions is not equal to matrix.columns.to_list() due to space mismatch
-            # After the fix, update this with regions = self.regions
             regions = matrix.columns.to_list()
 
-         # default kwargs
+        # default kwargs
         subject_title = subject or ""
         kwargs["title"] = kwargs.get(
             "title",
@@ -163,7 +161,7 @@ class RegionalConnectivity(Feature):
         )
         kwargs["figure"] = kwargs.get("figure", (15, 15))
 
-        from nilearn import plotting    
+        from nilearn import plotting
         plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
 
     def __iter__(self):
@@ -223,6 +221,30 @@ class RegionalConnectivity(Feature):
             self.cohort,
             len(self._files),
         )
+    
+    def compute_centroids(self, space):
+        """
+        compute the list of centroid coordinates corresponding to
+        matrix rows, in the given space.
+        """
+        result = []
+        parcellations = self.anchor.represented_parcellations()
+        assert len(parcellations) == 1
+        parcmap = next(iter(parcellations)).get_map(space)
+        all_centroids = parcmap.compute_centroids()
+        for regionname in self.regions:
+            region = parcmap.parcellation.get_region(regionname, allow_tuple=True)
+            if isinstance(region, tuple):  # deal with sets of matched regions
+                found = [c for r in region for c in r if c.name in all_centroids]
+            else:
+                found = [r for r in region if r.name in all_centroids]
+            assert len(found) > 0
+            result.append(
+                tuple(pointset.PointSet(
+                    [all_centroids[r.name] for r in found], space=space
+                ).centroid)
+            )
+        return result
 
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
@@ -235,7 +257,7 @@ class RegionalConnectivity(Feature):
         parc = next(iter(parcellations))
         with QUIET:
             indexmap = {
-                i: parc.get_region(regionname, build_group=True)
+                i: parc.get_region(regionname, allow_tuple=True)
                 for i, regionname in enumerate(self.regions)
             }
         nrows = array.shape[0]
