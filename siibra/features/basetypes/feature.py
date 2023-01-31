@@ -35,7 +35,6 @@ class Feature:
     """
 
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
-    ALL =  Dict[str, Type['Feature']]
 
     def __init__(
         self,
@@ -86,7 +85,7 @@ class Feature:
         return super().__init_subclass__()
 
     @classmethod
-    def _get_all_subclass_names(cls):
+    def _get_subclasses(cls):
         return {Cls.__name__: Cls for Cls in cls.SUBCLASSES}
 
     @property
