@@ -152,7 +152,7 @@ class Feature:
     
     @property
     def id(self):
-        prefix=''
+        prefix = ''
         id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
         if len(id_set) == 1:
             prefix = list(id_set)[0] + '--'
@@ -199,9 +199,11 @@ class Feature:
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"
-        instances = [instance
+        instances = [
+            instance
             for f_type in cls.SUBCLASSES[feature_type]
-            for instance in f_type.get_instances()]
+            for instance in f_type.get_instances()
+        ]
 
         if logger.getEffectiveLevel() > 20 and len(instances) > 0:
             preconfigured_instances = [f for f in instances if f.matches(concept)]

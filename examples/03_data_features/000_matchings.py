@@ -30,7 +30,7 @@ import siibra
 # Available feature types are listed in the module `siibra.features`.
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
-siibra.features.ALL
+siibra.features.TYPES
 
 # %%
 # Regional features
