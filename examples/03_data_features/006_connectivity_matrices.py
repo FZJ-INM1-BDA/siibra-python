@@ -27,7 +27,6 @@ from nilearn import plotting
 import siibra
 from tqdm import tqdm
 
-
 # %%
 # We start by selecting an atlas parcellation.
 jubrain = siibra.parcellations.get("julich 2.9")
@@ -62,6 +61,14 @@ matrix = conn.get_matrix(subject)
 matrix
 
 # %%
+# Alternatively, we can visualize the matrix using plot_matrix() method
+conn.plot_matrix(subject=conn.subjects[0])
+# %%
+# The average matrix across all subjects can be displayed by leaving out subjects
+# or setting it to "mean".
+conn.plot_matrix()
+
+# %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
@@ -92,5 +99,13 @@ view.title(
     size=10,
 )
 
+# %%
+# or in 3D:
+plotting.view_connectome(
+    adjacency_matrix=matrix,
+    node_coords=node_coords,
+    edge_threshold="99%",
+    node_size=3, colorbar=False,  edge_cmap="bwr"
+    )
 
 # %%

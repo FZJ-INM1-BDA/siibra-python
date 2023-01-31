@@ -22,7 +22,7 @@ from ...commons import logger, QUIET
 from ...core import region as _region
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -130,6 +130,41 @@ class RegionalConnectivity(Feature):
         if subject not in self._matrices:
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
+
+    def plot_matrix(self, subject: str = None, regions: List[str] = None, **kwargs):
+        """
+        Plots the heatmap of the connectivity matrix using nilearn.plotting.
+
+        Parameters
+        ----------
+        subject: str
+            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            If "mean" or None is given, the mean is taken in case of multiple
+            available matrices.
+        regions: list[str]
+            Display the matrix only for selected regions. By default, shows all the regions.
+            It can only be a subset of regions of the feature.
+        **kwargs:
+            Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
+            https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
+        """
+        matrix = self.get_matrix(subject=subject)
+
+        if regions is None:
+            # TODO: Fix: self.regions is not equal to matrix.columns.to_list() due to space mismatch
+            # After the fix, update this with regions = self.regions
+            regions = matrix.columns.to_list()
+
+         # default kwargs
+        subject_title = subject or ""
+        kwargs["title"] = kwargs.get(
+            "title",
+            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+        )
+        kwargs["figure"] = kwargs.get("figure", (15, 15))
+
+        from nilearn import plotting    
+        plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
