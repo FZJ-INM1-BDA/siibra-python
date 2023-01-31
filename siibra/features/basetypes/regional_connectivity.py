@@ -131,7 +131,7 @@ class RegionalConnectivity(Feature):
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
 
-    def plot_matrix(self, subject: str = None, regions: List[str] = None, logscale: bool = False, **kwargs):
+    def plot_matrix(self, subject: str = None, regions: List[str] = None, **kwargs):
         """
         Plots the heatmap of the connectivity matrix using nilearn.plotting.
 
@@ -144,15 +144,11 @@ class RegionalConnectivity(Feature):
         regions: list[str]
             Display the matrix only for selected regions. By default, shows all the regions.
             It can only be a subset of regions of the feature.
-        logscale: bool
-            Whether to show the data in log10 scale or not.
         **kwargs:
             Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
         matrix = self.get_matrix(subject=subject)
-        if logscale:
-            matrix = np.log10(matrix)
 
         if regions is None:
             # TODO: Fix: self.regions is not equal to matrix.columns.to_list() due to space mismatch

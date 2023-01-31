@@ -65,8 +65,8 @@ matrix
 conn.plot_matrix(subject=conn.subjects[0])
 # %%
 # The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to "mean". This time let us display in logscale.
-conn.plot_matrix(logscale=True)
+# or setting it to "mean".
+conn.plot_matrix()
 
 # %%
 # We can create a 3D visualization of the connectivity using
