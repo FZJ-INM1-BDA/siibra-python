@@ -8,13 +8,15 @@ from parameterized import parameterized
 import random
 from itertools import product
 
+
 class DummyCls:
     def fetch(self):
         raise NotImplementedError
 
+
 possible_indicies = list(
     filter(
-        lambda idx: idx is not None, 
+        lambda idx: idx is not None,
         map(
             lambda args: MapIndex(*args) if args[0] is not None or args[1] is not None else None,
             product(
@@ -31,18 +33,20 @@ possible_regions = ("region-foo", None)
 volume_fetch_param = {
     "resolution_mm": (1e-6, ),
     "format": ("foo", ),
-    "voi": ( DummyCls(), ),
+    "voi": (DummyCls(), ),
     "variant": ("hello", ),
     "fragment": ("foo-fragment", None),
     "index": [*possible_indicies, None],
     "region": [*possible_regions, None],
 }
 
+
 def get_randomised_kwargs_fetch_params():
     return {key: random.sample(value, 1)[0] for key, value in volume_fetch_param.items()}
 
+
 def get_permutations_kwargs_fetch_params():
-    
+
     for zipped_value in product(*[
         product(values)
         for values in volume_fetch_param.values()
@@ -52,15 +56,18 @@ def get_permutations_kwargs_fetch_params():
             for key, value in zip(volume_fetch_param.keys(), zipped_value)
         }
 
+
 class TestMap(unittest.TestCase):
     @staticmethod
     def get_instance(space_spec={}, parcellation_spec={}, indices={}, volumes=[]):
-        return Map(identifier=str(uuid4()),
+        return Map(
+            identifier=str(uuid4()),
             name="map-name",
             space_spec=space_spec,
             parcellation_spec=parcellation_spec,
             indices=indices,
-            volumes=volumes)
+            volumes=volumes
+        )
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -68,7 +75,7 @@ class TestMap(unittest.TestCase):
 
     def test_init(self):
         assert self.map is not None
-    
+
     def test_find_indicies(self):
         self.map = TestMap.get_instance(indices={
             'foo-bar': [{
@@ -77,18 +84,18 @@ class TestMap(unittest.TestCase):
         }, volumes=[DummyCls()])
 
     @parameterized.expand([
-        ({ "@id": "foo" }, "foo", True, True),
-        ({ "name": "bar" }, "bar", True, False),
-        ({ "buzz": "bay" }, None, False, None),
+        ({"@id": "foo"}, "foo", True, True),
+        ({"name": "bar"}, "bar", True, False),
+        ({"buzz": "bay"}, None, False, None),
         ({}, None, False, None),
     ])
     def test_space(self, set_space_spec, called_arg, called_get_instance, return_space_flag):
-        
+
         self.map = TestMap.get_instance(space_spec=set_space_spec)
 
         with patch.object(space.Space, 'get_instance') as mock_get_instance:
             return_space = space.Space(None, "Returned Space", species=Species.HOMO_SAPIENS) if return_space_flag else None
-            mock_get_instance.return_value=return_space
+            mock_get_instance.return_value = return_space
 
             actual_returned_space = self.map.space
 
@@ -96,20 +103,20 @@ class TestMap(unittest.TestCase):
                 mock_get_instance.assert_called_once_with(called_arg)
             else:
                 mock_get_instance.assert_not_called()
-            
+
             if not called_get_instance:
                 assert actual_returned_space.name == "Unspecified space"
             else:
                 assert actual_returned_space is return_space
-    
+
     @parameterized.expand([
-        ({ "@id": "foo" }, "foo", True, True),
-        ({ "name": "bar" }, "bar", True, False),
-        ({ "buzz": "bay" }, None, False, None),
+        ({"@id": "foo"}, "foo", True, True),
+        ({"name": "bar"}, "bar", True, False),
+        ({"buzz": "bay"}, None, False, None),
         ({}, None, False, None),
     ])
     def test_parcellation(self, set_parc_spec, called_arg, called_get_instance, return_parc_flag):
-        
+
         self.map = TestMap.get_instance(parcellation_spec=set_parc_spec)
 
         with patch.object(parcellation.Parcellation, 'get_instance') as mock_get_instance:
@@ -122,7 +129,7 @@ class TestMap(unittest.TestCase):
                 mock_get_instance.assert_called_once_with(called_arg)
             else:
                 mock_get_instance.assert_not_called()
-            
+
             if not called_get_instance:
                 assert actual_returned_parcellation is None
             else:
@@ -187,10 +194,10 @@ class TestMap(unittest.TestCase):
     def test_maptype(self, indices, maptype, Error):
         if Error is not None:
             with self.assertRaises(Error):
-                self.map=TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
+                self.map = TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
                 self.map.maptype
         else:
-            self.map=TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
+            self.map = TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
             self.assertIs(self.map.maptype, maptype)
 
     @parameterized.expand([
@@ -207,7 +214,7 @@ class TestMap(unittest.TestCase):
         }, ["foo", "bar"]),
     ])
     def test_regions(self, indices, expected_regions):
-        self.map=TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
+        self.map = TestMap.get_instance(indices=indices, volumes=[DummyCls(), DummyCls()])
         self.assertListEqual(self.map.regions, expected_regions)
 
     @parameterized.expand([
@@ -247,11 +254,11 @@ class TestMap(unittest.TestCase):
         region_index_arg = args[0] if len(args) > 0 else None
         region_kwarg = kwargs.get("region")
         index_kwarg = kwargs.get("index")
-        
+
         expected_error = None
 
         len_arg = len([arg for arg in [region_index_arg, region_kwarg, index_kwarg] if arg is not None])
-        
+
         index = index_kwarg or (region_index_arg if isinstance(region_index_arg, MapIndex) else None)
         region = region_kwarg or (region_index_arg if isinstance(region_index_arg, (str, Region)) else None)
 
@@ -260,16 +267,15 @@ class TestMap(unittest.TestCase):
         elif len_arg > 1:
             expected_error = ExcessiveArgumentException
         elif (
-            index is not None and
-            index.fragment is not None and
-            kwargs.get("fragment") is not None and
-            index.fragment != kwargs.get("fragment")
+            index is not None
+            and index.fragment is not None
+            and kwargs.get("fragment") is not None
+            and index.fragment != kwargs.get("fragment")
         ):
             expected_error = ConflictingArgumentException
         elif len(volumes) == 0:
             expected_error = IndexError
 
-        
         mock_map_index = MapIndex(0, 0)
         if index is None:
             # default mapindex used by parcellationmap if everything is missing
@@ -287,11 +293,11 @@ class TestMap(unittest.TestCase):
                 except Exception as err:
                     raise err
                 return
-            
+
             assert index is not None
             expected_fragment_kwarg = kwargs.get("fragment") or index.fragment
 
-            expected_label_kwarg=None
+            expected_label_kwarg = None
             if index is not None:
                 expected_label_kwarg = index.label
 

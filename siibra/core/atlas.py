@@ -200,7 +200,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         for p in self._parcellation_ids:
             parcobj = _parcellation.Parcellation.get_instance(p)
             if parcobj.is_newest_version or all_versions:
-                match = parcobj.find(regionspec, **kwargs)
+                match = parcobj.find(regionspec, filter_children=filter_children, **kwargs)
                 result.extend(match)
         return result
 

@@ -211,17 +211,18 @@ class AnatomicalAnchor:
                         AnatomicalAssignment(self.space, concept, AssignmentQualification.EXACT)
                     )
             elif isinstance(concept, Region):
-                if any(_.matches(self._regionspec) for _ in concept) \
-                        or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
-                    for r in self.regions:
-                        matches.append(AnatomicalAnchor.match_regions(r, concept))
-                if len(concept.root.find(self._regionspec)) == 0:
-                    # We perform the (quite expensive) location-to-region test
-                    # only if this anchor's regionspec is not known to the
-                    # parcellation of the query region. Otherwise we can rely
-                    # on the region-to-region test.
-                    if self.location is not None:
-                        matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
+                if concept.species in self.species:
+                    if any(_.matches(self._regionspec) for _ in concept) \
+                            or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
+                        for r in self.regions:
+                            matches.append(AnatomicalAnchor.match_regions(r, concept))
+                    if len(concept.root.find(self._regionspec)) == 0:
+                        # We perform the (quite expensive) location-to-region test
+                        # only if this anchor's regionspec is not known to the
+                        # parcellation of the query region. Otherwise we can rely
+                        # on the region-to-region test.
+                        if self.location is not None:
+                            matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
             elif isinstance(concept, Location):
                 if self.location is not None:
                     matches.append(AnatomicalAnchor.match_locations(self.location, concept))

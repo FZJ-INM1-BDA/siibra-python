@@ -23,7 +23,7 @@ from ..retrieval import requests
 import numpy as np
 from tqdm import tqdm
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable
-from scipy.ndimage.morphology import distance_transform_edt
+from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nibabel import Nifti1Image
 from nilearn import image
@@ -137,7 +137,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         seen = set()
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
         if len(duplicates) > 0:
-            logger.warn(f"Non unique indices encountered in {self}: {duplicates}")
+            logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
 
         self._space_spec = space_spec
         self._parcellation_spec = parcellation_spec

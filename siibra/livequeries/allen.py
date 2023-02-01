@@ -18,7 +18,7 @@ from .query import LiveQuery
 from ..core import space as _space
 from ..features import anchor as _anchor
 from ..features.molecular.gene_expression import GeneExpressions
-from ..commons import logger, Species
+from ..commons import logger, Species, MapType
 from ..locations import Point, PointSet
 from ..core.region import Region
 from ..retrieval import HttpRequest
@@ -101,6 +101,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
+        self.maptype = kwargs.get("maptype", MapType.LABELLED)
+        if isinstance(self.maptype, str):
+            self.maptype = MapType[self.maptype.upper()]
+        self.threshold_statistical = kwargs.get("threshold_statistical", 0)
 
         def parse_gene(spec):
             if isinstance(spec, str):
@@ -120,8 +124,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
     def query(self, region: Region) -> List[GeneExpressions]:
         assert isinstance(region, Region)
         space = _space.Space.registry().get('mni152')
-        mask = region.fetch_regional_map(space, "labelled")
-
+        mask = region.fetch_regional_map(space, maptype=self.maptype, threshold=self.threshold_statistical)
         anchor = _anchor.AnatomicalAnchor(
             species=self.species, region=region.name
         )

@@ -170,7 +170,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             logger.error(f"No {maptype} map in {space} available for {str(self)}")
             return None
         if len(candidates) > 1:
-            logger.warn(f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first.")
+            logger.warning(f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first.")
         return candidates[0]
 
     @classmethod
