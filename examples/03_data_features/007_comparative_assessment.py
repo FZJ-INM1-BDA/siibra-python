@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Comparative analysis of brain organisation in two brain regions¶
+Comparative analysis of brain organisation in two brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 

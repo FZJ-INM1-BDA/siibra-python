@@ -38,15 +38,29 @@ extensions = [
     "sphinx.ext.autodoc",
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.autosummary',
+    'sphinx.ext.autosectionlabel',
     "sphinx_autopackagesummary",
     "autoapi.extension",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinx_rtd_theme",
     "m2r2",
 ]
-autosummary_generate = True
+
+# autoapi options
+autoapi_member_order = "groupwise"
 autoapi_type = "python"
 autoapi_dirs = [os.path.join(os.path.abspath(".."), "siibra")]
+autoapi_add_toctree_entry = False
+autoapi_options = [
+    'members',
+    'undoc-members',
+    'show-inheritance',
+    'show-module-summary',
+    'imported-members'
+]
+
+# sphinx_autopackagesummary options
+autosummary_generate = True
 
 # The master toctree document.
 master_doc = 'index'
@@ -93,7 +107,7 @@ html_theme_options = {
     # Toc options
     'collapse_navigation': True,
     'sticky_navigation': True,
-    'navigation_depth': 4,
+    'navigation_depth': 3,
     'includehidden': True,
     'titles_only': False
 }
@@ -106,8 +120,9 @@ html_static_path = ["_static"]
 
 # overriding some styles in a custom CSS
 html_css_files = ["siibra.css"]
-
+html_show_sourcelink = False
 html_logo = "../images/siibra-python.jpeg"
+html_permalinks = False
 
 source_suffix = [".rst"]
 
@@ -120,3 +135,6 @@ inheritance_graph_attrs = dict(rankdir='LR', size='"6.0, 8.0"', fontsize=14, rat
 inheritance_node_attrs = dict(
     shape='ellipse', fontsize=14, height=0.75, color='dodgerblue1', style='filled'
 )
+
+# Example configuration for intersphinx: refer to the Python standard library.
+#intersphinx_mapping = {'https://docs.python.org/3/': None}
