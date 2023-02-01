@@ -15,7 +15,7 @@
 
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..locations import boundingbox, point
+from ..locations import boundingbox, point, pointset
 from ..volumes import parcellationmap
 
 from ..commons import (
@@ -48,6 +48,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     """
     Representation of a region with name and more optional attributes
     """
+
+    _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
+    _accepted_flags = "aiLmsux"
 
     def __init__(
         self,
@@ -199,6 +202,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         regionspec : any of
             - a string with a possibly inexact name, which is matched both
               against the name and the identifier key,
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux),
             - a regex applied to region names,
             - an integer, which is interpreted as a labelindex,
             - a full MapIndex
@@ -218,11 +222,23 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         if key in MEM:
             return MEM[key]
 
-        if isinstance(regionspec, str) and regionspec in self.names:
-            # key is given, this gives us an exact region
-            match = anytree.search.find_by_attr(self, regionspec, name="key")
-            MEM[key] = [] if match is None else [match]
-            return MEM[key]
+        if isinstance(regionspec, str):
+            regex_match = self._regex_re.match(regionspec)
+            if regex_match:
+                flags = regex_match.group('flags')
+                expression = regex_match.group('expression')
+
+                for flag in flags or []:  # catch if flags is nullish
+                    if flag not in self._accepted_flags:
+                        raise Exception(f"only accepted flag are in { self._accepted_flags }. {flag} is not within them")
+                search_regex = (f"(?{flags})" if flags else "") + expression
+                regionspec = re.compile(search_regex)
+
+            if regionspec in self.names:
+                # key is given, this gives us an exact region
+                match = anytree.search.find_by_attr(self, regionspec, name="key")
+                MEM[key] = [] if match is None else [match]
+                return list(MEM[key])
 
         candidates = list(
             set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
@@ -286,7 +302,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
         MEM[key] = (
             sorted(
-                found_regions,
+                set(found_regions),
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
@@ -373,7 +389,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                     self.name in m.regions
                 ]
             ):
-                result = m.fetch(index=m.get_index(self.name), format='image')
+                result = m.fetch(region=self, format='image')
                 if (maptype == MapType.STATISTICAL) and (threshold is not None):
                     logger.info(f"Thresholding statistical map at {threshold}")
                     result = Nifti1Image(
@@ -392,7 +408,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
                     else:
-                        assert np.linalg.norm(mask.affine - affine) < 1e-12
+                        if np.linalg.norm(mask.affine - affine) > 1e-12:
+                            raise NotImplementedError(
+                                f"Child regions of {self.name} have different voxel spaces "
+                                "and the aggregated subtree mask is not supported. "
+                                f"Try fetching masks of the children: {self.children}"
+                            )
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
             if dataobj is not None:
@@ -403,7 +424,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         return result
 
-    def mapped_in_space(self, space) -> bool:
+    def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
         """
@@ -412,14 +433,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             # Use and operant for efficiency (short circuiting logic)
             # Put the most inexpensive logic first
             if (
-                self.name in m.regions and
-                m.space.matches(space) and
-                m.parcellation.matches(self.parcellation)
+                self.name in m.regions
+                and m.space.matches(space)
+                and m.parcellation.matches(self.parcellation)
             ):
                 return True
-        if not self.is_leaf:
+        if recurse and not self.is_leaf:
             # check if all children are mapped instead
-            return all(c.mapped_in_space(space) for c in self.children)
+            return all(c.mapped_in_space(space, recurse=True) for c in self.children)
         return False
 
     @property
@@ -545,14 +566,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         logger.error(f"Could not compute bounding box for {self.name}.")
         return None
 
-    def compute_centroids(self, space: _space.Space) -> List[point.Point]:
+    def compute_centroids(self, space: _space.Space) -> pointset.PointSet:
         """Compute the centroids of the region in the given space.
 
         Note that a region can generally have multiple centroids
         if it has multiple connected components in the map.
         """
         props = self.spatial_props(space)
-        return [c["centroid"] for c in props["components"]]
+        return pointset.PointSet(
+            [tuple(c["centroid"]) for c in props["components"] if "centroid" in c],
+            space=space
+        )
 
     def spatial_props(
         self,
@@ -579,17 +603,19 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         ------
         dictionary of regionprops.
         """
+        result = {"space": space, "components": []}
         from skimage import measure
 
         if not isinstance(space, _space.Space):
             space = _space.Space.get_instance(space)
 
         if not self.mapped_in_space(space):
-            raise RuntimeError(
+            logger.warn(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}. "
                 "This region is only mapped in these spaces: "
-                ", ".join(s.name for s in self.supported_spaces)
+                f"{', '.join(s.name for s in self.supported_spaces)}"
             )
+            return result
 
         # build binary mask of the image
         pimg = self.fetch_regional_map(
@@ -604,7 +630,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         C = measure.label(A)
 
         # compute spatial properties of each connected component
-        result = {"space": space, "components": []}
         for label in range(1, C.max() + 1):
             props = {}
             nonzero = np.c_[np.nonzero(C == label)]

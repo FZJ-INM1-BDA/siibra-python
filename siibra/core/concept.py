@@ -27,13 +27,16 @@ except ImportError:
 
 T = TypeVar("T", bound="AtlasConcept")
 
+
 class TypePublication(TypedDict):
     citation: str
     url: str
 
+
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
+
 
 class AtlasConcept:
     """

@@ -21,11 +21,14 @@ from ..retrieval import cache
 
 from os import path
 import gzip
-from typing import Dict
+from typing import Dict, Union, TYPE_CHECKING
 from nilearn import image
 from nibabel import Nifti1Image, load
 from tqdm import tqdm
 import numpy as np
+
+if TYPE_CHECKING:
+    from ..core.region import Region
 
 
 class SparseIndex:
@@ -47,7 +50,9 @@ class SparseIndex:
             self.voxels = np.zeros(img.shape, dtype=np.int32) - 1
         else:
             if (img.shape != self.shape) or ((img.affine - self.affine).sum() != 0):
-                raise RuntimeError(f"Building sparse maps from volumes with different voxel spaces is not yet supported in siibra.")
+                raise RuntimeError(
+                    "Building sparse maps from volumes with different voxel spaces is not yet supported in siibra."
+                )
 
         volume = self.num_volumes
         imgdata = np.asanyarray(img.dataobj)
@@ -263,8 +268,10 @@ class SparseMap(parcellationmap.Map):
 
     def fetch(
         self,
+        region_or_index: Union[MapIndex, str, 'Region'] = None,
+        *,
         index: MapIndex = None,
-        region: str = None,
+        region: Union[str, 'Region'] = None,
         **kwargs
     ):
         """
@@ -273,39 +280,56 @@ class SparseMap(parcellationmap.Map):
 
         Arguments
         ---------
+        region_or_index: Union[str, Region, MapIndex]
+            Lazy match the specification.
         index : MapIndex
             The index to be fetched.
-        region: str
+        region: Union[str, Region]
             Region name specification. If given, will be used to
             decode the map index of a particular region.
         """
         if kwargs.get('format') in ['mesh'] + _volume.Volume.MESH_FORMATS:
             # a mesh is requested, this is not handled by the sparse map
-            return super().fetch(index=index, region=region, **kwargs)
+            return super().fetch(region_or_index, index=index, region=region, **kwargs)
 
-        if (index is not None) and (region is not None):
-            raise ValueError(
-                "'index' and 'region' must not be specifiec at the same "
-                f"time in {self.__class__.__name__}.fetch()"
-            )
+        try:
+            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
+            assert length == 1
+        except AssertionError:
+            if length > 1:
+                raise parcellationmap.ExcessiveArgumentException(
+                    "One and only one of region_or_index, region, index can be defined for fetch"
+                )
+            # user can provide no arguments, which assumes one and only one volume present
+
+        if isinstance(region_or_index, MapIndex):
+            index = region_or_index
+
+        from ..core.region import Region
+        if isinstance(region_or_index, (str, Region)):
+            region = region_or_index
+
+        volidx = None
         if index is not None:
             assert isinstance(index, MapIndex)
-            vol = index.volume
-        elif region is not None:
+            volidx = index.volume
+        if region is not None:
             index = self.get_index(region)
             assert index is not None
-            vol = index.volume
-        else:
-            if len(self) == 1:
-                vol = 0
-            else:
-                raise RuntimeError(
+            volidx = index.volume
+
+        if volidx is None:
+            try:
+                assert len(self) == 1
+                volidx = 0
+            except AssertionError:
+                raise parcellationmap.InsufficientArgumentException(
                     f"{self.__class__.__name__} provides {len(self)} volumes. "
                     "Specify 'region' or 'index' for fetch() to identify one."
                 )
 
-        assert isinstance(vol, int)
-        x, y, z, v = self.sparse_index.mapped_voxels(vol)
+        assert isinstance(volidx, int)
+        x, y, z, v = self.sparse_index.mapped_voxels(volidx)
         result = np.zeros(self.shape, dtype=np.float32)
         result[x, y, z] = v
         return Nifti1Image(result, self.affine)

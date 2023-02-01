@@ -20,7 +20,6 @@ from nibabel import Nifti1Image
 import logging
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
-from io import BytesIO
 from skimage.filters import gaussian
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
@@ -491,31 +490,6 @@ def unify_stringlist(L: list):
     """
     assert all([isinstance(_, str) for _ in L])
     return [L[i] + "*" * L[:i].count(L[i]) for i in range(len(L))]
-
-
-def decode_receptor_tsv(bytearray):
-    bytestream = BytesIO(bytearray)
-    header = bytestream.readline()
-    lines = [_.strip() for _ in bytestream.readlines() if len(_.strip()) > 0]
-    sep = b"{" if b"{" in lines[0] else b"\t"
-    keys = unify_stringlist(
-        [
-            n.decode("utf8").replace('"', "").replace("'", "").strip()
-            for n in header.split(sep)
-        ]
-    )
-    if any(k.endswith("*") for k in keys):
-        logger.warning("Redundant headers in receptor file")
-    assert len(keys) == len(set(keys))
-    return {
-        _.split(sep)[0].decode("utf8"): dict(
-            zip(
-                keys,
-                [re.sub(r"\\+", r"\\", v.decode("utf8").strip()) for v in _.split(sep)],
-            )
-        )
-        for _ in lines
-    }
 
 
 def create_gaussian_kernel(sigma=1, sigma_point=3):

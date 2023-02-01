@@ -1,11 +1,11 @@
 import unittest
 from unittest.mock import PropertyMock, patch
-from siibra.features.external.ebrains import EbrainsDataset, feature, datasets
+from siibra.features.external.ebrains import EbrainsDataFeature, feature
 
 class TestEbrains(unittest.TestCase):
     @staticmethod
     def get_instance(dataset_id=None):
-        return EbrainsDataset(
+        return EbrainsDataFeature(
             dataset_id=dataset_id,
             anchor=None,
             name="foo bar",

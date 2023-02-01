@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from .requests import EbrainsKgQuery
+from .requests import EbrainsKgQuery, MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
 from typing import Union, List
@@ -25,8 +25,10 @@ except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
 
+
 class EbrainsDatasetUrl(TypedDict):
     url: str
+
 
 EbrainsDatasetPerson = TypedDict('EbrainsDatasetPerson', {
     '@id': str,
@@ -45,7 +47,7 @@ EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
 
 class EbrainsDataset:
 
-    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus]=None, *, cached_data=None):
+    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
 
         self._id = id
         self._cached_data = cached_data
@@ -60,7 +62,7 @@ class EbrainsDataset:
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
-    
+
     @property
     def id(self) -> str:
         return self._id
@@ -69,10 +71,19 @@ class EbrainsDataset:
     def detail(self):
         if not self._cached_data:
             match = re.search(r"([a-f0-9-]+)$", self.id)
-            self._cached_data = EbrainsKgQuery(
-                query_id="interactiveViewerKgQuery-v1_0",
-                instance_id=match.group(1),
-                params={"vocab": "https://schema.hbp.eu/myQuery/"},
+            instance_id = match.group(1)
+            self._cached_data = MultiSourcedRequest(
+                requests=[
+                    GitlabProxy(
+                        GitlabProxyEnum.DATASET_V1,
+                        instance_id=instance_id,
+                    ),
+                    EbrainsKgQuery(
+                        query_id="interactiveViewerKgQuery-v1_0",
+                        instance_id=instance_id,
+                        params={"vocab": "https://schema.hbp.eu/myQuery/"},
+                    )
+                ]
             ).data
         return self._cached_data
 

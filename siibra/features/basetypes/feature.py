@@ -78,11 +78,15 @@ class Feature:
             if not issubclass(BaseCls, Feature):
                 continue
             cls.SUBCLASSES[BaseCls].append(cls)
-            
+
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
         return super().__init_subclass__()
+
+    @classmethod
+    def _get_subclasses(cls):
+        return {Cls.__name__: Cls for Cls in cls.SUBCLASSES}
 
     @property
     def description(self):
@@ -145,13 +149,14 @@ class Feature:
     def last_match_description(self):
         return "" if self.anchor is None \
             else self.anchor.last_match_description
-    
+
     @property
     def id(self):
+        prefix = ''
         id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
         if len(id_set) == 1:
-            return list(id_set)[0]
-        return md5(self.name.encode("utf-8")).hexdigest()
+            prefix = list(id_set)[0] + '--'
+        return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
@@ -184,7 +189,7 @@ class Feature:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
 
             return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
-        
+
         assert issubclass(feature_type, Feature)
 
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
@@ -194,11 +199,13 @@ class Feature:
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"
-        instances = [instance
+        instances = [
+            instance
             for f_type in cls.SUBCLASSES[feature_type]
-            for instance in f_type.get_instances()]
+            for instance in f_type.get_instances()
+        ]
 
-        if logger.getEffectiveLevel() > 20 and len(instances) > 0:
+        if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
             preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]

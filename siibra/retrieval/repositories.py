@@ -14,15 +14,17 @@
 # limitations under the License.
 
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from .cache import CACHE
 
 from .. import logger
 
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
-from os import path, walk
+import os
 from zipfile import ZipFile
 from typing import List
+import requests
 
 
 class RepositoryConnector(ABC):
@@ -88,10 +90,10 @@ class RepositoryConnector(ABC):
 
     @classmethod
     def _from_url(cls, url: str):
-        expurl = path.abspath(path.expanduser(url))
+        expurl = os.path.abspath(os.path.expanduser(url))
         if url.endswith(".zip"):
             return ZipfileConnector(url)
-        elif path.isdir(expurl):
+        elif os.path.isdir(expurl):
             return LocalFileRepository(expurl)
         else:
             raise TypeError(
@@ -103,13 +105,13 @@ class RepositoryConnector(ABC):
 class LocalFileRepository(RepositoryConnector):
 
     def __init__(self, folder: str):
-        assert path.isdir(folder)
+        assert os.path.isdir(folder)
         self._folder = folder
-        if folder[-1] != path.sep:
-            self._folder += path.sep
+        if folder[-1] != os.path.sep:
+            self._folder += os.path.sep
 
     def _build_url(self, folder: str, filename: str):
-        return path.join(self._folder, folder, filename)
+        return os.path.join(self._folder, folder, filename)
 
     class FileLoader:
         """
@@ -140,7 +142,7 @@ class LocalFileRepository(RepositoryConnector):
     def search_files(self, folder="", suffix=None, recursive=False):
         exclude = ['.', '~']
         result = []
-        for root, dirs, files in walk(self._folder):
+        for root, dirs, files in os.walk(self._folder):
             subfolder = root.replace(self._folder, '')
             if not subfolder.startswith(folder):
                 continue
@@ -151,7 +153,7 @@ class LocalFileRepository(RepositoryConnector):
                 if f[0] in exclude:
                     continue
                 if suffix is None or f.endswith(suffix):
-                    result.append(path.join(root.replace(self._folder, ''), f))
+                    result.append(os.path.join(root.replace(self._folder, ''), f))
         return result
 
     def __str__(self):
@@ -160,7 +162,12 @@ class LocalFileRepository(RepositoryConnector):
 
 class GitlabConnector(RepositoryConnector):
 
-    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):
+    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False, *, archive_mode=False):
+        """
+        archive_mode: in archive mode, the entire repository is downloaded as an archive. This is necessary/could be useful for repositories with numerous files.
+            n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
+            see https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
+        """
         # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert server.startswith("http")
         RepositoryConnector.__init__(
@@ -173,6 +180,7 @@ class GitlabConnector(RepositoryConnector):
         )
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
+        self.archive_mode = archive_mode
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
@@ -231,6 +239,37 @@ class GitlabConnector(RepositoryConnector):
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
 
+    def get(self, filename, folder="", decode_func=None):
+        if not self.archive_mode:
+            return super().get(filename, folder, decode_func)
+
+        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
+
+        if not os.path.isdir(archive_directory):
+
+            url = self.base_url + f"/archive.tar.gz?sha={ref}"
+            resp = requests.get(url)
+            tar_filename = f"{archive_directory}.tar.gz"
+
+            resp.raise_for_status()
+            with open(tar_filename, "wb") as fp:
+                fp.write(resp.content)
+
+            import tarfile
+            tar = tarfile.open(tar_filename, "r:gz")
+            tar.extractall(archive_directory)
+            for _dir in os.listdir(archive_directory):
+                for file in os.listdir(f"{archive_directory}/{_dir}"):
+                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
+                os.rmdir(f"{archive_directory}/{_dir}")
+
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
+        decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
+
+        with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
+            return decoder(fp.read())
+
 
 class ZipfileConnector(RepositoryConnector):
 
@@ -242,8 +281,8 @@ class ZipfileConnector(RepositoryConnector):
     @property
     def zipfile(self):
         if self._zipfile_cached is None:
-            if path.isfile(path.abspath(path.expanduser(self.url))):
-                self._zipfile_cached = path.abspath(path.expanduser(self.url))
+            if os.path.isfile(os.path.abspath(os.path.expanduser(self.url))):
+                self._zipfile_cached = os.path.abspath(os.path.expanduser(self.url))
             else:
                 # assume the url is web URL to download the zip!
                 req = HttpRequest(self.url)
@@ -252,17 +291,17 @@ class ZipfileConnector(RepositoryConnector):
         return self._zipfile_cached
 
     def _build_url(self, folder="", filename=None):
-        return path.join(folder, filename)
+        return os.path.join(folder, filename)
 
     def search_files(self, folder="", suffix="", recursive=False):
         container = ZipFile(self.zipfile)
         result = []
-        if folder and not folder.endswith(path.sep):
-            folder += path.sep
+        if folder and not folder.endswith(os.path.sep):
+            folder += os.path.sep
         for fname in container.namelist():
-            if path.dirname(fname.replace(folder, "")) and not recursive:
+            if os.path.dirname(fname.replace(folder, "")) and not recursive:
                 continue
-            if not path.basename(fname):
+            if not os.path.basename(fname):
                 continue
             if fname.startswith(folder) and fname.endswith(suffix):
                 result.append(fname)
@@ -319,8 +358,27 @@ class EbrainsHdgConnector(RepositoryConnector):
     Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
     """
 
+    """
+    Version of the data-proxy API that should be used for this request.
+    Currently v1 is the only supported version."""
     api_version = "v1"
+
+    """
+    Base URL for the Dataset Endpoint of the Data-Proxy API
+    https://data-proxy.ebrains.eu/api/docs#/datasets
+
+    Supported functions by the endpoint:
+    ------------------------------------
+    - POST: Request access to the dataset.
+        This is required for the other functions.
+    - GET: Return list of all available objects in the dataset
+    """
     base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
+
+    """
+    Limit of returned objects
+    Default value on API side is 50 objects
+    """
     maxentries = 1000
 
     def __init__(self, dataset_id):
@@ -349,7 +407,7 @@ class EbrainsHdgConnector(RepositoryConnector):
             try:
                 result = EbrainsRequest(url, DECODERS[".json"]).get()
             except SiibraHttpRequestError as e:
-                if e.response.status_code in [401, 422]:
+                if e.status_code in [401, 422]:
                     # Request access to the dataset (401: expired, 422: not yet requested)
                     EbrainsRequest(f"{self.base_url}/{dataset_id}", post=True).get()
                     input(

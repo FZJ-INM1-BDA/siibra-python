@@ -25,8 +25,6 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 # %%
 from nilearn import plotting
 import siibra
-from tqdm import tqdm
-
 
 # %%
 # We start by selecting an atlas parcellation.
@@ -61,22 +59,24 @@ subject = conn.subjects[0]
 matrix = conn.get_matrix(subject)
 matrix
 
+
+# %%
+# Alternatively, we can visualize the matrix using plot_matrix() method
+conn.plot_matrix(subject=conn.subjects[0])
+
+
+# %%
+# The average matrix across all subjects can be displayed by leaving out subjects
+# or setting it to "mean".
+conn.plot_matrix()
+
 # %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-# This requires is to 1) compute centroids, and 2) organize the centroids
-# in the sequence of connectivity matrix rows.
-#
-# We start by computing the centroids for each region
-# in the matrix as defined by its mask in MNI152 space.
-# Note that we need to transform the centroids from voxels into
-# physical space, using the affine matrix stored in the mask.
-node_coords = [
-    tuple(region.compute_centroids('mni152')[0])
-    for region in tqdm(matrix.index)
-]
+node_coords = conn.compute_centroids('mni152')
+
 
 # %%
 # Now we can plot the structural connectome.
@@ -92,5 +92,12 @@ view.title(
     size=10,
 )
 
-
 # %%
+# or in 3D:
+plotting.view_connectome(
+    adjacency_matrix=matrix,
+    node_coords=node_coords,
+    edge_threshold="99%",
+    node_size=3, colorbar=False,
+    edge_cmap="bwr"
+)

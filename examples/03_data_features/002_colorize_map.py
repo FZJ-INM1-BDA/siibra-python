@@ -54,10 +54,15 @@ mapping = {
 # Now colorize the Julich-Brain maximum probability map and plot it.
 colorized_map = jubrain.get_map(space='mni152').colorize(mapping)
 from nilearn import plotting
-plotting.plot_stat_map(
+plotting.view_img(
     colorized_map, cmap='magma',
-    title=f"Average densities available for {receptor}"
+    title=f"Average densities available for {receptor}", symmetric_cmap=False
 )
+
+# %%
+# Alternatively, we can display this map on a surface mesh using nilearn.
+# Note that, you can switch between the hemispheres or variants (inflated or pial) from the plot itself.
+plotting.view_img_on_surf(colorized_map, cmap='magma', symmetric_cmap=False, surf_mesh="fsaverage6")
 
 
 # %%

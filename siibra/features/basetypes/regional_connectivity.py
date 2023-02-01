@@ -20,9 +20,10 @@ from .. import anchor as _anchor
 
 from ...commons import logger, QUIET
 from ...core import region as _region
+from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -110,7 +111,7 @@ class RegionalConnectivity(Feature):
             # multiple matrices available, but no subject given - return mean matrix
             logger.info(
                 f"No subject name supplied, returning mean connectivity across {len(self)} subjects. "
-                "You might alternatively specifiy an individual subject."
+                "You might alternatively specify an individual subject."
             )
             if "mean" not in self._matrices:
                 all_arrays = [
@@ -130,6 +131,38 @@ class RegionalConnectivity(Feature):
         if subject not in self._matrices:
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
+
+    def plot_matrix(self, subject: str = None, regions: List[str] = None, **kwargs):
+        """
+        Plots the heatmap of the connectivity matrix using nilearn.plotting.
+
+        Parameters
+        ----------
+        subject: str
+            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            If "mean" or None is given, the mean is taken in case of multiple
+            available matrices.
+        regions: list[str]
+            Display the matrix only for selected regions. By default, shows all the regions.
+            It can only be a subset of regions of the feature.
+        **kwargs:
+            Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
+            https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
+        """
+        matrix = self.get_matrix(subject=subject)
+        if regions is None:
+            regions = matrix.columns.to_list()
+
+        # default kwargs
+        subject_title = subject or ""
+        kwargs["title"] = kwargs.get(
+            "title",
+            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+        )
+        kwargs["figure"] = kwargs.get("figure", (15, 15))
+
+        from nilearn import plotting
+        plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
@@ -189,6 +222,30 @@ class RegionalConnectivity(Feature):
             len(self._files),
         )
 
+    def compute_centroids(self, space):
+        """
+        compute the list of centroid coordinates corresponding to
+        matrix rows, in the given space.
+        """
+        result = []
+        parcellations = self.anchor.represented_parcellations()
+        assert len(parcellations) == 1
+        parcmap = next(iter(parcellations)).get_map(space)
+        all_centroids = parcmap.compute_centroids()
+        for regionname in self.regions:
+            region = parcmap.parcellation.get_region(regionname, allow_tuple=True)
+            if isinstance(region, tuple):  # deal with sets of matched regions
+                found = [c for r in region for c in r if c.name in all_centroids]
+            else:
+                found = [r for r in region if r.name in all_centroids]
+            assert len(found) > 0
+            result.append(
+                tuple(pointset.PointSet(
+                    [all_centroids[r.name] for r in found], space=space
+                ).centroid)
+            )
+        return result
+
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
         Convert a numpy array with the connectivity matrix to
@@ -200,7 +257,7 @@ class RegionalConnectivity(Feature):
         parc = next(iter(parcellations))
         with QUIET:
             indexmap = {
-                i: parc.get_region(regionname, build_group=True)
+                i: parc.get_region(regionname, allow_tuple=True)
                 for i, regionname in enumerate(self.regions)
             }
         nrows = array.shape[0]

@@ -206,7 +206,7 @@ class TestAtlas(unittest.TestCase):
         )
     )
     def test_find_regions(self, regionspec, bool_flags):
-        all_versions, filter_children, build_groups = bool_flags
+        all_versions, filter_children, _ = bool_flags
         with patch.object(Parcellation, 'get_instance') as get_instance_mock:
 
             parc1 = MockParc(True)
@@ -220,7 +220,7 @@ class TestAtlas(unittest.TestCase):
 
             get_instance_mock.side_effect = [parc1, parc2, parc3, *repeat(parc4, 35)]
 
-            actual_result = self.atlas.find_regions(regionspec, all_versions, filter_children, build_groups)
+            actual_result = self.atlas.find_regions(regionspec, all_versions, filter_children)
 
             get_instance_mock.assert_has_calls(
                 [call(pid) for pid in human_atlas_json.get("parcellations")]
@@ -229,16 +229,13 @@ class TestAtlas(unittest.TestCase):
                 if all_versions or p.is_newest_version:
                     p.find.assert_called_once_with(regionspec, filter_children=filter_children)
 
-            if build_groups:
-                self.assertTrue([ isinstance(p, list) for p in actual_result] and [ isinstance(p, MockObj) for l in actual_result for p in l])
-            else:
-                self.assertTrue(isinstance(p, MockObj) for p in actual_result)
+            self.assertTrue(isinstance(p, MockObj) for p in actual_result)
             flattened = [p
                 for l in actual_result
-                for p in (l if build_groups else [l])]
+                for p in [l]]
             for parc in [parc1, parc2, parc3]:
                 for reg in parc.find.return_value:
-                    self.assertTrue((reg in flattened) is (all_versions or parc.is_newest_version) )
+                    self.assertTrue((reg in flattened) is (all_versions or parc.is_newest_version))
     
 if __name__ == "__main__":
     unittest.main()

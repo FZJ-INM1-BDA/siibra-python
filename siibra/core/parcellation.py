@@ -207,16 +207,16 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             # because these are not region spec delimiters
             spec = spec.replace(substr, re.sub(r', *', '##', substr))
         # process the comma separated substrings
-        candidates = [
+        candidates = list({
             self.get_region(re.sub(r'##', ', ', s))
             for s in re.split(r', *', spec)
-        ]
+        })
         if len(candidates) > 0:
             return candidates
         else:
             return [spec]
 
-    def get_region(self, regionspec: Union[str, int, MapIndex, region.Region], find_topmost=True, build_group=False):
+    def get_region(self, regionspec: Union[str, int, MapIndex, region.Region], find_topmost=True, allow_tuple=False):
         """
         Given a unique specification, return the corresponding region.
         The spec could be a label index, a (possibly incomplete) name, or a
@@ -225,7 +225,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         if no match is found, it raises a ValueError.
         If multiple matches are found, the method tries to return only the common parent node.
         If there is no common parent, an exception is raised, except when
-        build_group=True - then a custom group region is returned.
+        allow_tuple=True - then a tuple of matched regions is returned
 
         Parameters
         ----------
@@ -238,9 +238,9 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         find_topmost : Bool, default: True
             If True, will automatically return the parent of a decoded region
             the decoded region is its only child.
-        build_group: Bool, default: False
-            If multiple candidates without a common parent are found, built a
-            custom group region instead of raising an exception.
+        allow_tuple: Bool, default: False
+            If multiple candidates without a common parent are found,
+            return a tuple of matches instead of raising an exception.
 
         Return
         ------
@@ -254,36 +254,33 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
 
-        if regionspec.startswith("Group"):
-            candidates = [
+        if regionspec.startswith("Group"):  # backwards compatibility with old "Group: <region a>, <region b>" specs
+            candidates = {
                 r
                 for spec in self._split_group_spec(regionspec)
                 for r in self.find(spec, filter_children=True, find_topmost=find_topmost)
-            ]
+            }
         else:
             candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
+
         if len(candidates) > 1 and isinstance(regionspec, str):
             # if we have an exact match of words in one region, discard other candidates.
-            querywords = {w.lower() for w in regionspec.split()}
+            querywords = {w.replace(',', '').lower() for w in regionspec.split()}
+            full_matches = []
             for c in candidates:
                 targetwords = {w.lower() for w in c.name.split()}
                 if len(querywords & targetwords) == len(targetwords):
-                    logger.debug(
-                        f"Candidates {', '.join(_.name for _ in candidates if _ != c)} "
-                        f"will be ingored, because candidate {c.name} is a full match to {regionspec}."
-                    )
-                    candidates = [c]
+                    full_matches.append(c)
+            if len(full_matches) == 1:
+                candidates = full_matches
 
         if not candidates:
             raise ValueError(f"'{regionspec}' could not be decoded under '{self.name}'")
         elif len(candidates) == 1:
             return candidates[0]
         else:
-            if build_group:
-                return region.Region(
-                    name="Group: " + ", ".join(c.name for c in candidates),
-                    children=candidates, parent=self
-                )
+            if allow_tuple:
+                return tuple(candidates)
             raise RuntimeError(
                 f"Spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
