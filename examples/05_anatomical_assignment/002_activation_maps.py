@@ -17,59 +17,54 @@
 Assign modes in activation maps to brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Continuous parcellations maps can also assign regions to image volumes. 
+Statistical parcellations maps can also assign regions to image volumes.
 If given a ``Nifti1Image`` object as input, the assignment method will interpret it as a measurement of a spatial distribution.
 It will first split the image volume into disconnected components, i.e. any subvolumes which are clearly separated by zeros.
-Then, each component will be compared to each continuous maps in the same way that the Gaussian blobs representing uncertain points are processed in 
-:ref:`sphx_glr_examples_05_anatomical_assignment_001_coordinates.py`.
+Then, each component will be compared to each statistical maps in the same way that the Gaussian blobs representing uncertain points
+are processed in :ref:`sphx_glr_examples_05_anatomical_assignment_001_coordinates.py`.
 
-We start again by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment. 
+We start again by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment.
 """
+
+
+# %%
 import siibra
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-with siibra.QUIET: # suppress progress output here
-    julich_pmaps = atlas.get_map(
-        space="mni152",
-        parcellation="julich",
-        maptype="continuous"
-    )
+from nilearn import image, plotting
 
 # %%
-# As an exemplary input signal, we threshold a continuous map from the
-# functional maps (DiFuMo 64) by Thirion et al.
-with siibra.QUIET: # suppress progress output here
-    difumo_maps = atlas.get_map(
-        space='mni152',
-        parcellation='difumo 64', 
-        maptype='continuous'
-    )
-from nilearn import image
-img = image.math_img( 
-    "im1+im2",
-    im1 = image.threshold_img(difumo_maps.fetch(15), 0.0003),
-    im2 = image.threshold_img(difumo_maps.fetch(44), 0.0003)
-)
-region1 = difumo_maps.decode_index(15)
-region2 = difumo_maps.decode_index(44)
-
-# let's look at the resulting image
-from nilearn import plotting
-plotting.view_img(img, 
-    title="Thresholded functional map",
-    colorbar=False
+# Select a probabilistic parcellation map to do the anatomical assignments.
+julich_pmaps = siibra.get_map(
+    parcellation="julich 2.9",
+    space="mni152",
+    maptype="statistical"
 )
 
 # %%
-# We now assign Julich-Brain regions to this functional map with multiple
-# modes. Note that when given an image as input, the ``assign`` method
-# will output an image volume with labels for the detecteded components,
-# so we can lookup which component corresponds to which part of the 
-# input volume.
-# Since we are here ususally interested in correlations of the modes,
+# As an exemplary input signal, we use a 
+# statistical map from the 64-component functional mode
+# parcellation (DiFuMo 64) by Thirion et al.
+difumo_maps = siibra.get_map(
+    parcellation='difumo 64',
+    space='mni152',
+    maptype='statistical'
+)
+region = "fusiform posterior"
+img = difumo_maps.fetch(region=region)
+
+# let's look at the resulting query image
+plotting.view_img(
+    img,
+    title=f"Functional map created from {region}"
+)
+
+# %%
+# This "fake functional map" has two modes, one in each hemisphere.
+# We now assign cytoarchitectonic regions to this functional map.
+# Since we are here usually interested in correlations of the modes,
 # we filter the result by significant (positive) correlations.
-with siibra.QUIET: # suppress progress output
-    assignments, components = julich_pmaps.assign(img)
-print(f"DiFuMo regions used: {region1.name}, {region2.name}")
-assignments[assignments.Correlation>=0.2]
+with siibra.QUIET:  # suppress progress output
+    assignments = julich_pmaps.assign(img)
+assignments.query('Correlation >= 0.35')
 
 
+# %%

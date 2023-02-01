@@ -31,24 +31,38 @@ jubrain = atlas.get_parcellation('julich 2.9')
 # %%
 # As in the previous example, we extract all receptor density features linked
 # to Julich-Brain.
-receptor_features = siibra.get_features(jubrain, siibra.modalities.ReceptorDistribution)
+fingerprints = siibra.features.get(jubrain, siibra.features.molecular.ReceptorDensityFingerprint)
+fingerprints[0].data
 
 # %%
-# Colorizing a map requires a dictionary that maps region objects to numbers.
+# Colorizing a map requires a dictionary that maps region objects to scalar values.
 # We build a dictionary mapping Julich-Brain regions to average receptor
 # densities measured for GABAA.
+# Note: For each receptor fingerprint, from the regions it is anchored
+# to, we consider those that belong to the julich brain atlas, and store
+# the mean receptor density for each of their leaf nodes.
 receptor = 'GABAA'
 mapping = {
-    jubrain.decode_region(f.regionspec) : f.fingerprint[receptor].mean
-    for f in receptor_features if receptor in f.fingerprint.labels
+    c: fp.data['mean'][receptor]
+    for fp in fingerprints if receptor in fp.receptors
+    for r in fp.anchor.regions
+    if r in jubrain
+    for c in r.leaves
 }
 
 # %%
 # Now colorize the Julich-Brain maximum probability map and plot it.
 colorized_map = jubrain.get_map(space='mni152').colorize(mapping)
 from nilearn import plotting
-plotting.plot_stat_map(
-    colorized_map, cmap='viridis',
-    title=f"Average densities available for {receptor}"
+plotting.view_img(
+    colorized_map, cmap='magma',
+    title=f"Average densities available for {receptor}", symmetric_cmap=False
 )
 
+# %%
+# Alternatively, we can display this map on a surface mesh using nilearn.
+# Note that, you can switch between the hemispheres or variants (inflated or pial) from the plot itself.
+plotting.view_img_on_surf(colorized_map, cmap='magma', symmetric_cmap=False, surf_mesh="fsaverage6")
+
+
+# %%

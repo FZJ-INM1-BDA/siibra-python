@@ -1,0 +1,16 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    },{
+        "$ref": "/config_schema/volume_base.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/volume/v0.0.1"
+        }
+    },
+    "required": [
+        "@type"
+    ]
+}

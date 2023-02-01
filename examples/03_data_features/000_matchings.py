@@ -17,20 +17,20 @@
 Understanding links between data features and anatomical locations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-All data features are requested with the same function, ``siibra.get_features()``.
+All data features are requested with the same function, ``siibra.features.get()``.
 The type of feature (spatial, regional, or parcellation feature), and thus the way it is linked to an anatomical concept depends on the requested modality.
 This example shows how some features are linked to anatomical regions in different ways.
 """
 
+# %%
 import siibra
 
 
 # %%
-# Available modalities are defined in the registry ``siibra.modalities``.
+# Available feature types are listed in the module `siibra.features`.
 # Most of these represent specifically supported data modalities, and will
 # be covered one by one in the next examples.
-for m in siibra.modalities:
-    print(m)
+siibra.features.TYPES
 
 # %%
 # Regional features
@@ -38,9 +38,8 @@ for m in siibra.modalities:
 #
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
-atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-region = atlas.get_region("v2")
-features = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+v2 = siibra.get_region("julich 2.9", "v2")
+features = siibra.features.get(v2, siibra.features.external.EbrainsDataFeature)
 for feature in features:
     print(f" - {feature.name}")
 
@@ -68,47 +67,52 @@ selected_ids = [
     "01550c5c-291d-4bfb-a362-875fcaa21724",
     "7269d1a2-c7ad-4745-972c-10dbf5a022b7",
 ]
-occ = atlas.get_region("occipital")
-for feature in siibra.get_features(occ, "ebrains"):
-    fid = feature.id.split("/")[-1]
-    if fid in selected_ids:
-        print(feature.name)
-        print(feature.match_description)
+occ = siibra.get_region("julich 2.9", "occipital")
+for f in siibra.features.get(occ, "ebrains"):
+    if any(_ in f.id for _ in selected_ids):
+        print(f.name)
+        print(" -> ", f.last_match_description)
         print()
 
 # %%
 # If we query a rather specific region, we get more exact matches.
-v1 = atlas.get_region("v1")
-for f in siibra.get_features(v1, "ebrains"):
-    print(f.name)
-    print(f.match_description)
-    print()
+v1 = siibra.get_region("julich 2.9", "v1")
+for f in siibra.features.get(v1, "ebrains"):
+    if any(_ in f.id for _ in selected_ids):
+        print(f.name)
+        print(" -> ", f.last_match_description)
+        print()
 
 # %%
 # Qualifications differ across queries
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Note that the same data feature might have different qualifications when returned from different queries.
 # Let's take the following dataset with fMRI data in the primary visual cortex:
-dataset = "https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/de7a6c44-8167-44a8-9cf4-435a3dab61ed"
+dataset_id = "de7a6c44-8167-44a8-9cf4-435a3dab61ed"
 
 # %%
-# When querying for datasets related to V1, the match is qualified as "exact".
-# (Note that we group the results by dataset, so we can access the selected dataset directly.)
-for f in siibra.get_features(v1, "ebrains", group_by="dataset")[dataset]:
-    print(f.name)
-    print(f.match_description)
-    print()
+# When querying for datasets related to V1, the match is qualified as an exact coincidence.
+for f in siibra.features.get(v1, "ebrains"):
+    if f.id.endswith(dataset_id):
+        print(f.name)
+        print(" -> ", f.last_match_description)
+        print()
 
 # %%
-# When querying for datasets related to only the left hemisphere of v1, the match is qualified as "contains":
-v1l = atlas.get_region("v1 left")
-for f in siibra.get_features(v1l, "ebrains", group_by="dataset")[dataset]:
-    print(f.match_description)
+# When querying for datasets related to only the left hemisphere of v1,
+# the match is qualified as "contains":
+v1l = siibra.get_region("julich 2.9", "v1 left")
+for f in siibra.features.get(v1l, "ebrains"):
+    if dataset_id in f.id:
+        print(f.name)
+        print(" -> ", f.last_match_description)
+        print()
 
 # %%
 # Lastly, when querying for datasets related to the occipial cortex, the match is qualified as "contained":
-for f in siibra.get_features(occ, "ebrains", group_by="dataset")[dataset]:
-    print(f.match_description)
+for f in siibra.features.get(occ, "ebrains"):
+    if f.id.endswith(dataset_id):
+        print(f.last_match_description)
 
 # %%
 # Spatial features
@@ -120,24 +124,15 @@ for f in siibra.get_features(occ, "ebrains", group_by="dataset")[dataset]:
 # Note how `siibra` deals with the fact that the volume of interest is defined in BigBrain space,
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
-dataset = "Fiber structures of a human hippocampus based on joint DMRI, 3D-PLI, and TPFM acquisitions"
-ca1 = atlas.get_region("ca1")
-features = siibra.get_features(ca1, siibra.modalities.VolumeOfInterest)
-for feature in features:
-    if feature.name == dataset:
-        print(feature.name)
-        print(feature.match_description)
+ca1 = siibra.get_region("julich 2.9", "ca1")
+features = siibra.features.get(ca1, siibra.features.VolumeOfInterest)
+print(features[0].name)
+print(features[0].last_match_description)
+
 
 # %%
 # Another example are gene expressions retrieved from the Allen atlas.
 # These are linked by the coordinate of their tissue probes in MNI space.
 # If a coordinate is inside the selected brain regions, it is an exact match.
-features = siibra.get_features(v1, siibra.modalities.GeneExpression, gene="TAC1")
-print(features[0].match_description)
-
-# %%
-# Intracranial recording sessions comprise multiple electrodes with multiple
-# contact points each. Typically, some of the contact points are located inside
-# a requested brain region, resulting in an approximate match.
-features = siibra.get_features(v1, siibra.modalities.IEEG_Session)
-print(features[0].match_description)
+features = siibra.features.get(v1, siibra.features.molecular.GeneExpressions, gene="TAC1")
+print(features[0].last_match_description)

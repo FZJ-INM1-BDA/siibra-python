@@ -13,30 +13,83 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .commons import logger, QUIET, VERBOSE
+from .commons import (
+    logger,
+    QUIET,
+    VERBOSE,
+    MapType,
+    MapIndex,
+    set_log_level,
+    __version__
+)
 
-# __version__ is parsed by setup.py
-__version__ = "0.3a27"
+from .core import (
+    atlas as _atlas,
+    parcellation as _parcellation,
+    space as _space
+)
+from .retrieval.requests import (
+    EbrainsRequest as _EbrainsRequest,
+    CACHE as cache
+)
+from . import configuration
+from . import features, livequeries
+from siibra.locations import Point, PointSet
+
+import os as _os
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-from .core import spaces, parcellations, atlases
-from .features import modalities, gene_names, get_features
-from .commons import MapType, ParcellationIndex
-from .retrieval import EbrainsRequest, CACHE
-from .core import Point, PointSet, BoundingBox
-from .core.space import Location as _
-from .core.region import THRESHOLD_CONTINUOUS_MAPS
-from . import samplers
-from os import environ
+# forward access to some functions
+set_ebrains_token = _EbrainsRequest.set_token
+fetch_ebrains_token = _EbrainsRequest.fetch_token
+find_regions = _parcellation.Parcellation.find_regions
 
-from_sands = _.from_sands
-set_ebrains_token = EbrainsRequest.set_token
-fetch_ebrains_token = EbrainsRequest.fetch_token
-clear_cache = CACHE.clear
+
+def __getattr__(attr: str):
+    # lazy loading of some classes for package-level functions.
+    if attr == 'atlases':
+        return _atlas.Atlas.registry()
+    elif attr == 'spaces':
+        return _space.Space.registry()
+    elif attr == 'parcellations':
+        return _parcellation.Parcellation.registry()
+    elif attr == 'use_configuration':
+        return configuration.Configuration.use_configuration
+    elif attr == 'extend_configuration':
+        return configuration.Configuration.extend_configuration
+    else:
+        raise AttributeError(f"No such attribute: {__name__}.{attr}")
+
+
+# convenient access to reference space templates
+def get_template(space_spec: str, **kwargs):
+    return (
+        _space.Space
+        .get_instance(space_spec)
+        .get_template(**kwargs)
+    )
+
+
+# convenient access to parcellation maps
+def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
+    return (
+        _parcellation.Parcellation
+        .get_instance(parcellation)
+        .get_map(space=space, maptype=maptype, **kwargs)
+    )
+
+
+# convenient access to regions of a parcellation
+def get_region(parcellation: str, region: str):
+    return (
+        _parcellation.Parcellation
+        .get_instance(parcellation)
+        .get_region(region)
+    )
 
 
 def set_feasible_download_size(maxsize_gbyte):
@@ -47,9 +100,32 @@ def set_feasible_download_size(maxsize_gbyte):
 
 def set_cache_size(maxsize_gbyte: int):
     assert maxsize_gbyte >= 0
-    CACHE.SIZE_GIB = maxsize_gbyte
+    cache.SIZE_GIB = maxsize_gbyte
     logger.info(f"Set cache size to {maxsize_gbyte} GiB.")
 
 
-if "SIIBRA_CACHE_SIZE_GIB" in environ:
-    set_cache_size(float(environ.get("SIIBRA_CACHE_SIZE_GIB")))
+if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
+    set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
+
+
+def __dir__():
+    return [
+        "atlases",
+        "spaces",
+        "parcellations",
+        "features",
+        "use_configuration",
+        "extend_configuration",
+        "get_region",
+        "get_map",
+        "get_template",
+        "MapType",
+        "Point",
+        "PointSet",
+        "QUIET",
+        "VERBOSE",
+        "fetch_ebrains_token",
+        "set_ebrains_token",
+        "vocabularies",
+        "__version__",
+    ]

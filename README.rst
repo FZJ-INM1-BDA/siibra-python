@@ -23,7 +23,7 @@ reproducible neuroscience workflows.
 different brain reference spaces, including volumetric reference
 templates at both macroscopic and microscopic resolutions as well as
 surface representations. It supports both discretely labelled and
-continuous (probabilistic) parcellation maps, which can be used to
+statistical (probabilistic) parcellation maps, which can be used to
 assign brain regions to spatial locations and image signals, to retrieve
 region-specific neuroscience datasets from multiple online repositories,
 and to sample information from high-resolution image data. Among the

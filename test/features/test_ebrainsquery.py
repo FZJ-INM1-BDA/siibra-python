@@ -1,17 +1,17 @@
 from typing import List
 import unittest
-import siibra
-siibra.features.EbrainsRegionalFeatureQuery.COMPACT_FEATURE_LIST = False
 import pytest
-from siibra.core import Parcellation, Atlas, Region
-from siibra.features.feature import Feature
+
+import siibra
+siibra.livequeries.ebrains.EbrainsFeatureQuery.COMPACT_FEATURE_LIST = False
+
 
 class TestEbrainsQuery(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
         region = atlas.get_region("hoc1 left")
-        cls.feat = siibra.get_features(region, siibra.modalities.EbrainsRegionalDataset)
+        cls.feat = siibra.features.get(region, siibra.features.external.EbrainsDataFeature)
 
     def test_some_result_returned(self):
         assert len(self.feat) > 0
@@ -63,25 +63,25 @@ parameter = [
     })
 ]
 
+
 @pytest.mark.parametrize('atlas_id,parc_id,region_id,inc_exc', parameter)
-def test_species(atlas_id,parc_id,region_id,inc_exc):
-    atlas:Atlas = siibra.atlases[atlas_id]
-    parc:Parcellation = atlas.parcellations[parc_id]
-    r:Region = parc.decode_region(region_id)
-    print("ID", region_id, "REGION", r)
-    features: List[Feature] = siibra.get_features(r, 'ebrains')
+def test_species(atlas_id, parc_id, region_id, inc_exc):
+    atlas: siibra.core.atlas.Atlas = siibra.atlases[atlas_id]
+    parc: siibra.core.parcellation.Parcellation = atlas.parcellations[parc_id]
+    r: siibra.core.region.Region = parc.get_region(region_id)
+    features: List[siibra.features._basetypes.Feature] = siibra.features.get(
+        r, siibra.features.external.EbrainsDataFeature
+    )
     feature_names = [f.name for f in features]
 
     excludes: List[str] = inc_exc.get('exclude')
-    includes: List[str] = inc_exc.get('include')
-    print(feature_names)
     for exc in excludes:
-        print(exc)
         assert exc not in feature_names
 
+    includes: List[str] = inc_exc.get('include')
     for inc in includes:
-        print(inc)
         assert inc in feature_names
+
 
 if __name__ == "__main__":
     unittest.main()

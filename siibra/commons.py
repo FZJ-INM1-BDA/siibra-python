@@ -14,11 +14,13 @@
 # limitations under the License.
 
 import os
+import re
 from enum import Enum
-from typing import Any, Generic, Iterable, Iterator, List, TypeVar
 from nibabel import Nifti1Image
 import logging
 import numpy as np
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
+from skimage.filters import gaussian
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -27,37 +29,30 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-class LoggingContext:
-    def __init__(self, level):
-        self.level = level
-
-    def __enter__(self):
-        self.old_level = logger.level
-        logger.setLevel(self.level)
-
-    def __exit__(self, et, ev, tb):
-        logger.setLevel(self.old_level)
-
-
-def set_log_level(level):
-    logger.setLevel(level)
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+HBP_AUTH_TOKEN = os.getenv("HBP_AUTH_TOKEN")
+KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
+KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
+SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
+SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
+SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
+with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
+    __version__ = fp.read().strip()
 
 
-set_log_level(os.getenv("SIIBRA_LOG_LEVEL", "INFO"))
-QUIET = LoggingContext("ERROR")
-VERBOSE = LoggingContext("DEBUG")
+T = TypeVar("T")
 
-T = TypeVar('T')
 
-class TypedRegistry(Generic[T], Iterable):
+class InstanceTable(Generic[T], Iterable):
     """
+    Lookup table for instances of a given class by name/id.
     Provide attribute-access and iteration to a set of named elements,
     given by a dictionary with keys of 'str' type.
     """
 
     def __init__(self, matchfunc=lambda a, b: a == b, elements=None):
         """
-        Build a glossary from a dictionary with string keys, for easy
+        Build an object lookup table from a dictionary with string keys, for easy
         attribute-like access, name autocompletion, and iteration.
         Matchfunc can be provided to enable inexact matching inside the index operator.
         It is a binary function, taking as first argument a value of the dictionary
@@ -67,11 +62,11 @@ class TypedRegistry(Generic[T], Iterable):
 
         assert hasattr(matchfunc, "__call__")
         if elements is None:
-            self._elements = {}
+            self._elements: Dict[str, T] = {}
         else:
             assert isinstance(elements, dict)
             assert all(isinstance(k, str) for k in elements.keys())
-            self._elements = elements
+            self._elements: Dict[str, T] = elements
         self._matchfunc = matchfunc
 
     def add(self, key: str, value: T) -> None:
@@ -81,9 +76,8 @@ class TypedRegistry(Generic[T], Iterable):
             key (string): Unique name or key of the object
             value (object): The registered object
         """
-        assert isinstance(key, str)
         if key in self._elements:
-            logger.warning(
+            logger.error(
                 f"Key {key} already in {__class__.__name__}, existing value will be replaced."
             )
         self._elements[key] = value
@@ -93,23 +87,29 @@ class TypedRegistry(Generic[T], Iterable):
         return self._elements.keys()
 
     def __str__(self) -> str:
-        return f"{self.__class__.__name__}: " + ",".join(self._elements.keys())
+        if len(self) > 0:
+            return f"{self.__class__.__name__}:\n - " + "\n - ".join(self._elements.keys())
+        else:
+            return f"Empty {self.__class__.__name__}"
 
     def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
 
-    def __contains__(self, key) -> bool:
-        """Test wether the given key is defined by the registry."""
-        return (
-            key in self._elements
-        )  # or any([self._matchfunc(v,spec) for v in self._elements.values()])
+    def __contains__(self, key: Union[str, T]) -> bool:
+        """Test wether the given key or element is defined by the registry."""
+        if isinstance(key, str):
+            return key in self._elements
+        return key in [item for _, item in self._elements.values()]
 
     def __len__(self) -> int:
         """Return the number of elements in the registry"""
         return len(self._elements)
 
     def __getitem__(self, spec) -> T:
+        return self.get(spec)
+
+    def get(self, spec) -> T:
         """Give access to objects in the registry by sequential index,
         exact key, or keyword matching. If the keywords match multiple objects,
         the first in sorted order is returned. If the specification does not match,
@@ -122,31 +122,36 @@ class TypedRegistry(Generic[T], Iterable):
             Matched object
         """
         if spec is None:
-            raise RuntimeError(f"{__class__.__name__} indexed with None")
+            return None
+        elif spec == "":
+            raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)
         if len(matches) == 0:
             print(str(self))
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are:\n - " + "\n - ".join(self._elements.keys())
+                f"Possible values are: " + ", ".join(self._elements.keys())
             )
         elif len(matches) == 1:
             return matches[0]
         else:
-            S = sorted(matches, reverse=True)
+            try:
+                S = sorted(matches, reverse=True)
+            except TypeError:
+                # not all object types support sorting, accept this
+                S = matches
             largest = S[0]
             logger.info(
                 f"Multiple elements matched the specification '{spec}' - the first in order was chosen: {largest}"
             )
-            logger.debug(f"(Other candidates were: {', '.join(m.name for m in S[1:])})")
             return largest
 
-    def __sub__(self, obj) -> 'TypedRegistry[T]':
+    def __sub__(self, obj) -> "InstanceTable[T]":
         """
         remove an object from the registry
         """
         if obj in self._elements.values():
-            return TypedRegistry[T](
+            return InstanceTable[T](
                 self._matchfunc, {k: v for k, v in self._elements.items() if v != obj}
             )
         else:
@@ -182,12 +187,17 @@ class TypedRegistry(Generic[T], Iterable):
                 ]
             return matches
 
+    def values(self):
+        return self._elements.values()
+
     def __getattr__(self, index) -> T:
         """Access elements by using their keys as attributes.
         Keys are auto-generated from the provided names to be uppercase,
         with words delimited using underscores.
         """
-        if index in self._elements:
+        if index in ["keys", "names"]:
+            return list(self._elements.keys())
+        elif index in self._elements:
             return self._elements[index]
         else:
             hint = ""
@@ -202,33 +212,114 @@ class TypedRegistry(Generic[T], Iterable):
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
 
-class Registry(TypedRegistry[Any]): pass
+class LoggingContext:
+    def __init__(self, level):
+        self.level = level
 
-class ParcellationIndex:
+    def __enter__(self):
+        self.old_level = logger.level
+        logger.setLevel(self.level)
+
+    def __exit__(self, et, ev, tb):
+        logger.setLevel(self.old_level)
+
+
+def set_log_level(level):
+    logger.setLevel(level)
+
+
+set_log_level(SIIBRA_LOG_LEVEL)
+QUIET = LoggingContext("ERROR")
+VERBOSE = LoggingContext("DEBUG")
+
+
+def create_key(name: str):
+    """
+    Creates an uppercase identifier string that includes only alphanumeric
+    characters and underscore from a natural language name.
+    """
+    return re.sub(
+        r" +",
+        "_",
+        "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
+    )
+
+
+class MapIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
     """
 
-    def __init__(self, map, label):
-        self.map = map
+    def __init__(self, volume: int = None, label: int = None, fragment: str = None):
+        if volume is None and label is None:
+            raise ValueError(
+                "At least volume or label need to be specified to build a valid map index."
+            )
+        if volume is not None:
+            assert isinstance(volume, int)
+        if label is not None:
+            assert isinstance(label, int)
+        self.volume = volume
         self.label = label
+        self.fragment = fragment
+
+    @classmethod
+    def from_dict(cls, spec: dict):
+        assert all(k in spec for k in ['volume', 'label'])
+        return cls(
+            volume=spec['volume'],
+            label=spec['label'],
+            fragment=spec.get('fragment')
+        )
 
     def __str__(self):
-        return f"({self.map}/{self.label})"
+        return f"(volume:{self.volume}, label:{self.label}, fragment:{self.fragment})"
 
     def __repr__(self):
-        return f"{self.__class__.__name__} " + str(self)
+        return f"{self.__class__.__name__}{str(self)}"
 
     def __eq__(self, other):
-        return all([self.map == other.map, self.label == other.label])
+        assert isinstance(other, self.__class__)
+        return all([
+            self.volume == other.volume,
+            self.label == other.label,
+            self.fragment == other.fragment
+        ])
 
     def __hash__(self):
-        return hash((self.map, self.label))
+        return hash((self.volume, self.label, self.fragment))
 
 
 class MapType(Enum):
     LABELLED = 1
-    CONTINUOUS = 2
+    STATISTICAL = 2
+
+
+SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
+SIIBRA_DEFAULT_MAP_THRESHOLD = None
+
+REMOVE_FROM_NAME = [
+    "hemisphere",
+    " -",
+    "-brain",
+    "both",
+    "Both",
+]
+
+REPLACE_IN_NAME = {
+    "ctx-lh-": "left ",
+    "ctx-rh-": "right ",
+}
+
+
+def clear_name(name):
+    """ clean up a region name to the for matching"""
+    result = name
+    for word in REMOVE_FROM_NAME:
+        result = result.replace(word, "")
+    for search, repl in REPLACE_IN_NAME.items():
+        result = result.replace(search, repl)
+    return " ".join(w for w in result.split(" ") if len(w))
 
 
 def snake2camel(s: str):
@@ -305,7 +396,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     m1, m2 = ((_ > 0).astype("uint8") for _ in [v1, v2])
     intersection = np.minimum(m1, m2).sum()
     if intersection == 0:
-        return {"overlap": 0, "contained": 0, "contains": 0, "correlation": 0}
+        return {"IoU": 0, "contained": 0, "contains": 0, "correlation": 0}
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
     XYZnz1 = nonzero_coordinates(a1)
@@ -332,7 +423,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     x0 = x - mu_x
     y0 = y - mu_y
     dem = np.sqrt(np.sum(x0 ** 2) * np.sum(y0 ** 2))
-    if dem==0:
+    if dem == 0:
         r = 0
     else:
         r = np.sum(np.multiply(x0, y0)) / dem
@@ -341,8 +432,252 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     by = (y > 0).astype("uint8")
 
     return {
-        "overlap": intersection / np.maximum(bx, by).sum(),
+        "IoU": intersection / np.maximum(bx, by).sum(),
         "contained": intersection / N1,
         "contains": intersection / N2,
         "correlation": r,
     }
+
+
+class PolyLine:
+    """Simple polyline representation which allows equidistant sampling.."""
+
+    def __init__(self, pts):
+        self.pts = pts
+        self.lengths = [
+            np.sqrt(np.sum((pts[i, :] - pts[i - 1, :]) ** 2))
+            for i in range(1, pts.shape[0])
+        ]
+
+    def length(self):
+        return sum(self.lengths)
+
+    def sample(self, d):
+
+        # if d is interable, we assume a list of sample positions
+        try:
+            iter(d)
+        except TypeError:
+            positions = [d]
+        else:
+            positions = d
+
+        samples = []
+        for s_ in positions:
+            s = min(max(s_, 0), 1)
+            target_distance = s * self.length()
+            current_distance = 0
+            for i, length in enumerate(self.lengths):
+                current_distance += length
+                if current_distance >= target_distance:
+                    p1 = self.pts[i, :]
+                    p2 = self.pts[i + 1, :]
+                    r = (target_distance - current_distance + length) / length
+                    samples.append(p1 + (p2 - p1) * r)
+                    break
+
+        if len(samples) == 1:
+            return samples[0]
+        else:
+            return np.array(samples)
+
+
+def unify_stringlist(L: list):
+    """Adds asterisks to strings that appear multiple times, so the resulting
+    list has only unique strings but still the same length, order, and meaning.
+    For example:
+        unify_stringlist(['a','a','b','a','c']) -> ['a','a*','b','a**','c']
+    """
+    assert all([isinstance(_, str) for _ in L])
+    return [L[i] + "*" * L[:i].count(L[i]) for i in range(len(L))]
+
+
+def create_gaussian_kernel(sigma=1, sigma_point=3):
+    """
+    Compute a 3D Gaussian kernel of the given bandwidth.
+    """
+    r = int(sigma_point * sigma)
+    k_size = 2 * r + 1
+    impulse = np.zeros((k_size, k_size, k_size))
+    impulse[r, r, r] = 1
+    kernel = gaussian(impulse, sigma)
+    kernel /= kernel.sum()
+    return kernel
+
+
+def argmax_dim4(img, dim=-1):
+    """
+    Given a nifti image object with four dimensions, returns a modified object
+    with 3 dimensions that is obtained by taking the argmax along one of the
+    four dimensions (default: the last one). To distinguish the pure background
+    voxels from the foreground voxels of channel 0, the argmax indices are
+    incremented by 1 and label index 0 is kept to represent the background.
+    """
+    assert len(img.shape) == 4
+    assert dim >= -1 and dim < 4
+    newarr = np.asarray(img.dataobj).argmax(dim) + 1
+    # reset the true background voxels to zero
+    newarr[np.asarray(img.dataobj).max(dim) == 0] = 0
+    return Nifti1Image(dataobj=newarr, header=img.header, affine=img.affine)
+
+
+def MI(arr1, arr2, nbins=100, normalized=True):
+    """
+    Compute the mutual information between two 3D arrays, which need to have the same shape.
+
+    Parameters:
+    arr1 : First 3D array
+    arr2 : Second 3D array
+    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized : Boolean, default:True
+        if True, the normalized MI of arrays X and Y will be returned,
+        leading to a range of values between 0 and 1. Normalization is
+        achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
+    """
+
+    assert all(len(arr.shape) == 3 for arr in [arr1, arr2])
+    assert (all(arr.size > 0) for arr in [arr1, arr2])
+
+    # compute the normalized joint 2D histogram as an
+    # empirical measure of the joint probabily of arr1 and arr2
+    pxy, _, _ = np.histogram2d(arr1.ravel(), arr2.ravel(), bins=nbins)
+    pxy /= pxy.sum()
+
+    # extract the empirical propabilities of intensities
+    # from the joint histogram
+    px = np.sum(pxy, axis=1)  # marginal for x over y
+    py = np.sum(pxy, axis=0)  # marginal for y over x
+
+    # compute the mutual information
+    px_py = px[:, None] * py[None, :]
+    nzs = pxy > 0  # nonzero value indices
+    MI = np.sum(pxy[nzs] * np.log(pxy[nzs] / px_py[nzs]))
+    if not normalized:
+        return MI
+
+    # normalize, using the sum of their individual entropies H
+    def entropy(p):
+        nz = p > 0
+        assert np.count_nonzero(nz) > 0
+        return -np.sum(p[nz] * np.log(p[nz]))
+
+    Hx, Hy = [entropy(p) for p in [px, py]]
+    assert (Hx + Hy) > 0
+    NMI = 2 * MI / (Hx + Hy)
+    return NMI
+
+
+def is_mesh(structure: Union[list, dict]):
+    if isinstance(structure, dict):
+        return all(k in structure for k in ["verts", "faces"])
+    elif isinstance(structure, list):
+        return all(map(is_mesh, structure))
+    else:
+        return False
+
+
+def merge_meshes(meshes: list, labels: list = None):
+    # merge a list of meshes into one
+    # if meshes have no labels, a list of labels of the
+    # same length as the number of meshes can
+    # be supplied to add a labeling per sub mesh.
+
+    assert len(meshes) > 0
+    if len(meshes) == 1:
+        return meshes[0]
+
+    assert all('verts' in m for m in meshes)
+    assert all('faces' in m for m in meshes)
+    has_labels = all('labels' in m for m in meshes)
+    if has_labels:
+        assert labels is None
+
+    nverts = [0] + [m['verts'].shape[0] for m in meshes[:-1]]
+    verts = np.concatenate([m['verts'] for m in meshes])
+    faces = np.concatenate([m['faces'] + N for m, N in zip(meshes, nverts)])
+    if has_labels:
+        labels = np.array([_ for m in meshes for _ in m['labels']])
+        return {'verts': verts, 'faces': faces, 'labels': labels}
+    elif labels is not None:
+        assert len(labels) == len(meshes)
+        labels = np.array(
+            [labels[i] for i, m in enumerate(meshes) for v in m['verts']]
+        )
+        return {'verts': verts, 'faces': faces, 'labels': labels}
+    else:
+        return {'verts': verts, 'faces': faces}
+
+
+class Species(Enum):
+
+    HOMO_SAPIENS = 1
+    RATTUS_NORVEGICUS = 2
+    MUS_MUSCULUS = 3
+    MACACA_FASCICULARIS = 4
+    MACACA_MULATTA = 5
+    MACACA_FUSCATA = 6
+    CHLOROCEBUS_AETHIOPS_SABAEUS = 7
+
+    UNSPECIFIED_SPECIES = 999
+
+    @classmethod
+    def decode(cls, spec: Union[str, dict], fail_if_not_successful=True):
+
+        MINDS_IDS = {
+            "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": 1,
+            "f3490d7f-8f7f-4b40-b238-963dcac84412": 2,
+            "cfc1656c-67d1-4d2c-a17e-efd7ce0df88c": 3,
+            "c541401b-69f4-4809-b6eb-82594fc90551": 4,
+            "745712aa-fad1-47c4-8ab6-088063f78f64": 5,
+            "ed8254b1-519c-4356-b1c9-7ead5aa1e3e1": 6,
+            "e578d886-c55d-4174-976b-3cf43b142203": 7
+        }
+
+        OPENMINDS_IDS = {
+            "homoSapiens": 1,
+            "rattusNorvegicus": 2,
+            "musMusculus:": 3,
+            "macacaFascicularis": 4
+        }
+
+        if isinstance(spec, Species):
+            return spec
+        elif isinstance(spec, str):
+            if spec.split('/')[-1] in MINDS_IDS:
+                return cls(MINDS_IDS[spec])
+            if spec.split('/')[-1] in OPENMINDS_IDS:
+                return cls(OPENMINDS_IDS[spec])
+            key = cls.name_to_key(spec)
+            if key in cls.__members__.keys():
+                return getattr(cls, key)
+        else:
+            if isinstance(spec, list):
+                next_specs = spec
+            elif isinstance(spec, dict):
+                next_specs = spec.values()
+            else:
+                raise ValueError(f"Species specification cannot be decoded: {spec}")
+            for s in next_specs:
+                result = cls.decode(s, fail_if_not_successful=False)
+                if result is not None:
+                    return result
+
+        # if we get here, spec was not decoded into a species
+        if fail_if_not_successful:
+            raise ValueError(f"Species specification cannot be decoded: {spec}")
+        else:
+            return None
+
+    @staticmethod
+    def name_to_key(name: str):
+        return re.sub(r'\s+', '_', name.strip()).upper()
+
+    @staticmethod
+    def key_to_name(key: str):
+        return re.sub(r'_', ' ', key.strip()).lower()
+
+    def __str__(self):
+        return f"{self.name.lower().replace('_', ' ')}".capitalize()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {str(self)}"

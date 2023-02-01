@@ -20,41 +20,50 @@ Access parcellation maps in surface space
 ``siibra`` also provides basic access to surfaces. 
 A popular reference space for the human brain is the freesurfer fsaverage surface.
 It comes in three variants: white matter surface, pial surface, and inflated surface.
+Each is shipped with left and right hemispheres separately.
 """
 
 # %%
-# Load the Julich-Brain parcellation.
+# For plotting meshes, most python libraries can be employed.
+# We recommend the plotting module of `nilearn <https://nilearn.github.io>`_.
 import siibra
-jubrain = siibra.parcellations.JULICH_BRAIN_CYTOARCHITECTONIC_MAPS_2_9
+from nilearn import plotting
+
+# %%
+# Load the Julich-Brain parcellation.
+jubrain = siibra.parcellations.get("julich")
 
 # %%
 # We can tell volumetric from surface spaces using their `is_surface` attribute.
 for space in jubrain.spaces:
-    if space.is_surface:
+    if space.provides_mesh:
         print(space)
- 
-# %%
-# The surface map is accessed in just the same way as volumetric maps, using the `get map` method.
-# Note that we call the method here on the parcellation object, while previous examples usually
-# called it on an atlas object.
-# For surfaces however, the `fetch()` method accepts an additional parameter 'variant' to select
-# between 'white matter', 'pial' and 'inflated' surface. 
-surfmap = jubrain.get_map('fsaverage6').fetch(variant="inflated")
 
 # %%
+# The surface map is accessed using the `get map` method where we specify the space. Note that
+# we call the method here on the parcellation object, while previous examples usually called it
+# on an atlas object.
+mp = jubrain.get_map(space='fsaverage6')
+
+# %%
+# For surfaces, the `fetch()` method accepts an additional parameter 'variant'. If not specified,
+# siibra displays the possible options as a list fetches the first one from the list.
+# Now let us fetch a specific variant and also the hemisphere fragment
+mesh = mp.fetch(variant="inflated", fragment="left")
+
 # The returned structure is a dictionary of three numpy arrays representing the vertices, faces, and labels respectively. 
 # Each vertex defines a 3D surface point, while the faces are triplets of indices into the list of vertices, defining surface triangles.
 # The labels provide the label index associated with each vertex.
-print(surfmap.keys())
+print(mesh.keys())
 
 # %%
-# For plotting meshes, most python libraries can be employes.
-# We recommend again the plotting module of `nilearn <https://nilearn.github.io>`_. 
-# We use Julich-Brain's native colormap for plotting.
-from nilearn import plotting
-jubrain_cmap = jubrain.get_colormap()
+# Most meshes are shipped with a color map which we can fetch from the map object by 
+jubrain_cmap = mp.get_colormap()
+
+# Now we can plot the mesh
 plotting.view_surf(
-    surf_mesh = [surfmap['verts'], surfmap['faces']], 
-    surf_map = surfmap['labels'], 
-    cmap = jubrain_cmap, symmetric_cmap=False, colorbar=False
+    surf_mesh=[mesh['verts'], mesh['faces']],
+    surf_map=mesh['labels'],
+    cmap=jubrain_cmap, symmetric_cmap=False, colorbar=False
 )
+# %%

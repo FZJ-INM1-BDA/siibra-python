@@ -14,11 +14,9 @@
 # limitations under the License.
 
 from .cache import CACHE
-from .exceptions import EbrainsAuthenticationError
-from ..commons import logger
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 from .. import __version__
 
-from time import sleep
 import json
 from zipfile import ZipFile
 import requests
@@ -26,10 +24,17 @@ import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
 from skimage import io
 import gzip
-import sys
 from io import BytesIO
 import urllib
 import pandas as pd
+import numpy as np
+from tqdm import tqdm
+from typing import List, Callable, Any, TYPE_CHECKING
+from enum import Enum
+from functools import wraps
+
+if TYPE_CHECKING:
+    from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
@@ -43,21 +48,22 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: io.imread(BytesIO(b))
+    ".png": lambda b: io.imread(BytesIO(b)),
+    ".npy": lambda b: np.load(BytesIO(b))
 }
 
 
 class SiibraHttpRequestError(Exception):
-    def __init__(self, response, msg="Cannot execute http request."):
-        self.response = response
+
+    def __init__(self, url: str, status_code: int, msg="Cannot execute http request."):
+        self.url = url
+        self.status_code = status_code
         self.msg = msg
         Exception.__init__(self)
 
     def __str__(self):
         return (
-            f"{self.msg}\n"
-            f"    Status code: {self.response.status_code}\n"
-            f"    Url:         {self.response.url}\n"
+            f"{self.msg}\n\tStatus code:{self.status_code:68.68}\n\tUrl:{self.response.url:76.76}"
         )
 
 
@@ -123,7 +129,7 @@ class HttpRequest:
     def cached(self):
         return os.path.isfile(self.cachefile)
 
-    def _retrieve(self):
+    def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
         # Loads the data from http if required.
         # If the data is already cached, None is returned,
         # otherwise data (as it is already in memory anyway).
@@ -131,35 +137,45 @@ class HttpRequest:
         # if None is returned.
 
         if self.cached and not self.refresh:
-            # in cache. Just load the file
-            logger.debug(
-                f"Already in cache at {os.path.basename(self.cachefile)}: {self.url}"
-            )
             return
         else:
             # not yet in cache, perform http request.
-            logger.debug(f"Loading {self.url} to {os.path.basename(self.cachefile)}")
             if self.msg_if_not_cached is not None:
-                logger.info(self.msg_if_not_cached)
+                logger.debug(self.msg_if_not_cached)
             headers = self.kwargs.get('headers', {})
             other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
             if self.post:
                 r = requests.post(self.url, headers={
                     **USER_AGENT_HEADER,
                     **headers,
-                }, **other_kwargs)
+                }, **other_kwargs, stream=True)
             else:
                 r = requests.get(self.url, headers={
                     **USER_AGENT_HEADER,
                     **headers,
-                }, **other_kwargs)
+                }, **other_kwargs, stream=True)
             if r.ok:
-                with open(self.cachefile, "wb") as f:
-                    f.write(r.content)
+                size_bytes = int(r.headers.get('content-length', 0))
+                if size_bytes > min_bytesize_with_no_progress_info:
+                    progress_bar = tqdm(
+                        total=size_bytes, unit='iB', unit_scale=True,
+                        position=0, leave=True,
+                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+                    )
+                temp_cachefile = self.cachefile + "_temp"
+                with open(temp_cachefile, "wb") as f:
+                    for data in r.iter_content(block_size):
+                        if size_bytes > min_bytesize_with_no_progress_info:
+                            progress_bar.update(len(data))
+                        f.write(data)
+                if size_bytes > min_bytesize_with_no_progress_info:
+                    progress_bar.close()
                 self.refresh = False
-                return r.content
+                os.rename(temp_cachefile, self.cachefile)
+                with open(self.cachefile, 'rb') as f:
+                    return f.read()
             else:
-                raise SiibraHttpRequestError(r)
+                raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
 
     def get(self):
         data = self._retrieve()
@@ -174,7 +190,7 @@ class HttpRequest:
             # if that happens, remove cachefile and
             try:
                 os.unlink(self.cachefile)
-            except:
+            except Exception:  # TODO: do not use bare except
                 pass
             raise e
 
@@ -213,14 +229,10 @@ class EbrainsRequest(HttpRequest):
     Implements lazy loading of HTTP Knowledge graph queries.
     """
 
-    _KG_API_TOKEN: str = None
-    _IAM_ENDPOING: str = "https://iam.ebrains.eu/auth/realms/hbp"
-    _IAM_DEVICE_ENDPOINT: str = None
-    _IAM_DEVICE_MAXTRIES = 12
-    _IAM_DEVICE_POLLING_INTERVAL_SEC = 5
-    _IAM_DEVICE_FLOW_CLIENTID = "siibra"
-
-    _IAM_TOKEN_ENDPOINT: str = f"{_IAM_ENDPOING}/protocol/openid-connect/token"
+    _KG_API_TOKEN = None
+    keycloak_endpoint = (
+        "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
+    )
 
     def __init__(
         self, url, decoder=None, params={}, msg_if_not_cached=None, post=False
@@ -234,23 +246,6 @@ class EbrainsRequest(HttpRequest):
         HttpRequest.__init__(self, url, decoder, msg_if_not_cached, post=post)
 
     @classmethod
-    def init_oidc(cls):
-        resp = requests.get(f"{cls._IAM_ENDPOING}/.well-known/openid-configuration")
-        json_resp = resp.json()
-        if "token_endpoint" in json_resp:
-            logger.debug(f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}")
-            cls._IAM_TOKEN_ENDPOINT = json_resp.get("token_endpoint")
-        else:
-            logger.warn("expect token endpoint in .well-known/openid-configuration, but was not present")
-        
-        if "device_authorization_endpoint" in json_resp:
-            logger.debug(f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}")
-            cls._IAM_DEVICE_ENDPOINT = json_resp.get("device_authorization_endpoint")
-        else:
-            logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
-
-
-    @classmethod
     def fetch_token(cls):
         """Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
@@ -262,72 +257,6 @@ class EbrainsRequest(HttpRequest):
         logger.info(f"Setting EBRAINS Knowledge Graph authentication token: {token}")
         cls._KG_API_TOKEN = token
 
-    @classmethod
-    def device_flow(cls):
-        
-        if not sys.__stdout__.isatty() and not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"):
-            raise EbrainsAuthenticationError("sys.__stdout__ is not tty and SIIBRA_ENABLE_DEVICE_FLOW is not set. Are you running in batch mode?")
-
-        cls.init_oidc()
-        resp = requests.post(
-            url=cls._IAM_DEVICE_ENDPOINT,
-            data={
-                'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
-            }
-        )
-        resp.raise_for_status()
-        resp_json = resp.json()
-        logger.debug("device flow, request full json:", resp_json)
-        
-        assert "verification_uri_complete" in resp_json
-        assert "device_code" in resp_json
-
-        device_code = resp_json.get("device_code")
-
-        print("***")
-        print(f"To continue, please go to {resp_json.get('verification_uri_complete')}")
-        print("***")
-        
-        attempt_number = 0
-        sleep_timer = cls._IAM_DEVICE_POLLING_INTERVAL_SEC
-        while True:
-            # TODO the polling is a little busted at the moment. 
-            # need to speak to axel to shorten the polling duration
-            sleep(sleep_timer)
-            
-            logger.debug(f"Calling endpoint")
-            if attempt_number > cls._IAM_DEVICE_MAXTRIES:
-                message = f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
-                logger.error(message)
-                raise EbrainsAuthenticationError(message)
-            attempt_number += 1
-            resp = requests.post(
-                url=cls._IAM_TOKEN_ENDPOINT,
-                data={
-                    'grant_type': "urn:ietf:params:oauth:grant-type:device_code",
-                    'client_id': cls._IAM_DEVICE_FLOW_CLIENTID,
-                    'device_code': device_code
-                }
-            )
-
-            if resp.status_code == 200:
-                json_resp = resp.json()
-                logger.debug(f"Device flow sucessful:", json_resp)
-                cls._KG_API_TOKEN = json_resp.get("access_token")
-                print("ebrains token successfuly set.")
-                break
-
-            if resp.status_code == 400:
-                json_resp = resp.json()
-                error = json_resp.get("error")
-                if error == "slow_down":
-                    sleep_timer += 1
-                logger.debug(f"400 error:", resp.content)
-                continue
-
-            raise EbrainsAuthenticationError(resp.content)
-
-
     @property
     def kg_token(self):
 
@@ -336,23 +265,20 @@ class EbrainsRequest(HttpRequest):
             return self.__class__._KG_API_TOKEN
 
         # See if a token is directly provided in  $HBP_AUTH_TOKEN
-        if "HBP_AUTH_TOKEN" in os.environ:
-            self.__class__._KG_API_TOKEN = os.environ["HBP_AUTH_TOKEN"]
+        if HBP_AUTH_TOKEN:
+            self.__class__._KG_API_TOKEN = HBP_AUTH_TOKEN
             return self.__class__._KG_API_TOKEN
 
         # try KEYCLOAK. Requires the following environment variables set:
         # KEYCLOAK_ENDPOINT, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
-        keycloak = {
-            v: os.environ.get(f"KEYCLOAK_{v.upper()}")
-            for v in ["client_id", "client_secret"]
-        }
-        if None not in keycloak.values():
+
+        if KEYCLOAK_CLIENT_ID is not None and KEYCLOAK_CLIENT_SECRET is not None:
             logger.info("Getting an EBRAINS token via keycloak client configuration...")
             result = requests.post(
                 self.__class__._IAM_TOKEN_ENDPOINT,
                 data=(
-                    f"grant_type=client_credentials&client_id={keycloak['client_id']}"
-                    f"&client_secret={keycloak['client_secret']}"
+                    f"grant_type=client_credentials&client_id={KEYCLOAK_CLIENT_ID}"
+                    f"&client_secret={KEYCLOAK_CLIENT_SECRET}"
                     "&scope=kg-nexus-role-mapping%20kg-nexus-service-account-mock"
                 ),
                 headers={
@@ -435,12 +361,113 @@ class EbrainsKgQuery(EbrainsRequest):
         try:
             result = EbrainsRequest.get(self)
         except SiibraHttpRequestError as e:
-            if e.response.status_code in self.SC_MESSAGES:
-                raise RuntimeError(self.SC_MESSAGES[e.response.status_code])
+            if e.status_code in self.SC_MESSAGES:
+                raise RuntimeError(self.SC_MESSAGES[e.status_code])
             else:
                 raise RuntimeError(
                     f"Could not process HTTP request (status code: "
-                    f"{e.response.status_code}). Message was: {e.msg}"
-                    f"URL was: {e.response.url}"
+                    f"{e.status_code}). Message was: {e.msg}"
+                    f"URL was: {e.url}"
                 )
         return result
+
+
+def try_all_connectors():
+    def outer(fn):
+        @wraps(fn)
+        def inner(self: 'GitlabProxyEnum', *args, **kwargs):
+            exceptions = []
+            for connector in self.connectors:
+                try:
+                    return fn(self, *args, connector=connector, **kwargs)
+                except Exception as e:
+                    exceptions.append(e)
+            else:
+                for exc in exceptions:
+                    logger.error(exc)
+                raise Exception("try_all_connectors failed")
+        return inner
+    return outer
+
+
+class GitlabProxyEnum(Enum):
+    DATASET_V1 = "DATASET_V1"
+    PARCELLATIONREGION_V1 = "PARCELLATIONREGION_V1"
+    DATASET_V3 = "DATASET_V3"
+
+    @property
+    def connectors(self) -> List['GitlabConnector']:
+        servers = [
+            ("https://jugit.fz-juelich.de", 7846),
+            ("https://gitlab.ebrains.eu", 421),
+        ]
+        from .repositories import GitlabConnector
+        return [GitlabConnector(server[0], server[1], "master", archive_mode=True) for server in servers]
+
+    @try_all_connectors()
+    def search_files(self, folder: str, suffix=None, recursive=True, *, connector: 'GitlabConnector' = None) -> List[str]:
+        assert connector
+        return connector.search_files(folder, suffix=suffix, recursive=recursive)
+
+    @try_all_connectors()
+    def get(self, filename, decode_func=None, *, connector: 'GitlabConnector' = None):
+        assert connector
+        return connector.get(filename, "", decode_func)
+
+
+class GitlabProxy(HttpRequest):
+
+    folder_dict = {
+        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/datasets",
+        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/datasets",
+        GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
+    }
+
+    def __init__(
+        self,
+        flavour: GitlabProxyEnum,
+        instance_id=None,
+        postprocess: Callable[['GitlabProxy', Any], Any] = (
+            lambda proxy, obj: obj
+            if hasattr(proxy, "instance_id") and proxy.instance_id
+            else {"results": obj}
+        )
+    ):
+        if flavour not in GitlabProxyEnum:
+            raise RuntimeError("Can only proxy enum members")
+
+        self.flavour = flavour
+        self.folder = self.folder_dict[flavour]
+        self.postprocess = postprocess
+        self.instance_id = instance_id
+        self._cached_files = None
+
+    def get(self):
+        if self.instance_id:
+            return self.postprocess(self, self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
+        return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
+
+
+class MultiSourceRequestException(Exception):
+    pass
+
+
+class MultiSourcedRequest:
+    requests: List[HttpRequest] = []
+
+    def __init__(self, requests: List[HttpRequest]) -> None:
+        self.requests = requests
+
+    def get(self):
+        exceptions = []
+        for req in self.requests:
+            try:
+                return req.get()
+            except Exception as e:
+                exceptions.append(e)
+        else:
+            raise MultiSourceRequestException("All requests failed:\n" + "\n".join(str(exc) for exc in exceptions))
+
+    @property
+    def data(self):
+        return self.get()

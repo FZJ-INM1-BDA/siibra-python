@@ -26,3 +26,4 @@ docs/_build
 *.swo
 .venv/
 geckodriver.log
+*.ipynb

@@ -1,0 +1,24 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    },{
+        "$ref": "/config_schema/volume_base.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/voi/v0.1"
+        },
+        "space": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "modality": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "@type",
+        "space",
+        "modality"
+    ]
+}

@@ -1,0 +1,61 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "providers": {
+            "$ref": "#/definitions/providers",
+            "additionalProperties": false
+        },
+        "detail": {
+            "type": "object"
+        },
+        "name": {
+            "type": "string"
+        }
+    },
+    "definitions": {
+        "provider": {
+            "anyOf": [{
+                "type": "string"
+            }, {
+                "type": "object",
+                "patternProperties": {
+                    ".+": {
+                        "type": "string"
+                    }
+                }
+            }]
+        },
+        "providers": {
+            "type": "object",
+            "properties": {
+                "neuroglancer/precomputed": {
+                    "$ref": "#/definitions/provider"
+                },
+                "neuroglancer/precompmesh": {
+                    "$ref": "#/definitions/provider"
+                },
+                "neuroglancer/precompmesh/surface": {
+                    "$ref": "#/definitions/provider",
+                    "pattern": "^.+\\s[0-9]+$"
+                },
+                "nii": {
+                    "$ref": "#/definitions/provider"
+                },
+                "zip/nii": {
+                    "$ref": "#/definitions/provider",
+                    "pattern": "^.+\\s.+$"
+                },
+                "gii-label": {
+                    "$ref": "#/definitions/provider"
+                },
+                "gii-mesh": {
+                    "$ref": "#/definitions/provider"
+                }
+            }
+        }
+    },
+    "required": [
+        "@type",
+        "providers"
+    ]
+}

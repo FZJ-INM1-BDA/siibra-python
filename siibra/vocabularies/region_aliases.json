@@ -1,0 +1,453 @@
+{
+	"Homo sapiens": {
+		"Supramarginal (SM)": {
+			"Homo sapiens": {
+				"mesial precentral gyrus": "exact"
+			}
+		},
+		"hMT+/V5": {
+			"Homo sapiens": {
+				"Area hOc5 (LOC)": "exact"
+			}
+		},
+		"Visual Area v3": {
+			"Homo sapiens": {
+				"Area hOc3v (LingG)": "contains",
+				"Area hOc3d (Cuneus)": "contains"
+			}
+		},
+		"CA (Hippocampus)": {
+			"Homo sapiens": {
+				"CA1": "contains",
+				"CA2": "contains",
+				"CA3": "contains"
+			}
+		},
+		"Frontal Neocortex": {
+			"Homo sapiens": {
+				"frontal lobe": "exact"
+			}
+		},
+		"Inferior Temporal (IT)": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		},
+		"Temporal cortex": {
+			"Homo sapiens": {
+				"Temporal lobe": "approximate"
+			}
+		},
+		"Inferior Parietal (IP)": {
+			"Homo sapiens": {
+				"Inferior Parietal Lobule": "contained"
+			}
+		},
+		"Rostral Anterior Cingulate (RAC)": {
+			"Homo sapiens": {
+				"Cingulate gyrus frontal part": "approximate"
+			}
+		},
+		"Transverse Temporal (TT)": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		},
+		"Putamen": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Posterior segment of the  arcuate fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Area i29 (retrosplenial)": {
+			"Homo sapiens": {
+				"limbic lobe": "contained"
+			}
+		},
+		"temporal cingulate fibres": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"human occipetal area 1": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
+			}
+		},
+		"PreS (Subiculum)": {
+			"Homo sapiens": {
+				"HC-Subiculum (Hippocampus)": "contained"
+			}
+		},
+		"medial temporal lobe": {
+			"Homo sapiens": {
+				"Temporal Lobe": "contained"
+			}
+		},
+		"Area 47": {
+			"Homo sapiens": {
+				"Lateral Orbitofrontal": "approximate"
+			}
+		},
+		"Insula (Ins)": {
+			"Homo sapiens": {
+				"Insula": "exact"
+			}
+		},
+		"TrS (Transsubiculum)": {
+			"Homo sapiens": {
+				"HC-Transsubiculum (Hippocampus)": "exact"
+			}
+		},
+		"Direct segment of the  arcuate fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"primary visual cortex": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
+			}
+		},
+		"primary visual cortex (V1)": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
+			}
+		},
+		"short cingulate fibres": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Cingulate Neocortex": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"Lateral Occipital (LO)": {
+			"Homo sapiens": {
+				"Lateral Occipital Cortex": "exact"
+			}
+		},
+		"Pars Orbitalis (Or)": {
+			"Homo sapiens": {
+				"Frontal Operculum": "approximate"
+			}
+		},
+		"inferior fronto-occipital fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"ProS (Subiculum)": {
+			"Homo sapiens": {
+				"HC-Subiculum (Hippocampus)": "contained"
+			}
+		},
+		"Superior Temporal (ST)": {
+			"Homo sapiens": {
+				"STS1": "contains",
+				"STS2": "contains"
+			}
+		},
+		"Superior Parietal (SP)": {
+			"Homo sapiens": {
+				"Superior Parietal Lobule": "close"
+			}
+		},
+		"Precuneus (PrCu)": {
+			"Homo sapiens": {
+				"Parietal Lobe": "approximate"
+			}
+		},
+		"Anterior segment of the  arcuate fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Pars Opercularis (Op)": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Posterior Cingulate (PoCi)": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"Area 9": {
+			"Homo sapiens": {
+				"Frontal lobe": "contained"
+			}
+		},
+		"fornix": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"inferior longitudinal fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Middle Temporal (MT)": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		},
+		"Caudal Middle Frontal (CMF)": {
+			"Homo sapiens": {
+				"Frontal lobe": "contained"
+			}
+		},
+		"Rostral Middle Frontal (RMF)": {
+			"Homo sapiens": {
+				"Frontal lobe": "contained"
+			}
+		},
+		"anterior Thalamic nucleus": {
+			"Homo sapiens": {
+				"Thalamus": "contained"
+			}
+		},
+		"anterior insular cortex": {
+			"Homo sapiens": {
+				"Insula": "contained"
+			}
+		},
+		"Superior Frontal (SF)": {
+			"Homo sapiens": {
+				"Frontal lobe": "contained"
+			}
+		},
+		"Fusiform (Fu)": {
+			"Homo sapiens": {
+				"Fusiform Gyrus": "exact"
+			}
+		},
+		"FD (DG)": {
+			"Homo sapiens": {
+				"DG (Hippocampus)": "contained"
+			}
+		},
+		"long cingulate fibres": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"Prefrontal cortex": {
+			"Homo sapiens": {
+				"Frontal lobe": "approximate"
+			}
+		},
+		"medial parietal cortex": {
+			"Homo sapiens": {
+				"Parietal lobe": "approximate"
+			}
+		},
+		"Cuneus (Cu)": {
+			"Homo sapiens": {
+				"hOc4d": "contains",
+				"hOc3d": "contains"
+			}
+		},
+		"corticospinal tract": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"somatosensory cortex": {
+			"Homo sapiens": {
+				"Area 3a (PostCG)": "contains",
+				"Area 3b (PostCG)": "contains"
+			}
+		},
+		"Whole brain": {
+			"Homo sapiens": {
+				"Julich-brain": "exact"
+			}
+		},
+		"Isthmus Cingulate (IC)": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"Auditory Cortex": {
+			"Homo sapiens": {
+				"Superior temporal gyrus": "approximate"
+			}
+		},
+		"Postcetnral (PoC)": {
+			"Homo sapiens": {
+				"postcentral gyrus": "close"
+			}
+		},
+		"Sub (Subiculum)": {
+			"Homo sapiens": {
+				"HC-Subiculum (Hippocampus)": "exact"
+			}
+		},
+		"Pars Triangularis (Tr)": {
+			"Homo sapiens": {
+				"Frontal lobe": "approximate"
+			}
+		},
+		"Postcentral (PoC)": {
+			"Homo sapiens": {
+				"Postcentral gyrus": "exact"
+			}
+		},
+		"Middle Orbitofrontal (MOF)": {
+			"Homo sapiens": {
+				"Medial orbitofrontal cortex": "exact"
+			}
+		},
+		"dorsal anterior cingulate cortex": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"Temporal Neocortex": {
+			"Homo sapiens": {
+				"Temporal lobe": "approximate"
+			}
+		},
+		"Motor cortex": {
+			"Homo sapiens": {
+				"Area 4a (PreCG)": "contains",
+				"Area 4p (PreCG)": "contains"
+			}
+		},
+		"Superior Parietal  (SP)": {
+			"Homo sapiens": {
+				"Superior parietal lobule": "exact"
+			}
+		},
+		"Caudal Anterior Cingulate (CAC)": {
+			"Homo sapiens": {
+				"cingulate gyrus": "approximate",
+				"frontal part": "approximate"
+			}
+		},
+		"human occipetal area 2": {
+			"Homo sapiens": {
+				"Area hOc2 (V2, 18)": "exact"
+			}
+		},
+		"Lingual (Li)": {
+			"Homo sapiens": {
+				"Occipital cortex": "approximate"
+			}
+		},
+		"Visual Cortex": {
+			"Homo sapiens": {
+				"Occipital cortex": "approximate"
+			}
+		},
+		"Dentate Gyrus": {
+			"Homo sapiens": {
+				"DG (Hippocampus)": "exact"
+			}
+		},
+		"Corpus geniculatum laterale (CGL, LGB, metathalamus)": {
+			"Homo sapiens": {
+				"CGL (Metathalamus)": "exact"
+			}
+		},
+		"human occipetal area 3": {
+			"Homo sapiens": {
+				"Area hOc3v (LingG)": "contains",
+				"Area hOc3d (Cuneus)": "contains"
+			}
+		},
+		"uncinate fasciculus": {
+			"Homo sapiens": {
+				"None": "exact"
+			}
+		},
+		"CA4 (DG)": {
+			"Homo sapiens": {
+				"DG (Hippocampus)": "contains"
+			}
+		},
+		"Area a30 (retrosplenial)": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"anterior temporal cortex": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		},
+		"Supramarginal (SP)": {
+			"Homo sapiens": {
+				"Mesial precentral gyrus": "?"
+			}
+		},
+		"Precentral (PrC)": {
+			"Homo sapiens": {
+				"Precentral gyrus": "close"
+			}
+		},
+		"Mediodorsal Thalamic Nucleus": {
+			"Homo sapiens": {
+				"Thalamus": "contained"
+			}
+		},
+		"Brodmann area 21": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		},
+		"Corpus geniculatum mediale (CGM, MGB, metathalamus)": {
+			"Homo sapiens": {
+				"CGM (Metathalamus)": "exact"
+			}
+		},
+		"Visual cortex area 17": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
+			}
+		},
+		"Area 46": {
+			"Homo sapiens": {
+				"Frontal lobe": "contained"
+			}
+		},
+		"Lateral Orbitofrontal (LOF)": {
+			"Homo sapiens": {
+				"Lateral orbitofrontal cortex": "exact"
+			}
+		},
+		"superior occipital cortex": {
+			"Homo sapiens": {
+				"Occipital cortex": "contained"
+			}
+		},
+		"Area a29 (retrosplenial)": {
+			"Homo sapiens": {
+				"Limbic lobe": "contained"
+			}
+		},
+		"PaS (Subiculum)": {
+			"Homo sapiens": {
+				"HC-Subiculum (Hippocampus)": "exact"
+			}
+		},
+		"Area Ia (Insula)": {
+			"Homo sapiens": {
+				"Area Ia1 (Insula)": "exact"
+			}
+		},
+		"medial temporal cortex": {
+			"Homo sapiens": {
+				"Temporal lobe": "contained"
+			}
+		}
+	}
+}

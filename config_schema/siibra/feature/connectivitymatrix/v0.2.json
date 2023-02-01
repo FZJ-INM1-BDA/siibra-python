@@ -1,0 +1,58 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_ebrainsrefs.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/connectivitymatrix/v0.2"
+        },
+        "modality": {
+            "$ref": "#/definitions/connectivityModalities"
+        },
+        "paradigm": {
+            "type": "string"
+        },
+        "parcellation": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "repository": {
+            "anyOf": [{
+                "$ref": "/config_schema/siibra/repository/gitlab/v1.0.0.json"
+            }, {
+                "$ref": "/config_schema/siibra/repository/zippedfile/v1.0.0.json"
+            }]
+        },
+        "decoder": {
+            "$ref": "/config_schema/siibra/decoder/csv.json"
+        },
+        "files": {
+            "type": "object",
+            "patternProperties": {
+                ".+": {
+                    "type": "string",
+                    "format": "uri-reference"
+                }
+            }
+        },
+        "regions": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+    ],
+    "definitions": {
+        "connectivityModalities": {
+            "anyOf": [{
+                "const": "StreamlineCounts"
+            }, {
+                "const": "RestingState"
+            }, {
+                "const": "StreamlineLengths"
+            }]
+        }
+    }
+}

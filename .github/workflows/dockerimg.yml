@@ -18,7 +18,7 @@ jobs:
     - name: 'Set env var'
       run: |
         
-        SIIBRA_VERSION=$(grep -Po '^__version__.*?"\K[\w.]+' siibra/__init__.py)
+        SIIBRA_VERSION=$(cat VERSION)
 
         if [ ${{ matrix.docker-file }} == 'Dockerfile' ]
         then

@@ -13,696 +13,488 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .volume import VolumeSrc, ImageProvider
-from .util import create_gaussian_kernel, argmax_dim4
-
+from . import volume as _volume, nifti
 from .. import logger, QUIET
-from ..commons import ParcellationIndex, MapType, compare_maps
-from ..core.space import Point, PointSet, Space, BoundingBox
-from ..core.region import Region
-from ..retrieval import CACHE, GitlabConnector
+from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
+from ..core import concept, space, parcellation, region as _region
+from ..locations import point, pointset
+from ..retrieval import requests
 
 import numpy as np
-from nibabel import Nifti1Image, funcs, load
-from nilearn import image
-from memoization import cached
 from tqdm import tqdm
-from abc import abstractmethod, ABC
-from typing import Union
-from os import path
-from numbers import Number
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable
+from scipy.ndimage import distance_transform_edt
+from collections import defaultdict
+from nibabel import Nifti1Image
+from nilearn import image
 import pandas as pd
-from math import ceil, log10
-import gzip
-from scipy.ndimage.morphology import distance_transform_edt
+
+if TYPE_CHECKING:
+    from ..core.region import Region
 
 
-class ParcellationMap(ABC):
-    """
-    Represents a brain map in a particular reference space, with
-    explicit knowledge about the region information per labelindex or channel.
-    """
+class ExcessiveArgumentException(ValueError):
+    pass
 
-    _instances = {}
-    _regions_cached = None
-    _maploaders_cached = None
 
-    def __init__(self, parcellation, space: Space, maptype=MapType):
-        """
-        Construct a ParcellationMap for the given parcellation and space.
+class InsufficientArgumentException(ValueError):
+    pass
 
-        Parameters
-        ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        maptype : MapType
-            The desired type of the map
-        """
-        if not parcellation.supports_space(space):
-            raise ValueError(
-                'Parcellation "{}" does not provide a map for space "{}"'.format(
-                    parcellation.name, space.name
-                )
-            )
 
-        if isinstance(maptype, str):
-            self.maptype = MapType[maptype.upper()]
-        else:
-            self.maptype = maptype
-        self.parcellation = parcellation
-        self.space = space
+class ConflictingArgumentException(ValueError):
+    pass
 
-    @classmethod
-    def get_instance(cls, parcellation, space: Space, maptype: MapType):
-        """
-        Returns the ParcellationMap object of the requested type.
-        """
-        key = (parcellation.key, space.key, maptype)
 
-        # If an instance is already available, return it
-        if key in cls._instances:
-            return cls._instances[key]
+class Map(concept.AtlasConcept, configuration_folder="maps"):
 
-        # Otherwise, create a new object
-        if space.type == "gii":
-            classes = {
-                MapType.LABELLED: LabelledSurface,
-                MapType.CONTINUOUS: None,
-            }
-        else:
-            classes = {
-                MapType.LABELLED: LabelledParcellationVolume,
-                MapType.CONTINUOUS: ContinuousParcellationVolume,
-            }
-        if maptype in classes:
-            instance = classes[maptype](parcellation, space)
-        elif maptype is None:
-            logger.warning(
-                "No maptype provided when requesting the parcellation map. Falling back to MapType.LABELLED"
-            )
-            instance = classes[MapType.LABELLED](parcellation, space)
-        else:
-            raise ValueError(
-                f"Cannote create a map of type '{maptype}' - this is an unkown type."
-            )
-
-        if (instance is None) or (len(instance) == 0):
-            raise ValueError(
-                f"No data found to construct a {maptype} map for {parcellation.name} in {space.name}."
-            )
-
-        cls._instances[key] = instance
-        return instance
-
-    @property
-    def maploaders(self):
-        if self._maploaders_cached is None:
-            self._define_maps_and_regions()
-        return self._maploaders_cached
-
-    @property
-    def regions(self):
-        """
-        Dictionary of regions associated to the parcellion map, indexed by ParcellationIndex.
-        Lazy implementation - self._link_regions() will be called when the regions are accessed for the first time.
-        """
-        if self._regions_cached is None:
-            self._define_maps_and_regions()
-        return self._regions_cached
-
-    @property
-    def names(self):
-        return self.parcellation.names
-
-    @abstractmethod
-    def _define_maps_and_regions(self):
-        """
-        implemented by derived classes, to produce the lists _regions_cached and _maploaders_cached.
-        The first is a dictionary indexed by ParcellationIndex,
-        the latter a list of functions for loading the different maps.
-        """
-        pass
-
-    def fetch_iter(self, resolution_mm=None, voi: BoundingBox = None, variant=None):
-        """
-        Returns an iterator to fetch all available maps sequentially.
-
-        Parameters
-        ----------
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        variant : str
-            Optional specification of variant of the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
-        """
-        logger.debug(f"Iterator for fetching {len(self)} parcellation maps")
-        return (
-            fnc(res=resolution_mm, voi=voi, variant=variant) for fnc in self.maploaders
-        )
-
-    def fetch(
+    def __init__(
         self,
-        mapindex: int = 0,
-        resolution_mm: float = None,
-        voi: BoundingBox = None,
-        variant=None,
+        identifier: str,
+        name: str,
+        space_spec: dict,
+        parcellation_spec: dict,
+        indices: Dict[str, Dict],
+        volumes: list = [],
+        shortname: str = "",
+        description: str = "",
+        modality: str = None,
+        publications: list = [],
+        datasets: list = [],
     ):
         """
-        Fetches one particular map.
+        Constructs a new parcellation object.
 
         Parameters
         ----------
-        mapindex : int
-            The index of the available maps to be fetched.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-        variant : str
-            Optional specification of a specific variant to use for the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+        identifier : str
+            Unique identifier of the parcellation
+        name : str
+            Human-readable name of the parcellation
+        space_spec: dict
+            Specification of the space (use @id or name fields)
+        parcellation_spec: str
+            Specification of the parcellation (use @id or name fields)
+        indices: dict
+            Dictionary of indices for the brain regions.
+            Keys are exact region names.
+            Per region name, a list of dictionaries with fields "volume" and "label" is expected,
+            where "volume" points to the index of the Volume object where this region is mapped,
+            and optional "label" is the voxel label for that region.
+            For contiuous / probability maps, the "label" can be null or omitted.
+            For single-volume labelled maps, the "volume" can be null or omitted.
+        volumes: list of Volume
+            parcellation volumes
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality used for creating the parcellation
+        publications: list
+            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+        datasets : list
+            datasets associated with this concept
         """
-        if mapindex < len(self):
-            if len(self) > 1:
-                logger.info(
-                    f"Returning map {mapindex+1} of in total {len(self)} available maps."
+        concept.AtlasConcept.__init__(
+            self,
+            identifier=identifier,
+            name=name,
+            species=None,  # inherits species from space
+            shortname=shortname,
+            description=description,
+            publications=publications,
+            datasets=datasets,
+            modality=modality
+        )
+
+        # Since the volumes might include 4D arrays, where the actual
+        # volume index points to a z coordinate, we create subvolume
+        # indexers from the given volume provider if 'z' is specified.
+        self._indices: Dict[str, List[MapIndex]] = {}
+        self.volumes: List[_volume.Volume] = []
+        remap_volumes = {}
+        # TODO: This assumes knowledge of the preconfigruation specs wrt. z.
+        # z to subvolume conversion should probably go to the factory.
+        for regionname, indexlist in indices.items():
+            k = clear_name(regionname)
+            self._indices[k] = []
+            for index in indexlist:
+                vol = index.get('volume', 0)
+                assert vol in range(len(volumes))
+                z = index.get('z')
+                if (vol, z) not in remap_volumes:
+                    if z is None:
+                        self.volumes.append(volumes[vol])
+                    else:
+                        self.volumes.append(_volume.Subvolume(volumes[vol], z))
+                    remap_volumes[vol, z] = len(self.volumes) - 1
+                self._indices[k].append(
+                    MapIndex(volume=remap_volumes[vol, z], label=index.get('label'), fragment=index.get('fragment'))
                 )
-            return self.maploaders[mapindex](
-                res=resolution_mm, voi=voi, variant=variant
+
+        # make sure the indices are unique - each map/label pair should appear at most once
+        all_indices = sum(self._indices.values(), [])
+        seen = set()
+        duplicates = {x for x in all_indices if x in seen or seen.add(x)}
+        if len(duplicates) > 0:
+            logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
+
+        self._space_spec = space_spec
+        self._parcellation_spec = parcellation_spec
+        self._affine_cached = None
+        for v in self.volumes:
+            v._space_spec = space_spec
+
+    @property
+    def species(self) -> Species:
+        # lazy implementation
+        if self._species_cached is None:
+            self._species_cached = self.space.species
+        return self.space._species_cached
+
+    def get_index(self, region: Union[str, "Region"]):
+        """
+        Returns the unique index corresponding to the specified region,
+        assuming that the specification matches one unique region
+        defined in this parcellation map.
+        If not unique, or not defined, an exception will be thrown.
+        See find_indices() for a less strict search returning all matches.
+        """
+        matches = self.find_indices(region)
+        if len(matches) > 1:
+            raise RuntimeError(
+                f"The specification '{region}' matches multiple mapped "
+                f"structures in {str(self)}: {list(matches.values())}"
+            )
+        elif len(matches) == 0:
+            raise RuntimeError(
+                f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
-            raise ValueError(
-                f"'{len(self)}' maps available, but a mapindex of {mapindex} was requested."
+            return next(iter(matches))
+
+    def find_indices(self, region: Union[str, "Region"]):
+        """ Returns the volume/label indices in this map
+        which match the given region specification"""
+        if region in self._indices:
+            return {
+                idx: region
+                for idx in self._indices[region]
+            }
+        regionname = region.name if isinstance(region, _region.Region) else region
+        matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
+        matches = matched_region_names & self._indices.keys()
+        if len(matches) == 0:
+            logger.warn(f"Region {regionname} not defined in {self}")
+        return {
+            idx: regionname
+            for regionname in matches
+            for idx in self._indices[regionname]
+        }
+
+    def get_region(self, label: int = None, volume: int = None, index: MapIndex = None):
+        """ Returns the region mapped by the given index, if any. """
+        if index is None:
+            index = MapIndex(volume, label)
+        matches = [
+            regionname
+            for regionname, indexlist in self._indices.items()
+            if index in indexlist
+        ]
+        if len(matches) == 0:
+            logger.warn(f"Index {index} not defined in {self}")
+            return None
+        elif len(matches) == 1:
+            return self.parcellation.get_region(matches[0])
+        else:
+            # this should not happen, already tested in constructor
+            raise RuntimeError(f"Index {index} is not unique in {self}")
+
+    @property
+    def space(self):
+        for key in ["@id", "name"]:
+            if key in self._space_spec:
+                return space.Space.get_instance(self._space_spec[key])
+        return space.Space(None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES)
+
+    @property
+    def parcellation(self):
+        for key in ["@id", "name"]:
+            if key in self._parcellation_spec:
+                return parcellation.Parcellation.get_instance(self._parcellation_spec[key])
+        logger.warn(
+            f"Cannot determine parcellation of {self.__class__.__name__} "
+            f"{self.name} from {self._parcellation_spec}"
+        )
+        return None
+
+    @property
+    def labels(self):
+        """
+        The set of all label indices defined in this map,
+        including "None" if not defined for one or more regions.
+        """
+        return {d.label for v in self._indices.values() for d in v}
+
+    @property
+    def maptype(self) -> MapType:
+        if all(isinstance(_, int) for _ in self.labels):
+            return MapType.LABELLED
+        elif self.labels == {None}:
+            return MapType.STATISTICAL
+        else:
+            raise RuntimeError(
+                f"Inconsistent label indices encountered in {self}"
             )
 
     def __len__(self):
-        """
-        Returns the number of maps available in this parcellation.
-        """
-        return len(self.maploaders)
+        return len(self.volumes)
 
-    def __contains__(self, spec):
-        """
-        Test if a map identified by the given specification is included in this parcellation map.
-        For integer values, it is checked wether a corresponding slice along the fourth dimension could be extracted.
-        Alternatively, a region object can be provided, and it will be checked wether the region is mapped.
-        You might find the decode_region() function of Parcellation and Region objects useful for the latter.
-        """
-        if isinstance(spec, int):
-            return spec in range(len(self.maploaders))
-        elif isinstance(spec, Region):
-            for _, region in self.regions.items():
-                if region == spec:
-                    return True
-        return False
+    @property
+    def regions(self):
+        return list(self._indices)
 
-    def decode_region(self, regionspec: Union[str, Region]):
+    def fetch(
+        self,
+        region_or_index: Union[str, "Region", MapIndex] = None,
+        *,
+        index: MapIndex = None,
+        region: Union[str, "Region"] = None,
+        **kwargs
+    ):
         """
-        Given a unique specification, return the corresponding region
-        that is mapped in this ParcellationMap.
-        The spec could be a label index, a (possibly incomplete) name, or a
-        region object.
-        This method is meant to definitely determine a valid region. Therefore,
-        if no match is found, it raises a ValueError.
+        Fetches one particular volume of this parcellation map.
+        If there's only one volume, this is the default, otherwise further
+        specication is requested:
+        - the volume index,
+        - the MapIndex (which results in a regional map being returned)
+
+        You might also consider fetch_iter() to iterate the volumes, or compress()
+        to produce a single-volume parcellation map.
 
         Parameters
         ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - an integer, which is interpreted as a labelindex,
-            - a region object
-            - a full ParcellationIndex
-
-        Return
-        ------
-        Region object
+        region_or_index: Union[str, Region, MapIndex]
+            Lazy match the specification.
+        index: MapIndex
+            Explicit specification of the map index, typically resulting
+            in a regional map (mask or statistical map) to be returned.
+            Note that supplying 'region' will result in retrieving the map index of that region
+            automatically.
+        region: Union[str, Region]
+            Specification of a region name, resulting in a regional map
+            (mask or statistical map) to be returned.
         """
-        # make sure we have a region object that matches the parcellation
-        if isinstance(regionspec, Region):
-            region = regionspec
-        else:
-            region = self.parcellation.decode_region(regionspec)
+        try:
+            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
+            assert length == 1
+        except AssertionError:
+            if length > 1:
+                raise ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
+            # user can provide no arguments, which assumes one and only one volume present
 
-        if region in self.regions.values():
-            # a perfect match
-            return region
+        if isinstance(region_or_index, MapIndex):
+            index = region_or_index
 
-        # If the given region is not directly found in the map,
-        # see if there is a unique match among its children.
-        matches = [
-            (r, len(r.path)) for r in region
-            if (r in self.parcellation) and (r in self.regions.values())
-        ]
-        if len(matches) == 0:
-            raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
-        mindepth = min(m[1] for m in matches)
-        candidates = list(filter(lambda v: v[1] == mindepth, matches))
+        if isinstance(region_or_index, (str, _region.Region)):
+            region = region_or_index
 
-        if len(candidates) == 1:
-            return candidates[0][0]
-        elif len(candidates) == 0:
-            raise IndexError(f"Region '{region.name}' is not mapped in {str(self)}.")
-        else:
+        mapindex = None
+        if region is not None:
+            assert isinstance(region, (str, _region.Region))
+            mapindex = self.get_index(region)
+        if index is not None:
+            assert isinstance(index, MapIndex)
+            mapindex = index
+        if mapindex is None:
+            try:
+                assert len(self) == 1
+                mapindex = MapIndex(volume=0, label=None)
+            except AssertionError:
+                raise InsufficientArgumentException(
+                    "Map provides multiple volumes, use 'index' or "
+                    "'region' to specify which one to fetch."
+                )
+
+        kwargs_fragment = kwargs.pop("fragment", None)
+        if kwargs_fragment is not None:
+            if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
+                raise ConflictingArgumentException(
+                    "Conflicting specifications for fetching volume fragment: "
+                    f"{mapindex.fragment} / {kwargs_fragment}"
+                )
+            mapindex.fragment = kwargs_fragment
+
+        if mapindex.volume is None:
+            mapindex.volume = 0
+        if mapindex.volume >= len(self.volumes):
             raise IndexError(
-                f"Ambiguous assignment of '{region.name}' to parcellation map, "
-                f"it resolves to {', '.join(c.name for c,d in candidates)} "
-                f"in {str(self)}."
+                f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
             )
-
-    def decode_index(self, mapindex=None, labelindex=None):
-        """
-        Returns the region associated with a particular parcellation index.
-
-        Parameters
-        ----------
-        mapindex : Sequential index of the 3D map used, if more than one are included
-        labelindex : Label index of the region, if the map is a labelled volume
-        """
-        pindex = ParcellationIndex(map=mapindex, label=labelindex)
-        region = self.regions.get(pindex)
-        if region is None:
-            raise ValueError(f"Could not decode parcellation index {pindex}")
-        else:
-            return region
-
-    def get_index(self, regionspec: Union[str, Region]):
-        """
-        Find the ParcellationIndex for a given region.
-
-        Parameters
-        ----------
-        regionspec : str or Region
-            Partial name of region, or Region object
-
-        Return
-        ------
-        list of MapIndex objects
-        """
-        region = (
-            self.parcellation.decode_region(regionspec)
-            if isinstance(regionspec, str)
-            else regionspec
-        )
-        subregions = []
-        for idx, r in self.regions.items():
-            if r == region:
-                return [idx]
-            elif r.has_parent(region):
-                subregions.append((idx, r))
-        if len(subregions) == 0:
-            raise IndexError(
-                f"Could not decode region specified by {regionspec} in {self.parcellation.name}"
+        try:
+            result = self.volumes[mapindex.volume or 0].fetch(
+                fragment=mapindex.fragment, label=mapindex.label, **kwargs
             )
+        except requests.SiibraHttpRequestError as e:
+            print(str(e))
 
-        # if we found maps of child regions, we want the mapped leaves to be identical to the leaves of the requested region.
-        children_found = {c for _, r in subregions for c in r.leaves}
-        children_requested = {c for c in region.leaves}
-        if children_found != children_requested:
-            raise IndexError(
-                f"Cannot decode {regionspec} for the map in {self.space.name}, as it seems only partially mapped there."
+        if result is None:
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs['format']}.")
+        return result
+
+    def fetch_iter(self, **kwargs):
+        """
+        Returns an iterator to fetch all mapped volumes sequentially.
+        All arguments are passed on to func:`~siibra.Map.fetch`
+        """
+        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
+        return (
+            self.fetch(
+                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
             )
-        return [idx for idx, _ in subregions]
-
-
-class ParcellationVolume(ParcellationMap, ImageProvider):
-    """
-    Represents a brain map in a particular volumetric reference space, with
-    explicit knowledge about the region information per labelindex or channel.
-
-    There are two types:
-        1) Parcellation maps / labelled volumes (MapType.LABELLED)
-            A 3D or 4D volume with integer labels separating different,
-            non-overlapping regions. The number of regions corresponds to the
-            number of nonzero image labels in the volume.
-        2) 4D overlapping regional maps (often probability maps) (MapType.CONTINUOUS)
-            a 4D volume where each "time"-slice is a 3D volume representing
-            a map of a particular brain region. This format is used for
-            probability maps and similar continuous forms. The number of
-            regions correspond to the z dimension of the 4 object.
-
-    ParcellationMaps can be also constructred from neuroglancer (BigBrain) volumes if
-    a feasible downsampled resolution is provided.
-    """
-
-    # Which types of available volumes should be preferred if multiple choices are available?
-    PREFERRED_VOLUMETYPES = ["nii", "neuroglancer/precomputed"]
-
-    _regions_cached = None
-    _maploaders_cached = None
-
-    def __init__(self, parcellation, space: Space, maptype=MapType):
-        """
-        Construct a ParcellationMap for the given parcellation and space.
-
-        Parameters
-        ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        maptype : MapType
-            The desired type of the map
-        """
-        ParcellationMap.__init__(self, parcellation, space, maptype)
-
-    def fetch_all(self):
-        """Returns a 4D array containing all 3D maps.
-
-        All available maps are stacked along the 4th dimension.
-        Note that this can be quite memory-intensive for continuous maps.
-        If you just want to iterate over maps, prefer using
-            'for img in ParcellationMaps.fetch_iter():'
-        """
-        N = len(self)
-        with QUIET:
-            im0 = self.fetch(mapindex=0)
-        out_shape = (N,) + im0.shape
-        logger.info(f"Create 4D array from {N} maps with size {im0.shape + (N,)}")
-        out_data = np.empty(out_shape, dtype=im0.dataobj.dtype)
-
-        for mapindex, img in tqdm(
-            enumerate(self.fetch_iter()), total=N, disable=logger.level > 20
-        ):
-            out_data[mapindex] = np.asanyarray(img.dataobj)
-
-        return funcs.squeeze_image(
-            Nifti1Image(np.rollaxis(out_data, 0, out_data.ndim), im0.affine)
+            for i in range(len(self))
         )
 
-    def fetch_relabelled(self):
-        """
-        Returns a relabelled 3D parcellation volume, obtained by taking the
-        maximum across maps at each voxel and labelling regions sequentially.
-        """
-        result = None
-        maxarr = None
-        regions = {}
-        new_labelindex = 1
+    @property
+    def provides_image(self):
+        return any(v.provides_image for v in self.volumes)
 
-        for mapindex in tqdm(
-            range(len(self)), total=len(self), unit='maps'
-        ):
+    @property
+    def fragments(self):
+        return {
+            index.fragment
+            for indices in self._indices.values()
+            for index in indices
+            if index.fragment is not None
+        }
 
-            with QUIET:
-                mapimg = self.fetch(mapindex=mapindex)
-            maparr = np.asanyarray(mapimg.dataobj)
+    @property
+    def provides_mesh(self):
+        return any(v.provides_mesh for v in self.volumes)
 
-            if result is None:
-                lblarr = np.zeros_like(maparr)
-                maxarr = np.zeros_like(maparr)
-                result = Nifti1Image(lblarr, mapimg.affine)
+    @property
+    def formats(self):
+        return {f for v in self.volumes for f in v.formats}
 
-            if self.maptype == MapType.LABELLED:
-                labels = set(np.unique(maparr)) - {0}
+    @property
+    def is_labelled(self):
+        return self.maptype == MapType.LABELLED
+
+    @property
+    def affine(self):
+        if self._affine_cached is None:
+            # we compute the affine from a volumetric volume provider
+            for fmt in _volume.Volume.SUPPORTED_FORMATS:
+                if fmt not in _volume.Volume.MESH_FORMATS:
+                    try:
+                        self._affine_cached = self.fetch(index=MapIndex(volume=0), format=fmt).affine
+                        break
+                    except RuntimeError:
+                        continue
             else:
-                labels = {None}
+                raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
+        if not isinstance(self._affine_cached, np.ndarray):
+            logger.error("invalid affine:", self._affine_cached)
+        return self._affine_cached
 
-            for labelindex in labels:
-                region = self.parcellation.decode_region(ParcellationIndex(mapindex, labelindex))
-                if labelindex is None:
-                    updates = (maparr > maxarr)
+    def __iter__(self):
+        return self.fetch_iter()
+
+    def compress(self, **kwargs):
+        """
+        Converts this map into a labelled 3D parcellation map, obtained
+        by taking the voxelwise maximum across the mapped volumes, and
+        re-labelling regions sequentially.
+        """
+        if len(self.volumes) == 1 and (self.fragments is None):
+            raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
+
+        # initialize empty volume according to the template
+        template = self.space.get_template().fetch(**kwargs)
+        result_data = np.zeros_like(np.asanyarray(template.dataobj))
+        voxelwise_max = np.zeros_like(result_data)
+        result_nii = Nifti1Image(result_data, template.affine)
+        interpolation = 'nearest' if self.is_labelled else 'linear'
+        next_labelindex = 1
+        region_indices = defaultdict(list)
+
+        for volidx in tqdm(
+            range(len(self.volumes)), total=len(self.volumes), unit='maps',
+            desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
+            disable=(len(self.volumes) == 1)
+        ):
+            for frag in tqdm(
+                self.fragments, total=len(self.fragments), unit='maps',
+                desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
+                disable=(len(self.fragments) == 1 or self.fragments is None)
+            ):
+                mapindex = MapIndex(volume=volidx, fragment=frag)
+                img = self.fetch(mapindex)
+                if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
+                    img = image.resample_to_img(img, result_nii, interpolation)
+                img_data = np.asanyarray(img.dataobj)
+
+                if self.is_labelled:
+                    labels = set(np.unique(img_data)) - {0}
                 else:
-                    updates = (maparr == labelindex)
+                    labels = {None}
 
-                lblarr[updates] = new_labelindex
-                maxarr[updates] = maparr[updates]
-                regions[new_labelindex] = region.name
-                new_labelindex += 1
+                for label in labels:
+                    with QUIET:
+                        mapindex.__setattr__("label", int(label))
+                        region = self.get_region(index=mapindex)
+                    if region is None:
+                        logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                        continue
+                    region_indices[region.name].append({"volume": 0, "label": next_labelindex})
+                    if label is None:
+                        update_voxels = (img_data > voxelwise_max)
+                    else:
+                        update_voxels = (img_data == label)
+                    result_data[update_voxels] = next_labelindex
+                    voxelwise_max[update_voxels] = img_data[update_voxels]
+                    next_labelindex += 1
 
-        return result, regions
+        return Map(
+            identifier=f"{create_key(self.name)}_compressed",
+            name=f"{self.name} compressed",
+            space_spec=self._space_spec,
+            parcellation_spec=self._parcellation_spec,
+            indices=region_indices,
+            volumes=[
+                _volume.Volume(
+                    space_spec=self._space_spec,
+                    providers=[nifti.NiftiProvider(result_nii)]
+                )
+            ]
+        )
 
-    def compute_centroids(self):
-        """Compute a dictionary of the centroids of all regions in this map.
+    def compute_centroids(self) -> Dict[str, point.Point]:
+        """
+        Compute a dictionary of the centroids of all regions in this map.
         """
         centroids = {}
         # list of regions sorted by mapindex
-        regions = sorted(self.regions.items(), key=lambda v: (v[0].map, v[0].label))
-        current_mapindex = -1
+        regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
+        current_volume = -1
         maparr = None
-        for pind, region in tqdm(regions, unit="regions", desc="Computing centroids"):
-            if pind.label == 0:
+        for regionname, indexlist in tqdm(regions, unit="regions", desc="Computing centroids"):
+            assert len(indexlist) == 1
+            index = indexlist[0]
+            if index.label == 0:
                 continue
-            if pind.map != current_mapindex:
-                current_mapindex = pind.map
+            if index.volume != current_volume:
+                current_volume = index.volume
                 with QUIET:
-                    mapimg = self.fetch(pind.map)
+                    mapimg = self.fetch(index=index)
                 maparr = np.asanyarray(mapimg.dataobj)
-            if pind.label is None:
-                # should be a continous map then
-                assert self.maptype == MapType.CONTINUOUS
-                centroid_vox = np.array(np.where(maparr > 0)).mean(1)
-            else:
-                centroid_vox = np.array(np.where(maparr == pind.label)).mean(1)
-            assert region not in centroids
-            centroids[region] = Point(
+            centroid_vox = np.array(np.where(maparr > 0)).mean(1)
+            assert regionname not in centroids
+            centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
             )
         return centroids
-
-    def fetch_regionmap(
-        self,
-        regionspec: Union[str, int, Region],
-        resolution_mm=None,
-        voi: BoundingBox = None,
-    ):
-        """
-        Extract the mask for one particular region.
-        For multi-regions, returns the voxelwise maximum of their children's masks.
-
-        Parameters
-        ----------
-        regionspec : labelindex, partial region name, or Region
-            The desired region.
-        resolution_mm : float or None (optional)
-            Physical resolution of the map, used for multi-resolution image volumes.
-            If None, the smallest possible resolution will be chosen.
-            If -1, the largest feasible resolution will be chosen.
-
-        Return
-        ------
-        Nifti1Image, if found, otherwise None
-        """
-        try:
-            indices = self.get_index(regionspec)
-        except IndexError:
-            return None
-        data = None
-        affine = None
-        for index in indices:
-            with QUIET:
-                mapimg = self.fetch(
-                    resolution_mm=resolution_mm, mapindex=index.map, voi=voi
-                )
-            if index.label is None:  # region is defined by the whole map
-                newdata = mapimg.get_fdata()
-            else:  # region is defined by a particular label
-                newdata = (mapimg.get_fdata() == index.label).astype(np.uint8)
-            if data is None:
-                data = newdata
-                affine = mapimg.affine
-            else:
-                data = np.maximum(data, newdata)
-
-        return Nifti1Image(data, affine)
-
-    def get_shape(self, resolution_mm=None):
-        return list(self.space.get_template().get_shape()) + [len(self)]
-
-    def is_float(self):
-        return self.maptype == MapType.CONTINUOUS
-
-    def _load_regional_map(
-        self, region: Region, resolution_mm, voi: BoundingBox = None
-    ):
-        logger.debug(f"Loading regional map for {region.name} in {self.space.name}")
-        with QUIET:
-            rmap = region.get_regional_map(self.space, self.maptype).fetch(
-                resolution_mm=resolution_mm, voi=voi
-            )
-        return rmap
-
-
-class LabelledParcellationVolume(ParcellationVolume):
-    """
-    Represents a brain map in a reference space, with
-    explicit knowledge about the region information per labelindex or channel.
-    Contains a Nifti1Image object as the "image" member.
-
-    This form defines parcellation maps / labelled volumes (MapType.LABELLED),
-    A 3D or 4D volume with integer labels separating different,
-    non-overlapping regions. The number of regions corresponds to the
-    number of nonzero image labels in the volume.
-    """
-
-    def __init__(self, parcellation, space: Space):
-        """
-        Construct a ParcellationMap for the given parcellation and space.
-
-        Parameters
-        ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        """
-        super().__init__(parcellation, space, MapType.LABELLED)
-
-    def _define_maps_and_regions(self):
-
-        self._maploaders_cached = []
-        self._regions_cached = {}
-
-        # check if the parcellation has any volumes in the requested space
-        for volumetype in self.PREFERRED_VOLUMETYPES:
-            sources = []
-            for vsrc in self.parcellation.get_volumes(self.space.id):
-                if vsrc.__class__.volume_type == volumetype:
-                    sources.append(vsrc)
-            if len(sources) > 0:
-                break
-
-        # Try to generate maps from suitable volume sources
-        for source in sources:
-
-            if source.volume_type != self.space.type:
-                continue
-
-            self._maploaders_cached.append(
-                lambda res=None, voi=None, variant=None, s=source: self._load_map(
-                    s, resolution_mm=res, voi=voi
-                )
-            )
-            # load map at lowest resolution to map label indices to regions
-            mapindex = len(self._maploaders_cached) - 1
-            with QUIET:
-                m = self._maploaders_cached[mapindex](res=None, voi=None, variant=None)
-            unmatched = []
-            for labelindex in np.unique(m.get_fdata()).astype('int'):
-                if labelindex != 0:
-                    pindex = ParcellationIndex(map=mapindex, label=labelindex)
-                    try:
-                        region = self.parcellation.decode_region(pindex)
-                        if labelindex > 0:
-                            self._regions_cached[pindex] = region
-                        else:
-                            unmatched.append(pindex)
-                    except ValueError:
-                        unmatched.append(pindex)
-            if len(unmatched) > 0:
-                logger.warning(
-                    f"{len(unmatched)} parcellation indices in labelled volume couldn't be matched to region definitions in {self.parcellation.name}"
-                )
-
-        # If no maps can be generated from volume sources, try to build a collection of regional maps
-        if len(self) == 0:
-            self._maploaders_cached.append(
-                lambda res=None, voi=None, variant=None: self._collect_maps(
-                    resolution_mm=res, voi=voi
-                )
-            )
-            # load map at lowest resolution to map label indices to regions
-            m = self._maploaders_cached[0](res=None, voi=None, variant=None)
-
-        # By now, we should have been able to generate some maps
-        if len(self) == 0:
-            raise RuntimeError(
-                f"No maps found for {self.parcellation.name} in {self.space.name}"
-            )
-
-    @cached
-    def _load_map(self, volume: VolumeSrc, resolution_mm: float, voi: BoundingBox):
-        m = volume.fetch(resolution_mm=resolution_mm, voi=voi)
-        if len(m.dataobj.shape) == 4:
-            if m.dataobj.shape[3] == 1:
-                m = Nifti1Image(dataobj=np.asarray(m.dataobj).astype(int).squeeze(), affine=m.affine)
-            else:
-                logger.info(
-                    f"{m.dataobj.shape[3]} continuous maps given - using argmax to generate a labelled volume. "
-                )
-                m = argmax_dim4(m)
-        if m.dataobj.dtype.kind == "f":
-            logger.warning(
-                f"Floating point image type encountered when building a labelled volume for {self.parcellation.name}, converting to integer."
-            )
-            m = Nifti1Image(dataobj=np.asarray(m.dataobj, dtype=int), affine=m.affine)
-        return m
-
-    @cached
-    def _collect_maps(self, resolution_mm, voi):
-        """
-        Build a 3D volume from the list of available regional maps.
-        Label indices will just be sequentially assigned.
-
-        Return
-        ------
-        Nifti1Image, or None if no maps are found.
-
-        """
-        m = None
-
-        # generate empty mask covering the template space
-        tpl = self.space.get_template().fetch(resolution_mm, voi=voi)
-        m = None
-
-        # collect all available region maps
-        regions = []
-        for r in self.parcellation.regiontree:
-            with QUIET:
-                regionmap = r.get_regional_map(self.space, MapType.LABELLED)
-            if regionmap is not None:
-                regions.append(r)
-
-        if len(regions) == 0:
-            raise RuntimeError(
-                f"No regional maps could be collected for {self.parcellation.name} in space {self.space.name}"
-            )
-
-        logger.info(
-            f"Building labelled parcellation volume for {self.parcellation.name} "
-            f"in '{self.space.name}' from {len(regions)} regional maps."
-        )
-        largest_label = max(self.parcellation.labels)
-        next_label = ceil(log10(largest_label))
-        for region in tqdm(
-            regions,
-            total=len(regions),
-            desc=f"Collecting {len(regions)} maps",
-            unit="maps",
-            disable=logger.level > 20,
-        ):
-
-            # load region mask
-            mask_ = self._load_regional_map(
-                region, resolution_mm=resolution_mm, voi=voi
-            )
-            if not mask_:
-                continue
-            if np.prod(mask_.shape) == 0:
-                continue
-            # build up the aggregated mask with labelled indices
-            if mask_.shape != tpl.shape:
-                mask = image.resample_to_img(mask_, tpl, interpolation="nearest")
-            else:
-                mask = mask_
-
-            if m is None:
-                m = Nifti1Image(
-                    np.zeros_like(tpl.dataobj, dtype=mask.dataobj.dtype), tpl.affine
-                )
-            if region.index.label is None:
-                label = next_label
-                next_label += 1
-            else:
-                label = region.index.label
-            m.dataobj[mask.dataobj > 0] = label
-            self._regions_cached[ParcellationIndex(map=0, label=label)] = region
-
-        return m
 
     def colorize(self, values: dict):
         """Colorize the map with the provided regional values.
@@ -717,79 +509,74 @@ class LabelledParcellationVolume(ParcellationVolume):
         Nifti1Image
         """
 
-        # generate empty image
-        maps = {}
         result = None
-
-        for region, value in values.items():
-            try:
-                indices = self.get_index(region)
-            except IndexError:
-                continue
-            for index in indices:
-                if index.map not in maps:
-                    # load the map
-                    maps[index.map] = self.fetch(index.map)
-                thismap = maps[index.map]
+        for volidx, vol in enumerate(self.fetch_iter()):
+            if isinstance(vol, dict):
+                raise NotImplementedError("Map colorization not yet implemented for meshes.")
+            img = np.asanyarray(vol.dataobj)
+            maxarr = np.zeros_like(img)
+            for r, value in values.items():
+                index = self.get_index(r)
+                if index.volume != volidx:
+                    continue
                 if result is None:
-                    # create the empty output
-                    result = np.zeros_like(thismap.get_fdata())
-                    affine = thismap.affine
-                result[thismap.get_fdata() == index.label] = value
+                    result = np.zeros_like(img)
+                    affine = vol.affine
+                if index.label is None:
+                    updates = img > maxarr
+                    result[updates] = value
+                    maxarr[updates] = img[updates]
+                else:
+                    result[img == index.label] = value
 
         return Nifti1Image(result, affine)
 
-    @cached
-    def assign_coordinates(
-        self, point: Union[Point, PointSet], sigma_mm=None, sigma_truncation=None
-    ):
+    def get_colormap(self, region_specs: Iterable = None):
         """
-        Assign regions to a physical coordinates with optional standard deviation.
+        Generate a matplotlib colormap from known rgb values of label indices.
+
+        The probability distribution is approximated from the region mask
+        based on the squared distance transform.
 
         Parameters
         ----------
-        point : Point or PointSet
-        sigma_mm : Not needed for labelled parcellation maps
-        sigma_truncation : Not needed for labelled parcellation maps
+        region_specs: An iterable selection of regions
+            Optional parameter to only color the desired regions.
+
+        Return
+        ------
+        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
         """
+        from matplotlib.colors import ListedColormap
+        import numpy as np
 
-        if point.space != self.space:
-            logger.info(
-                f"Coordinates will be converted from {point.space.name} "
-                f"to {self.space.name} space for assignment."
-            )
-
-        # Convert input to Nx4 list of homogenous coordinates
-        if isinstance(point, Point):
-            coords = [point.warp(self.space).homogeneous]
-        elif isinstance(point, PointSet):
-            pointset = point
-            coords = [p.homogeneous for p in pointset.warp(self.space)]
+        colors = {}
+        if region_specs is not None:
+            include_region_names = {
+                self.parcellation.get_region(region_spec).name for region_spec in region_specs
+            }
         else:
-            raise ValueError("assign_coordinates expects a Point or PointSet object.")
+            include_region_names = None
 
-        assignments = []
-        N = len(self)
-        msg = f"Assigning {len(coords)} points to {N} maps"
-        assignments = [[] for _ in coords]
-        for mapindex, loadfnc in tqdm(
-            enumerate(self.maploaders),
-            total=len(self),
-            desc=msg,
-            unit=" maps",
-            disable=logger.level > 20,
-        ):
-            lmap = loadfnc()
-            p2v = np.linalg.inv(lmap.affine)
-            A = lmap.get_fdata()
-            for i, coord in enumerate(coords):
-                x, y, z = (np.dot(p2v, coord) + 0.5).astype("int")[:3]
-                label = A[x, y, z]
-                if label > 0:
-                    region = self.decode_index(mapindex=mapindex, labelindex=label)
-                    assignments[i].append((region, lmap, None))
+        for regionname, indices in self._indices.items():
+            for index in indices:
+                if index.label is None:
+                    continue
 
-        return assignments
+                if (include_region_names is not None) and (regionname not in include_region_names):
+                    continue
+                else:
+                    region = self.get_region(index=index)
+                    if region.rgb is not None:
+                        colors[index.label] = region.rgb
+
+        pallette = np.array(
+            [
+                list(colors[i]) + [1] if i in colors else [0, 0, 0, 0]
+                for i in range(max(colors.keys()) + 1)
+            ]
+        ) / [255, 255, 255, 1]
+        return ListedColormap(pallette)
 
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
@@ -807,424 +594,88 @@ class LabelledParcellationVolume(ParcellationVolume):
         samples : PointSet in physcial coordinates corresponding to this parcellationmap.
 
         """
-        indices = self.get_index(regionspec)
-        assert len(indices) > 0
-
-        # build region mask
-        B = None
-        lmap = None
-        for index in indices:
-            lmap = self.fetch(index.map)
-            M = np.asanyarray(lmap.dataobj)
-            if B is None:
-                B = np.zeros_like(M)
-            B[M == index.label] = 1
-
-        D = distance_transform_edt(B)**2
-        p = (D / D.sum()).ravel()
+        index = self.get_index(regionspec)
+        mask = self.fetch(index=index)
+        arr = np.asanyarray(mask.dataobj)
+        if arr.dtype.char in np.typecodes['AllInteger']:
+            # a binary mask - use distance transform to get sampling weights
+            W = distance_transform_edt(np.asanyarray(mask.dataobj))**2
+        else:
+            # a statistical map - interpret directly as weights
+            W = arr
+        p = (W / W.sum()).ravel()
         XYZ_ = np.array(
-            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
+            np.unravel_index(np.random.choice(len(p), numpoints, p=p), W.shape)
         ).T
-        XYZ = np.dot(lmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
+        XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
+        return pointset.PointSet(XYZ, space=self.space)
 
-    def assign(self, img: Nifti1Image, msg=None, quiet=False):
+    @staticmethod
+    def iterate_connected_components(img: Nifti1Image):
         """
-        Assign the region of interest represented by a given volumetric image to brain regions in this map.
-
-        TODO unify this with the corresponding methond in ContinuousParcellationMap
-
-        Parameters:
-        -----------
-        img : Nifti1Image
-            The input region of interest, typically a binary mask or statistical map.
-        msg : str, default:None
-            Message to display with the progress bar
-        quiet: Boolen, default:False
-            If true, no progess indicator will be displayed
+        Provide an iterator over masks of connected components in the given image.
         """
-
-        if msg is None and not quiet:
-            msg = f"Assigning structure to {len(self.regions)} regions"
-
-        # How to visualize progress from the iterator?
-        def plain_progress(f):
-            return f
-
-        def visual_progress(f):
-            return tqdm(
-                f,
-                total=len(self.regions),
-                desc=msg,
-                unit="regions",
-                disable=logger.level > 20,
-            )
-
-        progress = plain_progress if quiet else visual_progress
-
-        # setup assignment loop
-        values = {}
-        pmaps = {}
-
-        for index, region in progress(self.regions.items()):
-
-            this = self.maploaders[index.map]()
-            if not this:
-                logger.warning(f"Could not load regional map for {region.name}")
-                continue
-            if (index.label is not None) and (index.label > 0):
-                with QUIET:
-                    this = region.build_mask(self.space, maptype=self.maptype)
-            scores = compare_maps(img, this)
-            if scores["overlap"] > 0:
-                assert region not in pmaps
-                pmaps[region] = this
-                values[region] = scores
-
-        assignments = [
-            (region, region.index.map, scores)
-            for region, scores in sorted(
-                values.items(),
-                key=lambda item: abs(item[1]["correlation"]),
-                reverse=True,
-            )
-        ]
-        return assignments
-
-
-class ContinuousParcellationVolume(ParcellationVolume):
-    """A sparse representation of list of continuous (e.g. probabilistic) brain region maps.
-
-    It represents the 3D continuous maps of N brain regions by two data structures:
-        1) 'spatial_index', a 3D volume where non-negative values represent unique
-            indices into a list of region assignments
-        2) 'probs', a list of region assignments where each entry is a dict
-
-    More precisely, given
-        i = spatial_index[x, y, z]
-    we define that
-        - if i<0, no brain region is assigned at this location
-        - if i>=0, probs[i] defines the probabilities of brain regions.
-
-    Each entry in probs is a dictionary that represents the region assignments for
-    the unique voxel where spatial_index==i. The assignment maps from a "mapindex"
-    to the actual (probability) value.
-    """
-
-    # A gitlab instance with holds precomputed sparse indices
-    _GITLAB_SERVER = 'https://jugit.fz-juelich.de'
-    _GITLAB_PROJECT = 5779
-
-    def __init__(self, parcellation, space):
-
-        ParcellationMap.__init__(self, parcellation, space, maptype="continuous")
-
-    def _define_maps_and_regions(self):
-
-        # Check for available maps and brain regions.
-        # First look for a 4D array where the last dimension are the different maps
-        self._maploaders_cached = []
-        self._regions_cached = {}
-        self._map4d = None
-        for v in self.parcellation.volumes:
-            if (
-                isinstance(v, ImageProvider)
-                and v.is_float()
-                and v.is_4D()
-                and v.get_shape()[3] > 1
-            ):
-                self._map4d = v.fetch()
-                print(self._map4d.shape)
-                for mapindex in range(self._map4d.shape[3]):
-                    self._maploaders_cached.append(
-                        lambda res=None, voi=None, variant=None, m=mapindex: self._map4d.slicer[:, :, :, m]
-                    )
-                    # TODO this might not be correct for parcellations other than DifumoXX
-                    r = self.parcellation.decode_region(mapindex + 1)
-                    self._regions_cached[
-                        ParcellationIndex(map=mapindex, label=None)
-                    ] = r
-
-        if self._map4d is None:
-            # No 4D array, look for regional continuous maps stored in the region tree.
-            mapindex = 0
-            for r in self.parcellation.regiontree.leaves:
-                if r in self.regions.values():
-                    continue
-                if r.has_regional_map(self.space, self.maptype):
-                    regionmap = r.get_regional_map(self.space, self.maptype)
-                    self._maploaders_cached.append(lambda res=None, voi=None, variant=None, r=regionmap: r.fetch())
-                    self._regions_cached[
-                        ParcellationIndex(map=mapindex, label=None)
-                    ] = r
-                    mapindex += 1
-
-        # either load or build the sparse index
-        if not self._load_index():
-            self._build_index()
-            self._store_index()
-        assert self.spatial_index.max() == len(self.probs) - 1
-
-    def _load_index(self):
-
-        self.spatial_index = None
-        self.probs = []
-        self.bboxes = []
-        self.affine = None
-
-        prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        indexfile = CACHE.build_filename(f"{prefix}", suffix="index.nii.gz")
-
-        # check if precomputed index files are available in the local cache, or on gitlab
-        conn = None
-        for fname in [probsfile, bboxfile, indexfile]:
-            if path.isfile(fname):
-                continue  # already in local cache
-            if conn is None:
-                conn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, 'main')
-                files = conn.search_files()
-            bname = path.basename(fname)
-            if bname in files:
-                logger.debug(f"Retrieving precomputed index for {self.parcellation.name}")
-                raw = conn.get(bname, decode_func=lambda b: b)
-                with open(fname, 'wb') as f:
-                    f.write(raw)
-                continue
-            # if we get here, a precomputed file is not available. We have to rebuild the index.
-            logger.info(f"{bname} not precomputed, need to build index.")
-            return False
-
-        indeximg = load(indexfile)
-        self.spatial_index = np.asanyarray(indeximg.dataobj)
-        self.affine = indeximg.affine
-
-        with gzip.open(probsfile, "rt") as f:
-            lines = f.readlines()
-            msg = f"Loading spatial index for {len(self)} continuous maps"
-            for line in tqdm(
-                lines,
-                total=len(lines),
-                desc=msg,
-                unit="voxels",
-                disable=logger.level > 20,
-            ):
-                fields = line.strip().split(" ")
-                mapindices = list(map(int, fields[0::2]))
-                values = list(map(float, fields[1::2]))
-                D = dict(zip(mapindices, values))
-                self.probs.append(D)
-
-        with gzip.open(bboxfile, "rt") as f:
-            for line in f:
-                fields = line.strip().split(" ")
-                self.bboxes.append(
-                    {
-                        "minpoint": tuple(map(int, fields[:3])),
-                        "maxpoint": tuple(map(int, fields[3:])),
-                    }
-                )
-
-        return True
-
-    def _store_index(self):
-        # store spatial index and probability list to file
-        prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
-        probsfile = CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        indexfile = CACHE.build_filename(f"{prefix}", suffix="index.nii.gz")
-
-        Nifti1Image(self.spatial_index, self.affine).to_filename(indexfile)
-
-        with gzip.open(probsfile, 'wt') as f:
-            for D in self.probs:
-                f.write("{}\n".format(" ".join(f"{i} {p}" for i, p in D.items())))
-
-        with gzip.open(bboxfile, "wt") as f:
-            for bbox in self.bboxes:
-                f.write(
-                    "{} {}\n".format(
-                        " ".join(map(str, bbox["minpoint"])),
-                        " ".join(map(str, bbox["maxpoint"])),
-                    )
-                )
-
-    def _build_index(self):
-        """Load map image with the given index."""
-
-        logger.info(
-            f"Creating the spatial index for {self.parcellation.name} continuous maps "
-            f"in {self.space.name}. This will take a minute, but is only performed once."
+        from skimage import measure
+        imgdata = np.asanyarray(img.dataobj).squeeze()
+        components = measure.label(imgdata > 0)
+        component_labels = np.unique(components)
+        assert component_labels[0] == 0
+        return (
+            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+            for label in component_labels[1:]
         )
 
-        self.probs = []
-        self.bboxes = []
-        self.spatial_index = None
-        self.affine = None
-        for mapindex in tqdm(
-            range(len(self)),
-            total=len(self),
-            unit="maps",
-            desc=f"Fetching {len(self)} volumetric maps",
-            disable=logger.level > 20,
-        ):
-            with QUIET:
-                # retrieve the probability map
-                img = self._maploaders_cached[mapindex]()
+    def to_sparse(self):
+        """ Creates a sparse parcellation map from this object. """
+        from .sparsemap import SparseMap
+        indices = {
+            regionname: [
+                {'volume': idx.volume, 'label': idx.label, 'fragment': idx.fragment}
+                for idx in indexlist
+            ]
+            for regionname, indexlist in self._indices.items()
+        }
+        return SparseMap(
+            identifier=self.id,
+            name=self.name,
+            space_spec={'@id': self.space.id},
+            parcellation_spec={'@id': self.parcellation.id},
+            indices=indices,
+            volumes=self.volumes,
+            shortname=self.shortname,
+            description=self.description,
+            modality=self.modality,
+            publications=self.publications,
+            datasets=self.datasets
+        )
 
-            if self.spatial_index is None:
-                self.spatial_index = np.zeros(img.shape, dtype=np.int32) - 1
-                self.affine = img.affine
-            else:
-                assert img.shape == self.shape
-                assert (img.affine - self.affine).sum() == 0
-
-            imgdata = np.asanyarray(img.dataobj)
-            X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
-            for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
-                coord_id = self.spatial_index[x, y, z]
-                if coord_id >= 0:
-                    # Coordinate already seen. Add observed value.
-                    assert mapindex not in self.probs[coord_id]
-                    assert len(self.probs) > coord_id
-                    self.probs[coord_id][mapindex] = prob
-                else:
-                    # New coordinate. Append entry with observed value.
-                    coord_id = len(self.probs)
-                    self.spatial_index[x, y, z] = coord_id
-                    self.probs.append({mapindex: prob})
-
-            self.bboxes.append(
-                {
-                    "minpoint": (X.min(), Y.min(), Z.min()),
-                    "maxpoint": (X.max(), Y.max(), Z.max()),
-                }
-            )
-
-    @property
-    def shape(self):
-        return self.spatial_index.shape
-
-    def _coords(self, mapindex):
-        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
-        coord_ids = [i for i, l in enumerate(self.probs) if mapindex in l]
-        x0, y0, z0 = self.bboxes[mapindex]["minpoint"]
-        x1, y1, z1 = self.bboxes[mapindex]["maxpoint"]
-        return (
-            np.array(
-                np.where(
-                    np.isin(
-                        self.spatial_index[x0: x1 + 1, y0: y1 + 1, z0: z1 + 1],
-                        coord_ids,
-                    )
-                )
-            ).T
-            + (x0, y0, z0)
-        ).T
-
-    def _mapped_voxels(self, mapindex):
-        # returns the x, y, and z coordinates of nonzero voxels for the map
-        # with the given index, together with their corresponding values v.
-        x, y, z = [v.squeeze() for v in np.split(self._coords(mapindex), 3)]
-        v = [self.probs[i][mapindex] for i in self.spatial_index[x, y, z]]
-        return x, y, z, v
-
-    def sample_locations(self, regionspec, numpoints, lower_threshold=0.0):
-        """Sample 3D locations by using one of the maps as probability distributions.
-
-        Parameters
-        ----------
-        regionspec: valid region specification
-            Region to be used
-        numpoints: int
-            Number of samples to draw
-        lower_threshold: float, default: 0
-            Voxels in the map with a value smaller than this threshold will not be considered.
-
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
-
-        TODO we can even circumvent fetch() and work with self._mapped_voxels to speed this up
-        """
-        if isinstance(regionspec, Number):
-            mapindex = regionspec
-        else:
-            mapindex = self.get_index(regionspec)[0].map
-        pmap = self.fetch(mapindex, cropped=True)
-        D = np.array(pmap.dataobj)  # do a real copy so we don't modify the map
-        D[D < lower_threshold] = 0.0
-        p = (D / D.sum()).ravel()
-        XYZ_ = np.array(
-            np.unravel_index(np.random.choice(len(p), numpoints, p=p), D.shape)
-        ).T
-        XYZ = np.dot(pmap.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
-        return PointSet(XYZ, space=self.space)
-
-    def fetch(
+    def _read_voxel(
         self,
-        mapindex: int = 0,
-        resolution_mm: float = None,
-        voi: BoundingBox = None,
-        cropped=False,
+        x: Union[int, np.ndarray, List],
+        y: Union[int, np.ndarray, List],
+        z: Union[int, np.ndarray, List]
     ):
-        """
-        Recreate a particular volumetric map from the sparse
-        representation.
-
-        Arguments
-        ---------
-        mapindex: int, or a valid region specification
-            Index (or specification) of the map to be used
-        resolution_mm: float
-            Optional specification of a target resolution. Only used for neuroglancer volumes.
-        voi: BoundingBox
-            Optional specification of a bounding box
-        cropped: Boolean
-            If true, only a cropped image of the nonzero values with
-            appropriate affine matrix is returned, otherwise a full-sized
-            volume with padded zeros (Default: False)
-
-        """
-        if voi is not None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} does not support volume of interest fetching yet."
-            )
-        if resolution_mm is not None:
-            raise NotImplementedError(
-                f"{self.__class__.__name__} does not support fetching at resolutions other than 1mm yet."
-            )
-
-        if not isinstance(mapindex, Number):
-            # assume we have some form of unique region specification
-            logger.debug(
-                f'Trying to decode map index for region specification "{mapindex}".'
-            )
-            mapindex = self.get_index(mapindex)[0].map
-
-        x, y, z, v = self._mapped_voxels(mapindex)
-        if cropped:
-            bbox = np.array([[min(_), max(_)] for _ in [x, y, z]])
-            result = np.zeros(bbox[:, 1] - bbox[:, 0] + 1)
-            x0, y0, z0 = bbox[:, 0]
-            result[x - x0, y - y0, z - z0] = v
-            shift = np.identity(4)
-            shift[:3, -1] = bbox[:, 0]
-            return Nifti1Image(result, np.dot(self.affine, shift))
+        fragments = self.fragments or {None}
+        if isinstance(x, int):
+            return [
+                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+            ]
         else:
-            result = np.zeros(self.shape, dtype=np.float32)
-            result[x, y, z] = v
-            return Nifti1Image(result, self.affine)
+            return [
+                (pointindex, volume, fragment, value)
+                for fragment in fragments
+                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+                for pointindex, value
+                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+            ]
 
     def assign(
         self,
-        item: Union[Point, PointSet, Nifti1Image],
-        msg=None,
-        quiet=False,
+        item: Union[point.Point, pointset.PointSet, Nifti1Image],
         minsize_voxel=1,
-        lower_threshold=0.0,
-        skip_mapindices=[],
+        lower_threshold=0.0
     ):
         """Assign an input image to brain regions.
 
@@ -1240,18 +691,11 @@ class ContinuousParcellationVolume(ParcellationVolume):
             transforation differs from that of the parcellation map.
             Resampling will use linear interpolation for float image types,
             otherwise nearest neighbor.
-        msg: str, or None
-            An optional message to be shown with the progress bar. This is
-            useful if you use assign() in a loop.
-        quiet: Bool, default: False
-            If True, no outputs will be generated.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the continuous map. Values smaller than
+            Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
-        skip_mapindices: list, default: []
-            Maps whose index is listed here will not be considered for the assignment
 
         Return
         ------
@@ -1259,7 +703,7 @@ class ContinuousParcellationVolume(ParcellationVolume):
             A table of associated regions and their scores per component found in the input image,
             or per coordinate provived.
             The scores are:
-                - MaxValue: Maximum value of the voxels in the map covered by an input coordinate or
+                - Value: Maximum value of the voxels in the map covered by an input coordinate or
                   input image signal component.
                 - Pearson correlation coefficient between the brain region map and an input image signal
                   component (NaN for exact coordinates)
@@ -1275,372 +719,208 @@ class ContinuousParcellationVolume(ParcellationVolume):
             assignment table. If the input was a Point or PointSet, this is None.
         """
 
-        assignments = []
-        components = None
-
-        if isinstance(item, Point):
-            item = PointSet([item], item.space, sigma_mm=item.sigma)
-
-        if isinstance(item, PointSet):
-            if item.space != self.space:
-                logger.info(
-                    f"Coordinates will be converted from {item.space.name} "
-                    f"to {self.space.name} space for assignment."
-                )
-            # convert sigma to voxel coordinates
-            scaling = np.array(
-                [np.linalg.norm(self.affine[:, i]) for i in range(3)]
-            ).mean()
-            phys2vox = np.linalg.inv(self.affine)
-
-            for pointindex, point in enumerate(item.warp(self.space)):
-
-                sigma_vox = point.sigma / scaling
-                if sigma_vox < 3:
-                    # voxel-precise - just read out the value in the maps
-                    N = len(self)
-                    logger.info(f"Assigning coordinate {tuple(point)} to {N} maps")
-                    x, y, z = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")[
-                        :3
-                    ]
-                    for mapindex, value in self.probs[
-                        self.spatial_index[x, y, z]
-                    ].items():
-                        if mapindex in skip_mapindices:
-                            continue
-                        if value > lower_threshold:
-                            assignments.append(
-                                (
-                                    pointindex,
-                                    mapindex,
-                                    value,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                    np.NaN,
-                                )
-                            )
-                else:
-                    logger.info(
-                        f"Assigning uncertain coordinate {tuple(point)} to {len(self)} maps."
-                    )
-                    kernel = create_gaussian_kernel(sigma_vox, 3)
-                    r = int(kernel.shape[0] / 2)  # effective radius
-                    xyz_vox = (np.dot(phys2vox, point.homogeneous) + 0.5).astype("int")
-                    shift = np.identity(4)
-                    shift[:3, -1] = xyz_vox[:3] - r
-                    # build niftiimage with the Gaussian blob,
-                    # then recurse into this method with the image input
-                    W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                    T, _ = self.assign(
-                        W,
-                        lower_threshold=lower_threshold,
-                        skip_mapindices=skip_mapindices,
-                    )
-                    assignments.extend(
-                        [
-                            [
-                                pointindex,
-                                mapindex,
-                                maxval,
-                                iou,
-                                contained,
-                                contains,
-                                rho,
-                            ]
-                            for (
-                                _,
-                                mapindex,
-                                _,
-                                maxval,
-                                rho,
-                                iou,
-                                contains,
-                                contained,
-                            ) in T.values
-                        ]
-                    )
-
+        if isinstance(item, point.Point):
+            assignments = self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+        elif isinstance(item, pointset.PointSet):
+            assignments = self._assign_points(item, lower_threshold)
         elif isinstance(item, Nifti1Image):
-
-            # ensure query image is in parcellation map's voxel space
-            if (item.affine - self.affine).sum() == 0:
-                img2 = item
-            else:
-                if issubclass(np.asanyarray(item.dataobj).dtype.type, np.integer):
-                    interp = "nearest"
-                else:
-                    interp = "linear"
-                img2 = image.resample_img(
-                    item,
-                    target_affine=self.affine,
-                    target_shape=self.shape,
-                    interpolation=interp,
-                )
-            img2data = np.asanyarray(img2.dataobj).squeeze()
-
-            # split input image into multiple 'modes',  ie. connected components
-            from skimage import measure
-
-            components = measure.label(img2data > 0)
-            component_labels = np.unique(components)
-            assert component_labels[0] == 0
-            if len(component_labels) > 1:
-                logger.info(
-                    f"Detected {len(component_labels)-1} components in the image. Assigning each of them to {len(self)} brain regions."
-                )
-
-            for modeindex in component_labels[1:]:
-
-                # determine bounding box of the mode
-                mask = components == modeindex
-                XYZ2 = np.array(np.where(mask)).T
-                if XYZ2.shape[0] <= minsize_voxel:
-                    components[mask] == 0
-                    continue
-                X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
-
-                bbox2 = BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
-                if bbox2.volume == 0:
-                    continue
-
-                for mapindex in tqdm(
-                    range(len(self)),
-                    total=len(self),
-                    unit=" map",
-                    desc=msg,
-                    disable=logger.level > 20,
-                ):
-                    if mapindex in skip_mapindices:
-                        continue
-
-                    bbox1 = BoundingBox(
-                        self.bboxes[mapindex]["minpoint"],
-                        self.bboxes[mapindex]["maxpoint"],
-                        space=None,
-                    )
-                    if bbox1.intersection(bbox2) is None:
-                        continue
-
-                    # compute union of voxel space bounding boxes
-                    bbox = bbox1.union(bbox2)
-                    bbshape = np.array(bbox.shape, dtype="int") + 1
-                    x0, y0, z0 = map(int, bbox.minpoint)
-
-                    # build flattened vector of map values
-                    v1 = np.zeros(np.prod(bbshape))
-                    XYZ1 = self._coords(mapindex).T
-                    X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
-                    indices1 = np.ravel_multi_index(
-                        (X1 - x0, Y1 - y0, Z1 - z0), bbshape
-                    )
-                    v1[indices1] = [
-                        self.probs[i][mapindex] for i in self.spatial_index[X1, Y1, Z1]
-                    ]
-                    v1[v1 < lower_threshold] = 0
-
-                    # build flattened vector of input image mode
-                    v2 = np.zeros(np.prod(bbshape))
-                    indices2 = np.ravel_multi_index(
-                        (X2 - x0, Y2 - y0, Z2 - z0), bbshape
-                    )
-                    v2[indices2] = img2data[X2, Y2, Z2]
-
-                    assert v1.shape == v2.shape
-
-                    intersection = np.sum(
-                        (v1 > 0) & (v2 > 0)
-                    )  # np.minimum(v1, v2).sum()
-                    if intersection == 0:
-                        continue
-                    iou = intersection / np.sum(
-                        (v1 > 0) | (v2 > 0)
-                    )  # np.maximum(v1, v2).sum()
-                    contains = intersection / (v1 > 0).sum()
-                    contained = intersection / (v2 > 0).sum()
-
-                    v1d = v1 - v1.mean()
-                    v2d = v2 - v2.mean()
-                    rho = (
-                        (v1d * v2d).sum()
-                        / np.sqrt((v1d ** 2).sum())
-                        / np.sqrt((v2d ** 2).sum())
-                    )
-
-                    maxval = v1.max()
-
-                    assignments.append(
-                        [modeindex, mapindex, maxval, iou, contained, contains, rho]
-                    )
-
+            assignments = self._assign_image(item, minsize_voxel, lower_threshold)
         else:
             raise RuntimeError(
                 f"Items of type {item.__class__.__name__} cannot be used for region assignment."
             )
 
+        # format assignments as pandas dataframe
         if len(assignments) == 0:
             df = pd.DataFrame(
-                columns=[
-                    "Component",
-                    "MapIndex",
-                    "Region",
-                    "MaxValue",
-                    "Correlation",
-                    "IoU",
-                    "Contains",
-                    "Contained",
-                ]
+                columns=["Structure", "Centroid", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
             )
         else:
-            result = np.array(assignments)
-            # sort by component, then by correlation
-            ind = np.lexsort((-result[:, -1], result[:, 0]))
+            result = np.array(assignments, dtype=object)
+            ind = np.lexsort((-result[:, -1].astype('float'), result[:, 0].astype('float')))
 
+            # determine the unique set of observed indices in order to do region lookups
+            # only once for each map index occuring in the point list
+            labelled = self.is_labelled  # avoid calling this in a long loop
+
+            def format_label(label):
+                return int(label) if (label != 'nan') and (labelled) else None
+
+            observed_indices = {
+                (v, f, format_label(l))
+                for _, _, v, f, l, _, _, _, _ in result[ind]
+            }
+            region_lut = {
+                (v, f, l): self.get_region(
+                    index=MapIndex(volume=int(v), label=format_label(l), fragment=f)
+                )
+                for v, f, l in observed_indices
+            }
+            regions = [
+                region_lut[v, f, format_label(l)] for _, _, v, f, l, _, _, _, _ in result[ind]
+            ]
             df = pd.DataFrame(
                 {
-                    "Component": result[ind, 0].astype("int"),
-                    "MapIndex": result[ind, 1].astype("int"),
-                    "Region": [
-                        self.decode_index(mapindex=m, labelindex=None).name
-                        for m in result[ind, 1]
-                    ],
-                    "MaxValue": result[ind, 2],
-                    "Correlation": result[ind, 6],
-                    "IoU": result[ind, 3],
-                    "Contains": result[ind, 5],
-                    "Contained": result[ind, 4],
-                }
-            ).dropna(axis=1, how="all")
-
-        if components is None:
-            return df
-        else:
-            return df, Nifti1Image(components, self.affine)
-
-
-class LabelledSurface(ParcellationMap):
-    """
-    Represents a brain map in a surface space, with
-    explicit knowledge about the region information per labelindex or channel.
-    """
-
-    def __init__(self, parcellation, space: Space):
-        """
-        Construct a labelled surface for the given parcellation and space.
-
-        Parameters
-        ----------
-        parcellation : Parcellation
-            The parcellation object used to build the map
-        space : Space
-            The desired template space to build the map
-        """
-        assert space.type == "gii"
-        super().__init__(parcellation, space, MapType.LABELLED)
-        self.type = "gii-label"
-
-    def _define_maps_and_regions(self):
-        self._maploaders_cached = []
-        self._regions_cached = {}
-
-        with QUIET:
-            tpl = self.space.get_template()
-        for meshindex, meshname in enumerate(tpl.variants):
-
-            labelsets = [
-                v
-                for v in self.parcellation.get_volumes(self.space)
-                if v.volume_type == self.type and v.name == meshname
-            ]
-            assert len(labelsets) == 1
-            labels = labelsets[0].fetch()
-            unmatched = []
-            for labelindex in np.unique(labels):
-                if labelindex != 0:
-                    pindex = ParcellationIndex(map=meshindex, label=labelindex)
-                    try:
-                        region = self.parcellation.decode_region(pindex)
-                        if labelindex > 0:
-                            self._regions_cached[pindex] = region
-                    except ValueError:
-                        unmatched.append(pindex)
-            if unmatched:
-                logger.warning(
-                    f"{len(unmatched)} parcellation indices in labelled surface couldn't "
-                    f"be matched to region definitions in {self.parcellation.name}"
-                )
-
-            self._maploaders_cached.append(
-                lambda res=None, voi=None, variant=None, name=meshname, labels=labels: {
-                    **self.space.get_template(variant=variant).fetch(name=name),
-                    "labels": labels,
+                    "Structure": result[ind, 0].astype("int"),
+                    "Centroid": result[ind, 1],
+                    "Volume": result[ind, 2].astype("int"),
+                    "Fragment": result[ind, 3],
+                    "Region": regions,
+                    "Value": result[ind, 4],
+                    "Correlation": result[ind, 8],
+                    "IoU": result[ind, 5],
+                    "Contains": result[ind, 7],
+                    "Contained": result[ind, 6],
                 }
             )
 
-    def fetch_all(self, variant=None):
-        """Get the combined mesh composed of all found submeshes (e.g. both hemispheres).
+        return df.convert_dtypes()  # convert will guess numeric column types
 
-        Parameters
+    def _assign_points(self, points, lower_threshold: float):
+        """
+        assign a PointSet to this parcellation map.
+
+        Parameters:
         -----------
-        variant : str
-            Optional specification of variant of the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+        lower_threshold: float, default: 0
+            Lower threshold on values in the statistical map. Values smaller than
+            this threshold will be excluded from the assignment computation.
         """
-        vertices = np.empty((0, 3))
-        faces = np.empty((0, 3))
-        labels = np.empty((0))
-        for surfmap in self.fetch_iter(variant=variant):
-            npoints = vertices.shape[0]
-            vertices = np.append(vertices, surfmap["verts"], axis=0)
-            faces = np.append(faces, surfmap["faces"] + npoints, axis=0)
-            labels = np.append(labels, surfmap["labels"], axis=0)
+        assignments = []
 
-        return dict(zip(["verts", "faces", "labels"], [vertices, faces, labels]))
+        if points.space != self.space:
+            logger.info(
+                f"Coordinates will be converted from {points.space.name} "
+                f"to {self.space.name} space for assignment."
+            )
+        # convert sigma to voxel coordinates
+        scaling = np.array(
+            [np.linalg.norm(self.affine[:, i]) for i in range(3)]
+        ).mean()
+        phys2vox = np.linalg.inv(self.affine)
 
-    def colorize(self, values: dict, name: str = None, variant: str = None):
-        """Colorize the parcellation mesh with the provided regional values.
+        # if all points have the same sigma, and lead to a standard deviation
+        # below 3 voxels, we are much faster with a multi-coordinate readout.
+        if points.has_constant_sigma:
+            sigma_vox = points.sigma[0] / scaling
+            if sigma_vox < 3:
+                pts_warped = points.warp(self.space.id)
+                X, Y, Z = (np.dot(phys2vox, pts_warped.homogeneous.T) + 0.5).astype("int")[:3]
+                for pointindex, vol, frag, value in self._read_voxel(X, Y, Z):
+                    if value > lower_threshold:
+                        position = pts_warped[pointindex].coordinate
+                        assignments.append(
+                            [pointindex, tuple(np.array(position).round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                        )
+                return assignments
 
-        Parameters
-        ----------
-        values : dict
-            Dictionary mapping regions to values
-        name : str
-            If specified, only submeshes matching this name are included, otherwise all meshes included.
-        variant : str
-            Optional specification of a specific variant to use for the maps. For example,
-            fsaverage provides the 'pial', 'white matter' and 'inflated' surface variants.
+        # if we get here, we need to handle each point independently.
+        # This is much slower but more precise in dealing with the uncertainties
+        # of the coordinates.
+        for pointindex, pt in tqdm(
+            enumerate(points.warp(self.space.id)),
+            total=len(points), desc="Warping points",
+        ):
+            sigma_vox = pt.sigma / scaling
+            if sigma_vox < 3:
+                # voxel-precise - just read out the value in the maps
+                N = len(self)
+                logger.debug(f"Assigning coordinate {tuple(pt)} to {N} maps")
+                x, y, z = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")[:3]
+                values = self._read_voxel(x, y, z)
+                for _, vol, frag, value in values:
+                    if value > lower_threshold:
+                        assignments.append(
+                            [pointindex, tuple(pt), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                        )
+            else:
+                logger.info(
+                    f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
+                )
+                kernel = create_gaussian_kernel(sigma_vox, 3)
+                r = int(kernel.shape[0] / 2)  # effective radius
+                xyz_vox = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")
+                shift = np.identity(4)
+                shift[:3, -1] = xyz_vox[:3] - r
+                # build niftiimage with the Gaussian blob,
+                # then recurse into this method with the image input
+                W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
+                T = self.assign(W, lower_threshold=lower_threshold)
+                assignments.extend(
+                    [
+                        [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
+                        for (_, _, volume, fragment, _, value, rho, iou, contains, contained) in T.values
+                    ]
+                )
+        return assignments
 
-        Return
-        ------
-        List of recolored parcellation meshes, each represented as a dictionary
-        with elements
-        - 'verts': An Nx3 array of vertex coordinates,
-        - 'faces': an Mx3 array of face definitions using row indices of the vertex array
-        - 'name': Name of the of the mesh variant
-        NOTE: If a specific name was requested, the single mesh is returned instead of a list.
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
         """
+        Assign an image volume to this parcellation map.
 
-        result = []
-        for mapindex, mesh in enumerate(self.fetch_iter(variant=variant)):
-            if (name is not None) and (name != mesh['name']):
-                continue
-            cmesh = {
-                'verts': mesh['verts'],
-                'faces': mesh['faces'],
-                'labels': np.zeros_like(mesh['labels']),
-                'name': mesh['name'],
-            }
-            for region, value in values.items():
-                try:
-                    indices = self.get_index(region)
-                except IndexError:
-                    continue
-                for index in indices:
-                    if index.map == mapindex:
-                        cmesh['labels'][mesh['labels'] == index.label] = value
-            result.append(cmesh)
+        Parameters:
+        -----------
+        minsize_voxel: int, default: 1
+            Minimum voxel size of image components to be taken into account.
+        lower_threshold: float, default: 0
+            Lower threshold on values in the statistical map. Values smaller than
+            this threshold will be excluded from the assignment computation.
+        """
+        assignments = []
 
-        if len(result) == 1:
-            return result[0]
-        else:
-            return result
+        def resample(img: Nifti1Image, affine: np.ndarray, shape: tuple):
+            # resample query image into this image's voxel space, if required
+            if (img.affine - affine).sum() == 0:
+                return img
+            else:
+                interp = "nearest" \
+                    if issubclass(np.asanyarray(img.dataobj).dtype.type, np.integer) \
+                    else "linear"
+                return image.resample_img(
+                    img,
+                    target_affine=affine,
+                    target_shape=shape,
+                    interpolation=interp,
+                )
+
+        def progress(it, N: int = None, desc: str = "", min_elements=5):
+            # wraps a progress indicator around the given iterator,
+            # but only if the sequence is long.
+            seqlen = N or len(it)
+            return iter(it) if seqlen < min_elements \
+                else tqdm(it, desc=desc, total=N)
+
+        with QUIET and _volume.SubvolumeProvider.UseCaching():
+            for frag in self.fragments or {None}:
+                for vol, vol_img in progress(
+                    enumerate(self.fetch_iter(fragment=frag)),
+                    N=len(self),
+                    desc=f"Assigning to {len(self)} volumes"
+                ):
+                    queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
+                    for mode, maskimg in Map.iterate_connected_components(queryimg_res):
+                        vol_data = np.asanyarray(vol_img.dataobj)
+                        position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
+                        labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
+                        for label in progress(
+                            labels,
+                            desc=f"Assigning to {len(labels)} labelled structures"
+                        ):
+                            targetimg = vol_img if label is None \
+                                else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                            scores = compare_maps(maskimg, targetimg)
+                            if scores["IoU"] > 0:
+                                assignments.append(
+                                    [
+                                        mode,
+                                        tuple(position.round(2)),
+                                        vol,
+                                        frag,
+                                        label,
+                                        scores["IoU"],
+                                        scores["contained"],
+                                        scores["contains"],
+                                        scores["correlation"]]
+                                )
+
+        return assignments

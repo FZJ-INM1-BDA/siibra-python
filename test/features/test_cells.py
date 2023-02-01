@@ -1,47 +1,32 @@
 import unittest
 import siibra
-from siibra.features.cells import CorticalCellDistributionModel
 
 
 atlas = siibra.atlases['human']
-region = atlas.get_region("hoc1 left", parcellation="2.9")
+region = siibra.get_region("julich 2.9", "hoc1 left")
 
 
 class TestCorticalCellDistribution(unittest.TestCase):
 
     def test_get_hoc1_cortical_cell_distribution(self):
-        features = siibra.get_features(region, siibra.modalities.CorticalCellDistribution)
-        assert len(features) > 1
+        features = siibra.features.get(region, siibra.features.cellular.LayerwiseCellDensity)
+        assert len(features) > 0
 
     def test_check_average_density(self):
-        features = siibra.get_features(region, siibra.modalities.CorticalCellDistribution)
-        assert len(features) > 1
+        features = siibra.features.get(region, siibra.features.cellular.LayerwiseCellDensity)
+        assert len(features) > 0
         feature = features[0]
-        average_density = feature.average_density()
-        assert average_density is not None
+        assert (feature.data['mean'].mean() > 90) and (feature.data['mean'].mean() < 100)
+        assert feature.data.shape == (6, 2)
 
     def test_check_layer_density_with_valid_range(self):
-        features = siibra.get_features(region, siibra.modalities.CorticalCellDistribution)
-        assert len(features) > 1
+        features = siibra.features.get(region, siibra.features.cellular.LayerwiseCellDensity)
+        assert len(features) > 0
         feature = features[0]
-        layer_density = feature.layer_density(1)
+        layer_density = feature.data['mean']['I']
         assert layer_density is not None
-        layer_density = feature.layer_density(6)
+        layer_density = feature.data['mean']['VI']
         assert layer_density is not None
-
-    def test_check_layer_density_with_invalid_range(self):
-        features = siibra.get_features(region, siibra.modalities.CorticalCellDistribution)
-        assert len(features) > 1
-        feature = features[0]
-        with self.assertRaises(AssertionError):
-            feature.layer_density(10)
-
-    def test_to_model(self):
-        features = siibra.get_features(region, siibra.modalities.CorticalCellDistribution)
-        feature = features[0]
-        model = feature.to_model(detail=False)
-        assert isinstance(model, CorticalCellDistributionModel)
-        assert getattr(model.metadata, 'short_name') is not None and model.metadata.short_name != ""
 
 
 if __name__ == "__main__":

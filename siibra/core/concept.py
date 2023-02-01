@@ -13,87 +13,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .datasets import Dataset
 
-from .. import QUIET, __version__
-from ..retrieval import GitlabConnector, NoSiibraConfigMirrorsAvailableException, TagNotFoundException
-from ..commons import logger, TypedRegistry
+from ..commons import create_key, clear_name, logger, InstanceTable, Species
 
-import os
 import re
-from abc import ABC, abstractmethod, abstractproperty
+from typing import TypeVar, Type, Union, List, TYPE_CHECKING
 
-# Until openminds is fully supported, we get configurations of siibra concepts from gitlab.
-GITLAB_PROJECT_TAG = os.getenv(
-    "SIIBRA_CONFIG_GITLAB_PROJECT_TAG", "siibra-{}".format(__version__)
-)
-USE_DEFAULT_PROJECT_TAG = "SIIBRA_CONFIG_GITLAB_PROJECT_TAG" not in os.environ
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
-
-_BOOTSTRAP_CONNECTORS = (
-    # we use an iterator to only instantiate the one[s] used
-    GitlabConnector(
-        "https://jugit.fz-juelich.de",
-        3484,
-        GITLAB_PROJECT_TAG,
-        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-    ),
-    GitlabConnector(
-        "https://gitlab.ebrains.eu",
-        93,
-        GITLAB_PROJECT_TAG,
-        skip_branchtest=USE_DEFAULT_PROJECT_TAG,
-    ),
-)
+T = TypeVar("T", bound="AtlasConcept")
 
 
-def provide_registry(cls):
-    """Used for decorating derived classes - will add a registry of bootstrapped instances then."""
+class TypePublication(TypedDict):
+    citation: str
+    url: str
 
-    # find a suitable connector that is reachable
-    for connector in _BOOTSTRAP_CONNECTORS:
-        try:
-            loaders = connector.get_loaders(
-                cls._bootstrap_folder,
-                ".json",
-                progress=f"Bootstrap: {cls.__name__:15.15}",
-            )
-            break
-        except Exception as e:
-            print(str(e))
-            logger.error(
-                f"Cannot connect to configuration server {str(connector)}"
-            )
-            *_, last = _BOOTSTRAP_CONNECTORS
-            if connector is last:
-                raise NoSiibraConfigMirrorsAvailableException(f"Tried alll mirrors, none available.")
 
-    else:
-        # we get here only if the loop is not broken
-        raise TagNotFoundException(
-            f"Cannot initialize atlases: No configuration data found for '{GITLAB_PROJECT_TAG}'."
-        )
-
-    cls.REGISTRY = TypedRegistry[cls](matchfunc=cls.match_spec)
-    extensions = []
-    with QUIET:
-        for fname, loader in loaders:
-            obj = cls._from_json(loader.data)
-            if obj.extends is not None:
-                extensions.append(obj)
-                continue
-            if isinstance(obj, cls):
-                cls.REGISTRY.add(obj.key, obj)
-            else:
-                raise RuntimeError(
-                    f"Could not generate object of type {cls} from configuration {fname} - construction provided type {obj.__class__}"
-                )
-
-    for e in extensions:
-        target = cls.REGISTRY[e.extends]
-        target._extend(e)
-
-    return cls
+if TYPE_CHECKING:
+    from ..retrieval.datasets import EbrainsDataset
+    TypeDataset = EbrainsDataset
 
 
 class AtlasConcept:
@@ -104,149 +46,126 @@ class AtlasConcept:
     providing data files or additional metadata descriptions on request.
     """
 
-    logger.debug(f"Configuration: {GITLAB_PROJECT_TAG}")
-    _bootstrap_folder = None
-
-    def __init__(self, identifier, name, dataset_specs):
-        self.id = identifier
-        self.name = name
-        self.key = __class__._create_key(name)
-        # objects for datasets wil only be generated lazily on request
-        self._dataset_specs = dataset_specs
-        self._datasets_cached = None
-        # this attribute can be used to mark a concept as an extension of another one
-        self.extends = None
-
-    def __init_subclass__(cls, type_id=None, bootstrap_folder=None):
+    def __init__(
+        self,
+        identifier: str,
+        name: str,
+        species: Union[str, Species],
+        shortname: str = None,
+        description: str = None,
+        modality: str = "",
+        publications: List[TypePublication] = [],
+        datasets: List['TypeDataset'] = [],
+    ):
         """
-        This method is called whenever SiibraConcept gets subclassed
-        (see https://docs.python.org/3/reference/datamodel.html)
-        """
-        logger.debug(
-            f"New subclass to {__class__.__name__}: {cls.__name__} (config folder: {bootstrap_folder})"
-        )
-        cls.type_id = type_id
-        if bootstrap_folder is not None:
-            cls._bootstrap_folder = bootstrap_folder
-        return super().__init_subclass__()
-
-    def add_dataset(self, dataset: Dataset):
-        """ Explictly add another dataset object to this atlas concept. """
-        self._datasets_cached.append(dataset)
-
-    def _populate_datasets(self):
-        self._datasets_cached = []
-        for spec in self._dataset_specs:
-            type_id = Dataset.extract_type_id(spec)
-            Specialist = Dataset.REGISTRY.get(type_id, None)
-            if Specialist is None:
-                logger.warn(f"No class available for building datasets with type {spec.get('@type',None)}. Candidates were {','.join(Dataset.REGISTRY.keys())}. Specification was: {spec}.")
-            else:
-                obj = Specialist._from_json(spec)
-                logger.debug(
-                    f"Built {obj.__class__.__name__} object '{obj}' from dataset specification."
-                )
-                self._datasets_cached.append(obj)
-
-    def _extend(self, other):
-        """
-        Some concepts allow to be extended by refined concepts.
-        The "@extends" attribute in the configuration is used to indicate this.
-        Use this method to implement the actual extension operation.
-        """
-        raise NotImplementedError(
-            f"'{self.__class__.__name__}' does not implement an extension "
-            f"mechanism with '{other.__class__.__name__}' types.")
-
-    @property
-    def datasets(self):
-        if self._datasets_cached is None:
-            self._populate_datasets()
-        return self._datasets_cached
-
-    @staticmethod
-    def _create_key(name):
-        """
-        Creates an uppercase identifier string that includes only alphanumeric
-        characters and underscore from a natural language name.
-        """
-        return re.sub(
-            r" +",
-            "_",
-            "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
-        )
-
-    def __str__(self):
-        return f"{self.__class__.__name__}: {self.name}"
-
-    @property
-    def volumes(self):
-        """
-        The list of available datasets representing image volumes.
-        """
-        return [d for d in self.datasets if d.is_volume]
-
-    @property
-    def surfaces(self):
-        """
-        The list of available datasets representing surface volumes.
-        """
-        return [d for d in self.datasets if d.is_surface]
-
-    @property
-    def has_volumes(self):
-        """Returns True, if this concept can provide an image volume."""
-        return len(self.volumes) > 0
-
-    @property
-    def has_surfaces(self):
-        """Returns True, if this concept can provide a surface volume."""
-        return len(self.surfaces) > 0
-
-    @property
-    def infos(self):
-        """
-        List of available datasets representing additional information.
-        """
-        return [d for d in self.datasets if not d.is_volume]
-
-    @property
-    def publications(self):
-        """List of publications found in info datasets."""
-        result = []
-        for info in self.infos:
-            result.extend(info.publications)
-        return result
-
-    @property
-    def descriptions(self):
-        """List of descriptions found in info datasets."""
-        result = []
-        for info in self.infos:
-            result.append(info.description)
-        return result
-
-    @property
-    def supported_spaces(self):
-        """
-        The list of spaces for which volumetric datasets are registered.
-        """
-        return list({v.space for v in self.volumes})
-
-    def get_volumes(self, space):
-        """
-        Get available volumes sources in the requested template space.
+        Construct a new atlas concept base object.
 
         Parameters
         ----------
-        space : Space or str
-            template space or template space specification
+            identifier : str
+                Unique identifier of the parcellation
+            name : str
+                Human-readable name of the parcellation
+            species: Species or string
+                Specification of the species
+            shortname: str
+                Shortform of human-readable name (optional)
+            description: str
+                Textual description of the parcellation
+            modality  :  str or None
+                Specification of the modality underlying this concept
+            datasets : list
+                list of datasets corresponding to this concept
+            publications: list
+                List of publications, each a dictionary with "doi" and/or "citation" fields
 
-        Yields
-        ------
-        A list of volume sources
         """
-        return [v for v in self.volumes if v.space.matches(space)]
+        self._id = identifier
+        self.name = name
+        self._species_cached = None if species is None \
+            else Species.decode(species)  # overwritable property implementation below
+        self.shortname = shortname
+        self.modality = modality
+        self.description = description
+        self.publications = publications
+        self.datasets = datasets
+
+    @property
+    def species(self) -> Species:
+        # Allow derived classes to implement a lazy loader (e.g. in Map)
+        if self._species_cached is None:
+            raise RuntimeError(f"No species defined for {self}.")
+        return self._species_cached
+
+    @classmethod
+    def registry(cls: Type[T]) -> InstanceTable[T]:
+        if cls._configuration_folder is None:
+            return None
+        if cls._registry_cached is None:
+            from ..configuration import Configuration
+            conf = Configuration()
+            # visit the configuration to provide a cleanup function
+            # in case the user changes the configuration during runtime.
+            Configuration.register_cleanup(cls.clear_registry)
+            assert cls._configuration_folder in conf.folders
+            objects = conf.build_objects(cls._configuration_folder)
+            logger.debug(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
+            assert len(objects) > 0
+            assert all([hasattr(o, 'key') for o in objects])
+
+            # TODO Map.registry() returns InstanceTable that contains two different types, SparseMap and Map
+            # Since we take the objects[0].__class__.match, if the first element happen to be SparseMap, this could result.
+            # Code to reproduce:
+            """
+            import siibra
+            r = siibra.volumes.Map.registry()
+            """
+            if len({o.__class__ for o in objects}) > 1:
+                logger.warning(f"{cls.__name__} registry contains multiple classes: {', '.join(list({o.__class__.__name__ for o in objects}))}")
+            assert hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
+            cls._registry_cached = InstanceTable(
+                elements={o.key: o for o in objects},
+                matchfunc=objects[0].__class__.match
+            )
+        return cls._registry_cached
+
+    @classmethod
+    def clear_registry(cls):
+        cls._registry_cached = None
+
+    @classmethod
+    def get_instance(cls, spec: str):
+        """
+        Returns an instance of this class matching the given specification
+        from its registry, if possible, otherwise None.
+
+        Raises
+        -------
+        IndexError: if spec cannot match any instance
+        """
+        if cls.registry() is not None:
+            return cls.registry().get(spec)
+
+    @property
+    def id(self):
+        # allows derived classes to assign the id dynamically
+        return self._id
+
+    @property
+    def key(self):
+        return create_key(self.name)
+
+    def __init_subclass__(cls, configuration_folder: str = None):
+        """
+        This method is called whenever AtlasConcept gets subclassed
+        (see https://docs.python.org/3/reference/datamodel.html)
+        """
+        cls._registry_cached = None
+        cls._configuration_folder = configuration_folder
+        return super().__init_subclass__()
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.name}"
 
     def matches(self, spec):
         """
@@ -262,7 +181,7 @@ class AtlasConcept:
             else:
                 # match the name
                 words = [w for w in re.split("[ -]", spec)]
-                squeezedname = self.name.lower().replace(" ", "")
+                squeezedname = clear_name(self.name.lower()).replace(" ", "")
                 return any(
                     [
                         all(w.lower() in squeezedname for w in words),
@@ -272,6 +191,7 @@ class AtlasConcept:
         return False
 
     @classmethod
-    def match_spec(cls, obj, spec):
+    def match(cls, obj, spec):
+        """Match a given object specification. """
         assert isinstance(obj, cls)
         return obj.matches(spec)

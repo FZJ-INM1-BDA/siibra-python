@@ -1,29 +1,25 @@
 import pytest
 import numpy as np
-from siibra.features.voi import VolumeOfInterestQuery, VolumeOfInterest
+import siibra
 
 
-query = VolumeOfInterestQuery()
+vois = siibra.features.VolumeOfInterest.get_instances()
 
-@pytest.mark.parametrize('feature', query.features)
-def test_voi_features(feature: VolumeOfInterest):
-    model = feature.to_model()
-    import re
-    assert re.match(r"^[\w/\-.:]+$", model.id), f"model_id should only contain [\w/\-.:]+, but is instead {model.id}"
 
 def test_pli_volume_transform():
-    feat = [f for f in query.features if "3D-PLI" in f.name]
-    assert len(feat) == 1, f"expecting 1 PLI data" #may need to fix in future
+
+    voinames = [v.name for v in vois]
+    for word in ['Transmittance', 'Blockface', 'fiber orientation map', 'Segmentation', 'T2-weighted MRI']:
+        assert any(word in n for n in voinames)
+
+    feat = [f for f in vois if "fiber orientation map" in f.name]
+    assert len(feat) == 1, "expecting 1 FOM volume"  # may need to fix in future
     feat = feat[0]
-    assert all(
-        (np.array(vol.detail.get('neuroglancer/precomputed').get('transform')) == vol.transform_nm).all()
-        for vol in feat.volumes
-    ), f"expecting transform in neuroglance/precomputed be adopted as transform_nm, but was not."
 
     assert any(
-        vol.url == "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo/HSV-FOM"
-        for vol in feat.volumes
-    ), f"Expect RGB PLI volume to be present"
+        p._url
+        == "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo/HSV-FOM"
+        for p in feat._providers.values()
+    ), "Expect RGB PLI volume to be present"
 
-    assert len(feat.volumes) > 1, f"expecting more than 1 volume (incl. blockface, MRS label etc)"
-    
+

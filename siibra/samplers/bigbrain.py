@@ -14,11 +14,11 @@
 # limitations under the License.
 
 
-from ctypes import ArgumentError
 from ..commons import logger
-from ..core.space import Space, Point, PointSet
-from ..core.parcellation import Parcellation
+from ..configuration.configuration import REGISTRY
+from ..locations import Point, PointSet
 
+from ctypes import ArgumentError
 import numpy as np
 from skimage import measure
 from nilearn import image
@@ -47,8 +47,8 @@ class BigBrainCortexSampler:
             this distance, no data will be sampled.
         """
 
-        self.space = Space.REGISTRY["bigbrain"]
-        self._layermask = Parcellation.REGISTRY["layers"].get_map(self.space)
+        self.space = REGISTRY.Space["bigbrain"]
+        self._layermask = REGISTRY.Parcellation["layers"].get_map(self.space)
         self._template = self.space.get_template()
         self.boxwidth_mm = boxwidth_mm
         self.maxdist_mm = maxdist_mm

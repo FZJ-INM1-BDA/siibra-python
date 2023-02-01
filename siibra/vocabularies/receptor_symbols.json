@@ -1,0 +1,210 @@
+{
+    "5-HT1A": {
+        "receptor": {
+            "latex": "$5-HT_{1A}$",
+            "markdown": "5-HT<sub>1A</sub>",
+            "name": "5-hydroxytryptamine receptor type 1A"
+        },
+        "neurotransmitter": {
+            "label": "5-HT",
+            "latex": "$5-HT$",
+            "markdown": "5-HT",
+            "name": "serotonin"
+        }
+    },
+    "5-HT2": {
+        "receptor": {
+            "latex": "$5-HT_2$",
+            "markdown": "5-HT<sub>2</sub>",
+            "name": "5-hydroxytryptamine receptor type 2"
+        },
+        "neurotransmitter": {
+            "label": "5-HT",
+            "latex": "$5-HT$",
+            "markdown": "5-HT",
+            "name": "serotonin"
+        }
+    },
+    "AMPA": {
+        "receptor": {
+            "latex": "$AMPA$",
+            "markdown": "AMPA",
+            "name": "alpha-amino-3hydroxy-5-methyl-4isoxazolepropionic acid receptor"
+        },
+        "neurotransmitter": {
+            "label": "Glu",
+            "latex": "$Glu$",
+            "markdown": "Glu",
+            "name": "glutamate"
+        }
+    },
+    "BZ": {
+        "receptor": {
+            "latex": "$GABA_A/BZ$",
+            "markdown": "GABA<sub>A</sub>/BZ",
+            "name": "gamma-aminobutyric acid receptor type A / benzodiazepine associated binding site"
+        },
+        "neurotransmitter": {
+            "label": "GABA",
+            "latex": "$GABA$",
+            "markdown": "GABA",
+            "name": "gamma-aminobutyric acid"
+        }
+    },
+    "D1": {
+        "receptor": {
+            "latex": "$D_1$",
+            "markdown": "D<sub>1</sub>",
+            "name": "dopamine receptor type 1"
+        },
+        "neurotransmitter": {
+            "label": "DA",
+            "latex": "$DA$",
+            "markdown": "DA",
+            "name": "dopamine"
+        }
+    },
+    "GABAA": {
+        "receptor": {
+            "latex": "$GABA_A$",
+            "markdown": "GABA<sub>A</sub>",
+            "name": "gamma-aminobutyric acid receptor type A"
+        },
+        "neurotransmitter": {
+            "label": "GABA",
+            "latex": "$GABA$",
+            "markdown": "GABA",
+            "name": "gamma-aminobutyric acid"
+        }
+    },
+    "GABAB": {
+        "receptor": {
+            "latex": "$GABA_B$",
+            "markdown": "GABA<sub>B</sub>",
+            "name": "gamma-aminobutyric acid receptor type B"
+        },
+        "neurotransmitter": {
+            "label": "GABA",
+            "latex": "$GABA$",
+            "markdown": "GABA",
+            "name": "gamma-aminobutyric acid"
+        }
+    },
+    "M1": {
+        "receptor": {
+            "latex": "$M_1$",
+            "markdown": "M<sub>1</sub>",
+            "name": "muscarinic acetylcholine receptor type 1"
+        },
+        "neurotransmitter": {
+            "label": "ACh",
+            "latex": "$ACh$",
+            "markdown": "ACh",
+            "name": "acetylcholine"
+        }
+    },
+    "M2": {
+        "receptor": {
+            "latex": "$M_2$",
+            "markdown": "M<sub>2</sub>",
+            "name": "muscarinic acetylcholine receptor type 2"
+        },
+        "neurotransmitter": {
+            "label": "ACh",
+            "latex": "$ACh$",
+            "markdown": "ACh",
+            "name": "acetylcholine"
+        }
+    },
+    "M3": {
+        "receptor": {
+            "latex": "$M_3$",
+            "markdown": "M<sub>3</sub>",
+            "name": "muscarinic acetylcholine receptor type 3"
+        },
+        "neurotransmitter": {
+            "label": "ACh",
+            "latex": "$ACh$",
+            "markdown": "ACh",
+            "name": "acetylcholine"
+        }
+    },
+    "NMDA": {
+        "receptor": {
+            "latex": "$NMDA$",
+            "markdown": "NMDA",
+            "name": "N-methyl-D-aspartate receptor"
+        },
+        "neurotransmitter": {
+            "label": "Glu",
+            "latex": "$Glu$",
+            "markdown": "Glu",
+            "name": "glutamate"
+        }
+    },
+    "alpha1": {
+        "receptor": {
+            "latex": "$\\alpha_1$",
+            "markdown": "&#945<sub>1</sub>",
+            "name": "alpha-1 adrenergic receptor"
+        },
+        "neurotransmitter": {
+            "label": "NE",
+            "latex": "$NE$",
+            "markdown": "NE",
+            "name": "norepinephrine"
+        }
+    },
+    "alpha2": {
+        "receptor": {
+            "latex": "$\\alpha_2$",
+            "markdown": "&#945<sub>2</sub>",
+            "name": "alpha-2 adrenergic receptor"
+        },
+        "neurotransmitter": {
+            "label": "NE",
+            "latex": "$NE$",
+            "markdown": "NE",
+            "name": "norepinephrine"
+        }
+    },
+    "alpha4beta2": {
+        "receptor": {
+            "latex": "$\\alpha_4\\beta_2$",
+            "markdown": "&#945<sub>4</sub>&#946<sub>2</sub>",
+            "name": "alpha-4 beta-2 nicotinic receptor"
+        },
+        "neurotransmitter": {
+            "label": "ACh",
+            "latex": "$ACh$",
+            "markdown": "ACh",
+            "name": "acetylcholine"
+        }
+    },
+    "kainate": {
+        "receptor": {
+            "latex": "$kainate$",
+            "markdown": "kainate",
+            "name": "kainate receptors"
+        },
+        "neurotransmitter": {
+            "label": "Glu",
+            "latex": "$Glu$",
+            "markdown": "Glu",
+            "name": "glutamate"
+        }
+    },
+    "mGluR2_3": {
+        "receptor": {
+            "latex": "$mGluR2/3$",
+            "markdown": "mGluR2/3",
+            "name": "metabotropic glutamate receptor type 2 and 3"
+        },
+        "neurotransmitter": {
+            "label": "Glu",
+            "latex": "$Glu$",
+            "markdown": "Glu",
+            "name": "glutamate"
+        }
+    }
+}

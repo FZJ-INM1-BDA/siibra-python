@@ -18,7 +18,8 @@ import os
 from appdirs import user_cache_dir
 import tempfile
 
-from ..commons import logger
+from ..commons import logger, SIIBRA_CACHEDIR
+
 
 def assert_folder(folder):
     # make sure the folder exists and is writable, then return it.
@@ -32,8 +33,7 @@ def assert_folder(folder):
         return folder
     except OSError:
         # cannot write to requested directory, create a temporary one.
-        tmpdir = os.environ["SIIBRA_CACHEDIR"] = \
-            tempfile.mkdtemp(prefix="siibra-cache-")
+        tmpdir = tempfile.mkdtemp(prefix="siibra-cache-")
         logger.warning(
             f"Siibra created a temporary cache directory at {tmpdir}, as "
             f"the requested folder ({folder}) was not usable. "
@@ -59,8 +59,8 @@ class Cache:
         Return an instance of the siibra cache. Create folder if needed.
         """
         if cls._instance is None:
-            if "SIIBRA_CACHEDIR" in os.environ:
-                cls.folder = os.environ["SIIBRA_CACHEDIR"]
+            if SIIBRA_CACHEDIR:
+                cls.folder = SIIBRA_CACHEDIR
             cls.folder = assert_folder(cls.folder)
             cls._instance = cls.__new__(cls)
             cls._instance.run_maintenance()
@@ -74,15 +74,15 @@ class Cache:
         self.folder = assert_folder(self.folder)
 
     def run_maintenance(self):
-        """ Shrinks the cache by deleting oldest files first until the total size 
+        """ Shrinks the cache by deleting oldest files first until the total size
         is below cache size (Cache.SIZE) given in GiB."""
 
         # build sorted list of cache files and their os attributes
         files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
-        sfiles = sorted([(fn, os.stat(fn)) for fn in files], key = lambda t: t[1].st_atime)
+        sfiles = sorted([(fn, os.stat(fn)) for fn in files], key=lambda t: t[1].st_atime)
 
         # determine the first n files that need to be deleted to reach the accepted cache size
-        size_gib = sum(t[1].st_size for t in sfiles)/1024**3
+        size_gib = sum(t[1].st_size for t in sfiles) / 1024**3
         targetsize = size_gib
         index = 0
         for index, (fn, st) in enumerate(sfiles):
@@ -99,7 +99,7 @@ class Cache:
     @property
     def size(self):
         """ Return size of the cache in GiB. """
-        return sum(os.path.getsize(fn) for fn in self)/1024**3
+        return sum(os.path.getsize(fn) for fn in self) / 1024**3
 
     def __iter__(self):
         """ Iterate all element names in the cache directory. """
@@ -111,7 +111,7 @@ class Cache:
         Args:
             str_rep (str): Unique string representation of the item. Will be used to compute a hash.
             suffix (str, optional): Optional file suffix, in order to allow filetype recognition by the name. Defaults to None.
-            
+
         Returns:
             filename
         """

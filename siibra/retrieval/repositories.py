@@ -14,10 +14,17 @@
 # limitations under the License.
 
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from .cache import CACHE
+
 from .. import logger
+
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
+import os
+from zipfile import ZipFile
+from typing import List
+import requests
 
 
 class RepositoryConnector(ABC):
@@ -29,7 +36,7 @@ class RepositoryConnector(ABC):
         self.base_url = base_url
 
     @abstractmethod
-    def search_files(folder: str, suffix: str, recursive: bool = False):
+    def search_files(folder: str, suffix: str, recursive: bool = False) -> List[str]:
         pass
 
     @abstractmethod
@@ -69,7 +76,7 @@ class RepositoryConnector(ABC):
         Returns an iterator with lazy loaders for the files in a given folder.
         In each iteration, a tuple (filename,file content) is returned.
         """
-        fnames = self.search_files(folder, suffix, recursive)
+        fnames: List[str] = self.search_files(folder, suffix, recursive)
         result = [
             (fname, self.get_loader(fname, decode_func=decode_func)) for fname in fnames
         ]
@@ -77,13 +84,90 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return tqdm(
+            return list(tqdm(
                 result, total=len(fnames), desc=progress, disable=logger.level > 20
+            ))
+
+    @classmethod
+    def _from_url(cls, url: str):
+        expurl = os.path.abspath(os.path.expanduser(url))
+        if url.endswith(".zip"):
+            return ZipfileConnector(url)
+        elif os.path.isdir(expurl):
+            return LocalFileRepository(expurl)
+        else:
+            raise TypeError(
+                "Do not know how to create a repository "
+                f"connector from url '{url}'."
             )
 
 
+class LocalFileRepository(RepositoryConnector):
+
+    def __init__(self, folder: str):
+        assert os.path.isdir(folder)
+        self._folder = folder
+        if folder[-1] != os.path.sep:
+            self._folder += os.path.sep
+
+    def _build_url(self, folder: str, filename: str):
+        return os.path.join(self._folder, folder, filename)
+
+    class FileLoader:
+        """
+        Just a loads a local file, but mimics the behaviour
+        of cached http requests used in other connectors.
+        """
+        def __init__(self, file_url, decode_func):
+            self.url = file_url
+            self.func = decode_func
+            self.cached = True
+
+        @property
+        def data(self):
+            with open(self.url, 'rb') as f:
+                return self.func(f.read())
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for loading data
+        only once loader.data is accessed."""
+        url = self._build_url(folder, filename)
+        if url is None:
+            raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
+        if decode_func is None:
+            return self.FileLoader(url, lambda b: self._decode_response(b, filename))
+        else:
+            return self.FileLoader(url, decode_func)
+
+    def search_files(self, folder="", suffix=None, recursive=False):
+        exclude = ['.', '~']
+        result = []
+        for root, dirs, files in os.walk(self._folder):
+            subfolder = root.replace(self._folder, '')
+            if not subfolder.startswith(folder):
+                continue
+            dirs[:] = [d for d in dirs if d[0] not in exclude]
+            if subfolder.replace(folder, '') != "" and not recursive:
+                continue
+            for f in files:
+                if f[0] in exclude:
+                    continue
+                if suffix is None or f.endswith(suffix):
+                    result.append(os.path.join(root.replace(self._folder, ''), f))
+        return result
+
+    def __str__(self):
+        return f"{self.__class__.__name__} at {self._folder}"
+
+
 class GitlabConnector(RepositoryConnector):
-    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False):
+
+    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False, *, archive_mode=False):
+        """
+        archive_mode: in archive mode, the entire repository is downloaded as an archive. This is necessary/could be useful for repositories with numerous files.
+            n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
+            see https://docs.python.org/3/library/tarfile.html#tarfile.TarFile.extractall
+        """
         # TODO: the query builder needs to check wether the reftag is a branch, and then not cache.
         assert server.startswith("http")
         RepositoryConnector.__init__(
@@ -96,6 +180,7 @@ class GitlabConnector(RepositoryConnector):
         )
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
+        self.archive_mode = archive_mode
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
@@ -154,6 +239,101 @@ class GitlabConnector(RepositoryConnector):
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
 
+    def get(self, filename, folder="", decode_func=None):
+        if not self.archive_mode:
+            return super().get(filename, folder, decode_func)
+
+        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
+
+        if not os.path.isdir(archive_directory):
+
+            url = self.base_url + f"/archive.tar.gz?sha={ref}"
+            resp = requests.get(url)
+            tar_filename = f"{archive_directory}.tar.gz"
+
+            resp.raise_for_status()
+            with open(tar_filename, "wb") as fp:
+                fp.write(resp.content)
+
+            import tarfile
+            tar = tarfile.open(tar_filename, "r:gz")
+            tar.extractall(archive_directory)
+            for _dir in os.listdir(archive_directory):
+                for file in os.listdir(f"{archive_directory}/{_dir}"):
+                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
+                os.rmdir(f"{archive_directory}/{_dir}")
+
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
+        decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
+
+        with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
+            return decoder(fp.read())
+
+
+class ZipfileConnector(RepositoryConnector):
+
+    def __init__(self, url: str):
+        RepositoryConnector.__init__(self, base_url="")
+        self.url = url
+        self._zipfile_cached = None
+
+    @property
+    def zipfile(self):
+        if self._zipfile_cached is None:
+            if os.path.isfile(os.path.abspath(os.path.expanduser(self.url))):
+                self._zipfile_cached = os.path.abspath(os.path.expanduser(self.url))
+            else:
+                # assume the url is web URL to download the zip!
+                req = HttpRequest(self.url)
+                req._retrieve()
+                self._zipfile_cached = req.cachefile
+        return self._zipfile_cached
+
+    def _build_url(self, folder="", filename=None):
+        return os.path.join(folder, filename)
+
+    def search_files(self, folder="", suffix="", recursive=False):
+        container = ZipFile(self.zipfile)
+        result = []
+        if folder and not folder.endswith(os.path.sep):
+            folder += os.path.sep
+        for fname in container.namelist():
+            if os.path.dirname(fname.replace(folder, "")) and not recursive:
+                continue
+            if not os.path.basename(fname):
+                continue
+            if fname.startswith(folder) and fname.endswith(suffix):
+                result.append(fname)
+        return result
+
+    class FileLoader:
+        """
+        Loads a file from the zip archive, but mimics the behaviour
+        of cached http requests used in other connectors.
+        """
+        def __init__(self, zipfile, filename, decode_func):
+            self.zipfile = zipfile
+            self.filename = filename
+            self.func = decode_func
+            self.cached = True
+
+        @property
+        def data(self):
+            container = ZipFile(self.zipfile)
+            return self.func(container.open(self.filename).read())
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        """Get a lazy loader for a file, for loading data
+        only once loader.data is accessed."""
+        if decode_func is None:
+            return self.FileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
+        else:
+            return self.FileLoader(self.zipfile, filename, decode_func)
+
+    def __str__(self):
+        return f"{self.__class__.__name__}: {self.zipfile}"
+
 
 class OwncloudConnector(RepositoryConnector):
     def __init__(self, server: str, share: int):
@@ -174,7 +354,6 @@ class OwncloudConnector(RepositoryConnector):
 class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
     the Human Data Gateway (HDG) via the data proxy API.
-    
     Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
     """
 
@@ -183,22 +362,22 @@ class EbrainsHdgConnector(RepositoryConnector):
     Currently v1 is the only supported version."""
     api_version = "v1"
 
-    """ 
+    """
     Base URL for the Dataset Endpoint of the Data-Proxy API
     https://data-proxy.ebrains.eu/api/docs#/datasets
-    
+
     Supported functions by the endpoint:
     ------------------------------------
     - POST: Request access to the dataset.
-      https://data-proxy.ebrains.eu/api/docs#/datasets/request_dataset_access_v1_datasets__dataset_id__post
         This is required for the other functions.
     - GET: Return list of all available objects in the dataset
-      https://data-proxy.ebrains.eu/api/docs#/datasets/dataset_stat_v1_datasets__dataset_id__stat_get"""
+    """
     base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
-    
+
     """
     Limit of returned objects
-    Default value on API side is 50 objects""" 
+    Default value on API side is 50 objects
+    """
     maxentries = 1000
 
     def __init__(self, dataset_id):
@@ -227,7 +406,7 @@ class EbrainsHdgConnector(RepositoryConnector):
             try:
                 result = EbrainsRequest(url, DECODERS[".json"]).get()
             except SiibraHttpRequestError as e:
-                if e.response.status_code in [401, 422]:
+                if e.status_code in [401, 422]:
                     # Request access to the dataset (401: expired, 422: not yet requested)
                     EbrainsRequest(f"{self.base_url}/{dataset_id}", post=True).get()
                     input(
@@ -271,9 +450,9 @@ class EbrainsHdgConnector(RepositoryConnector):
 
     def _build_url(self, folder, filename):
         if len(folder) > 0:
-            fpath = quote(f"{folder}/{filename}") #, safe="")
+            fpath = quote(f"{folder}/{filename}")
         else:
-            fpath = quote(f"{filename}") #, safe="")
+            fpath = quote(f"{filename}")
         url = f"{self.base_url}/{self.dataset_id}/{fpath}?redirect=true"
         return url
 
@@ -290,32 +469,56 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
     maxentries = 1000
 
-    def __init__(self, dataset_id, in_progress=False):
+    def __init__(self, dataset_id: str = None, version_id: str = None, title: str = None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
         ----------
         dataset_id : str
             EBRAINS dataset id of a public dataset in KG v3.
+        version_id : str
+            Version id to pick from the dataset (optional)
+        title: str
+            Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
             Will only work when autenticated with an appropriately privileged
             user account.
         """
         self.dataset_id = dataset_id
-        stage = "IN_PROGRESS" if in_progress else "RELEASED"
-        url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
-        result = EbrainsRequest(url, DECODERS[".json"]).get()
         self.versions = {}
         self._description = ""
         self._name = ""
         self.use_version = None
-        assert len(result["data"]) < 2
-        if len(result["data"]) == 1:
-            data = result["data"][0]
-            self._description += data.get("description", "")
-            self._name += data.get("name", "")
-            self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
+
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        if title is None:
+            assert dataset_id is not None
+            self.dataset_id = dataset_id
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
+        else:
+            assert dataset_id is None
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&title={title}"
+
+        response = EbrainsRequest(url, DECODERS[".json"]).get()
+        results = response.get('data', [])
+        if len(results) != 1:
+            if dataset_id is None:
+                for r in results:
+                    print(r['name'])
+                    raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets. Please refine your specification.")
+            else:
+                raise RuntimeError(f"Dataset id {dataset_id} did not yield a unique match, please fix the dataset specification.")
+
+        data = results[0]
+        self.id = data['id']
+        if title is not None:
+            self.dataset_id = data['id']
+        self._description += data.get("description", "")
+        self._name += data.get("name", "")
+        self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
+        if version_id is None:
             self.use_version = sorted(list(self.versions.keys()))[-1]
             if len(self.versions) > 1:
                 logger.info(
@@ -323,12 +526,15 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
                     f"({', '.join(self.versions.keys())}). "
                     f"Will use {self.use_version} per default."
                 )
+        else:
+            assert version_id in self.versions
+            self.use_version = version_id
 
     @property
     def name(self):
         if self.use_version in self.versions:
             if "name" in self.versions[self.use_version]:
-                if len(self.versions[self.use_version]["name"])>0:
+                if len(self.versions[self.use_version]["name"]) > 0:
                     return self.versions[self.use_version]["name"]
         return self._name
 
@@ -388,50 +594,54 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         return HttpRequest(self._build_url(folder, filename), decode_func)
 
 
-
 class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
     """Access files from public EBRAINS datasets via the Knowledge Graph v3 API."""
 
-    QUERY_ID = "siibra-dataset-by-id-minds"
+    QUERY_ID = "siibra-minds-dataset-v1"
     base_url = "https://kg.humanbrainproject.eu/query/minds/core/dataset/v1.0.0"
     maxentries = 1000
 
-    def __init__(self, dataset_id, in_progress=False):
+    def __init__(self, dataset_id=None, title=None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
         ----------
         dataset_id : str
             EBRAINS dataset id of a public dataset in KG v3.
+        title: str
+            Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
         in_progress: bool (default:False)
             If true, will request datasets that are still under curation.
             Will only work when autenticated with an appropriately privileged
             user account.
         """
-        self.dataset_id = dataset_id
         stage = "IN_PROGRESS" if in_progress else "RELEASED"
-        url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
-        response = EbrainsRequest(url, DECODERS[".json"]).get()
-        results = response.get('results', [])
-        assert len(results) == 1
-        data = results[0]
-        self.name = data['name']
-        self.description = data['description']
-        self.id = data['@id']
-        self._container = data['container_url_2']
-
-    def __getattr__(self, name):
-        if name in self._data:
-            return self._data[name]
-
-    @property
-    def _files(self):
-        if self.use_version in self.versions:
-            return {
-                f["name"]: f["url"] for f in self.versions[self.use_version]["files"]
-            }
+        if title is None:
+            assert dataset_id is not None
+            self.dataset_id = dataset_id
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
         else:
-            return {}
+            assert dataset_id is None
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&title={title}"
+        req = EbrainsRequest(url, DECODERS[".json"])
+        print(req.cachefile)
+        response = req.get()
+        self._files = {}
+        results = response.get('results', [])
+        if dataset_id is not None:
+            assert len(results) < 2
+        elif len(results) > 1:
+            for r in results:
+                print(r.keys())
+                print(r['name'])
+            raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets, see above. Please refine your specification.")
+        for res in results:
+            if title is not None:
+                self.dataset_id = res['id']
+            self.id = res['id']
+            for fileinfo in res['https://schema.hbp.eu/myQuery/v1.0.0']:
+                self._files[fileinfo['relative_path']] = fileinfo['path']
 
     def search_files(self, folder="", suffix=None, recursive=False):
         result = []
