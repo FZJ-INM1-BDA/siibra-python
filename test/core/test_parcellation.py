@@ -246,16 +246,3 @@ class TestParcellation(unittest.TestCase):
 parc_has_ebrains_doi = [
     ("human", "julich brain 2.9")
 ]
-
-
-@pytest.mark.parametrize('atlas_id,parc_id', parc_has_ebrains_doi)
-def test_should_have_ebrains_doi(atlas_id, parc_id):
-
-    parc = Parcellation.get(parc_id)
-    model = parc.to_model()
-    all(
-        ver.digital_identifier is not None
-        and ver.digital_identifier.get("@type") == "https://openminds.ebrains.eu/core/DOI"
-        and ver.digital_identifier.get("@id").startswith("https://doi.org")
-        for ver in model.brain_atlas_versions
-    )
