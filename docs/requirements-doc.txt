@@ -9,3 +9,5 @@ IPython
 m2r2
 sphinx-gallery
 matplotlib
+sphinx-rtd-theme
+sphinx_autopackagesummary

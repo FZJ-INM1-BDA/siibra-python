@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Base volume class. A volume is a specific mesh or 3D array."""
 from .. import logger
 from ..retrieval import requests
 from ..core import space
