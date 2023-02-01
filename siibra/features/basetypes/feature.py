@@ -223,3 +223,26 @@ class Feature:
                 live_instances.extend(q.query(concept))
 
         return preconfigured_instances + live_instances
+
+    @classmethod
+    def get_ascii_tree(cls):
+        # build an Ascii representation of class hierarchy
+        # under this feature class
+        from anytree.importer import DictImporter
+        from anytree import RenderTree
+
+        def create_treenode(feature_type):
+            return {
+                'name': feature_type.__name__,
+                'children': [
+                    create_treenode(c) 
+                    for c in feature_type.__subclasses__()
+                ]
+            }
+        D = create_treenode(cls)
+        importer = DictImporter()
+        tree = importer.import_(D)
+        return "\n".join(
+            "%s%s" % (pre, node.name)
+            for pre, _, node in RenderTree(tree)
+        )
