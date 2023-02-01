@@ -290,10 +290,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if isinstance(region_or_index, (str, _region.Region)):
             region = region_or_index
-        
+
         mapindex = None
         if region is not None:
-            assert isinstance(region, (str, Region))
+            assert isinstance(region, (str, _region.Region))
             mapindex = self.get_index(region)
         if index is not None:
             assert isinstance(index, MapIndex)
