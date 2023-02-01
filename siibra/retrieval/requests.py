@@ -283,14 +283,14 @@ class EbrainsRequest(HttpRequest):
     @classmethod
     def device_flow(cls):
         if all([
-            not sys.__stdout__.isatty(), # if is tty, do not raise
-            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ), # if is notebook environment, do not raise
-            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"), # if explicitly enabled by env var, do not raise
+            not sys.__stdout__.isatty(),  # if is tty, do not raise
+            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
+            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"),  # if explicitly enabled by env var, do not raise
         ]):
             raise EbrainsAuthenticationError(
                 "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
                 "and not running in a notebook. Are you running in batch mode?"
-                )
+            )
 
         cls.init_oidc()
         resp = requests.post(
@@ -465,6 +465,7 @@ class EbrainsKgQuery(EbrainsRequest):
                 )
         return result
 
+
 def try_all_connectors():
     def outer(fn):
         @wraps(fn)
@@ -482,10 +483,11 @@ def try_all_connectors():
         return inner
     return outer
 
+
 class GitlabProxyEnum(Enum):
-    DATASET_V1="DATASET_V1"
-    PARCELLATIONREGION_V1="PARCELLATIONREGION_V1"
-    DATASET_V3="DATASET_V3"
+    DATASET_V1 = "DATASET_V1"
+    PARCELLATIONREGION_V1 = "PARCELLATIONREGION_V1"
+    DATASET_V3 = "DATASET_V3"
 
     @property
     def connectors(self) -> List['GitlabConnector']:
@@ -497,14 +499,15 @@ class GitlabProxyEnum(Enum):
         return [GitlabConnector(server[0], server[1], "master", archive_mode=True) for server in servers]
 
     @try_all_connectors()
-    def search_files(self, folder: str, suffix=None, recursive=True, *, connector: 'GitlabConnector'=None) -> List[str]:
+    def search_files(self, folder: str, suffix=None, recursive=True, *, connector: 'GitlabConnector' = None) -> List[str]:
         assert connector
         return connector.search_files(folder, suffix=suffix, recursive=recursive)
 
     @try_all_connectors()
-    def get(self, filename, decode_func=None, *, connector: 'GitlabConnector'=None):
+    def get(self, filename, decode_func=None, *, connector: 'GitlabConnector' = None):
         assert connector
         return connector.get(filename, "", decode_func)
+
 
 class GitlabProxy(HttpRequest):
 
@@ -514,9 +517,18 @@ class GitlabProxy(HttpRequest):
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 
-    def __init__(self, flavour: GitlabProxyEnum, instance_id=None, postprocess: Callable[['GitlabProxy', Any], Any]=(lambda proxy, obj: obj if hasattr(proxy, "instance_id") and proxy.instance_id else { "results": obj })):
+    def __init__(
+        self,
+        flavour: GitlabProxyEnum,
+        instance_id=None,
+        postprocess: Callable[['GitlabProxy', Any], Any] = (
+            lambda proxy, obj: obj
+            if hasattr(proxy, "instance_id") and proxy.instance_id
+            else {"results": obj}
+        )
+    ):
         if flavour not in GitlabProxyEnum:
-            raise RuntimeError(f"Can only proxy enum members")
+            raise RuntimeError("Can only proxy enum members")
 
         self.flavour = flavour
         self.folder = self.folder_dict[flavour]
@@ -524,21 +536,22 @@ class GitlabProxy(HttpRequest):
         self.instance_id = instance_id
         self._cached_files = None
 
-
     def get(self):
         if self.instance_id:
             return self.postprocess(self, self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
         return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
-    
 
-class MultiSourceRequestException(Exception): pass
+
+class MultiSourceRequestException(Exception):
+    pass
+
 
 class MultiSourcedRequest:
     requests: List[HttpRequest] = []
-    
+
     def __init__(self, requests: List[HttpRequest]) -> None:
         self.requests = requests
-    
+
     def get(self):
         exceptions = []
         for req in self.requests:

@@ -15,6 +15,7 @@
 
 from .ebrains import EbrainsDataFeature
 
+
 def __dir__():
     return [
         "EbrainsDataFeature",

@@ -46,7 +46,7 @@ class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset):
         self.version = None
         self._next = None
         self._prev = None
-    
+
     @property
     def id(self):
         # There exists a property name collision (id property implemented by both Feature and dataset.EbrainsDataset)

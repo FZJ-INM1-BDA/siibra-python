@@ -221,7 +221,7 @@ class RegionalConnectivity(Feature):
             self.cohort,
             len(self._files),
         )
-    
+
     def compute_centroids(self, space):
         """
         compute the list of centroid coordinates corresponding to

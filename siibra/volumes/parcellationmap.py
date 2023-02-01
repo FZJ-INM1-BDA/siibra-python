@@ -32,9 +32,17 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..core.region import Region
 
-class ExcessiveArgumentException(ValueError): pass
-class InsufficientArgumentException(ValueError): pass
-class ConflictingArgumentException(ValueError): pass
+
+class ExcessiveArgumentException(ValueError):
+    pass
+
+
+class InsufficientArgumentException(ValueError):
+    pass
+
+
+class ConflictingArgumentException(ValueError):
+    pass
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -400,7 +408,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         if len(self.volumes) == 1 and (self.fragments is None):
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
-    
+
         # initialize empty volume according to the template
         template = self.space.get_template().fetch(**kwargs)
         result_data = np.zeros_like(np.asanyarray(template.dataobj))
@@ -523,10 +531,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         return Nifti1Image(result, affine)
 
-    def get_colormap(self, region_specs: Iterable=None):
+    def get_colormap(self, region_specs: Iterable = None):
         """
         Generate a matplotlib colormap from known rgb values of label indices.
-        
+
         The probability distribution is approximated from the region mask
         based on the squared distance transform.
 
@@ -544,7 +552,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         colors = {}
         if region_specs is not None:
-            include_region_names = { self.parcellation.get_region(region_spec).name for region_spec in region_specs }
+            include_region_names = {
+                self.parcellation.get_region(region_spec).name for region_spec in region_specs
+            }
         else:
             include_region_names = None
 
@@ -552,7 +562,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for index in indices:
                 if index.label is None:
                     continue
-                    
+
                 if (include_region_names is not None) and (regionname not in include_region_names):
                     continue
                 else:
@@ -567,7 +577,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
-        
+
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
 

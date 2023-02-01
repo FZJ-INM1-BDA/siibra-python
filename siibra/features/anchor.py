@@ -23,7 +23,6 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from anytree import LevelOrderIter
 from typing import Union, List
 from enum import Enum
 

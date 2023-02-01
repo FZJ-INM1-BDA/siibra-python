@@ -209,4 +209,3 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         We sort atlases by their names
         """
         return self.name < other.name
-

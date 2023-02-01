@@ -50,7 +50,9 @@ class SparseIndex:
             self.voxels = np.zeros(img.shape, dtype=np.int32) - 1
         else:
             if (img.shape != self.shape) or ((img.affine - self.affine).sum() != 0):
-                raise RuntimeError(f"Building sparse maps from volumes with different voxel spaces is not yet supported in siibra.")
+                raise RuntimeError(
+                    "Building sparse maps from volumes with different voxel spaces is not yet supported in siibra."
+                )
 
         volume = self.num_volumes
         imgdata = np.asanyarray(img.dataobj)
@@ -266,10 +268,10 @@ class SparseMap(parcellationmap.Map):
 
     def fetch(
         self,
-        region_or_index: Union[MapIndex, str, 'Region']=None,
+        region_or_index: Union[MapIndex, str, 'Region'] = None,
         *,
-        index: MapIndex=None,
-        region: Union[str, 'Region']=None,
+        index: MapIndex = None,
+        region: Union[str, 'Region'] = None,
         **kwargs
     ):
         """
@@ -295,7 +297,9 @@ class SparseMap(parcellationmap.Map):
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise parcellationmap.ExcessiveArgumentException(f"One and only one of region_or_index, region, index can be defined for fetch")
+                raise parcellationmap.ExcessiveArgumentException(
+                    "One and only one of region_or_index, region, index can be defined for fetch"
+                )
             # user can provide no arguments, which assumes one and only one volume present
 
         if isinstance(region_or_index, MapIndex):
@@ -313,7 +317,7 @@ class SparseMap(parcellationmap.Map):
             index = self.get_index(region)
             assert index is not None
             volidx = index.volume
-        
+
         if volidx is None:
             try:
                 assert len(self) == 1

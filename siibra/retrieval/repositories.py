@@ -21,9 +21,10 @@ from .. import logger
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 from tqdm import tqdm
-from os import path, walk
+import os
 from zipfile import ZipFile
 from typing import List
+import requests
 
 
 class RepositoryConnector(ABC):
@@ -89,10 +90,10 @@ class RepositoryConnector(ABC):
 
     @classmethod
     def _from_url(cls, url: str):
-        expurl = path.abspath(path.expanduser(url))
+        expurl = os.path.abspath(os.path.expanduser(url))
         if url.endswith(".zip"):
             return ZipfileConnector(url)
-        elif path.isdir(expurl):
+        elif os.path.isdir(expurl):
             return LocalFileRepository(expurl)
         else:
             raise TypeError(
@@ -104,13 +105,13 @@ class RepositoryConnector(ABC):
 class LocalFileRepository(RepositoryConnector):
 
     def __init__(self, folder: str):
-        assert path.isdir(folder)
+        assert os.path.isdir(folder)
         self._folder = folder
-        if folder[-1] != path.sep:
-            self._folder += path.sep
+        if folder[-1] != os.path.sep:
+            self._folder += os.path.sep
 
     def _build_url(self, folder: str, filename: str):
-        return path.join(self._folder, folder, filename)
+        return os.path.join(self._folder, folder, filename)
 
     class FileLoader:
         """
@@ -141,7 +142,7 @@ class LocalFileRepository(RepositoryConnector):
     def search_files(self, folder="", suffix=None, recursive=False):
         exclude = ['.', '~']
         result = []
-        for root, dirs, files in walk(self._folder):
+        for root, dirs, files in os.walk(self._folder):
             subfolder = root.replace(self._folder, '')
             if not subfolder.startswith(folder):
                 continue
@@ -152,7 +153,7 @@ class LocalFileRepository(RepositoryConnector):
                 if f[0] in exclude:
                     continue
                 if suffix is None or f.endswith(suffix):
-                    result.append(path.join(root.replace(self._folder, ''), f))
+                    result.append(os.path.join(root.replace(self._folder, ''), f))
         return result
 
     def __str__(self):
@@ -237,17 +238,16 @@ class GitlabConnector(RepositoryConnector):
             for e in results
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
-    
+
     def get(self, filename, folder="", decode_func=None):
         if not self.archive_mode:
             return super().get(filename, folder, decode_func)
-        
+
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
         archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
-        import os, requests
-        
+
         if not os.path.isdir(archive_directory):
-            
+
             url = self.base_url + f"/archive.tar.gz?sha={ref}"
             resp = requests.get(url)
             tar_filename = f"{archive_directory}.tar.gz"
@@ -255,7 +255,7 @@ class GitlabConnector(RepositoryConnector):
             resp.raise_for_status()
             with open(tar_filename, "wb") as fp:
                 fp.write(resp.content)
-            
+
             import tarfile
             tar = tarfile.open(tar_filename, "r:gz")
             tar.extractall(archive_directory)
@@ -263,7 +263,7 @@ class GitlabConnector(RepositoryConnector):
                 for file in os.listdir(f"{archive_directory}/{_dir}"):
                     os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
                 os.rmdir(f"{archive_directory}/{_dir}")
-            
+
         suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
         decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
 
@@ -281,8 +281,8 @@ class ZipfileConnector(RepositoryConnector):
     @property
     def zipfile(self):
         if self._zipfile_cached is None:
-            if path.isfile(path.abspath(path.expanduser(self.url))):
-                self._zipfile_cached = path.abspath(path.expanduser(self.url))
+            if os.path.isfile(os.path.abspath(os.path.expanduser(self.url))):
+                self._zipfile_cached = os.path.abspath(os.path.expanduser(self.url))
             else:
                 # assume the url is web URL to download the zip!
                 req = HttpRequest(self.url)
@@ -291,17 +291,17 @@ class ZipfileConnector(RepositoryConnector):
         return self._zipfile_cached
 
     def _build_url(self, folder="", filename=None):
-        return path.join(folder, filename)
+        return os.path.join(folder, filename)
 
     def search_files(self, folder="", suffix="", recursive=False):
         container = ZipFile(self.zipfile)
         result = []
-        if folder and not folder.endswith(path.sep):
-            folder += path.sep
+        if folder and not folder.endswith(os.path.sep):
+            folder += os.path.sep
         for fname in container.namelist():
-            if path.dirname(fname.replace(folder, "")) and not recursive:
+            if os.path.dirname(fname.replace(folder, "")) and not recursive:
                 continue
-            if not path.basename(fname):
+            if not os.path.basename(fname):
                 continue
             if fname.startswith(folder) and fname.endswith(suffix):
                 result.append(fname)
@@ -354,7 +354,7 @@ class OwncloudConnector(RepositoryConnector):
 class EbrainsHdgConnector(RepositoryConnector):
     """Download sensitive files from EBRAINS using
     the Human Data Gateway (HDG) via the data proxy API.
-    
+
     Service documentation can be found here https://data-proxy.ebrains.eu/api/docs
     """
 
@@ -363,10 +363,10 @@ class EbrainsHdgConnector(RepositoryConnector):
     Currently v1 is the only supported version."""
     api_version = "v1"
 
-    """ 
+    """
     Base URL for the Dataset Endpoint of the Data-Proxy API
     https://data-proxy.ebrains.eu/api/docs#/datasets
-    
+
     Supported functions by the endpoint:
     ------------------------------------
     - POST: Request access to the dataset.
@@ -374,10 +374,11 @@ class EbrainsHdgConnector(RepositoryConnector):
     - GET: Return list of all available objects in the dataset
     """
     base_url = f"https://data-proxy.ebrains.eu/api/{api_version}/datasets"
-    
+
     """
     Limit of returned objects
-    Default value on API side is 50 objects""" 
+    Default value on API side is 50 objects
+    """
     maxentries = 1000
 
     def __init__(self, dataset_id):

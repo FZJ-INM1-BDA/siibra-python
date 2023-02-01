@@ -20,7 +20,6 @@ from nibabel import Nifti1Image
 import logging
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
-from io import BytesIO
 from skimage.filters import gaussian
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])

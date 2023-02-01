@@ -25,8 +25,10 @@ except ImportError:
     # support python 3.7
     from typing_extensions import TypedDict
 
+
 class EbrainsDatasetUrl(TypedDict):
     url: str
+
 
 EbrainsDatasetPerson = TypedDict('EbrainsDatasetPerson', {
     '@id': str,
@@ -45,7 +47,7 @@ EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
 
 class EbrainsDataset:
 
-    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus]=None, *, cached_data=None):
+    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
 
         self._id = id
         self._cached_data = cached_data
@@ -60,7 +62,7 @@ class EbrainsDataset:
             raise ValueError(
                 f"{self.__class__.__name__} initialized with invalid id: {self.id}"
             )
-    
+
     @property
     def id(self) -> str:
         return self._id

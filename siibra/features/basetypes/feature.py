@@ -78,7 +78,7 @@ class Feature:
             if not issubclass(BaseCls, Feature):
                 continue
             cls.SUBCLASSES[BaseCls].append(cls)
-            
+
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
@@ -149,7 +149,7 @@ class Feature:
     def last_match_description(self):
         return "" if self.anchor is None \
             else self.anchor.last_match_description
-    
+
     @property
     def id(self):
         prefix = ''
@@ -189,7 +189,7 @@ class Feature:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
 
             return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
-        
+
         assert issubclass(feature_type, Feature)
 
         if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):

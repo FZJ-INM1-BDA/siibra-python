@@ -25,7 +25,6 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 # %%
 from nilearn import plotting
 import siibra
-from tqdm import tqdm
 
 # %%
 # We start by selecting an atlas parcellation.
@@ -99,7 +98,6 @@ plotting.view_connectome(
     adjacency_matrix=matrix,
     node_coords=node_coords,
     edge_threshold="99%",
-    node_size=3, colorbar=False,  edge_cmap="bwr"
-    )
-
-# %%
+    node_size=3, colorbar=False,
+    edge_cmap="bwr"
+)
