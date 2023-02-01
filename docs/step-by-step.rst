@@ -5,7 +5,7 @@ This section provides a catalogue of documented code examples that is systematic
 
 .. attention:: 
 	
-	Make sure you followed the steps in :ref:`getting-started`. You should have your EBRAINS account registered and enabled for API access in order to be able to generate access tokens. While only some functionalities require EBRAINS access, the code examples assume that you set the environment variable ``$HBP_AUTH_TOKEN`` to a freshly obtained EBRAINS access token. 
+	Make sure you followed the steps in :ref:`getting-started`. Ideally you have an EBRAINS account registered. While only some functionalities require EBRAINS access, our code examples assume that you set the environment variable ``$HBP_AUTH_TOKEN`` to a freshly obtained EBRAINS access token. 
 
 .. toctree::
    :maxdepth: 3
