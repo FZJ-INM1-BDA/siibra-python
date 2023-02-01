@@ -182,7 +182,15 @@ class RegionalConnectivity(Feature):
         If max_rows is given, only the subset of regions with highest connectivity is returned.
         """
         matrix = self.get_matrix(subject)
-        regions = [r for r in matrix.index if r.matches(region)]
+
+        def matches(r1, r2):
+            if isinstance(r1, tuple):
+                return any(r.matches(r2) for r in r1)
+            else:
+                assert isinstance(r1, _region.Region)
+                return r1.matches(r2)
+
+        regions = [r for r in matrix.index if matches(r, region)]
         if len(regions) == 0:
             raise ValueError(f"Invalid region specificiation: {region}")
         elif len(regions) > 1:
