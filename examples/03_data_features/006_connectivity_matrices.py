@@ -23,6 +23,7 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 """
 
 # %%
+# sphinx_gallery_thumbnail_number = 1
 from nilearn import plotting
 import siibra
 
@@ -67,8 +68,8 @@ conn.plot_matrix(subject=conn.subjects[0])
 
 # %%
 # The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to "mean".
-conn.plot_matrix()
+# or setting it to "mean". Also, the heatmap can be drawn in logscale.
+conn.plot_matrix(logscale=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using

@@ -27,6 +27,7 @@ amount of image data, or a volume of interest.
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-004.png'
 # We start by selecting an atlas.
 import siibra
 from nilearn import plotting

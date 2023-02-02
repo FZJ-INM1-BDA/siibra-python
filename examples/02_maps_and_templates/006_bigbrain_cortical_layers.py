@@ -21,6 +21,7 @@ Access to Big Brain cortical layer meshes
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-006.png'
 import siibra
 from nilearn import plotting
 import numpy as np

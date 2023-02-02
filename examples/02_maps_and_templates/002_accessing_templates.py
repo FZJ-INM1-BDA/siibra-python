@@ -40,6 +40,7 @@ This example will show some typical settings.
 
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-002.png'
 import siibra
 from nilearn import plotting
 
@@ -63,7 +64,7 @@ print(type(icbm_img))
 # %%
 # We can  display this template with common neuroimaging visualization tools.
 # Here we use the plotting tools provided by `nilearn <https://nilearn.github.io>`_
-plotting.view_img(icbm_img, bg_img=None, cmap='gray')
+plotting.view_img(icbm_img, bg_img=None, cmap='gray', colorbar=False)
 
 # %%
 # As described above however, the template has multiple volume providers, representing different

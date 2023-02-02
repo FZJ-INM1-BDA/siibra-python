@@ -24,6 +24,7 @@ Each is shipped with left and right hemispheres separately.
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-005.png'
 # For plotting meshes, most python libraries can be employed.
 # We recommend the plotting module of `nilearn <https://nilearn.github.io>`_.
 import siibra

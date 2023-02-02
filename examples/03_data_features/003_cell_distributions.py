@@ -22,6 +22,7 @@ Another regional data feature are cortical distributions of cell bodies. The dis
 
 
 # %%
+# sphinx_gallery_thumbnail_number = 1
 import siibra
 import matplotlib.pyplot as plt
 from nilearn import plotting

@@ -28,8 +28,9 @@ We start again by selecting the Julich-Brain probabilistic maps from the human a
 
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/05-002.png'
 import siibra
-from nilearn import image, plotting
+from nilearn import plotting
 
 # %%
 # Select a probabilistic parcellation map to do the anatomical assignments.
@@ -54,7 +55,9 @@ img = difumo_maps.fetch(region=region)
 # let's look at the resulting query image
 plotting.view_img(
     img,
-    title=f"Functional map created from {region}"
+    title=f"Functional map created from {region}",
+    symmetric_cmap=False,
+    colorbar="south"
 )
 
 # %%
