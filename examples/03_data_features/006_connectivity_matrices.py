@@ -23,7 +23,7 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 """
 
 # %%
-# sphinx_gallery_thumbnail_number = 1
+# sphinx_gallery_thumbnail_number = 2
 from nilearn import plotting
 import siibra
 

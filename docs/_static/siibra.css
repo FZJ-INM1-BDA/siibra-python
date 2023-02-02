@@ -1,16 +1,13 @@
+.logo{
+    width:250px;
+}
+
 .center { text-align: center; }
 img.center {
     display: block;
     margin: auto;
 }
 
-h1.logo {
-	display: none;
-}
-
-.wy-side-nav-search .wy-dropdown > a img.logo, .wy-side-nav-search > a img.logo {
-    width: 300px;
-}
 .version{
     color:rgb(0, 0, 0) !important;
 }

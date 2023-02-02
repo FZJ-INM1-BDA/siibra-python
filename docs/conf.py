@@ -16,7 +16,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme
 import sphinx_autopackagesummary
 
-from siibra import __version__ as siibra_version
 
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
@@ -29,7 +28,6 @@ project = "siibra-python"
 copyright = "2020-2023, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
 language = 'en'
-version = siibra_version
 
 # -- General configuration ---------------------------------------------------
 
@@ -42,12 +40,20 @@ extensions = [
     'sphinx.ext.inheritance_diagram',
     'sphinx.ext.autosummary',
     'sphinx.ext.autosectionlabel',
+    'sphinx.ext.intersphinx',
     "sphinx_autopackagesummary",
     "autoapi.extension",
     "IPython.sphinxext.ipython_console_highlighting",
     "sphinx_rtd_theme",
     "m2r2",
 ]
+
+# Add mappings
+intersphinx_mapping = {
+    "mainconcepts": ('../concepts.html', None),
+    "accessEBRAINS": ('../start.html#access-to-ebrains', None),
+    "nilearn": ('https://nilearn.github.io/stable/index.html', None)
+}
 
 # autoapi options
 autoapi_member_order = "groupwise"
@@ -92,6 +98,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": False,
+    "run_stale_examples": False
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -103,9 +110,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/legacy"]
 html_theme = "sphinx_rtd_theme"
 
 html_theme_options = {
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
+    'logo_only': True,
+    'display_version': False,
+    'prev_next_buttons_location': None,
     'style_external_links': False,
     'vcs_pageview_mode': '',
     'style_nav_header_background': 'white',
@@ -127,14 +134,12 @@ html_static_path = ["_static"]
 html_css_files = ["siibra.css"]
 # other html details
 html_show_sourcelink = False
+html_show_sphinx = False
 html_logo = "_static/siibra-python.jpeg"
 html_permalinks = False
 
 source_suffix = [".rst"]
 
 autoclass_content = 'both'
-
-# Example configuration for intersphinx: refer to the Python standard library.
-#intersphinx_mapping = {'https://docs.python.org/3/': None}
 
 # -- Sphinxext configuration --------------------------------------------------

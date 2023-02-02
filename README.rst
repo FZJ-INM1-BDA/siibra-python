@@ -52,6 +52,7 @@ There is also an image based on jupyter:scipy-notebook, which already includes `
         --name siibra \
         docker-registry.ebrains.eu/siibra/siibra-python:latest
 
+.. _accessEBRAINS:
 Access to EBRAINS
 -----------------
 
@@ -61,11 +62,11 @@ To use this functionality, you need to obtain an EBRAINS authentication token wi
 To use your EBRAINS access token in siibra:
 
 1. If you do not yet have an EBRAINS account, register `here <https://ebrains.eu/register>`__.
-2. When using siibra, fetch an authentication token by using `siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains login website. Login, and accept the requested detail.
+2. When using siibra, fetch an authentication token by using :meth:`siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains login website. Login, and accept the requested detail.
 
 Since tokens are temporary, step 2. needs to be repeated regularly.
 If you prefer, you can also create your token by visiting `the EBRAINS authorization endpoint <https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__.
-Copy the token, and either store it in the enviroment variable ``$HBP_AUTH_TOKEN`` or pass it explicitely to ``siibra`` using ``siibra.set_ebrains_token()``.
+Copy the token, and either store it in the enviroment variable ``$HBP_AUTH_TOKEN`` or pass it explicitely to ``siibra`` using :meth:`siibra.set_ebrains_token()`.
 The token is a string sequence with more than 1000 characters, usually starting with with “ey”.
 
 Note that as of now, you need to to step 2 approximately every day to perform EBRAINS data queries.
