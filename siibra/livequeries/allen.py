@@ -271,7 +271,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             icbm_coord = (np.matmul(
                 AllenBrainAtlasQuery._specimen[donor_name]["donor2icbm"],
                 sample["sample"]["mri"] + [1],
-            ) + .5).astype('int')
+            )).round(2)
 
             for probe in probes:
                 yield {
