@@ -8,6 +8,13 @@ h1.logo {
 	display: none;
 }
 
+.wy-side-nav-search .wy-dropdown > a img.logo, .wy-side-nav-search > a img.logo {
+    width: 300px;
+}
+.version{
+    color:rgb(0, 0, 0) !important;
+}
+
 .sphx-glr-thumbcontainer {
     min-height: 2px !important;
     width: 100% !important;
@@ -27,7 +34,6 @@ h1.logo {
 }
 .sphx-glr-thumbcontainer img {
     width: 250px !important;
-	display: none;
 }
 .sphx-glr-thumbcontainer a.internal {
     padding: 20px !important;

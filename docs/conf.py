@@ -16,6 +16,8 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme
 import sphinx_autopackagesummary
 
+from siibra import __version__ as siibra_version
+
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
@@ -26,7 +28,8 @@ print("Path:", sys.path)
 project = "siibra-python"
 copyright = "2020-2023, Forschungszentrum Juelich GmbH"
 author = "Big Data Analytics Group, Institute of Neuroscience and Medicine, Forschungszentrum Juelich GmbH"
-
+language = 'en'
+version = siibra_version
 
 # -- General configuration ---------------------------------------------------
 
@@ -87,6 +90,8 @@ sphinx_gallery_conf = {
     "filename_pattern": r"^.*.py",  # which files to execute and include their outputs
     "capture_repr": ("_repr_html_", "__repr__"),
     "within_subsection_order": FileNameSortKey,
+    "remove_config_comments": True,
+    "show_signature": False,
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -120,21 +125,16 @@ html_static_path = ["_static"]
 
 # overriding some styles in a custom CSS
 html_css_files = ["siibra.css"]
+# other html details
 html_show_sourcelink = False
-html_logo = "../images/siibra-python.jpeg"
+html_logo = "_static/siibra-python.jpeg"
 html_permalinks = False
 
 source_suffix = [".rst"]
 
 autoclass_content = 'both'
 
-# -- Sphinxext configuration --------------------------------------------------
-
-# Set attributes for layout of inheritance diagrams
-inheritance_graph_attrs = dict(rankdir='LR', size='"6.0, 8.0"', fontsize=14, ratio='compress')
-inheritance_node_attrs = dict(
-    shape='ellipse', fontsize=14, height=0.75, color='dodgerblue1', style='filled'
-)
-
 # Example configuration for intersphinx: refer to the Python standard library.
 #intersphinx_mapping = {'https://docs.python.org/3/': None}
+
+# -- Sphinxext configuration --------------------------------------------------
