@@ -27,6 +27,7 @@ Consequently, the parcellation of a region can be accessed as the region's
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # Start by importing the package.
 import siibra
 
@@ -58,3 +59,5 @@ v1.children
 # we can access children with fuzzy string matching using "find"
 # as well as by their index
 v1l = v1.find("left")
+
+# %%

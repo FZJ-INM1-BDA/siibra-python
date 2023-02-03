@@ -24,7 +24,7 @@ brain parcellations.
 # %%
 # We start by loading the library
 import siibra
-
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # %%
 # The instance table can list the keys of all parcellations predefined in `siibra`.
 # Note that this includes parcellations for all supported atlases.

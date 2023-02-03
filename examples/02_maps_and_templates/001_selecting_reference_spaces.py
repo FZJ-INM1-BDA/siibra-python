@@ -28,6 +28,7 @@ These are demonstrated in the following example.
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # As for atlases and parcellations, siibra provides a registry of predefined
 # reference spaces:
 import siibra

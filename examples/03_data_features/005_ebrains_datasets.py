@@ -25,6 +25,7 @@ The returned features can thus actually have different modalities, and might inc
 """ 
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # We query regional features for the secondary visual cortex V2.
 
 import siibra

@@ -22,6 +22,7 @@ We can use Parcellation objects to find child brain regions.
 
 # %%
 # We start by selecting an atlas and a parcellation.
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-003.png'
 import siibra
 atlas = siibra.atlases.get('human')
 julich_brain = atlas.parcellations.get('julich 2.9')
@@ -35,11 +36,9 @@ julich_brain.find('V1')
 julich_brain.find('v1', filter_children=True)
 
 # %%
-# For more powerful searches,  regular expressions can be used. 
-# Refer to https://docs.python.org/3/library/re.html for more information about regular expression syntax.
-import re
-# find hOc2 or hOc4 in the right hemisphere
-julich_brain.find(re.compile('hOc[24].*right'))
+# For more powerful searches, regular expressions can be used with '/<pattern>/<flags>' or 
+# using `re.compile()`. Find hOc2 or hOc4 in the right hemisphere:
+julich_brain.find('/hOc[24].*right/')
 
 # %%
 # Searching for more general brain regions, we see that areas often appear
@@ -60,10 +59,6 @@ for r in atlas.find_regions('amygdala'):
 # In fact, siibra provides a package-level function
 # to search through regions of all parcellations.
 siibra.find_regions('amygdala')
-
-
-# NOTE: the output is different. For example, couldn't find anything from VEP Atlas.
-
 
 # %%
 # Often however, we want to access one particular region, given a unique specification,

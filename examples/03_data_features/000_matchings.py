@@ -23,6 +23,7 @@ This example shows how some features are linked to anatomical regions in differe
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 import siibra
 
 
