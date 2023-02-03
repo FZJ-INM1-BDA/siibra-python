@@ -110,7 +110,7 @@ for f in siibra.features.get(v1l, "ebrains"):
         print()
 
 # %%
-# Lastly, when querying for datasets related to the occipial cortex, the match is qualified as "contained":
+# Lastly, when querying for datasets related to the occipital cortex, the match is qualified as "contained":
 for f in siibra.features.get(occ, "ebrains"):
     if f.id.endswith(dataset_id):
         print(f.last_match_description)

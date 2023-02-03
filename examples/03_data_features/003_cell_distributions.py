@@ -17,7 +17,12 @@
 Cortical cell body distributions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Another regional data feature are cortical distributions of cell bodies. The distributions are measured crom cortical image patches that have been extracted from the original cell-body stained histological sections of the Bigbrain (Amunts et al., 2013), scanned at 1 micrometer resolution. These patches come together with manual annotations of cortical layers. The cell segmentations have been performed using the recently proposed Contour Proposal Networks (CPN; E. Upschulte et al.; https://arxiv.org/abs/2104.03393; https://github.com/FZJ-INM1-BDA/celldetection).
+Another regional data feature are cortical distributions of cell bodies.
+The distributions are measured crom cortical image patches that have been extracted
+from the original cell-body stained histological sections of the Bigbrain (Amunts et al., 2013),
+scanned at 1 micrometer resolution. These patches come together with manual annotations of cortical layers.
+The cell segmentations have been performed using the recently proposed Contour Proposal Networks (CPN; E. Upschulte et al.;
+https://arxiv.org/abs/2104.03393; https://github.com/FZJ-INM1-BDA/celldetection).
 """
 
 

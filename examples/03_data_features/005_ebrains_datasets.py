@@ -19,7 +19,7 @@
 EBRAINS regional datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-The modalitity "EbrainsRegionalDataset' is different from the others.
+The modality "EbrainsRegionalDataset' is different from the others.
 It returns any datasets in the EBRAINS Knowledge Graph which could be linked to the given atlas concept, and provides access to their metadata, as well as the link to the EBRAINS Knowledge Graph. 
 The returned features can thus actually have different modalities, and might include datasets which are also supported as one of the explicitly supported modalities shown in previous examples.
 """ 

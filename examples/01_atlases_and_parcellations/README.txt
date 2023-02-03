@@ -4,7 +4,7 @@ Atlases and brain parcellations
 -------------------------------
 
 Atlases are the most high-level concepts in ``siibra``. 
-They do not provide much specific functionality, instead they mostily provide a common context for a collection of parcellations and reference spaces of the same species, which are integrated with each other through semantic and spatial links. Atlas objects also provide some shortcuts for using functionalities of their parcellations, parcellation maps and spaces.
+They do not provide much specific functionality, instead they mostly provide a common context for a collection of parcellations and reference spaces of the same species, which are integrated with each other through semantic and spatial links. Atlas objects also provide some shortcuts for using functionalities of their parcellations, parcellation maps and spaces.
 
 .. _parcellations:
 

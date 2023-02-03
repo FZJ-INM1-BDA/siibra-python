@@ -68,7 +68,7 @@ conn.plot_matrix(subject=conn.subjects[0])
 
 # %%
 # The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to "mean". Also, the heatmap can be drawn in logscale.
+# or setting it to "mean". Also, the heatmap can be drawn in log10-scale.
 conn.plot_matrix(logscale=True, cmap="magma")
 
 # %%

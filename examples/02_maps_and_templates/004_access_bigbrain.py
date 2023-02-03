@@ -41,7 +41,7 @@ plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 
 # %%
 # To see the full resolution, we may specify a bounding box in the physical
-# space. You will learn more about spatial primities like points and bounding
+# space. You will learn more about spatial primitives like points and bounding
 # boxes in :ref:`locations`. For now, we just define a volume of interest from
 # two corner points in the histological space. We specify the points with
 # a string representation, which could be conveniently copy pasted from the
@@ -63,7 +63,7 @@ plotting.view_img(bigbrain_chunk, bg_img=bigbrain_whole, cmap='magma', cut_coord
 
 # %%
 # Next we select a parcellation which provides a map for BigBrain, and extract
-# labels for the same volume of interest. We choose the cortical layer maps by Wagstyl et al.
+# labels for the same volume of interest. We choose the cortical layer maps by `Wagstyl et al<https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.3000678>`.
 # Note that by specifying "-1" as a resolution, `siibra` will fetch the highest
 # possible resolution.
 layermap = siibra.get_map(space='bigbrain', parcellation='layers')
