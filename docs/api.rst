@@ -6,6 +6,9 @@
 API Documentation
 =================
 
+:mod:`Siibra<siibra>`
+====================
+
 Main Packages
 =============
 .. autopackagesummary:: siibra

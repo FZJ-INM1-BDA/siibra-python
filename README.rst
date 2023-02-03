@@ -15,7 +15,7 @@ It aims to facilitate programmatic and reproducible incorporation of brain parce
 
     **Note:** *``siibra-python`` is still in development. While care is taken that it works reliably, its API is not yet stable and you may still encounter bugs when using it.*
 
-``siibra`` provides structured acccess to parcellation schemes in different brain reference spaces, including volumetric reference templates at  macroscopic and microscopic resolutions as well as surface representations. 
+``siibra`` provides structured access to parcellation schemes in different brain reference spaces, including volumetric reference templates at  macroscopic and microscopic resolutions as well as surface representations. 
 It supports both discretely labelled and statistical (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. 
 The datasets anchored to brain regions address features of molecular, cellular and architecture as well as connectivity, and are complemented with live queries to external repositories as well as dynamic extraction from "big" image volumes such as the 20 micrometer BigBrain model.
 
@@ -27,7 +27,7 @@ In fact, the viewer is a good resource for exploring ``siibra``\ ’s core funct
 Feature queries in ``siibra`` are parameterized by data modality and anatomical location, while the latter could be a brain region, brain parcellation, or location in reference space. 
 Beyond the explorative focus of ``siibra-explorer``, the Python library supports a range of data analysis functions suitable for typical neuroscience workflows.
 
-``siibra`` hides much of the complexity that would be required to collect and interact with the individual paracellations, templates and data repositories.
+``siibra`` hides much of the complexity that would be required to collect and interact with the individual parcellations, templates and data repositories.
 By encapsulating many aspects of interacting with different maps and reference templates spaces, it also minimizes common errors like misinterpretation of coordinates from different reference spaces, confusing label indices of brain regions, or using inconsistent versions of parcellation maps. 
 It aims to provide a safe way of using maps defined across multiple spatial scales for reproducible analysis.
 
@@ -62,11 +62,11 @@ To use this functionality, you need to obtain an EBRAINS authentication token wi
 To use your EBRAINS access token in siibra:
 
 1. If you do not yet have an EBRAINS account, register `here <https://ebrains.eu/register>`__.
-2. When using siibra, fetch an authentication token by using :meth:`siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains login website. Login, and accept the requested detail.
+2. When using siibra, fetch an authentication token by using `siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains login website. Login, and accept the requested detail.
 
 Since tokens are temporary, step 2. needs to be repeated regularly.
 If you prefer, you can also create your token by visiting `the EBRAINS authorization endpoint <https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__.
-Copy the token, and either store it in the enviroment variable ``$HBP_AUTH_TOKEN`` or pass it explicitely to ``siibra`` using :meth:`siibra.set_ebrains_token()`.
+Copy the token, and either store it in the environment variable ``$HBP_AUTH_TOKEN`` or pass it explicitly to ``siibra`` using `siibra.set_ebrains_token()`.
 The token is a string sequence with more than 1000 characters, usually starting with with “ey”.
 
 Note that as of now, you need to to step 2 approximately every day to perform EBRAINS data queries.
@@ -78,7 +78,7 @@ Documentation & Help
 ``siibra-python``\ ’s documentation is hosted on https://siibra-python.readthedocs.io.
 The documentation includes a catalogue of documented code examples that walk you through the different concepts and functionalities.
 As a new user, it is recommended to go through these examples - they are easy and will quickly provide you with the right code snippets that get you started.
-Furthermore, a set of jupyter notebooks demonstrating more extensive example usecases are maintained in the `siibra-tutorials <https://github.com/FZJ-INM1-BDA/siibra-tutorials>`__ repository.
+Furthermore, a set of jupyter notebooks demonstrating more extensive example use cases are maintained in the `siibra-tutorials <https://github.com/FZJ-INM1-BDA/siibra-tutorials>`__ repository.
 We are working on a full API documentation of the library. You find the current status on readthedocs, but be aware that it is not yet complete and as up-to-date as the code examples.
 
 If you run into issues, please open a ticket on `EBRAINS support <https://ebrains.eu/support/>`__ or file bugs and

@@ -136,13 +136,13 @@ class Volume:
             starting with volumetric formats. You may explicitly specify:
             - 'surface' or 'mesh' to fetch a surface format
             - 'volumetric' or 'voxel' to fetch a volumetric format
-            - supported format types, see Volume.PREFERRED_FORMATS. This includes
-              ":class:`nii<siibra.volumes.nifti.NiftiProvider.fetch()>`",
-              ":class:`zip/nii<siibra.volumes.nifti.ZipContainedNiftiProvider()>`",
-              ":class:`neuroglancer/precomputed<siibra.volumes.neuroglancer.NeuroglancerProvider()>`",
-              ":class:`gii-mesh<siibra.volumes.gifti.GiftiMesh()>`",
-              ":class:`neuroglancer/precompmesh<siibra.volumes.neuroglancer.NeuroglancerMesh()>`",
-              ":class:`gii-label<siibra.volumes.gifti.GiftiSurfaceLabeling()>`",
+            - supported format types, see Volume.PREFERRED_FORMATS. This includes:
+                :class:`'nii'<siibra.volumes.nifti.NiftiProvider()>`,
+                :class:`'zip/nii'<siibra.volumes.nifti.ZipContainedNiftiProvider()>`,
+                :class:`'neuroglancer/precomputed'<siibra.volumes.neuroglancer.NeuroglancerProvider()>`,
+                :class:`'gii-mesh'<siibra.volumes.gifti.GiftiMesh()>`,
+                :class:`'neuroglancer/precompmesh'<siibra.volumes.neuroglancer.NeuroglancerMesh()>`,
+                :class:`'gii-label'<siibra.volumes.gifti.GiftiSurfaceLabeling()>`
         """
 
         if format is None:
