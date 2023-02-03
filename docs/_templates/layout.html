@@ -1,0 +1,27 @@
+{%- extends "sphinx_rtd_theme/layout.html" %}
+
+{%- block sidebartitle %}
+{%- set _logo_url = logo_url|default(pathto('_static/siibra-python.jpeg', 1)) %}
+{%- set _root_doc = root_doc|default(master_doc) %}
+<a href="{{ pathto(_root_doc) }}"{% if not theme_logo_only %} class="icon icon-home"{% endif %}>
+{% if not theme_logo_only %}{{ project }}{% endif %}
+{%- if logo or logo_url %}
+    <img src="{{ _logo_url }}" class="logo" alt="{{ _('Logo') }}"/>
+{%- endif %}
+</a>
+
+{%- if theme_display_version %}
+{%- set nav_version = version %}
+{%- if READTHEDOCS and current_version %}
+    {%- set nav_version = current_version %}
+{%- endif %}
+{%- if nav_version %}
+    <div class="version">
+    {{ nav_version }}
+    </div>
+{%- endif %}
+{%- endif %}
+
+{%- include "searchbox.html" %}
+
+{%- endblock %}
