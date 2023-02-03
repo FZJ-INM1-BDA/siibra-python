@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Hierarchal brain regions and metadata."""
 from . import region
 
 from ..commons import logger, MapType, MapIndex, Species

@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A particular brain reference space."""
 
 
 from .concept import AtlasConcept
@@ -26,9 +27,6 @@ if TYPE_CHECKING:
 
 
 class Space(AtlasConcept, configuration_folder="spaces"):
-    """
-    A particular brain reference space.
-    """
 
     def __init__(
         self,

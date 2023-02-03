@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
+"""Parent class to siibra main concepts."""
 from ..commons import create_key, clear_name, logger, InstanceTable, Species
 
 import re
