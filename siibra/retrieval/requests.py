@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from .cache import CACHE
+from .exceptions import EbrainsAuthenticationError
 from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 from .. import __version__
 
@@ -32,6 +33,8 @@ from tqdm import tqdm
 from typing import List, Callable, Any, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
+from time import sleep
+import sys
 
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
@@ -229,7 +232,13 @@ class EbrainsRequest(HttpRequest):
     Implements lazy loading of HTTP Knowledge graph queries.
     """
 
-    _KG_API_TOKEN = None
+    _KG_API_TOKEN: str = None
+    _IAM_ENDPOINT: str = "https://iam.ebrains.eu/auth/realms/hbp"
+    _IAM_DEVICE_ENDPOINT: str = None
+    _IAM_DEVICE_MAXTRIES = 12
+    _IAM_DEVICE_POLLING_INTERVAL_SEC = 5
+    _IAM_DEVICE_FLOW_CLIENTID = "siibra"
+
     keycloak_endpoint = (
         "https://iam.ebrains.eu/auth/realms/hbp/protocol/openid-connect/token"
     )
@@ -246,12 +255,99 @@ class EbrainsRequest(HttpRequest):
         HttpRequest.__init__(self, url, decoder, msg_if_not_cached, post=post)
 
     @classmethod
+    def init_oidc(cls):
+        resp = requests.get(f"{cls._IAM_ENDPOINT}/.well-known/openid-configuration")
+        json_resp = resp.json()
+        if "token_endpoint" in json_resp:
+            logger.debug(f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}")
+            cls._IAM_TOKEN_ENDPOINT = json_resp.get("token_endpoint")
+        else:
+            logger.warn("expect token endpoint in .well-known/openid-configuration, but was not present")
+
+        if "device_authorization_endpoint" in json_resp:
+            logger.debug(f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}")
+            cls._IAM_DEVICE_ENDPOINT = json_resp.get("device_authorization_endpoint")
+        else:
+            logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
+
+    @classmethod
     def fetch_token(cls):
         """Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
         cls.device_flow()
+        
+    @classmethod
+    def device_flow(cls):
+        if all([
+            not sys.__stdout__.isatty(),  # if is tty, do not raise
+            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
+            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"),  # if explicitly enabled by env var, do not raise
+        ]):
+            raise EbrainsAuthenticationError(
+                "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
+                "and not running in a notebook. Are you running in batch mode?"
+            )
+
+        cls.init_oidc()
+        resp = requests.post(
+            url=cls._IAM_DEVICE_ENDPOINT,
+            data={
+                'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
+            }
+        )
+        resp.raise_for_status()
+        resp_json = resp.json()
+        logger.debug("device flow, request full json:", resp_json)
+
+        assert "verification_uri_complete" in resp_json
+        assert "device_code" in resp_json
+
+        device_code = resp_json.get("device_code")
+
+        print("***")
+        print(f"To continue, please go to {resp_json.get('verification_uri_complete')}")
+        print("***")
+
+        attempt_number = 0
+        sleep_timer = cls._IAM_DEVICE_POLLING_INTERVAL_SEC
+        while True:
+            # TODO the polling is a little busted at the moment.
+            # need to speak to axel to shorten the polling duration
+            sleep(sleep_timer)
+
+            logger.debug("Calling endpoint")
+            if attempt_number > cls._IAM_DEVICE_MAXTRIES:
+                message = f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
+                logger.error(message)
+                raise EbrainsAuthenticationError(message)
+            attempt_number += 1
+            resp = requests.post(
+                url=cls._IAM_TOKEN_ENDPOINT,
+                data={
+                    'grant_type': "urn:ietf:params:oauth:grant-type:device_code",
+                    'client_id': cls._IAM_DEVICE_FLOW_CLIENTID,
+                    'device_code': device_code
+                }
+            )
+
+            if resp.status_code == 200:
+                json_resp = resp.json()
+                logger.debug("Device flow sucessful:", json_resp)
+                cls._KG_API_TOKEN = json_resp.get("access_token")
+                print("ebrains token successfuly set.")
+                break
+
+            if resp.status_code == 400:
+                json_resp = resp.json()
+                error = json_resp.get("error")
+                if error == "slow_down":
+                    sleep_timer += 1
+                logger.debug(f"400 error: {resp.content}")
+                continue
+
+            raise EbrainsAuthenticationError(resp.content)
 
     @classmethod
     def set_token(cls, token):
