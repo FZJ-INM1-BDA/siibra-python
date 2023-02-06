@@ -175,6 +175,9 @@ class Point(location.Location):
             z=self.coordinate[2],
         )
         response = HttpRequest(url, lambda b: json.loads(b.decode())).get()
+        if any(map(np.isnan, response['target_point'])):
+            logger.debug(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
+            return None
         return self.__class__(
             coordinatespec=tuple(response["target_point"]), space=spaceobj.id
         )
@@ -207,10 +210,10 @@ class Point(location.Location):
         return all(self[i] == o[i] for i in range(3))
 
     def __le__(self, other):
-        return not self > other
+        return (self < other) or (self == other)
 
     def __ge__(self, other):
-        return not self < other
+        return (self > other) or (self == other)
 
     def __add__(self, other):
         """Add the coordinates of two points to get

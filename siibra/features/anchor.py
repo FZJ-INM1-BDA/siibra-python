@@ -17,6 +17,7 @@ from ..commons import logger, Species
 
 from ..core.concept import AtlasConcept
 from ..locations.location import Location
+from ..locations.boundingbox import BoundingBox
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 from ..core.space import Space
@@ -106,6 +107,7 @@ class AnatomicalAnchor:
     """
 
     _MATCH_MEMO = {}
+    _MASK_MEMO = {}
 
     def __init__(self, species: Union[List[Species], Species], location: Location = None, region: Union[str, Region] = None):
 
@@ -276,6 +278,7 @@ class AnatomicalAnchor:
     def match_location_to_region(cls, location: Location, region: Region):
         assert isinstance(location, Location)
         assert isinstance(region, Region)
+
         for subregion in region.children:
             res = cls.match_location_to_region(location, subregion)
             if res is not None:
@@ -283,8 +286,12 @@ class AnatomicalAnchor:
 
         if (location, region) not in cls._MATCH_MEMO:
             # compute mask of the region
+            mask = None
             if region.mapped_in_space(location.space, recurse=False):
-                mask = region.fetch_regional_map(space=location.space, maptype='labelled')
+                if (region, location.space) not in cls._MASK_MEMO:
+                    cls._MASK_MEMO[region, location.space] = \
+                        region.fetch_regional_map(space=location.space, maptype='labelled')
+                mask = cls._MASK_MEMO[region, location.space]
                 mask_space = location.space
                 expl = (
                     f"{location} was compared with the mask of query region "
@@ -296,7 +303,9 @@ class AnatomicalAnchor:
                         continue
                     if not space.provides_image:  # siibra does not yet match locations to surface spaces
                         continue
-                    mask = region.fetch_regional_map(space=space, maptype='labelled')
+                    if (region, space) not in cls._MASK_MEMO:
+                        cls._MASK_MEMO[region, space] = region.fetch_regional_map(space=space, maptype='labelled')
+                    mask = cls._MASK_MEMO[region, space]
                     mask_space = space
                     if location.space == mask_space:
                         expl = (
@@ -310,25 +319,43 @@ class AnatomicalAnchor:
                         )
                     if mask is not None:
                         break
-            loc_warped = location.warp(mask_space)
+
             if mask is None:
-                logger.warn(
+                logger.debug(
                     f"'{region.name}' provides no mask in a space "
                     f"to which {location} can be warped."
                 )
                 res = None
-            elif loc_warped.contained_in(mask):
-                res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINED, expl)
-            elif loc_warped.contains(mask):
-                res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINS, expl)
-            elif loc_warped.intersects(mask):
-                res = AnatomicalAssignment(location, region, AssignmentQualification.OVERLAPS, expl)
             else:
-                logger.debug(
-                    f"{location} does not match mask of '{region.name}' in {mask_space.name}."
-                )
-                res = None
+                # compare mask to location
+                loc_warped = location.warp(mask_space)
+                if loc_warped is None:
+                    # seems we cannot warp our location to the mask space
+                    # this typically happens when the location extends outside 
+                    # the brain. We might still be able the warp the
+                    # bounding box of the mask to the location and check.
+                    # TODO in fact we should estimate an affine matrix from the warped bounding box,
+                    # and resample the mask for the inverse test to be more precise.
+                    bbox_mask = BoundingBox.from_image(mask, mask_space).warp(location.space)
+                    return cls.match_locations(location, bbox_mask)
+                elif loc_warped.contained_in(mask):
+                    res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINED, expl)
+                elif loc_warped.contains(mask):
+                    res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINS, expl)
+                elif loc_warped.intersects(mask):
+                    res = AnatomicalAssignment(location, region, AssignmentQualification.OVERLAPS, expl)
+                else:
+                    logger.debug(
+                        f"{location} does not match mask of '{region.name}' in {mask_space.name}."
+                    )
+                    res = None
             cls._MATCH_MEMO[location, region] = res
+
+        # keep mask cache small
+        if len(cls._MASK_MEMO) > 3:
+            # from Python 3.6, this remove the *oldest* entry
+            cls._MASK_MEMO.pop(next(iter(cls._MASK_MEMO)))
+
         return cls._MATCH_MEMO[location, region]
 
     def represented_parcellations(self):
@@ -346,4 +373,7 @@ class AnatomicalAnchor:
 
     @property
     def last_match_description(self):
-        return ' and '.join({str(_) for _ in self.last_match_result})
+        if self.last_match_result is None:
+            return ""
+        else:
+            return ' and '.join({str(_) for _ in self.last_match_result})

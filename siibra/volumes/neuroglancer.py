@@ -308,7 +308,7 @@ class NeuroglancerScale:
 
     def resolves(self, resolution_mm):
         """Test wether the resolution of this scale is sufficient to provide the given resolution."""
-        return any(r / 1e6 <= resolution_mm for r in self.res_nm)
+        return all(r / 1e6 <= resolution_mm for r in self.res_nm)
 
     def __lt__(self, other):
         """Sort scales by resolution."""

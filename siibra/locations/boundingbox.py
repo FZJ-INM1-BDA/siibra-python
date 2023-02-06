@@ -15,6 +15,8 @@
 
 from . import point, pointset, location, boundingbox
 
+from ..commons import logger
+
 import hashlib
 import numpy as np
 from typing import Union
@@ -148,7 +150,11 @@ class BoundingBox(location.Location):
             raise RuntimeError(f"Cannot test containedness of {self} in type {other.__class__}")
 
     def intersects(self, other: Union[location.Location, Nifti1Image]):
-        return self.intersection(other).volume > 0
+        intersection = self.intersection(other)
+        if intersection is None:
+            return False
+        else:
+            return intersection.volume > 0
 
     def intersection(self, other, dims=[0, 1, 2]):
         """Computes the intersection of this bounding box with another one.
@@ -208,7 +214,7 @@ class BoundingBox(location.Location):
         return bbox if bbox.volume > 0 else None
 
     def _intersect_mask(self, mask):
-        """Intersect this bounding box with an image mask.
+        """Intersect this bounding box with an image mask. Returns None if they do not intersect.
 
         TODO process the sigma values o the points
 
@@ -270,11 +276,15 @@ class BoundingBox(location.Location):
         if spaceobj == self.space:
             return self
         else:
-            return self.__class__(
-                point1=self.minpoint.warp(spaceobj),
-                point2=self.maxpoint.warp(spaceobj),
-                space=spaceobj,
-            )
+            try:
+                return self.__class__(
+                    point1=self.minpoint.warp(spaceobj),
+                    point2=self.maxpoint.warp(spaceobj),
+                    space=spaceobj,
+                )
+            except ValueError:
+                logger.debug(f"Warping {str(self)} to {spaceobj.name} not successful.")
+                return None
 
     def fetch_regional_map(self):
         """Generate a volumetric binary mask of this
