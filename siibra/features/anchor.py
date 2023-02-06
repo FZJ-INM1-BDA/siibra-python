@@ -331,7 +331,7 @@ class AnatomicalAnchor:
                 loc_warped = location.warp(mask_space)
                 if loc_warped is None:
                     # seems we cannot warp our location to the mask space
-                    # this typically happens when the location extends outside 
+                    # this typically happens when the location extends outside
                     # the brain. We might still be able the warp the
                     # bounding box of the mask to the location and check.
                     # TODO in fact we should estimate an affine matrix from the warped bounding box,

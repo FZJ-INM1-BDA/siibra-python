@@ -34,7 +34,7 @@ from ..commons import (
 import numpy as np
 import re
 import anytree
-from typing import List, Set
+from typing import List, Set, Union
 from nibabel import Nifti1Image
 from difflib import SequenceMatcher
 
@@ -367,22 +367,45 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     def fetch_regional_map(
         self,
-        space,
+        space: Union[str, _space.Space],
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
-        threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD
+        threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD,
+        via_space: Union[str, _space.Space] = None
     ):
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified maptypes.
+
+        Parameters
+        ----------
+        space: Space object or space name
+            The requested reference space
+        maptype: MapType
+            the type of map to be used (labelled or statistical)
+        threshold: float
+            (optional) When fetching a statistical map, use this
+            threshold to convert it to a binary mask
+        via_space: Space object or space name
+            If specified, fetch the map in this space first, and then perform
+            a linear warping from there to the requested space.
+            You might want to use this if a map in the requested space is not available.
+            Note that this linear warping is an affine approximation of the
+            nonlinear deformation, computed from the warped corenr points
+            of the bounding box (see siibra.location.BoundingBox.estimate_affine()).
+            It does not require voxel resampling,
+            just replaces the affine matrix, but is less accurate than a full
+            nonlinear warping, which is not supported in siibra-python for images so far.
         """
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         result = None
 
+        fetch_space = space if via_space is None else via_space
+
         for m in parcellationmap.Map.registry():
             if all(
                 [
-                    m.space.matches(space),
+                    m.space.matches(fetch_space),
                     m.parcellation == self.parcellation,
                     m.provides_image,
                     m.maptype == maptype,
@@ -401,9 +424,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             # all children are mapped instead
             dataobj = None
             affine = None
-            if all(c.mapped_in_space(space) for c in self.children):
+            if all(c.mapped_in_space(fetch_space) for c in self.children):
                 for c in self.children:
-                    mask = c.fetch_regional_map(space, maptype, threshold)
+                    mask = c.fetch_regional_map(fetch_space, maptype, threshold)
                     if dataobj is None:
                         dataobj = np.asanyarray(mask.dataobj)
                         affine = mask.affine
@@ -420,7 +443,18 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 result = Nifti1Image(dataobj, affine)
 
         if result is None:
-            raise RuntimeError(f"Cannot build mask for {self.name} from {maptype} maps in {space}")
+            raise RuntimeError(f"Cannot build mask for {self.name} from {maptype} maps in {fetch_space}")
+
+        if via_space is not None:
+            # fetch used an intermediate reference space provided by 'via_space'.
+            # We will now transform the affine to match the desired target space.
+            bbox = boundingbox.BoundingBox.from_image(result, fetch_space)
+            transform = bbox.estimate_affine(space)
+            result = Nifti1Image(result.dataobj, np.dot(transform, result.affine))
+            logger.info(
+                f"Regional map was fetched from {fetch_space}, "
+                f"then linearly corrected to match {space}."
+            )
 
         return result
 

@@ -322,6 +322,66 @@ class BoundingBox(location.Location):
             space=space,
         )
 
+    def estimate_affine(self, space):
+        """
+        Computes an affine transform which approximates
+        the nonlinear warping of the eight corner points
+        to the desired target space.
+        The transform is estimated using a least squares
+        solution to A*x = b, where A is the matrix of
+        point coefficients in the space of this bounding box,
+        and b are the target coefficients in the given space
+        after calling the nonlinear warping.
+        """
+
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+
+        # set of 8 corner points in source space
+        corners1 = pointset.PointSet(
+            [
+                (x0, y0, z0),
+                (x0, y0, z1),
+                (x0, y1, z0),
+                (x0, y1, z1),
+                (x1, y0, z0),
+                (x1, y0, z1),
+                (x1, y1, z0),
+                (x1, y1, z1)
+            ], self.space
+        )
+
+        # coefficient matrix from original points
+        A = np.hstack(
+            [
+                [np.kron(np.eye(3), np.r_[tuple(c), 1])]
+                for c in corners1
+            ]).squeeze()
+
+        # righthand side from warped points
+        corners2 = corners1.warp(space)
+        b = np.hstack(corners2.as_list())
+
+        # least squares solution
+        x, res, rank, s = np.linalg.lstsq(A, b, rcond=None)
+        affine = np.vstack([x.reshape((3, 4)), np.array([0, 0, 0, 1])])
+
+        # test
+        errors = []
+        for c1, c2 in zip(list(corners1), list(corners2)):
+            errors.append(
+                np.linalg.norm(
+                    np.dot(affine, np.r_[tuple(c1), 1])
+                    - np.r_[tuple(c2), 1]
+                )
+            )
+        logger.debug(
+            f"Average projection error under linear approximation "
+            f"was {np.mean(errors):.2f} pixel"
+        )
+
+        return affine
+
     def __iter__(self):
         """Iterate the min- and maxpoint of this bounding box."""
         return iter((self.minpoint, self.maxpoint))
