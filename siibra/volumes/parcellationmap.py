@@ -12,9 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Parcellation maps and region maps are 3D volumes, providing spatial representations
-for their "semantic counterparts" `Parcellation` and `Region` in a particular
-reference space."""
+"""Provides spatial representations for parcellations and regions."""
 
 from . import volume as _volume, nifti
 from .. import logger, QUIET

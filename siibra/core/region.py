@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Representation of a brain region."""
 from . import concept, space as _space, parcellation as _parcellation
 
 from ..locations import boundingbox, point, pointset

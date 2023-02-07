@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Base volume class. A volume is a specific mesh or 3D array."""
+"""A specific mesh or 3D array."""
 from .. import logger
 from ..retrieval import requests
 from ..core import space
@@ -136,7 +136,7 @@ class Volume:
             starting with volumetric formats. You may explicitly specify:
             - 'surface' or 'mesh' to fetch a surface format
             - 'volumetric' or 'voxel' to fetch a volumetric format
-            - supported format types, see Volume.PREFERRED_FORMATS. This includes:
+            - supported format types, see :data:`Volume.SUPPORTED_FORMATS`. This includes:
                 :class:`'nii'<siibra.volumes.nifti.NiftiProvider()>`,
                 :class:`'zip/nii'<siibra.volumes.nifti.ZipContainedNiftiProvider()>`,
                 :class:`'neuroglancer/precomputed'<siibra.volumes.neuroglancer.NeuroglancerProvider()>`,

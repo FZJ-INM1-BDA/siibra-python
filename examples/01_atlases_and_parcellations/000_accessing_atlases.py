@@ -27,6 +27,7 @@ They do not provide much further functionality on their own.
 """
 
 # %%
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # We start by loading the library
 import siibra
 
