@@ -52,7 +52,6 @@ There is also an image based on jupyter:scipy-notebook, which already includes `
         --name siibra \
         docker-registry.ebrains.eu/siibra/siibra-python:latest
 
-.. _accessEBRAINS:
 Access to EBRAINS
 -----------------
 
