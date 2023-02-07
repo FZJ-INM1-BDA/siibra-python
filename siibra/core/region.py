@@ -400,7 +400,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             maptype = MapType[maptype.upper()]
         result = None
 
+        # prepare space instances
+        if isinstance(space, str):
+            space = _space.Space.get_instance(space)
         fetch_space = space if via_space is None else via_space
+        if isinstance(fetch_space, str):
+            fetch_space = _space.Space.get_instance(fetch_space)
 
         for m in parcellationmap.Map.registry():
             if all(
@@ -452,8 +457,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             transform = bbox.estimate_affine(space)
             result = Nifti1Image(result.dataobj, np.dot(transform, result.affine))
             logger.info(
-                f"Regional map was fetched from {fetch_space}, "
-                f"then linearly corrected to match {space}."
+                f"Regional map was fetched from {fetch_space.name}, "
+                f"then linearly corrected to match {space.name}."
             )
 
         return result

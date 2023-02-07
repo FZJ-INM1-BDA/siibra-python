@@ -181,7 +181,7 @@ class Point(location.Location):
         return self.__class__(
             coordinatespec=tuple(response["target_point"]), space=spaceobj.id
         )
-    
+
     @property
     def volume(self):
         """ The volume of a point can be nonzero if it has a location uncertainty. """
@@ -230,14 +230,15 @@ class Point(location.Location):
             [self.coordinate[i] + other.coordinate[i] for i in range(3)], self.space
         )
 
-    def __truediv__(self, number):
+    def __truediv__(self, number: float):
         """Return a new point with divided
         coordinates in the same space."""
-        return Point(np.array(self.coordinate) / float(number), self.space)
+        return Point(np.array(self.coordinate) / number, self.space, self.sigma / number)
 
-    def __mult__(self, number):
+    def __mul__(self, number: float):
         """Return a new point with multiplied
         coordinates in the same space."""
+        return Point(np.array(self.coordinate) * number, self.space, self.sigma * number)
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new Point obtained by transforming the

@@ -95,14 +95,14 @@ class BoundingBox(location.Location):
         return any(d == 0 for d in self.shape)
 
     @staticmethod
-    def _determine_bounds(A):
+    def _determine_bounds(A, threshold=0):
         """
         Bounding box of nonzero values in a 3D array.
         https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
         """
-        x = np.any(A, axis=(1, 2))
-        y = np.any(A, axis=(0, 2))
-        z = np.any(A, axis=(0, 1))
+        x = np.any(A > threshold, axis=(1, 2))
+        y = np.any(A > threshold, axis=(0, 2))
+        z = np.any(A > threshold, axis=(0, 1))
         nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
         if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
             # empty array
@@ -113,9 +113,9 @@ class BoundingBox(location.Location):
         return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
     @classmethod
-    def from_image(cls, image: Nifti1Image, space, ignore_affine=False):
+    def from_image(cls, image: Nifti1Image, space, ignore_affine=False, threshold=0):
         """Construct a bounding box from a nifti image"""
-        bounds = cls._determine_bounds(image.get_fdata())
+        bounds = cls._determine_bounds(image.get_fdata(), threshold=threshold)
         if bounds is None:
             return None
         if ignore_affine:
@@ -170,7 +170,7 @@ class BoundingBox(location.Location):
         else:
             return intersection.volume > 0
 
-    def intersection(self, other, dims=[0, 1, 2]):
+    def intersection(self, other, dims=[0, 1, 2], threshold=0):
         """Computes the intersection of this bounding box with another one.
 
         TODO process the sigma values o the points
@@ -179,9 +179,10 @@ class BoundingBox(location.Location):
             other (BoundingBox): Another bounding box
             dims (list of int): Dimensions where the intersection should be computed (applies only to bounding boxes)
             Default: all three. Along dimensions not listed, the union is applied instead.
+            threshold: optional intensity threshold for intersecting with image mask
         """
         if isinstance(other, Nifti1Image):
-            return self._intersect_mask(other)
+            return self._intersect_mask(other, threshold=threshold)
         elif isinstance(other, BoundingBox):
             return self._intersect_bbox(other, dims)
         else:
@@ -189,7 +190,7 @@ class BoundingBox(location.Location):
                 f"Intersection of bounding box with {type(other)} not implemented."
             )
 
-    def _intersect_bbox(self, other, dims):
+    def _intersect_bbox(self, other, dims=[0, 1, 2]):
         warped = other.warp(self.space)
 
         # Determine the intersecting bounding box by sorting
@@ -227,7 +228,7 @@ class BoundingBox(location.Location):
         )
         return bbox if bbox.volume > 0 else None
 
-    def _intersect_mask(self, mask):
+    def _intersect_mask(self, mask, threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
 
         TODO process the sigma values o the points
@@ -236,7 +237,7 @@ class BoundingBox(location.Location):
         coordinates into the reference space of this Bounding Box.
         """
         # nonzero voxel coordinates
-        X, Y, Z = np.where(mask.get_fdata() > 0)
+        X, Y, Z = np.where(mask.get_fdata() > threshold)
         h = np.ones(len(X))
 
         # array of homogenous physical nonzero voxel coordinates
@@ -259,14 +260,21 @@ class BoundingBox(location.Location):
         if XYZ.shape[0] == 0:
             return None
         elif XYZ.shape[0] == 1:  # reflect voxel size in resulting point set
-            return point.Point(XYZ.flatten(), space=self.space, sigma_mm=voxel_size.max())
+            return self._intersect_bbox(
+                point
+                .Point(XYZ.flatten(), space=self.space, sigma_mm=voxel_size.max())
+                .boundingbox
+            )
         else:
-            return pointset.PointSet(XYZ, space=self.space, sigma_mm=voxel_size.max())
+            return self._intersect_bbox(
+                pointset
+                .PointSet(XYZ, space=self.space, sigma_mm=voxel_size.max())
+                .boundingbox
+            )
 
     def union(self, other):
-        """Computes the union of this boudning box with another one.
-
-        TODO process the sigma values o the points
+        """
+        Computes the union of this boudning box with another one.
 
         Args:
             other (BoundingBox): Another bounding box
@@ -277,17 +285,18 @@ class BoundingBox(location.Location):
             point1=[min(p[i] for p in points) for i in range(3)],
             point2=[max(p[i] for p in points) for i in range(3)],
             space=self.space,
+            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
         )
 
     def clip(self, xyzmax, xyzmin=(0, 0, 0)):
-        """Returns a new bounding box obtained by clippin at the given maximum coordinate.
-
-        TODO process the sigma values o the points
+        """
+        Returns a new bounding box obtained by clipping at the given maximum coordinate.
         """
         return self.intersection(
             BoundingBox(
                 point.Point(xyzmin, self.space), point.Point(xyzmax, self.space), self.space
-            )
+            ),
+            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
         )
 
     def warp(self, space):
@@ -345,6 +354,28 @@ class BoundingBox(location.Location):
             point1=self.minpoint.transform(affine, spaceobj),
             point2=self.maxpoint.transform(affine, spaceobj),
             space=space,
+            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
+        )
+
+    def shift(self, offset):
+        return self.__class__(
+            point1=self.minpoint + offset,
+            point2=self.maxpoint + offset,
+            space=self.space,
+            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
+        )  
+
+    def zoom(self, ratio: float):
+        """
+        Create a new bounding box by zooming this one around its center.
+        """
+        c = self.center
+        self.maxpoint - c
+        return self.__class__(
+            point1=(self.minpoint - c) * ratio + c,
+            point2=(self.maxpoint - c) * ratio + c,
+            space=self.space,
+            sigma_mm=[self.minpoint.sigma * ratio, self.maxpoint.sigma * ratio]
         )
 
     def estimate_affine(self, space):

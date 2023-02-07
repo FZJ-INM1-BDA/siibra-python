@@ -87,6 +87,10 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
             return f"{self._name_cached} ({self.modality})"
 
     @property
+    def boundingbox(self):
+        return self.anchor.location
+
+    @property
     def description(self):
         if self._description_cached is None:
             self._description_cached = (
