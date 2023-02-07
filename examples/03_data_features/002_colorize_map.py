@@ -23,11 +23,11 @@ Here we demonstrate it for average densities of the GABAA receptor.
 """
 
 # %%
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/03-002.png'
 # We start by selecting an atlas and the Julich-Brain parcellation.
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 jubrain = atlas.get_parcellation('julich 2.9')
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/03-002.png'
 
 # %%
 # As in the previous example, we extract all receptor density features linked

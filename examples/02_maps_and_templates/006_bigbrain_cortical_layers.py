@@ -21,11 +21,11 @@ Access to Big Brain cortical layer meshes
 """
 
 # %%
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-006.png'
 import siibra
 from nilearn import plotting
 import numpy as np
 import matplotlib.pyplot as plt
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-006.png'
 
 # %%
 # Request the BigBrain cortical layer parcellation by Wagstyl et al.

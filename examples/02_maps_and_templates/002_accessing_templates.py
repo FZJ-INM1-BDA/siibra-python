@@ -40,9 +40,9 @@ This example will show some typical settings.
 
 
 # %%
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-002.png'
 import siibra
 from nilearn import plotting
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/02-002.png'
 
 # %%
 # We choose the ICBM 2009c on linear asymmetric space,

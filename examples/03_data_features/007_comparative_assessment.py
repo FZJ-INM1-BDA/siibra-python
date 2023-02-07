@@ -24,10 +24,10 @@ involved in language processing, and a region from the visual system in the occi
 """
 
 # %%
-# sphinx_gallery_thumbnail_number = -1
 import siibra
 import matplotlib.pyplot as plt
 import numpy as np
+# sphinx_gallery_thumbnail_number = -1
 
 # %%
 # We start by selecting the two region objects from the parcellation,

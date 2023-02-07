@@ -23,9 +23,9 @@ As of now, these include "StreamlineCounts", "StreamlineLengths", and "Functiona
 """
 
 # %%
-# sphinx_gallery_thumbnail_number = 2
 from nilearn import plotting
 import siibra
+# sphinx_gallery_thumbnail_number = 2
 
 # %%
 # We start by selecting an atlas parcellation.

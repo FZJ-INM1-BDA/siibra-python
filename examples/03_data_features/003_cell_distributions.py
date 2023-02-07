@@ -27,11 +27,10 @@ https://arxiv.org/abs/2104.03393; https://github.com/FZJ-INM1-BDA/celldetection)
 
 
 # %%
-# sphinx_gallery_thumbnail_number = 1
 import siibra
 import matplotlib.pyplot as plt
 from nilearn import plotting
-
+# sphinx_gallery_thumbnail_number = 1
 
 # %%
 # Find cell density features for V1

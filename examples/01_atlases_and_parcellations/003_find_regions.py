@@ -22,10 +22,10 @@ We can use Parcellation objects to find child brain regions.
 
 # %%
 # We start by selecting an atlas and a parcellation.
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-003.png'
 import siibra
 atlas = siibra.atlases.get('human')
 julich_brain = atlas.parcellations.get('julich 2.9')
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-003.png'
 
 # %%
 # The most basic way is to search for all regions matching a particular string:

@@ -27,9 +27,9 @@ Consequently, the parcellation of a region can be accessed as the region's
 """
 
 # %%
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 # Start by importing the package.
 import siibra
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 
 # %%
 # Let's fetch the region from the Julich-Brain parcellation 

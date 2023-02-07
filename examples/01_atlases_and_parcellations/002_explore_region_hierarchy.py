@@ -27,11 +27,11 @@ parent region.
 
 # %%
 # We start by selecting an atlas and a parcellation
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-002.png'
 import siibra
 atlas = siibra.atlases.get('human')
 julich_brain = atlas.parcellations.get('julich 2.9')
 julich_brain
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-002.png'
 
 # %%
 # The region hierarchy is a tree structure. Its default representation is a string of the tree.
