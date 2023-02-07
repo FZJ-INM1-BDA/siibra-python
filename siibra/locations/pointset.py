@@ -164,16 +164,18 @@ class PointSet(location.Location):
 
     @property
     def boundingbox(self):
-        """Return the bounding box of these points.
-
-        TODO inherit sigma of the min and max points
+        """
+        Return the bounding box of these points.
         """
         from .boundingbox import BoundingBox
         XYZ = self.homogeneous[:, :3]
+        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
+        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
         return BoundingBox(
             point1=XYZ.min(0),
             point2=XYZ.max(0),
             space=self.space,
+            sigma_mm=[sigma_min, sigma_max]
         )
 
     @property

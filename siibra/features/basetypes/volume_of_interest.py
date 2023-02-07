@@ -25,12 +25,12 @@ from typing import List
 
 class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
 
-    def __init__(self, volume: _volume.Volume):
+    def __init__(self, volume: _volume.Volume, region: str = None):
         _anchor.AnatomicalAnchor.__init__(
             self,
             species=volume.space.species,
             location=None,
-            region=None
+            region=region
         )
         self.volume = volume
 
@@ -59,6 +59,7 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
         modality: str,
         space_spec: dict,
         providers: List[_volume.VolumeProvider],
+        region: str = None,
         datasets: List = [],
     ):
         feature.Feature.__init__(
@@ -74,8 +75,16 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
             providers=providers,
             name=name,
         )
-        self._anchor_cached = VolumeOfInterestAnchor(self)
+        self._anchor_cached = VolumeOfInterestAnchor(self, region=region)
         self._description_cached = None
+        self._name_cached = name
+
+    @property
+    def name(self):
+        if self._name_cached is None:
+            return feature.Feature.name(self)
+        else:
+            return f"{self._name_cached} ({self.modality})"
 
     @property
     def description(self):

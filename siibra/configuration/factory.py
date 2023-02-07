@@ -370,6 +370,7 @@ class Factory:
         return volume_of_interest.VolumeOfInterest(
             name=vol.name,
             modality=spec.get('modality', ""),
+            region=spec.get('region', None),
             space_spec=vol._space_spec,
             providers=vol._providers.values(),
             datasets=cls.extract_datasets(spec),

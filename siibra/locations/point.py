@@ -181,6 +181,11 @@ class Point(location.Location):
         return self.__class__(
             coordinatespec=tuple(response["target_point"]), space=spaceobj.id
         )
+    
+    @property
+    def volume(self):
+        """ The volume of a point can be nonzero if it has a location uncertainty. """
+        return self.sigma**3 * np.pi * 4. / 3.
 
     def __sub__(self, other):
         """Substract the coordinates of two points to get

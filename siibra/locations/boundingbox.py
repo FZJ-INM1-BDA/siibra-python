@@ -31,7 +31,7 @@ class BoundingBox(location.Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space=None, minsize: float = None):
+    def __init__(self, point1, point2, space=None, minsize: float = None, sigma_mm=None):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -49,12 +49,23 @@ class BoundingBox(location.Location):
         minsize : float
             Minimum size along each dimension. If not None, the maxpoint will
             be adjusted to match the minimum size, if needed.
+        sigma_mm : float, or list of float
+            Optional standard deviation of the spanning point locations.
         """
         location.Location.__init__(self, space)
         xyz1 = point.Point.parse(point1)
         xyz2 = point.Point.parse(point2)
-        self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space)
-        self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space)
+        if sigma_mm is None:
+            s1, s2 = 0, 0
+        elif isinstance(sigma_mm, float):
+            s1, s2 = sigma_mm, sigma_mm
+        elif isinstance(sigma_mm, list):
+            assert len(sigma_mm) == 2
+            s1, s2 = sigma_mm
+        else:
+            raise ValueError(f"Cannot interpret sigma_mm parameter value {sigma_mm} for bounding box")
+        self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s1)
+        self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s2)
         if minsize is not None:
             for d in range(3):
                 if self.shape[d] < minsize:
@@ -74,7 +85,10 @@ class BoundingBox(location.Location):
 
     @property
     def shape(self):
-        return tuple(self.maxpoint - self.minpoint)
+        return tuple(
+            (self.maxpoint + self.maxpoint.sigma)
+            - (self.minpoint - self.minpoint.sigma)
+        )
 
     @property
     def is_planar(self):
@@ -229,14 +243,25 @@ class BoundingBox(location.Location):
         coords = np.dot(mask.affine, np.vstack((X, Y, Z, h)))[:3, :].T
         minpoint = [min(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
         maxpoint = [max(self.minpoint[i], self.maxpoint[i]) for i in range(3)]
-        inside = np.logical_and.reduce([coords > minpoint, coords <= maxpoint]).min(1)
+        minpt_voxel = np.dot(np.linalg.inv(mask.affine), np.r_[minpoint, 1])[:3]
+        voxel_size = np.diff(
+            np.dot(
+                mask.affine,
+                np.vstack((np.r_[minpt_voxel, 1], np.r_[minpt_voxel + 1, 1])).T
+            )[:3, :]
+        ).squeeze()
+        # use voxel size for the test to intersect voxels properly with verythin bounding boxes
+        inside = np.logical_and.reduce([
+            coords >= minpoint - voxel_size / 2,
+            coords <= maxpoint + voxel_size / 2
+        ]).min(1)
         XYZ = coords[inside, :3]
         if XYZ.shape[0] == 0:
             return None
-        elif XYZ.shape[0] == 1:
-            return point.Point(XYZ.flatten(), space=self.space)
+        elif XYZ.shape[0] == 1:  # reflect voxel size in resulting point set
+            return point.Point(XYZ.flatten(), space=self.space, sigma_mm=voxel_size.max())
         else:
-            return pointset.PointSet(XYZ, space=self.space)
+            return pointset.PointSet(XYZ, space=self.space, sigma_mm=voxel_size.max())
 
     def union(self, other):
         """Computes the union of this boudning box with another one.
