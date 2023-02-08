@@ -105,28 +105,30 @@ class Feature:
         Objects can be preconfigured in the configuration,
         or delivered by Live queries.
         """
-        result = []
+        if not hasattr(cls, "_preconfigured_instances"):
+            return []
+        
+        if cls._preconfigured_instances is not None:
+            return cls._preconfigured_instances
+        
+        if cls._configuration_folder is None:
+            cls._preconfigured_instances = []
+            return cls._preconfigured_instances
+        
+        from ...configuration.configuration import Configuration
+        conf = Configuration()
+        Configuration.register_cleanup(cls.clean_instances)
+        assert cls._configuration_folder in conf.folders
+        cls._preconfigured_instances = [
+            o for o in conf.build_objects(cls._configuration_folder)
+            if isinstance(o, cls)
+        ]
+        logger.debug(
+            f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
+            f"objects from {cls._configuration_folder}."
+        )
+        return cls._preconfigured_instances
 
-        if hasattr(cls, "_preconfigured_instances"):
-            if cls._preconfigured_instances is None:
-                if cls._configuration_folder is None:
-                    cls._preconfigured_instances = []
-                else:
-                    from ...configuration.configuration import Configuration
-                    conf = Configuration()
-                    Configuration.register_cleanup(cls.clean_instances)
-                    assert cls._configuration_folder in conf.folders
-                    cls._preconfigured_instances = [
-                        o for o in conf.build_objects(cls._configuration_folder)
-                        if isinstance(o, cls)
-                    ]
-                    logger.debug(
-                        f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
-                        f"objects from {cls._configuration_folder}."
-                    )
-            result.extend(cls._preconfigured_instances)
-
-        return result
 
     @classmethod
     def clean_instances(cls):

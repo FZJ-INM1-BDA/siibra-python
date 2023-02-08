@@ -88,6 +88,8 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
 
     @property
     def boundingbox(self):
+        # Sanity check. What else would boundingbox property be, if not boundingbox?
+        assert isinstance(self.anchor.location, boundingbox.BoundingBox)
         return self.anchor.location
 
     @property

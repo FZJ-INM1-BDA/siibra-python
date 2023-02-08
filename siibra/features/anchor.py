@@ -144,11 +144,11 @@ class AnatomicalAnchor:
         return self._location_cached
 
     @property
-    def parcellations(self):
+    def parcellations(self) -> List[Parcellation]:
         return list({region.root for region in self.regions})
 
     @property
-    def space(self):
+    def space(self) -> Space:
         # may be overriden by derived classes, e.g. in features.VolumeOfInterest
         if self.location is None:
             return None
