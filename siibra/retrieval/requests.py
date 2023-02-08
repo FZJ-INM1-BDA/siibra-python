@@ -163,7 +163,8 @@ class HttpRequest:
                     progress_bar = tqdm(
                         total=size_bytes, unit='iB', unit_scale=True,
                         position=0, leave=True,
-                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)",
+                        disable=logger.level > 20
                     )
                 temp_cachefile = self.cachefile + "_temp"
                 with open(temp_cachefile, "wb") as f:

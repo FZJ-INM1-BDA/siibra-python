@@ -119,7 +119,8 @@ class RegionalConnectivity(Feature):
                     for fname in tqdm(
                         self._files.values(),
                         total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices"
+                        desc=f"Averaging {len(self)} connectivity matrices",
+                        disable=logger.level > 20
                     )
                 ]
                 self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))

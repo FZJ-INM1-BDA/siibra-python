@@ -422,12 +422,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for volidx in tqdm(
             range(len(self.volumes)), total=len(self.volumes), unit='maps',
             desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
-            disable=(len(self.volumes) == 1)
+            disable=(logger.level > 20 or len(self.volumes) == 1)
         ):
             for frag in tqdm(
                 self.fragments, total=len(self.fragments), unit='maps',
                 desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
-                disable=(len(self.fragments) == 1 or self.fragments is None)
+                disable=(logger.level > 20 or len(self.fragments) == 1 or self.fragments is None)
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
                 img = self.fetch(mapindex)
@@ -480,7 +480,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
         current_vol_index = MapIndex(volume=0)
         maparr = None
-        for regionname, indexlist in tqdm(regions, unit="regions", desc="Computing centroids"):
+        for regionname, indexlist in tqdm(regions, unit="regions", desc="Computing centroids", disable=logger.level > 20):
             assert len(indexlist) == 1
             index = indexlist[0]
             if index.label == 0:
@@ -822,6 +822,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for pointindex, pt in tqdm(
             enumerate(points.warp(self.space.id)),
             total=len(points), desc="Warping points",
+            disable=logger.level > 20
         ):
             sigma_vox = pt.sigma / scaling
             if sigma_vox < 3:
@@ -890,7 +891,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             # but only if the sequence is long.
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
-                else tqdm(it, desc=desc, total=N)
+                else tqdm(it, desc=desc, total=N, disable=logger.level > 20)
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:

@@ -208,7 +208,7 @@ class Feature:
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
-            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances), disable=logger.level > 20) if f.matches(concept)]
 
         live_instances = []
         if hasattr(feature_type, "_live_queries"):

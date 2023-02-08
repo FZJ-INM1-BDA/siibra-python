@@ -75,7 +75,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
-        for r in tqdm(results, total=len(results)):
+        for r in tqdm(results, total=len(results), disable=logger.level > 20):
 
             regionname = r.get("name", None)
             alias = r.get("alias", None)
