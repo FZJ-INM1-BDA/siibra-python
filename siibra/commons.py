@@ -621,7 +621,7 @@ class Species(Enum):
     UNSPECIFIED_SPECIES = 999
 
     @classmethod
-    def decode(cls, spec: Union[str, dict], fail_if_not_successful=True):
+    def decode(cls, spec: Union[str, 'Species', dict], fail_if_not_successful=True):
 
         MINDS_IDS = {
             "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9": 1,

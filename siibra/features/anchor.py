@@ -24,7 +24,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, List
+from typing import Union, List, Dict
 from enum import Enum
 
 
@@ -95,7 +95,9 @@ class AnatomicalAssignment:
     def invert(self):
         return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
 
-    def __lt__(self, other):
+    def __lt__(self, other: 'AnatomicalAssignment'):
+        if not isinstance(other, AnatomicalAssignment):
+            raise ValueError(f"Cannot compare AnatomicalAssignment with instances of '{type(other)}'")
         return self.qualification.value < other.qualification.value
 
 
@@ -106,10 +108,10 @@ class AnatomicalAnchor:
     or both.
     """
 
-    _MATCH_MEMO = {}
+    _MATCH_MEMO: Dict[str, Dict[Region, AssignmentQualification]] = {}
     _MASK_MEMO = {}
 
-    def __init__(self, species: Union[List[Species], Species], location: Location = None, region: Union[str, Region] = None):
+    def __init__(self, species: Union[List[Species], Species, str], location: Location = None, region: Union[str, Region] = None):
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
@@ -128,7 +130,7 @@ class AnatomicalAnchor:
         self._regions_cached = None
         self._regionspec = None
         if isinstance(region, Region):
-            self._regions_cached = [region]
+            self._regions_cached = { region: AssignmentQualification.EXACT }
         elif isinstance(region, str):
             self._regionspec = region
         else:
@@ -168,28 +170,32 @@ class AnatomicalAnchor:
         return len(self.region_aliases) > 0
 
     @property
-    def regions(self):
+    def regions(self) -> Dict[Region, AssignmentQualification]:
         # decoding region strings is quite compute intensive, so we cache this at the class level
-        if self._regions_cached is None:
-            if self._regionspec is None:
-                self._regions_cached = []
-            else:
-                if self._regionspec not in self.__class__._MATCH_MEMO:
-                    self._regions_cached = []
-                    # decode the region specification into a set of region objects
-                    regions = {
-                        r: AssignmentQualification['EXACT']
-                        for species in self.species
-                        for r in Parcellation.find_regions(self._regionspec, species)
-                    }
-                    # add more regions from possible aliases of the region spec
-                    for alt_species, aliases in self.region_aliases.items():
-                        for regionspec, qualificationspec in aliases.items():
-                            for r in Parcellation.find_regions(regionspec, alt_species):
-                                if r not in self._regions_cached:
-                                    regions[r] = qualificationspec
-                    self.__class__._MATCH_MEMO[self._regionspec] = regions
-                self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
+        if self._regions_cached is not None:
+            return self._regions_cached
+
+        if self._regionspec is None:
+            self._regions_cached = {}
+            return self._regions_cached
+            
+        if self._regionspec not in self.__class__._MATCH_MEMO:
+            self._regions_cached = {}
+            # decode the region specification into a set of region objects
+            regions = {
+                r: AssignmentQualification.EXACT
+                for species in self.species
+                for r in Parcellation.find_regions(self._regionspec, species)
+            }
+            # add more regions from possible aliases of the region spec
+            for alt_species, aliases in self.region_aliases.items():
+                for regionspec, qualificationspec in aliases.items():
+                    for r in Parcellation.find_regions(regionspec, alt_species):
+                        if r not in self._regions_cached:
+                            regions[r] = qualificationspec
+            self.__class__._MATCH_MEMO[self._regionspec] = regions
+        self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
+        
         return self._regions_cached
 
     def __str__(self):
