@@ -17,6 +17,7 @@ from . import volume
 
 from ..retrieval import requests
 from ..commons import logger, merge_meshes
+from ..locations import boundingbox as _boundingbox
 
 import numpy as np
 from typing import Union, Dict
@@ -41,6 +42,12 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
+
+    @property
+    def boundingbox(self) -> _boundingbox.BoundingBox:
+        raise NotImplementedError(
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
+        )
 
     @property
     def fragments(self):
@@ -119,6 +126,12 @@ class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
             labels.append(loader.data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
+
+    @property
+    def boundingbox(self) -> _boundingbox.BoundingBox:
+        raise NotImplementedError(
+            f"Bounding boxes of {self.__class__.__name__} objects not defined."
+        )
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:

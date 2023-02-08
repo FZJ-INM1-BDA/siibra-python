@@ -18,7 +18,6 @@ from . import feature
 from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
-from ...locations import boundingbox
 
 from typing import List
 
@@ -38,9 +37,7 @@ class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
     def location(self):
         """ loads the bounding box only if required, since it demands image data access. """
         if self._location_cached is None:
-            self._location_cached = boundingbox.BoundingBox.from_image(
-                self.volume.fetch(), space=self.volume.space
-            )
+            self._location_cached = self.volume.boundingbox
         return self._location_cached
 
     @property
@@ -85,10 +82,6 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
             return feature.Feature.name(self)
         else:
             return f"{self._name_cached} ({self.modality})"
-
-    @property
-    def boundingbox(self):
-        return self.anchor.location
 
     @property
     def description(self):

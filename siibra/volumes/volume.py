@@ -15,6 +15,7 @@
 """A specific mesh or 3D array."""
 from .. import logger
 from ..retrieval import requests
+from ..locations import boundingbox as _boundingbox
 from ..core import space
 
 import nibabel as nib
@@ -76,6 +77,21 @@ class Volume:
         return {
             srctype: prov._url for srctype, prov in self._providers.items()
         }
+
+    @property
+    def boundingbox(self):
+        for provider in self._providers.values():
+            try:
+                bbox = provider.boundingbox
+                if bbox.space is None:  # provider does usually not know the space!
+                    bbox.space = self.space
+                    bbox.minpoint.space = self.space
+                    bbox.maxpoint.space = self.space
+            except NotImplementedError as e:
+                print(str(e))
+                continue
+            return bbox
+        raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
 
     @property
     def formats(self) -> Set[str]:
@@ -200,6 +216,11 @@ class VolumeProvider(ABC):
         return super().__init_subclass__()
 
     @property
+    @abstractmethod
+    def boundingbox(self) -> _boundingbox.BoundingBox:
+        raise NotImplementedError
+
+    @property
     def fragments(self) -> List[str]:
         return []
 
@@ -242,6 +263,10 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.provider = parent_provider
         self.srctype = parent_provider.srctype
         self.z = z
+
+    @property
+    def boundingbox(self) -> _boundingbox.BoundingBox:
+        return self.provider.boundingbox
 
     def fetch(self, **kwargs):
         # activate caching at the caller using "with SubvolumeProvider.UseCaching():""
