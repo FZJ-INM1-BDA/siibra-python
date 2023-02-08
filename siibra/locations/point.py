@@ -292,7 +292,7 @@ class Point(location.Location):
 
     @property
     def boundingbox(self):
-        w = min(self.sigma or 0, 1e-6) # at least a micrometer 
+        w = max(self.sigma or 0, 1e-6)  # at least a micrometer
         return boundingbox.BoundingBox(
             self - w, self + w, self.space, self.sigma
         )

@@ -172,8 +172,8 @@ class PointSet(location.Location):
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
         return BoundingBox(
-            point1=XYZ.min(0),
-            point2=XYZ.max(0),
+            point1=XYZ.min(0) - max(sigma_min, 1e-6),
+            point2=XYZ.max(0) + max(sigma_max, 1e-6),
             space=self.space,
             sigma_mm=[sigma_min, sigma_max]
         )
