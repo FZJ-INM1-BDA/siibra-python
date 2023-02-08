@@ -225,7 +225,8 @@ class Point(location.Location):
         a new point representing."""
         if isinstance(other, numbers.Number):
             return Point([c + other for c in self.coordinate], self.space)
-        assert self.space == other.space
+        if isinstance(other, Point):
+            assert self.space == other.space
         return Point(
             [self.coordinate[i] + other.coordinate[i] for i in range(3)], self.space
         )
@@ -288,6 +289,13 @@ class Point(location.Location):
         """Index access to the coefficients of this point."""
         assert 0 <= index < 3
         return self.coordinate[index]
+
+    @property
+    def boundingbox(self):
+        w = min(self.sigma or 0, 1e-6) # at least a micrometer 
+        return boundingbox.BoundingBox(
+            self - w, self + w, self.space, self.sigma
+        )
 
     def bigbrain_section(self):
         """
