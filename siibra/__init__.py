@@ -47,6 +47,7 @@ logger.info(
 set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.Parcellation.find_regions
+from_json = configuration.factory.Factory.from_json
 
 
 def __getattr__(attr: str):
