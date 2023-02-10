@@ -12,6 +12,10 @@ class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
     def _url(self):
         return {}
 
+    @property
+    def boundingbox(self):
+        return None
+
 class TestVolumeProvider(unittest.TestCase):
 
     @staticmethod

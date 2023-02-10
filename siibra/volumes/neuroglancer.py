@@ -17,7 +17,7 @@ from . import volume
 
 from ..commons import logger, MapType, merge_meshes
 from ..retrieval import requests, cache
-from ..locations import boundingbox
+from ..locations import boundingbox as _boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
@@ -50,7 +50,7 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
         self,
         fragment: str = None,
         resolution_mm: float = None,
-        voi: boundingbox.BoundingBox = None,
+        voi: _boundingbox.BoundingBox = None,
         **kwargs
     ) -> nib.Nifti1Image:
         """
@@ -119,21 +119,21 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
         return result
 
     @property
-    def bounding_box(self):
+    def boundingbox(self):
         """
         Return the bounding box in physical coordinates
         of the union of fragments in this neuroglancer volume.
         """
         bbox = None
         for frag in self._fragments.values():
-            next_bbox = boundingbox.BoundingBox((0, 0, 0), frag.shape, space=None) \
+            next_bbox = _boundingbox.BoundingBox((0, 0, 0), frag.shape, space=None) \
                 .transform(frag.affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.bounding_box
+        bbox = self.boundingbox
         num_conflicts = 0
         result = None
 
@@ -244,7 +244,17 @@ class NeuroglancerVolume:
             self._bootstrap()
         return self._scales_cached
 
-    def fetch(self, resolution_mm: float = None, voi: boundingbox.BoundingBox = None, **kwargs):
+    @property
+    def shape(self):
+        # return the shape of the scale 0 array
+        return self.scales[0].size
+
+    @property
+    def affine(self):
+        # return the affine matrix of the scale 0 data
+        return self.scales[0].affine
+
+    def fetch(self, resolution_mm: float = None, voi: _boundingbox.BoundingBox = None, **kwargs):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
         return scale.fetch(voi)
@@ -256,7 +266,7 @@ class NeuroglancerVolume:
     def is_float(self):
         return self.dtype.kind == "f"
 
-    def _select_scale(self, resolution_mm: float, bbox: boundingbox.BoundingBox = None):
+    def _select_scale(self, resolution_mm: float, bbox: _boundingbox.BoundingBox = None):
         if resolution_mm is None:
             suitable = self.scales
         elif resolution_mm < 0:
@@ -320,10 +330,10 @@ class NeuroglancerScale:
     def __str__(self):
         return f"{self.__class__.__name__} {self.key}"
 
-    def _estimate_nbytes(self, bbox: boundingbox.BoundingBox = None):
+    def _estimate_nbytes(self, bbox: _boundingbox.BoundingBox = None):
         """Estimate the size image array to be fetched in bytes, given a bounding box."""
         if bbox is None:
-            bbox_ = boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
+            bbox_ = _boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
         else:
             bbox_ = bbox.transform(np.linalg.inv(self.affine))
         result = self.volume.dtype.itemsize * bbox_.volume
@@ -399,11 +409,11 @@ class NeuroglancerScale:
             np.save(cachefile, chunk_zyx)
         return chunk_zyx
 
-    def fetch(self, voi: boundingbox.BoundingBox = None, **kwargs):
+    def fetch(self, voi: _boundingbox.BoundingBox = None, **kwargs):
 
         # define the bounding box in this scale's voxel space
         if voi is None:
-            bbox_ = boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
+            bbox_ = _boundingbox.BoundingBox((0, 0, 0), self.size, space=None)
         else:
             bbox_ = voi.transform(np.linalg.inv(self.affine))
 
@@ -475,6 +485,12 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     @property
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
+
+    @property
+    def boundingbox(self) -> _boundingbox.BoundingBox:
+        raise NotImplementedError(
+            f"Fast bounding box access to {self.__class__.__name__} objects not yet implemented."
+        )
 
     def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:
         # extract available fragment urls with their names for the given mesh index

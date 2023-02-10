@@ -17,7 +17,7 @@ from . import volume
 
 from ..commons import logger
 from ..retrieval import requests
-from ..locations import pointset, boundingbox
+from ..locations import pointset, boundingbox as _boundingbox
 
 from typing import Union, Dict
 import nibabel as nib
@@ -63,7 +63,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         return [k for k in self._img_loaders if k is not None]
 
     @property
-    def bounding_box(self):
+    def boundingbox(self):
         """
         Return the bounding box in physical coordinates
         of the union of fragments in this nifti volume.
@@ -71,14 +71,20 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         bbox = None
         for loader in self._img_loaders.values():
             img = loader()
-            next_bbox = boundingbox.BoundingBox((0, 0, 0), img.shape, space=None) \
+            if len(img.shape) > 3:
+                logger.warn(
+                    f"N-D NIfTI volume has shape {img.shape}, but "
+                    f"bounding box considers only {img.shape[:3]}"
+                )
+            shape = img.shape[:3]
+            next_bbox = _boundingbox.BoundingBox((0, 0, 0), shape, space=None) \
                 .transform(img.affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.bounding_box
+        bbox = self.boundingbox
         num_conflicts = 0
         result = None
 
@@ -114,7 +120,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
     def fetch(
         self,
         fragment: str = None,
-        voi: boundingbox.BoundingBox = None,
+        voi: _boundingbox.BoundingBox = None,
         label: int = None
     ):
         """

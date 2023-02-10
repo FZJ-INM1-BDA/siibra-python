@@ -33,6 +33,7 @@ from .retrieval.requests import (
     CACHE as cache
 )
 from . import configuration
+from .configuration import factory
 from . import features, livequeries
 from siibra.locations import Point, PointSet
 
@@ -47,6 +48,7 @@ logger.info(
 set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.Parcellation.find_regions
+from_json = factory.Factory.from_json
 
 
 def __getattr__(attr: str):
