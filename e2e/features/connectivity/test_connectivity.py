@@ -3,23 +3,23 @@ import pytest
 from typing import List
 
 from siibra.features.basetypes.regional_connectivity import RegionalConnectivity
+from e2e.util import check_duplicate
 
 jba_29 = siibra.parcellations["2.9"]
 
+
+# FIXME
+@pytest.mark.xfail(reason="Some regional connectivity have same id. Remove mark as xfail when fixed.")
+def test_id_unique():
+    features = siibra.features.get(jba_29, RegionalConnectivity)
+    duplicates = check_duplicate([f.id for f in features])
+    assert len(duplicates) == 0
+
 args = [
     (jba_29, "StreamlineCounts"),
-    pytest.param(
-        jba_29, "RegionalConnectivity",
-        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
-    ),
-    pytest.param(
-        jba_29, RegionalConnectivity,
-        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
-    ),
-    pytest.param(
-        jba_29, "connectivity",
-        marks=pytest.mark.xfail(reason="Non-quadratic connectivity matrix 294x1")
-    ),
+    (jba_29, "RegionalConnectivity"),
+    (jba_29, RegionalConnectivity),
+    (jba_29, "connectivity"),
     (jba_29, siibra.features.connectivity.StreamlineCounts),
     (jba_29, siibra.features.connectivity.StreamlineLengths),
 ]
