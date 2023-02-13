@@ -75,7 +75,7 @@ class Volume:
     @property
     def providers(self):
         return {
-            srctype: prov._url for srctype, prov in self._providers.items()
+            srctype: (prov._url + (f" {prov.label}" if hasattr(prov, "label") else "")) for srctype, prov in self._providers.items()
         }
 
     @property
