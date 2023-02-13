@@ -74,8 +74,13 @@ class Volume:
 
     @property
     def providers(self):
+        def concat(url: Union[str, Dict[str, str]], concat: str):
+            if isinstance(url, str):
+                return url + concat
+            return { key: url[key] + concat for key in url }
         return {
-            srctype: prov._url for srctype, prov in self._providers.items()
+            srctype: concat(prov._url, f" {prov.label}" if hasattr(prov, "label") else "")
+            for srctype, prov in self._providers.items()
         }
 
     @property
