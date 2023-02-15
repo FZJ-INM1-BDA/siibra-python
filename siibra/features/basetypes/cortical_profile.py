@@ -56,30 +56,27 @@ class CorticalProfile(feature.Feature):
     ):
         """Initialize profile.
 
-        Args:
-            description (str):
-                Human-readable of the modality of the measurements.
-            modality (str):
-                Short textual description of the modaility of measurements
-            anchor: AnatomicalAnchor
-            depths (list, optional):
-                List of cortical depthh positions corresponding to each
-                measurement, all in the range [0..1].
-                Defaults to None.
-            values (list, optional):
-                List of the actual measurements at each depth position.
-                Length must correspond to 'depths'.
-                Defaults to None.
-            unit (str, optional):
-                Textual identifier for the unit of measurements.
-                Defaults to None.
-            boundary_positions (dict, optional):
-                Dictionary of depths at which layer boundaries were identified.
-                Keys are tuples of layer numbers, e.g. (1,2), values are cortical
-                depth positions in the range [0..1].
-                Defaults to None.
-            datasets : list
-                list of datasets corresponding to this feature
+        Parameters
+        ----------
+        description: str
+            Human-readable of the modality of the measurements.
+        modality: str
+            Short textual description of the modality of measurements.
+        anchor: AnatomicalAnchor
+        depths: list, default: None
+            List of cortical depth positions corresponding to each
+            measurement, all in the range [0..1]
+        values: list, default: None
+            List of the actual measurements at each depth position.
+            Length must correspond to 'depths'.
+        unit: str, default: None
+            Textual identifier for the unit of measurements.
+        boundary_positions: dict, default: None
+            Dictionary of depths at which layer boundaries were identified.
+            Keys are tuples of layer numbers, e.g. (1,2), and values are
+            cortical depth positions in the range [0..1].
+        datasets : list[Dataset]
+            list of datasets corresponding to this feature
         """
         feature.Feature.__init__(
             self,
@@ -161,7 +158,9 @@ class CorticalProfile(feature.Feature):
         )
 
     def plot(self, **kwargs):
-        """Plot the profile.
+        """
+        Plot the profile.
+
         Keyword arguments are passed on to the plot command.
         'layercolor' can be used to specify a color for cortical layer shading.
         """
@@ -194,8 +193,11 @@ class CorticalProfile(feature.Feature):
 
     @property
     def _depths(self):
-        """Returns a list of the relative cortical depths of the measured values in the range [0..1].
-        To be implemented in derived class."""
+        """
+        Returns a list of the relative cortical depths of the measured values in the range [0..1].
+        
+        To be implemented in derived class.
+        """
         if self._depths_cached is None:
             raise NotImplementedError(
                 f"'_depths' not available for {self.__class__.__name__}."
@@ -204,8 +206,11 @@ class CorticalProfile(feature.Feature):
 
     @property
     def _values(self):
-        """Returns a list of the measured values per depth.
-        To be implemented in derived class."""
+        """
+        Returns a list of the measured values per depth.
+
+        To be implemented in derived class.
+        """
         if self._values_cached is None:
             raise NotImplementedError(
                 f"'_values' not available for {self.__class__.__name__}."

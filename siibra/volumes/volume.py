@@ -69,7 +69,9 @@ class Volume:
 
     @property
     def name(self):
-        """ allows derived classes to implemente a lazy name specification."""
+        """
+        Allows derived classes to implement a lazy name specification.
+        """
         return self._name_cached
 
     @property
@@ -154,16 +156,16 @@ class Volume:
         ----------
         format: str
             Requested format. Per default, several formats are tried,
-            starting with volumetric formats. You may explicitly specify:
-            - 'surface' or 'mesh' to fetch a surface format
-            - 'volumetric' or 'voxel' to fetch a volumetric format
-            - supported format types, see :data:`Volume.SUPPORTED_FORMATS`. This includes:
-                :class:`'nii'<siibra.volumes.nifti.NiftiProvider()>`,
-                :class:`'zip/nii'<siibra.volumes.nifti.ZipContainedNiftiProvider()>`,
-                :class:`'neuroglancer/precomputed'<siibra.volumes.neuroglancer.NeuroglancerProvider()>`,
-                :class:`'gii-mesh'<siibra.volumes.gifti.GiftiMesh()>`,
-                :class:`'neuroglancer/precompmesh'<siibra.volumes.neuroglancer.NeuroglancerMesh()>`,
-                :class:`'gii-label'<siibra.volumes.gifti.GiftiSurfaceLabeling()>`
+            starting with volumetric formats. It can be explicitly specified as:
+                - 'surface' or 'mesh' to fetch a surface format
+                - 'volumetric' or 'voxel' to fetch a volumetric format
+                - supported format types, see SUPPORTED_FORMATS. This includes
+                'nii', 'zip/nii', 'neuroglancer/precomputed', 'gii-mesh',
+                'neuroglancer/precompmesh', 'gii-label'
+
+        Returns
+        -------
+        An image or mesh
         """
 
         if format is None:

@@ -35,7 +35,9 @@ class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
 
     @property
     def location(self):
-        """ loads the bounding box only if required, since it demands image data access. """
+        """
+        Loads the bounding box only if required, since it demands image data access.
+        """
         if self._location_cached is None:
             self._location_cached = self.volume.boundingbox
         return self._location_cached
@@ -45,6 +47,7 @@ class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
         return self.volume.space
 
     def __str__(self):
+        #TODO: Replace with a more descriptive str
         return "bounding box of volume"
 
 

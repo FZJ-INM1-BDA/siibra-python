@@ -55,12 +55,24 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
 
     def fetch(self, fragment: str = None, **kwargs):
         """
-        Returns the mesh as a dictionary with two numpy arrays: An Nx3 array of vertex coordinates,
-        and an Mx3 array of face definitions using row indices of the vertex array.
+        Returns the mesh as a dictionary with two numpy arrays.
 
-        A fragment name can be specified to choose from multiple fragments.
-        If not specified, multiple fragments will be merged into one mesh. In such a case,
-        the verts and faces arrays of different fragments are appended to one another.
+        Parameters
+        ----------
+        fragment: str, default: None
+            A fragment name can be specified to choose from multiple fragments.
+
+            Note
+            ----
+            If not specified, multiple fragments will be merged into one mesh.
+            In such a case, the verts and faces arrays of different fragments
+            are appended to one another.
+
+        Returns
+        -------
+        dict
+            - 'verts': An Nx3 array of vertex coordinates,
+            - 'faces': an Mx3 array of face definitions using row indices of the vertex array
         """
         for arg in ["resolution_mm", "voi"]:
             if kwargs.get(arg):
@@ -93,11 +105,14 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
 
     def fetch_iter(self):
         """
-        Iterator returning all submeshes, each represented as a dictionary
-        with elements
-        - 'verts': An Nx3 array of vertex coordinates,
-        - 'faces': an Mx3 array of face definitions using row indices of the vertex array
-        - 'name': Name of the of the mesh variant
+        Iterator returning all submeshes
+
+        Returns
+        -------
+        dict
+            - 'verts': An Nx3 array of vertex coordinates,
+            - 'faces': an Mx3 array of face definitions using row indices of the vertex array
+            - 'name': Name of the of the mesh variant
         """
         return (self.fetch(v) for v in self.variants)
 

@@ -610,9 +610,9 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
             EBRAINS dataset id of a public dataset in KG v3.
         title: str
             Part of dataset title as an alternative dataset specification (will ignore dataset_id then)
-        in_progress: bool (default:False)
+        in_progress: bool, default: False
             If true, will request datasets that are still under curation.
-            Will only work when autenticated with an appropriately privileged
+            Will only work when authenticated with an appropriately privileged
             user account.
         """
         stage = "IN_PROGRESS" if in_progress else "RELEASED"

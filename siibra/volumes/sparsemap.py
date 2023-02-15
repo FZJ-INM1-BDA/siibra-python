@@ -111,8 +111,10 @@ class SparseIndex:
         return x, y, z, v
 
     def to_cache(self, prefix: str):
-        """ Serialize this index to the cache,
-        using the given prefix for the cache filenames. """
+        """
+        Serialize this index to the cache, using the given prefix for the cache
+        filenames.
+        """
         probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
         bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
         voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
@@ -132,9 +134,18 @@ class SparseIndex:
     @classmethod
     def from_cache(cls, prefix: str):
         """
-        Attemts to build a sparse index from the siibra cache,
-        looking for suitable cache files with the specified prefix.
-        Returns None if cached files are not found or suitable.
+        Attempts to build a sparse index from the siibra cache, looking for
+        suitable cache files with the specified prefix.
+
+        Parameters
+        ----------
+        prefix: str
+            Prefix of the filenames.
+
+        Returns
+        -------
+        SparseIndex
+            None if cached files are not found or suitable.
         """
 
         probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
@@ -179,21 +190,22 @@ class SparseIndex:
 
 
 class SparseMap(parcellationmap.Map):
-    """A sparse representation of list of statistical (e.g. probabilistic) brain region maps.
+    """
+    A sparse representation of list of statistical (e.g. probabilistic) brain
+    region maps.
 
     It represents the 3D statistical maps of N brain regions by two data structures:
-        1) 'spatial_index', a 3D volume where non-negative values represent unique
-            indices into a list of region assignments
-        2) 'probs', a list of region assignments where each entry is a dict
+    
+    1) 'spatial_index', a 3D volume where non-negative values represent unique indices into a list of region assignments
+    2) 'probs', a list of region assignments where each entry is a dict
 
-    More precisely, given
-        i = sparse_index.voxels[x, y, z]
-    we define that
-        - if i<0, no brain region is assigned at this location
-        - if i>=0, probs[i] defines the probabilities of brain regions.
+    More precisely, given ``i = sparse_index.voxels[x, y, z]`` we define that
+
+    - if `i<0`, no brain region is assigned at this location
+    - if `i>=0`, ``probs[i]`` defines the probabilities of brain regions.
 
     Each entry in probs is a dictionary that represents the region assignments for
-    the unique voxel where spatial_index==i. The assignment maps from a "mapindex"
+    the unique voxel where ``spatial_index == i``. The assignment maps from a MapIndex
     to the actual (probability) value.
     """
 
@@ -278,15 +290,19 @@ class SparseMap(parcellationmap.Map):
         Recreate a particular volumetric map from the sparse
         representation.
 
-        Arguments
-        ---------
-        region_or_index: Union[str, Region, MapIndex]
+        Parameters
+        ----------
+        region_or_index: str, Region, MapIndex
             Lazy match the specification.
         index : MapIndex
             The index to be fetched.
-        region: Union[str, Region]
-            Region name specification. If given, will be used to
-            decode the map index of a particular region.
+        region: str, Region
+            Region name specification. If given, will be used to decode the map
+            index of a particular region.
+        
+        Returns
+        -------
+        An image or mesh
         """
         if kwargs.get('format') in ['mesh'] + _volume.Volume.MESH_FORMATS:
             # a mesh is requested, this is not handled by the sparse map

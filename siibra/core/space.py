@@ -45,24 +45,25 @@ class Space(AtlasConcept, configuration_folder="spaces"):
 
         Parameters
         ----------
-        identifier : str
-            Unique identifier of the space
-        name : str
-            Human-readable name of the space
-        species: str or Species
-            Specification of the species
-        volumes: list of template volumes
-        shortname: str
-            Shortform of human-readable name (optional)
-        description: str
-            Textual description of the parcellation
-        modality  :  str or None
-            Specification of the modality representing this reference space
-        publications: list
-            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
-        ebrains_ids : dict
-            Identifiers of EBRAINS entities corresponding to this Parcellation.
-            Key: EBRAINS KG schema, value: EBRAINS KG @id
+            identifier : str
+                Unique identifier of the space
+            name : str
+                Human-readable name of the space
+            species: str or Species
+                Specification of the species
+            volumes: list[Volume]
+                list of template volumes
+            shortname: str, optional
+                Shortform of human-readable name
+            description: str, optional
+                Textual description of the parcellation
+            modality  :  str or None
+                Specification of the modality representing this reference space
+            publications: list
+                List of associated publications, each a dictionary with "doi" and/or "citation" fields
+            ebrains_ids : dict
+                Identifiers of EBRAINS entities corresponding to this Parcellation.
+                Key: EBRAINS KG schema, value: EBRAINS KG @id
         """
 
         AtlasConcept.__init__(
@@ -86,19 +87,20 @@ class Space(AtlasConcept, configuration_folder="spaces"):
 
         Parameters
         ----------
-        variant: str (optional)
-            Some templates are provided in different variants, e.g.
-            freesurfer is available as either white matter, pial or
-            inflated surface for left and right hemispheres (6 variants).
-            This field could be used to request a specific variant.
-            Per default, the first found variant is returned.
-        format: str (optional)
-            Volumes are typically available in multiple formats.
-            Use this to select a specific one, if needed.
+            variant: str, optional
+                Some templates are provided in different variants, e.g.
+                freesurfer is available as either white matter, pial or
+                inflated surface for left and right hemispheres (6 variants).
+                This field could be used to request a specific variant.
+                Per default, the first found variant is returned.
+            format: str, optional
+                Volumes are typically available in multiple formats.
+                Use this to select a specific one, if needed.
 
-        Yields
-        ------
-        A VolumeSrc object representing the reference template, or None if not available.
+        Returns
+        -------
+            Volume
+                representing the reference template, or None if not available.
         """
         tests = []
         if variant is not None:
@@ -131,10 +133,10 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         """
         Get a volume of interest specification from this space.
 
-        Arguments
-        ---------
-        slices: triple of slice
-            defines the x, y and z range
+        Parameters
+        ----------
+            slices: triple of slice
+                Defines the x, y and z range
         """
         if len(slices) != 3:
             raise TypeError(
@@ -153,9 +155,12 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         """
         Get a volume of interest specification from this space.
 
-        Arguments
-        ---------
-        point1: 3D tuple defined in physical coordinates of this reference space
-        point2: 3D tuple defined in physical coordinates of this reference space
+        Parameters
+        ----------
+            point1: 3D tuple defined in physical coordinates of this reference space
+            point2: 3D tuple defined in physical coordinates of this reference space
+        Returns
+        -------
+            BoundingBox
         """
         return BoundingBox(point1, point2, self)

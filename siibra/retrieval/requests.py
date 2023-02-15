@@ -272,8 +272,10 @@ class EbrainsRequest(HttpRequest):
 
     @classmethod
     def fetch_token(cls):
-        """Fetch an EBRAINS token using commandline-supplied username/password
+        """
+        Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
+        
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
         cls.device_flow()

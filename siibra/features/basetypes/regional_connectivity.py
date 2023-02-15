@@ -31,9 +31,8 @@ from tqdm import tqdm
 
 class RegionalConnectivity(Feature):
     """
-    Parcellation-averaged connectivity, providing one or more
-    matrices of a given modality for a given parcellation.
-
+    Parcellation-averaged connectivity, providing one or more matrices of a
+    given modality for a given parcellation.
     """
 
     def __init__(
@@ -48,8 +47,8 @@ class RegionalConnectivity(Feature):
         description: str = "",
         datasets: list = [],
     ):
-        """j
-        Construct a parcellation-averaged connectivty matrix.
+        """
+        Construct a parcellation-averaged connectivity matrix.
 
         Parameters
         ----------
@@ -57,7 +56,7 @@ class RegionalConnectivity(Feature):
             Name of the cohort used for computing the connectivity.
         modality: str
             Connectivity modality, typically set by derived classes.
-        regions: list of str
+        regions: list[str]
             Names of the regions from the parcellation
         connector: Connector
             Repository connector for loading the actual data array(s).
@@ -69,9 +68,9 @@ class RegionalConnectivity(Feature):
         anchor: AnatomicalAnchor
             anatomical localization of the matrix, expected to encode the parcellation
             in the region attribute.
-        description: str (optional)
+        description: str, optional
             textual description of this connectivity matrix.
-        datasets : list
+        datasets : list[Dataset]
             list of datasets corresponding to this feature.
         """
         Feature.__init__(
@@ -101,10 +100,14 @@ class RegionalConnectivity(Feature):
 
         Parameters
         ----------
-        subject: str
+        subject: str, default: None
             Name of the subject (see ConnectivityMatrix.subjects for available names).
             If "mean" or None is given, the mean is taken in case of multiple
             available matrices.
+        Returns
+        -------
+        pd.DataFrame
+            A square matrix with region names as the column and row names.
         """
         assert len(self) > 0
         if (subject is None) and (len(self) > 1):
@@ -181,9 +184,17 @@ class RegionalConnectivity(Feature):
         """
         Extract a regional profile from the matrix, to obtain a tabular data feature
         with the connectivity as the single column.
+
         Rows will be sorted by descending connection strength.
         Regions with connectivity smaller than "min_connectivity" will be discarded.
         If max_rows is given, only the subset of regions with highest connectivity is returned.
+
+        Parameters
+        ----------
+        region: str, Region
+        subject: str, default: None
+        min_connectivity: float, default: 0
+        max_rows: int, default: None
         """
         matrix = self.get_matrix(subject)
 
@@ -236,8 +247,15 @@ class RegionalConnectivity(Feature):
 
     def compute_centroids(self, space):
         """
-        compute the list of centroid coordinates corresponding to
-        matrix rows, in the given space.
+        Computes the list of centroid coordinates corresponding to
+        matrix rows, in the given reference space.
+
+        Parameters
+        ----------
+        space: Space, str
+        Returns
+        -------
+        list[tuple(float, float, float)]
         """
         result = []
         parcellations = self.anchor.represented_parcellations()
@@ -261,7 +279,7 @@ class RegionalConnectivity(Feature):
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
         Convert a numpy array with the connectivity matrix to
-        a dataframe with regions as column and row headers.
+        a DataFrame with regions as column and row headers.
         """
         df = pd.DataFrame(array)
         parcellations = self.anchor.represented_parcellations()

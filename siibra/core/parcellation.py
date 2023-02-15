@@ -96,7 +96,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             Specification of the species
         regions: list or Region
         shortname: str
-            Shortform of human-readable name (optional)
+            Short form of human-readable name (optional)
         description: str
             Textual description of the parcellation
         version : str or None
@@ -104,7 +104,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         modality  :  str or None
             Specification of the modality used for creating the parcellation
         publications: list
-            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+            List of associated publications, each a dictionary with "doi"
+            and/or "citation" fields
         datasets : list
             datasets associated with this region
         """
@@ -138,23 +139,27 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
         """
-        Get the maps for the parcellation in the requested
-        template space. This might in general include multiple
-        3D volumes. For example, the Julich-Brain atlas provides two separate
-        maps, one per hemisphere. Per default, multiple maps are concatenated into a 4D
-        array, but you can choose to retrieve a dict of 3D volumes instead using `return_dict=True`.
+        Get the maps for the parcellation in the requested template space.
+
+        This might in general include multiple 3D volumes. For example,
+        the Julich-Brain atlas provides two separate maps, one per hemisphere.
+        Per default, multiple maps are concatenated into a 4D array, but you
+        can choose to retrieve a dict of 3D volumes instead using
+        `return_dict=True`.
 
         Parameters
         ----------
-        space : Space or str
+        space: Space or str
             template space specification
-        maptype : MapType (default: MapType.LABELLED)
-            Type of map requested (e.g., continous or labelled, see _commons.MapType)
+        maptype: MapType
+            Type of map requested (e.g., statistical or labelled).
             Use MapType.STATISTICAL to request probability maps.
-
-        Yields
-        ------
-        A ParcellationMap representing the volumetric map.
+            Defaults to MapType.LABELLED.
+        Returns
+        -------
+        parcellationmap.Map or SparseMap
+            A ParcellationMap representing the volumetric map or
+            a SparseMap representing the list of statistical maps.
         """
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
@@ -175,6 +180,22 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
 
     @classmethod
     def find_regions(cls, region_spec: str, parents_only=True):
+        """
+        Find regions that match the given region specification in the subtree
+        headed by this region.
+
+        Parameters
+        ----------
+        regionspec: str
+            a string with a possibly inexact name, which is matched both
+            against the name and the identifier key,
+        parents_only: bool
+            If true, children of matched parents will not be returned
+        Returns
+        -------
+        List[Region]
+            list of matching regions
+        """
         MEM = cls._CACHED_REGION_SEARCHES
         if region_spec not in MEM:
             MEM[region_spec] = [
@@ -216,40 +237,50 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         else:
             return [spec]
 
-    def get_region(self, regionspec: Union[str, int, MapIndex, region.Region], find_topmost=True, allow_tuple=False):
+    def get_region(
+        self,
+        regionspec: Union[str, int, MapIndex, region.Region],
+        find_topmost: bool = True,
+        allow_tuple: bool = False
+    ):
         """
         Given a unique specification, return the corresponding region.
+
         The spec could be a label index, a (possibly incomplete) name, or a
-        region object.
-        This method is meant to definitely determine a valid region. Therefore,
-        if no match is found, it raises a ValueError.
-        If multiple matches are found, the method tries to return only the common parent node.
-        If there is no common parent, an exception is raised, except when
-        allow_tuple=True - then a tuple of matched regions is returned
+        region object. This method is meant to definitely determine a valid
+        region. Therefore, if no match is found, it raises a ValueError.
+        If multiple matches are found, the method tries to return only the
+        common parent node. If there is no common parent, an exception is
+        raised, except when allow_tuple=True - then a tuple of matched regions
+        is returned.
 
         Parameters
         ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - an integer, which is interpreted as a labelindex,
-            - a region object
-            - a full MapIndex
-        find_topmost : Bool, default: True
+        regionspec: str, regex, int, Region, MapIndex
+            - a string with a possibly inexact name (matched both against the name and the identifier key)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a regex applied to region names
+            - an integer (interpreted as a labelindex)
+            - a Region object
+            - a full MapIndex object
+        find_topmost: bool, default: True
             If True, will automatically return the parent of a decoded region
             the decoded region is its only child.
-        allow_tuple: Bool, default: False
+        allow_tuple: bool, default: False
             If multiple candidates without a common parent are found,
             return a tuple of matches instead of raising an exception.
-
-        Return
-        ------
-        Region object
+            
+        Returns
+        -------
+        Region
+            A region object defined in the parcellation
 
         Raises
         ------
-        RuntimeError: if the spec matches multiple regions
-        ValueError: if the spec cannot be matched against any region
+        RuntimeError
+            If the spec matches multiple regions
+        ValueError
+            If the spec cannot be matched against any region
         """
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
