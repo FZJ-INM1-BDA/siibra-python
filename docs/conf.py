@@ -76,7 +76,12 @@ napoleon_use_ivar = True
 # Mappings
 intersphinx_mapping = {
     "mainconcepts": ('../concepts.html', None),
-    "nilearn": ('https://nilearn.github.io/stable/index.html', None)
+    "matplotlib": ("https://matplotlib.org/", None),
+    "nilearn": ('https://nilearn.github.io/stable/index.html', None),
+    "nibabel": ("https://nipy.org/nibabel/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("http://pandas.pydata.org/pandas-docs/dev", None),
+    "python": ("https://docs.python.org/3/", None),
 }
 
 # autoapi options
