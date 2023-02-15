@@ -114,7 +114,7 @@ class CorticalProfile(feature.Feature):
         return self._unit
 
     @property
-    def boundary_positions(self):
+    def boundary_positions(self) -> Dict[Tuple[int, int], float]:
         if self._boundary_positions is None:
             return {}
         else:
