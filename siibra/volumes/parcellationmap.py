@@ -33,18 +33,10 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..core.region import Region
 
-
-class ExcessiveArgumentException(ValueError):
-    pass
-
-
-class InsufficientArgumentException(ValueError):
-    pass
-
-
-class ConflictingArgumentException(ValueError):
-    pass
-
+class ExcessiveArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError): pass
+class NonUniqueIndexError(RuntimeError): pass
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -171,17 +163,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Raises
         ------
-        RuntimeError
+        NonUniqueIndexError
             If not unique or not defined in this parcellation map.
         """
         matches = self.find_indices(region)
         if len(matches) > 1:
-            raise RuntimeError(
+            raise NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
-            raise RuntimeError(
+            raise NonUniqueIndexError(
                 f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
