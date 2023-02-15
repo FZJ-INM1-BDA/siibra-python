@@ -1,12 +1,13 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException
+from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException, NonUniqueIndexError
 from siibra.commons import Species
 from siibra.core.region import Region
 from uuid import uuid4
 from parameterized import parameterized
 import random
 from itertools import product
+import inspect
 
 
 class DummyCls:
@@ -283,7 +284,6 @@ class TestMap(unittest.TestCase):
 
         with patch.object(Map, 'get_index', return_value=mock_map_index) as get_index_mock:
             if expected_error is not None:
-                import inspect
                 assert inspect.isclass(expected_error)
                 try:
                     with self.assertRaises(expected_exception=expected_error):
@@ -326,3 +326,26 @@ class TestMap(unittest.TestCase):
                 import pdb
                 pdb.set_trace()
             self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
+
+
+    @parameterized.expand(
+        product(
+            ["foo", Region("")],
+            [
+                ({}, NonUniqueIndexError),
+                ({"foo": "bar", "baz": "world"}, NonUniqueIndexError),
+                ({"foo": "baz"}, None)
+            ]
+        )
+    )
+    def test_get_index(self, region, find_index_stubs):
+        return_find_indicies, ErrorCls = find_index_stubs
+        with patch.object(Map, "find_indices", return_value=return_find_indicies) as mock:
+            if inspect.isclass(ErrorCls):
+                with self.assertRaises(ErrorCls):
+                    self.map.get_index(region)
+            else:
+                return_val = self.map.get_index(region)
+                self.assertIs(return_val, list(return_find_indicies.keys())[0])
+            
+            mock.assert_called_once_with(region)
