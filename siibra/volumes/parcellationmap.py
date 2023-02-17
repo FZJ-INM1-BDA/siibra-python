@@ -210,7 +210,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for idx in self._indices[regionname]
         }
 
-    def get_region(self, label: int = None, volume: int = None, index: MapIndex = None):
+    def get_region(self, label: int = None, volume: int = 0, index: MapIndex = None):
         """
         Returns the region mapped by the given index, if any.
         
@@ -221,7 +221,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Parameters
         ----------
         label: int, default: None
-        volume: int, default: None
+        volume: int, default: 0
         index: MapIndex, default: None
 
         Returns
