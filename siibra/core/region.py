@@ -370,6 +370,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         elif isinstance(regionspec, REGEX_TYPE):
             # match regular expression
             return any(regionspec.search(s) is not None for s in [self.name, self.key])
+        elif isinstance(regionspec, (list, tuple)):
+            return any(self.matches(_) for _ in regionspec)
         else:
             raise TypeError(
                 f"Cannot interpret region specification of type '{type(regionspec)}'"
