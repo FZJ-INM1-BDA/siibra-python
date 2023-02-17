@@ -93,8 +93,14 @@ class Cache:
         if index > 0:
             logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
             for fn, st in sfiles[:index + 1]:
-                size_gib -= st.st_size / 1024**3
-                os.remove(fn)
+                if os.path.isdir(fn):
+                    import shutil
+                    size = sum(os.path.getsize(f) for f in os.listdir(fn) if os.path.isfile(f))
+                    shutil.rmtree(fn)
+                else:
+                    size = st.st_size
+                    os.remove(fn)
+                size_gib -= size / 1024**3
 
     @property
     def size(self):
