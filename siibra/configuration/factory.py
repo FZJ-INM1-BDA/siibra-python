@@ -398,7 +398,7 @@ class Factory:
             kwargs["paradigm"] = spec.get("paradigm")
             return connectivity.FunctionalConnectivity(**kwargs)
         elif modality == "RestingState":
-            kwargs["paradigm"] = "RestingState"
+            kwargs["paradigm"] = spec.get("paradigm", "RestingState")
             return connectivity.FunctionalConnectivity(**kwargs)
         else:
             raise ValueError(f"Do not know how to build connectivity matrix of type {modality}.")
