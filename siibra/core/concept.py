@@ -135,12 +135,18 @@ class AtlasConcept:
     @classmethod
     def get_instance(cls, spec: str):
         """
-        Returns an instance of this class matching the given specification
-        from its registry, if possible, otherwise None.
-
-        Raises
+        Parameters
+        ----------
+            spec: str
+                Specification of the class the instance is requested.
+        Returns
         -------
-        IndexError: if spec cannot match any instance
+            an instance of this class matching the given specification from its
+            registry if possible, otherwise None.
+        Raises
+        ------
+            IndexError
+                If spec cannot match any instance
         """
         if cls.registry() is not None:
             return cls.registry().get(spec)
@@ -168,7 +174,14 @@ class AtlasConcept:
 
     def matches(self, spec):
         """
-        Test if the given specification matches the name, key or id of the concept.
+        Parameters
+        ----------
+            spec: str
+                Specification checked within the concept name, key or id
+        Returns
+        -------
+            bool
+                Whether the given specification matches the name, key or id of the concept.
         """
         if isinstance(spec, self.__class__) and (spec == self):
             return True

@@ -33,18 +33,10 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..core.region import Region
 
-
-class ExcessiveArgumentException(ValueError):
-    pass
-
-
-class InsufficientArgumentException(ValueError):
-    pass
-
-
-class ConflictingArgumentException(ValueError):
-    pass
-
+class ExcessiveArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError): pass
+class NonUniqueIndexError(RuntimeError): pass
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -67,9 +59,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        identifier : str
+        identifier: str
             Unique identifier of the parcellation
-        name : str
+        name: str
             Human-readable name of the parcellation
         space_spec: dict
             Specification of the space (use @id or name fields)
@@ -81,18 +73,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Per region name, a list of dictionaries with fields "volume" and "label" is expected,
             where "volume" points to the index of the Volume object where this region is mapped,
             and optional "label" is the voxel label for that region.
-            For contiuous / probability maps, the "label" can be null or omitted.
+            For continuous / probability maps, the "label" can be null or omitted.
             For single-volume labelled maps, the "volume" can be null or omitted.
-        volumes: list of Volume
+        volumes: list[Volume]
             parcellation volumes
-        shortname: str
-            Shortform of human-readable name (optional)
-        description: str
+        shortname: str, optional
+            Shortform of human-readable name
+        description: str, optional
             Textual description of the parcellation
-        modality  :  str or None
+        modality: str, default: None
             Specification of the modality used for creating the parcellation
         publications: list
-            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
+            List of associated publications, each a dictionary with "doi" and/or "citation" fields
         datasets : list
             datasets associated with this concept
         """
@@ -155,28 +147,53 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def get_index(self, region: Union[str, "Region"]):
         """
-        Returns the unique index corresponding to the specified region,
-        assuming that the specification matches one unique region
-        defined in this parcellation map.
-        If not unique, or not defined, an exception will be thrown.
-        See find_indices() for a less strict search returning all matches.
+        Returns the unique index corresponding to the specified region.
+
+        Tip
+        ----
+        Use find_indices() method for a less strict search returning all matches.
+
+        Parameters
+        ----------
+        region: str or Region
+            
+        Returns
+        -------
+        MapIndex
+
+        Raises
+        ------
+        NonUniqueIndexError
+            If not unique or not defined in this parcellation map.
         """
         matches = self.find_indices(region)
         if len(matches) > 1:
-            raise RuntimeError(
+            raise NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
-            raise RuntimeError(
+            raise NonUniqueIndexError(
                 f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
             return next(iter(matches))
 
     def find_indices(self, region: Union[str, "Region"]):
-        """ Returns the volume/label indices in this map
-        which match the given region specification"""
+        """
+        Returns the volume/label indices in this map which match the given
+        region specification.
+
+        Parameters
+        ----------
+        region: str or Region
+            
+        Returns
+        -------
+        dict
+            - keys: MapIndex
+            - values: region name
+        """
         if region in self._indices:
             return {
                 idx: region
@@ -194,7 +211,24 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         }
 
     def get_region(self, label: int = None, volume: int = None, index: MapIndex = None):
-        """ Returns the region mapped by the given index, if any. """
+        """
+        Returns the region mapped by the given index, if any.
+        
+        Tip
+        ----
+        Use get_index() or find_indices() methods to obtain the MapIndex.
+
+        Parameters
+        ----------
+        label: int, default: None
+        volume: int, default: None
+        index: MapIndex, default: None
+
+        Returns
+        -------
+        Region
+            A region object defined in the parcellation map.
+        """
         if index is None:
             index = MapIndex(volume, label)
         matches = [
@@ -232,8 +266,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     @property
     def labels(self):
         """
-        The set of all label indices defined in this map,
-        including "None" if not defined for one or more regions.
+        The set of all label indices defined in this map, including "None" if
+        not defined for one or more regions.
         """
         return {d.label for v in self._indices.values() for d in v}
 
@@ -265,26 +299,41 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     ):
         """
         Fetches one particular volume of this parcellation map.
+
         If there's only one volume, this is the default, otherwise further
-        specication is requested:
+        specification is requested:
         - the volume index,
         - the MapIndex (which results in a regional map being returned)
 
-        You might also consider fetch_iter() to iterate the volumes, or compress()
-        to produce a single-volume parcellation map.
+        You might also consider fetch_iter() to iterate the volumes, or
+        compress() to produce a single-volume parcellation map.
 
         Parameters
         ----------
-        region_or_index: Union[str, Region, MapIndex]
+        region_or_index: str, Region, MapIndex
             Lazy match the specification.
         index: MapIndex
             Explicit specification of the map index, typically resulting
             in a regional map (mask or statistical map) to be returned.
             Note that supplying 'region' will result in retrieving the map index of that region
             automatically.
-        region: Union[str, Region]
+        region: str, Region
             Specification of a region name, resulting in a regional map
             (mask or statistical map) to be returned.
+        **kwargs
+            - resolution_mm: resolution in millimeters
+            - format: the format of the volume, like "mesh" or "nii"
+            - voi: a BoundingBox of interest
+            
+
+            Note
+            ----
+            Not all keyword arguments are supported for volume formats. Format
+            is restricted by available formats (check formats property).
+
+        Returns
+        -------
+        An image or mesh
         """
         try:
             length = len([arg for arg in [region_or_index, region, index] if arg is not None])
@@ -346,7 +395,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def fetch_iter(self, **kwargs):
         """
         Returns an iterator to fetch all mapped volumes sequentially.
-        All arguments are passed on to func:`~siibra.Map.fetch`
+
+        All arguments are passed on to function Map.fetch().
         """
         fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
         return (
@@ -403,9 +453,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def compress(self, **kwargs):
         """
-        Converts this map into a labelled 3D parcellation map, obtained
-        by taking the voxelwise maximum across the mapped volumes, and
-        re-labelling regions sequentially.
+        Converts this map into a labelled 3D parcellation map, obtained by
+        taking the voxelwise maximum across the mapped volumes and fragments,
+        and re-labelling regions sequentially.
+
+        Paramaters
+        ----------
+        **kwargs: Takes the fetch arguments of its space's template.
+
+        Returns
+        -------
+        parcellationmap.Map
         """
         if len(self.volumes) == 1 and (self.fragments is None):
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
@@ -474,6 +532,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def compute_centroids(self) -> Dict[str, point.Point]:
         """
         Compute a dictionary of the centroids of all regions in this map.
+
+        Returns
+        -------
+        Dict[str, point.Point]
+            Region names as keys and computed centroids as items.
         """
         centroids = {}
         # list of regions sorted by mapindex
@@ -537,17 +600,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         Generate a matplotlib colormap from known rgb values of label indices.
 
-        The probability distribution is approximated from the region mask
-        based on the squared distance transform.
-
         Parameters
         ----------
-        region_specs: An iterable selection of regions
+        region_specs: iterable(regions), optional
             Optional parameter to only color the desired regions.
 
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
+        Returns
+        -------
+        ListedColormap
         """
         from matplotlib.colors import ListedColormap
         import numpy as np
@@ -583,18 +643,21 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def sample_locations(self, regionspec, numpoints: int):
         """ Sample 3D locations inside a given region.
 
-        The probability distribution is approximated from the region mask
-        based on the squared distance transform.
+        The probability distribution is approximated from the region mask based
+        on the squared distance transform.
 
-        regionspec: valid region specification
+        Parameters
+        ----------
+        regionspec: Region or str
             Region to be used
         numpoints: int
             Number of samples to draw
 
-        Return
-        ------
-        samples : PointSet in physcial coordinates corresponding to this parcellationmap.
-
+        Returns
+        -------
+        PointSet
+            Sample points in physcial coordinates corresponding to this
+            parcellationmap
         """
         index = self.get_index(regionspec)
         mask = self.fetch(index=index)
@@ -628,7 +691,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         )
 
     def to_sparse(self):
-        """ Creates a sparse parcellation map from this object. """
+        """
+        Creates a SparseMap object from this parcellation map object.
+
+        Returns
+        -------
+        SparseMap
+        """
         from .sparsemap import SparseMap
         indices = {
             regionname: [
@@ -657,7 +726,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
-        fragments = self.fragments or {None}
+        fragments = self.fragments or {None}   
         if isinstance(x, int):
             return [
                 (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
@@ -686,39 +755,43 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        item: Point, PointSet, or Nifti1Image
-            A spatial object defined in the same physical reference space as this
-            parcellation map, which could be a point, set of points, or image.
-            If it is an image, it will be resampled to the same voxel space if its affine
-            transforation differs from that of the parcellation map.
-            Resampling will use linear interpolation for float image types,
-            otherwise nearest neighbor.
+        item: Point, PointSet, Nifti1Image
+            A spatial object defined in the same physical reference space as
+            this parcellation map, which could be a point, set of points, or
+            image. If it is an image, it will be resampled to the same voxel
+            space if its affine transformation differs from that of the
+            parcellation map. Resampling will use linear interpolation for float
+            image types, otherwise nearest neighbor.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
-            Lower threshold on values in the statistical map. Values smaller than
-            this threshold will be excluded from the assignment computation.
+            Lower threshold on values in the statistical map. Values smaller
+            than this threshold will be excluded from the assignment computation.
 
-        Return
-        ------
-        assignments : pandas Dataframe
-            A table of associated regions and their scores per component found in the input image,
-            or per coordinate provived.
-            The scores are:
-                - Value: Maximum value of the voxels in the map covered by an input coordinate or
-                  input image signal component.
-                - Pearson correlation coefficient between the brain region map and an input image signal
-                  component (NaN for exact coordinates)
-                - "Contains": Percentage of the brain region map contained in an input image signal component,
-                  measured from their binarized masks as the ratio between the volume of their interesection
-                  and the volume of the brain region (NaN for exact coordinates)
-                - "Contained"": Percentage of an input image signal component contained in the brain region map,
-                  measured from their binary masks as the ratio between the volume of their interesection
-                  and the volume of the input image signal component (NaN for exact coordinates)
-        components: Nifti1Image, or None
-            If the input was an image, this is a labelled volume mapping the detected components
-            in the input image, where pixel values correspond to the "component" column of the
-            assignment table. If the input was a Point or PointSet, this is None.
+        Returns
+        -------
+        assignments: pandas.DataFrame
+            A table of associated regions and their scores per component found
+            in the input image, or per coordinate provided. The scores are:
+
+                - Value: Maximum value of the voxels in the map covered by an
+                input coordinate or input image signal component.
+                - Pearson correlation coefficient between the brain region map
+                and an input image signal component (NaN for exact coordinates)
+                - Contains: Percentage of the brain region map contained in an
+                input image signal component, measured from their binarized
+                masks as the ratio between the volume of their intersection
+                and the volume of the brain region (NaN for exact coordinates)
+                - Contained: Percentage of an input image signal component
+                contained in the brain region map, measured from their binary
+                masks as the ratio between the volume of their intersection and
+                the volume of the input image signal component (NaN for exact
+                coordinates)
+        components: Nifti1Image or None
+            If the input was an image, this is a labelled volume mapping the
+            detected components in the input image, where pixel values correspond
+            to the "component" column of the assignment table. If the input was
+            a Point or PointSet, returns None.
         """
 
         if isinstance(item, point.Point):

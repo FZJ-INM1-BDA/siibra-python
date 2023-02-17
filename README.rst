@@ -13,7 +13,7 @@ Medicine (INM-1), Forschungszentrum Jülich GmbH*
 ``siibra`` is a Python client to a brain atlas framework that integrates brain parcellations and reference spaces at different spatial scales, and connects them with a broad range of multimodal regional data features. 
 It aims to facilitate programmatic and reproducible incorporation of brain parcellations and brain region features from different sources into neuroscience workflows.
 
-    **Note:** *``siibra-python`` is still in development. While care is taken that it works reliably, its API is not yet stable and you may still encounter bugs when using it.*
+    **Note:** ``siibra-python`` *is still in development. While care is taken that it works reliably, its API is not yet stable and you may still encounter bugs when using it.*
 
 ``siibra`` provides structured access to parcellation schemes in different brain reference spaces, including volumetric reference templates at  macroscopic and microscopic resolutions as well as surface representations. 
 It supports both discretely labelled and statistical (probabilistic) parcellation maps, which can be used to assign brain regions to spatial locations and image signals, to retrieve region-specific neuroscience datasets from multiple online repositories, and to sample information from high-resolution image data. 
@@ -22,7 +22,7 @@ The datasets anchored to brain regions address features of molecular, cellular a
 ``siibra`` was developed in the frame of the `Human Brain Project <https://humanbrainproject.eu>`__ for accessing the `EBRAINS
 human brain atlas <https://ebrains.eu/service/human-brain-atlas>`__. 
 It stores most of its contents as sustainable and open datasets in the `EBRAINS Knowledge Graph <https://kg.ebrains.eu>`__, and is designed to support the `OpenMINDS metadata standards <https://github.com/HumanBrainProject/openMINDS_SANDS>`__. 
-Its functionalities include common actions known from the interactive viewer ``siibra explorer`` `hosted at EBRAINS <https://atlases.ebrains.eu/viewer>`__. 
+Its functionalities include common actions known from the interactive viewer ``siibra-explorer`` `hosted at EBRAINS <https://atlases.ebrains.eu/viewer>`__. 
 In fact, the viewer is a good resource for exploring ``siibra``\ ’s core functionalities interactively: Selecting different parcellations, browsing and searching brain region hierarchies, downloading maps, identifying brain regions, and accessing multimodal features and connectivity information associated with brain regions. 
 Feature queries in ``siibra`` are parameterized by data modality and anatomical location, while the latter could be a brain region, brain parcellation, or location in reference space. 
 Beyond the explorative focus of ``siibra-explorer``, the Python library supports a range of data analysis functions suitable for typical neuroscience workflows.

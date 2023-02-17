@@ -27,14 +27,13 @@ class Tabular(feature.Feature):
     """
     Represents a table of different measures anchored to a brain location.
 
-    Columns represent different types of values, while rows represent
-    different samples. The number of columns might thus be intrepreted
-    as the feature dimension.
+    Columns represent different types of values, while rows represent different
+    samples. The number of columns might thus be interpreted as the feature
+    dimension.
 
-    As an example, receptor fingerprints use rows
-    to represent different neurotransmitter receptors, and separate
-    columns for the mean and standard deviations measure across multiple
-    tissue samples.
+    As an example, receptor fingerprints use rows to represent different
+    neurotransmitter receptors, and separate columns for the mean and standard
+    deviations measure across multiple tissue samples.
     """
 
     def __init__(
@@ -59,7 +58,13 @@ class Tabular(feature.Feature):
         return self._data_cached
 
     def plot(self, **kwargs):
-        """ Create a bar plot of a columns of the data."""
+        """
+        Create a bar plot of a columns of the data.
+        Parameters
+        ----------
+        **kwargs
+            takes Matplotlib.pyplot keyword arguments
+        """
 
         try:
             import matplotlib.pyplot as plt

@@ -55,23 +55,33 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/legacy"]
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "sphinx_gallery.gen_gallery", # builds an HTML gallery of examples from any set of Python scripts
-    "sphinx.ext.autodoc", # pull in documentation from docstrings in a semi-automatic way
-    'sphinx.ext.autosummary', # generates function/method/attribute summary lists
-    'sphinx.ext.autosectionlabel', # generates the labels for each section
-    'sphinx.ext.intersphinx', # generate links to the documentation of objects in external projects
-    "sphinx_autopackagesummary", # auto generation of API doc for nested Python packages; uses autosummary
-    "autoapi.extension", # "autodoc" style doc wo needing to load/run/import the project
-    "IPython.sphinxext.ipython_console_highlighting", # enables ipython syntax highlighting 
-    "sphinx_rtd_theme", # readthedocs theme. Requires import or a clone in _static
-    "m2r2", # converts a markdown file including rst markups to a valid rst format
+    "sphinx_gallery.gen_gallery",  # builds an HTML gallery of examples from any set of Python scripts
+    "sphinx.ext.autodoc",  # pull in documentation from docstrings in a semi-automatic way
+    'sphinx.ext.autosummary',  # generates function/method/attribute summary lists
+    'sphinx.ext.autosectionlabel',  # generates the labels for each section
+    'sphinx.ext.intersphinx',  # generate links to the documentation of objects in external projects
+    'sphinx.ext.napoleon',  # parse both NumPy and Google style docstrings
+    "sphinx_autopackagesummary",  # auto generation of API doc for nested Python packages; uses `autosummary`
+    "autoapi.extension",  # "autodoc" style doc wo needing to load/run/import the project
+    "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
+    "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
+    "m2r2",  # converts a markdown file including rst markups to a valid rst format
 ]
 
-# Add mappings
+# napolean settings
+napoleon_google_docstring = False
+napoleon_use_param = True
+napoleon_use_ivar = True
+
+# Mappings
 intersphinx_mapping = {
     "mainconcepts": ('../concepts.html', None),
-    "accessEBRAINS": ('../start.html#access-to-ebrains', None),
-    "nilearn": ('https://nilearn.github.io/stable/index.html', None)
+    "matplotlib": ("https://matplotlib.org/", None),
+    "nilearn": ('https://nilearn.github.io/stable/index.html', None),
+    "nibabel": ("https://nipy.org/nibabel/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pandas": ("http://pandas.pydata.org/pandas-docs/dev", None),
+    "python": ("https://docs.python.org/3/", None),
 }
 
 # autoapi options
@@ -137,5 +147,3 @@ html_show_sphinx = False
 html_logo = "_static/siibra-python.jpeg"
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False
-
-

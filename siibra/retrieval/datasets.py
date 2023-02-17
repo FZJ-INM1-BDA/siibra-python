@@ -131,10 +131,16 @@ class EbrainsDataset:
         return self.id == o.id
 
     def match(self, spec: Union[str, 'EbrainsDataset']) -> bool:
-        """Checks of a given spec (of type str or EbrainsDataset) describes this dataset.
+        """
+        Checks if the given specification describes this dataset.
 
-        Args:
-            spec (str, EbrainsDataset): spec to be checked
+        Parameters
+        ----------
+        spec (str, EbrainsDataset)
+            specification to be matched.
+        Returns
+        -------
+        bool
         """
         if spec is self:
             return True

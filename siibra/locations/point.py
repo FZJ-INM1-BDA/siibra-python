@@ -37,14 +37,13 @@ class Point(location.Location):
 
         Parameters
         ----------
-        spec : Any of str, tuple(float,float,float)
+        spec: Any of str, tuple(float,float,float)
             For string specifications, comma separation with decimal points are expected.
-        unit : str
+        unit: str
             specification of the unit (only 'mm' supported so far)
-
         Returns
         -------
-        tuple(float,float,float)
+        tuple(float, float, float)
         """
         if unit != "mm":
             raise NotImplementedError(
@@ -77,13 +76,16 @@ class Point(location.Location):
 
         Parameters
         ----------
-        coordinate : 3-tuple of int/float, or string specification
+        coordinatespec: 3-tuple of int/float, or string specification
             Coordinate in mm of the given space
-        space : reference space specification (id, object, or name)
-            The reference space
-        sigma_mm : float
-            Optional location uncertainy of the point
-            (will be interpreted as the isotropic standard deviation of location)
+        space: Space or str
+            The reference space (id, object, or name)
+        sigma_mm : float, optional
+            Location uncertainty of the point
+
+            Note
+            ----
+                Interpreted as the isotropic standard deviation of location.
         """
         location.Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
@@ -247,12 +249,14 @@ class Point(location.Location):
 
         Parameters
         ----------
-        affine : numpy 4x4 ndarray
+        affine: numpy 4x4 ndarray
             affine matrix
-        space : reference space, (str, Space, or None))
-            Target reference space which is reached after
-            applying the transform. Note that the consistency
-            of this cannot be checked and is up to the user.
+        space: str, Space, or None
+            Target reference space which is reached after applying the transform
+
+            Note
+            ----
+            The consistency of this cannot be checked and is up to the user.
         """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)

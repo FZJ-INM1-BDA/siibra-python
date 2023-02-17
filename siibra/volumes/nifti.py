@@ -133,8 +133,8 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             For example, some volumes are split into left and right hemisphere fragments.
             see :func:`~siibra.volumes.Volume.fragments`
         voi : BoundingBox
-            optional specification of a volume of interst to fetch.
-        label: int or None
+            optional specification of a volume of interest to fetch.
+        label: int, default: None
             Optional: a label index can be provided. Then the mask of the
             3D volume will be returned, where voxels matching this label
             are marked as "1".
@@ -202,14 +202,14 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         """
         Find peaks in the image data.
 
-        Arguments:
+        Parameters
         ----------
         min_distance_mm : float
             Minimum distance between peaks in mm
 
         Returns:
         --------
-        peaks: PointSet
+        PointSet
         """
 
         from skimage.feature.peak import peak_local_max

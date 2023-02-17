@@ -71,19 +71,20 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         ----------
         name : str
             Human-readable name of the region
-        children: list of Regions,
+        children: list[Region]
         parent: Region
         shortname: str
             Shortform of human-readable name (optional)
         description: str
             Textual description of the parcellation
-        modality  :  str or None
+        modality:  str or None
             Specification of the modality used for specifying this region
         publications: list
-            List of ssociated publications, each a dictionary with "doi" and/or "citation" fields
-        datasets : list
+            List of associated publications, each a dictionary with "doi"
+            and/or "citation" fields
+        datasets: list
             datasets associated with this region
-        rgb: str, default None
+        rgb: str, default: None
             Hexcode of preferred color of this region (e.g. "#9FE770")
         """
         anytree.NodeMixin.__init__(self)
@@ -134,7 +135,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     @staticmethod
     def copy(other: 'Region'):
         """
-        copy contructor must detach the parent to avoid problems with
+        copy constructor must detach the parent to avoid problems with
         the Anytree implementation.
         """
         # create an isolated object, detached from the other's tree
@@ -183,7 +184,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     def includes(self, region):
         """
-        Determine wether this regiontree includes the given region.
+        Determine whether this region-tree includes the given region.
+        
+        Parameters
+        ----------
+        region: Region
+        Returns
+        -------
+            bool
+                True if the region is in the region-tree.
         """
         return region == self or region in self.descendants
 
@@ -199,23 +208,25 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         Parameters
         ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux),
-            - a regex applied to region names,
-            - an integer, which is interpreted as a labelindex,
-            - a full MapIndex
-            - a region object
-        filter_children : Boolean
-            If true, children of matched parents will not be returned
-        find_topmost : Bool, default: True
+        regionspec: str, regex, int, Region, MapIndex
+            - a string with a possibly inexact name (matched both against the name and the identifier key)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a regex applied to region names
+            - an integer (interpreted as a labelindex)
+            - a Region object
+            - a full MapIndex object
+        filter_children : bool, default: False
+            If True, children of matched parents will not be returned
+        find_topmost : bool, default: True
             If True, will return parent structures if all children are matched,
             even though the parent itself might not match the specification.
-
-        Yield
-        -----
-        list of matching regions
+        Returns
+        -------
+        list[Region]
+            list of regions matching to the regionspec
+        Tip
+        ---
+        See example 01-003 find regions
         """
         key = (regionspec, filter_children, find_topmost)
         MEM = self._CACHED_REGION_SEARCHES
@@ -314,20 +325,19 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     def matches(self, regionspec):
         """
-        Checks wether this region matches the given region specification.
+        Checks whether this region matches the given region specification.
 
         Parameters
-        ---------
-
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
+        ----------
+        regionspec: str, regex, Region
+            - a string with a possibly inexact name, which is matched both against the name and the identifier key,
             - a regex applied to region names,
             - a region object
 
-        Yield
-        -----
-        True or False
+        Returns
+        -------
+        bool
+            If the regionspec matches to the Region.
         """
         if regionspec is None:
             return False
@@ -374,27 +384,37 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     ):
         """
         Attempts to build a binary mask of this region in the given space,
-        using the specified maptypes.
+        using the specified MapTypes.
 
         Parameters
         ----------
-        space: Space object or space name
+        space: Space or str
             The requested reference space
-        maptype: MapType
-            the type of map to be used (labelled or statistical)
-        threshold: float
-            (optional) When fetching a statistical map, use this
-            threshold to convert it to a binary mask
-        via_space: Space object or space name
+        maptype: MapType, default: SIIBRA_DEFAULT_MAPTYPE
+            The type of map to be used ('labelled' or 'statistical')
+        threshold: float, optional
+            When fetching a statistical map, use this threshold to convert
+            it to a binary mask
+        via_space: Space or str
             If specified, fetch the map in this space first, and then perform
             a linear warping from there to the requested space.
-            You might want to use this if a map in the requested space is not available.
-            Note that this linear warping is an affine approximation of the
-            nonlinear deformation, computed from the warped corenr points
-            of the bounding box (see siibra.location.BoundingBox.estimate_affine()).
-            It does not require voxel resampling,
-            just replaces the affine matrix, but is less accurate than a full
-            nonlinear warping, which is not supported in siibra-python for images so far.
+
+            Tip
+            ---
+                You might want to use this if a map in the requested space
+                is not available.
+
+            Note
+            ----
+                This linear warping is an affine approximation of the
+                nonlinear deformation, computed from the warped corner points
+                of the bounding box (see siibra.locations.BoundingBox.estimate_affine()).
+                It does not require voxel resampling, just replaces the affine
+                matrix, but is less accurate than a full nonlinear warping,
+                which is currently not supported in siibra-python for images.
+        Returns
+        -------
+        Nifti1Image
         """
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
@@ -466,6 +486,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
+        
+        Parameters
+        ----------
+        space: Space or str
+            reference space
+        recurse: bool, default: True
+            If True, check if all child regions are mapped instead
+        Returns
+        -------
+        bool
         """
         from ..volumes.parcellationmap import Map
         for m in Map.registry():
@@ -508,18 +538,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     def __getitem__(self, labelindex):
         """
         Given an integer label index, return the corresponding region.
+
         If multiple matches are found, return the unique parent if possible.
-        Otherwise, return None
+        Otherwise, returns None.
 
         Parameters
         ----------
-
         regionlabel: int
-            label index of the desired region.
-
-        Return
-        ------
-        Region object
+            Label index of the desired region.
+        Returns
+        -------
+        Region
         """
         if not isinstance(labelindex, int):
             raise TypeError(
@@ -548,6 +577,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         return self.name
 
     def tree2str(self):
+        """Render region-tree as a string"""
         return "\n".join(
             "%s%s" % (pre, node.name)
             for pre, _, node
@@ -555,6 +585,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
 
     def render_tree(self):
+        """Prints the tree representation of the region"""
         print(self.tree2str())
 
     def get_bounding_box(
@@ -567,17 +598,18 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         Parameters
         ----------
-        space : Space or str):
+        space: Space or str
             Requested reference space
-        maptype: MapType
+        maptype: MapType, default: MapType.LABELLED
             Type of map to build ('labelled' will result in a binary mask,
             'statistical' attempts to build a statistical mask, possibly by
-            elementwise maximum of statistical maps of children )
+            elementwise maximum of statistical maps of children)
         threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
             statistical maps with the given value.
-        Returns:
-            BoundingBox
+        Returns
+        -------
+        BoundingBox
         """
         spaceobj = _space.Space.get_instance(space)
         try:
@@ -606,10 +638,21 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         return None
 
     def compute_centroids(self, space: _space.Space) -> pointset.PointSet:
-        """Compute the centroids of the region in the given space.
+        """
+        Compute the centroids of the region in the given space.
 
-        Note that a region can generally have multiple centroids
-        if it has multiple connected components in the map.
+        Parameters
+        ----------
+        space: Space
+            reference space in which the computation will be performed
+        Returns
+        -------
+        PointSet
+            Found centroids (as Point objects) in a PointSet
+        Note
+        ----
+        A region can generally have multiple centroids if it has multiple
+        connected components in the map.
         """
         props = self.spatial_props(space)
         return pointset.PointSet(
@@ -628,19 +671,20 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         Parameters
         ----------
-        space : _space.Space
-            the space in which the computation shall be performed
-        maptype: MapType
+        space: Space
+            reference space in which the computation will be performed
+        maptype: MapType, default: MapType.LABELLED
             Type of map to build ('labelled' will result in a binary mask,
             'statistical' attempts to build a statistical mask, possibly by
-            elementwise maximum of statistical maps of children )
+            elementwise maximum of statistical maps of children)
         threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
             statistical maps with the given value.
 
-        Return
-        ------
-        dictionary of regionprops.
+        Returns
+        -------
+        Dict
+            Dictionary of region's spatial properties
         """
         result = {"space": space, "components": []}
         from skimage import measure
@@ -692,19 +736,23 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         Compare the given image to the map of this region in the specified space.
 
-        Parameters:
+        Parameters
         -----------
         img: Nifti1Image
             Image to compare with
         space: Space
             Reference space to use
-        use_maptype: MapType
+        use_maptype: MapType, default: MapType.STATISTICAL
             Type of map to build ('labelled' will result in a binary mask,
             'statistical' attempts to build a statistical mask, possibly by
-            elementwise maximum of statistical maps of children )
+            elementwise maximum of statistical maps of children)
         threshold_statistical: float, or None
-            if not None, masks will be preferably constructed by thresholding
-            statistical maps with the given value.
+            If not None, masks will be preferably constructed by thresholding
+            statistical maps with the given value
+        Returns
+        -------
+        Dict
+            A dictionary with the keys 'IoU', 'contained', 'contains', 'correlation'
         """
         mask = self.fetch_regional_map(
             space,

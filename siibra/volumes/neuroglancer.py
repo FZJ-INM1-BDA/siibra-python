@@ -58,14 +58,14 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
 
         Parameters
         ----------
-        fragment: str
-            Optional name of a fragment volume to fetch, if any.
-            For example, some volumes are split into left and right hemisphere fragments.
-            see :func:`~siibra.volumes.Volume.fragments`
+        fragment: str, optional
+            The name of a fragment volume to fetch, if any. For example,
+            some volumes are split into left and right hemisphere fragments.
+            See :func:`~siibra.volumes.Volume.fragments`
         resolution_mm: float
-            Specify the resolugion
-        voi : BoundingBox
-            optional specification of a volume of interst to fetch.
+            Specify the resolution
+        voi: BoundingBox
+            optional specification of a volume of interest to fetch.
         """
 
         result = None
@@ -535,9 +535,25 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     def fetch(self, label: int, fragment: str):
         """
         Fetches a particular mesh. Each mesh is a dictionary with keys:
+        
+        Parameters
+        ----------
+        label: int
+            Label of the volume
+        fragment: str, default: None
+            A fragment name can be specified to choose from multiple fragments.
 
-        - verts: an Nx3 array of coordinates (in nanometer)
-        - faces: an MX3 array containing connection data of vertices
+            Note
+            ----
+            If not specified, multiple fragments will be merged into one mesh.
+            In such a case, the verts and faces arrays of different fragments
+            are appended to one another.
+        Returns
+        -------
+        dict
+            - 'verts': An Nx3 array of vertex coordinates (in nanometer)
+            - 'faces': an MX3 array containing connection data of vertices
+            - 'name': Name of the of the mesh variant
         """
 
         # extract fragment information for the requested mesh
