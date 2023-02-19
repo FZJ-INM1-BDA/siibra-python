@@ -22,7 +22,6 @@ from ..commons import (
     logger,
     MapIndex,
     MapType,
-    compare_maps,
     affine_scaling,
     create_key,
     clear_name,
@@ -185,7 +184,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     def includes(self, region):
         """
         Determine whether this region-tree includes the given region.
-        
+
         Parameters
         ----------
         region: Region
@@ -488,7 +487,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
         """
         Verifies wether this region is defined by an explicit map in the given space.
-        
+
         Parameters
         ----------
         space: Space or str
@@ -726,43 +725,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             result["components"].append(props)
 
         return result
-
-    def compare(
-        self,
-        img: Nifti1Image,
-        space: _space.Space,
-        use_maptype: MapType = MapType.STATISTICAL,
-        threshold_statistical: float = None,
-        resolution_mm: float = None,
-    ):
-        """
-        Compare the given image to the map of this region in the specified space.
-
-        Parameters
-        -----------
-        img: Nifti1Image
-            Image to compare with
-        space: Space
-            Reference space to use
-        use_maptype: MapType, default: MapType.STATISTICAL
-            Type of map to build ('labelled' will result in a binary mask,
-            'statistical' attempts to build a statistical mask, possibly by
-            elementwise maximum of statistical maps of children)
-        threshold_statistical: float, or None
-            If not None, masks will be preferably constructed by thresholding
-            statistical maps with the given value
-        Returns
-        -------
-        Dict
-            A dictionary with the keys 'IoU', 'contained', 'contains', 'correlation'
-        """
-        mask = self.fetch_regional_map(
-            space,
-            resolution_mm,
-            maptype=use_maptype,
-            threshold=threshold_statistical,
-        )
-        return compare_maps(mask, img)
 
     def __iter__(self):
         """

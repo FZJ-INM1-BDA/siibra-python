@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
-from ..commons import MapIndex, logger
+from ..commons import MapIndex, logger, iterate_connected_components
 from ..locations import boundingbox
 from ..retrieval import cache
 
@@ -195,7 +195,7 @@ class SparseMap(parcellationmap.Map):
     region maps.
 
     It represents the 3D statistical maps of N brain regions by two data structures:
-    
+
     1) 'spatial_index', a 3D volume where non-negative values represent unique indices into a list of region assignments
     2) 'probs', a list of region assignments where each entry is a dict
 
@@ -299,7 +299,7 @@ class SparseMap(parcellationmap.Map):
         region: str, Region
             Region name specification. If given, will be used to decode the map
             index of a particular region.
-        
+
         Returns
         -------
         An image or mesh
@@ -399,7 +399,7 @@ class SparseMap(parcellationmap.Map):
 
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        for mode, modeimg in parcellationmap.Map.iterate_connected_components(queryimg):
+        for mode, modeimg in iterate_connected_components(queryimg):
 
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
@@ -463,8 +463,6 @@ class SparseMap(parcellationmap.Map):
                 iou = intersection / np.sum(
                     (v1 > 0) | (v2 > 0)
                 )  # np.maximum(v1, v2).sum()
-                contains = intersection / (v1 > 0).sum()
-                contained = intersection / (v2 > 0).sum()
 
                 v1d = v1 - v1.mean()
                 v2d = v2 - v2.mean()
@@ -476,16 +474,20 @@ class SparseMap(parcellationmap.Map):
 
                 maxval = v1.max()
 
-                assignments.append([
-                    mode,
-                    tuple(position.round(2)),
-                    volume,
-                    None,
-                    maxval,
-                    iou,
-                    contained,
-                    contains,
-                    rho
-                ])
+                assignments.append(
+                    {
+                        "structure": mode,
+                        "centroid": tuple(position.round(2)),
+                        "volume": volume,
+                        "fragment": None,
+                        "map value": maxval,
+                        "intersection over union": iou,
+                        "intersection over first": intersection / (v1 > 0).sum(),
+                        "intersection over second": intersection / (v2 > 0).sum(),
+                        "correlation": rho,
+                        "weighted mean of first": np.sum(v1 * v2) / np.sum(v2),
+                        "weighted mean of second": np.sum(v1 * v2) / np.sum(v1)
+                    }
+                )
 
         return assignments

@@ -350,6 +350,21 @@ def affine_scaling(affine):
     return np.prod(unit_lengths)
 
 
+def iterate_connected_components(img: Nifti1Image):
+    """
+    Provide an iterator over masks of connected components in the given image.
+    """
+    from skimage import measure
+    imgdata = np.asanyarray(img.dataobj).squeeze()
+    components = measure.label(imgdata > 0)
+    component_labels = np.unique(components)
+    assert component_labels[0] == 0
+    return (
+        (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+        for label in component_labels[1:]
+    )
+
+
 def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     """
     Compare two maps, given as Nifti1Image objects.
@@ -396,7 +411,14 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     m1, m2 = ((_ > 0).astype("uint8") for _ in [v1, v2])
     intersection = np.minimum(m1, m2).sum()
     if intersection == 0:
-        return {"IoU": 0, "contained": 0, "contains": 0, "correlation": 0}
+        return {
+            "intersection over union": 0,
+            "intersection over first": 0,
+            "intersection over second": 0,
+            "correlation": 0,
+            "weighted mean of first": 0,
+            "weighted mean of second": 0,
+        }
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
     XYZnz1 = nonzero_coordinates(a1)
@@ -432,10 +454,12 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     by = (y > 0).astype("uint8")
 
     return {
-        "IoU": intersection / np.maximum(bx, by).sum(),
-        "contained": intersection / N1,
-        "contains": intersection / N2,
+        "intersection over union": intersection / np.maximum(bx, by).sum(),
+        "intersection over first": intersection / N1,
+        "intersection over second": intersection / N2,
         "correlation": r,
+        "weighted mean of first": np.sum(x * y) / np.sum(y),
+        "weighted mean of second": np.sum(x * y) / np.sum(x),
     }
 
 

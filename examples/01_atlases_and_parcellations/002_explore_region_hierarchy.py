@@ -38,7 +38,7 @@ julich_brain
 print(julich_brain.tree2str())
 
 # %%
-# Each node is a `siibra.Region` object, including the root node. 
+# Each node is a `Region` object, including the root node.
 # We can iterate all regions in a parcellation
 [region.name for region in julich_brain]
 

@@ -71,6 +71,6 @@ assignments.query('Contained >= 0.5').dropna(axis=1)
 
 # %%
 # To verify the result, we plot the assigned probability maps at the requested position.
-for index, assignment in assignments[assignments.Contained >= 0.5].iterrows():
-    pmap = julich_pmaps.fetch(region=assignment.Region)
-    plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment.Region)
+for index, assignment in assignments[assignments['map containedness'] >= 0.5].iterrows():
+    pmap = julich_pmaps.fetch(region=assignment['region'])
+    plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment['region'])

@@ -16,7 +16,16 @@
 
 from . import volume as _volume, nifti
 from .. import logger, QUIET
-from ..commons import MapIndex, MapType, compare_maps, clear_name, create_key, create_gaussian_kernel, Species
+from ..commons import (
+    MapIndex,
+    MapType,
+    compare_maps,
+    iterate_connected_components,
+    clear_name,
+    create_key,
+    create_gaussian_kernel,
+    Species
+)
 from ..core import concept, space, parcellation, region as _region
 from ..locations import point, pointset
 from ..retrieval import requests
@@ -33,10 +42,22 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..core.region import Region
 
-class ExcessiveArgumentException(ValueError): pass
-class InsufficientArgumentException(ValueError): pass
-class ConflictingArgumentException(ValueError): pass
-class NonUniqueIndexError(RuntimeError): pass
+
+class ExcessiveArgumentException(ValueError):
+    pass
+
+
+class InsufficientArgumentException(ValueError):
+    pass
+
+
+class ConflictingArgumentException(ValueError):
+    pass
+
+
+class NonUniqueIndexError(RuntimeError):
+    pass
+
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -156,7 +177,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Parameters
         ----------
         region: str or Region
-            
+
         Returns
         -------
         MapIndex
@@ -187,7 +208,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Parameters
         ----------
         region: str or Region
-            
+
         Returns
         -------
         dict
@@ -213,7 +234,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def get_region(self, label: int = None, volume: int = 0, index: MapIndex = None):
         """
         Returns the region mapped by the given index, if any.
-        
+
         Tip
         ----
         Use get_index() or find_indices() methods to obtain the MapIndex.
@@ -324,7 +345,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             - resolution_mm: resolution in millimeters
             - format: the format of the volume, like "mesh" or "nii"
             - voi: a BoundingBox of interest
-            
+
 
             Note
             ----
@@ -675,21 +696,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         XYZ = np.dot(mask.affine, np.c_[XYZ_, np.ones(numpoints)].T)[:3, :].T
         return pointset.PointSet(XYZ, space=self.space)
 
-    @staticmethod
-    def iterate_connected_components(img: Nifti1Image):
-        """
-        Provide an iterator over masks of connected components in the given image.
-        """
-        from skimage import measure
-        imgdata = np.asanyarray(img.dataobj).squeeze()
-        components = measure.label(imgdata > 0)
-        component_labels = np.unique(components)
-        assert component_labels[0] == 0
-        return (
-            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-            for label in component_labels[1:]
-        )
-
     def to_sparse(self):
         """
         Creates a SparseMap object from this parcellation map object.
@@ -726,7 +732,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
-        fragments = self.fragments or {None}   
+        fragments = self.fragments or {None}
         if isinstance(x, int):
             return [
                 (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
@@ -806,50 +812,63 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
 
         # format assignments as pandas dataframe
+        columns = [
+            "structure",
+            "centroid",
+            "volume",
+            "fragment",
+            "region",
+            "correlation",
+            "intersection over union",
+            "map value",
+            "map weighted mean",
+            "map containedness",
+            "input weighted mean",
+            "input containedness"
+        ]
         if len(assignments) == 0:
-            df = pd.DataFrame(
-                columns=["Structure", "Centroid", "Volume", "Fragment", "Region", "Value", "Correlation", "IoU", "Contains", "Contained"]
-            )
+            df = pd.DataFrame(columns=columns)
         else:
-            result = np.array(assignments, dtype=object)
-            ind = np.lexsort((-result[:, -1].astype('float'), result[:, 0].astype('float')))
 
             # determine the unique set of observed indices in order to do region lookups
             # only once for each map index occuring in the point list
-            labelled = self.is_labelled  # avoid calling this in a long loop
-
-            def format_label(label):
-                return int(label) if (label != 'nan') and (labelled) else None
-
-            observed_indices = {
-                (v, f, format_label(l))
-                for _, _, v, f, l, _, _, _, _ in result[ind]
+            labelled = self.is_labelled  # avoid calling this in a loop
+            observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
+                (
+                    a.get('volume'),
+                    a.get('fragment'),
+                    a.get('map value') if labelled else None
+                )
+                for a in assignments
             }
-            region_lut = {
+            region_lut = {  # lookup table of observed region objects
                 (v, f, l): self.get_region(
-                    index=MapIndex(volume=int(v), label=format_label(l), fragment=f)
+                    index=MapIndex(
+                        volume=int(v),
+                        label=l if l is None else int(l),
+                        fragment=f
+                    )
                 )
                 for v, f, l in observed_indices
             }
-            regions = [
-                region_lut[v, f, format_label(l)] for _, _, v, f, l, _, _, _, _ in result[ind]
-            ]
-            df = pd.DataFrame(
-                {
-                    "Structure": result[ind, 0].astype("int"),
-                    "Centroid": result[ind, 1],
-                    "Volume": result[ind, 2].astype("int"),
-                    "Fragment": result[ind, 3],
-                    "Region": regions,
-                    "Value": result[ind, 4],
-                    "Correlation": result[ind, 8],
-                    "IoU": result[ind, 5],
-                    "Contains": result[ind, 7],
-                    "Contained": result[ind, 6],
-                }
-            )
 
-        return df.convert_dtypes()  # convert will guess numeric column types
+            for a in assignments:
+                a["region"] = region_lut[
+                    a.get('volume'),
+                    a.get('fragment'),
+                    a.get('map value') if labelled else None
+                ]
+                a['map containedness'] = a.pop('intersection over first', None)
+                a['input containedness'] = a.pop('intersection over second', None)
+                a['map weighted mean'] = a.pop('weighted mean of first', None)
+                a['input weighted mean'] = a.pop('weighted mean of second', None)
+            df = pd.DataFrame(assignments)
+
+        return (
+            df
+            .convert_dtypes()  # convert will guess numeric column types
+            .reindex(columns=columns)
+        )
 
     def _assign_points(self, points, lower_threshold: float):
         """
@@ -885,7 +904,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            [pointindex, tuple(np.array(position).round(2)), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            {
+                                "input structure": pointindex,
+                                "centroid": tuple(np.array(position).round(2)),
+                                "volume": vol,
+                                "fragment": frag,
+                                "map value": value
+                            }
                         )
                 return assignments
 
@@ -906,7 +931,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            [pointindex, tuple(pt), vol, frag, value, np.nan, np.nan, np.nan, np.nan]
+                            {
+                                "input structure": pointindex,
+                                "centroid": tuple(pt),
+                                "volume": vol,
+                                "fragment": frag,
+                                "map value": value
+                            }
                         )
             else:
                 logger.info(
@@ -920,13 +951,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                T = self.assign(W, lower_threshold=lower_threshold)
-                assignments.extend(
-                    [
-                        [pointindex, tuple(pt), volume, fragment, value, iou, contained, contains, rho]
-                        for (_, _, volume, fragment, _, value, rho, iou, contains, contained) in T.values
-                    ]
-                )
+                for entry in self.assign(W, lower_threshold=lower_threshold):
+                    entry["input structure"] = pointindex
+                    entry["centroid"] = tuple(pt)
+                    assignments.append(entry)
         return assignments
 
     def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
@@ -973,7 +1001,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     desc=f"Assigning to {len(self)} volumes"
                 ):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
-                    for mode, maskimg in Map.iterate_connected_components(queryimg_res):
+                    for mode, maskimg in iterate_connected_components(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
                         position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
                         labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
@@ -984,18 +1012,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             targetimg = vol_img if label is None \
                                 else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
-                            if scores["IoU"] > 0:
-                                assignments.append(
-                                    [
-                                        mode,
-                                        tuple(position.round(2)),
-                                        vol,
-                                        frag,
-                                        label,
-                                        scores["IoU"],
-                                        scores["contained"],
-                                        scores["contains"],
-                                        scores["correlation"]]
-                                )
+                            if scores["intersection over union"] > 0:
+                                info = {
+                                    "input structure": mode,
+                                    "centroid": tuple(position.round(2)),
+                                    "volume": vol,
+                                    "fragment": frag,
+                                    "map value": label
+                                }
+                                assignments.append(dict(**info, **scores))
 
         return assignments

@@ -18,7 +18,7 @@ Basic brain region properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` makes no distinction between brain regions and region trees: Each
-`siibra.core.Region` object represents a subtree with a (possibly empty)
+`Region` object represents a subtree with a (possibly empty)
 set of child regions, and has a pointer to its parent region in the hierarchy.
 As mentioned before, Parcellation objects are also special regions,
 with no parent and additional functionalities. 
