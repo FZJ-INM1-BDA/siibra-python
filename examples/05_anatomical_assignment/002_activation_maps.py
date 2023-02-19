@@ -67,7 +67,7 @@ plotting.view_img(
 # we filter the result by significant (positive) correlations.
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(img)
-assignments.query('Correlation >= 0.35')
+assignments.query('correlation >= 0.35')
 
 
 # %%
