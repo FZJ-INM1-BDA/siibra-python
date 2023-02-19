@@ -47,7 +47,7 @@ with siibra.QUIET:  # suppress progress output
 point = siibra.Point((27.75, -32.0, 63.725), space='mni152')
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(point)
-assignments.sort_values(by=['Value'], ascending=False)
+assignments.sort_values(by=['map value'], ascending=False)
 
 # %%
 # **Assigning coordinate specifications with location uncertainty.**
