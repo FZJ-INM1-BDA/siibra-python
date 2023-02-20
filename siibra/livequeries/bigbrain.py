@@ -158,7 +158,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             region_labels = 7 - np.array([
                 [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
                 for b in boundary_depths
-            ]).squeeze()
+            ]).reshape((-1, 200))
 
             fp = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
                 regionname=subregion.name,

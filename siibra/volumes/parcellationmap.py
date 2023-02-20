@@ -813,7 +813,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         # format assignments as pandas dataframe
         columns = [
-            "structure",
+            "input structure",
             "centroid",
             "volume",
             "fragment",
@@ -951,7 +951,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                for entry in self.assign(W, lower_threshold=lower_threshold):
+                for entry in self.assign(W, lower_threshold=lower_threshold).T.to_dict().values():
                     entry["input structure"] = pointindex
                     entry["centroid"] = tuple(pt)
                     assignments.append(entry)

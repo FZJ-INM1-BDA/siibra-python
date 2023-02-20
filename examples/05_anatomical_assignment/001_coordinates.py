@@ -67,7 +67,7 @@ assignments.sort_values(by=['map value'], ascending=False)
 point_uncertain = siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=3.)
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(point_uncertain)
-assignments.query('Contained >= 0.5').dropna(axis=1)
+assignments.query('`input containedness` >= 0.5').dropna(axis=1)
 
 # %%
 # To verify the result, we plot the assigned probability maps at the requested position.
