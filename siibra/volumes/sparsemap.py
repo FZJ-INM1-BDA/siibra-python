@@ -476,7 +476,7 @@ class SparseMap(parcellationmap.Map):
 
                 assignments.append(
                     {
-                        "structure": mode,
+                        "input structure": mode,
                         "centroid": tuple(position.round(2)),
                         "volume": volume,
                         "fragment": None,
