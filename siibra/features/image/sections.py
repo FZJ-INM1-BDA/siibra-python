@@ -13,14 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import regional_connectivity
+from . import image
 
 
-class StreamlineLengths(
-    regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/streamlinelengths"
+class CellbodyStainedSection(
+    image.Image,
+    configuration_folder='features/images/sections/cellbody',
+    category="cellular"
 ):
-    """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
-
     def __init__(self, **kwargs):
-        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
+        image.Image.__init__(self, **kwargs, modality="cell body staining")

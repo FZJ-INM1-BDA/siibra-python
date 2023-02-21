@@ -23,7 +23,7 @@ from ...retrieval import requests
 
 class ReceptorDensityProfile(
     cortical_profile.CorticalProfile,
-    configuration_folder="features/profiles/receptor",
+    configuration_folder="features/tabular/corticalprofiles/receptor",
     category='molecular'
 ):
 

@@ -26,7 +26,11 @@ import numpy as np
 import pandas as pd
 
 
-class CellDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/celldensity", category='cellular'):
+class CellDensityProfile(
+    cortical_profile.CorticalProfile,
+    configuration_folder="features/tabular/corticalprofiles/celldensity",
+    category='cellular'
+):
 
     DESCRIPTION = (
         "Cortical profile of estimated densities of detected cell bodies (in detected cells per 0.1 cube millimeter) "

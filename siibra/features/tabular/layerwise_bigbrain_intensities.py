@@ -20,7 +20,10 @@ import pandas as pd
 import numpy as np
 
 
-class LayerwiseBigBrainIntensities(tabular.Tabular, category='cellular'):
+class LayerwiseBigBrainIntensities(
+    tabular.Tabular,
+    category='cellular'
+):
 
     DESCRIPTION = (
         "Layerwise averages and standard deviations of of BigBrain staining intensities "

@@ -25,7 +25,11 @@ import numpy as np
 from io import BytesIO
 
 
-class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/fingerprints/celldensity", category='cellular'):
+class LayerwiseCellDensity(
+    tabular.Tabular,
+    configuration_folder="features/tabular/layerstatistics/celldensity",
+    category='cellular'
+):
 
     DESCRIPTION = (
         "Layerwise estimated densities of detected cell bodies  (in detected cells per 0.1 cube millimeter) "

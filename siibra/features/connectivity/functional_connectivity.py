@@ -18,7 +18,7 @@ from . import regional_connectivity
 
 class FunctionalConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivitymatrix/functional"
+    configuration_folder="features/connectivity/regional/functional"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
 

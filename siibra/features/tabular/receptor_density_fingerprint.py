@@ -27,7 +27,7 @@ from typing import List
 
 class ReceptorDensityFingerprint(
     tabular.Tabular,
-    configuration_folder="features/fingerprints/receptor",
+    configuration_folder="features/tabular/fingerprints/receptor",
     category='molecular'
 ):
 

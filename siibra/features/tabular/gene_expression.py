@@ -27,7 +27,10 @@ except ImportError:
     from typing_extensions import TypedDict
 
 
-class GeneExpressions(tabular.Tabular, category='molecular'):
+class GeneExpressions(
+    tabular.Tabular,
+    category='molecular'
+):
     """
     A set gene expressions for different candidate genes
     measured inside a brain structure.

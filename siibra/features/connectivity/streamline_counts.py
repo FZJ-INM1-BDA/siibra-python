@@ -18,7 +18,7 @@ from . import regional_connectivity
 
 class StreamlineCounts(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivitymatrix/streamlinecounts"
+    configuration_folder="features/connectivity/regional/streamlinecounts"
 ):
     """Structural connectivity matrix of streamline counts grouped by a parcellation."""
 
