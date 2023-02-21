@@ -10,10 +10,10 @@ def test_pli_volume_transform():
 
     modalities = [v.modality for v in vois]
     print(modalities)
-    for word in ['transmittance', 'fiber orientation map']:
+    for word in ['transmittance', 'fibre orientation map']:
         assert any(word in n for n in modalities)
 
-    feat = [f for f in vois if "fiber orientation map" in f.name]
+    feat = [f for f in vois if "fibre orientation map" in f.modality]
     assert len(feat) == 1, "expecting 1 FOM volume"  # may need to fix in future
     feat = feat[0]
 
