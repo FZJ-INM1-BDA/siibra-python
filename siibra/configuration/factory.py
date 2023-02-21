@@ -53,7 +53,7 @@ BUILDFUNCS = {
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
     "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
     "siibra/feature/section/v0.1": "build_section",
-    "siibra/feature/voi/v0.1": "build_voi",
+    "siibra/feature/voi/v0.1": "build_volume_of_interest",
 }
 
 
@@ -403,7 +403,7 @@ class Factory:
             return volume_of_interest.PLIVolumeOfInterest(
                 modality="HSV fibre orientation map", **kwargs
             )
-        elif modality == "PLI transmittance":
+        elif modality == "transmittance":
             return volume_of_interest.PLIVolumeOfInterest(
                 modality="transmittance", **kwargs
             )

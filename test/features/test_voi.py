@@ -3,14 +3,15 @@ import numpy as np
 import siibra
 
 
-vois = siibra.features.image.VolumeOfInterest.get_instances()
+vois = siibra.features.fibres.PLIVolumeOfInterest.get_instances()
 
 
 def test_pli_volume_transform():
 
-    voinames = [v.name for v in vois]
-    for word in ['Transmittance', 'Blockface', 'fiber orientation map', 'Segmentation', 'T2-weighted MRI']:
-        assert any(word in n for n in voinames)
+    modalities = [v.modality for v in vois]
+    print(modalities)
+    for word in ['transmittance', 'fiber orientation map']:
+        assert any(word in n for n in modalities)
 
     feat = [f for f in vois if "fiber orientation map" in f.name]
     assert len(feat) == 1, "expecting 1 FOM volume"  # may need to fix in future
