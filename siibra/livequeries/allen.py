@@ -17,7 +17,7 @@ from .query import LiveQuery
 
 from ..core import space as _space
 from ..features import anchor as _anchor
-from ..features.molecular.gene_expression import GeneExpressions
+from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species, MapType
 from ..locations import Point, PointSet
 from ..core.region import Region

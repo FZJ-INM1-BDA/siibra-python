@@ -2,7 +2,7 @@ import siibra
 import pytest
 from typing import List
 
-from siibra.features.basetypes.regional_connectivity import RegionalConnectivity
+from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
 from e2e.util import check_duplicate
 
 jba_29 = siibra.parcellations["2.9"]
@@ -14,6 +14,7 @@ def test_id_unique():
     features = siibra.features.get(jba_29, RegionalConnectivity)
     duplicates = check_duplicate([f.id for f in features])
     assert len(duplicates) == 0
+
 
 args = [
     (jba_29, "StreamlineCounts"),
@@ -35,4 +36,4 @@ def test_connectivity(concept, query_arg):
         assert len(f.subjects) > 0
         assert all(isinstance(subject, str) for subject in f.subjects)
         for subject in f.subjects:
-            matrix = f.get_matrix(subject)
+            f.get_matrix(subject)

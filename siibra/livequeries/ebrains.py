@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..features.external import ebrains as _ebrains
+from ..features.dataset import ebrains as _ebrains
 from . import query
 
 from ..commons import logger

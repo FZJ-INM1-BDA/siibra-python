@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import anchor as _anchor
-from ..basetypes import cortical_profile
+from . import cortical_profile
 
 from ...commons import PolyLine, logger, create_key
 from ...retrieval import requests
@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 
-class CellDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/celldensity"):
+class CellDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/celldensity", category='cellular'):
 
     DESCRIPTION = (
         "Cortical profile of estimated densities of detected cell bodies (in detected cells per 0.1 cube millimeter) "

@@ -41,7 +41,7 @@ julich_pmaps = siibra.get_map(
 )
 
 # %%
-# As an exemplary input signal, we use a 
+# As an exemplary input signal, we use a
 # statistical map from the 64-component functional mode
 # parcellation (DiFuMo 64) by Thirion et al.
 difumo_maps = siibra.get_map(

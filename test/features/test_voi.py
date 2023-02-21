@@ -3,7 +3,7 @@ import numpy as np
 import siibra
 
 
-vois = siibra.features.VolumeOfInterest.get_instances()
+vois = siibra.features.image.VolumeOfInterest.get_instances()
 
 
 def test_pli_volume_transform():

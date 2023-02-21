@@ -13,10 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ebrains import EbrainsDataFeature
-
-
-def __dir__():
-    return [
-        "EbrainsDataFeature",
-    ]
+from .volume_of_interest import VolumeOfInterest

@@ -14,14 +14,18 @@
 # limitations under the License.
 
 from .. import anchor as _anchor
-from ..basetypes import cortical_profile
+from . import cortical_profile
 
 from ... import vocabularies
 from ...commons import create_key
 from ...retrieval import requests
 
 
-class ReceptorDensityProfile(cortical_profile.CorticalProfile, configuration_folder="features/profiles/receptor"):
+class ReceptorDensityProfile(
+    cortical_profile.CorticalProfile,
+    configuration_folder="features/profiles/receptor",
+    category='molecular'
+):
 
     DESCRIPTION = (
         "Cortical profile of densities (in fmol/mg protein) of receptors for classical neurotransmitters "

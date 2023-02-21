@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from ..commons import logger
-from ..features.basetypes.feature import Feature
+from ..features.feature import Feature
 from ..core.concept import AtlasConcept
 
 from abc import ABC, abstractmethod

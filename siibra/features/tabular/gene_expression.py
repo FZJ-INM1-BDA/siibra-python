@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import anchor as _anchor
-from ..basetypes import tabular
+from . import tabular
 
 from ... import commons
 
@@ -27,7 +27,7 @@ except ImportError:
     from typing_extensions import TypedDict
 
 
-class GeneExpressions(tabular.Tabular):
+class GeneExpressions(tabular.Tabular, category='molecular'):
     """
     A set gene expressions for different candidate genes
     measured inside a brain structure.

@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..basetypes import cortical_profile, tabular
+from . import cortical_profile
+from . import tabular
 
 import pandas as pd
 import numpy as np
 
 
-class LayerwiseBigBrainIntensities(tabular.Tabular):
+class LayerwiseBigBrainIntensities(tabular.Tabular, category='cellular'):
 
     DESCRIPTION = (
         "Layerwise averages and standard deviations of of BigBrain staining intensities "

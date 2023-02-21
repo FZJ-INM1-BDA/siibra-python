@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import feature
+from .. import feature
 
 from .. import anchor as _anchor
 
@@ -195,7 +195,7 @@ class CorticalProfile(feature.Feature):
     def _depths(self):
         """
         Returns a list of the relative cortical depths of the measured values in the range [0..1].
-        
+
         To be implemented in derived class.
         """
         if self._depths_cached is None:

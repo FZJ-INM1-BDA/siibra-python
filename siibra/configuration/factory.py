@@ -14,15 +14,18 @@
 # limitations under the License.
 
 from ..commons import logger, Species
-from ..features import anchor
-from ..features.molecular import receptor_density_fingerprint, receptor_density_profile
-from ..features.cellular import cell_density_profile, layerwise_cell_density
-from ..features.basetypes import volume_of_interest
+from ..features import anchor, connectivity
+from ..features.tabular import (
+    receptor_density_profile,
+    receptor_density_fingerprint,
+    cell_density_profile,
+    layerwise_cell_density
+)
+from ..features.image import volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
-from ..features import connectivity
 
 from os import path
 import json

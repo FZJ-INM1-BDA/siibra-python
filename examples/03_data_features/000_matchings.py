@@ -39,7 +39,7 @@ siibra.features.TYPES
 # As a first example, we use brain region V2 to query for "EbrainsRegionalDataset" features.
 # See :ref:`ebrains_datasets` for more information about this modality.
 v2 = siibra.get_region("julich 2.9", "v2")
-features = siibra.features.get(v2, siibra.features.external.EbrainsDataFeature)
+features = siibra.features.get(v2, siibra.features.dataset.EbrainsDataFeature)
 for feature in features:
     print(f" - {feature.name}")
 

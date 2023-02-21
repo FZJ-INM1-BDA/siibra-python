@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import PropertyMock, patch
-from siibra.features.external.ebrains import EbrainsDataFeature, feature
+from siibra.features.dataset.ebrains import EbrainsDataFeature, feature
 
 class TestEbrains(unittest.TestCase):
     @staticmethod

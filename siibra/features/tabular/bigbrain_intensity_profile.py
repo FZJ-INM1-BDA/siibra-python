@@ -13,12 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..basetypes import cortical_profile
+from . import cortical_profile
 
 from ...locations import point
 
 
-class BigBrainIntensityProfile(cortical_profile.CorticalProfile):
+class BigBrainIntensityProfile(cortical_profile.CorticalProfile, category='cellular'):
 
     DESCRIPTION = (
         "Cortical profiles of BigBrain staining intensities computed by Konrad Wagstyl, "

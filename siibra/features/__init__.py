@@ -13,19 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__all__ = ["cellular", "molecular", "fibres", "connectivity", "external"]
 
 from . import (
-    cellular,
-    molecular,
-    fibres,
     connectivity,
-    external
+    tabular,
+    image,
+    dataset,
 )
 
-from .basetypes.feature import Feature
-from .basetypes.cortical_profile import CorticalProfile
-from .basetypes.volume_of_interest import VolumeOfInterest
+
+from .feature import Feature
 get = Feature.match
 
 
@@ -33,14 +30,17 @@ TYPES = Feature._get_subclasses()
 
 
 def __dir__():
-    return [
-        "cellular",
-        "molecular",
-        "fibres",
-        "connectivity",
-        "external",
-        "Feature",
-        "get",
-        "CorticalProfile",
-        "VolumeOfInterest"
-    ]
+    return list(Feature.CATEGORIZED.keys())
+
+
+def __getattr__(attr: str):
+    if attr in Feature.CATEGORIZED:
+        return Feature.CATEGORIZED[attr]
+    else:
+        hint = ""
+        if isinstance(attr, str):
+            import difflib
+            closest = difflib.get_close_matches(attr, list(__dir__()), n=3)
+            if len(closest) > 0:
+                hint = f"Did you mean {' or '.join(closest)}?"
+        raise AttributeError(f"No such attribute: {__name__}.{attr} " + hint)

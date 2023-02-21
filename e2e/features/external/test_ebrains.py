@@ -2,7 +2,7 @@ import siibra
 import pytest
 
 concepts = [
-    (siibra.get_region("julich 2.9", "v2"), siibra.features.external.EbrainsDataFeature),
+    (siibra.get_region("julich 2.9", "v2"), siibra.features.dataset.EbrainsDataFeature),
     (siibra.get_region("julich 2.9", "v2"), "ebrains"),
 ]
 

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import feature
+from .. import feature
 
 from .. import anchor as _anchor
 
@@ -47,7 +47,7 @@ class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
         return self.volume.space
 
     def __str__(self):
-        #TODO: Replace with a more descriptive str
+        # TODO: Replace with a more descriptive str
         return "bounding box of volume"
 
 

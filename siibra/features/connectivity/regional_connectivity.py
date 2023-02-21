@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .tabular import Tabular
+from ..feature import Feature
+from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 
@@ -29,7 +29,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class RegionalConnectivity(Feature):
+class RegionalConnectivity(Feature, category='connectivity'):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
     given modality for a given parcellation.
