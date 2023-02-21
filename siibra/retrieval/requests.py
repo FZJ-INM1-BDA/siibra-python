@@ -15,7 +15,7 @@
 
 from .cache import CACHE
 from .exceptions import EbrainsAuthenticationError
-from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, _progressbar
 from .. import __version__
 
 import json
@@ -29,7 +29,6 @@ from io import BytesIO
 import urllib
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 from typing import List, Callable, Any, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
@@ -160,7 +159,7 @@ class HttpRequest:
             if r.ok:
                 size_bytes = int(r.headers.get('content-length', 0))
                 if size_bytes > min_bytesize_with_no_progress_info:
-                    progress_bar = tqdm(
+                    progress_bar = _progressbar(
                         total=size_bytes, unit='iB', unit_scale=True,
                         position=0, leave=True,
                         desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"

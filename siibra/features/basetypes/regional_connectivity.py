@@ -18,7 +18,7 @@ from .tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET
+from ...commons import logger, QUIET, _progressbar
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -26,7 +26,6 @@ from ...retrieval.repositories import RepositoryConnector
 from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
 
 class RegionalConnectivity(Feature):
@@ -119,7 +118,7 @@ class RegionalConnectivity(Feature):
             if "mean" not in self._matrices:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in tqdm(
+                    for fname in _progressbar(
                         self._files.values(),
                         total=len(self),
                         desc=f"Averaging {len(self)} connectivity matrices"

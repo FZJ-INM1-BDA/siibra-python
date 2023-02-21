@@ -14,7 +14,7 @@
 # limitations under the License.
 
 
-from ..commons import logger
+from ..commons import logger, _progressbar
 from ..configuration.configuration import REGISTRY
 from ..locations import Point, PointSet
 
@@ -22,7 +22,6 @@ from ctypes import ArgumentError
 import numpy as np
 from skimage import measure
 from nilearn import image
-from tqdm import tqdm
 
 
 class BigBrainCortexSampler:
@@ -87,12 +86,11 @@ class BigBrainCortexSampler:
         if isinstance(loc_bb, Point):
             result.append(self._sample_single_point(loc_bb))
         elif isinstance(loc_bb, PointSet):
-            for p in tqdm(
+            for p in _progressbar(
                 loc_bb,
                 total=len(loc_bb),
                 unit="locations",
-                desc=f"Sampling from {len(loc_bb)} locations",
-                disable=logger.level > 20,
+                desc=f"Sampling from {len(loc_bb)} locations"
             ):
                 result.append(self._sample_single_point(p))
         else:

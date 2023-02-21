@@ -16,7 +16,7 @@
 from ..features.external import ebrains as _ebrains
 from . import query
 
-from ..commons import logger
+from ..commons import logger, _progressbar
 from ..features import anchor as _anchor
 from ..retrieval import requests, datasets
 from ..core import parcellation, region
@@ -24,7 +24,6 @@ from ..core import parcellation, region
 from collections import defaultdict
 import re
 from distutils.version import LooseVersion
-from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
 
@@ -75,7 +74,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
-        for r in tqdm(results, total=len(results)):
+        for r in _progressbar(results, total=len(results)):
 
             regionname = r.get("name", None)
             alias = r.get("alias", None)

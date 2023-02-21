@@ -15,12 +15,11 @@
 
 from .. import anchor as _anchor
 
-from ...commons import logger
+from ...commons import logger, _progressbar
 from ...core import concept
 from ...core import space, region, parcellation
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type
-from tqdm import tqdm
 from hashlib import md5
 from collections import defaultdict
 
@@ -210,7 +209,7 @@ class Feature:
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
-            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+            preconfigured_instances = [f for f in _progressbar(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = []
         if hasattr(feature_type, "_live_queries"):
