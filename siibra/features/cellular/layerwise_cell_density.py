@@ -76,7 +76,8 @@ class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/finge
                 continue
             counts = cells.layer.value_counts()
             areas = layers["Area(micron**2)"]
-            density_dict[i] = counts[areas.index] / areas * 100 ** 2 * 5
+            indices = np.intersect1d(areas.index, counts.index)
+            density_dict[i] = counts[indices] / areas * 100 ** 2 * 5
         return pd.DataFrame(density_dict)
 
     @property
