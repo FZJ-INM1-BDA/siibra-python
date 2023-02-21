@@ -29,7 +29,7 @@ import numpy as np
 from tqdm import tqdm
 
 
-class RegionalConnectivity(Feature, category='connectivity'):
+class RegionalConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
     given modality for a given parcellation.

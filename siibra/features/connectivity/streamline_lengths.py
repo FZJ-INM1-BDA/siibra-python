@@ -18,7 +18,8 @@ from . import regional_connectivity
 
 class StreamlineLengths(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/streamlinelengths"
+    configuration_folder="features/connectivity/regional/streamlinelengths",
+    category="connectivity"
 ):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
 
