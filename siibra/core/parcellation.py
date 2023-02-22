@@ -137,7 +137,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                 return True
         return super().matches(spec)
 
-    def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED):
+    def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED, spec: str = ""):
         """
         Get the maps for the parcellation in the requested template space.
 
@@ -155,6 +155,9 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             Type of map requested (e.g., statistical or labelled).
             Use MapType.STATISTICAL to request probability maps.
             Defaults to MapType.LABELLED.
+        spec: str, optional
+            When there are multiple maps of the same type available for the same
+            reference space, select a specific option.
         Returns
         -------
         parcellationmap.Map or SparseMap
@@ -175,7 +178,13 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             logger.error(f"No {maptype} map in {space} available for {str(self)}")
             return None
         if len(candidates) > 1:
-            logger.warning(f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first.")
+            spec_candidates = [c for c in candidates if spec in c.name]
+            if len(spec_candidates) > 1 or len(spec_candidates) == 0:
+                logger.warning(
+                    f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first."
+                    f"Set a unique `spec` from {[c.name for c in candidates]} to specify one."
+                )
+            return spec_candidates[0]
         return candidates[0]
 
     @classmethod
