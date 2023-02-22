@@ -271,17 +271,17 @@ class EbrainsRequest(HttpRequest):
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
-    def fetch_token(cls):
+    def fetch_token(cls, **kwargs):
         """
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
-        cls.device_flow()
+        cls.device_flow(**kwargs)
         
     @classmethod
-    def device_flow(cls):
+    def device_flow(cls, **kwargs):
         if all([
             not sys.__stdout__.isatty(),  # if is tty, do not raise
             not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
@@ -293,11 +293,33 @@ class EbrainsRequest(HttpRequest):
             )
 
         cls.init_oidc()
+
+        def get_scopes() -> str:
+            scopes = kwargs.get("scopes")
+            if not scopes:
+                return None
+            if not isinstance(scopes, list):
+                logger.warn(f"scopes needs to be a list, is but is not... skipping")
+                return None
+            if not all(isinstance(scope, str) for scope in scopes):
+                logger.warn(f"scopes needs to be all str, but is not")
+                return None
+            if len(scopes) == 0:
+                logger.warn(f'provided empty list as scopes... skipping')
+                return None
+            return "+".join(scopes)
+        
+        scopes = get_scopes()
+        
+        data = {
+            'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
+        }
+
+        if scopes:
+            data['scopes'] = scopes
         resp = requests.post(
             url=cls._IAM_DEVICE_ENDPOINT,
-            data={
-                'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
-            }
+            data=data
         )
         resp.raise_for_status()
         resp_json = resp.json()
@@ -517,8 +539,8 @@ class GitlabProxyEnum(Enum):
 class GitlabProxy(HttpRequest):
 
     folder_dict = {
-        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/datasets",
-        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/datasets",
+        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/dataset",
+        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/Dataset",
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 
