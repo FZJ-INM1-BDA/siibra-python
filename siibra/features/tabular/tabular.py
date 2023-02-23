@@ -93,3 +93,13 @@ class Tabular(feature.Feature):
         ax.set_title(ax.get_title(), fontsize="medium")
         ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
         plt.tight_layout()
+
+
+class SignalTable(
+    Tabular
+):
+    """
+    """
+
+    def __init__(self, **kwargs):
+        Tabular.__init__(self, data=None, **kwargs)
