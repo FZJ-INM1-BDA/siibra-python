@@ -249,6 +249,7 @@ class Factory:
             providers=providers,
             name=spec.get("name", {}),
             variant=spec.get("variant"),
+            datasets=cls.extract_datasets(spec),
         )
 
         return result
