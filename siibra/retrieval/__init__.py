@@ -21,6 +21,6 @@ from .repositories import (
     LocalFileRepository,
     ZipfileConnector
 )
-from .requests import HttpRequest, ZipfileRequest, EbrainsRequest, EbrainsKgQuery, SiibraHttpRequestError
+from .requests import HttpRequest, ZipfileRequest, EbrainsRequest, SiibraHttpRequestError
 from .cache import CACHE
 from .exceptions import NoSiibraConfigMirrorsAvailableException, TagNotFoundException

@@ -68,6 +68,9 @@ class Factory:
             result.append(
                 datasets.EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
             )
+        if "openminds/Dataset" in spec.get("ebrains", {}):
+            # TODO add parser for ebrains kg v3 dataset. see EbrainsV3Dataset 
+            pass
         return result
 
     @classmethod

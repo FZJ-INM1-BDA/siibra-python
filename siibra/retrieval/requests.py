@@ -444,55 +444,6 @@ class EbrainsRequest(HttpRequest):
         return super().get()
 
 
-class EbrainsKgQuery(EbrainsRequest):
-    """Request outputs from a knowledge graph query."""
-
-    server = "https://kg.humanbrainproject.eu"
-    org = "minds"
-    domain = "core"
-    version = "v1.0.0"
-
-    SC_MESSAGES = {
-        401: "The provided EBRAINS authentication token is not valid",
-        403: "No permission to access the given query",
-        404: "Query with this id not found",
-    }
-
-    def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
-        inst_tail = "/" + instance_id if instance_id is not None else ""
-        self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-            self.server,
-            self.org,
-            self.domain,
-            self.schema,
-            self.version,
-            query_id,
-            inst_tail,
-        )
-        EbrainsRequest.__init__(
-            self,
-            url,
-            decoder=DECODERS[".json"],
-            params=params,
-            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}",
-        )
-
-    def get(self):
-        try:
-            result = EbrainsRequest.get(self)
-        except SiibraHttpRequestError as e:
-            if e.status_code in self.SC_MESSAGES:
-                raise RuntimeError(self.SC_MESSAGES[e.status_code])
-            else:
-                raise RuntimeError(
-                    f"Could not process HTTP request (status code: "
-                    f"{e.status_code}). Message was: {e.msg}"
-                    f"URL was: {e.url}"
-                )
-        return result
-
-
 def try_all_connectors():
     def outer(fn):
         @wraps(fn)
