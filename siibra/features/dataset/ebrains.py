@@ -64,7 +64,7 @@ class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='dat
 
     @property
     def name(self):
-        return self._name_cached
+        return self._name
 
     @property
     def version_history(self):
