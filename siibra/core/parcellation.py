@@ -156,8 +156,10 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             Use MapType.STATISTICAL to request probability maps.
             Defaults to MapType.LABELLED.
         spec: str, optional
-            When there are multiple maps of the same type available for the same
-            reference space, select a specific option.
+            In case of multiple matching maps for the given parcellation, space
+            and type, use this field to specify keywords matching the desired
+            parcellation map name. Otherwise, siibra will default to the first
+            in the list of matches (and inform with a log message)
         Returns
         -------
         parcellationmap.Map or SparseMap
@@ -178,11 +180,17 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             logger.error(f"No {maptype} map in {space} available for {str(self)}")
             return None
         if len(candidates) > 1:
-            spec_candidates = [c for c in candidates if spec in c.name]
-            if len(spec_candidates) > 1 or len(spec_candidates) == 0:
+            spec_candidates = [
+                c for c in candidates if all(w.lower() in c.name.lower() for w in spec.split())
+            ]
+            if len(spec_candidates) == 0:
+                logger.warning(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
+                return None
+            if len(spec_candidates) > 1:
                 logger.warning(
                     f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first."
-                    f"Set a unique `spec` from {[c.name for c in candidates]} to specify one."
+                    "You might want to specify keywords using the `spec` parameter to match the desired" 
+                    f"one of the maps {[c.name for c in spec_candidates]}"
                 )
             return spec_candidates[0]
         return candidates[0]
