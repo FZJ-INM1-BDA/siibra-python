@@ -14,10 +14,11 @@
 # limitations under the License.
 
 
-from .requests import EbrainsKgQuery, MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
+from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
 from typing import Union, List
+from abc import ABC, abstractproperty
 
 try:
     from typing import TypedDict
@@ -44,15 +45,69 @@ EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
     'identifier': List[str]
 })
 
+class EbrainsBaseDataset(ABC):
+    
+    @abstractproperty
+    def id(self) -> str:
+        raise NotImplementedError
+    
+    @abstractproperty
+    def name(self) -> str:
+        raise NotImplementedError
+    
+    @abstractproperty
+    def urls(self) -> List[EbrainsDatasetUrl]:
+        raise NotImplementedError
 
-class EbrainsDataset:
+    @abstractproperty
+    def description(self) -> str:
+        raise NotImplementedError
+
+    @abstractproperty
+    def contributors(self) -> List[EbrainsDatasetPerson]:
+        raise NotImplementedError
+
+    @abstractproperty
+    def ebrains_page(self) -> str:
+        raise NotImplementedError
+
+    @abstractproperty
+    def custodians(self) -> EbrainsDatasetPerson:
+        raise NotImplementedError
+    
+    def __hash__(self):
+        return hash(self.id)
+    
+    def __eq__(self, o: object) -> bool:
+        return hasattr(o, "id") and self.id == o.id
+    
+    def match(self, spec: Union[str, 'EbrainsBaseDataset']) -> bool:
+        """
+        Checks if the given specification describes this dataset.
+
+        Parameters
+        ----------
+        spec (str, EbrainsBaseDataset)
+            specification to be matched.
+        Returns
+        -------
+        bool
+        """
+        if spec is self:
+            return True
+        if isinstance(spec, str):
+            return self.id == spec
+        raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset")
+
+class EbrainsDataset(EbrainsBaseDataset):
 
     def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
+        super().__init__()
 
         self._id = id
+        self._name = name
         self._cached_data = cached_data
         self.embargo_status = embargo_status
-        self._name_cached = name
 
         if id is None:
             raise TypeError("Dataset id is required")
@@ -78,20 +133,15 @@ class EbrainsDataset:
                         GitlabProxyEnum.DATASET_V1,
                         instance_id=instance_id,
                     ),
-                    EbrainsKgQuery(
-                        query_id="interactiveViewerKgQuery-v1_0",
-                        instance_id=instance_id,
-                        params={"vocab": "https://schema.hbp.eu/myQuery/"},
-                    )
                 ]
             ).data
         return self._cached_data
 
     @property
     def name(self) -> str:
-        if self._name_cached is None:
-            self._name_cached = self.detail.get("name")
-        return self._name_cached
+        if self._name is None:
+            self._name = self.detail.get("name")
+        return self._name
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
@@ -118,32 +168,26 @@ class EbrainsDataset:
     def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
+class EbrainsV3Dataset(EbrainsBaseDataset):
+    # TODO finish implementing me
+    # some fields are currently missing, e.g. desc, contributors etc.
+    def __init__(self, id, *, cached_data) -> None:
+        super().__init__()
+
+        self._id = id
+        self._cached_data = cached_data
+    
     @property
-    def key(self):
-        return self.id
-
-    def __hash__(self):
-        return hash(self.id)
-
-    def __eq__(self, o: object) -> bool:
-        if type(o) is not EbrainsDataset and not issubclass(type(o), EbrainsDataset):
-            return False
-        return self.id == o.id
-
-    def match(self, spec: Union[str, 'EbrainsDataset']) -> bool:
-        """
-        Checks if the given specification describes this dataset.
-
-        Parameters
-        ----------
-        spec (str, EbrainsDataset)
-            specification to be matched.
-        Returns
-        -------
-        bool
-        """
-        if spec is self:
-            return True
-        if isinstance(spec, str):
-            return self.id == spec
-        raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsDataset")
+    def detail(self):
+        if not self._cached_data:
+            match = re.search(r"([a-f0-9-]+)$", self.id)
+            instance_id = match.group(1)
+            self._cached_data = MultiSourcedRequest(
+                requests=[
+                    GitlabProxy(
+                        GitlabProxyEnum.DATASET_V3,
+                        instance_id=instance_id,
+                    ),
+                ]
+            ).data
+        return self._cached_data
