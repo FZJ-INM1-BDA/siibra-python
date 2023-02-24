@@ -37,6 +37,8 @@ class Feature:
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
 
     CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
+    
+    category: str = None
 
     def __init__(
         self,

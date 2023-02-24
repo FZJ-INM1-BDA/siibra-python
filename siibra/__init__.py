@@ -130,4 +130,5 @@ def __dir__():
         "set_ebrains_token",
         "vocabularies",
         "__version__",
+        "cache",
     ]
