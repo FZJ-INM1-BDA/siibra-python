@@ -583,7 +583,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
                 else:
                     for url, transform in fragment_infos.values():
                         mesh = self._fetch_fragment(url, transform)
-                        mesh['labels'] = [label_i for _ in mesh['verts']]
+                        mesh['labels'] = np.array([label_i for _ in mesh['verts']])
                         meshes.append(mesh)
 
             else:
@@ -595,7 +595,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
                 if len(matched) == 1:
                     url, transform = next(iter(matched))
                     mesh = self._fetch_fragment(url, transform)
-                    mesh['labels'] = [label_i for _v in mesh['verts']]
+                    mesh['labels'] = np.array([label_i for _ in mesh['verts']])
                     meshes.append(mesh)
                 else:
                     raise ValueError(
