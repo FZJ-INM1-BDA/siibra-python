@@ -574,29 +574,32 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
 
             # extract fragment information for the requested mesh
             fragment_infos = self._get_fragment_info(label_i)
-            fragments.extend(fragment_infos.keys())
 
             if fragment is None:
                 # no fragment specified, return merged fragment meshes
                 if len(fragment_infos) == 0:
                     raise RuntimeError(f"Invalid label '{label_i}' for mesh fetching.")
                 else:
-                    for url, transform in fragment_infos.values():
+                    for name, (url, transform) in fragment_infos.items():
                         mesh = self._fetch_fragment(url, transform)
                         mesh['labels'] = np.array([label_i for _ in mesh['verts']])
                         meshes.append(mesh)
+                        fragments.append(name)
 
             else:
                 # match fragment to available fragments
                 matched = [
-                    info for name, info in fragment_infos.items()
+                    (name, url, transform) 
+                    for name, (url, transform) in fragment_infos.items()
                     if fragment.lower() in name
                 ]
+                
                 if len(matched) == 1:
-                    url, transform = next(iter(matched))
+                    name, url, transform = next(iter(matched))
                     mesh = self._fetch_fragment(url, transform)
                     mesh['labels'] = np.array([label_i for _ in mesh['verts']])
                     meshes.append(mesh)
+                    fragments.append(name)
                 else:
                     raise ValueError(
                         f"The requested mesh fragment name '{fragment}' could not be resolved. "

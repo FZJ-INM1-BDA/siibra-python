@@ -1,5 +1,3 @@
-import pytest
-import numpy as np
 import siibra
 
 
@@ -22,5 +20,3 @@ def test_pli_volume_transform():
         == "https://neuroglancer.humanbrainproject.eu/precomputed/data-repo/HSV-FOM"
         for p in feat._providers.values()
     ), "Expect RGB PLI volume to be present"
-
-
