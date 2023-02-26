@@ -271,17 +271,17 @@ class EbrainsRequest(HttpRequest):
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
-    def fetch_token(cls):
+    def fetch_token(cls, **kwargs):
         """
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
-        cls.device_flow()
+        cls.device_flow(**kwargs)
         
     @classmethod
-    def device_flow(cls):
+    def device_flow(cls, **kwargs):
         if all([
             not sys.__stdout__.isatty(),  # if is tty, do not raise
             not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
@@ -293,11 +293,33 @@ class EbrainsRequest(HttpRequest):
             )
 
         cls.init_oidc()
+
+        def get_scopes() -> str:
+            scopes = kwargs.get("scopes")
+            if not scopes:
+                return None
+            if not isinstance(scopes, list):
+                logger.warn(f"scopes needs to be a list, is but is not... skipping")
+                return None
+            if not all(isinstance(scope, str) for scope in scopes):
+                logger.warn(f"scopes needs to be all str, but is not")
+                return None
+            if len(scopes) == 0:
+                logger.warn(f'provided empty list as scopes... skipping')
+                return None
+            return "+".join(scopes)
+        
+        scopes = get_scopes()
+        
+        data = {
+            'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
+        }
+
+        if scopes:
+            data['scopes'] = scopes
         resp = requests.post(
             url=cls._IAM_DEVICE_ENDPOINT,
-            data={
-                'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
-            }
+            data=data
         )
         resp.raise_for_status()
         resp_json = resp.json()
@@ -422,55 +444,6 @@ class EbrainsRequest(HttpRequest):
         return super().get()
 
 
-class EbrainsKgQuery(EbrainsRequest):
-    """Request outputs from a knowledge graph query."""
-
-    server = "https://kg.humanbrainproject.eu"
-    org = "minds"
-    domain = "core"
-    version = "v1.0.0"
-
-    SC_MESSAGES = {
-        401: "The provided EBRAINS authentication token is not valid",
-        403: "No permission to access the given query",
-        404: "Query with this id not found",
-    }
-
-    def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
-        inst_tail = "/" + instance_id if instance_id is not None else ""
-        self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-            self.server,
-            self.org,
-            self.domain,
-            self.schema,
-            self.version,
-            query_id,
-            inst_tail,
-        )
-        EbrainsRequest.__init__(
-            self,
-            url,
-            decoder=DECODERS[".json"],
-            params=params,
-            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}",
-        )
-
-    def get(self):
-        try:
-            result = EbrainsRequest.get(self)
-        except SiibraHttpRequestError as e:
-            if e.status_code in self.SC_MESSAGES:
-                raise RuntimeError(self.SC_MESSAGES[e.status_code])
-            else:
-                raise RuntimeError(
-                    f"Could not process HTTP request (status code: "
-                    f"{e.status_code}). Message was: {e.msg}"
-                    f"URL was: {e.url}"
-                )
-        return result
-
-
 def try_all_connectors():
     def outer(fn):
         @wraps(fn)
@@ -517,8 +490,8 @@ class GitlabProxyEnum(Enum):
 class GitlabProxy(HttpRequest):
 
     folder_dict = {
-        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/datasets",
-        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/datasets",
+        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/dataset",
+        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/Dataset",
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 

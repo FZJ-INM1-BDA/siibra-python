@@ -48,11 +48,6 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
             requests.GitlabProxy(
                 flavour=requests.GitlabProxyEnum.PARCELLATIONREGION_V1,
             ),
-            requests.EbrainsKgQuery(
-                query_id="siibra-kg-feature-summary-0_0_4",
-                schema="parcellationregion",
-                params={"vocab": "https://schema.hbp.eu/myQuery/"},
-            )
         ]
     )
 
