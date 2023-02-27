@@ -44,6 +44,7 @@ class DummyMap:
         self.parcellation.matches.return_value = parcellation_returns
 
         self.maptype = maptype
+        self.name = ""
 
 
 class TestParcellationVersion(unittest.TestCase):
