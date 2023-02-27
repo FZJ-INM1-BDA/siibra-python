@@ -169,7 +169,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             self._species_cached = self.space.species
         return self.space._species_cached
 
-    def get_index(self, region: Union[str, "Region"]):
+    def get_index(self, region: Union[str, "Region"], fragment: str = ""):
         """
         Returns the unique index corresponding to the specified region.
 
@@ -180,6 +180,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Parameters
         ----------
         region: str or Region
+        region: str or Region
+        fragement: str, optional
+            If the map is fragmented, returns only the indices at the requested
+            fragment.
 
         Returns
         -------
@@ -190,7 +194,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         NonUniqueIndexError
             If not unique or not defined in this parcellation map.
         """
-        matches = self.find_indices(region)
+        matches = self.find_indices(region, fragment)
         if len(matches) > 1:
             raise NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
@@ -203,7 +207,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         else:
             return next(iter(matches))
 
-    def find_indices(self, region: Union[str, "Region"]):
+    def find_indices(self, region: Union[str, "Region"], fragment: str = ""):
         """
         Returns the volume/label indices in this map which match the given
         region specification.
@@ -211,6 +215,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Parameters
         ----------
         region: str or Region
+        fragement: str, optional
+            If the map is fragmented, returns only the indices at the requested
+            fragment.
 
         Returns
         -------
@@ -224,7 +231,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for idx in self._indices[region]
             }
         regionname = region.name if isinstance(region, _region.Region) else region
-        matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
+        if len(fragment) > 0:
+            frag = fragment.removesuffix(" hemisphere")
+        matched_region_names = set(
+            _.name for _ in (self.parcellation.find(regionname + f" {frag}"))
+            )
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
             logger.warn(f"Region {regionname} not defined in {self}")
@@ -339,8 +350,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         index: MapIndex
             Explicit specification of the map index, typically resulting
             in a regional map (mask or statistical map) to be returned.
-            Note that supplying 'region' will result in retrieving the map index of that region
-            automatically.
+            Note that supplying 'region' will result in retrieving the map index
+            of that region automatically.
         region: str, Region
             Specification of a region name, resulting in a regional map
             (mask or statistical map) to be returned.
@@ -358,6 +369,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Returns
         -------
         An image or mesh
+
+        Raises
+        ------
+        InsufficientArgumentException
+            If the provided arguments are not enough to determine a volume to
+            be fetched.
+        ConflictingArgumentException
+            If provided arguments lead to conflict in found MapIndex.
+        IndexError
+            If a volume out of available options is requested.
+        RuntimeError
+            If the fethced volume is None.
         """
         try:
             length = len([arg for arg in [region_or_index, region, index] if arg is not None])
@@ -373,10 +396,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(region_or_index, (str, _region.Region)):
             region = region_or_index
 
+        kwargs_fragment = kwargs.pop("fragment", None)
         mapindex = None
         if region is not None:
             assert isinstance(region, (str, _region.Region))
-            mapindex = self.get_index(region)
+            mapindex = self.get_index(region, kwargs_fragment)
         if index is not None:
             assert isinstance(index, MapIndex)
             mapindex = index
@@ -389,8 +413,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Map provides multiple volumes, use 'index' or "
                     "'region' to specify which one to fetch."
                 )
-
-        kwargs_fragment = kwargs.pop("fragment", None)
+        
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
                 raise ConflictingArgumentException(
