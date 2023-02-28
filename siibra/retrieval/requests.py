@@ -26,7 +26,7 @@ from nibabel import Nifti1Image, GiftiImage, streamlines
 from skimage import io
 import gzip
 from io import BytesIO
-import urllib
+import urllib.parse
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -35,6 +35,12 @@ from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
+import platform
+
+if platform.system() == "Linux":
+    from filelock import FileLock as Lock
+else:
+    from filelock import SoftFileLock as Lock
 
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
@@ -73,9 +79,9 @@ class SiibraHttpRequestError(Exception):
 class HttpRequest:
     def __init__(
         self,
-        url,
-        func=None,
-        msg_if_not_cached=None,
+        url: str,
+        func: Callable=None,
+        msg_if_not_cached: str=None,
         refresh=False,
         post=False,
         **kwargs,
@@ -133,58 +139,55 @@ class HttpRequest:
         return os.path.isfile(self.cachefile)
 
     def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
-        # Loads the data from http if required.
-        # If the data is already cached, None is returned,
-        # otherwise data (as it is already in memory anyway).
-        # The caller should load the cachefile only
-        # if None is returned.
+        # Populates the file cache with the data from http if required.
+        # noop if 1/ data is already cached and 2/ refresh flag not set
+        # The caller should load the cachefile after _retrieve successfuly executes
 
         if self.cached and not self.refresh:
             return
-        else:
-            # not yet in cache, perform http request.
-            if self.msg_if_not_cached is not None:
-                logger.debug(self.msg_if_not_cached)
-            headers = self.kwargs.get('headers', {})
-            other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
-            if self.post:
-                r = requests.post(self.url, headers={
-                    **USER_AGENT_HEADER,
-                    **headers,
-                }, **other_kwargs, stream=True)
-            else:
-                r = requests.get(self.url, headers={
-                    **USER_AGENT_HEADER,
-                    **headers,
-                }, **other_kwargs, stream=True)
-            if r.ok:
-                size_bytes = int(r.headers.get('content-length', 0))
-                if size_bytes > min_bytesize_with_no_progress_info:
-                    progress_bar = tqdm(
-                        total=size_bytes, unit='iB', unit_scale=True,
-                        position=0, leave=True,
-                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
-                    )
-                temp_cachefile = self.cachefile + "_temp"
-                with open(temp_cachefile, "wb") as f:
-                    for data in r.iter_content(block_size):
-                        if size_bytes > min_bytesize_with_no_progress_info:
-                            progress_bar.update(len(data))
-                        f.write(data)
-                if size_bytes > min_bytesize_with_no_progress_info:
-                    progress_bar.close()
-                self.refresh = False
-                os.rename(temp_cachefile, self.cachefile)
-                with open(self.cachefile, 'rb') as f:
-                    return f.read()
-            else:
-                raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
+        
+        # not yet in cache, perform http request.
+        if self.msg_if_not_cached is not None:
+            logger.debug(self.msg_if_not_cached)
+            
+        headers = self.kwargs.get('headers', {})
+        other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
+
+        http_method = requests.post if self.post else requests.get
+        r = http_method(self.url, headers={
+            **USER_AGENT_HEADER,
+            **headers,
+        }, **other_kwargs, stream=True)
+
+        if not r.ok:
+            raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
+
+        size_bytes = int(r.headers.get('content-length', 0))
+        if size_bytes > min_bytesize_with_no_progress_info:
+            progress_bar = tqdm(
+                total=size_bytes, unit='iB', unit_scale=True,
+                position=0, leave=True,
+                desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+            )
+        temp_cachefile = f"{self.cachefile}_temp"
+        lock = Lock(f"{temp_cachefile}.lock")
+        
+        with lock:
+            with open(temp_cachefile, "wb") as f:
+                for data in r.iter_content(block_size):
+                    if size_bytes > min_bytesize_with_no_progress_info:
+                        progress_bar.update(len(data))
+                    f.write(data)
+            if size_bytes > min_bytesize_with_no_progress_info:
+                progress_bar.close()
+            self.refresh = False
+            os.rename(temp_cachefile, self.cachefile)
+            
 
     def get(self):
-        data = self._retrieve()
-        if data is None:
-            with open(self.cachefile, "rb") as f:
-                data = f.read()
+        self._retrieve()
+        with open(self.cachefile, "rb") as f:
+            data = f.read()
         try:
             return data if self.func is None else self.func(data)
         except Exception as e:
