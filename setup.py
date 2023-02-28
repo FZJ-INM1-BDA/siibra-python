@@ -51,5 +51,6 @@ setup(
         "neuroglancer-scripts",
         "nilearn",
         'typing-extensions; python_version < "3.8"',
+        "filelock",
     ],
 )

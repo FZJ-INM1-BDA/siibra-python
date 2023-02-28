@@ -625,7 +625,6 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
             logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
             url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&title={title}"
         req = EbrainsRequest(url, DECODERS[".json"])
-        print(req.cachefile)
         response = req.get()
         self._files = {}
         results = response.get('results', [])
