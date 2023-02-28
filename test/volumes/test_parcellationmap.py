@@ -11,6 +11,7 @@ import inspect
 
 
 class DummyCls:
+    _providers = {}
     def fetch(self):
         raise NotImplementedError
 
