@@ -48,7 +48,7 @@ DECODERS = {
     ".json": lambda b: json.loads(b.decode()),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
-    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
+    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: io.imread(BytesIO(b)),
