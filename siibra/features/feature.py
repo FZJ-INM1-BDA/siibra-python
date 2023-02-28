@@ -181,7 +181,7 @@ class Feature:
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return sum((cls.match(concept, t, **kwargs) for t in feature_type), [])
+            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
@@ -196,7 +196,7 @@ class Feature:
             if len(candidates) == 0:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
 
-            return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
+            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
 
         assert issubclass(feature_type, Feature)
 
@@ -230,7 +230,7 @@ class Feature:
                 q = QueryType(**kwargs)
                 live_instances.extend(q.query(concept))
 
-        return preconfigured_instances + live_instances
+        return list(set((preconfigured_instances + live_instances)))
 
     @classmethod
     def get_ascii_tree(cls):
