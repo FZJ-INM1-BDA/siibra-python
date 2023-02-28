@@ -231,12 +231,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for idx in self._indices[region]
             }
         regionname = region.name if isinstance(region, _region.Region) else region
+        matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
+        matches = matched_region_names & self._indices.keys()
         if len(fragment) > 0:
             frag = fragment.removesuffix(" hemisphere")
-        matched_region_names = set(
-            _.name for _ in (self.parcellation.find(regionname + f" {frag}"))
-            )
-        matches = matched_region_names & self._indices.keys()
+            matches = [m for m in matches if frag.lower()in m.lower()]
         if len(matches) == 0:
             logger.warn(f"Region {regionname} not defined in {self}")
         return {
