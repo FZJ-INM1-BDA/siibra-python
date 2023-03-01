@@ -20,8 +20,7 @@ from ..features.tabular import (
     receptor_density_profile,
     receptor_density_fingerprint,
     cell_density_profile,
-    layerwise_cell_density,
-    parcellation_based_bold
+    layerwise_cell_density
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -56,7 +55,7 @@ BUILDFUNCS = {
     "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
     "siibra/feature/section/v0.1": "build_section",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
-    "siibra/feature/signaltable/v0.1": "build_signaltable"
+    "siibra/feature/activity_timeseries/BOLD/v0.1": "build_activity_timeseries"
 }
 
 
@@ -454,7 +453,7 @@ class Factory:
             raise ValueError(f"No method for building connectivity matrix of type {modality}.")
 
     @classmethod
-    def build_signaltable(cls, spec):
+    def build_activity_timeseries(cls, spec):
         modality = spec["modality"]
         kwargs = {
             "cohort": spec["cohort"],

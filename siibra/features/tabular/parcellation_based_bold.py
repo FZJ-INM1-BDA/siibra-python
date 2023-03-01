@@ -22,16 +22,16 @@ from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union, List
+from typing import Callable, Dict, Union
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
 
 
 class ParcellationBasedBOLD(
-    tabular.SignalTable,
-    configuration_folder="",
-    category="signal"
+    tabular.Tabular,
+    configuration_folder="features/tabular/activity_timeseries/bold",
+    category="activity_timeseries"
 ):
     # TODO: write
     """
@@ -58,12 +58,13 @@ class ParcellationBasedBOLD(
     ):
         """
         """
-        tabular.SignalTable.__init__(
+        tabular.Tabular.__init__(
             self,
             modality=modality,
             description=description,
             anchor=anchor,
             datasets=datasets,
+            data=None  # lazy loading below
         )
         self.cohort = cohort.upper()
         self._connector = connector
@@ -80,6 +81,10 @@ class ParcellationBasedBOLD(
         Returns the subject identifiers for which matrices are available.
         """
         return list(self._files.keys())
+
+    @property
+    def data(self):
+        return self.get_matrix()
 
     def get_matrix(self, subject: str = None):
         """
@@ -121,7 +126,7 @@ class ParcellationBasedBOLD(
         if subject not in self._matrices:
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject]
-    
+
     def _load_matrix(self, subject: str):
         """
         Extract timeseries.
@@ -129,13 +134,11 @@ class ParcellationBasedBOLD(
         assert subject in self.subjects
         array = self._connector.get(self._files[subject], decode_func=self._decode_func)
         return self._array_to_dataframe(array)
-    
+
     def get_profile(
         self,
         region: Union[str, _region.Region],
-        subject: str = None,
-        min_connectivity: float = 0,
-        max_rows: int = None
+        subject: str = None
     ):
         """
         Extract a regional profile from the matrix, to obtain a tabular data feature
@@ -161,7 +164,7 @@ class ParcellationBasedBOLD(
                 assert isinstance(r1, _region.Region)
                 return r1.matches(r2)
 
-        regions = [r for r in matrix.index if matches(r, region)]
+        regions = [r for r in matrix.columns if matches(r, region)]
         if len(regions) == 0:
             raise ValueError(f"Invalid region specificiation: {region}")
         elif len(regions) > 1:
@@ -171,9 +174,8 @@ class ParcellationBasedBOLD(
                 f"Averaged {self.modality}" if subject is None \
                 else f"{self.modality}"
             series = matrix[regions[0]]
-            last_index = len(series) - 1 if max_rows is None \
-                else min(max_rows, len(series) - 1)
-            return tabular.SignalTable(
+            last_index = len(series) - 1
+            return tabular.Tabular(
                 description=self.description,
                 modality=f"{self.modality} {self.cohort}",
                 anchor=_anchor.AnatomicalAnchor(
@@ -183,9 +185,6 @@ class ParcellationBasedBOLD(
                 data=(
                     series[:last_index]
                     .to_frame(name=name)
-                    .query(f'`{name}` > {min_connectivity}')
-                    .sort_values(by=name, ascending=False)
-                    .rename_axis('Target regions')
                 ),
                 datasets=self.datasets
             )
@@ -231,7 +230,7 @@ class ParcellationBasedBOLD(
                 ).centroid)
             )
         return result
-    
+
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
         Convert a numpy array with the connectivity matrix to
@@ -254,3 +253,16 @@ class ParcellationBasedBOLD(
             }
             df = df.rename(columns=remapper)
         return df
+
+    def plot(self, subject: str = None, **kwargs):
+        matrix = self.get_matrix(subject)
+        return matrix.mean().plot(kind="bar", **kwargs)
+
+    def plot_profile(
+        self,
+        region: Union[str, _region.Region],
+        subject: str = None,
+        **kwargs
+    ):
+        ds = self.get_profile(region, subject).data
+        return ds.plot(**kwargs)
