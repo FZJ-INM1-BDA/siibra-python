@@ -55,6 +55,10 @@ def test_get_region_receptor(region_spec: str):
     ]
     assert len(matched_features) > 0, f"expect at least one receptor query matching {region_spec}, but had none."
 
+profiles = siibra.features.molecular.ReceptorDensityProfile.get_instances()
+def test_receptor_density_profile_shape():
+    for f in profiles:
+        assert len(f.data.columns) == 1 and len(f.data.index) == 101
 
 if __name__ == "__main__":
     unittest.main()
