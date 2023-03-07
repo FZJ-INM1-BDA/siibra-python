@@ -585,7 +585,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         return centroids
 
-    def colorize(self, values: dict):
+    def colorize(self, values: dict, **kwargs):
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -599,7 +599,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
 
         result = None
-        for volidx, vol in enumerate(self.fetch_iter()):
+        for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
             if isinstance(vol, dict):
                 raise NotImplementedError("Map colorization not yet implemented for meshes.")
             img = np.asanyarray(vol.dataobj)
