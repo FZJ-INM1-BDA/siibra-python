@@ -33,6 +33,7 @@ class AssignmentQualification(Enum):
     OVERLAPS = 2
     CONTAINED = 3
     CONTAINS = 4
+    APPROXIMATE = 5
 
     @property
     def verb(self):
@@ -45,6 +46,7 @@ class AssignmentQualification(Enum):
             'OVERLAPS': 'overlaps with',
             'CONTAINED': 'is contained in',
             'CONTAINS': 'contains',
+            'APPROXIMATE': 'approximates to',
         }
         return transl[self.name]
 
@@ -57,6 +59,7 @@ class AssignmentQualification(Enum):
             "OVERLAPS": "OVERLAPS",
             "CONTAINED": "CONTAINS",
             "CONTAINS": "CONTAINED",
+            "APPROXIMATE": "APPROXIMATE",
         }
         return AssignmentQualification[inverses[self.name]]
 
@@ -158,10 +161,10 @@ class AnatomicalAnchor:
     @property
     def region_aliases(self):
         if self._aliases_cached is None:
-            self._aliases_cached = {
-                k: v
+            self._aliases_cached: Dict[str, Dict[str, str]] = {
+                species_str: region_alias_mapping
                 for s in self.species
-                for k, v in REGION_ALIASES.get(str(s), {}).get(self._regionspec, {}).items()
+                for species_str, region_alias_mapping in REGION_ALIASES.get(str(s), {}).get(self._regionspec, {}).items()
             }
         return self._aliases_cached
 
@@ -192,7 +195,7 @@ class AnatomicalAnchor:
                 for regionspec, qualificationspec in aliases.items():
                     for r in Parcellation.find_regions(regionspec, alt_species):
                         if r not in self._regions_cached:
-                            regions[r] = qualificationspec
+                            regions[r] = AssignmentQualification[qualificationspec.upper()]
             self.__class__._MATCH_MEMO[self._regionspec] = regions
         self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
         
