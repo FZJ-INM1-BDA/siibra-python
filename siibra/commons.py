@@ -234,7 +234,7 @@ QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
 
-def _progressbar(*args, **kwargs):
+def siibra_tqdm(*args, **kwargs):
     return tqdm(
         *args,
         disable=kwargs.pop("disable", False) or (logger.level > 20),

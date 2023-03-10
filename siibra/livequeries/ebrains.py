@@ -16,7 +16,7 @@
 from ..features.dataset import ebrains as _ebrains
 from . import query
 
-from ..commons import logger, _progressbar
+from ..commons import logger, siibra_tqdm
 from ..features import anchor as _anchor
 from ..retrieval import requests, datasets
 from ..core import parcellation, region
@@ -69,7 +69,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
-        for r in _progressbar(results, total=len(results)):
+        for r in siibra_tqdm(results, total=len(results)):
 
             regionname = r.get("name", None)
             alias = r.get("alias", None)

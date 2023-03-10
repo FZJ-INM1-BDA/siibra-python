@@ -15,7 +15,7 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, _progressbar
+from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
@@ -215,7 +215,7 @@ class Feature:
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
-            preconfigured_instances = [f for f in _progressbar(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+            preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = []
         if hasattr(feature_type, "_live_queries"):

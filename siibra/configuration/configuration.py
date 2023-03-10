@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, _progressbar
+from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
@@ -157,7 +157,7 @@ class Configuration:
             )
         )
 
-        for fname, loader in _progressbar(
+        for fname, loader in siibra_tqdm(
             specloaders,
             total=len(specloaders),
             desc=f"Loading preconfigured {obj0.__class__.__name__} instances"

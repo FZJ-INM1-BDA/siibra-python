@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
-from ..commons import MapIndex, logger, iterate_connected_components, _progressbar
+from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
 
@@ -162,7 +162,7 @@ class SparseIndex:
 
         with gzip.open(probsfile, "rt") as f:
             lines = f.readlines()
-            for line in _progressbar(
+            for line in siibra_tqdm(
                 lines,
                 total=len(lines),
                 desc="Loading sparse index",
@@ -250,7 +250,7 @@ class SparseMap(parcellationmap.Map):
             with _volume.SubvolumeProvider.UseCaching():
                 if spind is None:
                     spind = SparseIndex()
-                    for vol in _progressbar(
+                    for vol in siibra_tqdm(
                         range(len(self)), total=len(self), unit="maps",
                         desc=f"Fetching {len(self)} volumetric maps"
                     ):
@@ -413,7 +413,7 @@ class SparseMap(parcellationmap.Map):
 
             spind = self.sparse_index
 
-            for volume in _progressbar(
+            for volume in siibra_tqdm(
                 range(len(self)),
                 desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
                 total=len(self),

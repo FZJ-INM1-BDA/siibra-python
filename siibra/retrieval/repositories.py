@@ -16,7 +16,7 @@
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .cache import CACHE
 
-from ..commons import logger, _progressbar
+from ..commons import logger, siibra_tqdm
 
 from abc import ABC, abstractmethod
 from urllib.parse import quote
@@ -83,7 +83,7 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return list(_progressbar(result, total=len(fnames), desc=progress))
+            return list(siibra_tqdm(result, total=len(fnames), desc=progress))
 
     @classmethod
     def _from_url(cls, url: str):

@@ -24,7 +24,7 @@ from ..commons import (
     clear_name,
     create_key,
     create_gaussian_kernel,
-    _progressbar,
+    siibra_tqdm,
     Species
 )
 from ..core import concept, space, parcellation, region as _region
@@ -501,12 +501,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         next_labelindex = 1
         region_indices = defaultdict(list)
 
-        for volidx in _progressbar(
+        for volidx in siibra_tqdm(
             range(len(self.volumes)), total=len(self.volumes), unit='maps',
             desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
             disable=(len(self.volumes) == 1)
         ):
-            for frag in _progressbar(
+            for frag in siibra_tqdm(
                 self.fragments, total=len(self.fragments), unit='maps',
                 desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
                 disable=(len(self.fragments) == 1 or self.fragments is None)
@@ -567,7 +567,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
         current_vol_index = MapIndex(volume=0)
         maparr = None
-        for regionname, indexlist in _progressbar(regions, unit="regions", desc="Computing centroids"):
+        for regionname, indexlist in siibra_tqdm(regions, unit="regions", desc="Computing centroids"):
             assert len(indexlist) == 1
             index = indexlist[0]
             if index.label == 0:
@@ -920,7 +920,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # if we get here, we need to handle each point independently.
         # This is much slower but more precise in dealing with the uncertainties
         # of the coordinates.
-        for pointindex, pt in _progressbar(
+        for pointindex, pt in siibra_tqdm(
             enumerate(points.warp(self.space.id)),
             total=len(points), desc="Warping points",
         ):
@@ -994,7 +994,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             # but only if the sequence is long.
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
-                else _progressbar(it, desc=desc, total=N)
+                else siibra_tqdm(it, desc=desc, total=N)
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:

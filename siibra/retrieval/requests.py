@@ -15,7 +15,7 @@
 
 from .cache import CACHE
 from .exceptions import EbrainsAuthenticationError
-from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, _progressbar
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, siibra_tqdm
 from .. import __version__
 
 import json
@@ -163,7 +163,7 @@ class HttpRequest:
 
         size_bytes = int(r.headers.get('content-length', 0))
         if size_bytes > min_bytesize_with_no_progress_info:
-            progress_bar = _progressbar(
+            progress_bar = siibra_tqdm(
                 total=size_bytes, unit='iB', unit_scale=True,
                 position=0, leave=True,
                 desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
