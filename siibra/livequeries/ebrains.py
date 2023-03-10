@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..features.external import ebrains as _ebrains
+from ..features.dataset import ebrains as _ebrains
 from . import query
 
 from ..commons import logger, _progressbar
@@ -47,11 +47,6 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
             requests.GitlabProxy(
                 flavour=requests.GitlabProxyEnum.PARCELLATIONREGION_V1,
             ),
-            requests.EbrainsKgQuery(
-                query_id="siibra-kg-feature-summary-0_0_4",
-                schema="parcellationregion",
-                params={"vocab": "https://schema.hbp.eu/myQuery/"},
-            )
         ]
     )
 

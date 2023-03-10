@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from . import cortical_profile
 from .. import anchor as _anchor
-from ..basetypes import cortical_profile, tabular
+from . import tabular
 
 from ... import commons
 from ...retrieval import requests
@@ -24,7 +25,11 @@ import numpy as np
 from io import BytesIO
 
 
-class LayerwiseCellDensity(tabular.Tabular, configuration_folder="features/fingerprints/celldensity"):
+class LayerwiseCellDensity(
+    tabular.Tabular,
+    configuration_folder="features/tabular/layerstatistics/celldensity",
+    category='cellular'
+):
 
     DESCRIPTION = (
         "Layerwise estimated densities of detected cell bodies  (in detected cells per 0.1 cube millimeter) "

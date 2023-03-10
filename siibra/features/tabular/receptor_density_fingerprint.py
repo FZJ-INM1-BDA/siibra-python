@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from .. import anchor as _anchor
-from ..basetypes import tabular
+from . import tabular
 
 from ... import commons, vocabularies
 from ...retrieval import requests
@@ -27,7 +27,8 @@ from typing import List
 
 class ReceptorDensityFingerprint(
     tabular.Tabular,
-    configuration_folder="features/fingerprints/receptor"
+    configuration_folder="features/tabular/fingerprints/receptor",
+    category='molecular'
 ):
 
     DESCRIPTION = (

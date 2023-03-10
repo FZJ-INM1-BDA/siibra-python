@@ -14,15 +14,18 @@
 # limitations under the License.
 
 from ..commons import logger, Species
-from ..features import anchor
-from ..features.molecular import receptor_density_fingerprint, receptor_density_profile
-from ..features.cellular import cell_density_profile, layerwise_cell_density
-from ..features.basetypes import volume_of_interest
+from ..features import anchor, connectivity
+from ..features.tabular import (
+    receptor_density_profile,
+    receptor_density_fingerprint,
+    cell_density_profile,
+    layerwise_cell_density
+)
+from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
-from ..features import connectivity
 
 from os import path
 import json
@@ -49,6 +52,7 @@ BUILDFUNCS = {
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
     "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
     "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
+    "siibra/feature/section/v0.1": "build_section",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
 }
 
@@ -64,6 +68,9 @@ class Factory:
             result.append(
                 datasets.EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
             )
+        if "openminds/Dataset" in spec.get("ebrains", {}):
+            # TODO add parser for ebrains kg v3 dataset. see EbrainsV3Dataset 
+            pass
         return result
 
     @classmethod
@@ -245,6 +252,7 @@ class Factory:
             providers=providers,
             name=spec.get("name", {}),
             variant=spec.get("variant"),
+            datasets=cls.extract_datasets(spec),
         )
 
         return result
@@ -365,16 +373,58 @@ class Factory:
         )
 
     @classmethod
+    def build_section(cls, spec):
+        vol = cls.build_volume(spec)
+        kwargs = {
+            "name": spec.get('name', ""),
+            "region": spec.get('region', None),
+            "space_spec": vol._space_spec,
+            "providers": vol._providers.values(),
+            "datasets": cls.extract_datasets(spec),
+        }
+        modality = spec.get('modality', "")
+        if modality == "cell body staining":
+            return sections.CellbodyStainedSection(**kwargs)
+        else:
+            raise ValueError(f"No method for building image section feature type {modality}.")
+
+    @classmethod
     def build_volume_of_interest(cls, spec):
         vol = cls.build_volume(spec)
-        return volume_of_interest.VolumeOfInterest(
-            name=vol.name,
-            modality=spec.get('modality', ""),
-            region=spec.get('region', None),
-            space_spec=vol._space_spec,
-            providers=vol._providers.values(),
-            datasets=cls.extract_datasets(spec),
-        )
+        kwargs = {
+            "name": spec.get('name', ""),
+            "region": spec.get('region', None),
+            "space_spec": vol._space_spec,
+            "providers": vol._providers.values(),
+            "datasets": cls.extract_datasets(spec),
+        }
+        modality = spec.get('modality', "")
+        if modality == "cell body staining":
+            return volume_of_interest.CellBodyStainedVolumeOfInterest(**kwargs)
+        elif modality == "blockface":
+            return volume_of_interest.BlockfaceVolumeOfInterest(**kwargs)
+        elif modality == "PLI HSV fibre orientation map":
+            return volume_of_interest.PLIVolumeOfInterest(
+                modality="HSV fibre orientation map", **kwargs
+            )
+        elif modality == "transmittance":
+            return volume_of_interest.PLIVolumeOfInterest(
+                modality="transmittance", **kwargs
+            )
+        elif modality == "segmentation":
+            return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
+        elif modality == "T2 weighted MRI":
+            return volume_of_interest.MRIVolumeOfInterest(
+                modality="T2", **kwargs
+            )
+        elif modality == "T1 weighted MRI":
+            return volume_of_interest.MRIVolumeOfInterest(
+                modality="T1", **kwargs
+            )
+        elif modality == "segmentation":
+            return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
+        else:
+            raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
     def build_connectivity_matrix(cls, spec):
@@ -401,7 +451,7 @@ class Factory:
             kwargs["paradigm"] = spec.get("paradigm", "RestingState")
             return connectivity.FunctionalConnectivity(**kwargs)
         else:
-            raise ValueError(f"Do not know how to build connectivity matrix of type {modality}.")
+            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
 
     @classmethod
     def from_json(cls, spec: dict):

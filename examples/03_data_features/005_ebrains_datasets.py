@@ -29,7 +29,7 @@ The returned features can thus actually have different modalities, and might inc
 import siibra
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 region = atlas.get_region("v2")
-features = siibra.features.get(region, siibra.features.external.EbrainsDataFeature)
+features = siibra.features.get(region, siibra.features.dataset.EbrainsDataFeature)
 for feature in features:
    print(f" - {feature.name}")
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import feature
+from .. import feature
 
 from .. import anchor as _anchor
 
@@ -22,7 +22,7 @@ from ...volumes import volume as _volume
 from typing import List
 
 
-class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
+class ImageAnchor(_anchor.AnatomicalAnchor):
 
     def __init__(self, volume: _volume.Volume, region: str = None):
         _anchor.AnatomicalAnchor.__init__(
@@ -47,11 +47,10 @@ class VolumeOfInterestAnchor(_anchor.AnatomicalAnchor):
         return self.volume.space
 
     def __str__(self):
-        #TODO: Replace with a more descriptive str
-        return "bounding box of volume"
+        return f"Bounding box of image in {self.space.name}"
 
 
-class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="features/volumes"):
+class Image(feature.Feature, _volume.Volume):
 
     def __init__(
         self,
@@ -69,13 +68,15 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
             anchor=None,  # lazy implementation below!
             datasets=datasets
         )
+
         _volume.Volume.__init__(
             self,
             space_spec=space_spec,
             providers=providers,
             name=name,
         )
-        self._anchor_cached = VolumeOfInterestAnchor(self, region=region)
+
+        self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
         self._name_cached = name
 
@@ -90,7 +91,7 @@ class VolumeOfInterest(feature.Feature, _volume.Volume, configuration_folder="fe
     def description(self):
         if self._description_cached is None:
             self._description_cached = (
-                f"Volume of interest with modality {self.modality} "
+                f"Image feature with modality {self.modality} "
                 f"at {self.anchor}"
             )
         return self._description_cached

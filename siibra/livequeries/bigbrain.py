@@ -15,8 +15,7 @@
 
 from . import query
 
-from ..features.cellular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
-
+from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..commons import logger
 from ..locations import point, pointset
 from ..core import space, region

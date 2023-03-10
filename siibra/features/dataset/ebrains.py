@@ -16,12 +16,12 @@
 # simple data features anchored to a point in space
 
 from .. import anchor as _anchor
-from ..basetypes import feature
+from .. import feature
 
 from ...retrieval import datasets
 
 
-class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset):
+class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='dataset'):
 
     def __init__(
         self,
@@ -64,7 +64,7 @@ class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset):
 
     @property
     def name(self):
-        return self._name_cached
+        return self._name
 
     @property
     def version_history(self):

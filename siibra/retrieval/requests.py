@@ -26,7 +26,7 @@ from nibabel import Nifti1Image, GiftiImage, streamlines
 from skimage import io
 import gzip
 from io import BytesIO
-import urllib
+import urllib.parse
 import pandas as pd
 import numpy as np
 from typing import List, Callable, Any, TYPE_CHECKING
@@ -34,6 +34,12 @@ from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
+import platform
+
+if platform.system() == "Linux":
+    from filelock import FileLock as Lock
+else:
+    from filelock import SoftFileLock as Lock
 
 if TYPE_CHECKING:
     from .repositories import GitlabConnector
@@ -47,7 +53,7 @@ DECODERS = {
     ".json": lambda b: json.loads(b.decode()),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
     ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
-    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t"),
+    ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: io.imread(BytesIO(b)),
@@ -72,9 +78,9 @@ class SiibraHttpRequestError(Exception):
 class HttpRequest:
     def __init__(
         self,
-        url,
-        func=None,
-        msg_if_not_cached=None,
+        url: str,
+        func: Callable=None,
+        msg_if_not_cached: str=None,
         refresh=False,
         post=False,
         **kwargs,
@@ -132,58 +138,55 @@ class HttpRequest:
         return os.path.isfile(self.cachefile)
 
     def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
-        # Loads the data from http if required.
-        # If the data is already cached, None is returned,
-        # otherwise data (as it is already in memory anyway).
-        # The caller should load the cachefile only
-        # if None is returned.
+        # Populates the file cache with the data from http if required.
+        # noop if 1/ data is already cached and 2/ refresh flag not set
+        # The caller should load the cachefile after _retrieve successfuly executes
 
         if self.cached and not self.refresh:
             return
-        else:
-            # not yet in cache, perform http request.
-            if self.msg_if_not_cached is not None:
-                logger.debug(self.msg_if_not_cached)
-            headers = self.kwargs.get('headers', {})
-            other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
-            if self.post:
-                r = requests.post(self.url, headers={
-                    **USER_AGENT_HEADER,
-                    **headers,
-                }, **other_kwargs, stream=True)
-            else:
-                r = requests.get(self.url, headers={
-                    **USER_AGENT_HEADER,
-                    **headers,
-                }, **other_kwargs, stream=True)
-            if r.ok:
-                size_bytes = int(r.headers.get('content-length', 0))
-                if size_bytes > min_bytesize_with_no_progress_info:
-                    progress_bar = _progressbar(
-                        total=size_bytes, unit='iB', unit_scale=True,
-                        position=0, leave=True,
-                        desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
-                    )
-                temp_cachefile = self.cachefile + "_temp"
-                with open(temp_cachefile, "wb") as f:
-                    for data in r.iter_content(block_size):
-                        if size_bytes > min_bytesize_with_no_progress_info:
-                            progress_bar.update(len(data))
-                        f.write(data)
-                if size_bytes > min_bytesize_with_no_progress_info:
-                    progress_bar.close()
-                self.refresh = False
-                os.rename(temp_cachefile, self.cachefile)
-                with open(self.cachefile, 'rb') as f:
-                    return f.read()
-            else:
-                raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
+        
+        # not yet in cache, perform http request.
+        if self.msg_if_not_cached is not None:
+            logger.debug(self.msg_if_not_cached)
+            
+        headers = self.kwargs.get('headers', {})
+        other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
+
+        http_method = requests.post if self.post else requests.get
+        r = http_method(self.url, headers={
+            **USER_AGENT_HEADER,
+            **headers,
+        }, **other_kwargs, stream=True)
+
+        if not r.ok:
+            raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
+
+        size_bytes = int(r.headers.get('content-length', 0))
+        if size_bytes > min_bytesize_with_no_progress_info:
+            progress_bar = _progressbar(
+                total=size_bytes, unit='iB', unit_scale=True,
+                position=0, leave=True,
+                desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+            )
+        temp_cachefile = f"{self.cachefile}_temp"
+        lock = Lock(f"{temp_cachefile}.lock")
+        
+        with lock:
+            with open(temp_cachefile, "wb") as f:
+                for data in r.iter_content(block_size):
+                    if size_bytes > min_bytesize_with_no_progress_info:
+                        progress_bar.update(len(data))
+                    f.write(data)
+            if size_bytes > min_bytesize_with_no_progress_info:
+                progress_bar.close()
+            self.refresh = False
+            os.rename(temp_cachefile, self.cachefile)
+            
 
     def get(self):
-        data = self._retrieve()
-        if data is None:
-            with open(self.cachefile, "rb") as f:
-                data = f.read()
+        self._retrieve()
+        with open(self.cachefile, "rb") as f:
+            data = f.read()
         try:
             return data if self.func is None else self.func(data)
         except Exception as e:
@@ -270,17 +273,17 @@ class EbrainsRequest(HttpRequest):
             logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
-    def fetch_token(cls):
+    def fetch_token(cls, **kwargs):
         """
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
         
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
-        cls.device_flow()
+        cls.device_flow(**kwargs)
         
     @classmethod
-    def device_flow(cls):
+    def device_flow(cls, **kwargs):
         if all([
             not sys.__stdout__.isatty(),  # if is tty, do not raise
             not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
@@ -292,11 +295,33 @@ class EbrainsRequest(HttpRequest):
             )
 
         cls.init_oidc()
+
+        def get_scopes() -> str:
+            scopes = kwargs.get("scopes")
+            if not scopes:
+                return None
+            if not isinstance(scopes, list):
+                logger.warn(f"scopes needs to be a list, is but is not... skipping")
+                return None
+            if not all(isinstance(scope, str) for scope in scopes):
+                logger.warn(f"scopes needs to be all str, but is not")
+                return None
+            if len(scopes) == 0:
+                logger.warn(f'provided empty list as scopes... skipping')
+                return None
+            return "+".join(scopes)
+        
+        scopes = get_scopes()
+        
+        data = {
+            'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
+        }
+
+        if scopes:
+            data['scopes'] = scopes
         resp = requests.post(
             url=cls._IAM_DEVICE_ENDPOINT,
-            data={
-                'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
-            }
+            data=data
         )
         resp.raise_for_status()
         resp_json = resp.json()
@@ -421,55 +446,6 @@ class EbrainsRequest(HttpRequest):
         return super().get()
 
 
-class EbrainsKgQuery(EbrainsRequest):
-    """Request outputs from a knowledge graph query."""
-
-    server = "https://kg.humanbrainproject.eu"
-    org = "minds"
-    domain = "core"
-    version = "v1.0.0"
-
-    SC_MESSAGES = {
-        401: "The provided EBRAINS authentication token is not valid",
-        403: "No permission to access the given query",
-        404: "Query with this id not found",
-    }
-
-    def __init__(self, query_id, instance_id=None, schema="dataset", params={}):
-        inst_tail = "/" + instance_id if instance_id is not None else ""
-        self.schema = schema
-        url = "{}/query/{}/{}/{}/{}/{}/instances{}?databaseScope=RELEASED".format(
-            self.server,
-            self.org,
-            self.domain,
-            self.schema,
-            self.version,
-            query_id,
-            inst_tail,
-        )
-        EbrainsRequest.__init__(
-            self,
-            url,
-            decoder=DECODERS[".json"],
-            params=params,
-            msg_if_not_cached=f"Executing EBRAINS KG query {query_id}{inst_tail}",
-        )
-
-    def get(self):
-        try:
-            result = EbrainsRequest.get(self)
-        except SiibraHttpRequestError as e:
-            if e.status_code in self.SC_MESSAGES:
-                raise RuntimeError(self.SC_MESSAGES[e.status_code])
-            else:
-                raise RuntimeError(
-                    f"Could not process HTTP request (status code: "
-                    f"{e.status_code}). Message was: {e.msg}"
-                    f"URL was: {e.url}"
-                )
-        return result
-
-
 def try_all_connectors():
     def outer(fn):
         @wraps(fn)
@@ -516,8 +492,8 @@ class GitlabProxyEnum(Enum):
 class GitlabProxy(HttpRequest):
 
     folder_dict = {
-        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/datasets",
-        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/datasets",
+        GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/dataset",
+        GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/Dataset",
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 

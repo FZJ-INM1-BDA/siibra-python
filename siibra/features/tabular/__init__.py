@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .ebrains import EbrainsDataFeature
-
-
-def __dir__():
-    return [
-        "EbrainsDataFeature",
-    ]
+from .bigbrain_intensity_profile import BigBrainIntensityProfile
+from .cell_density_profile import CellDensityProfile
+from .gene_expression import GeneExpressions
+from .layerwise_bigbrain_intensities import LayerwiseBigBrainIntensities
+from .layerwise_cell_density import LayerwiseCellDensity
+from .receptor_density_fingerprint import ReceptorDensityFingerprint
+from .receptor_density_profile import ReceptorDensityProfile

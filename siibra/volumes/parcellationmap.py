@@ -157,6 +157,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self._parcellation_spec = parcellation_spec
         self._affine_cached = None
         for v in self.volumes:
+            # allow the providers to query their parcellation map if needed
+            for p in v._providers.values():
+                p.parcellation_map = self
             v._space_spec = space_spec
 
     @property

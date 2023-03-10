@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .feature import Feature
-from .tabular import Tabular
+from ..feature import Feature
+from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 

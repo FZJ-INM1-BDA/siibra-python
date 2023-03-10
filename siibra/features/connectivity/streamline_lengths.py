@@ -13,12 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..basetypes import regional_connectivity
+from . import regional_connectivity
 
 
 class StreamlineLengths(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivitymatrix/streamlinelengths"
+    configuration_folder="features/connectivity/regional/streamlinelengths",
+    category="connectivity"
 ):
     """Structural connectivity matrix of streamline lengths grouped by a parcellation."""
 

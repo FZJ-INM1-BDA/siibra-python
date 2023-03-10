@@ -13,15 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..basetypes import regional_connectivity
-
+from . import regional_connectivity
+from hashlib import md5
 
 class FunctionalConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivitymatrix/functional"
+    configuration_folder="features/connectivity/regional/functional",
+    category="connectivity"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
 
     def __init__(self, paradigm: str, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
         self.paradigm = paradigm
+
+        # paradign is used to distinguish functional connectivity features from each other.
+        assert self.paradigm, f"Functional connectivity must have paradigm defined!"
+
+    @property
+    def id(self):
+        return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()

@@ -13,18 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
+from . import anchor as _anchor
 
-from ...commons import logger, _progressbar
-from ...core import concept
-from ...core import space, region, parcellation
+from ..commons import logger, InstanceTable, _progressbar
+from ..core import concept
+from ..core import space, region, parcellation
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type
 from hashlib import md5
 from collections import defaultdict
 
 if TYPE_CHECKING:
-    from ...retrieval.datasets import EbrainsDataset
+    from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
 
@@ -34,6 +34,10 @@ class Feature:
     """
 
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
+
+    CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
+    
+    category: str = None
 
     def __init__(
         self,
@@ -60,7 +64,7 @@ class Feature:
 
     @property
     def modality(self):
-        # allows subclasses to implement lazy loading of an anchor
+        # allows subclasses to implement lazy loading of the modality
         return self._modality_cached
 
     @property
@@ -68,7 +72,7 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
-    def __init_subclass__(cls, configuration_folder=None):
+    def __init_subclass__(cls, configuration_folder=None, category=None):
         # extend the subclass lists
 
         # Iterate over all mro, not just immediate base classes
@@ -81,6 +85,9 @@ class Feature:
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
+        cls.category = category
+        if category is not None:
+            cls.CATEGORIZED[category].add(cls.__name__, cls)
         return super().__init_subclass__()
 
     @classmethod
@@ -106,15 +113,15 @@ class Feature:
         """
         if not hasattr(cls, "_preconfigured_instances"):
             return []
-        
+
         if cls._preconfigured_instances is not None:
             return cls._preconfigured_instances
-        
+
         if cls._configuration_folder is None:
             cls._preconfigured_instances = []
             return cls._preconfigured_instances
-        
-        from ...configuration.configuration import Configuration
+
+        from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls.clean_instances)
         assert cls._configuration_folder in conf.folders
@@ -127,7 +134,6 @@ class Feature:
             f"objects from {cls._configuration_folder}."
         )
         return cls._preconfigured_instances
-
 
     @classmethod
     def clean_instances(cls):
@@ -174,7 +180,7 @@ class Feature:
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return sum((cls.match(concept, t, **kwargs) for t in feature_type), [])
+            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
@@ -189,7 +195,7 @@ class Feature:
             if len(candidates) == 0:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
 
-            return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
+            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
 
         assert issubclass(feature_type, Feature)
 
@@ -223,7 +229,7 @@ class Feature:
                 q = QueryType(**kwargs)
                 live_instances.extend(q.query(concept))
 
-        return preconfigured_instances + live_instances
+        return list(set((preconfigured_instances + live_instances)))
 
     @classmethod
     def get_ascii_tree(cls):
@@ -236,7 +242,7 @@ class Feature:
             return {
                 'name': feature_type.__name__,
                 'children': [
-                    create_treenode(c) 
+                    create_treenode(c)
                     for c in feature_type.__subclasses__()
                 ]
             }

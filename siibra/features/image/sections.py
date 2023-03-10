@@ -13,4 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .bigbrain import BigBrainCortexSampler
+from . import image
+
+
+class CellbodyStainedSection(
+    image.Image,
+    configuration_folder='features/images/sections/cellbody',
+    category="cellular"
+):
+    def __init__(self, **kwargs):
+        image.Image.__init__(self, **kwargs, modality="cell body staining")

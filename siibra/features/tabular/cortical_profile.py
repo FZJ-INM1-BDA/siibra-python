@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import feature
+from . import tabular
 
 from .. import anchor as _anchor
 
@@ -23,7 +23,7 @@ from textwrap import wrap
 import numpy as np
 
 
-class CorticalProfile(feature.Feature):
+class CorticalProfile(tabular.Tabular):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
     measured at relative depths between 0 representing the pial surface,
@@ -78,13 +78,6 @@ class CorticalProfile(feature.Feature):
         datasets : list[Dataset]
             list of datasets corresponding to this feature
         """
-        feature.Feature.__init__(
-            self,
-            modality=modality,
-            description=description,
-            anchor=anchor,
-            datasets=datasets
-        )
 
         # cached properties will be revealed as property functions,
         # so derived classes may choose to override for lazy loading.
@@ -92,6 +85,15 @@ class CorticalProfile(feature.Feature):
         self._depths_cached = depths
         self._values_cached = values
         self._boundary_positions = boundary_positions
+
+        tabular.Tabular.__init__(
+            self,
+            modality=modality,
+            description=description,
+            anchor=anchor,
+            data=None,  # lazy loader below
+            datasets=datasets
+        )
 
     def _check_sanity(self):
         # check plausibility of the profile
@@ -153,8 +155,8 @@ class CorticalProfile(feature.Feature):
     def data(self):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
-        return pd.Series(
-            self._values, index=self._depths, name=f"{self.modality} ({self.unit})"
+        return pd.DataFrame(
+            self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
         )
 
     def plot(self, **kwargs):
@@ -195,7 +197,7 @@ class CorticalProfile(feature.Feature):
     def _depths(self):
         """
         Returns a list of the relative cortical depths of the measured values in the range [0..1].
-        
+
         To be implemented in derived class.
         """
         if self._depths_cached is None:

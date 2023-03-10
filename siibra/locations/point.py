@@ -25,14 +25,14 @@ import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Union
+from typing import Union, Tuple
 
 
 class Point(location.Location):
     """A single 3D point in reference space."""
 
     @staticmethod
-    def parse(spec, unit="mm"):
+    def parse(spec, unit="mm") -> Tuple[float, float, float]:
         """Converts a 3D coordinate specification into a 3D tuple of floats.
 
         Parameters
