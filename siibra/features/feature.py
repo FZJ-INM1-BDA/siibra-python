@@ -352,6 +352,12 @@ class Feature:
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
                 self.fid = fid
+            
+            def __str__(self) -> str:
+                return self.inst.__str__()
+            
+            def __repr__(self) -> str:
+                return self.inst.__repr__()
 
             @property
             def id(self):
