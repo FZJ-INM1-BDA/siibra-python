@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
-from ..commons import MapIndex, logger, iterate_connected_components
+from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
 
@@ -24,7 +24,6 @@ import gzip
 from typing import Dict, Union, TYPE_CHECKING
 from nilearn import image
 from nibabel import Nifti1Image, load
-from tqdm import tqdm
 import numpy as np
 
 if TYPE_CHECKING:
@@ -163,12 +162,11 @@ class SparseIndex:
 
         with gzip.open(probsfile, "rt") as f:
             lines = f.readlines()
-            for line in tqdm(
+            for line in siibra_tqdm(
                 lines,
                 total=len(lines),
                 desc="Loading sparse index",
-                unit="voxels",
-                disable=logger.level > 20,
+                unit="voxels"
             ):
                 fields = line.strip().split(" ")
                 mapindices = list(map(int, fields[0::2]))
@@ -252,10 +250,9 @@ class SparseMap(parcellationmap.Map):
             with _volume.SubvolumeProvider.UseCaching():
                 if spind is None:
                     spind = SparseIndex()
-                    for vol in tqdm(
+                    for vol in siibra_tqdm(
                         range(len(self)), total=len(self), unit="maps",
-                        desc=f"Fetching {len(self)} volumetric maps",
-                        disable=logger.level > 20,
+                        desc=f"Fetching {len(self)} volumetric maps"
                     ):
                         img = super().fetch(
                             index=MapIndex(volume=vol, label=None)
@@ -416,12 +413,11 @@ class SparseMap(parcellationmap.Map):
 
             spind = self.sparse_index
 
-            for volume in tqdm(
+            for volume in siibra_tqdm(
                 range(len(self)),
                 desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
                 total=len(self),
-                unit=" map",
-                disable=logger.level > 20,
+                unit=" map"
             ):
                 bbox1 = boundingbox.BoundingBox(
                     self.sparse_index.bboxes[volume]["minpoint"],

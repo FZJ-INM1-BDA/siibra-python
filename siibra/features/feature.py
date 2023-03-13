@@ -15,12 +15,11 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable
+from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
-from tqdm import tqdm
 from hashlib import md5
 from collections import defaultdict
 
@@ -298,7 +297,7 @@ class Feature:
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
-            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+            preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
