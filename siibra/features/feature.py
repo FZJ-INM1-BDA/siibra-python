@@ -348,6 +348,13 @@ class Feature:
     @staticmethod
     def wrap_livequery_feature(feature: 'Feature', fid: str):
         class ProxyFeature(feature.__class__):
+
+            # override __class__ property
+            # some instances of features accesses inst.__class__ 
+            @property
+            def __class__(self):
+                return self.inst.__class__
+
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
                 self.fid = fid
