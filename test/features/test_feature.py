@@ -137,3 +137,5 @@ def test_wrap_feature():
     assert new_feat.other == feature_inst.other
     assert new_feat.id != feature_inst.id
     assert new_feat.id == "helloworld"
+    assert new_feat.__class__ is FooFeature
+
