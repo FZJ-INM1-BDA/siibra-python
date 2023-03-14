@@ -21,7 +21,7 @@ from .. import feature
 from ...retrieval import datasets
 
 
-class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='dataset'):
+class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='other'):
 
     def __init__(
         self,
