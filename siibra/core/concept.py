@@ -85,9 +85,29 @@ class AtlasConcept:
             else Species.decode(species)  # overwritable property implementation below
         self.shortname = shortname
         self.modality = modality
-        self.description = description
-        self.publications = publications
+        self._description = description
+        self._publications = publications
         self.datasets = datasets
+    
+    @property
+    def description(self):
+        if self._description:
+            return self._description
+        for ds in self.datasets:
+            if ds.description:
+                return ds.description
+        return ''
+    
+    @property
+    def publications(self) -> List[TypePublication]:
+        return [
+            *self._publications,
+            *[{
+                'citation': 'DOI',
+                'url': url.get("url")
+            } for ds in self.datasets
+            for url in ds.urls]
+        ]
 
     @property
     def species(self) -> Species:
