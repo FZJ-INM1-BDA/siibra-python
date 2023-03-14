@@ -17,6 +17,7 @@
 import numpy as np
 from abc import ABC, abstractmethod
 from nibabel import Nifti1Image
+from typing import Union
 
 
 class Location(ABC):
@@ -48,14 +49,14 @@ class Location(ABC):
         pass
 
     @abstractmethod
-    def intersects(self, mask: Nifti1Image):
+    def intersects(self, other: Union[Nifti1Image, 'Location']) -> bool:
         """
         Verifies wether this 3D location intersects the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def warp(self, space):
@@ -114,7 +115,7 @@ class WholeBrain(Location):
     def __init__(self, space=None):
         Location.__init__(self, space)
 
-    def intersects(self, mask: Nifti1Image):
+    def intersects(self, *_args, **_kwargs):
         """Always true for whole brain features"""
         return True
 
