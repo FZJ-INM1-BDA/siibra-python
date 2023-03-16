@@ -16,7 +16,7 @@
 from ..features.dataset import ebrains as _ebrains
 from . import query
 
-from ..commons import logger
+from ..commons import logger, siibra_tqdm
 from ..features import anchor as _anchor
 from ..retrieval import requests, datasets
 from ..core import parcellation, region
@@ -24,7 +24,6 @@ from ..core import parcellation, region
 from collections import defaultdict
 import re
 from distutils.version import LooseVersion
-from tqdm import tqdm
 from tempfile import NamedTemporaryFile
 
 
@@ -48,11 +47,6 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
             requests.GitlabProxy(
                 flavour=requests.GitlabProxyEnum.PARCELLATIONREGION_V1,
             ),
-            requests.EbrainsKgQuery(
-                query_id="siibra-kg-feature-summary-0_0_4",
-                schema="parcellationregion",
-                params={"vocab": "https://schema.hbp.eu/myQuery/"},
-            )
         ]
     )
 
@@ -75,7 +69,7 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
-        for r in tqdm(results, total=len(results)):
+        for r in siibra_tqdm(results, total=len(results)):
 
             regionname = r.get("name", None)
             alias = r.get("alias", None)

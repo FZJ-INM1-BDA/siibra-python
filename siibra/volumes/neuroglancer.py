@@ -507,7 +507,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             fragment_names = meshinfo.get('fragments')
 
             if len(fragment_names) == 0:
-                raise RuntimeError("No fragments found at {meshurl}")
+                raise RuntimeError(f"No fragments found at {meshurl}")
             elif len(self._meshes) > 1:
                 # multiple meshes were configured, so we expect only one fragment under each mesh url
                 if len(fragment_names) > 1:

@@ -74,8 +74,8 @@ class PointSet(location.Location):
                 sigma_mm=[p.sigma for p in inside],
             )
 
-    def intersects(self, mask: Nifti1Image):
-        return len(self.intersection(mask)) > 0
+    def intersects(self, other: Union[location.Location, Nifti1Image]):
+        return len(self.intersection(other)) > 0
 
     @property
     def sigma(self):

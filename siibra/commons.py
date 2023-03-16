@@ -18,6 +18,7 @@ import re
 from enum import Enum
 from nibabel import Nifti1Image
 import logging
+from tqdm import tqdm
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
@@ -231,6 +232,14 @@ def set_log_level(level):
 set_log_level(SIIBRA_LOG_LEVEL)
 QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
+
+
+def siibra_tqdm(*args, **kwargs):
+    return tqdm(
+        *args,
+        disable=kwargs.pop("disable", False) or (logger.level > 20),
+        **kwargs
+        )
 
 
 def create_key(name: str):

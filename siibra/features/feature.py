@@ -15,12 +15,11 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable
+from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type
-from tqdm import tqdm
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
 from hashlib import md5
 from collections import defaultdict
 
@@ -28,6 +27,9 @@ if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
+class ParseLiveQueryIdException(Exception): pass
+class EncodeLiveQueryIdException(Exception): pass
+class NotFoundException(Exception): pass
 
 class Feature:
     """
@@ -37,6 +39,8 @@ class Feature:
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
 
     CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
+    
+    category: str = None
 
     def __init__(
         self,
@@ -164,6 +168,90 @@ class Feature:
             prefix = list(id_set)[0] + '--'
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def encode_livequery_id(feat: 'Feature', concept: concept.AtlasConcept) -> str:
+        if not hasattr(feat.__class__, '_live_queries'):
+            raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
+        
+        encoded_c = []
+        if isinstance(concept, space.Space):
+            encoded_c.append(f"s:{concept.id}")
+        elif isinstance(concept, parcellation.Parcellation):
+            encoded_c.append(f"p:{concept.id}")
+        elif isinstance(concept, region.Region):
+            encoded_c.append(f"p:{concept.parcellation.id}")
+            encoded_c.append(f"r:{concept.name}")
+
+        if len(encoded_c) == 0:
+            raise EncodeLiveQueryIdException(f"no concept is encoded")
+        
+        return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
+
+    @classmethod
+    def decode_livequery_id(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+        lq_version, *rest = feature_id.split("::")
+        if lq_version != "lq0":
+            raise ParseLiveQueryIdException(f"livequery id must start with lq0::")
+        
+        clsname, *concepts, fid = rest
+
+        Features = Cls.parse_featuretype(clsname)
+        
+        if len(Features) == 0:
+            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
+        F = Features[0]
+
+        concept=None
+        for c in concepts:
+            if c.startswith("s:"):
+                if concept is not None:
+                    raise ParseLiveQueryIdException(f"Conflicting spec.")
+                concept = space.Space.registry()[c.replace("s:", "")]
+            if c.startswith("p:"):
+                if concept is not None:
+                    raise ParseLiveQueryIdException(f"Conflicting spec.")
+                concept = parcellation.Parcellation.registry()[c.replace("p:", "")]
+            if c.startswith("r:"):
+                if concept is None:
+                    raise ParseLiveQueryIdException(f"region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
+                if not isinstance(concept, parcellation.Parcellation):
+                    raise ParseLiveQueryIdException(f"region has been encoded, but previous encoded concept is not parcellation")
+                concept = concept.get_region(c.replace("r:", ""))
+        if concept is None:
+            raise ParseLiveQueryIdException(f"concept was not populated: {feature_id!r}")
+        
+        return (F, concept, fid)
+
+    @classmethod
+    def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
+        return [
+            feattype
+            for FeatCls, feattypes in cls.SUBCLASSES.items()
+            if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
+            for feattype in feattypes
+        ]
+
+    @classmethod
+    def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
+        if not hasattr(cls, "_live_queries"):
+            return []
+        
+        live_instances = []
+        for QueryType in cls._live_queries:
+            argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
+                if len(kwargs) > 0 else ""
+            logger.info(
+                f"Running live query for {QueryType.feature_type.__name__} "
+                f"objects linked to {str(concept)}{argstr}"
+            )
+            q = QueryType(**kwargs)
+            features = [
+                Feature.wrap_livequery_feature(feat, Feature.encode_livequery_id(feat, concept))
+                for feat in q.query(concept)
+            ]
+            live_instances.extend(features)
+        return live_instances
+
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
         """
@@ -179,22 +267,17 @@ class Feature:
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return sum((cls.match(concept, t, **kwargs) for t in feature_type), [])
+            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
             # Some string inputs, such as connectivity, may hit multiple matches
             # In this case
-            candidates = [
-                feattype
-                for FeatCls, feattypes in cls.SUBCLASSES.items()
-                if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
-                for feattype in feattypes
-            ]
+            candidates = cls.parse_featuretype(feature_type)
             if len(candidates) == 0:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
 
-            return [feat for c in candidates for feat in cls.match(concept, c, **kwargs)]
+            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
 
         assert issubclass(feature_type, Feature)
 
@@ -214,21 +297,30 @@ class Feature:
         if logger.getEffectiveLevel() > 20:
             preconfigured_instances = [f for f in instances if f.matches(concept)]
         else:
-            preconfigured_instances = [f for f in tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+            preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
 
-        live_instances = []
-        if hasattr(feature_type, "_live_queries"):
-            for QueryType in feature_type._live_queries:
-                argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
-                    if len(kwargs) > 0 else ""
-                logger.info(
-                    f"Running live query for {QueryType.feature_type.__name__} "
-                    f"objects linked to {str(concept)}{argstr}"
-                )
-                q = QueryType(**kwargs)
-                live_instances.extend(q.query(concept))
+        live_instances = feature_type.livequery(concept, **kwargs)
 
-        return preconfigured_instances + live_instances
+        return list(set((preconfigured_instances + live_instances)))
+
+    @classmethod
+    def get_instace_by_id(cls, feature_id: str, **kwargs):
+        try:
+            F, concept, fid = cls.decode_livequery_id(feature_id)
+            return [
+                f
+                for f in F.livequery(concept, **kwargs)
+                if f.id == fid or f.id == feature_id
+            ][0]
+        except ParseLiveQueryIdException:
+            return [
+                inst
+                for Cls in Feature.SUBCLASSES[Feature]
+                for inst in Cls.get_instances()
+                if inst.id == feature_id
+            ][0]
+        except IndexError:
+            raise NotFoundException
 
     @classmethod
     def get_ascii_tree(cls):
@@ -252,3 +344,32 @@ class Feature:
             "%s%s" % (pre, node.name)
             for pre, _, node in RenderTree(tree)
         )
+
+    @staticmethod
+    def wrap_livequery_feature(feature: 'Feature', fid: str):
+        class ProxyFeature(feature.__class__):
+
+            # override __class__ property
+            # some instances of features accesses inst.__class__ 
+            @property
+            def __class__(self):
+                return self.inst.__class__
+
+            def __init__(self, inst: Feature, fid: str):
+                self.inst = inst
+                self.fid = fid
+            
+            def __str__(self) -> str:
+                return self.inst.__str__()
+            
+            def __repr__(self) -> str:
+                return self.inst.__repr__()
+
+            @property
+            def id(self):
+                return self.fid
+
+            def __getattr__(self, __name: str):
+                return getattr(self.inst, __name)
+            
+        return ProxyFeature(feature, fid)

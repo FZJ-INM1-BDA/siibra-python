@@ -20,9 +20,12 @@ from ..core import space
 
 import nibabel as nib
 from abc import ABC, abstractmethod
-from typing import List, Dict, Union, Set
+from typing import List, Dict, Union, Set, TYPE_CHECKING
 import json
 
+if TYPE_CHECKING:
+    from ..retrieval.datasets import EbrainsDataset
+    TypeDataset = EbrainsDataset
 
 class ColorVolumeNotSupported(NotImplementedError):
     pass
@@ -55,11 +58,13 @@ class Volume:
         providers: List['VolumeProvider'],
         name: str = "",
         variant: str = None,
+        datasets: List['TypeDataset'] = [],
     ):
         self._name_cached = name  # see lazy implementation below
         self._space_spec = space_spec
         self.variant = variant
         self._providers: Dict[str, 'VolumeProvider'] = {}
+        self.datasets = datasets
         for provider in providers:
             srctype = provider.srctype
             assert srctype not in self._providers
@@ -79,7 +84,7 @@ class Volume:
         def concat(url: Union[str, Dict[str, str]], concat: str):
             if isinstance(url, str):
                 return url + concat
-            return { key: url[key] + concat for key in url }
+            return {key: url[key] + concat for key in url}
         return {
             srctype: concat(prov._url, f" {prov.label}" if hasattr(prov, "label") else "")
             for srctype, prov in self._providers.items()

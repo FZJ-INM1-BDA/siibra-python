@@ -24,6 +24,7 @@ from ..commons import (
     clear_name,
     create_key,
     create_gaussian_kernel,
+    siibra_tqdm,
     Species
 )
 from ..core import concept, space, parcellation, region as _region
@@ -31,7 +32,6 @@ from ..locations import point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from tqdm import tqdm
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
@@ -157,6 +157,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self._parcellation_spec = parcellation_spec
         self._affine_cached = None
         for v in self.volumes:
+            # allow the providers to query their parcellation map if needed
+            for p in v._providers.values():
+                p.parcellation_map = self
             v._space_spec = space_spec
 
     @property
@@ -498,12 +501,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         next_labelindex = 1
         region_indices = defaultdict(list)
 
-        for volidx in tqdm(
+        for volidx in siibra_tqdm(
             range(len(self.volumes)), total=len(self.volumes), unit='maps',
             desc=f"Compressing {len(self.volumes)} {self.maptype.name.lower()} volumes into single-volume parcellation",
             disable=(len(self.volumes) == 1)
         ):
-            for frag in tqdm(
+            for frag in siibra_tqdm(
                 self.fragments, total=len(self.fragments), unit='maps',
                 desc=f"Compressing {len(self.fragments)} {self.maptype.name.lower()} fragments into single-fragment parcellation",
                 disable=(len(self.fragments) == 1 or self.fragments is None)
@@ -564,7 +567,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
         current_vol_index = MapIndex(volume=0)
         maparr = None
-        for regionname, indexlist in tqdm(regions, unit="regions", desc="Computing centroids"):
+        for regionname, indexlist in siibra_tqdm(regions, unit="regions", desc="Computing centroids"):
             assert len(indexlist) == 1
             index = indexlist[0]
             if index.label == 0:
@@ -582,7 +585,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         return centroids
 
-    def colorize(self, values: dict):
+    def colorize(self, values: dict, **kwargs):
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -596,7 +599,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
 
         result = None
-        for volidx, vol in enumerate(self.fetch_iter()):
+        for volidx, vol in enumerate(self.fetch_iter(**kwargs)):
             if isinstance(vol, dict):
                 raise NotImplementedError("Map colorization not yet implemented for meshes.")
             img = np.asanyarray(vol.dataobj)
@@ -917,7 +920,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # if we get here, we need to handle each point independently.
         # This is much slower but more precise in dealing with the uncertainties
         # of the coordinates.
-        for pointindex, pt in tqdm(
+        for pointindex, pt in siibra_tqdm(
             enumerate(points.warp(self.space.id)),
             total=len(points), desc="Warping points",
         ):
@@ -991,7 +994,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             # but only if the sequence is long.
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
-                else tqdm(it, desc=desc, total=N)
+                else siibra_tqdm(it, desc=desc, total=N)
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:

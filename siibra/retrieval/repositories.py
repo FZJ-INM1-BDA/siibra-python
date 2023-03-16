@@ -16,11 +16,10 @@
 from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
 from .cache import CACHE
 
-from .. import logger
+from ..commons import logger, siibra_tqdm
 
 from abc import ABC, abstractmethod
 from urllib.parse import quote
-from tqdm import tqdm
 import os
 from zipfile import ZipFile
 from typing import List
@@ -84,9 +83,7 @@ class RepositoryConnector(ABC):
         if progress is None or all_cached:
             return result
         else:
-            return list(tqdm(
-                result, total=len(fnames), desc=progress, disable=logger.level > 20
-            ))
+            return list(siibra_tqdm(result, total=len(fnames), desc=progress))
 
     @classmethod
     def _from_url(cls, url: str):
@@ -625,7 +622,6 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
             logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
             url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&title={title}"
         req = EbrainsRequest(url, DECODERS[".json"])
-        print(req.cachefile)
         response = req.get()
         self._files = {}
         results = response.get('results', [])
