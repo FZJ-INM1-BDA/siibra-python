@@ -1,18 +1,22 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
     "allOf": [{
-        "$ref": "/config_schema/has_ebrainsrefs.json"
-    },{
         "$ref": "/config_schema/has_zipped_csv.json"
     }],
     "properties": {
         "@type": {
-            "const": "siibra/feature/connectivitymatrix/v0.2"
+            "const": "siibra/feature/activity_timeseries/BOLD/v0.1"
+        },
+        "timestep": {
+            "type": "string"
         },
         "modality": {
-            "$ref": "#/definitions/connectivityModalities"
+            "type": "string"
         },
         "paradigm": {
+            "type": "string"
+        },
+        "cohort": {
             "type": "string"
         },
         "parcellation": {
@@ -26,16 +30,6 @@
         }
     },
     "required": [
-    ],
-    "definitions": {
-        "connectivityModalities": {
-            "anyOf": [{
-                "const": "StreamlineCounts"
-            }, {
-                "const": "RestingState"
-            }, {
-                "const": "StreamlineLengths"
-            }]
-        }
-    }
+        "timestep"
+    ]
 }
