@@ -5,7 +5,7 @@
     }],
     "properties": {
         "@type": {
-            "const": "siibra/feature/timeseries/v0.1"
+            "const": "siibra/feature/timeseries/activity/v0.1"
         },
         "timestep": {
             "type": "string"
