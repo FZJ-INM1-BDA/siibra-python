@@ -16,11 +16,11 @@
 from ..commons import logger, Species
 from ..features import anchor, connectivity
 from ..features.tabular import (
-    parcellation_based_bold,
     receptor_density_profile,
     receptor_density_fingerprint,
     cell_density_profile,
-    layerwise_cell_density
+    layerwise_cell_density,
+    regional_bold
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -90,7 +90,6 @@ class Factory:
     @classmethod
     def extract_decoder(cls, spec):
         decoder_spec = spec.get("decoder", {})
-        print(decoder_spec)
         if decoder_spec["@type"].endswith('csv'):
             kwargs = {k: v for k, v in decoder_spec.items() if k != "@type"}
             return lambda b: pd.read_csv(BytesIO(b), **kwargs)
@@ -471,9 +470,9 @@ class Factory:
             "datasets": cls.extract_datasets(spec),
             "timestep": spec.get("timestep", ("1 no_unit"))
         }
-        if modality == "Parcelation-based BOLD signal":
+        if modality == "Regional BOLD signal":
             kwargs["paradigm"] = spec.get("paradigm", "")
-            return parcellation_based_bold.ParcellationBasedBOLD(**kwargs)
+            return regional_bold.RegionalBOLD(**kwargs)
         else:
             raise ValueError(f"No method for building signal table of type {modality}.")
 

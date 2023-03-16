@@ -17,7 +17,7 @@ from . import tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET
+from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -25,19 +25,17 @@ from ...retrieval.repositories import RepositoryConnector
 from typing import Callable, Dict, Union
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
 
 
-class ParcellationBasedBOLD(
+class RegionalBOLD(
     tabular.Tabular,
     configuration_folder="features/tabular/activity_timeseries/bold",
     category="activity_timeseries"
 ):
-    # TODO: write
     """
-    BOLD
+    Blood-oxygen-level-dependent (BOLD) signals per region.
     """
-    # TODO: write
+
     DESCRIPTION = (
         ""
     )
@@ -51,10 +49,10 @@ class ParcellationBasedBOLD(
         decode_func: Callable,
         files: Dict[str, str],
         anchor: _anchor.AnatomicalAnchor,
+        timestep: str,
         description: str = "",
         datasets: list = [],
-        paradigm: str = "",
-        timestep: str = "",
+        paradigm: str = ""
     ):
         """
         """
@@ -71,130 +69,73 @@ class ParcellationBasedBOLD(
         self._files = files
         self._decode_func = decode_func
         self.regions = regions
-        self._matrices = {}
+        self._tables = {}
         self.paradigm = paradigm
         self.timestep = timestep
 
     @property
     def subjects(self):
         """
-        Returns the subject identifiers for which matrices are available.
+        Returns the subject identifiers for which signal tables are available.
         """
         return list(self._files.keys())
 
-    @property
-    def data(self):
-        return self.get_matrix()
-
-    def get_matrix(self, subject: str = None):
+    def get_table(self, subject: str = None):
         """
-        Returns a matrix as a pandas dataframe.
+        Returns a pandas dataframe where the column headers are regions and the
+        indcies indicate disctrete timesteps.
 
         Parameters
         ----------
         subject: str, default: None
-            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            Name of the subject (see RegionalBold.subjects for available names).
             If "mean" or None is given, the mean is taken in case of multiple
-            available matrices.
+            available data tables.
         Returns
         -------
         pd.DataFrame
-            A square matrix with region names as the column and row names.
+            A table with region names as the column and timesteps as indices.
         """
         assert len(self) > 0
         if (subject is None) and (len(self) > 1):
-            # multiple matrices available, but no subject given - return mean matrix
+            # multiple signal tables available, but no subject given - return mean table
             logger.info(
-                f"No subject name supplied, returning mean connectivity across {len(self)} subjects. "
+                f"No subject name supplied, returning mean signal table across {len(self)} subjects. "
                 "You might alternatively specify an individual subject."
             )
-            if "mean" not in self._matrices:
+            if "mean" not in self._tables:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in tqdm(
+                    for fname in siibra_tqdm(
                         self._files.values(),
                         total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices"
+                        desc=f"Averaging {len(self)} signal tables"
                     )
                 ]
-                self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._matrices['mean']
+                self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
+            return self._tables['mean']
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
             raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._matrices:
-            self._matrices[subject] = self._load_matrix(subject)
-        return self._matrices[subject]
+        if subject not in self._tables:
+            self._tables[subject] = self._load_table(subject)
+        return self._tables[subject]
 
-    def _load_matrix(self, subject: str):
+    def _load_table(self, subject: str):
         """
-        Extract timeseries.
+        Extract the timeseries table.
         """
         assert subject in self.subjects
         array = self._connector.get(self._files[subject], decode_func=self._decode_func)
         return self._array_to_dataframe(array)
 
-    def get_profile(
-        self,
-        region: Union[str, _region.Region],
-        subject: str = None
-    ):
-        """
-        Extract a regional profile from the matrix, to obtain a tabular data feature
-        with the connectivity as the single column.
-
-        Rows will be sorted by descending connection strength.
-        Regions with connectivity smaller than "min_connectivity" will be discarded.
-        If max_rows is given, only the subset of regions with highest connectivity is returned.
-
-        Parameters
-        ----------
-        region: str, Region
-        subject: str, default: None
-        min_connectivity: float, default: 0
-        max_rows: int, default: None
-        """
-        matrix = self.get_matrix(subject)
-
-        def matches(r1, r2):
-            if isinstance(r1, tuple):
-                return any(r.matches(r2) for r in r1)
-            else:
-                assert isinstance(r1, _region.Region)
-                return r1.matches(r2)
-
-        regions = [r for r in matrix.columns if matches(r, region)]
-        if len(regions) == 0:
-            raise ValueError(f"Invalid region specificiation: {region}")
-        elif len(regions) > 1:
-            raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
-        else:
-            name = \
-                f"Averaged {self.modality}" if subject is None \
-                else f"{self.modality}"
-            series = matrix[regions[0]]
-            last_index = len(series) - 1
-            return tabular.Tabular(
-                description=self.description,
-                modality=f"{self.modality} {self.cohort}",
-                anchor=_anchor.AnatomicalAnchor(
-                    species=list(self.anchor.species)[0],
-                    region=regions[0]
-                ),
-                data=(
-                    series[:last_index]
-                    .to_frame(name=name)
-                ),
-                datasets=self.datasets
-            )
-
     def __len__(self):
         return len(self._files)
 
     def __str__(self):
-        return "{} connectivity for {} from {} cohort ({} matrices)".format(
-            self.paradigm if hasattr(self, "paradigm") else self.modality,
+        return "{} with paradigm {} for {} from {} cohort ({} signal tables)".format(
+            self.modality, self.paradigm,
             "_".join(p.name for p in self.anchor.parcellations),
             self.cohort,
             len(self._files),
@@ -203,11 +144,12 @@ class ParcellationBasedBOLD(
     def compute_centroids(self, space):
         """
         Computes the list of centroid coordinates corresponding to
-        matrix rows, in the given reference space.
+        dataframe columns, in the given reference space.
 
         Parameters
         ----------
         space: Space, str
+
         Returns
         -------
         list[tuple(float, float, float)]
@@ -233,8 +175,8 @@ class ParcellationBasedBOLD(
 
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
-        Convert a numpy array with the connectivity matrix to
-        a DataFrame with regions as column and row headers.
+        Convert a numpy array with the regional bold data to
+        a DataFrame with regions as column headers and timesteps as indices.
         """
         df = pd.DataFrame(array)
         parcellations = self.anchor.represented_parcellations()
@@ -255,14 +197,6 @@ class ParcellationBasedBOLD(
         return df
 
     def plot(self, subject: str = None, **kwargs):
-        matrix = self.get_matrix(subject)
-        return matrix.mean().plot(kind="bar", **kwargs)
+        table = self.get_table(subject)
+        return table.mean().plot(kind="bar", **kwargs)
 
-    def plot_profile(
-        self,
-        region: Union[str, _region.Region],
-        subject: str = None,
-        **kwargs
-    ):
-        ds = self.get_profile(region, subject).data
-        return ds.plot(**kwargs)
