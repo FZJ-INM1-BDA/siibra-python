@@ -55,7 +55,7 @@ BUILDFUNCS = {
     "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
     "siibra/feature/section/v0.1": "build_section",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
-    "siibra/feature/activity_timeseries/BOLD/v0.1": "build_activity_timeseries"
+    "siibra/feature/timeseries/activity/v0.1": "build_activity_timeseries"
 }
 
 
