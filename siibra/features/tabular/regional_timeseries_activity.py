@@ -27,13 +27,9 @@ import pandas as pd
 import numpy as np
 
 
-class RegionalBOLD(
-    tabular.Tabular,
-    configuration_folder="features/tabular/activity_timeseries/bold",
-    category="activity_timeseries"
-):
+class RegionalTimeseriesActivity(tabular.Tabular):
     """
-    Blood-oxygen-level-dependent (BOLD) signals per region.
+    Datasets that provide regional activity over time.
     """
 
     DESCRIPTION = (
@@ -88,7 +84,7 @@ class RegionalBOLD(
         Parameters
         ----------
         subject: str, default: None
-            Name of the subject (see RegionalBold.subjects for available names).
+            Name of the subject (see RegionalTimeseriesActivity.subjects for available names).
             If "mean" or None is given, the mean is taken in case of multiple
             available data tables.
         Returns
@@ -175,7 +171,7 @@ class RegionalBOLD(
 
     def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
         """
-        Convert a numpy array with the regional bold data to
+        Convert a numpy array with the regional activity data to
         a DataFrame with regions as column headers and timesteps as indices.
         """
         df = pd.DataFrame(array)
@@ -200,3 +196,15 @@ class RegionalBOLD(
         table = self.get_table(subject)
         return table.mean().plot(kind="bar", **kwargs)
 
+
+class RegionalBOLD(
+    RegionalTimeseriesActivity,
+    configuration_folder="features/tabular/activity_timeseries/bold",
+    category="activity_timeseries"
+):
+    """
+    Blood-oxygen-level-dependent (BOLD) signals per region.
+    """
+
+    def __init__(self, **kwargs):
+        RegionalTimeseriesActivity.__init__(self, **kwargs)

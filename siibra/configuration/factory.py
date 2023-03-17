@@ -20,7 +20,7 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_bold
+    regional_timeseries_activity
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -472,7 +472,7 @@ class Factory:
         }
         if modality == "Regional BOLD signal":
             kwargs["paradigm"] = spec.get("paradigm", "")
-            return regional_bold.RegionalBOLD(**kwargs)
+            return regional_timeseries_activity.RegionalBOLD(**kwargs)
         else:
             raise ValueError(f"No method for building signal table of type {modality}.")
 
