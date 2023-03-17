@@ -5,22 +5,37 @@
             "type": "object",
             "properties": {
                 "minds/core/dataset/v1.0.0": {
-                    "type": "string"
+                    "$ref": "#/definitions/ebrainsdef"
                 },
                 "minds/core/parcellationregion/v1.0.0": {
-                    "type": "string"
+                    "$ref": "#/definitions/ebrainsdef"
                 },
                 "minds/core/species/v1.0.0": {
-                    "type": "string"
+                    "$ref": "#/definitions/ebrainsdef"
                 },
                 "openminds/Species": {
-                    "type": "string"
+                    "$ref": "#/definitions/ebrainsdef"
                 },
                 "openminds/Dataset": {
-                    "type": "string"
+                    "$ref": "#/definitions/ebrainsdef"
+                },
+                "openminds/ParcellationEntityVersion": {
+                    "$ref": "@/definitions/ebrainsdef"
                 }
             },
             "additionalProperties": false
+        }
+    },
+    "definitions": {
+        "ebrainsdef": {
+            "anyOf": [{
+                "type": "string"
+            }, {
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
+            }]
         }
     }
 }
