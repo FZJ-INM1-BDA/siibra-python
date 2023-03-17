@@ -93,6 +93,11 @@ class RegionalConnectivity(Feature):
         """
         return list(self._files.keys())
 
+    @property
+    def name(self):
+        supername = super().name
+        return f"{supername} with cohort {self.cohort}"
+
     def get_matrix(self, subject: str = None):
         """
         Returns a matrix as a pandas dataframe.
