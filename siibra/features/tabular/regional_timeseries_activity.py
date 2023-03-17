@@ -199,7 +199,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
 
 class RegionalBOLD(
     RegionalTimeseriesActivity,
-    configuration_folder="features\\tabular\\activity_timeseries\\bold",
+    configuration_folder="features/tabular/activity_timeseries/bold",
     category="activity_timeseries"
 ):
     """
