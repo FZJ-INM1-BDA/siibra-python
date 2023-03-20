@@ -468,6 +468,7 @@ class GitlabProxyEnum(Enum):
     DATASET_V1 = "DATASET_V1"
     PARCELLATIONREGION_V1 = "PARCELLATIONREGION_V1"
     DATASET_V3 = "DATASET_V3"
+    DATASETVERSION_V3 = "DATASETVERSION_V3"
 
     @property
     def connectors(self) -> List['GitlabConnector']:
@@ -494,6 +495,7 @@ class GitlabProxy(HttpRequest):
     folder_dict = {
         GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/dataset",
         GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/Dataset",
+        GitlabProxyEnum.DATASETVERSION_V3: "ebrainsquery/v3/DatasetVersion",
         GitlabProxyEnum.PARCELLATIONREGION_V1: "ebrainsquery/v1/parcellationregions",
     }
 

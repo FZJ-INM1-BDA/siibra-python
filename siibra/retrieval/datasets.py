@@ -72,7 +72,7 @@ class EbrainsBaseDataset(ABC):
         raise NotImplementedError
 
     @abstractproperty
-    def custodians(self) -> EbrainsDatasetPerson:
+    def custodians(self) -> List[EbrainsDatasetPerson]:
         raise NotImplementedError
     
     def __hash__(self):
@@ -168,10 +168,22 @@ class EbrainsDataset(EbrainsBaseDataset):
     def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
-class EbrainsV3Dataset(EbrainsBaseDataset):
-    # TODO finish implementing me
-    # some fields are currently missing, e.g. desc, contributors etc.
-    def __init__(self, id, *, cached_data) -> None:
+class EbrainsV3DatasetVersion(EbrainsBaseDataset):
+
+    @staticmethod
+    def parse_person(d: dict) -> EbrainsDatasetPerson:
+        assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), f"Cannot convert a non person to a person dict!"
+        _id = d.get('id')
+        name = f"{d.get('givenName')} {d.get('familyName')}"
+        return {
+            '@id': _id,
+            'schema.org/shortName': name,
+            'identifier': _id,
+            "shortName": name,
+            "name": name
+        }
+
+    def __init__(self, id, *, cached_data=None) -> None:
         super().__init__()
 
         self._id = id
@@ -180,7 +192,65 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
     @property
     def detail(self):
         if not self._cached_data:
-            match = re.search(r"([a-f0-9-]+)$", self.id)
+            match = re.search(r"([a-f0-9-]+)$", self._id)
+            instance_id = match.group(1)
+            self._cached_data = MultiSourcedRequest(
+                requests=[
+                    GitlabProxy(
+                        GitlabProxyEnum.DATASETVERSION_V3,
+                        instance_id=instance_id,
+                    ),
+                ]
+            ).data
+        return self._cached_data
+    
+    @property
+    def id(self) -> str :
+        return self._id
+
+    @property
+    def name(self) -> str :
+        fullname = self.detail.get("fullName")
+        version_id = self.detail.get("versionIdentifier")
+        return f"{fullname} ({version_id})"
+        
+    @property
+    def urls(self) -> List[EbrainsDatasetUrl] :
+        return [{
+            "url": doi.get("identifier", None)
+        } for doi in self.detail.get("doi", []) ]
+    
+    @property
+    def description(self) -> str :
+        return self.detail.get("description", "")
+
+    @property
+    def contributors(self) -> List[EbrainsDatasetPerson] :
+        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("author", [])]
+
+    @property
+    def ebrains_page(self) -> str :
+        if len(self.urls) > 0:
+            return self.urls[0].get("url")
+        return None
+    
+    @property
+    def custodians(self) -> EbrainsDatasetPerson:
+        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+
+class EbrainsV3Dataset(EbrainsBaseDataset):
+    # TODO finish implementing me
+    # some fields are currently missing, e.g. desc, contributors etc.
+    def __init__(self, id, *, cached_data=None) -> None:
+        super().__init__()
+
+        self._id = id
+        self._cached_data = cached_data
+    
+    @property
+    def detail(self):
+        if not self._cached_data:
+            match = re.search(r"([a-f0-9-]+)$", self._id)
             instance_id = match.group(1)
             self._cached_data = MultiSourcedRequest(
                 requests=[
