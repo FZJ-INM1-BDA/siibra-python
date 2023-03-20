@@ -76,6 +76,11 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         """
         return list(self._files.keys())
 
+    @property
+    def name(self):
+        supername = super().name
+        return f"{supername} with paradigm {self.paradigm}"
+
     def get_table(self, subject: str = None):
         """
         Returns a pandas dataframe where the column headers are regions and the
