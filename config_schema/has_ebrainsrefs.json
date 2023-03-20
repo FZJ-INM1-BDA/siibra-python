@@ -20,10 +20,10 @@
                     "$ref": "#/definitions/ebrainsdef"
                 },
                 "openminds/ParcellationEntityVersion": {
-                    "$ref": "@/definitions/ebrainsdef"
+                    "$ref": "#/definitions/ebrainsdef"
                 },
                 "openminds/DatasetVersion": {
-                    "$ref": "@/definitions/ebrainsdef"
+                    "$ref": "#/definitions/ebrainsdef"
                 }
             },
             "additionalProperties": false
