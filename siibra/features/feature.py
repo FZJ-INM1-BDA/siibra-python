@@ -304,7 +304,7 @@ class Feature:
         return list(set((preconfigured_instances + live_instances)))
 
     @classmethod
-    def get_instace_by_id(cls, feature_id: str, **kwargs):
+    def get_instance_by_id(cls, feature_id: str, **kwargs):
         try:
             F, concept, fid = cls.decode_livequery_id(feature_id)
             return [

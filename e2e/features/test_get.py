@@ -20,5 +20,5 @@ ids = [
 
 @pytest.mark.parametrize('fid,foo', ids)
 def test_get_instance(fid,foo):
-    feat = siibra.features.Feature.get_instace_by_id(fid)
+    feat = siibra.features.Feature.get_instance_by_id(fid)
     assert feat
