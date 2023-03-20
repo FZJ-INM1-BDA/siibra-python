@@ -21,6 +21,9 @@
                 },
                 "openminds/ParcellationEntityVersion": {
                     "$ref": "@/definitions/ebrainsdef"
+                },
+                "openminds/DatasetVersion": {
+                    "$ref": "@/definitions/ebrainsdef"
                 }
             },
             "additionalProperties": false
