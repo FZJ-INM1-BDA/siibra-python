@@ -32,7 +32,7 @@ from nilearn import plotting
 
 # %%
 # Load the Julich-Brain parcellation.
-jubrain = siibra.parcellations.get("julich")
+jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # We can tell volumetric from surface spaces using their `is_surface` attribute.
