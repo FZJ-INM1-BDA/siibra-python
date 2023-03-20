@@ -50,7 +50,7 @@ dir(atlas.parcellations)
 
 # %%
 # These are instance tables, and can be used just like siibra.parcellations:
-atlas.parcellations.get('julich')
+atlas.parcellations.get('julich')  # will return the latest version per default
 
 # %%
 # Note that this specification matched multiple objects. Since `siibra` was
@@ -63,9 +63,9 @@ atlas.parcellations.get('julich 1.18').version
 # %%
 # We can also explicitly request a supported parcellation object from the
 # atlas, which has the same effect as accessing the Registry.
-atlas.parcellations.get('long bundle')
+atlas.parcellations.get('Deep fibre bundles')
 
-jubrain = atlas.parcellations.get('julich')  # will return the latest version per default
+jubrain = atlas.parcellations.get('julich 2.9')
 
 # %%
 # The resulting parcellation is a semantic object, including

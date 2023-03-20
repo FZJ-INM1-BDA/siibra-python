@@ -33,7 +33,7 @@ print(atlas.spaces)
 space = atlas.spaces.get("icbm 2009c asym")
 print(space.name)
 # and a region
-v1_left = atlas.get_region("v1 left", parcellation='julich')
+v1_left = atlas.get_region("v1 left", parcellation='julich 2.9')
 print(v1_left)
 
 # %%
