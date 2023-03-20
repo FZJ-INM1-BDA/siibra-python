@@ -19,7 +19,8 @@ from ..features.tabular import (
     receptor_density_profile,
     receptor_density_fingerprint,
     cell_density_profile,
-    layerwise_cell_density
+    layerwise_cell_density,
+    regional_timeseries_activity
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -54,6 +55,7 @@ BUILDFUNCS = {
     "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
     "siibra/feature/section/v0.1": "build_section",
     "siibra/feature/voi/v0.1": "build_volume_of_interest",
+    "siibra/feature/timeseries/activity/v0.1": "build_activity_timeseries"
 }
 
 
@@ -452,6 +454,27 @@ class Factory:
             return connectivity.FunctionalConnectivity(**kwargs)
         else:
             raise ValueError(f"No method for building connectivity matrix of type {modality}.")
+
+    @classmethod
+    def build_activity_timeseries(cls, spec):
+        modality = spec["modality"]
+        kwargs = {
+            "cohort": spec["cohort"],
+            "modality": modality,
+            "regions": spec["regions"],
+            "connector": cls.extract_connector(spec),
+            "decode_func": cls.extract_decoder(spec),
+            "files": spec.get("files", {}),
+            "anchor": cls.extract_anchor(spec),
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec),
+            "timestep": spec.get("timestep", ("1 no_unit"))
+        }
+        if modality == "Regional BOLD signal":
+            kwargs["paradigm"] = spec.get("paradigm", "")
+            return regional_timeseries_activity.RegionalBOLD(**kwargs)
+        else:
+            raise ValueError(f"No method for building signal table of type {modality}.")
 
     @classmethod
     def from_json(cls, spec: dict):
