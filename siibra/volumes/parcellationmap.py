@@ -413,7 +413,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             print(str(e))
 
         if result is None:
-            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs['format']}.")
+            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
         return result
 
     def fetch_iter(self, **kwargs):
