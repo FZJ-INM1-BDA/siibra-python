@@ -412,7 +412,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         except requests.SiibraHttpRequestError as e:
             print(str(e))
 
-        if result is None:
+        if self.maptype is not MapType.STATISTICAL and result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
         return result
 
