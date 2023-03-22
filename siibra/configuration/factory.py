@@ -424,8 +424,6 @@ class Factory:
             return volume_of_interest.MRIVolumeOfInterest(
                 modality="T1", **kwargs
             )
-        elif modality == "segmentation":
-            return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
         else:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
