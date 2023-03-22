@@ -188,9 +188,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                 return None
             if len(spec_candidates) > 1:
                 logger.warning(
-                    f"Multiple {maptype} maps in {space} available for {str(self)}, choosing the first."
-                    "You might want to specify keywords using the `spec` parameter to match the desired" 
-                    f"one of the maps {[c.name for c in spec_candidates]}"
+                    f"Multiple maps are available in this specification of space, parcellation, and map type.\n"
+                    f"Choosing the first map from {[c.name for c in spec_candidates]}."
                 )
             return spec_candidates[0]
         return candidates[0]
