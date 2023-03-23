@@ -2,8 +2,8 @@ import siibra
 import pytest
 from siibra.features.anchor import AssignmentQualification
 concepts = [
-    (siibra.get_region("julich 2.9", "v2"), siibra.features.dataset.EbrainsDataFeature),
-    (siibra.get_region("julich 2.9", "v2"), "ebrains"),
+    (siibra.get_region("julich 2.9", "hoc2"), siibra.features.dataset.EbrainsDataFeature),
+    (siibra.get_region("julich 2.9", "hoc2"), "ebrains"),
 ]
 
 @pytest.mark.parametrize('concept,query_arg', concepts)
