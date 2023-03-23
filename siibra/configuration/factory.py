@@ -414,6 +414,10 @@ class Factory:
             return volume_of_interest.PLIVolumeOfInterest(
                 modality="transmittance", **kwargs
             )
+        elif modality == "XPCT":
+            return volume_of_interest.XPCTVolumeOfInterest(
+                modality="XPCT", **kwargs
+            )
         elif modality == "segmentation":
             return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
         elif modality == "T2 weighted MRI":

@@ -52,10 +52,10 @@ class MRIVolumeOfInterest(
         image.Image.__init__(self, **kwargs, modality=modality)
 
 
-class XrayVolumeOfInterest(
+class XPCTVolumeOfInterest(
     image.Image,
-    configuration_folder="features/images/vois/xray",
-    category="macrostructural"
+    configuration_folder="features/images/vois/xpct",
+    category="cellular"
 ):
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
