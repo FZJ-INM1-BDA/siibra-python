@@ -52,6 +52,15 @@ class MRIVolumeOfInterest(
         image.Image.__init__(self, **kwargs, modality=modality)
 
 
+class XrayVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/xray",
+    category="macrostructural"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
+
+
 class SegmentedVolumeOfInterest(
     image.Image,
     configuration_folder="features/images/vois/segmentation",
