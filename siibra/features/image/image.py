@@ -74,6 +74,7 @@ class Image(feature.Feature, _volume.Volume):
             space_spec=space_spec,
             providers=providers,
             name=name,
+            datasets=datasets,
         )
 
         self._anchor_cached = ImageAnchor(self, region=region)
