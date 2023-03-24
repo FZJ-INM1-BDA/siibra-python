@@ -61,10 +61,10 @@ class XPCTVolumeOfInterest(
         image.Image.__init__(self, **kwargs, modality=modality)
 
 
-class SegmentedVolumeOfInterest(
-    image.Image,
-    configuration_folder="features/images/vois/segmentation",
-    category="segmentation"
-):
-    def __init__(self, **kwargs):
-        image.Image.__init__(self, **kwargs, modality="segmentation")
+# class SegmentedVolumeOfInterest(
+#     image.Image,
+#     configuration_folder="features/images/vois/segmentation",
+#     category="segmentation"
+# ):
+#     def __init__(self, **kwargs):
+#         image.Image.__init__(self, **kwargs, modality="segmentation")

@@ -15,7 +15,7 @@
 
 from .cache import CACHE
 from .exceptions import EbrainsAuthenticationError
-from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, siibra_tqdm
+from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, siibra_tqdm, SIIBRA_USE_LOCAL_SNAPSPOT
 from .. import __version__
 
 import json
@@ -476,7 +476,10 @@ class GitlabProxyEnum(Enum):
             ("https://jugit.fz-juelich.de", 7846),
             ("https://gitlab.ebrains.eu", 421),
         ]
-        from .repositories import GitlabConnector
+        from .repositories import GitlabConnector, LocalFileRepository
+        if SIIBRA_USE_LOCAL_SNAPSPOT:
+            logger.info(f"Using localsnapshot at {SIIBRA_USE_LOCAL_SNAPSPOT}")
+            return [LocalFileRepository(SIIBRA_USE_LOCAL_SNAPSPOT)]
         return [GitlabConnector(server[0], server[1], "master", archive_mode=True) for server in servers]
 
     @try_all_connectors()

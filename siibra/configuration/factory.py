@@ -418,8 +418,8 @@ class Factory:
             return volume_of_interest.XPCTVolumeOfInterest(
                 modality="XPCT", **kwargs
             )
-        elif modality == "segmentation":
-            return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
+        # elif modality == "segmentation":
+        #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
         elif modality == "T2 weighted MRI":
             return volume_of_interest.MRIVolumeOfInterest(
                 modality="T2", **kwargs
