@@ -187,7 +187,7 @@ class TestParcellation(unittest.TestCase):
                 p.find.return_value = [p]
             parcellation_registry_mock.return_value = [parc1, parc2, parc3]
 
-            result = Parcellation.find_regions("fooz", parents_only)
+            result = Parcellation._find_regions("fooz", parents_only)
 
             parcellation_registry_mock.assert_called_once()
             for p in [parc1, parc2, parc3]:

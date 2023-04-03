@@ -184,17 +184,20 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
 
         Parameters
         ----------
-        regionspec : any of
-            - a string with a possibly inexact name, which is matched both
-              against the name and the identifier key,
-            - an integer, which is interpreted as a labelindex
-            - a region object
+        regionspec: str, regex, int, Region, MapIndex
+            - a string with a possibly inexact name (matched both against the name and the identifier key)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a regex applied to region names
+            - a Region object
         all_versions : Bool, default: False
             If True, matched regions for all versions of a parcellation are returned.
+        filter_children : bool, default: True
+            If False, children of matched parents will be returned.
 
-        Yield
-        -----
-        list of matching regions
+        Returns
+        -------
+        list[Region]
+            list of regions matching to the regionspec
         """
         result = []
         for p in self._parcellation_ids:

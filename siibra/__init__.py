@@ -47,7 +47,7 @@ logger.info(
 # forward access to some functions
 set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
-find_regions = _parcellation.Parcellation.find_regions
+find_regions = _parcellation.Parcellation._find_regions
 from_json = factory.Factory.from_json
 
 
@@ -119,6 +119,7 @@ def __dir__():
         "use_configuration",
         "extend_configuration",
         "get_region",
+        "find_regions",
         "get_map",
         "get_template",
         "MapType",

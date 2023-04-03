@@ -195,10 +195,14 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         return candidates[0]
 
     @classmethod
-    def find_regions(cls, region_spec: str, parents_only=True):
+    def _find_regions(cls, region_spec: str, parents_only=True):
         """
         Find regions that match the given region specification in the subtree
-        headed by this region.
+        headed by each parcellation in the registry.
+        Note
+        ----
+        Use Region.find() to search for a region in an instance of a
+        parcellation.
 
         Parameters
         ----------

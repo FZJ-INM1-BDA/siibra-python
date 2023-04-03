@@ -226,9 +226,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
             - a regex applied to region names
-            - an integer (interpreted as a labelindex)
             - a Region object
-            - a full MapIndex object
         filter_children : bool, default: False
             If True, children of matched parents will not be returned
         find_topmost : bool, default: True
