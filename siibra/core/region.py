@@ -36,11 +36,24 @@ import anytree
 from typing import List, Set, Union
 from nibabel import Nifti1Image
 from difflib import SequenceMatcher
+from dataclasses import dataclass, field
 
 
 REGEX_TYPE = type(re.compile("test"))
 
 THRESHOLD_STATISTICAL_MAPS = None
+
+@dataclass
+class SpatialPropCmpt:
+    centroid: point.Point
+    volume: int
+
+
+@dataclass
+class SpatialProp:
+    cog:SpatialPropCmpt=None
+    components:List[SpatialPropCmpt]=field(default_factory=list)
+    space:_space.Space=None
 
 
 class Region(anytree.NodeMixin, concept.AtlasConcept):
@@ -431,14 +444,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             fetch_space = _space.Space.get_instance(fetch_space)
 
         for m in parcellationmap.Map.registry():
-            if all(
-                [
-                    m.space.matches(fetch_space),
-                    m.parcellation == self.parcellation,
-                    m.provides_image,
-                    m.maptype == maptype,
-                    self.name in m.regions
-                ]
+            if (
+                m.space.matches(fetch_space) and
+                m.parcellation == self.parcellation and
+                m.provides_image and
+                m.maptype == maptype and
+                self.name in m.regions
             ):
                 result = m.fetch(region=self, format='image')
                 if (maptype == MapType.STATISTICAL) and (threshold is not None):
@@ -659,7 +670,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         props = self.spatial_props(space)
         return pointset.PointSet(
-            [tuple(c["centroid"]) for c in props["components"] if "centroid" in c],
+            [c.centroid for c in props.components],
             space=space
         )
 
@@ -668,7 +679,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
-    ):
+    ) -> SpatialProp:
         """
         Compute spatial properties for connected components of this region in the given space.
 
@@ -689,11 +700,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         Dict
             Dictionary of region's spatial properties
         """
-        result = {"space": space, "components": []}
         from skimage import measure
 
         if not isinstance(space, _space.Space):
             space = _space.Space.get_instance(space)
+
+        result = SpatialProp(space=space)
 
         if not self.mapped_in_space(space):
             logger.warn(
@@ -717,14 +729,18 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         # compute spatial properties of each connected component
         for label in range(1, C.max() + 1):
-            props = {}
             nonzero = np.c_[np.nonzero(C == label)]
-            props["centroid"] = point.Point(
-                np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3], space=space
+            result.components.append(
+                SpatialPropCmpt(
+                    centroid=point.Point(
+                        np.dot(pimg.affine, np.r_[nonzero.mean(0), 1])[:3], space=space
+                    ),
+                    volume=nonzero.shape[0] * scale,
+                )
             )
-            props["volume"] = nonzero.shape[0] * scale
 
-            result["components"].append(props)
+        # sort by volume
+        result.components.sort(key=lambda cmp: cmp.volume, reverse=True)
 
         return result
 
