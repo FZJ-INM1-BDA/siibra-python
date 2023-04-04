@@ -20,7 +20,6 @@ from ..volumes import parcellationmap
 
 from ..commons import (
     logger,
-    MapIndex,
     MapType,
     affine_scaling,
     create_key,
@@ -218,13 +217,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
         Parameters
         ----------
-        regionspec: str, regex, int, Region, MapIndex
+        regionspec: str, regex, int, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
             - a regex applied to region names
-            - an integer (interpreted as a labelindex)
             - a Region object
-            - a full MapIndex object
         filter_children : bool, default: False
             If True, children of matched parents will not be returned
         find_topmost : bool, default: True
@@ -236,7 +233,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             list of regions matching to the regionspec
         Tip
         ---
-        See example 01-003 find regions
+        See example 01-003, find regions.
         """
         key = (regionspec, filter_children, find_topmost)
         MEM = self._CACHED_REGION_SEARCHES
@@ -270,25 +267,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             filtered = []
             for region in candidates:
                 children_included = [c for c in region.children if c in candidates]
-                # if the parcellation index matches only approximately,
-                # while a child has an exact matching index, use the child.
                 if len(children_included) > 0:
-                    if not (
-                        isinstance(regionspec, MapIndex)
-                        and (region.index != regionspec)
-                        and any(c.index == regionspec for c in children_included)
-                    ):
-                        filtered.append(region)
+                    filtered.append(region)
                 else:
                     if region.parent not in candidates:
                         filtered.append(region)
-                    else:
-                        if (
-                            isinstance(regionspec, MapIndex)
-                            and (region.index == regionspec)
-                            and (region.parent.index != regionspec)
-                        ):
-                            filtered.append(region)
 
             # find any non-matched regions of which all children are matched
             if find_topmost:
