@@ -528,41 +528,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             elements={s.key: s for s in self.supported_spaces},
         )
 
-    def __getitem__(self, labelindex):
-        """
-        Given an integer label index, return the corresponding region.
-
-        If multiple matches are found, return the unique parent if possible.
-        Otherwise, returns None.
-
-        Parameters
-        ----------
-        regionlabel: int
-            Label index of the desired region.
-        Returns
-        -------
-        Region
-        """
-        if not isinstance(labelindex, int):
-            raise TypeError(
-                "Index access into the regiontree expects label indices of integer type"
-            )
-
-        # first test this head node
-        if self.index.label == labelindex:
-            return self
-
-        # Consider children, and return the one with smallest depth
-        matches = list(
-            filter(lambda x: x is not None, [c[labelindex] for c in self.children])
-        )
-        if matches:
-            parentmatches = [m for m in matches if m.parent not in matches]
-            if len(parentmatches) == 1:
-                return parentmatches[0]
-
-        return None
-
     def __str__(self):
         return self.name
 
