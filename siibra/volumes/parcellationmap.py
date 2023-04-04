@@ -19,6 +19,7 @@ from .. import logger, QUIET
 from ..commons import (
     MapIndex,
     MapType,
+    InstanceDataframe,
     compare_maps,
     iterate_connected_components,
     clear_name,
@@ -168,6 +169,39 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if self._species_cached is None:
             self._species_cached = self.space.species
         return self.space._species_cached
+
+    @classmethod
+    def registry(cls) -> InstanceDataframe:
+        if cls._configuration_folder is None:
+            return None
+        if cls._registry_cached is None:
+            from ..configuration import Configuration
+            conf = Configuration()
+            # visit the configuration to provide a cleanup function
+            # in case the user changes the configuration during runtime.
+            Configuration.register_cleanup(cls.clear_registry)
+            assert cls._configuration_folder in conf.folders
+            objects = conf.build_objects(cls._configuration_folder)
+            logger.debug(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
+            assert len(objects) > 0
+            assert all([hasattr(o, 'key') for o in objects])
+            if len({o.__class__ for o in objects}) > 1:
+                logger.warning(f"{cls.__name__} registry contains multiple classes: {', '.join(list({o.__class__.__name__ for o in objects}))}")
+            assert hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
+            cls._registry_cached = InstanceDataframe(
+                objs={m.key: m for m in objects},
+                attrs=[
+                    {
+                        'name': m.name, 
+                        'species': str(m.species),
+                        'parcellation': m.parcellation.name,
+                        'space': m.space.name,
+                        'maptype': m.maptype.name.lower()
+                    }
+                    for m in objects
+                ]
+            )
+        return cls._registry_cached
 
     def get_index(self, region: Union[str, "Region"]):
         """

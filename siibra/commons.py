@@ -20,6 +20,7 @@ from nibabel import Nifti1Image
 import logging
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 
@@ -214,6 +215,37 @@ class InstanceTable(Generic[T], Iterable):
                 if len(closest) > 0:
                     hint = f"Did you mean {' or '.join(closest)}?"
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
+
+
+class InstanceDataframe(pd.DataFrame):
+
+    def __init__(self, objs: dict, attrs: list):
+        pd.DataFrame.__init__(self, data=attrs, index=list(objs.keys()))
+        import warnings
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            self._objs = objs
+
+    def __dir__(self):
+        # make autocompletion work on the row names
+        return list(self.index)
+
+    def __getattr__(self, attr):
+        # make the row name return the corresponding object
+        if attr in self.index:
+            return self._objs[attr]
+        return super().__getattr__(attr)
+
+    def query(self, expr: str):
+        # allow to build a filtered instance table
+        df = pd.DataFrame.query(self, expr, inplace=False)
+        return self.__class__(
+            objs={
+                k: v for k, v in self._objs.items()
+                if k in df.index
+            },
+            attrs=list(dict(df.T).values())
+        )
 
 
 class LoggingContext:
