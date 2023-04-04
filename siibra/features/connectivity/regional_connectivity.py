@@ -295,23 +295,15 @@ class RegionalConnectivity(Feature):
                 for i, regionname in enumerate(self.regions)
             }
         nrows = array.shape[0]
-        if len(indexmap) == nrows:
+        try:
+            assert len(indexmap) == nrows
             remapper = {
                 label - min(indexmap.keys()): region
                 for label, region in indexmap.items()
             }
             df = df.rename(index=remapper).rename(columns=remapper)
-        else:
-            labels = {r.index.label for r in parc.regiontree} - {None}
-            if max(labels) - min(labels) + 1 == nrows:
-                indexmap = {
-                    r.index.label - min(labels): r
-                    for r in parc.regiontree
-                    if r.index.label is not None
-                }
-                df = df.rename(index=indexmap).rename(columns=indexmap)
-            else:
-                logger.warning("Could not decode connectivity matrix regions.")
+        except:
+            raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
     def _load_matrix(self, subject: str):
