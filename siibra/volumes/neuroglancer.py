@@ -162,7 +162,7 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
-            logger.warn(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
 
         return result
 
@@ -201,7 +201,7 @@ class NeuroglancerVolume:
             return self._transform_nm
 
         self._transform_nm = np.identity(1)
-        logger.warn(f"No transform.json found at {self.url}, using identity.")
+        logger.warning(f"No transform.json found at {self.url}, using identity.")
         return self._transform_nm
 
     @transform_nm.setter
@@ -278,7 +278,7 @@ class NeuroglancerVolume:
             scale = suitable[-1]
         else:
             scale = self.scales[0]
-            logger.warn(
+            logger.warning(
                 f"Requested resolution {resolution_mm} is not available. "
                 f"Falling back to the highest possible resolution of "
                 f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
@@ -294,7 +294,7 @@ class NeuroglancerVolume:
                     f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
                 )
         if scale_changed:
-            logger.warn(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
+            logger.warning(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
         return scale
 
 
@@ -399,7 +399,7 @@ class NeuroglancerScale:
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
         if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
-            logger.warn(
+            logger.warning(
                 "Color channel data is not yet supported. Returning first channel only."
             )
             self.color_warning_issued = True
@@ -419,7 +419,7 @@ class NeuroglancerScale:
 
         for dim in range(3):
             if bbox_.shape[dim] < 1:
-                logger.warn(
+                logger.warning(
                     f"Bounding box in voxel space will be enlarged to voxel size 1 along axis {dim}."
                 )
                 bbox_.maxpoint[dim] = bbox_.maxpoint[dim] + 1

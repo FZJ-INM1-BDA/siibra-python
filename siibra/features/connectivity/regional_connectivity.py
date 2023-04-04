@@ -311,7 +311,7 @@ class RegionalConnectivity(Feature):
                 }
                 df = df.rename(index=indexmap).rename(columns=indexmap)
             else:
-                logger.warn("Could not decode connectivity matrix regions.")
+                logger.warning("Could not decode connectivity matrix regions.")
         return df
 
     def _load_matrix(self, subject: str):

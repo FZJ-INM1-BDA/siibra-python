@@ -72,7 +72,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         for loader in self._img_loaders.values():
             img = loader()
             if len(img.shape) > 3:
-                logger.warn(
+                logger.warning(
                     f"N-D NIfTI volume has shape {img.shape}, but "
                     f"bounding box considers only {img.shape[:3]}"
                 )
@@ -113,7 +113,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
-            logger.warn(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
 
         return result
 
