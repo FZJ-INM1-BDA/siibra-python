@@ -167,10 +167,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         return region
 
     @property
-    def labels(self):
-        return {r.index.label for r in self if r.index.label is not None}  # Potenially a BUG
-
-    @property
     def names(self):
         return {r.key for r in self}
 
