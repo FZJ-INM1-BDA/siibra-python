@@ -142,7 +142,7 @@ class Configuration:
         result = []
 
         if folder not in self.folders:
-            logger.warn(f"No configuration found for building from configuration folder {folder}.")
+            logger.warning(f"No configuration found for building from configuration folder {folder}.")
             return result
 
         from .factory import Factory
@@ -173,5 +173,5 @@ class Configuration:
 
 
 if SIIBRA_USE_CONFIGURATION:
-    logger.warn(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
+    logger.warning(f"config.SIIBRA_USE_CONFIGURATION defined, use configuration at {SIIBRA_USE_CONFIGURATION}")
     Configuration.use_configuration(SIIBRA_USE_CONFIGURATION)

@@ -349,7 +349,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         We sort parcellations by their version
         """
         if (self.version is None) or (other.version is None):
-            logger.warn(
+            logger.warning(
                 f"Sorting non-versioned instances of {self.__class__.__name__} "
                 f"by name: {self.name}, {other.name}"
             )

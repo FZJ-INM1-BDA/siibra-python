@@ -227,7 +227,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
-            logger.warn(f"Region {regionname} not defined in {self}")
+            logger.warning(f"Region {regionname} not defined in {self}")
         return {
             idx: regionname
             for regionname in matches
@@ -261,7 +261,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             if index in indexlist
         ]
         if len(matches) == 0:
-            logger.warn(f"Index {index} not defined in {self}")
+            logger.warning(f"Index {index} not defined in {self}")
             return None
         elif len(matches) == 1:
             return self.parcellation.get_region(matches[0])
@@ -281,7 +281,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         for key in ["@id", "name"]:
             if key in self._parcellation_spec:
                 return parcellation.Parcellation.get_instance(self._parcellation_spec[key])
-        logger.warn(
+        logger.warning(
             f"Cannot determine parcellation of {self.__class__.__name__} "
             f"{self.name} from {self._parcellation_spec}"
         )
@@ -528,7 +528,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         mapindex.__setattr__("label", int(label))
                         region = self.get_region(index=mapindex)
                     if region is None:
-                        logger.warn(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
+                        logger.warning(f"Label index {label} is observed in map volume {self}, but no region is defined for it.")
                         continue
                     region_indices[region.name].append({"volume": 0, "label": next_labelindex})
                     if label is None:

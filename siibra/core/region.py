@@ -639,7 +639,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                         maptype=maptype,
                         threshold=threshold_statistical,
                     )
-                    logger.warn(
+                    logger.warning(
                         f"No bounding box for {self.name} defined in {spaceobj.name}, "
                         f"will warp the bounding box from {other_space.name} instead."
                     )
@@ -708,7 +708,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         result = SpatialProp(space=space)
 
         if not self.mapped_in_space(space):
-            logger.warn(
+            logger.warning(
                 f"Spatial properties of {self.name} cannot be computed in {space.name}. "
                 "This region is only mapped in these spaces: "
                 f"{', '.join(s.name for s in self.supported_spaces)}"
