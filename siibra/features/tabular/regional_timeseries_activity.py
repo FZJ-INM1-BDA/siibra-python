@@ -98,23 +98,26 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             A table with region names as the column and timesteps as indices.
         """
         assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple signal tables available, but no subject given - return mean table
-            logger.info(
-                f"No subject name supplied, returning mean signal table across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
-            )
-            if "mean" not in self._tables:
-                all_arrays = [
-                    self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} signal tables"
-                    )
-                ]
-                self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._tables['mean']
+        if (subject is None) or (subject.lower() == "mean"):
+            if len(self) > 1:
+                logger.info(
+                    f"{'R' if subject else 'No subject name supplied, r'}eturning"
+                    " mean activity table across {len(self)} subjects. "
+                    "You might alternatively specify an individual subject."
+                )
+                if "mean" not in self._tables:
+                    all_arrays = [
+                        self._connector.get(fname, decode_func=self._decode_func)
+                        for fname in siibra_tqdm(
+                            self._files.values(),
+                            total=len(self),
+                            desc=f"Averaging {len(self)} signal tables"
+                        )
+                    ]
+                    self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
+                return self._tables['mean']
+            else:
+                logger.info("Only one subject is found. Returning the table.")
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
