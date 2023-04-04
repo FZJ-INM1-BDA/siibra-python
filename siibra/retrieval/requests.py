@@ -264,13 +264,13 @@ class EbrainsRequest(HttpRequest):
             logger.debug(f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}")
             cls._IAM_TOKEN_ENDPOINT = json_resp.get("token_endpoint")
         else:
-            logger.warn("expect token endpoint in .well-known/openid-configuration, but was not present")
+            logger.warning("expect token endpoint in .well-known/openid-configuration, but was not present")
 
         if "device_authorization_endpoint" in json_resp:
             logger.debug(f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}")
             cls._IAM_DEVICE_ENDPOINT = json_resp.get("device_authorization_endpoint")
         else:
-            logger.warn("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
+            logger.warning("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
 
     @classmethod
     def fetch_token(cls, **kwargs):
@@ -301,13 +301,13 @@ class EbrainsRequest(HttpRequest):
             if not scopes:
                 return None
             if not isinstance(scopes, list):
-                logger.warn(f"scopes needs to be a list, is but is not... skipping")
+                logger.warning(f"scopes needs to be a list, is but is not... skipping")
                 return None
             if not all(isinstance(scope, str) for scope in scopes):
-                logger.warn(f"scopes needs to be all str, but is not")
+                logger.warning(f"scopes needs to be all str, but is not")
                 return None
             if len(scopes) == 0:
-                logger.warn(f'provided empty list as scopes... skipping')
+                logger.warning(f'provided empty list as scopes... skipping')
                 return None
             return "+".join(scopes)
         

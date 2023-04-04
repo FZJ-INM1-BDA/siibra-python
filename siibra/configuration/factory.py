@@ -82,7 +82,7 @@ class Factory:
         for vspec in volume_specs:
             if space_id:
                 if 'space' in vspec:
-                    logger.warn(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
+                    logger.warning(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
                 vspec['space'] = {"@id": space_id}
             if name and vspec.get('name') is None:  # only use provided name if the volume has no specific name
                 vspec['name'] = name
@@ -145,7 +145,7 @@ class Factory:
                 reftag=repospec['branch']
             )
         else:
-            logger.warn(
+            logger.warning(
                 "Do not know how to create a repository "
                 f"connector from specification type {spectype}."
             )
@@ -246,7 +246,7 @@ class Factory:
                     break
             else:
                 if srctype not in cls._warnings_issued:
-                    logger.warn(f"No provider defined for volume Source type {srctype}")
+                    logger.warning(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
         assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
