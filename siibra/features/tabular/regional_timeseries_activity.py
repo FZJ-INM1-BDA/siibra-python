@@ -90,8 +90,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         ----------
         subject: str, default: None
             Name of the subject (see RegionalTimeseriesActivity.subjects for available names).
-            If "mean" or None is given, the mean is taken in case of multiple
-            available data tables.
+            If None, the mean is taken in case of multiple available data tables.
         Returns
         -------
         pd.DataFrame

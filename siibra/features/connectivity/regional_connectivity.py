@@ -106,8 +106,7 @@ class RegionalConnectivity(Feature):
         ----------
         subject: str, default: None
             Name of the subject (see ConnectivityMatrix.subjects for available names).
-            If "mean" or None is given, the mean is taken in case of multiple
-            available matrices.
+            If None, the mean is taken in case of multiple available matrices.
         Returns
         -------
         pd.DataFrame
