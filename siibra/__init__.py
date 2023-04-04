@@ -119,6 +119,7 @@ def __dir__():
         "use_configuration",
         "extend_configuration",
         "get_region",
+        "find_regions",
         "get_map",
         "get_template",
         "MapType",
