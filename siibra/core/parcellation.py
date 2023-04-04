@@ -194,8 +194,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             return spec_candidates[0]
         return candidates[0]
 
-    @classmethod
-    def _find_regions(cls, region_spec: str, parents_only=True):
+    @staticmethod
+    def find_regions(region_spec: str, parents_only=True):
         """
         Find regions that match the given region specification in the subtree
         headed by each parcellation in the registry.
@@ -216,11 +216,11 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         List[Region]
             list of matching regions
         """
-        MEM = cls._CACHED_REGION_SEARCHES
+        MEM = Parcellation._CACHED_REGION_SEARCHES
         if region_spec not in MEM:
             MEM[region_spec] = [
                 r
-                for p in cls.registry()
+                for p in Parcellation.registry()
                 for r in p.find(regionspec=region_spec)
             ]
         if parents_only:

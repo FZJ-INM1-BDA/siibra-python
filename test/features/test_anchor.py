@@ -17,7 +17,7 @@ region_specs = [
 def test_region_region_spec(region,teardown):
     mock_found_regions = [Region("baz"), Region("hello world")]
     species = Species.UNSPECIFIED_SPECIES
-    with patch.object(Parcellation, "_find_regions", return_value=mock_found_regions) as mock_find_regions:
+    with patch.object(Parcellation, "find_regions", return_value=mock_found_regions) as mock_find_regions:
         anchor = AnatomicalAnchor(species, region=region)
         assert isinstance(anchor.regions, dict)
         for _region in anchor.regions:
