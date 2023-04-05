@@ -167,7 +167,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     @property
     def names(self):
-        return {r.key for r in self}
+        return {r.name for r in self}
 
     def __eq__(self, other):
         """
@@ -254,7 +254,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
             if regionspec in self.names:
                 # key is given, this gives us an exact region
-                match = anytree.search.find_by_attr(self, regionspec, name="key")
+                match = anytree.search.find_by_attr(self, regionspec)
                 MEM[key] = [] if match is None else [match]
                 return list(MEM[key])
 
