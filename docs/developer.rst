@@ -148,3 +148,6 @@ When `fetch()` is invoked it accesses to corresponding volume provider based on 
 
 - When adjusting to a new type of data or special cases, it is highly encouraged to use one of the existing parameters.
 - Always inform a user when there are options available and the default is chosen.
+
+
+.. include:: create_preconfiguration.rst
