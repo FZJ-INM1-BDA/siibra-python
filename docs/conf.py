@@ -122,7 +122,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": False,
-    "run_stale_examples": False
+    "run_stale_examples": True
 }
 
 html_theme_options = {
