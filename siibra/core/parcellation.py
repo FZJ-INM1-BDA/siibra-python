@@ -326,10 +326,22 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         elif len(candidates) == 1:
             return candidates[0]
         else:
+            exact_matches = [
+                r for r in candidates if r == regionspec or r.name == regionspec
+            ]
+            if len(exact_matches) == 1:
+                return exact_matches[0]
+            else:
+                if len({r.parent for r in exact_matches}) == 1:
+                    logger.info(
+                        f"Found {len(exact_matches)} exact matches for "
+                        f"{regionspec} with the same parent. Returning the first."
+                        )
+                    return exact_matches[0]
             if allow_tuple:
                 return tuple(candidates)
             raise RuntimeError(
-                f"Spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
+                f"Spec '{regionspec}' resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
 
     def __str__(self):

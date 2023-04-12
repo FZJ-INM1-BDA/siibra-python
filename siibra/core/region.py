@@ -252,18 +252,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 search_regex = (f"(?{flags})" if flags else "") + expression
                 regionspec = re.compile(search_regex)
 
-            if regionspec in self.names:
-                # key is given, this gives us an exact region
-                match = anytree.search.find_by_attr(self, regionspec)
-                MEM[key] = [] if match is None else [match]
-                return list(MEM[key])
-
         candidates = list(
-            set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
+            anytree.search.findall(self, lambda node: node.matches(regionspec))
         )
 
         if len(candidates) > 1 and filter_children:
-
             filtered = []
             for region in candidates:
                 children_included = [c for c in region.children if c in candidates]
@@ -281,6 +274,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                         for r in filtered
                         if (r.parent is not None)
                         and all((c in filtered) for c in r.parent.children)
+                        and r.name != regionspec
                     }
                 )
 
@@ -306,7 +300,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
         MEM[key] = (
             sorted(
-                set(found_regions),
+                found_regions,
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
