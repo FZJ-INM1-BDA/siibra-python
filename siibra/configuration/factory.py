@@ -20,7 +20,8 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_timeseries_activity
+    regional_timeseries_activity,
+    pointset as poinsetfeature
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -48,6 +49,7 @@ BUILDFUNCS = {
     "siibra/location/point/v0.1": "build_point",
     "tmp/poly": "build_pointset",
     "siibra/location/pointset/v0.1": "build_pointset",
+    "siibra/feature/pointset/v0.1": "build_pointset_feature",
     "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
     "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
@@ -116,7 +118,6 @@ class Factory:
             location = None
 
         if (region is None) and (location is None):
-            print(spec)
             raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
 
         if 'species' in spec:
@@ -338,6 +339,19 @@ class Factory:
             space_id = spec.get("space").get("@id")
             coords = [tuple(c) for c in spec.get("coordinates")]
         return pointset.PointSet(coords, space=space_id)
+
+    @classmethod
+    def build_pointset_feature(cls, spec):
+        modality = spec["modality"]
+        kwargs = {
+            "modality": modality,
+            "paradigm": spec["paradigm"],
+            "files": spec.get("files", {}),
+            "space_id": spec.get("space").get("@id"),
+            "datasets": cls.extract_datasets(spec),
+            "species": spec.get("species")
+        }
+        return poinsetfeature.PointsetFeature(**kwargs)
 
     @classmethod
     def build_receptor_density_fingerprint(cls, spec):
