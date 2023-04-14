@@ -310,9 +310,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         else:
             candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
 
-        exact_matches = [
-                r for r in candidates if r == regionspec or r.name == regionspec
-            ]
+        exact_matches = [r for r in candidates if regionspec in r.names]
         if len(exact_matches) == 1:
             return exact_matches[0]
 
