@@ -98,6 +98,9 @@ class RepositoryConnector(ABC):
                 f"connector from url '{url}'."
             )
 
+    def __eq__(self, other):
+        return self.base_url == other.base_url
+
 
 class LocalFileRepository(RepositoryConnector):
 
@@ -155,6 +158,9 @@ class LocalFileRepository(RepositoryConnector):
 
     def __str__(self):
         return f"{self.__class__.__name__} at {self._folder}"
+
+    def __eq__(self, other):
+        return self._folder == other._folder
 
 
 class GitlabConnector(RepositoryConnector):
@@ -267,6 +273,12 @@ class GitlabConnector(RepositoryConnector):
         with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
             return decoder(fp.read())
 
+    def __eq__(self, other):
+        return all([
+            self.base_url == other.base_url,
+            self.reftag == other.reftag
+        ])
+
 
 class ZipfileConnector(RepositoryConnector):
 
@@ -303,6 +315,9 @@ class ZipfileConnector(RepositoryConnector):
             if fname.startswith(folder) and fname.endswith(suffix):
                 result.append(fname)
         return result
+
+    def __eq__(self, other):
+        return self.url == other.url
 
     class FileLoader:
         """

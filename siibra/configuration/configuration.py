@@ -121,11 +121,14 @@ class Configuration:
             conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
-        logger.info(f"Extending configuration with {str(conn)}")
-        cls.CONFIGURATION_EXTENSIONS.append(conn)
-        # call registered cleanup functions
-        for func in cls._cleanup_funcs:
-            func()
+        if conn in cls.CONFIGURATION_EXTENSIONS:
+            logger.warn(f"The configuration {str(conn)} is already registered.")
+        else:
+            logger.info(f"Extending configuration with {str(conn)}")
+            cls.CONFIGURATION_EXTENSIONS.append(conn)
+            # call registered cleanup functions
+            for func in cls._cleanup_funcs:
+                func()
 
     @classmethod
     def register_cleanup(cls, func):
@@ -163,6 +166,7 @@ class Configuration:
             desc=f"Loading preconfigured {obj0.__class__.__name__} instances"
         ):
             # filename is added to allow Factory creating reasonable default object identifiers
+            print(fname)
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
             result.append(obj)
 
