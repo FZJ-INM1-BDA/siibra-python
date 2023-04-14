@@ -225,8 +225,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         filter_children : bool, default: False
             If True, children of matched parents will not be returned
         find_topmost : bool, default: True
-            If True, will return parent structures if all children are matched,
-            even though the parent itself might not match the specification.
+            If True (requires `filter_children=True`), will return parent
+            structures if all children are matched, even though the parent
+            itself might not match the specification.
         Returns
         -------
         list[Region]
@@ -274,7 +275,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                         for r in filtered
                         if (r.parent is not None)
                         and all((c in filtered) for c in r.parent.children)
-                        and r.name != regionspec
                     }
                 )
 
@@ -295,7 +295,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         else:
             candidates = list(candidates)
 
-        found_regions = sorted(candidates, key=lambda r: r.depth)
+        found_regions = set(sorted(candidates, key=lambda r: r.depth))
 
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
         MEM[key] = (
