@@ -46,12 +46,7 @@ class Configuration:
 
     CONFIGURATION_EXTENSIONS = []
 
-    # lists of loaders for json specification files
-    # found in the siibra configuration, stored per
-    # preconfigured class name. These files can
-    # loaded and fed to the Factory.from_json
-    # to produce the corresponding object.
-    spec_loaders = defaultdict(list)
+
 
     _cleanup_funcs = []
 
@@ -63,6 +58,13 @@ class Configuration:
         }
 
     def __init__(self):
+
+        # lists of loaders for json specification files
+        # found in the siibra configuration, stored per
+        # preconfigured class name. These files can
+        # loaded and fed to the Factory.from_json
+        # to produce the corresponding object.
+        self.spec_loaders = defaultdict(list)
 
         # retrieve json spec loaders from the default configuration
         for connector in self.CONFIGURATIONS:
