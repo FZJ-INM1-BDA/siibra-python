@@ -27,9 +27,18 @@ if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
-class ParseLiveQueryIdException(Exception): pass
-class EncodeLiveQueryIdException(Exception): pass
-class NotFoundException(Exception): pass
+
+class ParseLiveQueryIdException(Exception):
+    pass
+
+
+class EncodeLiveQueryIdException(Exception):
+    pass
+
+
+class NotFoundException(Exception):
+    pass
+
 
 class Feature:
     """
@@ -39,7 +48,7 @@ class Feature:
     SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
 
     CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
-    
+
     category: str = None
 
     def __init__(
@@ -132,7 +141,7 @@ class Feature:
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
         ]
-        logger.debug(
+        logger.info(
             f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
             f"objects from {cls._configuration_folder}."
         )
@@ -172,7 +181,7 @@ class Feature:
     def encode_livequery_id(feat: 'Feature', concept: concept.AtlasConcept) -> str:
         if not hasattr(feat.__class__, '_live_queries'):
             raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
-        
+
         encoded_c = []
         if isinstance(concept, space.Space):
             encoded_c.append(f"s:{concept.id}")
@@ -183,43 +192,43 @@ class Feature:
             encoded_c.append(f"r:{concept.name}")
 
         if len(encoded_c) == 0:
-            raise EncodeLiveQueryIdException(f"no concept is encoded")
-        
+            raise EncodeLiveQueryIdException("no concept is encoded")
+
         return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
 
     @classmethod
     def decode_livequery_id(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
         lq_version, *rest = feature_id.split("::")
         if lq_version != "lq0":
-            raise ParseLiveQueryIdException(f"livequery id must start with lq0::")
-        
+            raise ParseLiveQueryIdException("livequery id must start with lq0::")
+
         clsname, *concepts, fid = rest
 
         Features = Cls.parse_featuretype(clsname)
-        
+
         if len(Features) == 0:
             raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
         F = Features[0]
 
-        concept=None
+        concept = None
         for c in concepts:
             if c.startswith("s:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException(f"Conflicting spec.")
+                    raise ParseLiveQueryIdException("Conflicting spec.")
                 concept = space.Space.registry()[c.replace("s:", "")]
             if c.startswith("p:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException(f"Conflicting spec.")
+                    raise ParseLiveQueryIdException("Conflicting spec.")
                 concept = parcellation.Parcellation.registry()[c.replace("p:", "")]
             if c.startswith("r:"):
                 if concept is None:
-                    raise ParseLiveQueryIdException(f"region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
+                    raise ParseLiveQueryIdException("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
                 if not isinstance(concept, parcellation.Parcellation):
-                    raise ParseLiveQueryIdException(f"region has been encoded, but previous encoded concept is not parcellation")
+                    raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
         if concept is None:
             raise ParseLiveQueryIdException(f"concept was not populated: {feature_id!r}")
-        
+
         return (F, concept, fid)
 
     @classmethod
@@ -235,7 +244,7 @@ class Feature:
     def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
         if not hasattr(cls, "_live_queries"):
             return []
-        
+
         live_instances = []
         for QueryType in cls._live_queries:
             argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
@@ -350,7 +359,7 @@ class Feature:
         class ProxyFeature(feature.__class__):
 
             # override __class__ property
-            # some instances of features accesses inst.__class__ 
+            # some instances of features accesses inst.__class__
             @property
             def __class__(self):
                 return self.inst.__class__
@@ -358,10 +367,10 @@ class Feature:
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
                 self.fid = fid
-            
+
             def __str__(self) -> str:
                 return self.inst.__str__()
-            
+
             def __repr__(self) -> str:
                 return self.inst.__repr__()
 
@@ -371,5 +380,5 @@ class Feature:
 
             def __getattr__(self, __name: str):
                 return getattr(self.inst, __name)
-            
+
         return ProxyFeature(feature, fid)
