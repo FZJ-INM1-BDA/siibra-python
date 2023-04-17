@@ -267,7 +267,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return self.parcellation.get_region(matches[0])
         else:
             # this should not happen, already tested in constructor
-            raise RuntimeError(f"Index {index} is not unique in {self}")
+            raise RuntimeError(f"Index {index} is not unique in {self}")
 
     @property
     def space(self):

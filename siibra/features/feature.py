@@ -169,7 +169,33 @@ class Feature:
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
     @staticmethod
-    def encode_livequery_id(feat: 'Feature', concept: concept.AtlasConcept) -> str:
+    def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
+        """
+        Serialize feature from livequery and query context. 
+
+        It is currently impossible to retrieve a livequery with a generic UUID.
+        As such, the query context (e.g. region, space or parcellation) needs to
+        be encoded in the id.
+
+        Whilst it is possible to (de)serialize *any* queries, the method is setup to only serialize
+        livequery features.
+
+        The serialized livequery id follows the following pattern:
+
+        <livequeryid_version>::<feature_cls_name>::<query_context>::<unserialized_id>
+        
+        Where:
+
+        - livequeryid_version: version of the serialization. (e.g. lq0)
+        - feature_cls_name: class name to query. (e.g. BigBrainIntensityProfile)
+        - query_context: string to retrieve atlas concept in the query context. Can be one of the following:
+            - s:<space_id>
+            - p:<parcellation_id>
+            - p:<parcellation_id>::r:<region_id>
+        - unserialized_id: id prior to serialization
+
+        See test/features/test_feature.py for tests and usages.
+        """
         if not hasattr(feat.__class__, '_live_queries'):
             raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
         
@@ -188,7 +214,12 @@ class Feature:
         return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
 
     @classmethod
-    def decode_livequery_id(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+    def deserialize_query_context(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+        """
+        Deserialize id into query context. 
+
+        See docstring of serialize_query_context for context.
+        """
         lq_version, *rest = feature_id.split("::")
         if lq_version != "lq0":
             raise ParseLiveQueryIdException(f"livequery id must start with lq0::")
@@ -246,7 +277,7 @@ class Feature:
             )
             q = QueryType(**kwargs)
             features = [
-                Feature.wrap_livequery_feature(feat, Feature.encode_livequery_id(feat, concept))
+                Feature.wrap_livequery_feature(feat, Feature.serialize_query_context(feat, concept))
                 for feat in q.query(concept)
             ]
             live_instances.extend(features)
@@ -306,7 +337,7 @@ class Feature:
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
         try:
-            F, concept, fid = cls.decode_livequery_id(feature_id)
+            F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
                 f
                 for f in F.livequery(concept, **kwargs)
@@ -347,6 +378,14 @@ class Feature:
 
     @staticmethod
     def wrap_livequery_feature(feature: 'Feature', fid: str):
+        """
+        Wrap live query features, override only the id attribute.
+
+        Some features do not have setters for the id property. The ProxyFeature class
+        allow the id property to be overridden without touching the underlying class.
+
+        See docstring of serialize_query_context for further context.
+        """
         class ProxyFeature(feature.__class__):
 
             # override __class__ property
