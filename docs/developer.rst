@@ -150,4 +150,13 @@ When `fetch()` is invoked it accesses to corresponding volume provider based on 
 - Always inform a user when there are options available and the default is chosen.
 
 
+Adding a new data feature flowchart
+===================================
+1) Is the new feature already described by the schema (in siibra-python)
+    - Yes: go to step 2
+    - No: create schema and PR to siibra-python main
+2) Create feature jsons and PR to brainscapes-configuration
+3) Create new tag on brainscapes-configuration
+4) Create feature class PR with bumped version on siibra-python
+
 .. include:: create_preconfiguration.rst
