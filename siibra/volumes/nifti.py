@@ -50,7 +50,6 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             self._img_loaders = {lbl: loader(url) for lbl, url in src.items()}
         else:
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
-
         if not isinstance(src, nib.Nifti1Image):
             self._init_url = src
 
@@ -95,9 +94,9 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.dot(np.linalg.inv(result_affine), np.r_[bbox.shape, 1])[:3]
-                result_arr = np.zeros((voxdims + .5).astype('int'))
-                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
+                voxdims = np.r_[bbox.transform(result_affine).shape].astype(img.dataobj.dtype)
+                result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
+                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine, dtype=img.dataobj.dtype)
 
             arr = np.asanyarray(img.dataobj)
             Xs, Ys, Zs = np.where(arr != 0)
