@@ -141,7 +141,7 @@ class Feature:
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
         ]
-        logger.info(
+        logger.debug(
             f"Built {len(cls._preconfigured_instances)} preconfigured {cls.__name__} "
             f"objects from {cls._configuration_folder}."
         )

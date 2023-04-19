@@ -167,8 +167,7 @@ class Configuration:
             total=len(specloaders),
             desc=f"Loading preconfigured {obj0.__class__.__name__} instances"
         ):
-            # filename is added to allow Factory creating reasonable default object identifiers
-            print(fname)
+            # filename is added to allow Factory creating reasonable default object identifiers\
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
             result.append(obj)
 
