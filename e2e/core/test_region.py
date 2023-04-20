@@ -20,7 +20,8 @@ regions_of_concern = [
 ]
 
 # Test duplicate named regions and regions with only child
-@pytest.mark.parametrize("par_region_tuple", regions_of_concern)
-def test_get_region(par_region_tuple):
-    region = siibra.get_region(par_region_tuple[0], par_region_tuple[1])
-    assert region.name == par_region_tuple[1]
+@pytest.mark.parametrize("parc_spec,region_name", regions_of_concern)
+def test_get_region(parc_spec,region_name):
+    region = siibra.get_region(parc_spec, region_name)
+    assert region
+    assert region.name == region_name
