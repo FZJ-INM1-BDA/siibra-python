@@ -22,7 +22,7 @@ def test_connectivity_get_matrix(f: RegionalConnectivity):
     assert isinstance(f, RegionalConnectivity)
     assert len(f.subjects) > 0
     assert all(isinstance(subject, str) for subject in f.subjects)
-    matrix_df = f.get_matrix(subject=FileNotFoundError)
+    matrix_df = f.get_matrix()
     assert all(matrix_df.index[i] == r for i, r in enumerate(matrix_df.columns))
     for subject in f.subjects:
         matrix_df = f.get_matrix(subject)
