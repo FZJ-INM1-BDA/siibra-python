@@ -42,3 +42,18 @@ def test_get_connectivity(concept, query_arg):
     features: List['RegionalConnectivity'] = siibra.features.get(concept, query_arg)
     assert len(features) > 0, f"Expecting some features exist, but none exist."
 
+def test_copy_is_returned():
+    feat:RegionalConnectivity = features[0]
+
+    # retrieve matrix
+    matrix = feat.get_matrix(feat.subjects[0])
+
+    # ensure new val to be put is different from prev val
+    prev_val = matrix.iloc[0, 0]
+    new_val = 42
+    assert new_val != prev_val
+    matrix.iloc[0, 0] = new_val
+
+    # retrieve matrix again
+    matrix_again = feat.get_matrix(feat.subjects[0])
+    assert matrix_again.iloc[0, 0] == prev_val
