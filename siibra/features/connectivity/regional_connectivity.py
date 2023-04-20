@@ -301,6 +301,7 @@ class RegionalConnectivity(Feature):
                 for label, region in indexmap.items()
             }
             df = df.rename(index=remapper).rename(columns=remapper)
+            assert all(df.index[i] == r for i, r in enumerate(df.columns))
         except:
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
