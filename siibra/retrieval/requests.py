@@ -396,8 +396,32 @@ class EbrainsRequest(HttpRequest):
         self.kwargs = {"headers": self.auth_headers, "params": self.params}
         return super().get()
 
+class EbrainsKgQuery:
+    def __init__(self, query_id: str, instance_id:str=None, schema="dataset", params={}):
+        assert schema == "dataset"
+        assert instance_id is not None
+        assert query_id in (
+            "interactiveViewerKgQuery-v1_0",
+        )
+        self.query_id = query_id
+        self.instance_id = instance_id
+        from .repositories import GitlabConnector
+        self.connector = GitlabConnector("https://jugit.fz-juelich.de", 7846, "master")
+        self._cached_data = None
 
-class EbrainsKgQuery(EbrainsRequest):
+    def get(self):
+        if self._cached_data is None:
+            folder = "ebrainsquery/v1/dataset"
+            filename = f"{self.instance_id}.json"
+            logger.info(f"Cached Ebrains Query: folder: {folder!r} filename: {filename!r}")
+            self._cached_data = self.connector.get(filename, folder, DECODERS[".json"])
+        return self._cached_data
+
+    @property
+    def data(self):
+        return self.get()
+
+class _EbrainsKgQuery(EbrainsRequest):
     """Request outputs from a knowledge graph query."""
 
     server = "https://kg.humanbrainproject.eu"
