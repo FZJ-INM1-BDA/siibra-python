@@ -259,30 +259,25 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
 
     def get_region(
         self,
-        regionspec: Union[str, int, MapIndex, region.Region],
+        regionspec: Union[str, region.Region],
         find_topmost: bool = True,
         allow_tuple: bool = False
     ):
         """
         Given a unique specification, return the corresponding region.
 
-        The spec could be a label index, a (possibly incomplete) name, or a
-        region object. This method is meant to definitely determine a valid
-        region. Therefore, if no match is found, it raises a ValueError.
-        If multiple matches are found, the method tries to return only the
-        common parent node. If there is no common parent, an exception is
-        raised, except when allow_tuple=True - then a tuple of matched regions
-        is returned.
+        The spec could be a (possibly incomplete) name, or a region object.
+        This method is meant to definitely determine a valid region. Therefore,
+        if no match is found, it raises a ValueError. If multiple matches are
+        found, the method tries to return only the common parent node. If there
+        is no common parent, an exception is raised, except when
+        allow_tuple=True - then a tuple of matched regions is returned.
 
         Parameters
         ----------
-        regionspec: str, regex, int, Region, MapIndex
+        regionspec: str, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
-            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
-            - a regex applied to region names
-            - an integer (interpreted as a labelindex)
             - a Region object
-            - a full MapIndex object
         find_topmost: bool, default: True
             If True, will automatically return the parent of a decoded region
             the decoded region is its only child.
@@ -302,6 +297,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         ValueError
             If the spec cannot be matched against any region
         """
+        assert isinstance(regionspec, (str, region.Region)), f"get_region takes str or Region but you provided {type(regionspec)}"
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
 
@@ -313,6 +309,10 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             }
         else:
             candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
+
+        exact_matches = [r for r in candidates if regionspec == r]
+        if len(exact_matches) == 1:
+            return exact_matches[0]
 
         if len(candidates) > 1 and isinstance(regionspec, str):
             # if we have an exact match of words in one region, discard other candidates.
@@ -333,7 +333,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             if allow_tuple:
                 return tuple(candidates)
             raise RuntimeError(
-                f"Spec {regionspec} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
+                f"Spec {regionspec!r} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
 
     def __str__(self):

@@ -167,7 +167,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     @property
     def names(self):
-        return {r.key for r in self}
+        return {r.name for r in self}
 
     def __eq__(self, other):
         """
@@ -221,8 +221,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         filter_children : bool, default: False
             If True, children of matched parents will not be returned
         find_topmost : bool, default: True
-            If True, will return parent structures if all children are matched,
-            even though the parent itself might not match the specification.
+            If True (requires `filter_children=True`), will return parent
+            structures if all children are matched, even though the parent
+            itself might not match the specification.
         Returns
         -------
         list[Region]
@@ -248,18 +249,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 search_regex = (f"(?{flags})" if flags else "") + expression
                 regionspec = re.compile(search_regex)
 
-            if regionspec in self.names:
-                # key is given, this gives us an exact region
-                match = anytree.search.find_by_attr(self, regionspec, name="key")
-                MEM[key] = [] if match is None else [match]
-                return list(MEM[key])
-
         candidates = list(
-            set(anytree.search.findall(self, lambda node: node.matches(regionspec)))
+            anytree.search.findall(self, lambda node: node.matches(regionspec))
         )
 
         if len(candidates) > 1 and filter_children:
-
             filtered = []
             for region in candidates:
                 children_included = [c for c in region.children if c in candidates]
@@ -285,7 +279,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 else:
                     # filter child regions again
                     filtered += complete_parents
-                    candidates = [r for r in filtered if r.parent not in filtered]
+                    candidates = [
+                        r for r in filtered
+                        if (r.parent not in filtered) or r == regionspec
+                    ]
             else:
                 candidates = filtered
 
@@ -297,12 +294,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         else:
             candidates = list(candidates)
 
-        found_regions = sorted(candidates, key=lambda r: r.depth)
+        found_regions = sorted(set(candidates), key=lambda r: r.depth)
 
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
         MEM[key] = (
             sorted(
-                set(found_regions),
+                found_regions,
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
