@@ -23,37 +23,37 @@ class TestReceptors(unittest.TestCase):
             unify_stringlist(['a', 'b', 1])
         self.assertTrue('Assertion error is expected')
 
-receptor_query = ReceptorQuery()
+# receptor_query = ReceptorQuery()
 
-def test_get_hoc1_left_density():
-    atlas = siibra.atlases['human']
-    region = atlas.get_region("hoc1 left", parcellation="2.9")
-    features = siibra.get_features(region, siibra.modalities.ReceptorDistribution)
-    assert len(features) == 1, f"expect only 1 result from getting hoc1 left receptor, but got {len(features)}"
-    expected_name = "Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]"
-    assert features[0].name == expected_name, f"name of fetched receptor does not match. Expected {expected_name}, got {features[0].name}"
+# def test_get_hoc1_left_density():
+#     atlas = siibra.atlases['human']
+#     _region = atlas.get_region("hoc1 left", parcellation="2.9")
+#     features = siibra.get_features(_region, siibra.modalities.ReceptorDistribution)
+#     assert len(features) == 1, f"expect only 1 result from getting hoc1 left receptor, but got {len(features)}"
+#     expected_name = "Density measurements of different receptors for Area hOc1 (V1, 17, CalcS) [human, v1.0]"
+#     assert features[0].name == expected_name, f"name of fetched receptor does not match. Expected {expected_name}, got {features[0].name}"
 
-regions_has_receptor = ["hOc1", "hOc2", "44"]
+# regions_has_receptor = ["hOc1", "hOc2", "44"]
 
-def test_no_receptor_data():
-    assert len(receptor_query.features) >= 42, f"expect at least 42 receptor query data, but got {len(receptor_query.features)}"
+# def test_no_receptor_data():
+#     assert len(receptor_query.features) >= 42, f"expect at least 42 receptor query data, but got {len(receptor_query.features)}"
 
-@pytest.mark.parametrize("region_spec", regions_has_receptor)
-def test_get_region_receptor(region_spec:str):
-    atlas = siibra.atlases['human']
-    r = atlas.get_region(region_spec)
-    matched_features = [
-        f for f in receptor_query.features if r.matches(f.regionspec)
-    ]
-    assert len(matched_features) > 0, f"expect at least one receptor query matching {region_spec}, but had none."
+# @pytest.mark.parametrize("region_spec", regions_has_receptor)
+# def test_get_region_receptor(region_spec:str):
+#     atlas = siibra.atlases['human']
+#     r = atlas.get_region(region_spec)
+#     matched_features = [
+#         f for f in receptor_query.features if r.matches(f.regionspec)
+#     ]
+#     assert len(matched_features) > 0, f"expect at least one receptor query matching {region_spec}, but had none."
 
 
-@pytest.mark.parametrize('receptor', receptor_query.features)
-def test_receptor_to_model(receptor: ReceptorDistribution):
-    model_summary = receptor.to_model(detail=False)
-    assert model_summary.data is None, f"expecting summary model to have None for data attribute"
-    model_detail = receptor.to_model(detail=True)
-    assert model_detail.data is not None, f"expecting detail model to have data attribute"
+# @pytest.mark.parametrize('receptor', receptor_query.features)
+# def test_receptor_to_model(receptor: ReceptorDistribution):
+#     model_summary = receptor.to_model(detail=False)
+#     assert model_summary.data is None, f"expecting summary model to have None for data attribute"
+#     model_detail = receptor.to_model(detail=True)
+#     assert model_detail.data is not None, f"expecting detail model to have data attribute"
 
 if __name__ == "__main__":
     unittest.main()

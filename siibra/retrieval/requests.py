@@ -397,12 +397,17 @@ class EbrainsRequest(HttpRequest):
         return super().get()
 
 class EbrainsKgQuery:
+    query_id_dict = {
+        "interactiveViewerKgQuery-v1_0": "ebrainsquery/v1/dataset",
+        "siibra-kg-feature-summary-0_0_4": "ebrainsquery/v1/parcellationregions"
+    }
     def __init__(self, query_id: str, instance_id:str=None, schema="dataset", params={}):
-        assert schema == "dataset"
-        assert instance_id is not None
-        assert query_id in (
-            "interactiveViewerKgQuery-v1_0",
+        assert schema in (
+            "dataset",
+            "parcellationregion"
         )
+        assert query_id in EbrainsKgQuery.query_id_dict
+        self.folder = EbrainsKgQuery.query_id_dict[query_id]
         self.query_id = query_id
         self.instance_id = instance_id
         from .repositories import GitlabConnector
@@ -411,10 +416,14 @@ class EbrainsKgQuery:
 
     def get(self):
         if self._cached_data is None:
-            folder = "ebrainsquery/v1/dataset"
-            filename = f"{self.instance_id}.json"
+            get_all_flag = self.instance_id is None
+            folder = self.folder
+            filename = f"{'_all' if get_all_flag else self.instance_id}.json"
             logger.info(f"Cached Ebrains Query: folder: {folder!r} filename: {filename!r}")
-            self._cached_data = self.connector.get(filename, folder, DECODERS[".json"])
+            data = self.connector.get(filename, folder, DECODERS[".json"])
+            if get_all_flag:
+                data = { "results": data }
+            self._cached_data = data
         return self._cached_data
 
     @property

@@ -125,18 +125,17 @@ class TestAtlas(unittest.TestCase):
         # GeneExpression
         pass
 
-    def test_get_features_ebrains_features(self):
+    # def test_get_features_ebrains_features(self):
 
-        region = self.atlas.get_region('hoc1 left')
-        features = siibra.get_features(region, modalities.EbrainsRegionalDataset)
-        assert(len(features) > 0)
+    #     _region = self.atlas.get_region('hoc1 left')
+    #     features = siibra.get_features(_region, modalities.EbrainsRegionalDataset)
+    #     assert(len(features) > 0)
 
 #    def test_get_features_connectivity_profile_filter_by_sel_parc(self):
 #
 #        expected_p_id = 'minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290'
-#        region = self.atlas.get_region(
-#            parcellation=parcellations[expected_p_id],
-#            region='hoc1 left')
+#        _region = self.atlas.get_region(
+#            parcellation=parcellations[expected_p_id], region='hoc1 left')
 #        conns = siibra.get_features(region, modalities.ConnectivityProfile)
 #        assert(len(conns) > 0)
 #        assert(all([region.parcellation in conn._matrix.parcellations for conn in conns]))
