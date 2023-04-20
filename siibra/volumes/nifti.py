@@ -96,7 +96,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
                 voxdims = np.asanyarray(bbox.transform(result_affine).shape, dtype="int")
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
-                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine, dtype=img.dataobj.dtype)
+                result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             arr = np.asanyarray(img.dataobj)
             Xs, Ys, Zs = np.where(arr != 0)
