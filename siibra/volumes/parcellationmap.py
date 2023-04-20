@@ -253,6 +253,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         Region
             A region object defined in the parcellation map.
         """
+        if isinstance(label, MapIndex) and index is None:
+            raise TypeError(f"Specify MapIndex with index keyword.")
         if index is None:
             index = MapIndex(volume, label)
         matches = [
