@@ -178,12 +178,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             return self.id == other.id
         elif isinstance(other, str):
             return any([self.name == other, self.key == other, self.id == other])
-        elif other is None:
-            return False
         else:
-            raise ValueError(
-                f"Cannot compare object of type {type(other)} to {self.__class__.__name__}"
-            )
+            return False
 
     def __hash__(self):
         return hash(self.id)
