@@ -94,7 +94,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.r_[bbox.transform(result_affine).shape].astype(img.dataobj.dtype)
+                voxdims = np.asanyarray(bbox.transform(result_affine).shape, dtype="int")
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine, dtype=img.dataobj.dtype)
 
