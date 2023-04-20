@@ -832,39 +832,39 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if len(assignments) == 0:
             df = pd.DataFrame(columns=columns)
         else:
-
-            # determine the unique set of observed indices in order to do region lookups
-            # only once for each map index occuring in the point list
-            labelled = self.is_labelled  # avoid calling this in a loop
-            observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
-                (
-                    a.get('volume'),
-                    a.get('fragment'),
-                    a.get('map value') if labelled else None
-                )
-                for a in assignments
-            }
-            region_lut = {  # lookup table of observed region objects
-                (v, f, l): self.get_region(
-                    index=MapIndex(
-                        volume=int(v),
-                        label=l if l is None else int(l),
-                        fragment=f
+            if 'map containedness' not in assignments[0]:
+                # determine the unique set of observed indices in order to do region lookups
+                # only once for each map index occuring in the point list
+                labelled = self.is_labelled  # avoid calling this in a loop
+                observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
+                    (
+                        a.get('volume'),
+                        a.get('fragment'),
+                        a.get('map value') if labelled else None
                     )
-                )
-                for v, f, l in observed_indices
-            }
+                    for a in assignments
+                }
+                region_lut = {  # lookup table of observed region objects
+                    (v, f, l): self.get_region(
+                        index=MapIndex(
+                            volume=int(v),
+                            label=l if l is None else int(l),
+                            fragment=f
+                        )
+                    )
+                    for v, f, l in observed_indices
+                }
 
-            for a in assignments:
-                a["region"] = region_lut[
-                    a.get('volume'),
-                    a.get('fragment'),
-                    a.get('map value') if labelled else None
-                ]
-                a['map containedness'] = a.pop('intersection over first', None)
-                a['input containedness'] = a.pop('intersection over second', None)
-                a['map weighted mean'] = a.pop('weighted mean of first', None)
-                a['input weighted mean'] = a.pop('weighted mean of second', None)
+                for a in assignments:
+                    a["region"] = region_lut[
+                        a.get('volume'),
+                        a.get('fragment'),
+                        a.get('map value') if labelled else None
+                    ]
+                    a['map containedness'] = a.pop('intersection over first', None)
+                    a['input containedness'] = a.pop('intersection over second', None)
+                    a['map weighted mean'] = a.pop('weighted mean of first', None)
+                    a['input weighted mean'] = a.pop('weighted mean of second', None)
             df = pd.DataFrame(assignments)
 
         return (
