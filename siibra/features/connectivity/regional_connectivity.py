@@ -129,14 +129,14 @@ class RegionalConnectivity(Feature):
                     )
                 ]
                 self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._matrices['mean']
+            return self._matrices['mean'].copy()
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
             raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
         if subject not in self._matrices:
             self._matrices[subject] = self._load_matrix(subject)
-        return self._matrices[subject]
+        return self._matrices[subject].copy()
 
     def plot_matrix(self, subject: str = None, regions: List[str] = None, logscale: bool = False, **kwargs):
         """

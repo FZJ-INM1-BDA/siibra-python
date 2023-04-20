@@ -113,14 +113,14 @@ class RegionalTimeseriesActivity(tabular.Tabular):
                     )
                 ]
                 self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._tables['mean']
+            return self._tables['mean'].copy()
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
             raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
         if subject not in self._tables:
             self._tables[subject] = self._load_table(subject)
-        return self._tables[subject]
+        return self._tables[subject].copy()
 
     def _load_table(self, subject: str):
         """
