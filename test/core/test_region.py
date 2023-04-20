@@ -1,6 +1,7 @@
 import unittest
-
+import pytest
 from siibra.core.region import Region
+from unittest.mock import patch, PropertyMock
 
 
 class TestRegion(unittest.TestCase):
@@ -55,6 +56,70 @@ class TestRegion(unittest.TestCase):
         new_region = Region.copy(self.child_region)
         self.assertFalse(new_region is self.child_region)
         self.assertEqual(new_region.parent, None)
+
+@pytest.fixture
+def regions_same_id():
+    region = TestRegion.get_instance("foo-bar")
+    region1 = TestRegion.get_instance("foo-bar")
+    with patch('siibra.core.region.Region.id', new_callable=PropertyMock) as mock_id_prop:
+        with patch('siibra.core.region.Region.key', new_callable=PropertyMock) as mock_key_prop:
+            mock_id_prop.return_value = 'baz'
+            mock_key_prop.return_value = 'baz.key'
+            yield [region, region1]
+
+@pytest.fixture
+def regions_different_id():
+    regions = [
+        TestRegion.get_instance("foo-bar"),
+        TestRegion.get_instance("foo-bar"),
+    ]
+    
+    with patch('siibra.core.region.Region.id', new_callable=PropertyMock) as mock_id_prop:
+        with patch('siibra.core.region.Region.key', new_callable=PropertyMock) as mock_key_prop:
+            mock_id_prop.side_effect = [
+                'foo',
+                'bar',
+            ]
+            mock_key_prop.side_effect = [
+                "foo.key",
+                "bar.key",
+            ]
+            yield regions
+
+def test_same_id_mock(regions_same_id):
+    for region in regions_same_id:
+        assert region.id == 'baz'
+        assert region.key == "baz.key"
+
+def test_diff_id_mock(regions_different_id):
+    id_set = set()
+    for region in regions_different_id:
+        r_id = region.id
+        assert f"{r_id}.key" == region.key
+        id_set.add(r_id)
+    assert len(id_set) == 2
+
+@pytest.mark.parametrize('regions_same_id,compare_to,expected', [
+    ["region-standin", "baz", True ],
+    ["region-standin", "baz.key", True ],
+    ["region-standin", "foo-bar", True ],
+    ["region-standin", "hello world", False ],
+    ["region-standin", None, False ],
+    ["region-standin", [], False ],
+    ["region-standin", set(), False ],
+    ["region-standin", {}, False ],
+], indirect=["regions_same_id"])
+def test_eq_str(regions_same_id,compare_to,expected):
+    for region in regions_same_id:
+        actual = (region == compare_to)
+        assert actual == expected
+
+def test_eq_region_same_id(regions_same_id):
+    assert regions_same_id[0] == regions_same_id[1]
+    
+def test_eq_region_diff_id(regions_different_id):
+    assert regions_different_id[0] != regions_different_id[1]
+    
 
 # TODO move these into int tests
 
