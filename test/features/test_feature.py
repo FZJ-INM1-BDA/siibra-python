@@ -27,12 +27,12 @@ list_of_queries = [
 ]
 
 @pytest.mark.parametrize("feature,concept,ExCls,expected_id", list_of_queries)
-def test_encode_livequery_id(feature,concept,ExCls,expected_id):
+def test_serialize_query_context(feature,concept,ExCls,expected_id):
     if ExCls:
         with pytest.raises(ExCls):
-            Feature.encode_livequery_id(feature, concept)
+            Feature.serialize_query_context(feature, concept)
         return
-    actual_id = Feature.encode_livequery_id(feature, concept)
+    actual_id = Feature.serialize_query_context(feature, concept)
     assert actual_id == expected_id
 
 lq_prefix="lq0"
@@ -105,14 +105,14 @@ list_of_fids = [
 ]
 
 @pytest.mark.parametrize("fid,ExCls,mocks_called,args_used,return_concept,decoded_id", list_of_fids)
-def test_decode_livequery_id(fid,ExCls,mocks_called,args_used,return_concept,decoded_id, mock_all):
+def test_deserialize_query_context(fid,ExCls,mocks_called,args_used,return_concept,decoded_id, mock_all):
     mock_parse_featuretype, mock_space_registry, mock_parcellation, mock_region = mock_all
     if ExCls:
         with pytest.raises(ExCls):
-            Feature.decode_livequery_id(fid)
+            Feature.deserialize_query_context(fid)
         return
     
-    F, concept, fid = Feature.decode_livequery_id(fid)
+    F, concept, fid = Feature.deserialize_query_context(fid)
 
     mock_parse_featuretype.assert_called_once()
 

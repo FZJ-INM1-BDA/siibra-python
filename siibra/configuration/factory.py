@@ -278,7 +278,7 @@ class Factory:
         else:
             max_z = max(
                 d.get('z', 0)
-                for _, l in spec.get("indices", {}).items()
+                for l in spec.get("indices", {}).values()
                 for d in l
             ) + 1
             if max_z > MIN_VOLUMES_FOR_SPARSE_MAP:
