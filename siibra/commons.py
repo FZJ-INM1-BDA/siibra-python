@@ -22,6 +22,7 @@ from tqdm import tqdm
 import numpy as np
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -43,6 +44,14 @@ SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
 
+@dataclass
+class CompareMapsResult:
+    intersection_over_union: float
+    intersection_over_first: float
+    intersection_over_second: float
+    correlation: float
+    weighted_mean_of_first: float
+    weighted_mean_of_second: float
 
 T = TypeVar("T")
 
@@ -237,8 +246,9 @@ QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
 
-def siibra_tqdm(*args, **kwargs):
+def siibra_tqdm(iterable: Iterable[T]=None, *args, **kwargs):
     return tqdm(
+        iterable,
         *args,
         disable=kwargs.pop("disable", False) or (logger.level > 20),
         **kwargs
@@ -423,14 +433,14 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     m1, m2 = ((_ > 0).astype("uint8") for _ in [v1, v2])
     intersection = np.minimum(m1, m2).sum()
     if intersection == 0:
-        return {
-            "intersection over union": 0,
-            "intersection over first": 0,
-            "intersection over second": 0,
-            "correlation": 0,
-            "weighted mean of first": 0,
-            "weighted mean of second": 0,
-        }
+        return CompareMapsResult(
+            intersection_over_union=0,
+            intersection_over_first=0,
+            intersection_over_second=0,
+            correlation=0,
+            weighted_mean_of_first=0,
+            weighted_mean_of_second=0,
+        )
 
     # Compute the nonzero voxels in map1 with their correspondences in map2
     XYZnz1 = nonzero_coordinates(a1)
@@ -464,15 +474,14 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
 
     bx = (x > 0).astype("uint8")
     by = (y > 0).astype("uint8")
-
-    return {
-        "intersection over union": intersection / np.maximum(bx, by).sum(),
-        "intersection over first": intersection / N1,
-        "intersection over second": intersection / N2,
-        "correlation": r,
-        "weighted mean of first": np.sum(x * y) / np.sum(y),
-        "weighted mean of second": np.sum(x * y) / np.sum(x),
-    }
+    return CompareMapsResult(
+        intersection_over_union=intersection / np.maximum(bx, by).sum(),
+        intersection_over_first=intersection / N1,
+        intersection_over_second=intersection / N2,
+        correlation=r,
+        weighted_mean_of_first=np.sum(x * y) / np.sum(y),
+        weighted_mean_of_second=np.sum(x * y) / np.sum(x),
+    )
 
 
 class PolyLine:

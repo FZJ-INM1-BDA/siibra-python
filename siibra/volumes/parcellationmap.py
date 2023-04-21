@@ -25,39 +25,48 @@ from ..commons import (
     create_key,
     create_gaussian_kernel,
     siibra_tqdm,
-    Species
+    Species,
+    CompareMapsResult
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
+from dataclasses import dataclass, asdict
 
 if TYPE_CHECKING:
     from ..core.region import Region
 
 
-class ExcessiveArgumentException(ValueError):
-    pass
+class ExcessiveArgumentException(ValueError): pass
 
 
-class InsufficientArgumentException(ValueError):
-    pass
+class InsufficientArgumentException(ValueError): pass
 
 
-class ConflictingArgumentException(ValueError):
-    pass
+class ConflictingArgumentException(ValueError): pass
 
 
-class NonUniqueIndexError(RuntimeError):
-    pass
+class NonUniqueIndexError(RuntimeError): pass
 
+@dataclass
+class Assignment:
+    input_structure: int
+    centroid: Union[Tuple[np.ndarray], point.Point] 
+    volume: int
+    fragment: str
+    map_value: np.ndarray
+
+
+@dataclass
+class AssignImageResult(CompareMapsResult, Assignment): pass
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -752,6 +761,27 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for pointindex, value
                 in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
             ]
+        
+    def _assign(
+        self,
+        item: Union[point.Point, pointset.PointSet, Nifti1Image],
+        minsize_voxel=1,
+        lower_threshold=0.0
+    ) -> List[Union[Assignment,AssignImageResult]]:
+        """
+        For internal use only. Returns a dataclass, which provides better static type checking.
+        """
+        
+        if isinstance(item, point.Point):
+            return self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+        if isinstance(item, pointset.PointSet):
+            return self._assign_points(item, lower_threshold)
+        if isinstance(item, Nifti1Image):
+            return self._assign_image(item, minsize_voxel, lower_threshold)
+        
+        raise RuntimeError(
+            f"Items of type {item.__class__.__name__} cannot be used for region assignment."
+        )
 
     def assign(
         self,
@@ -805,16 +835,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             a Point or PointSet, returns None.
         """
 
-        if isinstance(item, point.Point):
-            assignments = self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
-        elif isinstance(item, pointset.PointSet):
-            assignments = self._assign_points(item, lower_threshold)
-        elif isinstance(item, Nifti1Image):
-            assignments = self._assign_image(item, minsize_voxel, lower_threshold)
-        else:
-            raise RuntimeError(
-                f"Items of type {item.__class__.__name__} cannot be used for region assignment."
-            )
+        assignments = self._assign(item, minsize_voxel, lower_threshold)
 
         # format assignments as pandas dataframe
         columns = [
@@ -832,50 +853,82 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             "input containedness"
         ]
         if len(assignments) == 0:
-            df = pd.DataFrame(columns=columns)
-        else:
-
-            # determine the unique set of observed indices in order to do region lookups
-            # only once for each map index occuring in the point list
-            labelled = self.is_labelled  # avoid calling this in a loop
-            observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
-                (
-                    a.get('volume'),
-                    a.get('fragment'),
-                    a.get('map value') if labelled else None
+            return pd.DataFrame(columns=columns)
+        # determine the unique set of observed indices in order to do region lookups
+        # only once for each map index occuring in the point list
+        labelled = self.is_labelled  # avoid calling this in a loop
+        observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
+            (
+                a.volume,
+                a.fragment,
+                a.map_value if labelled else None
+            )
+            for a in assignments
+        }
+        region_lut = {  # lookup table of observed region objects
+            (v, f, l): self.get_region(
+                index=MapIndex(
+                    volume=int(v),
+                    label=l if l is None else int(l),
+                    fragment=f
                 )
-                for a in assignments
-            }
-            region_lut = {  # lookup table of observed region objects
-                (v, f, l): self.get_region(
-                    index=MapIndex(
-                        volume=int(v),
-                        label=l if l is None else int(l),
-                        fragment=f
-                    )
-                )
-                for v, f, l in observed_indices
-            }
+            )
+            for v, f, l in observed_indices
+        }
 
-            for a in assignments:
-                a["region"] = region_lut[
-                    a.get('volume'),
-                    a.get('fragment'),
-                    a.get('map value') if labelled else None
-                ]
-                a['map containedness'] = a.pop('intersection over first', None)
-                a['input containedness'] = a.pop('intersection over second', None)
-                a['map weighted mean'] = a.pop('weighted mean of first', None)
-                a['input weighted mean'] = a.pop('weighted mean of second', None)
-            df = pd.DataFrame(assignments)
-
+        dataframe_list = []
+        for a in assignments:
+            item_to_append = {
+                "input structure": a.input_structure,
+                "centroid": a.centroid,
+                "volume": a.volume,
+                "fragment": a.fragment,
+                "region": region_lut[
+                    a.volume,
+                    a.fragment,
+                    a.map_value if labelled else None
+                ],
+            }
+            # because AssignImageResult is a subclass of Assignment
+            # need to check for isinstance AssignImageResult first
+            if isinstance(a, AssignImageResult):
+                item_to_append = {
+                    **item_to_append,
+                    **{
+                        "correlation": a.correlation,
+                        "intersection over union": a.intersection_over_union,
+                        "map value": a.map_value,
+                        "map weighted mean": a.weighted_mean_of_first,
+                        "map containedness": a.intersection_over_first,
+                        "input weighted mean": a.weighted_mean_of_second,
+                        "input containedness": a.intersection_over_second,
+                    }
+                }
+            elif isinstance(a, Assignment):
+                item_to_append = {
+                    **item_to_append,
+                    **{
+                        "correlation": None,
+                        "intersection over union": None,
+                        "map value": None,
+                        "map weighted mean": None,
+                        "map containedness": None,
+                        "input weighted mean": None,
+                        "input containedness": None,
+                    }
+                }
+            else:
+                raise RuntimeError(f"assignments must be of type Assignment or AssignImageResult!")
+            
+            dataframe_list.append(item_to_append)
+        df = pd.DataFrame(dataframe_list)
         return (
             df
             .convert_dtypes()  # convert will guess numeric column types
             .reindex(columns=columns)
         )
 
-    def _assign_points(self, points, lower_threshold: float):
+    def _assign_points(self, points:pointset.PointSet, lower_threshold: float) -> List[Assignment]:
         """
         assign a PointSet to this parcellation map.
 
@@ -909,13 +962,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            {
-                                "input structure": pointindex,
-                                "centroid": tuple(np.array(position).round(2)),
-                                "volume": vol,
-                                "fragment": frag,
-                                "map value": value
-                            }
+                            Assignment(
+                                input_structure=pointindex,
+                                centroid=tuple(np.array(position).round(2)),
+                                volume=vol,
+                                fragment=frag,
+                                map_value=value
+                            )
                         )
                 return assignments
 
@@ -936,13 +989,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            {
-                                "input structure": pointindex,
-                                "centroid": tuple(pt),
-                                "volume": vol,
-                                "fragment": frag,
-                                "map value": value
-                            }
+                            Assignment(
+                                input_structure=pointindex,
+                                centroid=tuple(pt),
+                                volume=vol,
+                                fragment=frag,
+                                map_value=value
+                            )
                         )
             else:
                 logger.info(
@@ -956,13 +1009,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                for entry in self.assign(W, lower_threshold=lower_threshold).T.to_dict().values():
-                    entry["input structure"] = pointindex
-                    entry["centroid"] = tuple(pt)
+                for entry in self._assign(W, lower_threshold=lower_threshold):
+                    entry.input_structure=pointindex
+                    entry.centroid=tuple(pt)
                     assignments.append(entry)
         return assignments
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
@@ -1017,14 +1070,16 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             targetimg = vol_img if label is None \
                                 else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
                             scores = compare_maps(maskimg, targetimg)
-                            if scores["intersection over union"] > 0:
-                                info = {
-                                    "input structure": mode,
-                                    "centroid": tuple(position.round(2)),
-                                    "volume": vol,
-                                    "fragment": frag,
-                                    "map value": label
-                                }
-                                assignments.append(dict(**info, **scores))
+                            if scores.intersection_over_union > 0:
+                                assignments.append(
+                                    AssignImageResult(
+                                        input_structure=mode,
+                                        centroid=tuple(position.round(2)),
+                                        volume=vol,
+                                        fragment=frag,
+                                        map_value=label,
+                                        **asdict(scores)
+                                    )
+                                )
 
         return assignments

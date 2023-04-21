@@ -21,7 +21,7 @@ from ..retrieval import cache
 
 from os import path
 import gzip
-from typing import Dict, Union, TYPE_CHECKING
+from typing import Dict, Union, TYPE_CHECKING, List
 from nilearn import image
 from nibabel import Nifti1Image, load
 import numpy as np
@@ -362,7 +362,7 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
@@ -471,19 +471,19 @@ class SparseMap(parcellationmap.Map):
                 maxval = v1.max()
 
                 assignments.append(
-                    {
-                        "input structure": mode,
-                        "centroid": tuple(position.round(2)),
-                        "volume": volume,
-                        "fragment": None,
-                        "map value": maxval,
-                        "intersection over union": iou,
-                        "intersection over first": intersection / (v1 > 0).sum(),
-                        "intersection over second": intersection / (v2 > 0).sum(),
-                        "correlation": rho,
-                        "weighted mean of first": np.sum(v1 * v2) / np.sum(v2),
-                        "weighted mean of second": np.sum(v1 * v2) / np.sum(v1)
-                    }
+                    parcellationmap.AssignImageResult(
+                        input_structure=mode,
+                        centroid=tuple(position.round(2)),
+                        volume=volume,
+                        fragment=None,
+                        map_value=maxval,
+                        intersection_over_union=iou,
+                        intersection_over_first=intersection / (v1 > 0).sum(),
+                        intersection_over_second=intersection / (v2 > 0).sum(),
+                        correlation=rho,
+                        weighted_mean_of_first=np.sum(v1 * v2) / np.sum(v2),
+                        weighted_mean_of_second=np.sum(v1 * v2) / np.sum(v1)
+                    )
                 )
 
         return assignments
