@@ -21,7 +21,7 @@ from ..retrieval import cache
 
 from os import path
 import gzip
-from typing import Dict, Union, TYPE_CHECKING
+from typing import Dict, Union, TYPE_CHECKING, List
 from nilearn import image
 from nibabel import Nifti1Image, load
 import numpy as np
@@ -362,7 +362,7 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float):
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
