@@ -246,7 +246,7 @@ QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
 
-def siibra_tqdm(iterable: Iterable[T], *args, **kwargs) -> Iterable[T]:
+def siibra_tqdm(iterable: Iterable[T]=None, *args, **kwargs):
     return tqdm(
         iterable,
         *args,
