@@ -50,3 +50,22 @@ containedness = [
 def test_containedness(point,map:Map,query):
     assignments = map.assign(point)
     assert len(assignments.query(query)) > 0
+
+# TODO: when merging neuroglancer/precomputed is supported, add to the list
+maps_w_fragments = [
+    (siibra.get_map("julich 2.9", "mni152", "labelled"),
+        ["nii"]
+    ),
+    (siibra.get_map("julich 2.9", "colin", "labelled"),
+        ["nii"]
+    ),
+]
+
+@pytest.mark.parametrize('siibramap, formats', maps_w_fragments)
+def test_merged_fragment_shape(siibramap: Map, formats):
+    for format in formats:
+        vol_l = siibramap.fetch(fragment="left hemisphere", format=format)
+        vol_r = siibramap.fetch(fragment="right hemisphere", format=format)
+        vol_b = siibramap.fetch(format=format)  # auto-merged map
+        assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype
+        assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
