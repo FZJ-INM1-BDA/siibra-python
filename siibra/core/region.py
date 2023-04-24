@@ -24,6 +24,7 @@ from ..commons import (
     affine_scaling,
     create_key,
     clear_name,
+    siibra_tqdm,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
@@ -436,7 +437,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             dataobj = None
             affine = None
             if all(c.mapped_in_space(fetch_space) for c in self.children):
-                for c in self.children:
+                for c in siibra_tqdm(
+                    self.children,
+                    desc=f"Building mask of {self.name}",
+                    leave=False,
+                    unit=" child region"
+                ):
                     mask = c.fetch_regional_map(fetch_space, maptype, threshold)
                     if dataobj is None:
                         dataobj = np.asanyarray(mask.dataobj)
