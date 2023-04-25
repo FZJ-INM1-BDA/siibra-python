@@ -35,6 +35,8 @@
                 "const": "RestingState"
             }, {
                 "const": "StreamlineLengths"
+            }, {
+                "const": "Tracer"
             }]
         }
     }
