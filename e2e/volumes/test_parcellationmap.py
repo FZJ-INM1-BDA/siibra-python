@@ -3,6 +3,7 @@ import siibra
 
 from siibra import MapType
 from siibra.volumes import Map
+from siibra.volumes.sparsemap import SparseMap
 from siibra.volumes.volume import Subvolume
 
 maps_to_compress = [
@@ -69,3 +70,10 @@ def test_merged_fragment_shape(siibramap: Map, formats):
         vol_b = siibramap.fetch(format=format)  # auto-merged map
         assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype
         assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
+
+def test_sparsemap_cache_uniqueness():
+    mapnames = {}
+    for mp in siibra.volumes.parcellationmap.Map.registry():
+        if isinstance(mp, SparseMap):
+            mapnames[mp] = f"{mp.parcellation.id}_{mp.space.id}_{mp.maptype}_{mp.name}_index"
+    assert len(mapnames.keys()) == len(set(mapnames.values()))

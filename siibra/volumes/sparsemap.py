@@ -245,7 +245,7 @@ class SparseMap(parcellationmap.Map):
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
-            prefix = f"{self.name}_index"
+            prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
             spind = SparseIndex.from_cache(prefix)
             with _volume.SubvolumeProvider.UseCaching():
                 if spind is None:
