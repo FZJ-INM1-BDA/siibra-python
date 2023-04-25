@@ -50,7 +50,6 @@ jobs:
       # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
       FOO: BAR
-      SIIBRA_CACHEDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -84,6 +83,7 @@ jobs:
     - name: Run test with pytest
       shell: bash
       run: |
+        export SIIBRA_CACHEDIR=${{ runner.temp }}
         echo "Using github.ref: $GITHUB_REF"
         if [[ "$GITHUB_REF" != "refs/heads/main" ]]
         then
