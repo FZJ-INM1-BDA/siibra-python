@@ -50,6 +50,7 @@ jobs:
       # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
       FOO: BAR
+      SIIBRA_CACHEDIR: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +63,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Cache SIIBRA_CACHEDIR
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.temp }}
+        key: ${{ runner.os }}
+        restore-keys: |
+          ${{ runner.os }}
+          
     - name: Install dependencies
       shell: bash
       run: |
