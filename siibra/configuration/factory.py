@@ -435,7 +435,7 @@ class Factory:
     def build_connectivity_matrix(cls, spec):
         modality = spec["modality"]
         kwargs = {
-            "cohort": spec["cohort"],
+            "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
