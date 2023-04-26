@@ -245,10 +245,10 @@ class SparseMap(parcellationmap.Map):
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
-            prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_index"
+            prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
             spind = SparseIndex.from_cache(prefix)
-            with _volume.SubvolumeProvider.UseCaching():
-                if spind is None:
+            if spind is None:
+                with _volume.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
                     for vol in siibra_tqdm(
                         range(len(self)), total=len(self), unit="maps",
@@ -262,8 +262,8 @@ class SparseMap(parcellationmap.Map):
                             logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                             continue
                         spind.add_img(img)
-                spind.to_cache(prefix)
-                self._sparse_index_cached = spind
+                    spind.to_cache(prefix)
+            self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
 
