@@ -62,6 +62,15 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Cache SIIBRA_CACHEDIR
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.temp }}
+        key: ${{ runner.os }}
+        restore-keys: |
+          ${{ runner.os }}
+          
     - name: Install dependencies
       shell: bash
       run: |
@@ -74,6 +83,7 @@ jobs:
     - name: Run test with pytest
       shell: bash
       run: |
+        export SIIBRA_CACHEDIR=${{ runner.temp }}
         echo "Using github.ref: $GITHUB_REF"
         if [[ "$GITHUB_REF" != "refs/heads/main" ]]
         then

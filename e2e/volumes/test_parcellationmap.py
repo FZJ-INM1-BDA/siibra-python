@@ -6,6 +6,8 @@ from siibra.volumes import Map
 from siibra.volumes.sparsemap import SparseMap
 from siibra.volumes.volume import Subvolume
 
+from itertools import product
+
 maps_to_compress = [
     siibra.get_map("2.9", "mni152"), # contains fragments
     siibra.get_map("difumo 64", "mni152", MapType.STATISTICAL), # contains subvolumes
@@ -53,27 +55,24 @@ def test_containedness(point,map:Map,query):
     assert len(assignments.query(query)) > 0
 
 # TODO: when merging neuroglancer/precomputed is supported, add to the list
-maps_w_fragments = [
-    (siibra.get_map("julich 2.9", "mni152", "labelled"),
-        ["nii"]
+maps_w_fragments = product(
+    (
+        siibra.get_map("julich 2.9", "mni152", "labelled"),
+        siibra.get_map("julich 2.9", "colin", "labelled")
     ),
-    (siibra.get_map("julich 2.9", "colin", "labelled"),
-        ["nii"]
-    ),
-]
+    ("nii",)
+)
 
-@pytest.mark.parametrize('siibramap, formats', maps_w_fragments)
-def test_merged_fragment_shape(siibramap: Map, formats):
-    for format in formats:
-        vol_l = siibramap.fetch(fragment="left hemisphere", format=format)
-        vol_r = siibramap.fetch(fragment="right hemisphere", format=format)
-        vol_b = siibramap.fetch(format=format)  # auto-merged map
-        assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype
-        assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
+@pytest.mark.parametrize('siibramap, format', maps_w_fragments)
+def test_merged_fragment_shape(siibramap: Map, format):
+    vol_l = siibramap.fetch(fragment="left hemisphere", format=format)
+    vol_r = siibramap.fetch(fragment="right hemisphere", format=format)
+    vol_b = siibramap.fetch(format=format)  # auto-merged map
+    assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype
+    assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
 
 def test_sparsemap_cache_uniqueness():
-    mapnames = {}
-    for mp in siibra.volumes.parcellationmap.Map.registry():
-        if isinstance(mp, SparseMap):
-            mapnames[mp] = f"{mp.parcellation.id}_{mp.space.id}_{mp.maptype}_{mp.name}_index"
-    assert len(mapnames.keys()) == len(set(mapnames.values()))
+    
+    mp157 = siibra.get_map("julich 3.0", "colin 27", "statistical", spec="157")
+    mp175 = siibra.get_map("julich 3.0", "colin 27", "statistical", spec="175")
+    assert mp157.sparse_index.probs[0] != mp175.sparse_index.probs[0]
