@@ -204,7 +204,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
 class RegionalBOLD(
     RegionalTimeseriesActivity,
     configuration_folder="features/tabular/activity_timeseries/bold",
-    category="activity_timeseries"
+    category="functional"
 ):
     """
     Blood-oxygen-level-dependent (BOLD) signals per region.
