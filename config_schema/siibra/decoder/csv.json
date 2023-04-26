@@ -17,6 +17,8 @@
                 "type": "string"
             }, {
                 "type": "null"
+            }, {
+                "type": "integer"
             }]
         },
         "index_col": {
