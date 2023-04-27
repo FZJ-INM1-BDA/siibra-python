@@ -15,7 +15,7 @@ class DCls:
 
 @pytest.fixture
 def mock_sparse_index_from_cache():
-    with patch.object(SparseIndex, 'from_cache') as mock:
+    with patch.object(SparseIndex, '_from_cache') as mock:
         yield mock
 
 @pytest.fixture
@@ -33,10 +33,9 @@ def mock_map_fetch():
     with patch('siibra.volumes.parcellationmap.Map.fetch') as mock:
         yield mock
 
-
 @pytest.fixture
-def mock_parse_index_to_cache():
-    with patch.object(SparseIndex, 'to_cache') as mock:
+def mock_sparse_index_to_cache():
+    with patch.object(SparseIndex, '_to_cache') as mock:
         yield mock
 
 @pytest.fixture
@@ -58,8 +57,8 @@ def sparse_map_inst():
 
 
 @pytest.fixture
-def test_sparse_idx_mocks(sparse_map_inst, mock_sparse_map_spc_parc,mock_sparse_index_from_cache, mock_map_fetch, mock_parse_index_to_cache, mock_sparse_index_add_img):
-    yield (sparse_map_inst, *mock_sparse_map_spc_parc, mock_sparse_index_from_cache, mock_map_fetch, mock_parse_index_to_cache, mock_sparse_index_add_img)
+def test_sparse_idx_mocks(sparse_map_inst, mock_sparse_map_spc_parc, mock_sparse_index_from_cache, mock_map_fetch, mock_sparse_index_to_cache, mock_sparse_index_add_img):
+    yield (sparse_map_inst, *mock_sparse_map_spc_parc, mock_sparse_index_from_cache, mock_map_fetch, mock_sparse_index_to_cache, mock_sparse_index_add_img)
 
 @pytest.mark.parametrize('test_sparse_idx_mocks,mem_cache_flag,disk_cached_flag',
                          product(
@@ -69,7 +68,7 @@ def test_sparse_idx_mocks(sparse_map_inst, mock_sparse_map_spc_parc,mock_sparse_
                          ),
                          indirect=["test_sparse_idx_mocks"])
 def test_sparse_index(test_sparse_idx_mocks,mem_cache_flag,disk_cached_flag):
-    sparse_map_inst, spc_mock, parc_mock, mock_sparse_index_from_cache, mock_map_fetch, mock_parse_index_to_cache, mock_sparse_index_add_img = test_sparse_idx_mocks
+    sparse_map_inst, spc_mock, parc_mock, mock_sparse_index_from_cache, mock_map_fetch, mock_sparse_index_to_cache, mock_sparse_index_add_img = test_sparse_idx_mocks
     assert isinstance(sparse_map_inst, SparseMap)
 
     mock_map_fetch.return_value = DCls(hello="world")
@@ -97,13 +96,13 @@ def test_sparse_index(test_sparse_idx_mocks,mem_cache_flag,disk_cached_flag):
                     if mem_cache_flag:
                         mock_sparse_index_from_cache.assert_not_called()
                         mock_map_fetch.assert_not_called()
-                        mock_parse_index_to_cache.assert_not_called()
+                        mock_sparse_index_to_cache.assert_not_called()
                         mock_sparse_index_add_img.assert_not_called()
                         return
                     if disk_cached_flag:
                         mock_sparse_index_from_cache.assert_called_once()
                         mock_map_fetch.assert_not_called()
-                        mock_parse_index_to_cache.assert_not_called()
+                        mock_sparse_index_to_cache.assert_not_called()
                         mock_sparse_index_add_img.assert_not_called()
                         return
             
@@ -116,7 +115,7 @@ def test_sparse_index(test_sparse_idx_mocks,mem_cache_flag,disk_cached_flag):
                     mock_sparse_index_from_cache.assert_called_once()
                     mock_map_fetch.assert_called()
                     mock_sparse_index_add_img.assert_called()
-                    mock_parse_index_to_cache.assert_called_once()
+                    mock_sparse_index_to_cache.assert_called_once()
 
 
 def test_sparse_index_prefixes(mock_sparse_map_spc_parc, mock_sparse_index_from_cache):
