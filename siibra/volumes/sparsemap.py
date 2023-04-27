@@ -18,8 +18,10 @@ from . import parcellationmap, volume as _volume
 from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
+from ..retrieval.repositories import ZipfileConnector
 
-from os import path
+from os import path, rename
+from zipfile import ZipFile
 import gzip
 from typing import Dict, Union, TYPE_CHECKING, List
 from nilearn import image
@@ -109,7 +111,7 @@ class SparseIndex:
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    def to_cache(self, prefix: str):
+    def _to_cache(self, prefix: str):
         """
         Serialize this index to the cache, using the given prefix for the cache
         filenames.
@@ -131,7 +133,7 @@ class SparseIndex:
                 )
 
     @classmethod
-    def from_cache(cls, prefix: str):
+    def _from_cache(cls, prefix: str):
         """
         Attempts to build a sparse index from the siibra cache, looking for
         suitable cache files with the specified prefix.
@@ -224,6 +226,8 @@ class SparseMap(parcellationmap.Map):
         modality: str = None,
         publications: list = [],
         datasets: list = [],
+        is_cached: bool = False,
+        cache_url: str = "",
     ):
         parcellationmap.Map.__init__(
             self,
@@ -239,14 +243,21 @@ class SparseMap(parcellationmap.Map):
             datasets=datasets,
             volumes=volumes,
         )
-
         self._sparse_index_cached = None
+        self._sparseindex_zip_url = cache_url if is_cached else ""
 
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
             prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
-            spind = SparseIndex.from_cache(prefix)
+            spind = SparseIndex._from_cache(prefix)
+            if spind is None and len(self._sparseindex_zip_url) > 0:
+                try:
+                    spind = self.load_zipped_sparseindex(
+                        self._sparseindex_zip_url
+                    )
+                except:
+                    logger.info("Could not load SparseIndex from precomputed source.")
             if spind is None:
                 with _volume.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
@@ -262,7 +273,7 @@ class SparseMap(parcellationmap.Map):
                             logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                             continue
                         spind.add_img(img)
-                    spind.to_cache(prefix)
+                    spind._to_cache(prefix)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
@@ -274,6 +285,38 @@ class SparseMap(parcellationmap.Map):
     @property
     def shape(self):
         return self.sparse_index.shape
+
+    def load_zipped_sparseindex(self, zip_dest: str):
+        """
+        Load SparseIndex from previously computed source.
+
+        Parameters
+        ----------
+        zip_dest: str
+            Url or local path to zip file containing the SparseIndex files
+            precomputed by siibra.
+
+        Returns
+        -------
+        SparseIndex
+        """
+        cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
+        self._sparse_index_cached = SparseIndex._from_cache(cache_prefix)
+        if self._sparse_index_cached is not None:
+            return self._sparse_index_cached
+
+        connector = ZipfileConnector(zip_dest)
+        suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
+        for suffix in suffices:
+            localcache_fname = cache.CACHE.build_filename(cache_prefix, suffix=suffix)
+            file = connector.search_files(suffix=suffix)
+            assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zip_dest}."
+            filename = connector.get_loader(file[0]).filename
+            with ZipFile(connector.zipfile, 'r') as zipf:
+                zipf.extract(filename, cache.CACHE.folder)
+            rename(path.join(cache.CACHE.folder, filename), localcache_fname)
+        
+        return SparseIndex()._from_cache(cache_prefix)
 
     def fetch(
         self,
