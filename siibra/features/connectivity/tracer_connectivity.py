@@ -13,7 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .functional_connectivity import FunctionalConnectivity
-from .streamline_counts import StreamlineCounts
-from .streamline_lengths import StreamlineLengths
-from .tracer_connectivity import TracerConnectivity
+from . import regional_connectivity
+
+
+class TracerConnectivity(
+    regional_connectivity.RegionalConnectivity,
+    configuration_folder="features/connectivity/regional/tracer",
+    category="connectivity"
+):
+    """
+    Connectivity matrix obtained in a semi-quantitative manner and grouped by a
+    parcellation.
+    """
+
+    def __init__(self, **kwargs):
+        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
