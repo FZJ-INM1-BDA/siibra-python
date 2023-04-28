@@ -23,6 +23,9 @@
         },
         "index_col": {
             "type": "boolean"
+        },
+        "skiprows": {
+            "type": "integer"
         }
     },
     "required": [
