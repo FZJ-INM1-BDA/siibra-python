@@ -205,7 +205,7 @@ class GitlabConnector(RepositoryConnector):
                 self._tag_checked = True
             except Exception as e:
                 print(str(e))
-                print("Could not connect to gitlab server!")
+                logger.warning("Could not connect to gitlab server!")
         return self._want_commit_cached
 
     @property

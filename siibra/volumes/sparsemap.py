@@ -18,7 +18,7 @@ from . import parcellationmap, volume as _volume
 from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
-from ..retrieval.repositories import ZipfileConnector
+from ..retrieval.repositories import ZipfileConnector, GitlabConnector
 
 from os import path, rename
 from zipfile import ZipFile
@@ -253,11 +253,16 @@ class SparseMap(parcellationmap.Map):
             spind = SparseIndex._from_cache(prefix)
             if spind is None and len(self._sparseindex_zip_url) > 0:
                 try:
-                    spind = self.load_zipped_sparseindex(
-                        self._sparseindex_zip_url
-                    )
+                    spind = self.load_zipped_sparseindex(self._sparseindex_zip_url)
                 except:
-                    logger.info("Could not load SparseIndex from precomputed source.")
+                    logger.debug("Could not load SparseIndex from precomputed source.")
+            if spind is None:
+                try:
+                    gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "siibra-0.4a47")
+                    zipfile = gconn.get(f"{self.name.replace(' ', '_')}_index.zip")
+                    spind = self.load_zipped_sparseindex(zipfile)
+                except:
+                    logger.debug("Could not load SparseIndex from Gitlab.")
             if spind is None:
                 with _volume.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
@@ -286,7 +291,7 @@ class SparseMap(parcellationmap.Map):
     def shape(self):
         return self.sparse_index.shape
 
-    def load_zipped_sparseindex(self, zip_dest: str):
+    def load_zipped_sparseindex(self, zip_dest: Union[str, ZipFile]):
         """
         Load SparseIndex from previously computed source.
 
@@ -305,17 +310,25 @@ class SparseMap(parcellationmap.Map):
         if self._sparse_index_cached is not None:
             return self._sparse_index_cached
 
-        connector = ZipfileConnector(zip_dest)
+        if isinstance(zip_dest, str):
+            zipfile = ZipFile(ZipfileConnector(zip_dest).zipfile)
+        elif isinstance(zip_dest, ZipFile):
+            zipfile = zip_dest
+        else:
+            raise TypeError("Please use a valid zip file or destination.")
+        logger.debug(
+            f"Loading the SparseIndex for '{self.name}' from precomputed source at {zip_dest}."
+        )
         suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
         for suffix in suffices:
-            localcache_fname = cache.CACHE.build_filename(cache_prefix, suffix=suffix)
-            file = connector.search_files(suffix=suffix)
-            assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zip_dest}."
-            filename = connector.get_loader(file[0]).filename
-            with ZipFile(connector.zipfile, 'r') as zipf:
-                zipf.extract(filename, cache.CACHE.folder)
-            rename(path.join(cache.CACHE.folder, filename), localcache_fname)
-        
+            file = [f for f in zipfile.filelist if f.filename.endswith(suffix)]
+            assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zipfile}."
+            zipfile.extract(file[0], cache.CACHE.folder) 
+            rename(
+                path.join(cache.CACHE.folder, file[0].filename),
+                cache.CACHE.build_filename(cache_prefix, suffix=suffix)
+            )
+
         return SparseIndex()._from_cache(cache_prefix)
 
     def fetch(
