@@ -255,16 +255,18 @@ class SparseMap(parcellationmap.Map):
         if self._sparse_index_cached is None:
             spind = SparseIndex._from_cache(self._cache_prefix)
             if spind is None and len(self._sparseindex_zip_url) > 0:
+                logger.debug("Loading SparseIndex from precomputed source.")
                 try:
-                    logger.debug("Loading SparseIndex from precomputed source.")
                     spind = self.load_zipped_sparseindex(self._sparseindex_zip_url)
                 except Exception as e:
                     logger.debug("Could not load SparseIndex from precomputed source:\n", e)
             if spind is None:
+                logger.debug("Loading SparseIndex from Gitlab.")
+                gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
+                zip_fname = f"{self.name.replace(' ', '_')}_index.zip"
                 try:
-                    logger.debug("Loading SparseIndex from Gitlab.")
-                    gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
-                    zipfile = gconn.get(f"{self.name.replace(' ', '_')}_index.zip")
+                    assert zip_fname in gconn.search_files(suffix=".zip"), f"could not find {zip_fname} in the repository."
+                    zipfile = gconn.get(zip_fname)
                     spind = self.load_zipped_sparseindex(zipfile)
                 except Exception as e:
                     logger.debug("Could not load SparseIndex from Gitlab:\n", e)
