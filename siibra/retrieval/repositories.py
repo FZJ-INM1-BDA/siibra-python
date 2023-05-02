@@ -319,6 +319,10 @@ class ZipfileConnector(RepositoryConnector):
     def __eq__(self, other):
         return self.url == other.url
 
+    def clear_cache(self):
+        os.remove(self.zipfile)
+        self._zipfile_cached = None
+
     class FileLoader:
         """
         Loads a file from the zip archive, but mimics the behaviour
@@ -328,8 +332,12 @@ class ZipfileConnector(RepositoryConnector):
             self.zipfile = zipfile
             self.filename = filename
             self.func = decode_func
-            self.cached = True
+            self.cachefile = CACHE.build_filename(zipfile+filename)
 
+        @property
+        def cached(self):
+            return os.path.isfile(self.cachefile)
+        
         @property
         def data(self):
             container = ZipFile(self.zipfile)
