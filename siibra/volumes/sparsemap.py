@@ -265,8 +265,7 @@ class SparseMap(parcellationmap.Map):
                 gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
                 zip_fname = f"{self.name.replace(' ', '_')}_index.zip"
                 try:
-                    assert zip_fname in gconn.search_files(suffix=".zip"), f"could not find {zip_fname} in the repository."
-                    zipfile = gconn.get(zip_fname)
+                    zipfile = gconn.get_loader(zip_fname).url
                     spind = self.load_zipped_sparseindex(zipfile)
                 except Exception as e:
                     logger.debug("Could not load SparseIndex from Gitlab:\n", e)
@@ -332,33 +331,34 @@ class SparseMap(parcellationmap.Map):
             raise e
         logger.info("SparseIndex is saved.")
 
-    def load_zipped_sparseindex(self, zipfile: Union[str, ZipFile]):
+    def load_zipped_sparseindex(self, zipfname: str):
         """
         Load SparseIndex from previously computed source and creates a local
         cache.
 
         Parameters
         ----------
-        zipfile: str, ZipFile
-            A ZipFile, a url, or a path to zip file containing the SparseIndex
-            files for this SparseMap precomputed by siibra.
+        zipfile: str
+            A url or a path to zip file containing the SparseIndex files for
+            this SparseMap precomputed by siibra.
 
         Returns
         -------
         SparseIndex
         """
-        if isinstance(zipfile, str):
-            zipfile = ZipFile(ZipfileConnector(zipfile).zipfile)
-        assert isinstance(zipfile, ZipFile), TypeError("Please use a valid zip file or destination.")
-        suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
-        for suffix in suffices:
-            file = [f for f in zipfile.filelist if f.filename.endswith(suffix)]
-            assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zipfile}."
-            zipfile.extract(file[0], cache.CACHE.folder) 
-            rename(
-                path.join(cache.CACHE.folder, file[0].filename),
-                cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
-            )
+        zconn = ZipfileConnector(zipfname)
+        with ZipFile(zconn.zipfile, 'r') as zp:
+            suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
+            for suffix in suffices:
+                file = [f for f in zconn.search_files(suffix=suffix)]
+                assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zipfname}."
+                zp.extract(file[0], cache.CACHE.folder)
+                rename(
+                    path.join(cache.CACHE.folder, file[0]),
+                    cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
+                )
+        zconn.clear_cache()
+
         return SparseIndex()._from_cache(self._cache_prefix)
 
     def fetch(
