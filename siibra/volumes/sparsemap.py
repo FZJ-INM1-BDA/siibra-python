@@ -111,14 +111,14 @@ class SparseIndex:
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    def _to_cache(self, prefix: str):
+    def _to_cache(self):
         """
         Serialize this index to the cache, using the given prefix for the cache
         filenames.
         """
-        probsfile = cache.CACHE.build_filename(f"{prefix}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{prefix}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="voxels.nii.gz")
         Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
         with gzip.open(probsfile, 'wt') as f:
             for D in self.probs:
@@ -245,24 +245,26 @@ class SparseMap(parcellationmap.Map):
         )
         self._sparse_index_cached = None
         self._sparseindex_zip_url = cache_url if is_cached else ""
+        self._cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
 
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
-            prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
-            spind = SparseIndex._from_cache(prefix)
+            spind = SparseIndex._from_cache(self._cache_prefix)
             if spind is None and len(self._sparseindex_zip_url) > 0:
                 try:
+                    logger.debug("Loading SparseIndex from precomputed source.")
                     spind = self.load_zipped_sparseindex(self._sparseindex_zip_url)
-                except:
-                    logger.debug("Could not load SparseIndex from precomputed source.")
+                except Exception as e:
+                    logger.debug("Could not load SparseIndex from precomputed source:\n", e)
             if spind is None:
                 try:
-                    gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "siibra-0.4a47")
+                    logger.debug("Loading SparseIndex from Gitlab.")
+                    gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
                     zipfile = gconn.get(f"{self.name.replace(' ', '_')}_index.zip")
                     spind = self.load_zipped_sparseindex(zipfile)
-                except:
-                    logger.debug("Could not load SparseIndex from Gitlab.")
+                except Exception as e:
+                    logger.debug("Could not load SparseIndex from Gitlab:\n", e)
             if spind is None:
                 with _volume.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
@@ -278,7 +280,7 @@ class SparseMap(parcellationmap.Map):
                             logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                             continue
                         spind.add_img(img)
-                    spind._to_cache(prefix)
+                    spind._to_cache(self._cache_prefix)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
@@ -291,34 +293,24 @@ class SparseMap(parcellationmap.Map):
     def shape(self):
         return self.sparse_index.shape
 
-    def load_zipped_sparseindex(self, zip_dest: Union[str, ZipFile]):
+    def load_zipped_sparseindex(self, zipfile: Union[str, ZipFile]):
         """
-        Load SparseIndex from previously computed source.
+        Load SparseIndex from previously computed source and creates a local
+        cache.
 
         Parameters
         ----------
-        zip_dest: str
-            Url or local path to zip file containing the SparseIndex files
-            precomputed by siibra.
+        zipfile: str, ZipFile
+            A ZipFile, a url, or a path to zip file containing the SparseIndex
+            files for this SparseMap precomputed by siibra.
 
         Returns
         -------
         SparseIndex
         """
-        cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
-        self._sparse_index_cached = SparseIndex._from_cache(cache_prefix)
-        if self._sparse_index_cached is not None:
-            return self._sparse_index_cached
-
-        if isinstance(zip_dest, str):
-            zipfile = ZipFile(ZipfileConnector(zip_dest).zipfile)
-        elif isinstance(zip_dest, ZipFile):
-            zipfile = zip_dest
-        else:
-            raise TypeError("Please use a valid zip file or destination.")
-        logger.debug(
-            f"Loading the SparseIndex for '{self.name}' from precomputed source at {zip_dest}."
-        )
+        if isinstance(zipfile, str):
+            zipfile = ZipFile(ZipfileConnector(zipfile).zipfile)
+        assert isinstance(zipfile, ZipFile), TypeError("Please use a valid zip file or destination.")
         suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
         for suffix in suffices:
             file = [f for f in zipfile.filelist if f.filename.endswith(suffix)]
@@ -326,10 +318,9 @@ class SparseMap(parcellationmap.Map):
             zipfile.extract(file[0], cache.CACHE.folder) 
             rename(
                 path.join(cache.CACHE.folder, file[0].filename),
-                cache.CACHE.build_filename(cache_prefix, suffix=suffix)
+                cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
             )
-
-        return SparseIndex()._from_cache(cache_prefix)
+        return SparseIndex()._from_cache(self._cache_prefix)
 
     def fetch(
         self,
