@@ -20,8 +20,8 @@ from ..locations import boundingbox
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
 
-from os import path, rename
-from zipfile import ZipFile
+from os import path, rename, makedirs
+from zipfile import ZipFile, ZIP_DEFLATED
 import gzip
 from typing import Dict, Union, TYPE_CHECKING, List
 from nilearn import image
@@ -245,7 +245,7 @@ class SparseMap(parcellationmap.Map):
         )
         self._sparse_index_cached = None
         self._sparseindex_zip_url = cache_url if is_cached else ""
-        self._cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
+        self._cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{name}_index"
 
     @property
     def sparse_index(self):
@@ -292,6 +292,40 @@ class SparseMap(parcellationmap.Map):
     @property
     def shape(self):
         return self.sparse_index.shape
+
+    def save_sparseindex(self, destination: str, filename: str = None):
+        """
+        Save SparseIndex as a .zip in destination folder from local cache. If
+        SparseIndex is not cached, siibra will firt create it first.
+
+        Parameters
+        ----------
+        destination: str
+            The path where the zip file will be created.
+        filename: str, default=None
+            Name of the zip and prefix of the SparseIndex files. If None, siibra
+            uses `name` property.
+        """
+        if filename is None:
+            filename = f"{self.name.replace(' ', '_')}_index"
+        logger.info(f"Saving SparseIndex of '{self.name}' as '{filename}.zip'")
+        if not path.isdir(destination):
+            makedirs(destination)
+        if self._sparse_index_cached is None:
+            _ = self.sparse_index
+        suffices = [".probs.txt.gz", ".bboxes.txt.gz", ".voxels.nii.gz"]
+        try:
+            with ZipFile(f"{destination}/{filename}.zip", 'w') as zipf:
+                for suffix in suffices:
+                    zipf.write(
+                        filename=cache.CACHE.build_filename(self._cache_prefix, suffix),
+                        arcname=path.basename(f"{filename}{suffix}"),
+                        compress_type=ZIP_DEFLATED
+                    )
+        except Exception as e:
+            logger.error("Could not save SparseIndex:\n")
+            raise e
+        logger.info("SparseIndex is saved.")
 
     def load_zipped_sparseindex(self, zipfile: Union[str, ZipFile]):
         """
