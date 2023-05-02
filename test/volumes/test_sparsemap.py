@@ -150,3 +150,4 @@ def test_sparse_index_prefixes(mock_sparse_map_spc_parc, mock_sparse_index_from_
             call0, call1 = mock_sparse_index_from_cache.call_args_list
             
             assert call0 != call1, f"Prefix used should be different, based on not just space, parcellation, maptype, but also name"
+            assert foo._cache_prefix != bar._cache_prefix

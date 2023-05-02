@@ -245,7 +245,10 @@ class SparseMap(parcellationmap.Map):
         )
         self._sparse_index_cached = None
         self._sparseindex_zip_url = cache_url if is_cached else ""
-        self._cache_prefix = f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{name}_index"
+    
+    @property
+    def _cache_prefix(self):
+        return f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
 
     @property
     def sparse_index(self):
