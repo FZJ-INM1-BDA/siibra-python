@@ -323,7 +323,7 @@ class ZipfileConnector(RepositoryConnector):
         os.remove(self.zipfile)
         self._zipfile_cached = None
 
-    class FileLoader:
+    class ZipFileLoader:
         """
         Loads a file from the zip archive, but mimics the behaviour
         of cached http requests used in other connectors.
@@ -347,9 +347,9 @@ class ZipfileConnector(RepositoryConnector):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
         if decode_func is None:
-            return self.FileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
+            return self.ZipFileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
         else:
-            return self.FileLoader(self.zipfile, filename, decode_func)
+            return self.ZipFileLoader(self.zipfile, filename, decode_func)
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.zipfile}"
