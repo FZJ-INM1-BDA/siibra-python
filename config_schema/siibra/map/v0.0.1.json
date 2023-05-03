@@ -11,9 +11,18 @@
             "$ref": "config_schema/at_id.json"
         },
         "sparsemap": {
-            "is_sparsemap": "bool",
-            "cached": "bool",
-            "url": "string"
+            "type": "object",
+            "properties": {
+                "is_sparsemap": {
+                    "type": "boolean"
+                },
+                "cached": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
         },
         "volumes": {
             "type": "array",
