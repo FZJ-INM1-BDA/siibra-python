@@ -269,7 +269,7 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
 
-        if ("sparsemap" in spec) and spec.get("sparsemap")["is_sparsemap"]:
+        if ("sparsemap" in spec) and spec.get("sparsemap").get("is_sparsemap"):
             Maptype = sparsemap.SparseMap
             return Maptype(
                 identifier=spec.get("@id", identifier),
@@ -290,7 +290,7 @@ class Factory:
         Maptype = parcellationmap.Map
         if len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
             logger.debug(
-                f"Using sparse map for {spec['filename']} to code its "
+                f"Using sparse map for {spec.get('filename')} to code its "
                 f"{len(volumes)} volumes efficiently."
             )
             Maptype = sparsemap.SparseMap
@@ -302,7 +302,7 @@ class Factory:
             ) + 1
             if max_z > MIN_VOLUMES_FOR_SPARSE_MAP:
                 logger.debug(
-                    f"Using sparse map for {spec['filename']} to code its "
+                    f"Using sparse map for {spec.get('filename')} to code its "
                     f"{max_z} z levels efficiently."
                 )
                 Maptype = sparsemap.SparseMap
