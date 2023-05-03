@@ -1,11 +1,7 @@
 .center { text-align: center; }
-img.center {
-    display: block;
-    margin: auto;
-}
 
-h1.logo {
-	display: none;
+.version{
+    color:rgb(0, 0, 0) !important;
 }
 
 .sphx-glr-thumbcontainer {
@@ -27,7 +23,6 @@ h1.logo {
 }
 .sphx-glr-thumbcontainer img {
     width: 250px !important;
-	display: none;
 }
 .sphx-glr-thumbcontainer a.internal {
     padding: 20px !important;
