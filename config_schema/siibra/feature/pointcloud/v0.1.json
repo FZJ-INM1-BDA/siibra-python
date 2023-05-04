@@ -1,0 +1,27 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "allOf": [{
+        "$ref": "/config_schema/has_zipped_csv.json"
+    }],
+    "properties": {
+        "@type": {
+            "const": "siibra/feature/pointcloud/v0.1"
+        },
+        "modality": {
+            "type": "string"
+        },
+        "space": {
+            "$ref": "/config_schema/at_id.json"
+        },
+        "files": {
+            "type": "object",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "space",
+        "files"
+    ]
+}
