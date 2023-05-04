@@ -22,4 +22,4 @@ from .receptor_density_fingerprint import ReceptorDensityFingerprint
 from .receptor_density_profile import ReceptorDensityProfile
 from .regional_timeseries_activity  import RegionalTimeseriesActivity
 from .regional_timeseries_activity  import RegionalBOLD
-from .pointset  import PointsetFeature
+from .pointcloud  import PointCloud
