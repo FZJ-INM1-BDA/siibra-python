@@ -72,7 +72,22 @@ def test_merged_fragment_shape(siibramap: Map, format):
     assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
 
 def test_sparsemap_cache_uniqueness():
-    
     mp157 = siibra.get_map("julich 3.0", "colin 27", "statistical", spec="157")
     mp175 = siibra.get_map("julich 3.0", "colin 27", "statistical", spec="175")
     assert mp157.sparse_index.probs[0] != mp175.sparse_index.probs[0]
+
+def test_region_1to1ness_in_parcellation():
+    failed = []
+    for m in Map.registry():
+        parc = m.parcellation
+        for region_name in m.regions:
+            try:
+                region = parc.get_region(region_name)
+            except:
+                failed.append(
+                    {
+                        "region name": region_name,
+                        "map": m.name
+                    }
+                )
+    assert len(failed) == 0, print("The regions in maps that can't be gotten in respective parcellations\n", failed)
