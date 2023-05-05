@@ -21,11 +21,14 @@ from ...commons import logger
 from ...locations import point, pointset, location
 from ...retrieval import requests
 
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Tuple
 from pandas import DataFrame, concat
 
-
-class PointCloud(tabular.Tabular):
+class PointCloud(
+    tabular.Tabular,
+    configuration_folder="features/tabular/pointcloud",
+    category="molecular"
+):
     """
     PointCloud features are comprimised of 3D coordinates from the same
     reference space, and possibly contain additional data such as intensity.
@@ -33,14 +36,14 @@ class PointCloud(tabular.Tabular):
 
     def __init__(
         self,
-        modality: str,
         files: Dict[str, str],
-        space_id: str,
+        space_spec: str,
         species: str,
         decode_func: Callable,
         description: str = "",
         datasets: list = [],
-        paradigm: str = "",
+        modality: str = "",
+        paradigm: str = ""
     ):
         """
         Construct a PointCloud dataframe.
@@ -51,7 +54,7 @@ class PointCloud(tabular.Tabular):
             description=description,
             anchor=_anchor.AnatomicalAnchor(
                 species=species,
-                location=location.WholeBrain(space_id)
+                location=location.WholeBrain(space_spec)
             ),
             datasets=datasets,
             data=None  # lazy loading below
@@ -97,9 +100,7 @@ class PointCloud(tabular.Tabular):
             if len(values) > 0:
                 for n in range(array.shape[0] - 3):
                     values[f"value {n}"].append(line[n+3])
-        self._pointcloud_cache[subject] = {"Coordinates": coordinates}
-        if values:
-            self._pointcloud_cache[subject].extend(values)
+        self._pointcloud_cache[subject] = {"Coordinates": coordinates, **values}
         return self._pointcloud_cache[subject]
 
     def get_table(self, subject: str = None, value_headers: List[str] = []) -> DataFrame:
@@ -158,7 +159,7 @@ class PointCloud(tabular.Tabular):
             If no subject is specified.
         """
         if (subject is None) and (len(self.subjects) > 1):
-                raise TypeError("Missing argument: 'subject'")
+            raise TypeError("Missing argument: 'subject'")
         data = self._load_pointcloud_data(subject)
         return pointset.PointSet(data.get("Coordinates"), space=self.space)
 

@@ -21,7 +21,7 @@ from ..features.tabular import (
     cell_density_profile,
     layerwise_cell_density,
     regional_timeseries_activity,
-    pointcloud as pointcloud
+    pointcloud
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -120,18 +120,23 @@ class Factory:
         if (region is None) and (location is None):
             raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
 
-        if 'species' in spec:
-            species = Species.decode(spec['species'])
-        elif ('ebrains' in spec):
-            species = Species.decode(spec['ebrains'])
-        else:
-            raise ValueError(f"No species information found in spec {spec}")
+        species = cls.extract_species(spec)
 
         return anchor.AnatomicalAnchor(
             region=region,
             location=location,
             species=species
         )
+    
+    @classmethod
+    def extract_species(cls, spec):
+        if 'species' in spec:
+            species = Species.decode(spec['species'])
+        elif ('ebrains' in spec):
+            species = Species.decode(spec['ebrains'])
+        else:
+            raise ValueError(f"No species information found in spec {spec}")
+        return species
 
     @classmethod
     def extract_connector(cls, spec):
@@ -343,12 +348,10 @@ class Factory:
     @classmethod
     def build_pointcloud(cls, spec):
         kwargs = {
-            "modality": spec.get("modality"),
-            "paradigm": spec.get("paradigm"),
             "files": spec.get("files"),
-            "space_id": spec.get("space").get("@id"),
+            "space_spec": spec.get("space").get("@id"),
+            "species": cls.extract_species(spec),
             "datasets": cls.extract_datasets(spec),
-            "species": spec.get("species"),
             "decode_func": cls.extract_decoder(spec)
         }
         return pointcloud.PointCloud(**kwargs)
