@@ -10,6 +10,20 @@
         "parcellation": {
             "$ref": "config_schema/at_id.json"
         },
+        "sparsemap": {
+            "type": "object",
+            "properties": {
+                "is_sparsemap": {
+                    "type": "boolean"
+                },
+                "cached": {
+                    "type": "boolean"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "volumes": {
             "type": "array",
             "items": {

@@ -179,6 +179,8 @@ class HttpRequest:
                     f.write(data)
             if size_bytes > min_bytesize_with_no_progress_info:
                 progress_bar.close()
+            if self.refresh and os.path.isfile(self.cachefile):
+                os.remove(self.cachefile)
             self.refresh = False
             os.rename(temp_cachefile, self.cachefile)
             
