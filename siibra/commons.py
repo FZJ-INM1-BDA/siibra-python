@@ -217,7 +217,8 @@ class InstanceTable(Generic[T], Iterable):
                     hint = f"Did you mean {' or '.join(closest)}?"
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
-    def get_dataframe(self):
+    @property
+    def dataframe(self):
         if self._dataframe_cached is None:
             values = self._elements.values()
             attrs = [{'name': m.name, 'species': str(m.species)} for m in values]
