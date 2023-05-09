@@ -73,6 +73,7 @@ class InstanceTable(Generic[T], Iterable):
             assert all(isinstance(k, str) for k in elements.keys())
             self._elements: Dict[str, T] = elements
         self._matchfunc = matchfunc
+        self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
         """Add a key/value pair to the registry.
@@ -216,36 +217,51 @@ class InstanceTable(Generic[T], Iterable):
                     hint = f"Did you mean {' or '.join(closest)}?"
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
+    def get_dataframe(self):
+        if self._dataframe_cached is None:
+            values = self._elements.values()
+            attrs = [{'name': m.name, 'species': str(m.species)} for m in values]
+            attribute_keys = ['parcellation', 'space', 'maptype']
+            for attribute in attribute_keys:
+                for i, m in enumerate(values):
+                    if hasattr(m, attribute):
+                        attrs[i].update(
+                            {attribute: m.__getattribute__(attribute).name}
+                        )
+            self._dataframe_cached = self.InstanceDataframe(
+                objs=self._elements,
+                attrs=attrs
+            )
+        return self._dataframe_cached
+    class InstanceDataframe(pd.DataFrame):
 
-class InstanceDataframe(pd.DataFrame):
+        def __init__(self, objs: dict, attrs: list):
+            pd.DataFrame.__init__(self, data=attrs, index=list(objs.keys()))
+            import warnings
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", category=UserWarning)
+                self._objs = objs
 
-    def __init__(self, objs: dict, attrs: list):
-        pd.DataFrame.__init__(self, data=attrs, index=list(objs.keys()))
-        import warnings
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning)
-            self._objs = objs
+        def __dir__(self):
+            # make autocompletion work on the row names
+            return list(self.index)
 
-    def __dir__(self):
-        # make autocompletion work on the row names
-        return list(self.index)
+        def __getattr__(self, attr):
+            # make the row name return the corresponding object
+            if attr in self.index:
+                return self._objs[attr]
+            return super().__getattr__(attr)
 
-    def __getattr__(self, attr):
-        # make the row name return the corresponding object
-        if attr in self.index:
-            return self._objs[attr]
-        return super().__getattr__(attr)
-
-    def query(self, expr: str):
-        # allow to build a filtered instance table
-        df = pd.DataFrame.query(self, expr, inplace=False)
-        return self.__class__(
-            objs={
-                k: v for k, v in self._objs.items()
-                if k in df.index
-            },
-            attrs=list(dict(df.T).values())
-        )
+        def query(self, expr: str):
+            # allow to build a filtered instance table
+            df = pd.DataFrame.query(self, expr, inplace=False)
+            return self.__class__(
+                objs={
+                    k: v for k, v in self._objs.items()
+                    if k in df.index
+                },
+                attrs=list(dict(df.T).values())
+            )
 
 
 class LoggingContext:
