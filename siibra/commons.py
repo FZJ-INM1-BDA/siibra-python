@@ -90,7 +90,7 @@ class InstanceTable(Generic[T], Iterable):
 
     def __dir__(self) -> Iterable[str]:
         """List of all object keys in the registry"""
-        return self._elements.keys()
+        return ["dataframe"] + list(self._elements.keys())
 
     def __str__(self) -> str:
         if len(self) > 0:
@@ -221,19 +221,19 @@ class InstanceTable(Generic[T], Iterable):
     def dataframe(self):
         if self._dataframe_cached is None:
             values = self._elements.values()
-            attrs = [{'name': m.name, 'species': str(m.species)} for m in values]
-            attribute_keys = ['parcellation', 'space', 'maptype']
-            for attribute in attribute_keys:
-                for i, m in enumerate(values):
-                    if hasattr(m, attribute):
-                        attrs[i].update(
-                            {attribute: m.__getattribute__(attribute).name}
-                        )
-            self._dataframe_cached = self.InstanceDataframe(
-                objs=self._elements,
-                attrs=attrs
-            )
+            attrs = []
+            for i, val in enumerate(values):
+                attrs.append({'name': val.name, 'species': str(val.species)})
+                if hasattr(val, 'maptype'):
+                    attrs[i].update(
+                        {
+                            attribute: val.__getattribute__(attribute).name
+                            for attribute in ['parcellation', 'space', 'maptype']
+                        }
+                    )
+            self._dataframe_cached = self.InstanceDataframe(self._elements, attrs)
         return self._dataframe_cached
+
     class InstanceDataframe(pd.DataFrame):
 
         def __init__(self, objs: dict, attrs: list):
