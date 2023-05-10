@@ -178,7 +178,7 @@ class Volume:
         elif format == 'mesh':
             requested_formats = self.MESH_FORMATS
         elif format == 'image':
-            requested_formats = set(self.SUPPORTED_FORMATS) - set(self.MESH_FORMATS)
+            requested_formats = self.IMAGE_FORMATS
         elif format in self.SUPPORTED_FORMATS:
             requested_formats = [format]
         else:
