@@ -910,7 +910,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     **{
                         "correlation": None,
                         "intersection over union": None,
-                        "map value": None,
+                        "map value": a.map_value,
                         "map weighted mean": None,
                         "map containedness": None,
                         "input weighted mean": None,
