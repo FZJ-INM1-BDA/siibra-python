@@ -231,39 +231,8 @@ class InstanceTable(Generic[T], Iterable):
                             for attribute in ['parcellation', 'space', 'maptype']
                         }
                     )
-            self._dataframe_cached = self.InstanceDataframe(self._elements, attrs)
+            self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=attrs)
         return self._dataframe_cached
-
-    class InstanceDataframe(pd.DataFrame):
-
-        def __init__(self, objs: dict, attrs: list):
-            pd.DataFrame.__init__(self, data=attrs, index=list(objs.keys()))
-            import warnings
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=UserWarning)
-                self._objs = objs
-
-        def __dir__(self):
-            # make autocompletion work on the row names
-            return list(self.index)
-
-        def __getattr__(self, attr):
-            # make the row name return the corresponding object
-            if attr in self.index:
-                return self._objs[attr]
-            return super().__getattr__(attr)
-
-        def query(self, expr: str):
-            # allow to build a filtered instance table
-            df = pd.DataFrame.query(self, expr, inplace=False)
-            return self.__class__(
-                objs={
-                    k: v for k, v in self._objs.items()
-                    if k in df.index
-                },
-                attrs=list(dict(df.T).values())
-            )
-
 
 class LoggingContext:
     def __init__(self, level):
