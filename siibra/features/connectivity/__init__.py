@@ -17,3 +17,11 @@ from .functional_connectivity import FunctionalConnectivity
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracer_connectivity import TracerConnectivity
+
+def __dir__():
+    return [
+        "FunctionalConnectivity",
+        "StreamlineCounts",
+        "StreamlineLengths",
+        "TracerConnectivity"
+    ]
