@@ -25,7 +25,7 @@ from ..features.tabular import (
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
-from ..retrieval import datasets, repositories
+from ..retrieval import datasets, repositories, HttpRequest
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
 
 from os import path
@@ -453,29 +453,38 @@ class Factory:
 
     @classmethod
     def build_connectivity_matrix(cls, spec):
-        modality = spec["modality"]
+        conn_category = path.basename(path.dirname(spec.get("filename")))
+        modality = spec.get("modality")
+        decoder = cls.extract_decoder(spec)
+        if spec.get('repository', {}):
+            connector = cls.extract_connector(spec)
+        else:
+            connector = HttpRequest(
+                next(iter(spec.get("files").values())), func=decoder
+            )
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
+            "connector": connector,
+            "decode_func": decoder,
             "files": spec.get("files", {}),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
         }
-        if modality == "StreamlineCounts":
-            return connectivity.StreamlineCounts(**kwargs)
-        elif modality == "StreamlineLengths":
-            return connectivity.StreamlineLengths(**kwargs)
-        elif modality == "Functional":
+        if conn_category.startswith("stream"):  # change with "dti"
+            if modality == "StreamlineCounts":
+                return connectivity.StreamlineCounts(**kwargs)
+            elif modality == "StreamlineLengths":
+                return connectivity.StreamlineLengths(**kwargs)
+        elif conn_category == "functional":  # change with "fmri"
             kwargs["paradigm"] = spec.get("paradigm")
             return connectivity.FunctionalConnectivity(**kwargs)
-        elif modality == "RestingState":
-            kwargs["paradigm"] = spec.get("paradigm", "RestingState")
-            return connectivity.FunctionalConnectivity(**kwargs)
-        elif modality == "Tracer":
+        elif conn_category == "seeg":
+            kwargs["paradigm"] = spec.get("paradigm")
+            return connectivity.SEEG(**kwargs)
+        elif conn_category == "tracer":  # change with "tracing"
             return connectivity.TracerConnectivity(**kwargs)
         else:
             raise ValueError(f"No method for building connectivity matrix of type {modality}.")
