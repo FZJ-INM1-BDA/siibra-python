@@ -46,13 +46,25 @@ containedness = [
             maptype="statistical"
         ),
         '`input containedness` >= 0.5'
+    ),
+    (
+        siibra.Point((27.75, -32.0, 63.725), space='mni152', sigma_mm=0.),
+        siibra.get_map(
+            parcellation="julich 2.9",
+            space="mni152",
+            maptype="statistical"
+        ),
+        '`map value` == None'
     )
 ]
 
 @pytest.mark.parametrize('point,map,query', containedness)
-def test_containedness(point,map:Map,query):
+def test_containedness(point, map:Map, query):
     assignments = map.assign(point)
-    assert len(assignments.query(query)) > 0
+    if point.sigma > 0:
+        assert len(assignments.query(query)) > 0
+    if point.sigma == 0:
+        assert len(assignments.query(query)) == 0
 
 # TODO: when merging neuroglancer/precomputed is supported, add to the list
 maps_w_fragments = product(
