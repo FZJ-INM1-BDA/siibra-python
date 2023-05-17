@@ -18,20 +18,27 @@ from .. import feature
 from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
+from ...locations import location as _location
 
 from typing import List
 
 
 class ImageAnchor(_anchor.AnatomicalAnchor):
 
-    def __init__(self, volume: _volume.Volume, region: str = None):
+    def __init__(
+            self,
+            volume: _volume.Volume,
+            region: str = None,
+            location: _location = None
+    ):
         _anchor.AnatomicalAnchor.__init__(
             self,
             species=volume.space.species,
-            location=None,
+            location=location,
             region=region
         )
         self.volume = volume
+        self._location_cached = location
 
     @property
     def location(self):
@@ -59,6 +66,7 @@ class Image(feature.Feature, _volume.Volume):
         space_spec: dict,
         providers: List[_volume.VolumeProvider],
         region: str = None,
+        location: _location = None,
         datasets: List = [],
     ):
         feature.Feature.__init__(
@@ -77,7 +85,7 @@ class Image(feature.Feature, _volume.Volume):
             datasets=datasets,
         )
 
-        self._anchor_cached = ImageAnchor(self, region=region)
+        self._anchor_cached = ImageAnchor(self, region=region, location=location)
         self._description_cached = None
         self._name_cached = name
 
