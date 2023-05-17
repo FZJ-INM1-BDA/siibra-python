@@ -464,7 +464,6 @@ class SparseMap(parcellationmap.Map):
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
-        components = None
 
         # resample query image into this image's voxel space, if required
         if (queryimg.affine - self.affine).sum() == 0:
@@ -490,7 +489,6 @@ class SparseMap(parcellationmap.Map):
             XYZ2 = np.array(np.where(modemask)).T
             position = np.dot(modeimg.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
-                components[modemask] == 0
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
 
