@@ -68,9 +68,9 @@ conn.plot_matrix(subject=conn.subjects[0])
 
 # %%
 # The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to "mean". Also, the matrix can be displayed by specifiying
+# or setting it to `None`. Also, the matrix can be displayed by specifiying
 # a list of regions.
-selected_regions = conn.regions[0:100:2]
+selected_regions = conn.regions[0:30]
 conn.plot_matrix(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
