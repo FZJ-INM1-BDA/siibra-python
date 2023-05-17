@@ -72,6 +72,7 @@ modalities = [
     (siibra.features.cellular.BigBrainIntensityProfile, lambda p: True),
 ]
 f, axs = plt.subplots(len(modalities), len(regions))
+f.set(figheight=15, figwidth=10)
 ymax = [3500, 150, 30000]
 
 for i, region in enumerate(regions):
