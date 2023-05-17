@@ -86,3 +86,35 @@ assignments = julich_pmaps.assign(voi.center)
 assignments
 
 # %%
+# 1 micron scans of BigBrain sections across the brain can be found as
+# VolumeOfInterest features. The result is a high-resolution image structure,
+# just like the bigbrain template.
+hoc5l = siibra.get_region('julich 2.9', 'hoc5 left')
+features = siibra.features.get(
+    hoc5l,
+    siibra.features.cellular.CellbodyStainedSection
+)
+# let's see the names of the found features
+for f in features:
+    print(f.name)
+
+# %%
+# Now fetch the 1 micron section at a lower resolution, and display in 3D space.
+section1402 = features[3]
+plotting.plot_img(
+    section1402.fetch(),
+    bg_img=bigbrain_whole,
+    title="#1402",
+    cmap='gray'
+)
+
+# %%
+# Let's fetch a crop inside hoc5 at full resolution. We intersect the bounding
+# box of hoc5l and the section.
+hoc5_bbox = hoc5l.get_bounding_box('bigbrain').intersection(section1402.boundingbox)
+print(f"Size of the bounding box: {hoc5_bbox.shape}")
+
+# this is quite large, so we shrink it
+voi = hoc5_bbox.zoom(0.1)
+crop = section1402.fetch(voi=voi, resolution_mm=-1)
+plotting.plot_img(crop, bg_img=None, cmap='gray')
