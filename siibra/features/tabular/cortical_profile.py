@@ -169,29 +169,31 @@ class CorticalProfile(tabular.Tabular):
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
-        kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
-        kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
-        kwargs["grid"] = kwargs.get("grid", True)
-        kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
-        layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
-        axs = self.data.plot(**kwargs)
+        if pd.options.plotting.backend == "plotly":
+            return self.data.plot(**kwargs)
+        else:
+            kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
+            kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
+            kwargs["grid"] = kwargs.get("grid", True)
+            kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
+            layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
+            axs = self.data.plot(**kwargs)
 
-        if self.boundaries_mapped:
-            bvals = list(self.boundary_positions.values())
-            for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
-                axs.text(
-                    d1 + (d2 - d1) / 2.0,
-                    10,
-                    self.LAYERS[i + 1],
-                    weight="normal",
-                    ha="center",
-                )
-                if i % 2 == 0:
-                    axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
+            if self.boundaries_mapped:
+                bvals = list(self.boundary_positions.values())
+                for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
+                    axs.text(
+                        d1 + (d2 - d1) / 2.0,
+                        10,
+                        self.LAYERS[i + 1],
+                        weight="normal",
+                        ha="center",
+                    )
+                    if i % 2 == 0:
+                        axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
 
-        axs.set_title(axs.get_title(), fontsize="medium")
-
-        return axs
+            axs.set_title(axs.get_title(), fontsize="medium")
+            return axs
 
     @property
     def _depths(self):

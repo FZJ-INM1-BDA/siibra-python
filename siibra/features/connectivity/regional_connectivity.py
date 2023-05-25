@@ -170,14 +170,18 @@ class RegionalConnectivity(Feature):
             "title",
             f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
-        kwargs["figure"] = kwargs.get("figure", (15, 15))
 
-        from nilearn import plotting
-        plotting.plot_matrix(
-            matrix,
-            labels=regions,
-            **kwargs
-        )
+        if not kwargs.get("reorder") and pd.options.plotting.backend == "plotly":
+            from plotly.express import imshow
+            return imshow(matrix, x=regions, y=regions, **kwargs)
+        else:
+            kwargs["figure"] = kwargs.get("figure", (15, 15))
+            from nilearn import plotting
+            plotting.plot_matrix(
+                matrix,
+                labels=regions,
+                **kwargs
+            )
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
