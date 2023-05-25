@@ -188,7 +188,7 @@ class Volume:
             if fmt in self.formats:
                 try:
                     if fmt == "gii-label":
-                        tpl = self.space.get_template(variant=kwargs.get('variant'), format=format)
+                        tpl = self.space.get_template(variant=kwargs.get('variant'))
                         mesh = tpl.fetch(**kwargs)
                         labels = self._providers[fmt].fetch(**kwargs)
                         return dict(**mesh, **labels)
