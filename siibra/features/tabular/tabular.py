@@ -65,8 +65,12 @@ class Tabular(feature.Feature):
         **kwargs
             takes Matplotlib.pyplot keyword arguments
         """
-        if pd.options.plotting.backend == "plotly":
-            _ = kwargs.pop("xlabel")
+        kwargs["y"] = kwargs.get("y", self.data.columns[0])
+        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
+            kwargs["labels"] = {
+                "index": kwargs.pop("xlabel", ""),
+                "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
+            }
             kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
             return self.data.plot(kind="bar", **kwargs)
         else:
@@ -78,7 +82,6 @@ class Tabular(feature.Feature):
 
             wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
             # default kwargs
-            kwargs["y"] = kwargs.get("y", self.data.columns[0])
             if kwargs.get("error_y") is None:
                 kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
             kwargs["width"] = kwargs.get("width", 0.95)

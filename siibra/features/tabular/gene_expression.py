@@ -120,8 +120,11 @@ class GeneExpressions(
 
     def plot(self, **kwargs):
         """ Create a bar plot of the average per gene."""
-        if pd.options.plotting.backend == "plotly":
-            return self.data.plot(kind='box', **kwargs)
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+        title = kwargs.pop("title", None) \
+                or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
+        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
+            return self.data.plot(kind='box', y='level', x='gene', **kwargs)
         else:
             try:
                 import matplotlib.pyplot as plt
@@ -129,13 +132,9 @@ class GeneExpressions(
                 commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
                 return None
 
-            wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
                 assert arg not in kwargs
 
-            title = kwargs.pop("title", None) \
-                or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
 

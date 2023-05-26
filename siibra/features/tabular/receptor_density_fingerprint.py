@@ -113,7 +113,7 @@ class ReceptorDensityFingerprint(
 
     def polar_plot(self, **kwargs):
         """ Create a polar plot of the fingerprint. """
-        if pd.options.plotting.backend == "plotly":
+        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
             from plotly.express import line_polar
             df = pd.DataFrame(
                 {

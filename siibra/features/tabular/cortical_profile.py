@@ -169,7 +169,7 @@ class CorticalProfile(tabular.Tabular):
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
-        if pd.options.plotting.backend == "plotly":
+        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
             return self.data.plot(**kwargs)
         else:
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
