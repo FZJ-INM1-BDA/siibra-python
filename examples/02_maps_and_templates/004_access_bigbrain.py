@@ -67,7 +67,7 @@ plotting.view_img(bigbrain_chunk, bg_img=bigbrain_whole, cmap='magma', cut_coord
 # Note that by specifying "-1" as a resolution, `siibra` will fetch the highest
 # possible resolution.
 layermap = siibra.get_map(space='bigbrain', parcellation='layers')
-mask = layermap.fetch(resolution_mm=-1, voi=voi)
+mask = layermap.fetch(fragment='left hemisphere', resolution_mm=-1, voi=voi)
 mask
 
 # %%
