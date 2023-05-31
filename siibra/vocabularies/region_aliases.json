@@ -456,34 +456,34 @@
 				"globus pallidus": "exact"
 			}
 		},
-		"Area hOc1 (V1, 17, CalcS)": {
-			"Macaca fascicularis": {
-				"V1": "exact"
+		"V1": {
+			"Homo sapiens": {
+				"Area hOc1 (V1, 17, CalcS)": "exact"
 			}
 		},
-		"Area hOc2 (V2, 18)": {
-			"Macaca fascicularis": {
-				"V2": "exact"
+		"V2": {
+			"Homo sapiens": {
+				"Area hOc2 (V2, 18)": "exact"
 			}
 		},
-		"Area 4a (PreCG)": {
-			"Macaca fascicularis": {
-				"4a": "exact"
+		"4a": {
+			"Homo sapiens": {
+				"Area 4a (PreCG)": "exact"
 			}
 		},
-		"Area 4p (PreCG)": {
-			"Macaca fascicularis": {
-				"4p": "exact"
+		"4p": {
+			"Homo sapiens": {
+				"Area 4p (PreCG)": "exact"
 			}
 		},
-		"Area PGp (IPL)": {
-			"Macaca fascicularis": {
-				"Opt": "exact"
+		"Opt": {
+			"Homo sapiens": {
+				"Area PGp (IPL)": "exact"
 			}
 		},
-		"Area PGa (IPL)": {
-			"Macaca fascicularis": {
-				"PG": "exact"
+		"PG": {
+			"Homo sapiens": {
+				"Area PGa (IPL)": "exact"
 			}
 		}
 	},
