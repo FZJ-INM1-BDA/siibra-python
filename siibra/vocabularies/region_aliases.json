@@ -455,6 +455,36 @@
 			"Macaca fascicularis": {
 				"globus pallidus": "exact"
 			}
+		},
+		"Area hOc1 (V1, 17, CalcS)": {
+			"Macaca fascicularis": {
+				"V1": "exact"
+			}
+		},
+		"Area hOc2 (V2, 18)": {
+			"Macaca fascicularis": {
+				"V2": "exact"
+			}
+		},
+		"Area 4a (PreCG)": {
+			"Macaca fascicularis": {
+				"4a": "exact"
+			}
+		},
+		"Area 4p (PreCG)": {
+			"Macaca fascicularis": {
+				"4p": "exact"
+			}
+		},
+		"Area PGp (IPL)": {
+			"Macaca fascicularis": {
+				"Opt": "exact"
+			}
+		},
+		"Area PGa (IPL)": {
+			"Macaca fascicularis": {
+				"PG": "exact"
+			}
 		}
 	}
 }
