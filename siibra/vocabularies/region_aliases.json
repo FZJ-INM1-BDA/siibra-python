@@ -486,5 +486,28 @@
 				"PG": "exact"
 			}
 		}
+	},
+	"Rattus norvegicus": {
+		"Primary visual area": {
+			"Rattus norvegicus": {
+				"Oc1M": "contains",
+				"Oc1B": "contains"
+			}
+		},
+		"Oc2L ": {
+			"Rattus norvegicus": {
+				"Secondary visual area, lateral part": "exact"
+			}
+		},
+		"Oc2M": {
+			"Rattus norvegicus": {
+				"Secondary visual area, medial part": "exact"
+			}
+		},
+		"DG": {
+			"Rattus norvegicus": {
+				"Dentate gyrus": "exact"
+			}
+		}
 	}
 }
