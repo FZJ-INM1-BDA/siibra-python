@@ -88,7 +88,7 @@ class AtlasConcept:
         self._description = description
         self._publications = publications
         self.datasets = datasets
-    
+
     @property
     def description(self):
         if self._description:
@@ -97,7 +97,7 @@ class AtlasConcept:
             if ds.description:
                 return ds.description
         return ''
-    
+
     @property
     def publications(self) -> List[TypePublication]:
         return [

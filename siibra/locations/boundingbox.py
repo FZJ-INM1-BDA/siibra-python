@@ -363,7 +363,7 @@ class BoundingBox(location.Location):
             point2=self.maxpoint + offset,
             space=self.space,
             sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
-        )  
+        )
 
     def zoom(self, ratio: float):
         """

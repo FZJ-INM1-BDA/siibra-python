@@ -15,7 +15,7 @@
 """Hierarchal brain regions and metadata."""
 from . import region
 
-from ..commons import logger, MapType, MapIndex, Species
+from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
 
 from typing import Union, List, Dict
@@ -284,7 +284,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         allow_tuple: bool, default: False
             If multiple candidates without a common parent are found,
             return a tuple of matches instead of raising an exception.
-            
+
         Returns
         -------
         Region

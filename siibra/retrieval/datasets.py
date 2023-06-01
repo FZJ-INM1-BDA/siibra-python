@@ -45,16 +45,17 @@ EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
     'identifier': List[str]
 })
 
+
 class EbrainsBaseDataset(ABC):
-    
+
     @abstractproperty
     def id(self) -> str:
         raise NotImplementedError
-    
+
     @abstractproperty
     def name(self) -> str:
         raise NotImplementedError
-    
+
     @abstractproperty
     def urls(self) -> List[EbrainsDatasetUrl]:
         raise NotImplementedError
@@ -74,13 +75,13 @@ class EbrainsBaseDataset(ABC):
     @abstractproperty
     def custodians(self) -> List[EbrainsDatasetPerson]:
         raise NotImplementedError
-    
+
     def __hash__(self):
         return hash(self.id)
-    
+
     def __eq__(self, o: object) -> bool:
         return hasattr(o, "id") and self.id == o.id
-    
+
     def match(self, spec: Union[str, 'EbrainsBaseDataset']) -> bool:
         """
         Checks if the given specification describes this dataset.
@@ -98,6 +99,7 @@ class EbrainsBaseDataset(ABC):
         if isinstance(spec, str):
             return self.id == spec
         raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset")
+
 
 class EbrainsDataset(EbrainsBaseDataset):
 
@@ -168,11 +170,12 @@ class EbrainsDataset(EbrainsBaseDataset):
     def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
+
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @staticmethod
     def parse_person(d: dict) -> EbrainsDatasetPerson:
-        assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), f"Cannot convert a non person to a person dict!"
+        assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), "Cannot convert a non person to a person dict!"
         _id = d.get('id')
         name = f"{d.get('givenName')} {d.get('familyName')}"
         return {
@@ -188,7 +191,7 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
         self._id = id
         self._cached_data = cached_data
-    
+
     @property
     def detail(self):
         if not self._cached_data:
@@ -203,40 +206,41 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
                 ]
             ).data
         return self._cached_data
-    
+
     @property
-    def id(self) -> str :
+    def id(self) -> str:
         return self._id
 
     @property
-    def name(self) -> str :
+    def name(self) -> str:
         fullname = self.detail.get("fullName")
         version_id = self.detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
-        
+
     @property
-    def urls(self) -> List[EbrainsDatasetUrl] :
+    def urls(self) -> List[EbrainsDatasetUrl]:
         return [{
             "url": doi.get("identifier", None)
-        } for doi in self.detail.get("doi", []) ]
-    
+        } for doi in self.detail.get("doi", [])]
+
     @property
-    def description(self) -> str :
+    def description(self) -> str:
         return self.detail.get("description", "")
 
     @property
-    def contributors(self) -> List[EbrainsDatasetPerson] :
+    def contributors(self) -> List[EbrainsDatasetPerson]:
         return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("author", [])]
 
     @property
-    def ebrains_page(self) -> str :
+    def ebrains_page(self) -> str:
         if len(self.urls) > 0:
             return self.urls[0].get("url")
         return None
-    
+
     @property
     def custodians(self) -> EbrainsDatasetPerson:
         return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
     # TODO finish implementing me
@@ -246,7 +250,7 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
         self._id = id
         self._cached_data = cached_data
-    
+
     @property
     def detail(self):
         if not self._cached_data:

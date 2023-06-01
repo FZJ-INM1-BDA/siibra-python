@@ -27,6 +27,7 @@ from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
 
+
 class RegionalConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
@@ -160,7 +161,7 @@ class RegionalConnectivity(Feature):
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
         matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
-        
+
         if logscale:
             matrix = np.log10(matrix)
 

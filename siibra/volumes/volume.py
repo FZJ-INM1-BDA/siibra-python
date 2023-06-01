@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
 
+
 class ColorVolumeNotSupported(NotImplementedError):
     pass
 
@@ -200,7 +201,7 @@ class Volume:
         else:
             logger.debug(f"Requested format was {format}, selected format is {selected_format}")
             raise ValueError(f"Invalid format requested: {format}")
-        
+
         # try the selected format only
         for try_count in range(6):
             try:

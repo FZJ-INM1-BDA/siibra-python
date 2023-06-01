@@ -56,6 +56,7 @@ class ConflictingArgumentException(ValueError): pass
 
 class NonUniqueIndexError(RuntimeError): pass
 
+
 @dataclass
 class Assignment:
     input_structure: int
@@ -67,6 +68,7 @@ class Assignment:
 
 @dataclass
 class AssignImageResult(CompareMapsResult, Assignment): pass
+
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
 
@@ -263,7 +265,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             A region object defined in the parcellation map.
         """
         if isinstance(label, MapIndex) and index is None:
-            raise TypeError(f"Specify MapIndex with index keyword.")
+            raise TypeError("Specify MapIndex with 'index' keyword.")
         if index is None:
             index = MapIndex(volume, label)
         matches = [
@@ -761,24 +763,24 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for pointindex, value
                 in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
             ]
-        
+
     def _assign(
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
         minsize_voxel=1,
         lower_threshold=0.0
-    ) -> List[Union[Assignment,AssignImageResult]]:
+    ) -> List[Union[Assignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
-        
+
         if isinstance(item, point.Point):
             return self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, Nifti1Image):
             return self._assign_image(item, minsize_voxel, lower_threshold)
-        
+
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
         )
@@ -918,8 +920,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     }
                 }
             else:
-                raise RuntimeError(f"assignments must be of type Assignment or AssignImageResult!")
-            
+                raise RuntimeError("assignments must be of type Assignment or AssignImageResult!")
+
             dataframe_list.append(item_to_append)
         df = pd.DataFrame(dataframe_list)
         return (
@@ -928,7 +930,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             .reindex(columns=columns)
         )
 
-    def _assign_points(self, points:pointset.PointSet, lower_threshold: float) -> List[Assignment]:
+    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:
         """
         assign a PointSet to this parcellation map.
 
@@ -1010,8 +1012,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
                 for entry in self._assign(W, lower_threshold=lower_threshold):
-                    entry.input_structure=pointindex
-                    entry.centroid=tuple(pt)
+                    entry.input_structure = pointindex
+                    entry.centroid = tuple(pt)
                     assignments.append(entry)
         return assignments
 

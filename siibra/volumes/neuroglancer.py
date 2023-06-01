@@ -535,7 +535,7 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
     def fetch(self, label: int, fragment: str):
         """
         Fetches a particular mesh. Each mesh is a dictionary with keys:
-        
+
         Parameters
         ----------
         label: int
