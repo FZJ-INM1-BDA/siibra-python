@@ -22,6 +22,7 @@ import nibabel as nib
 from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 import json
+from time import sleep
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -57,15 +58,7 @@ class Volume:
         "mesh": MESH_FORMATS,
         "surface": MESH_FORMATS,
         "nifti": ["nii", "zip/nii"],
-        "nii": ["nii", "zip/nii"],
-        "neuroglancer": [
-            "neuroglancer/precomputed",
-            "neuroglancer/precompmesh",
-            "neuroglancer/precompmesh/surface"],
-        "neuroglancer mesh": [
-            "neuroglancer/precompmesh",
-            "neuroglancer/precompmesh/surface"
-        ]
+        "nii": ["nii", "zip/nii"]
     }
 
     def __init__(
@@ -192,7 +185,7 @@ class Volume:
 
         if format is None:
             requested_formats = self.SUPPORTED_FORMATS
-        elif format in self._FORMAT_LOOKUP.keys():  # allow use of aliases
+        elif format in self._FORMAT_LOOKUP:  # allow use of aliases
             requested_formats = self._FORMAT_LOOKUP[format]
         elif format in self.SUPPORTED_FORMATS:
             requested_formats = [format]
@@ -205,6 +198,7 @@ class Volume:
                 selected_format = fmt
                 break
         else:
+            logger.debug(f"Requested format was {format}, selected format is {selected_format}")
             raise ValueError(f"Invalid format requested: {format}")
         
         # try the selected format only
@@ -217,13 +211,15 @@ class Volume:
                     return dict(**mesh, **labels)
                 else:
                     return self._providers[selected_format].fetch(**kwargs)
-            except requests.SiibraHttpRequestError:
+            except requests.SiibraHttpRequestError as e:
+                if e.status_code == 429:  # too many requests
+                    sleep(0.1)
                 logger.error(f"Cannot access {self._providers[selected_format]}", exc_info=(try_count == 5))
         if format is None and len(self.formats) > 1:
             logger.info(
-                f"No format was specified and auto-selected {selected_format} "
-                f"was unsuccesful. You can specify another format from "
-                f" {set(self.formats) - set(selected_format)} to try.")
+                f"No format was specified and auto-selected format '{selected_format}' "
+                "was unsuccesful. You can specify another format from "
+                f"{set(self.formats) - set(selected_format)} to try.")
         return None
 
 
