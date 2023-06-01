@@ -34,6 +34,12 @@ import siibra
 from nilearn import plotting
 
 # %%
+# Similar to the parcellations, spaces, and atlases, you can access to
+# preconfigured maps by `siibra.maps`. Additionally, we can use a pandas.DataFrame
+# to navigate the details of these maps and filter them.
+siibra.maps.dataframe
+
+# %%
 # We select the maximum probability map of Julich-Brain in MNI152 space,
 # which is a parcellation map with discrete labels. 
 # `get_map` assumes maptype='labelled' by default.

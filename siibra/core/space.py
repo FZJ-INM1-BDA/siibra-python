@@ -81,7 +81,7 @@ class Space(AtlasConcept, configuration_folder="spaces"):
         for v in self.volumes:
             v.space_info = {"@id": self.id}
 
-    def get_template(self, variant: str = None, format: str = None):
+    def get_template(self, variant: str = None):
         """
         Get the volumetric reference template for this space.
 
@@ -93,9 +93,6 @@ class Space(AtlasConcept, configuration_folder="spaces"):
                 inflated surface for left and right hemispheres (6 variants).
                 This field could be used to request a specific variant.
                 Per default, the first found variant is returned.
-            format: str, optional
-                Volumes are typically available in multiple formats.
-                Use this to select a specific one, if needed.
 
         Returns
         -------

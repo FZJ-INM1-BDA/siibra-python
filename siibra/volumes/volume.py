@@ -22,6 +22,7 @@ import nibabel as nib
 from abc import ABC, abstractmethod
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 import json
+from time import sleep
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -51,6 +52,14 @@ class Volume:
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
+
+    _FORMAT_LOOKUP = {
+        "image": IMAGE_FORMATS,
+        "mesh": MESH_FORMATS,
+        "surface": MESH_FORMATS,
+        "nifti": ["nii", "zip/nii"],
+        "nii": ["nii", "zip/nii"]
+    }
 
     def __init__(
         self,
@@ -159,9 +168,10 @@ class Volume:
 
         Parameters
         ----------
-        format: str
-            Requested format. Per default, several formats are tried,
-            starting with volumetric formats. It can be explicitly specified as:
+        format: str, default=None
+            Requested format. If `None`, the first supported format matching in
+            `self.formats` is tried, starting with volumetric formats.
+            It can be explicitly specified as:
                 - 'surface' or 'mesh' to fetch a surface format
                 - 'volumetric' or 'voxel' to fetch a volumetric format
                 - supported format types, see SUPPORTED_FORMATS. This includes
@@ -175,29 +185,41 @@ class Volume:
 
         if format is None:
             requested_formats = self.SUPPORTED_FORMATS
-        elif format == 'mesh':
-            requested_formats = self.MESH_FORMATS
-        elif format == 'image':
-            requested_formats = self.IMAGE_FORMATS
+        elif format in self._FORMAT_LOOKUP:  # allow use of aliases
+            requested_formats = self._FORMAT_LOOKUP[format]
         elif format in self.SUPPORTED_FORMATS:
             requested_formats = [format]
         else:
             raise ValueError(f"Invalid format requested: {format}")
 
+        # select the first source unless the user specifically requests a format
         for fmt in requested_formats:
             if fmt in self.formats:
-                try:
-                    if fmt == "gii-label":
-                        tpl = self.space.get_template(variant=kwargs.get('variant'), format=format)
-                        mesh = tpl.fetch(**kwargs)
-                        labels = self._providers[fmt].fetch(**kwargs)
-                        return dict(**mesh, **labels)
-                    else:
-                        return self._providers[fmt].fetch(**kwargs)
-                except requests.SiibraHttpRequestError as e:
-                    logger.error(f"Cannot access {self._providers[fmt]}")
-                    print(str(e))
-                    continue
+                selected_format = fmt
+                break
+        else:
+            logger.debug(f"Requested format was {format}, selected format is {selected_format}")
+            raise ValueError(f"Invalid format requested: {format}")
+        
+        # try the selected format only
+        for try_count in range(6):
+            try:
+                if selected_format == "gii-label":
+                    tpl = self.space.get_template(variant=kwargs.get('variant'))
+                    mesh = tpl.fetch(**kwargs)
+                    labels = self._providers[selected_format].fetch(**kwargs)
+                    return dict(**mesh, **labels)
+                else:
+                    return self._providers[selected_format].fetch(**kwargs)
+            except requests.SiibraHttpRequestError as e:
+                if e.status_code == 429:  # too many requests
+                    sleep(0.1)
+                logger.error(f"Cannot access {self._providers[selected_format]}", exc_info=(try_count == 5))
+        if format is None and len(self.formats) > 1:
+            logger.info(
+                f"No format was specified and auto-selected format '{selected_format}' "
+                "was unsuccesful. You can specify another format from "
+                f"{set(self.formats) - set(selected_format)} to try.")
         return None
 
 

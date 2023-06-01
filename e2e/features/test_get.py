@@ -22,3 +22,10 @@ ids = [
 def test_get_instance(fid,foo):
     feat = siibra.features.Feature.get_instance_by_id(fid)
     assert feat
+
+@pytest.mark.parametrize('fid,foo', ids)
+def test_subclass_count(fid,foo):
+    len_before = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
+    feat = siibra.features.Feature.get_instance_by_id(fid)
+    len_after = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
+    assert len_before == len_after

@@ -3,7 +3,6 @@ nibabel
 appdirs
 scikit-image
 requests
-memoization
 neuroglancer-scripts
 nilearn
 typing-extensions; python_version < "3.8"
