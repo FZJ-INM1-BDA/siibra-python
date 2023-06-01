@@ -27,7 +27,7 @@
         "volumes": {
             "type": "array",
             "items": {
-                "$ref": "/config_schema/siibra/volume/v0.0.1.json"
+                "$ref": "https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-python/feat_updateSchema/config_schema/siibra/volume/v0.0.1.json"
             }
         },
         "indices": {

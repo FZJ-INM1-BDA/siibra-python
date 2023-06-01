@@ -1,9 +1,9 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema",
     "allOf": [{
-        "$ref": "/config_schema/has_region.json"
+        "$ref": "https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-python/feat_updateSchema/config_schema/has_region.json"
     }, {
-        "$ref": "/config_schema/has_ebrainsrefs.json"
+        "$ref": "https://raw.githubusercontent.com/FZJ-INM1-BDA/siibra-python/feat_updateSchema/config_schema/has_ebrainsrefs.json"
     }],
     "properties": {
         "@type": {
