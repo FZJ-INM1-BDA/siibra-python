@@ -98,6 +98,8 @@ class InstanceTable(Generic[T], Iterable):
                 f"Key {key} already in {__class__.__name__}, existing value will be replaced."
             )
         self._elements[key] = value
+        if self._dataframe_cached is not None:
+            self._dataframe_cached = None
 
     def __dir__(self) -> Iterable[str]:
         """List of all object keys in the registry"""
@@ -231,18 +233,21 @@ class InstanceTable(Generic[T], Iterable):
     @property
     def dataframe(self):
         if self._dataframe_cached is None:
-            values = self._elements.values()
-            attrs = []
-            for i, val in enumerate(values):
-                attrs.append({'name': val.name, 'species': str(val.species)})
-                if hasattr(val, 'maptype'):
-                    attrs[i].update(
-                        {
-                            attribute: val.__getattribute__(attribute).name
-                            for attribute in ['parcellation', 'space', 'maptype']
-                        }
-                    )
-            self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=attrs)
+            values = self.values()
+            data = []
+            attribute_keys = [
+                attr for attr in
+                [
+                    'name', 'species', 'parcellation', 'space', 'maptype',
+                    'provides_image', 'provides_mesh', 'anchor'
+                ]
+                if hasattr(values.__iter__().__next__(), attr)
+            ]
+            for val in values:
+                data.append(
+                    {attr: val.__getattribute__(attr) for attr in attribute_keys}
+                )
+            self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=data)
         return self._dataframe_cached
 
 
