@@ -167,6 +167,21 @@ class Feature:
         self.anchor._last_matched_concept = None
         return False
 
+    @classmethod
+    def get_instance_dataframe(cls):
+        instance_table = InstanceTable(
+            elements={str(i): f for i, f in enumerate(cls.get_instances())},
+            matchfunc=cls.match
+        )
+        df = instance_table.dataframe
+        if hasattr(cls._preconfigured_instances[0], "modality"):
+            df["modality"] = [f.modality for f in cls._preconfigured_instances]
+        if hasattr(cls._preconfigured_instances[0], "paradigm"):
+            df["paradigm"] = [f.paradigm for f in cls._preconfigured_instances]
+        df["species"] = df.apply(lambda x: x["anchor"].species, axis=1)
+        df["instance"] = cls._preconfigured_instances
+        return df
+
     @property
     def last_match_result(self):
         return None if self.anchor is None \
