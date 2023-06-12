@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
+from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm, normalize_path
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
@@ -145,8 +145,11 @@ class Configuration:
         result = []
 
         if folder not in self.folders:
-            logger.warning(f"No configuration found for building from configuration folder {folder}.")
-            return result
+            if normalize_path(folder) in self.folders:
+                folder = normalize_path(folder)
+            else:
+                logger.warning(f"No configuration found for building from configuration folder {folder}.")
+                return result
 
         from .factory import Factory
         specloaders = self.spec_loaders.get(folder, [])

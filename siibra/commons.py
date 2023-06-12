@@ -371,6 +371,11 @@ def snake2camel(s: str):
     return "".join([w[0].upper() + w[1:].lower() for w in s.split("_")])
 
 
+def normalize_path(s: str):
+    """Path normalization wrapper."""
+    return os.path.normpath(s)
+
+
 # getting nonzero pixels of pmaps is one of the most time consuming tasks when computing metrics,
 # so we cache the nonzero coordinates of array objects at runtime.
 NZCACHE = {}

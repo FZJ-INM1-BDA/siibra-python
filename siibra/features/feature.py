@@ -15,7 +15,7 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, siibra_tqdm
+from ..commons import logger, InstanceTable, siibra_tqdm, normalize_path
 from ..core import concept
 from ..core import space, region, parcellation
 
@@ -144,7 +144,11 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls.clean_instances)
-        assert cls._configuration_folder in conf.folders
+        try:
+            assert cls._configuration_folder in conf.folders
+        except Exception:
+            logger.debug("Configuration folder assertion has failed:", exc_info=1)
+            assert normalize_path(cls._configuration_folder) in conf.folders, "Configuration folder assertion has failed"
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)
