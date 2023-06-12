@@ -19,7 +19,7 @@ from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIEN
 from .. import __version__
 
 import json
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 import requests
 import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
@@ -207,27 +207,47 @@ class HttpRequest:
 
 
 class ZipfileRequest(HttpRequest):
-    def __init__(self, url, filename, func=None):
+    def __init__(self, url, filename: str = "", func=None):
+        """
+        By default, requests to the zip file itself.
+        """
         HttpRequest.__init__(self, url, func=func)
         self.filename = filename
+        self.cachefile = CACHE.build_filename(self.url + self.filename.replace("/", "_"))
         self._set_decoder_func(func, filename)
+        self._zipfile = None
 
-    def get(self):
-        self._retrieve()
-        zipfile = ZipFile(self.cachefile)
-        filenames = zipfile.namelist()
-        matches = [fn for fn in filenames if fn.endswith(self.filename)]
-        if len(matches) == 0:
-            raise RuntimeError(
-                f"Requested filename {self.filename} not found in archive at {self.url}"
-            )
-        if len(matches) > 1:
-            raise RuntimeError(
-                f'Requested filename {self.filename} was not unique in archive at {self.url}. Candidates were: {", ".join(matches)}'
-            )
-        with zipfile.open(matches[0]) as f:
-            data = f.read()
-        return data if self.func is None else self.func(data)
+    @property
+    def zipfile(self) -> ZipFile:
+        """Stream the remote zipfile"""
+        if self._zipfile is None:
+            s = requests.Session()
+            response = s.get(self.url, stream=True)
+            if not response.ok:
+                raise SiibraHttpRequestError(self.url, response.status_code)
+            self._zipfile = ZipFile(BytesIO(response.content))
+        return self._zipfile
+
+    @property
+    def _fileinfo(self) -> ZipInfo:
+        return self.zipfile.getinfo(self.filename)
+
+    def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
+        if self.cached and not self.refresh:
+            return
+
+        if self.filename == "":
+            return HttpRequest(self.url, func=DECODERS[".zip"])._retrieve()
+
+        temp_cachefile = f"{self.cachefile}_temp"
+        lock = Lock(f"{temp_cachefile}.lock")
+        with lock:
+            with open(temp_cachefile, "wb") as fp:
+                fp.write(self.zipfile.read(self._fileinfo))
+            if self.refresh and os.path.isfile(self.cachefile):
+                os.remove(self.cachefile)
+            self.refresh = False
+            os.rename(temp_cachefile, self.cachefile)
 
 
 class EbrainsRequest(HttpRequest):

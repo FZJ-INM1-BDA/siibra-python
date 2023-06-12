@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from .requests import (
+    DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError, BytesIO,
+    ZipfileRequest
+)
 from .cache import CACHE
 
 from ..commons import logger, siibra_tqdm
@@ -21,8 +24,8 @@ from ..commons import logger, siibra_tqdm
 from abc import ABC, abstractmethod
 from urllib.parse import quote
 import os
-from zipfile import ZipFile
-from typing import List
+from zipfile import ZipFile, ZipInfo
+from typing import List, Callable
 import requests
 
 
@@ -283,76 +286,53 @@ class GitlabConnector(RepositoryConnector):
 class ZipfileConnector(RepositoryConnector):
 
     def __init__(self, url: str):
-        RepositoryConnector.__init__(self, base_url="")
-        self.url = url
-        self._zipfile_cached = None
+        RepositoryConnector.__init__(self, base_url=url)
+        self.base_url = url
+        self._zipfile_request = ZipfileRequest(self.base_url, filename="", func=DECODERS[".zip"])
+        self._namelist_cached = None
 
     @property
-    def zipfile(self):
-        if self._zipfile_cached is None:
-            if os.path.isfile(os.path.abspath(os.path.expanduser(self.url))):
-                self._zipfile_cached = os.path.abspath(os.path.expanduser(self.url))
-            else:
-                # assume the url is web URL to download the zip!
-                req = HttpRequest(self.url)
-                req._retrieve()
-                self._zipfile_cached = req.cachefile
-        return self._zipfile_cached
+    def zipfile(self) -> ZipFile:
+        return self._zipfile_request.zipfile
 
-    def _build_url(self, folder="", filename=None):
-        return os.path.join(folder, filename)
+    @property
+    def filelist(self) -> List[str]:
+        if self._namelist_cached is None:
+            self._namelist_cached = self.zipfile.namelist()
+        return self._namelist_cached
 
-    def search_files(self, folder="", suffix="", recursive=False):
-        container = ZipFile(self.zipfile)
-        result = []
-        if folder and not folder.endswith(os.path.sep):
-            folder += os.path.sep
-        for fname in container.namelist():
-            if os.path.dirname(fname.replace(folder, "")) and not recursive:
-                continue
-            if not os.path.basename(fname):
-                continue
-            if fname.startswith(folder) and fname.endswith(suffix):
-                result.append(fname)
-        return result
-
-    def __eq__(self, other):
-        return self.url == other.url
-
-    def clear_cache(self):
-        os.remove(self.zipfile)
-        self._zipfile_cached = None
-
-    class ZipFileLoader:
+    def search_files(self, folder="", suffix="") -> List[str]:
         """
-        Loads a file from the zip archive, but mimics the behaviour
-        of cached http requests used in other connectors.
+        Searches the files within the zip file recursively. Returns a list of
+        files matching the suffix and folder arguments.
+        Note
+        ----
+            ZipfileConnector always searches recursively.
+            Use ZipfileConnector.filelist to see all the files within the zip.
         """
-        def __init__(self, zipfile, filename, decode_func):
-            self.zipfile = zipfile
-            self.filename = filename
-            self.func = decode_func
-            self.cachefile = CACHE.build_filename(zipfile + filename)
+        return [
+            fname for fname in self.filelist
+            if fname.startswith(folder) and fname.endswith(suffix)
+        ]
 
-        @property
-        def cached(self):
-            return os.path.isfile(self.cachefile)
+    def _build_url(self, folder: str = "", filename: str = "") -> str:
+        candidates = [f for f in self.search_files(folder) if filename in f]
+        assert len(candidates) == 1, "Criteria was not sufficient for getting a unique file."
+        return candidates[0]
 
-        @property
-        def data(self):
-            container = ZipFile(self.zipfile)
-            return self.func(container.open(self.filename).read())
-
-    def get_loader(self, filename, folder="", decode_func=None):
-        """Get a lazy loader for a file, for loading data
-        only once loader.data is accessed."""
-        if decode_func is None:
-            return self.ZipFileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
-        else:
-            return self.ZipFileLoader(self.zipfile, filename, decode_func)
+    def get_loader(self, filename: str, folder: str = "", decode_func: Callable = None):
+        """
+        Get a lazy loader for a file, for loading data
+        only once loader.data is accessed.
+        """
+        return ZipfileRequest(
+            url=self.base_url,
+            filename=self._build_url(folder, filename),
+            func=decode_func
+        )
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.zipfile}"
+        return f"{self.__class__.__name__}: {self.zipfile.filename}"
 
 
 class OwncloudConnector(RepositoryConnector):

@@ -358,7 +358,6 @@ class SparseMap(parcellationmap.Map):
                     path.join(cache.CACHE.folder, file[0]),
                     cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
                 )
-        zconn.clear_cache()
 
         return SparseIndex._from_local_cache(self._cache_prefix)
 
