@@ -556,37 +556,62 @@ class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"
             - 'name': Name of the of the mesh variant
         """
 
-        # extract fragment information for the requested mesh
-        fragment_infos = self._get_fragment_info(label)
-
-        if fragment is None:
-
-            # no fragment specified, return merged fragment meshes
-            if len(fragment_infos) == 1:
-                url, transform = next(iter(fragment_infos.values()))
-                return self._fetch_fragment(url, transform)
+        if label is None:
+            if hasattr(self, "parcellation_map"):
+                # providers of a parcellation map volume are monkey-patched
+                # with a reference to the map. In that case, we can infer
+                # the set of available labels, but it cannot be inferred
+                # from the neuroglancer URL only.
+                labels = self.parcellation_map.labels
             else:
-                logger.info(
-                    f"Fragments [{', '.join(fragment_infos.keys())}] are merged during fetch(). "
-                    "You can select one of them using the 'fragment' parameter."
-                )
-                return merge_meshes([self._fetch_fragment(u, t) for u, t in fragment_infos.values()])
-
+                raise RuntimeError(f"Fetching from {self.__class__.__name__} requires to specify a mesh label.")
         else:
+            labels = [label]
 
-            # match fragment to available fragments
-            matched = [
-                info for name, info in fragment_infos.items()
-                if fragment.lower() in name
-            ]
-            if len(matched) == 1:
-                url, transform = next(iter(matched))
-                return self._fetch_fragment(url, transform)
+        meshes = []
+        fragments = []
+        for label_i in labels:
+
+            # extract fragment information for the requested mesh
+            fragment_infos = self._get_fragment_info(label_i)
+
+            if fragment is None:
+                # no fragment specified, return merged fragment meshes
+                if len(fragment_infos) == 0:
+                    raise RuntimeError(f"Invalid label '{label_i}' for mesh fetching.")
+                else:
+                    for name, (url, transform) in fragment_infos.items():
+                        mesh = self._fetch_fragment(url, transform)
+                        mesh['labels'] = np.array([label_i for _ in mesh['verts']])
+                        meshes.append(mesh)
+                        fragments.append(name)
+
             else:
-                raise ValueError(
-                    f"The requested mesh fragment name '{fragment}' could not be resolved. "
-                    f"Valid names are: {', '.join(fragment_infos.keys())}"
-                )
+                # match fragment to available fragments
+                matched = [
+                    (name, url, transform) 
+                    for name, (url, transform) in fragment_infos.items()
+                    if fragment.lower() in name
+                ]
+                
+                if len(matched) == 1:
+                    name, url, transform = next(iter(matched))
+                    mesh = self._fetch_fragment(url, transform)
+                    mesh['labels'] = np.array([label_i for _ in mesh['verts']])
+                    meshes.append(mesh)
+                    fragments.append(name)
+                else:
+                    raise ValueError(
+                        f"The requested mesh fragment name '{fragment}' could not be resolved. "
+                        f"Valid names are: {', '.join(fragment_infos.keys())}"
+                    )
+
+        if len(fragments) > 1:
+            logger.info(
+                f"Fragments [{', '.join(fragments)}] were merged during fetch(). "
+                "You can select one of them using the 'fragment' parameter."
+            )
+        return merge_meshes(meshes)
 
 
 class NeuroglancerSurfaceMesh(NeuroglancerMesh, srctype="neuroglancer/precompmesh/surface"):
