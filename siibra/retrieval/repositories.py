@@ -205,7 +205,7 @@ class GitlabConnector(RepositoryConnector):
                 self._tag_checked = True
             except Exception as e:
                 print(str(e))
-                print("Could not connect to gitlab server!")
+                logger.warning("Could not connect to gitlab server!")
         return self._want_commit_cached
 
     @property
@@ -319,7 +319,11 @@ class ZipfileConnector(RepositoryConnector):
     def __eq__(self, other):
         return self.url == other.url
 
-    class FileLoader:
+    def clear_cache(self):
+        os.remove(self.zipfile)
+        self._zipfile_cached = None
+
+    class ZipFileLoader:
         """
         Loads a file from the zip archive, but mimics the behaviour
         of cached http requests used in other connectors.
@@ -328,7 +332,11 @@ class ZipfileConnector(RepositoryConnector):
             self.zipfile = zipfile
             self.filename = filename
             self.func = decode_func
-            self.cached = True
+            self.cachefile = CACHE.build_filename(zipfile + filename)
+
+        @property
+        def cached(self):
+            return os.path.isfile(self.cachefile)
 
         @property
         def data(self):
@@ -339,9 +347,9 @@ class ZipfileConnector(RepositoryConnector):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
         if decode_func is None:
-            return self.FileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
+            return self.ZipFileLoader(self.zipfile, filename, lambda b: self._decode_response(b, filename))
         else:
-            return self.FileLoader(self.zipfile, filename, decode_func)
+            return self.ZipFileLoader(self.zipfile, filename, decode_func)
 
     def __str__(self):
         return f"{self.__class__.__name__}: {self.zipfile}"

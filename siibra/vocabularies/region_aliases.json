@@ -449,5 +449,12 @@
 				"Temporal lobe": "contained"
 			}
 		}
+	},
+	"Macaca fascicularis": {
+		"pallidum": {
+			"Macaca fascicularis": {
+				"globus pallidus": "exact"
+			}
+		}
 	}
 }

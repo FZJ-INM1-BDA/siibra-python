@@ -188,7 +188,7 @@ class Feature:
     @staticmethod
     def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
         """
-        Serialize feature from livequery and query context. 
+        Serialize feature from livequery and query context.
 
         It is currently impossible to retrieve a livequery with a generic UUID.
         As such, the query context (e.g. region, space or parcellation) needs to
@@ -200,7 +200,7 @@ class Feature:
         The serialized livequery id follows the following pattern:
 
         <livequeryid_version>::<feature_cls_name>::<query_context>::<unserialized_id>
-        
+
         Where:
 
         - livequeryid_version: version of the serialization. (e.g. lq0)
@@ -233,7 +233,7 @@ class Feature:
     @classmethod
     def deserialize_query_context(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
         """
-        Deserialize id into query context. 
+        Deserialize id into query context.
 
         See docstring of serialize_query_context for context.
         """

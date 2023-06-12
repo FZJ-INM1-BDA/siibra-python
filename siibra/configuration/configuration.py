@@ -46,8 +46,6 @@ class Configuration:
 
     CONFIGURATION_EXTENSIONS = []
 
-
-
     _cleanup_funcs = []
 
     @staticmethod

@@ -20,6 +20,7 @@ from nibabel import Nifti1Image
 import logging
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
 
+
 @dataclass
 class CompareMapsResult:
     intersection_over_union: float
@@ -52,6 +54,7 @@ class CompareMapsResult:
     correlation: float
     weighted_mean_of_first: float
     weighted_mean_of_second: float
+
 
 T = TypeVar("T")
 
@@ -81,6 +84,7 @@ class InstanceTable(Generic[T], Iterable):
             assert all(isinstance(k, str) for k in elements.keys())
             self._elements: Dict[str, T] = elements
         self._matchfunc = matchfunc
+        self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
         """Add a key/value pair to the registry.
@@ -97,7 +101,7 @@ class InstanceTable(Generic[T], Iterable):
 
     def __dir__(self) -> Iterable[str]:
         """List of all object keys in the registry"""
-        return self._elements.keys()
+        return ["dataframe"] + list(self._elements.keys())
 
     def __str__(self) -> str:
         if len(self) > 0:
@@ -224,6 +228,23 @@ class InstanceTable(Generic[T], Iterable):
                     hint = f"Did you mean {' or '.join(closest)}?"
             raise AttributeError(f"Term '{index}' not in {__class__.__name__}. " + hint)
 
+    @property
+    def dataframe(self):
+        if self._dataframe_cached is None:
+            values = self._elements.values()
+            attrs = []
+            for i, val in enumerate(values):
+                attrs.append({'name': val.name, 'species': str(val.species)})
+                if hasattr(val, 'maptype'):
+                    attrs[i].update(
+                        {
+                            attribute: val.__getattribute__(attribute).name
+                            for attribute in ['parcellation', 'space', 'maptype']
+                        }
+                    )
+            self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=attrs)
+        return self._dataframe_cached
+
 
 class LoggingContext:
     def __init__(self, level):
@@ -246,13 +267,13 @@ QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
 
-def siibra_tqdm(iterable: Iterable[T]=None, *args, **kwargs):
+def siibra_tqdm(iterable: Iterable[T] = None, *args, **kwargs):
     return tqdm(
         iterable,
         *args,
         disable=kwargs.pop("disable", False) or (logger.level > 20),
         **kwargs
-        )
+    )
 
 
 def create_key(name: str):

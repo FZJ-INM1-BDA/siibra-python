@@ -43,6 +43,7 @@ REGEX_TYPE = type(re.compile("test"))
 
 THRESHOLD_STATISTICAL_MAPS = None
 
+
 @dataclass
 class SpatialPropCmpt:
     centroid: point.Point
@@ -51,9 +52,9 @@ class SpatialPropCmpt:
 
 @dataclass
 class SpatialProp:
-    cog:SpatialPropCmpt=None
-    components:List[SpatialPropCmpt]=field(default_factory=list)
-    space:_space.Space=None
+    cog: SpatialPropCmpt = None
+    components: List[SpatialPropCmpt] = field(default_factory=list)
+    space: _space.Space = None
 
 
 class Region(anytree.NodeMixin, concept.AtlasConcept):

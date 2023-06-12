@@ -28,6 +28,7 @@ from .core import (
     parcellation as _parcellation,
     space as _space
 )
+from .volumes import parcellationmap as _parcellationmap
 from .retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
     CACHE as cache
@@ -59,6 +60,8 @@ def __getattr__(attr: str):
         return _space.Space.registry()
     elif attr == 'parcellations':
         return _parcellation.Parcellation.registry()
+    elif attr == 'maps':
+        return _parcellationmap.Map.registry()
     elif attr == 'use_configuration':
         return configuration.Configuration.use_configuration
     elif attr == 'extend_configuration':

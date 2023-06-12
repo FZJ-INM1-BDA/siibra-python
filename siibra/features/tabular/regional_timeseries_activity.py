@@ -198,6 +198,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
 
     def plot(self, subject: str = None, **kwargs):
         table = self.get_table(subject)
+        table.columns = [str(r) for r in table.columns]
         return table.mean().plot(kind="bar", **kwargs)
 
 

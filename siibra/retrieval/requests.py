@@ -52,7 +52,7 @@ DECODERS = {
     ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
-    ".csv": lambda b: pd.read_csv(BytesIO(b), delimiter=";"),
+    ".csv": lambda b: pd.read_csv(BytesIO(b)),
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
@@ -79,8 +79,8 @@ class HttpRequest:
     def __init__(
         self,
         url: str,
-        func: Callable=None,
-        msg_if_not_cached: str=None,
+        func: Callable = None,
+        msg_if_not_cached: str = None,
         refresh=False,
         post=False,
         **kwargs,
@@ -144,11 +144,11 @@ class HttpRequest:
 
         if self.cached and not self.refresh:
             return
-        
+
         # not yet in cache, perform http request.
         if self.msg_if_not_cached is not None:
             logger.debug(self.msg_if_not_cached)
-            
+
         headers = self.kwargs.get('headers', {})
         other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
 
@@ -170,7 +170,7 @@ class HttpRequest:
             )
         temp_cachefile = f"{self.cachefile}_temp"
         lock = Lock(f"{temp_cachefile}.lock")
-        
+
         with lock:
             with open(temp_cachefile, "wb") as f:
                 for data in r.iter_content(block_size):
@@ -179,9 +179,10 @@ class HttpRequest:
                     f.write(data)
             if size_bytes > min_bytesize_with_no_progress_info:
                 progress_bar.close()
+            if self.refresh and os.path.isfile(self.cachefile):
+                os.remove(self.cachefile)
             self.refresh = False
             os.rename(temp_cachefile, self.cachefile)
-            
 
     def get(self):
         self._retrieve()
@@ -277,11 +278,11 @@ class EbrainsRequest(HttpRequest):
         """
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
-        
+
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
         cls.device_flow(**kwargs)
-        
+
     @classmethod
     def device_flow(cls, **kwargs):
         if all([
@@ -301,18 +302,18 @@ class EbrainsRequest(HttpRequest):
             if not scopes:
                 return None
             if not isinstance(scopes, list):
-                logger.warning(f"scopes needs to be a list, is but is not... skipping")
+                logger.warning("scopes needs to be a list, is but is not... skipping")
                 return None
             if not all(isinstance(scope, str) for scope in scopes):
-                logger.warning(f"scopes needs to be all str, but is not")
+                logger.warning("scopes needs to be all str, but is not")
                 return None
             if len(scopes) == 0:
-                logger.warning(f'provided empty list as scopes... skipping')
+                logger.warning('provided empty list as scopes... skipping')
                 return None
             return "+".join(scopes)
-        
+
         scopes = get_scopes()
-        
+
         data = {
             'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
         }
