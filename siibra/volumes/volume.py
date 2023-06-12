@@ -197,9 +197,9 @@ class Volume:
         for fmt in requested_formats:
             if fmt in self.formats:
                 selected_format = fmt
+                logger.debug(f"Requested format was '{format}', selected format is '{selected_format}'")
                 break
         else:
-            logger.debug(f"Requested format was {format}, selected format is {selected_format}")
             raise ValueError(f"Invalid format requested: {format}")
 
         # try the selected format only

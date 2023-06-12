@@ -474,10 +474,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             # we compute the affine from a volumetric volume provider
             for fmt in _volume.Volume.SUPPORTED_FORMATS:
                 if fmt not in _volume.Volume.MESH_FORMATS:
+                    if fmt not in self.formats:
+                        continue
                     try:
                         self._affine_cached = self.fetch(index=MapIndex(volume=0), format=fmt).affine
                         break
-                    except RuntimeError:
+                    except Exception:
+                        logger.debug("Caught exceptions:\n", exc_info=1)
                         continue
             else:
                 raise RuntimeError(f"No volumetric provider in {self} to derive the affine matrix.")
