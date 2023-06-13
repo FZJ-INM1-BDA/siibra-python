@@ -32,8 +32,9 @@ class WagstylProfileLoader:
     BRANCH = "main"
     PROFILES_FILE = "data/profiles_left.npy"
     THICKNESSES_FILE = "data/thicknesses_left.npy"
-    MESH_FILE = "data/gray_left_327680.surf.gii"
-
+    MESH_FILE_LEFT = "gray_left_327680.surf.gii"
+    MESH_FILE_RIGHT = "gray_right_327680.surf.gii"
+    BASEURL = "https://ftp.bigbrainproject.org/bigbrain-ftp/BigBrainRelease.2015/3D_Surfaces/Apr7_2016/gii/"
     _profiles = None
     _vertices = None
     _boundary_depths = None
@@ -49,11 +50,15 @@ class WagstylProfileLoader:
     @classmethod
     def _load(cls):
         # read thicknesses, in mm, and normalize by their last column which is the total thickness
-        mesh_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
-        T = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
-        total = T[:, :-1].sum(1)
-        valid = np.where(total > 0)[0]
-        boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
+        mesh_left = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_LEFT}").data
+        mesh_right = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_RIGHT}").data
+        mesh_vertices = np.concatenate((mesh_left.darrays[0].data, mesh_right.darrays[0].data))
+        thickness_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
+        thickness_right = np.zeros(shape=(len(mesh_right.darrays[0].data), 7))  # TODO: replace with thickness data for te right hemisphere
+        thickness = np.concatenate((thickness_left, thickness_right))
+        total_thickness = thickness[:, :-1].sum(1)
+        valid = np.where(total_thickness > 0)[0]
+        boundary_depths = np.c_[np.zeros_like(valid), (thickness[valid, :-1] / total_thickness[valid, None]).cumsum(1)]
         boundary_depths[:, -1] = 1
 
         # read profiles with valid thickenss
@@ -67,7 +72,7 @@ class WagstylProfileLoader:
         req = requests.HttpRequest(url)
 
         cls._boundary_depths = boundary_depths
-        cls._vertices = mesh_left.darrays[0].data[valid, :]
+        cls._vertices = mesh_vertices[valid, :]
         cls._profiles = req.data[valid, :]
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
