@@ -159,25 +159,30 @@ class CorticalProfile(tabular.Tabular):
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
         )
 
-    def plot(self, **kwargs):
+    def plot(self, *args, backend="matplotlib", **kwargs):
         """
         Plot the profile.
 
-        Keyword arguments are passed on to the plot command.
-        'layercolor' can be used to specify a color for cortical layer shading.
+        Parameters
+        ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            Keyword arguments are passed on to the plot command.
+            'layercolor' can be used to specify a color for cortical layer shading.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
-        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
-            return self.data.plot(**kwargs)
-        else:
+
+        if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
             layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
-            axs = self.data.plot(**kwargs)
+            axs = self.data.plot(*args, **kwargs, backend=backend)
 
             if self.boundaries_mapped:
                 bvals = list(self.boundary_positions.values())
@@ -194,6 +199,8 @@ class CorticalProfile(tabular.Tabular):
 
             axs.set_title(axs.get_title(), fontsize="medium")
             return axs
+        else:
+            return self.data.plot(*args, **kwargs, backend=backend)
 
     @property
     def _depths(self):

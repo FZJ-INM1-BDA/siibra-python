@@ -57,23 +57,19 @@ class Tabular(feature.Feature):
     def data(self):
         return self._data_cached.copy()
 
-    def plot(self, **kwargs):
+    def plot(self, *args, backend="matplotlib", **kwargs):
         """
         Create a bar plot of a columns of the data.
         Parameters
         ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
         **kwargs
             takes Matplotlib.pyplot keyword arguments
         """
         kwargs["y"] = kwargs.get("y", self.data.columns[0])
-        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
-            kwargs["labels"] = {
-                "index": kwargs.pop("xlabel", ""),
-                "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
-            }
-            kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-            return self.data.plot(kind="bar", **kwargs)
-        else:
+        if backend == "matplotlib":
             try:
                 import matplotlib.pyplot as plt
             except ImportError:
@@ -95,7 +91,17 @@ class Tabular(feature.Feature):
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
-            ax = self.data.plot(kind="bar", **kwargs)
+            ax = self.data.plot(kind="bar", *args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
             ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
             plt.tight_layout()
+            return ax
+        elif backend == "plotly":
+            kwargs["labels"] = {
+                "index": kwargs.pop("xlabel", ""),
+                "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
+            }
+            kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
+            return self.data.plot(kind="bar", *args, backend=backend, **kwargs)
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)

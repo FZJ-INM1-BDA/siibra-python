@@ -111,28 +111,13 @@ class ReceptorDensityFingerprint(
             'stds': [float(s) if s.isnumeric() else 0 for s in std],
         }
 
-    def polar_plot(self, **kwargs):
-        """ Create a polar plot of the fingerprint. """
-        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
-            from plotly.express import line_polar
-            df = pd.DataFrame(
-                {
-                    "values": pd.concat(
-                        [
-                            self.data["mean"],
-                            self.data["mean"] - self.data["std"],
-                            self.data["mean"] + self.data["std"]
-                        ]
-                    ),
-                    "cat":
-                        len(self.data) * ["mean"] +\
-                        len(self.data) * ["mean - std"] +\
-                        len(self.data) * ["mean + std"]
-                }
-            )
-            return line_polar(df, r="values", theta=df.index, color="cat",
-                line_close=True, **kwargs)
-        else:
+    def polar_plot(self, *args, backend='matplotlib', **kwargs):
+        """
+        Create a polar plot of the fingerprint.
+        backend: str
+            "matplotlib" or "plotly"
+        """
+        if backend == "matplotlib":
             try:
                 import matplotlib.pyplot as plt
             except ImportError:
@@ -174,7 +159,29 @@ class ReceptorDensityFingerprint(
             ax.tick_params(axis="y", labelsize=8)
             plt.tight_layout()
             return ax
+        elif backend == "plotly":
+            from plotly.express import line_polar
+            df = pd.DataFrame(
+                {
+                    "values": pd.concat(
+                        [
+                            self.data["mean"],
+                            self.data["mean"] - self.data["std"],
+                            self.data["mean"] + self.data["std"]
+                        ]
+                    ),
+                    "cat":
+                        len(self.data) * ["mean"] +\
+                        len(self.data) * ["mean - std"] +\
+                        len(self.data) * ["mean + std"]
+                }
+            )
+            return line_polar(
+                df, r="values", theta=df.index, color="cat", line_close=True, **kwargs
+            )
+        else:
+            raise NotImplementedError
 
-    def plot(self, **kwargs):
+    def plot(self, *args, **kwargs):
         kwargs['xlabel'] = ""
-        return super().plot(**kwargs)
+        return super().plot(*args, **kwargs)

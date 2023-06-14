@@ -16,7 +16,7 @@
 from .. import anchor as _anchor
 from . import tabular
 
-from ... import commons
+from ... import logger
 
 import pandas as pd
 from textwrap import wrap
@@ -118,28 +118,38 @@ class GeneExpressions(
         )
         self.unit = "expression level"
 
-    def plot(self, **kwargs):
-        """ Create a bar plot of the average per gene."""
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        """
+        Create a bar plot of the average per gene.
+        Parameters
+        ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            Keyword arguments are passed on to the plot command.
+        """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         title = kwargs.pop("title", None) \
-                or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
-        if pd.options.plotting.backend == "plotly" and kwargs.get("backend") != "matplotlib":
-            return self.data.plot(kind='box', y='level', x='gene', **kwargs)
-        else:
+            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
+        if backend == "matplotlib":
             try:
                 import matplotlib.pyplot as plt
             except ImportError:
-                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                return None
+                logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+                raise
 
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
                 assert arg not in kwargs
+            passed_kwarg = {
+                "kind": 'box', "grid": True, "legend": False, 'by': "gene",
+                'column': ['level'], 'showfliers': False, 'ax': None,
+                **kwargs
+            }
+            ax = self.data.plot(
+                *args, **passed_kwarg, backend=backend
+            )
 
-            kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["legend"] = kwargs.get("legend", False)
-
-            # ax = plot_data.plot(kind="bar", **kwargs)
-            ax = self.data.boxplot(column=['level'], by='gene', ax=kwargs.get('ax', None), showfliers=False)
             plt.title('')
             plt.suptitle('')
             ax.set_title(title, fontsize="medium")
@@ -147,3 +157,6 @@ class GeneExpressions(
             ax.set_xlabel("")
 
             plt.tight_layout()
+            return ax
+        else:
+            return self.data.plot(kind='box', y='level', x='gene', **kwargs)
