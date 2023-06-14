@@ -153,7 +153,7 @@ class CorticalProfile(tabular.Tabular):
 
     @property
     def data(self):
-        """Return a pandas Series representing the profile."""
+        """Return a pandas DataFrame representing the profile."""
         self._check_sanity()
         return pd.DataFrame(
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]

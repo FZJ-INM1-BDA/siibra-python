@@ -301,7 +301,12 @@ class Feature:
         return live_instances
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
+    def match(
+        cls,
+        concept: Union[region.Region, parcellation.Parcellation, space.Space],
+        feature_type: Union[str, Type['Feature'], list],
+        **kwargs
+    ) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 

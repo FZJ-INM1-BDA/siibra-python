@@ -84,7 +84,8 @@ class WagstylProfileLoader:
         assert isinstance(regionobj, region.Region)
         logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
 
-        for spaceobj in regionobj.supported_spaces:
+        supported_spaces = [s for s in regionobj.supported_spaces if s.matches('bigbrain')] or regionobj.supported_spaces
+        for spaceobj in supported_spaces:
             if spaceobj.provides_image:
                 try:
                     mask = regionobj.fetch_regional_map(space=spaceobj, maptype="labelled")
@@ -159,15 +160,15 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             # compute array of layer labels for all coefficients in profiles_left
             N = matched_profiles.shape[1]
             prange = np.arange(N)
-            region_labels = 7 - np.array([
+            layer_labels = 7 - np.array([
                 [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
                 for b in boundary_depths
             ]).reshape((-1, 200))
 
             fp = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
                 regionname=subregion.name,
-                means=[matched_profiles[region_labels == _].mean() for _ in range(1, 7)],
-                stds=[matched_profiles[region_labels == _].std() for _ in range(1, 7)],
+                means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
+                stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
             )
             assert fp.matches(subregion)  # to create an assignment result
             result.append(fp)
