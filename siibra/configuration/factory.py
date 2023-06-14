@@ -117,11 +117,15 @@ class Factory:
             location = None
 
         if (region is None) and (location is None):
-            print(spec)
-            raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
+            raise RuntimeError(
+                "Spec provides neither region or location - no anchor can be extracted."
+                f"Supplied spec:\n{spec}"
+            )
 
         if 'species' in spec:
             species = Species.decode(spec['species'])
+        elif location is not None:
+            species = location.space.species
         elif ('ebrains' in spec):
             species = Species.decode(spec['ebrains'])
         else:
@@ -412,14 +416,11 @@ class Factory:
         vol = cls.build_volume(spec)
         kwargs = {
             "name": spec.get('name', ""),
-            "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
+            "anchor": cls.extract_anchor(spec),
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
         }
         modality = spec.get('modality', "")
-        if "location" in spec.keys():
-            kwargs["location"] = cls.build_boundingbox(spec.get("location"))
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
         else:
@@ -430,8 +431,7 @@ class Factory:
         vol = cls.build_volume(spec)
         kwargs = {
             "name": spec.get('name', ""),
-            "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
+            "anchor": cls.extract_anchor(spec),
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
         }

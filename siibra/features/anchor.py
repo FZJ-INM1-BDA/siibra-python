@@ -114,7 +114,10 @@ class AnatomicalAnchor:
     _MATCH_MEMO: Dict[str, Dict[Region, AssignmentQualification]] = {}
     _MASK_MEMO = {}
 
-    def __init__(self, species: Union[List[Species], Species, str], location: Location = None, region: Union[str, Region] = None):
+    def __init__(
+        self, species: Union[List[Species], Species, str],
+        location: Location = None, region: Union[str, Region] = None
+    ):
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
@@ -152,7 +155,6 @@ class AnatomicalAnchor:
 
     @property
     def space(self) -> Space:
-        # may be overriden by derived classes, e.g. in features.VolumeOfInterest
         if self.location is None:
             return None
         else:

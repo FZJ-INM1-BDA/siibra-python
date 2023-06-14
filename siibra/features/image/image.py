@@ -23,69 +23,32 @@ from ...locations import location as _location
 from typing import List
 
 
-class ImageAnchor(_anchor.AnatomicalAnchor):
-
-    def __init__(
-            self,
-            volume: _volume.Volume,
-            region: str = None,
-            location: _location = None
-    ):
-        _anchor.AnatomicalAnchor.__init__(
-            self,
-            species=volume.space.species,
-            location=location,
-            region=region
-        )
-        self.volume = volume
-        self._location_cached = location
-
-    @property
-    def location(self):
-        """
-        Loads the bounding box only if required, since it demands image data access.
-        """
-        if self._location_cached is None:
-            self._location_cached = self.volume.boundingbox
-        return self._location_cached
-
-    @property
-    def space(self):
-        return self.volume.space
-
-    def __str__(self):
-        return f"Bounding box of image in {self.space.name}"
-
-
 class Image(feature.Feature, _volume.Volume):
 
     def __init__(
         self,
         name: str,
         modality: str,
-        space_spec: dict,
+        anchor: _anchor.AnatomicalAnchor,
         providers: List[_volume.VolumeProvider],
-        region: str = None,
-        location: _location = None,
         datasets: List = [],
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=None,  # lazy implementation below!
-            anchor=None,  # lazy implementation below!
+            anchor=anchor,  # lazy implementation below!
             datasets=datasets
         )
 
         _volume.Volume.__init__(
             self,
-            space_spec=space_spec,
+            space_spec=anchor.space.id,
             providers=providers,
             name=name,
             datasets=datasets,
         )
-
-        self._anchor_cached = ImageAnchor(self, region=region, location=location)
+        self.location = anchor.location
         self._description_cached = None
         self._name_cached = name
 

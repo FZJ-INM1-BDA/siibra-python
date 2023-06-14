@@ -134,7 +134,7 @@ class BoundingBox(location.Location):
         else:
             return (
                 f"Bounding box from ({','.join(f'{v:.2f}' for v in self.minpoint)}) mm "
-                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
+                f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)}) mm in {self.space.name} space"
             )
 
     def contains(self, other: location.Location):
