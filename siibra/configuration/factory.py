@@ -24,7 +24,7 @@ from ..features.tabular import (
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
-from ..locations import point, pointset
+from ..locations import point, pointset, boundingbox
 from ..retrieval import datasets, repositories
 from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
 
@@ -48,6 +48,7 @@ BUILDFUNCS = {
     "siibra/location/point/v0.1": "build_point",
     "tmp/poly": "build_pointset",
     "siibra/location/pointset/v0.1": "build_pointset",
+    "siibra/location/boundingbox/v0.1": "build_boundingbox",
     "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
     "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
     "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
@@ -360,6 +361,17 @@ class Factory:
         return pointset.PointSet(coords, space=space_id)
 
     @classmethod
+    def build_boundingbox(cls, spec):
+        if spec.get('@type') == "siibra/location/boundingbox/v0.1":
+            space_id = spec.get("space").get("@id")
+            coords = spec.get("coordinates")
+        else:
+            raise ValueError(f"Unknown bounding box specification: {spec}")
+        return boundingbox.BoundingBox(
+            point1=coords[0], point2=coords[1], space=space_id
+        )
+
+    @classmethod
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
             tsvfile=spec['file'],
@@ -406,6 +418,8 @@ class Factory:
             "datasets": cls.extract_datasets(spec),
         }
         modality = spec.get('modality', "")
+        if "location" in spec.keys():
+            kwargs["location"] = cls.build_boundingbox(spec.get("location"))
         if modality == "cell body staining":
             return sections.CellbodyStainedSection(**kwargs)
         else:
