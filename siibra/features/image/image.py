@@ -18,7 +18,6 @@ from .. import feature
 from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
-from ...locations import location as _location
 
 from typing import List
 

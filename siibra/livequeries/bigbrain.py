@@ -30,7 +30,8 @@ class WagstylProfileLoader:
 
     REPO = "https://github.com/kwagstyl/cortical_layers_tutorial"
     BRANCH = "main"
-    PROFILES_FILE = "data/profiles_left.npy"
+    PROFILES_FILE_LEFT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_left.txt"
+    PROFILES_FILE_RIGHT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_right.txt"
     THICKNESSES_FILE = "data/thicknesses_left.npy"
     MESH_FILE_LEFT = "gray_left_327680.surf.gii"
     MESH_FILE_RIGHT = "gray_right_327680.surf.gii"
@@ -50,30 +51,36 @@ class WagstylProfileLoader:
     @classmethod
     def _load(cls):
         # read thicknesses, in mm, and normalize by their last column which is the total thickness
-        mesh_left = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_LEFT}").data
-        mesh_right = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_RIGHT}").data
-        mesh_vertices = np.concatenate((mesh_left.darrays[0].data, mesh_right.darrays[0].data))
         thickness_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
-        thickness_right = np.zeros(shape=(len(mesh_right.darrays[0].data), 7))  # TODO: replace with thickness data for te right hemisphere
+        thickness_right = np.zeros(shape=thickness_left.shape)  # TODO: replace with thickness data for te right hemisphere
         thickness = np.concatenate((thickness_left, thickness_right))
         total_thickness = thickness[:, :-1].sum(1)
         valid = np.where(total_thickness > 0)[0]
-        boundary_depths = np.c_[np.zeros_like(valid), (thickness[valid, :-1] / total_thickness[valid, None]).cumsum(1)]
-        boundary_depths[:, -1] = 1
+        cls._boundary_depths = np.c_[np.zeros_like(valid), (thickness[valid, :-1] / total_thickness[valid, None]).cumsum(1)]
+        cls._boundary_depths[:, -1] = 1  # account for float calculation errors
 
         # read profiles with valid thickenss
-        url = f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}"
-        if not path.exists(cache.CACHE.build_filename(url)):
+        profile_left_url = f"{cls.PROFILES_FILE_LEFT}"
+        profile_right_url = f"{cls.PROFILES_FILE_RIGHT}"
+        if not all(
+            path.exists(cache.CACHE.build_filename(url))
+            for url in [profile_left_url, profile_right_url]
+        ):
             logger.info(
                 "First request to BigBrain profiles. "
                 "Downloading and preprocessing the data now. "
                 "This may take a little."
             )
-        req = requests.HttpRequest(url)
+        profiles_l = requests.HttpRequest(profile_left_url).data.to_numpy()
+        profiles_r = requests.HttpRequest(profile_right_url).data.to_numpy()
+        cls._profiles = np.concatenate((profiles_l, profiles_r))[valid, :]
 
-        cls._boundary_depths = boundary_depths
+        # read mesh vertices
+        mesh_left = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_LEFT}").data
+        mesh_right = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_RIGHT}").data
+        mesh_vertices = np.concatenate((mesh_left.darrays[0].data, mesh_right.darrays[0].data))
         cls._vertices = mesh_vertices[valid, :]
-        cls._profiles = req.data[valid, :]
+
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
 
@@ -127,17 +134,17 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         features = []
         for subregion in regionobj.leaves:
             matched_profiles, boundary_depths, coords = loader.match(subregion)
-            bbspace = space.Space.get_instance('bigbrain')
-            for i, profile in enumerate(matched_profiles):
-                prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                    regionname=subregion.name,
-                    depths=loader.profile_labels,
-                    values=profile,
-                    boundaries=boundary_depths[i, :],
-                    location=point.Point(coords[i, :], bbspace),
-                )
-                # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim
-                features.append(prof)
+            if len(matched_profiles) == 0:
+                continue
+            region_profile = bigbrain_intensity_profile.BigBrainIntensityProfile(
+                regionname=subregion.name,
+                coords=coords,
+                depths=loader.profile_labels,
+                values=matched_profiles,
+                boundary_depths=boundary_depths,
+            )
+            # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim
+            features.append(region_profile)
 
         return features
 

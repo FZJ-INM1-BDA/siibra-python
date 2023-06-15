@@ -22,6 +22,8 @@ from typing import Union, Dict, Tuple
 from textwrap import wrap
 import numpy as np
 
+LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
+BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
 class CorticalProfile(tabular.Tabular):
     """
@@ -39,9 +41,6 @@ class CorticalProfile(tabular.Tabular):
     to implement lazy loading instead of direct initialiation.
 
     """
-
-    LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
-    BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
     def __init__(
         self,
@@ -104,7 +103,7 @@ class CorticalProfile(tabular.Tabular):
         if self.boundaries_mapped:
             assert all(0 <= d <= 1 for d in self.boundary_positions.values())
             assert all(
-                layerpair in self.BOUNDARIES
+                layerpair in BOUNDARIES
                 for layerpair in self.boundary_positions.keys()
             )
 
@@ -139,7 +138,7 @@ class CorticalProfile(tabular.Tabular):
         if self.boundary_positions is None:
             return False
         else:
-            return all((b in self.boundary_positions) for b in self.BOUNDARIES)
+            return all((b in self.boundary_positions) for b in BOUNDARIES)
 
     @property
     def _layers(self):
@@ -182,7 +181,7 @@ class CorticalProfile(tabular.Tabular):
                 axs.text(
                     d1 + (d2 - d1) / 2.0,
                     10,
-                    self.LAYERS[i + 1],
+                    LAYERS[i + 1],
                     weight="normal",
                     ha="center",
                 )
