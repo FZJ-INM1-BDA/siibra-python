@@ -17,8 +17,8 @@ from . import query
 
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..commons import logger
-from ..locations import point, pointset
-from ..core import space, region
+from ..locations import pointset
+from ..core import region
 from ..retrieval import requests, cache
 
 import numpy as np
@@ -131,22 +131,17 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        features = []
-        for subregion in regionobj.leaves:
-            matched_profiles, boundary_depths, coords = loader.match(subregion)
-            if len(matched_profiles) == 0:
-                continue
-            region_profile = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                regionname=subregion.name,
-                coords=coords,
-                depths=loader.profile_labels,
-                values=matched_profiles,
-                boundary_depths=boundary_depths,
-            )
-            # assert prof.matches(subregion)  # disabled, this is too slow for the many featuresvim
-            features.append(region_profile)
-
-        return features
+        matched_profiles, boundary_depths, coords = zip(
+            *[loader.match(subregion) for subregion in regionobj.leaves]
+        )
+        result = bigbrain_intensity_profile.BigBrainIntensityProfile(
+            regionname=regionobj.name,
+            coords=np.concatenate(coords),
+            depths=loader.profile_labels,
+            values=np.concatenate(matched_profiles),
+            boundary_depths=np.concatenate(boundary_depths),
+        )
+        return [result]
 
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
@@ -158,26 +153,25 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        result = []
-        for subregion in regionobj.leaves:
-            matched_profiles, boundary_depths, coords = loader.match(subregion)
-            if matched_profiles.shape[0] == 0:
-                continue
+        matched_profiles, boundary_depths, _ = zip(
+            *[loader.match(subregion) for subregion in regionobj.leaves]
+        )
+        matched_profiles = np.concatenate(matched_profiles)
+        boundary_depths = np.concatenate(boundary_depths)
 
-            # compute array of layer labels for all coefficients in profiles_left
-            N = matched_profiles.shape[1]
-            prange = np.arange(N)
-            layer_labels = 7 - np.array([
-                [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
-                for b in boundary_depths
-            ]).reshape((-1, 200))
+        # compute array of layer labels for all coefficients in profiles_left
+        N = matched_profiles.shape[1]
+        prange = np.arange(N)
+        layer_depth = np.array([
+            [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
+            for b in boundary_depths
+        ])
+        layer_labels = 7 - layer_depth.reshape((-1, 200))
+        result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
+            regionname=regionobj.name,
+            means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
+            stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
+        )
+        assert result.matches(regionobj)  # to create an assignment result
 
-            fp = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
-                regionname=subregion.name,
-                means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
-                stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
-            )
-            assert fp.matches(subregion)  # to create an assignment result
-            result.append(fp)
-
-        return result
+        return [result]

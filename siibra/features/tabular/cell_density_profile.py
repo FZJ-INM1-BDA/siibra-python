@@ -18,6 +18,7 @@ from . import cortical_profile
 
 from ...commons import PolyLine, logger, create_key
 from ...retrieval import requests
+from .cortical_profile import BOUNDARIES, LAYERS
 
 from skimage.draw import polygon
 from skimage.transform import resize
@@ -111,7 +112,7 @@ class CellDensityProfile(
 
         # retrieve polygon
         basename = "{}_{}.json".format(
-            *(self.LAYERS[layer] for layer in boundary)
+            *(LAYERS[layer] for layer in boundary)
         ).replace("0_I", "0")
         url = self._url.replace("segments.txt", basename)
         poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
@@ -182,7 +183,7 @@ class CellDensityProfile(
     def boundary_positions(self):
         if self._boundary_positions is None:
             self._boundary_positions = {}
-            for b in self.BOUNDARIES:
+            for b in BOUNDARIES:
                 XY = self.boundary_annotation(b).astype("int")
                 self._boundary_positions[b] = self.depth_image[
                     XY[:, 1], XY[:, 0]
