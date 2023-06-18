@@ -449,7 +449,7 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[parcellationmap.AssignImageResult]:
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
@@ -482,7 +482,10 @@ class SparseMap(parcellationmap.Map):
 
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        for mode, modeimg in iterate_connected_components(queryimg):
+        iter_func = iterate_connected_components if split_components \
+            else lambda img: [(1, img)]
+
+        for mode, modeimg in iter_func(queryimg):
 
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)
