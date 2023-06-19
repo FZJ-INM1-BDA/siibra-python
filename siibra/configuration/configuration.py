@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm
+from ..commons import logger, __version__, SIIBRA_USE_CONFIGURATION, siibra_tqdm, SIIBRA_USE_CONFIGURATION_BRANCH
 from ..retrieval.repositories import GitlabConnector, RepositoryConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
@@ -39,8 +39,10 @@ class Configuration:
         ("https://gitlab.ebrains.eu", 93),
     ]
 
+    if SIIBRA_USE_CONFIGURATION_BRANCH:
+        logger.warn(f"SIIBRA_USE_CONFIGURATION_BRANCH set to {SIIBRA_USE_CONFIGURATION_BRANCH!r}, using branch instead of tag.")
     CONFIGURATIONS = [
-        GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
+        GitlabConnector(server, project, SIIBRA_USE_CONFIGURATION_BRANCH or "siibra-{}".format(__version__), skip_branchtest=SIIBRA_USE_CONFIGURATION_BRANCH is None)
         for server, project in CONFIG_REPOS
     ]
 
