@@ -269,26 +269,10 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
 
+        Maptype = parcellationmap.Map  # per default use parcellationmap.Map
         if ("sparsemap" in spec) and spec.get("sparsemap").get("is_sparsemap"):
             Maptype = sparsemap.SparseMap
-            return Maptype(
-                identifier=spec.get("@id", identifier),
-                name=spec.get("name", name),
-                space_spec=spec.get("space", {}),
-                parcellation_spec=spec.get("parcellation", {}),
-                indices=spec.get("indices", {}),
-                volumes=volumes,
-                shortname=spec.get("shortName", ""),
-                description=spec.get("description"),
-                modality=spec.get("modality"),
-                publications=spec.get("publications", []),
-                datasets=cls.extract_datasets(spec),
-                is_cached=spec.get("sparsemap").get("cached", False),
-                cache_url=spec.get("sparsemap").get("url", "")
-            )
-
-        Maptype = parcellationmap.Map
-        if len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
+        elif len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
             logger.debug(
                 f"Using sparse map for {spec.get('filename')} to code its "
                 f"{len(volumes)} volumes efficiently."
@@ -318,7 +302,7 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            datasets=cls.extract_datasets(spec)
+            datasets=cls.extract_datasets(spec) or [v.datasets for v in volumes]
         )
 
     @classmethod
