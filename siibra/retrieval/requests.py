@@ -23,7 +23,7 @@ from zipfile import ZipFile, ZipInfo
 import requests
 import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
-from skimage import io
+from skimage import io as skimage_io
 import gzip
 from io import BytesIO
 import urllib.parse
@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 DECODERS = {
-    ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
@@ -56,7 +55,7 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: io.imread(BytesIO(b)),
+    ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b))
 }
 
@@ -108,40 +107,38 @@ class HttpRequest:
         """
         assert url is not None
         self.url = url
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders) > 0):
-            assert len(suitable_decoders) == 1
-            self.func = suitable_decoders[0]
-        else:
-            self.func = func
+        self._set_decoder_func(func)
         self.kwargs = kwargs
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
         self.post = post
-        self._set_decoder_func(func, url)
 
-    def _set_decoder_func(self, func, fileurl: str):
-        urlpath = urllib.parse.urlsplit(fileurl).path
-        if func is None:
-            suitable_decoders = [
-                dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
-            ]
-            if len(suitable_decoders) > 0:
-                assert len(suitable_decoders) == 1
-                self.func = suitable_decoders[0]
-                return
-        self.func = func
+    @staticmethod
+    def find_suitiable_decoder(url: str):
+        urlpath = urllib.parse.urlsplit(url).path
+        if urlpath.endswith('.gz'):
+            dec = HttpRequest.find_suitiable_decoder(urlpath[:-3])
+            return lambda b: dec(gzip.decompress(b))
+
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)]
+        if len(suitable_decoders) > 0:
+            assert len(suitable_decoders) == 1
+            return suitable_decoders[0]
+
+    def _set_decoder_func(self, func):
+        self.func = func or self.find_suitiable_decoder(self.url)
 
     @property
     def cached(self):
         return os.path.isfile(self.cachefile)
 
     def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
-        # Populates the file cache with the data from http if required.
-        # noop if 1/ data is already cached and 2/ refresh flag not set
-        # The caller should load the cachefile after _retrieve successfuly executes
-
+        """
+        Populates the file cache with the data from http if required.
+        noop if 1/ data is already cached and 2/ refresh flag not set
+        The caller should load the cachefile after _retrieve successfuly executes
+        """
         if self.cached and not self.refresh:
             return
 
@@ -196,7 +193,7 @@ class HttpRequest:
             # if that happens, remove cachefile and
             try:
                 os.unlink(self.cachefile)
-            except Exception:  # TODO: do not use bare except
+            except Exception:
                 pass
             raise e
 
@@ -211,10 +208,12 @@ class ZipfileRequest(HttpRequest):
         """
         By default, requests to the zip file itself.
         """
-        HttpRequest.__init__(self, url, func=func)
         self.filename = filename
+        HttpRequest.__init__(
+            self, url,
+            func=func or self.find_suitiable_decoder(self.filename)
+        )
         self.cachefile = CACHE.build_filename(self.url + self.filename.replace("/", "_"))
-        self._set_decoder_func(func, filename)
         self._zipfile = None
 
     @property
@@ -298,6 +297,7 @@ class EbrainsRequest(HttpRequest):
         """
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
+
 
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
