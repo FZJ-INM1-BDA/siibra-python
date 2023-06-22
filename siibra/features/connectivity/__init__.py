@@ -13,17 +13,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .functional_connectivity import FunctionalConnectivity
-from .streamline_counts import StreamlineCounts
-from .streamline_lengths import StreamlineLengths
-from .tracer_connectivity import TracerConnectivity
-from .seeg import SEEG
+from .fmri_connectivity import FMRIConnectivity
+from .dti_connectivity import DTIConnectivity
+from .tracing_connectivity import TracingConnectivity
+from .seeg_connectivity import SEEGConnectivity
+
 
 def __dir__():
     return [
-        "FunctionalConnectivity",
-        "StreamlineCounts",
-        "StreamlineLengths",
-        "TracerConnectivity",
-        "SEEG"
+        "FMRIConnectivity",
+        "DTIConnectivity",
+        "TracingConnectivity",
+        "SEEGConnectivity"
     ]

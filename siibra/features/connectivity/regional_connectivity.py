@@ -21,7 +21,7 @@ from .. import anchor as _anchor
 from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
-from ...retrieval.repositories import RepositoryConnector, HttpRequest
+from ...retrieval.repositories import RepositoryConnector
 
 from typing import Callable, Dict, Union, List
 import pandas as pd
@@ -310,10 +310,7 @@ class RegionalConnectivity(Feature):
         Extract connectivity matrix.
         """
         assert subject in self.subjects
-        if isinstance(self._connector, HttpRequest):
-            array = self._connector.data
-        else:
-            array = self._connector.get(self._files[subject], decode_func=self._decode_func)
+        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(

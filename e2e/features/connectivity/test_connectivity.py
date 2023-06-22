@@ -5,17 +5,21 @@ from typing import List
 from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
 from e2e.util import check_duplicate
 
-features = [f
-        for Cls in siibra.features.feature.Feature.SUBCLASSES[RegionalConnectivity]
-        for f in Cls.get_instances()]
+features = [
+    f for Cls in siibra.features.feature.Feature.SUBCLASSES[RegionalConnectivity]
+    for f in Cls.get_instances()
+]
+
 
 def test_id_unique():
     duplicates = check_duplicate([f.id for f in features])
     assert len(duplicates) == 0
 
+
 def test_feature_unique():
     duplicates = check_duplicate([f for f in features])
     assert len(duplicates) == 0
+
 
 @pytest.mark.parametrize('f', features)
 def test_connectivity_get_matrix(f: RegionalConnectivity):
@@ -30,24 +34,26 @@ def test_connectivity_get_matrix(f: RegionalConnectivity):
             matrix_df.index[i] == r for i, r in enumerate(matrix_df.columns)
         )
 
+
 jba_29 = siibra.parcellations['2.9']
 
 args = [
-    (jba_29, "StreamlineCounts"),
+    (jba_29, "DTI"),
     (jba_29, "RegionalConnectivity"),
     (jba_29, RegionalConnectivity),
     (jba_29, "connectivity"),
-    (jba_29, siibra.features.connectivity.StreamlineCounts),
-    (jba_29, siibra.features.connectivity.StreamlineLengths),
+    (jba_29, siibra.features.connectivity.DTIConnectivity)
 ]
+
 
 @pytest.mark.parametrize("concept,query_arg", args)
 def test_get_connectivity(concept, query_arg):
     features: List['RegionalConnectivity'] = siibra.features.get(concept, query_arg)
-    assert len(features) > 0, f"Expecting some features exist, but none exist."
+    assert len(features) > 0, "Expecting some features exist, but none exist."
+
 
 def test_copy_is_returned():
-    feat:RegionalConnectivity = features[0]
+    feat: RegionalConnectivity = features[0]
 
     # retrieve matrix
     matrix = feat.get_matrix(feat.subjects[0])

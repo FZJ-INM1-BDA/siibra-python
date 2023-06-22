@@ -16,12 +16,15 @@
 from . import regional_connectivity
 
 
-class StreamlineCounts(
+class DTIConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/streamlinecounts",
+    configuration_folder="features/connectivity/regional/dti",
     category="connectivity"
 ):
-    """Structural connectivity matrix of streamline counts grouped by a parcellation."""
+    """
+    Structural connectivity matrix of streamline lengths/counts obtained with
+    diffusion tensor imaging and grouped by a parcellation.
+    """
 
     def __init__(self, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

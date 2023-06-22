@@ -16,9 +16,10 @@
 from . import regional_connectivity
 from hashlib import md5
 
-class FunctionalConnectivity(
+
+class FMRIConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/functional",
+    configuration_folder="features/connectivity/regional/fmri",
     category="connectivity"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
@@ -28,7 +29,7 @@ class FunctionalConnectivity(
         self.paradigm = paradigm
 
         # paradign is used to distinguish functional connectivity features from each other.
-        assert self.paradigm, f"Functional connectivity must have paradigm defined!"
+        assert self.paradigm, "Functional connectivity must have paradigm defined!"
 
     @property
     def id(self):

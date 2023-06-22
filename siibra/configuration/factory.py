@@ -453,41 +453,30 @@ class Factory:
 
     @classmethod
     def build_connectivity_matrix(cls, spec):
-        conn_category = path.basename(path.dirname(spec.get("filename")))
-        modality = spec.get("modality")
-        decoder = cls.extract_decoder(spec)
-        if spec.get('repository', {}):
-            connector = cls.extract_connector(spec)
-        else:
-            connector = HttpRequest(
-                next(iter(spec.get("files").values())), func=decoder
-            )
+        protocol = path.basename(path.dirname(spec.get("filename")))  # determined by the folder structure
         kwargs = {
             "cohort": spec.get("cohort", ""),
-            "modality": modality,
+            "modality": spec.get("modality"),
             "regions": spec["regions"],
-            "connector": connector,
-            "decode_func": decoder,
+            "connector": cls.extract_connector(spec),
+            "decode_func": cls.extract_decoder(spec),
             "files": spec.get("files", {}),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
         }
-        if conn_category.startswith("stream"):  # change with "dti"
-            if modality == "StreamlineCounts":
-                return connectivity.StreamlineCounts(**kwargs)
-            elif modality == "StreamlineLengths":
-                return connectivity.StreamlineLengths(**kwargs)
-        elif conn_category == "functional":  # change with "fmri"
+        if protocol == "dti":
+            return connectivity.DTIConnectivity(**kwargs)
+        elif protocol == "fmri":
             kwargs["paradigm"] = spec.get("paradigm")
-            return connectivity.FunctionalConnectivity(**kwargs)
-        elif conn_category == "seeg":
+            return connectivity.FMRIConnectivity(**kwargs)
+        elif protocol == "seeg":
             kwargs["paradigm"] = spec.get("paradigm")
-            return connectivity.SEEG(**kwargs)
-        elif conn_category == "tracer":  # change with "tracing"
-            return connectivity.TracerConnectivity(**kwargs)
+            return connectivity.SEEGConnectivity(**kwargs)
+        elif protocol == "tracing":
+            return connectivity.TracingConnectivity(**kwargs)
         else:
-            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
+            raise ValueError(f"No method for building connectivity matrix of type {protocol}.")
 
     @classmethod
     def build_activity_timeseries(cls, spec):

@@ -15,28 +15,16 @@
 
 from . import regional_connectivity
 
-from hashlib import md5
 
-class SEEG(
+class TracingConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/seeg",
+    configuration_folder="features/connectivity/regional/tracing",
     category="connectivity"
 ):
     """
-    Connectivity matrix obtained in a semi-quantitative manner and grouped by a
+    Connectivity matrix obtained by employing tracing agents and grouped by a
     parcellation.
     """
 
     def __init__(self, **kwargs):
-        self.paradigm = kwargs.pop("paradigm")
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
-
-    @property
-    def id(self):
-        return super().id + "--" + md5(f"{self.modality}-{self.paradigm}".encode("utf-8")).hexdigest()
-    
-    @property
-    def name(self):
-        """Returns a short human-readable name of this feature."""
-        spec = f' - {self.paradigm}' if len(self.paradigm)>0 else ''
-        return f"{self.__class__.__name__} ({self.modality + spec}) anchored at {self.anchor}"
