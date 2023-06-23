@@ -35,8 +35,6 @@ from typing import List, Type
 import pandas as pd
 from io import BytesIO
 
-MIN_VOLUMES_FOR_SPARSE_MAP = 125
-
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
     "siibra/space/v0.0.1": "build_space",
@@ -269,41 +267,39 @@ class Factory:
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
         volumes = cls.extract_volumes(spec)
 
-        Maptype = parcellationmap.Map  # per default use parcellationmap.Map
-        if ("sparsemap" in spec) and spec.get("sparsemap").get("is_sparsemap"):
-            Maptype = sparsemap.SparseMap
-        elif len(volumes) > MIN_VOLUMES_FOR_SPARSE_MAP:
-            logger.debug(
-                f"Using sparse map for {spec.get('filename')} to code its "
-                f"{len(volumes)} volumes efficiently."
+        if spec.get("sparsemap", {}).get("is_sparsemap"):
+    
+            return sparsemap.SparseMap(
+                identifier=spec.get("@id", identifier),
+                name=spec.get("name", name),
+                space_spec=spec.get("space", {}),
+                parcellation_spec=spec.get("parcellation", {}),
+                indices=spec.get("indices", {}),
+                volumes=volumes,
+                shortname=spec.get("shortName", ""),
+                description=spec.get("description"),
+                modality=spec.get("modality"),
+                publications=spec.get("publications", []),
+                datasets=cls.extract_datasets(spec),
+                is_cached=spec.get("sparsemap").get("cached", False),
+                cache_url=spec.get("sparsemap").get("url", "")
             )
-            Maptype = sparsemap.SparseMap
+        
         else:
-            max_z = max(
-                d.get('z', 0)
-                for l in spec.get("indices", {}).values()
-                for d in l
-            ) + 1
-            if max_z > MIN_VOLUMES_FOR_SPARSE_MAP:
-                logger.debug(
-                    f"Using sparse map for {spec.get('filename')} to code its "
-                    f"{max_z} z levels efficiently."
-                )
-                Maptype = sparsemap.SparseMap
 
-        return Maptype(
-            identifier=spec.get("@id", identifier),
-            name=spec.get("name", name),
-            space_spec=spec.get("space", {}),
-            parcellation_spec=spec.get("parcellation", {}),
-            indices=spec.get("indices", {}),
-            volumes=volumes,
-            shortname=spec.get("shortName", ""),
-            description=spec.get("description"),
-            modality=spec.get("modality"),
-            publications=spec.get("publications", []),
-            datasets=cls.extract_datasets(spec) or [v.datasets for v in volumes]
-        )
+            return parcellationmap.Map(
+                identifier=spec.get("@id", identifier),
+                name=spec.get("name", name),
+                space_spec=spec.get("space", {}),
+                parcellation_spec=spec.get("parcellation", {}),
+                indices=spec.get("indices", {}),
+                volumes=volumes,
+                shortname=spec.get("shortName", ""),
+                description=spec.get("description"),
+                modality=spec.get("modality"),
+                publications=spec.get("publications", []),
+                datasets=cls.extract_datasets(spec)
+            )
 
     @classmethod
     def build_ebrains_dataset(cls, spec):
