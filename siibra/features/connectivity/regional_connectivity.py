@@ -23,9 +23,13 @@ from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union, List
 import pandas as pd
 import numpy as np
+from typing import Callable, Dict, Union, List
+try:
+    from typing import Literal
+except ImportError:  # support python 3.7
+    from typing_extensions import Literal
 
 
 class RegionalConnectivity(Feature):
@@ -189,7 +193,7 @@ class RegionalConnectivity(Feature):
         subject: str = None,
         min_connectivity: float = 0,
         max_rows: int = None,
-        direction: str = 'column'
+        direction: Literal['column', 'row'] = 'column'
     ):
         """
         Extract a regional profile from the matrix, to obtain a tabular data
@@ -209,7 +213,9 @@ class RegionalConnectivity(Feature):
             non-symmetric matrices. ('column' or 'row')
         """
         matrix = self.get_matrix(subject)
-        if direction == 'row':
+        if direction.lower() not in ['column', 'row']:
+            raise ValueError("Direction can only be 'column' or 'row'")
+        if direction.lower() == 'row':
             matrix = matrix.transpose()
 
         def matches(r1, r2):
