@@ -157,11 +157,13 @@ class RegionalConnectivity(Feature):
             Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
-        matrix = self.get_matrix(subject=subject)
+        if regions is None:
+            regions = self.regions
+        indices = [self.regions.index(r) for r in regions]
+        matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+
         if logscale:
             matrix = np.log10(matrix)
-        if regions is None:
-            regions = matrix.columns.to_list()
 
         # default kwargs
         subject_title = subject or ""
@@ -172,7 +174,11 @@ class RegionalConnectivity(Feature):
         kwargs["figure"] = kwargs.get("figure", (15, 15))
 
         from nilearn import plotting
-        plotting.plot_matrix(matrix.loc[regions, regions], labels=regions, **kwargs)
+        plotting.plot_matrix(
+            matrix,
+            labels=regions,
+            **kwargs
+        )
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)

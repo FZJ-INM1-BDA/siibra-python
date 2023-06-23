@@ -133,7 +133,7 @@ class AnatomicalAnchor:
         self._regions_cached = None
         self._regionspec = None
         if isinstance(region, Region):
-            self._regions_cached = { region: AssignmentQualification.EXACT }
+            self._regions_cached = {region: AssignmentQualification.EXACT}
         elif isinstance(region, str):
             self._regionspec = region
         else:
@@ -181,7 +181,7 @@ class AnatomicalAnchor:
         if self._regionspec is None:
             self._regions_cached = {}
             return self._regions_cached
-            
+
         if self._regionspec not in self.__class__._MATCH_MEMO:
             self._regions_cached = {}
             # decode the region specification into a set of region objects
@@ -198,7 +198,7 @@ class AnatomicalAnchor:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
             self.__class__._MATCH_MEMO[self._regionspec] = regions
         self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
-        
+
         return self._regions_cached
 
     def __str__(self):

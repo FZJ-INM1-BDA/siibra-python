@@ -45,6 +45,7 @@ SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
 
+
 @dataclass
 class CompareMapsResult:
     intersection_over_union: float
@@ -53,6 +54,7 @@ class CompareMapsResult:
     correlation: float
     weighted_mean_of_first: float
     weighted_mean_of_second: float
+
 
 T = TypeVar("T")
 
@@ -243,6 +245,7 @@ class InstanceTable(Generic[T], Iterable):
             self._dataframe_cached = pd.DataFrame(index=list(self._elements.keys()), data=attrs)
         return self._dataframe_cached
 
+
 class LoggingContext:
     def __init__(self, level):
         self.level = level
@@ -264,13 +267,13 @@ QUIET = LoggingContext("ERROR")
 VERBOSE = LoggingContext("DEBUG")
 
 
-def siibra_tqdm(iterable: Iterable[T]=None, *args, **kwargs):
+def siibra_tqdm(iterable: Iterable[T] = None, *args, **kwargs):
     return tqdm(
         iterable,
         *args,
         disable=kwargs.pop("disable", False) or (logger.level > 20),
         **kwargs
-        )
+    )
 
 
 def create_key(name: str):

@@ -332,12 +332,12 @@ class ZipfileConnector(RepositoryConnector):
             self.zipfile = zipfile
             self.filename = filename
             self.func = decode_func
-            self.cachefile = CACHE.build_filename(zipfile+filename)
+            self.cachefile = CACHE.build_filename(zipfile + filename)
 
         @property
         def cached(self):
             return os.path.isfile(self.cachefile)
-        
+
         @property
         def data(self):
             container = ZipFile(self.zipfile)

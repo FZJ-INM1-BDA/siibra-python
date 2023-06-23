@@ -35,7 +35,7 @@ from typing import List, Type
 import pandas as pd
 from io import BytesIO
 
-MIN_VOLUMES_FOR_SPARSE_MAP = 100
+MIN_VOLUMES_FOR_SPARSE_MAP = 125
 
 BUILDFUNCS = {
     "juelich/iav/atlas/v1.0.0": "build_atlas",
