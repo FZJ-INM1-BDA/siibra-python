@@ -282,7 +282,7 @@ class Factory:
             description=spec.get("description"),
             modality=spec.get("modality"),
             publications=spec.get("publications", []),
-            datasets=cls.extract_datasets(spec) or [v.datasets for v in volumes]
+            datasets=cls.extract_datasets(spec)
         )
 
     @classmethod
