@@ -268,38 +268,22 @@ class Factory:
         volumes = cls.extract_volumes(spec)
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):
-    
-            return sparsemap.SparseMap(
-                identifier=spec.get("@id", identifier),
-                name=spec.get("name", name),
-                space_spec=spec.get("space", {}),
-                parcellation_spec=spec.get("parcellation", {}),
-                indices=spec.get("indices", {}),
-                volumes=volumes,
-                shortname=spec.get("shortName", ""),
-                description=spec.get("description"),
-                modality=spec.get("modality"),
-                publications=spec.get("publications", []),
-                datasets=cls.extract_datasets(spec),
-                is_cached=spec.get("sparsemap").get("cached", False),
-                cache_url=spec.get("sparsemap").get("url", "")
-            )
-        
+            Maptype = sparsemap.SparseMap
         else:
-
-            return parcellationmap.Map(
-                identifier=spec.get("@id", identifier),
-                name=spec.get("name", name),
-                space_spec=spec.get("space", {}),
-                parcellation_spec=spec.get("parcellation", {}),
-                indices=spec.get("indices", {}),
-                volumes=volumes,
-                shortname=spec.get("shortName", ""),
-                description=spec.get("description"),
-                modality=spec.get("modality"),
-                publications=spec.get("publications", []),
-                datasets=cls.extract_datasets(spec)
-            )
+            Maptype = parcellationmap.Map
+        return Maptype(
+            identifier=spec.get("@id", identifier),
+            name=spec.get("name", name),
+            space_spec=spec.get("space", {}),
+            parcellation_spec=spec.get("parcellation", {}),
+            indices=spec.get("indices", {}),
+            volumes=volumes,
+            shortname=spec.get("shortName", ""),
+            description=spec.get("description"),
+            modality=spec.get("modality"),
+            publications=spec.get("publications", []),
+            datasets=cls.extract_datasets(spec) or [v.datasets for v in volumes]
+        )
 
     @classmethod
     def build_ebrains_dataset(cls, spec):
