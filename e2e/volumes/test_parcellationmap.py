@@ -8,6 +8,12 @@ from siibra.volumes.volume import Subvolume
 
 from itertools import product
 
+maps_publication_works = [m for m in Map.registry()]
+
+@pytest.mark.parametrize("m", maps_publication_works)
+def test_publications(m: Map):
+    assert len(m.publications) >= 0
+
 maps_to_compress = [
     siibra.get_map("2.9", "mni152"), # contains fragments
     siibra.get_map("difumo 64", "mni152", MapType.STATISTICAL), # contains subvolumes
