@@ -188,24 +188,29 @@ class RegionalConnectivity(Feature):
         region: Union[str, _region.Region],
         subject: str = None,
         min_connectivity: float = 0,
-        max_rows: int = None
+        max_rows: int = None,
+        direction: str = 'column'
     ):
         """
-        Extract a regional profile from the matrix, to obtain a tabular data feature
-        with the connectivity as the single column.
-
-        Rows will be sorted by descending connection strength.
-        Regions with connectivity smaller than "min_connectivity" will be discarded.
-        If max_rows is given, only the subset of regions with highest connectivity is returned.
+        Extract a regional profile from the matrix, to obtain a tabular data
+        feature with the connectivity as the single column. Rows are be sorted
+        by descending connection strength.
 
         Parameters
         ----------
         region: str, Region
         subject: str, default: None
         min_connectivity: float, default: 0
+            Regions with connectivity less than this value are discarded.
         max_rows: int, default: None
+            Max number of regions with highest connectivity.
+        direction: str, default: 'column'
+            Choose the direction of profile extraction particularly for
+            non-symmetric matrices. ('column' or 'row')
         """
         matrix = self.get_matrix(subject)
+        if direction == 'row':
+            matrix = matrix.transpose()
 
         def matches(r1, r2):
             if isinstance(r1, tuple):
@@ -291,6 +296,8 @@ class RegionalConnectivity(Feature):
         a DataFrame with regions as column and row headers.
         """
         df = pd.DataFrame(array)
+        if not all(all(df.iloc[:, i] == df.iloc[i, :]) for i in range(len(df))):
+            logger.warning("The connectivity matrix is not symmetric.")
         parcellations = self.anchor.represented_parcellations()
         assert len(parcellations) == 1
         parc = next(iter(parcellations))
@@ -307,7 +314,7 @@ class RegionalConnectivity(Feature):
                 for label, region in indexmap.items()
             }
             df = df.rename(index=remapper).rename(columns=remapper)
-        except:
+        except Exception:
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
