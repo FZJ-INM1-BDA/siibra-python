@@ -66,13 +66,13 @@ class Factory:
     @classmethod
     def extract_datasets(cls, spec):
         result = []
-        if "minds/core/dataset/v1.0.0" in spec.get("ebrains", {}):
-            result.append(
-                datasets.EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
-            )
         if "openminds/DatasetVersion" in spec.get("ebrains", {}):
             result.append(
                 datasets.EbrainsV3DatasetVersion(id=spec["ebrains"]["openminds/DatasetVersion"])
+            )
+        if "minds/core/dataset/v1.0.0" in spec.get("ebrains", {}):
+            result.append(
+                datasets.EbrainsDataset(id=spec["ebrains"]["minds/core/dataset/v1.0.0"])
             )
         if "openminds/Dataset" in spec.get("ebrains", {}):
             result.append(
