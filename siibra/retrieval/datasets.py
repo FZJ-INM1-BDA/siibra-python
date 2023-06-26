@@ -214,8 +214,19 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @property
     def name(self) -> str:
         fullname = self.detail.get("fullName")
+        for dataset in self.is_version_of:
+            if fullname is not None:
+                break
+            fullname = dataset.name
+            
         version_id = self.detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
+
+    @property
+    def is_version_of(self):
+        if not hasattr(self, "_is_version_of"):
+            self._is_version_of = [EbrainsV3Dataset(id=id.get("id")) for id in self.detail.get("isVersionOf", [])]
+        return self._is_version_of
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
@@ -225,7 +236,12 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def description(self) -> str:
-        return self.detail.get("description", "")
+        description = self.detail.get("description")
+        for ds in self.is_version_of:
+            if description:
+                break
+            description = ds.description
+        return description or ""
 
     @property
     def contributors(self) -> List[EbrainsDatasetPerson]:
