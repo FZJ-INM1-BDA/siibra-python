@@ -511,18 +511,10 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         self._name = ""
         self.use_version = None
 
-        stage = "IN_PROGRESS" if in_progress else "RELEASED"
-        if title is None:
-            assert dataset_id is not None
-            self.dataset_id = dataset_id
-            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
-        else:
-            assert dataset_id is None
-            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
-            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&title={title}"
-
-        response = EbrainsRequest(url, DECODERS[".json"]).get()
-        results = response.get('data', [])
+        results = self.search_datasets(
+            dataset_id=dataset_id, title=title,
+            in_progress=in_progress, query_id=self.QUERY_ID
+        )
         if len(results) != 1:
             if dataset_id is None:
                 for r in results:
@@ -549,6 +541,41 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         else:
             assert version_id in self.versions
             self.use_version = version_id
+
+    @staticmethod
+    def search_datasets(
+        dataset_id: str = None, title: str = None, in_progress=False,
+        query_id: str = QUERY_ID
+    ):
+        """
+        Search for datasets hosted in EBRAINS.
+
+        Parameters
+        ----------
+        dataset_id: str
+        title: str
+        in_progress: bool, default=False,
+        query_id: str, default=QUERY_ID
+
+        Returns
+        -------
+        List[Dict]: List dataset metadata matching the query parameters.
+
+        Note
+        ----
+        Requires ebrains token: `siibra.fetch_ebrains_token()`
+        """
+        stage = "IN_PROGRESS" if in_progress else "RELEASED"
+        if title is None:
+            assert dataset_id is not None
+            url = f"{EbrainsPublicDatasetConnector.base_url}/{query_id}/instances?stage={stage}&dataset_id={dataset_id}"
+        else:
+            assert dataset_id is None
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{EbrainsPublicDatasetConnector.base_url}/{query_id}/instances?stage={stage}&title={title}"
+
+        response = EbrainsRequest(url, DECODERS[".json"]).get()
+        return response.get('data', [])
 
     @property
     def name(self):
