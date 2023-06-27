@@ -72,6 +72,10 @@ class Factory:
             result.append(
                 datasets.EbrainsV3DatasetVersion(id=spec["ebrains"]["openminds/DatasetVersion"])
             )
+        if "openminds/Dataset" in spec.get("ebrains", {}):
+            result.append(
+                datasets.EbrainsV3Dataset(id=spec["ebrains"]["openminds/Dataset"])
+            )
         return result
 
     @classmethod

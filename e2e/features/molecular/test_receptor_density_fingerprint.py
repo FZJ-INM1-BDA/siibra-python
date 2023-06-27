@@ -6,8 +6,8 @@ all_features = ReceptorDensityFingerprint.get_instances()
 
 
 def test_dup_id():
-    dup = check_duplicate([f.id for f in all_features])
-    assert len(dup) == 0, f"Expecting no duplicated ids, but got duplicated ids: {', '.join(list(dup))}"
+    dup = check_duplicate([f for f in all_features], lambda f: f.id)
+    assert len(dup) == 0, f"Expecting no duplicated ids, but got duplicated ids:" + '\n'.join([f.name + ' ' + f.id for f in list(dup)])
 
 
 @pytest.mark.parametrize('feat', all_features)

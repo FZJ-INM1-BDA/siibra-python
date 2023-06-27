@@ -180,9 +180,10 @@ class Feature:
     @property
     def id(self):
         prefix = ''
-        id_set = {ds.id for ds in self.datasets if hasattr(ds, 'id')}
-        if len(id_set) == 1:
-            prefix = list(id_set)[0] + '--'
+        for ds in self.datasets:
+            if hasattr(ds, "id"):
+                prefix = ds.id + '--'
+                break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
     @staticmethod
