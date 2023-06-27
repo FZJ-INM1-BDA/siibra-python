@@ -1,6 +1,6 @@
 from typing import List
 
-def check_duplicate(list_of_str: List[str], fn: lambda a: a):
+def check_duplicate(list_of_str: List[str], fn=lambda a: a):
     seen = set()
     duplicate = set()
     for item in list_of_str:
