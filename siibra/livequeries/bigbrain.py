@@ -88,33 +88,36 @@ class WagstylProfileLoader:
     def __len__(self):
         return self._vertices.shape[0]
 
-    def match(self, regionobj: region.Region):
+    @staticmethod
+    def _get_supported_space(regionobj: region.Region):
+        if regionobj.mapped_in_space('bigbrain'):
+            return 'bigbrain'
+        supported_spaces = [s for s in regionobj.supported_spaces if s.provides_image]
+        if len(supported_spaces) == 0:
+            raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
+        return supported_spaces[0]
+
+    def match(self, regionobj: region.Region, space: str = None):
         assert isinstance(regionobj, region.Region)
         logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
 
-        supported_spaces = [s for s in regionobj.supported_spaces if s.matches('bigbrain')] or regionobj.supported_spaces
-        for spaceobj in supported_spaces:
-            if spaceobj.provides_image:
-                try:
-                    mask = regionobj.fetch_regional_map(space=spaceobj, maptype="labelled")
-                except RuntimeError:
-                    continue
-                logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {spaceobj}...")
-                voxels = (
-                    pointset.PointSet(self._vertices, space="bigbrain")
-                    .warp(spaceobj)
-                    .transform(np.linalg.inv(mask.affine), space=None)
-                )
-                arr = np.asanyarray(mask.dataobj)
-                XYZ = np.array(voxels.as_list()).astype('int')
-                X, Y, Z = np.split(
-                    XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-                    3, axis=1
-                )
-                inside = np.where(arr[X, Y, Z] > 0)[0]
-                break
-        else:
-            raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
+        if space is None:
+            space = self._get_supported_space(regionobj)
+
+        mask = regionobj.fetch_regional_map(space=space, maptype="labelled")
+        logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {space}...")
+        voxels = (
+            pointset.PointSet(self._vertices, space="bigbrain")
+            .warp(space)
+            .transform(np.linalg.inv(mask.affine), space=None)
+        )
+        arr = np.asanyarray(mask.dataobj)
+        XYZ = np.array(voxels.as_list()).astype('int')
+        X, Y, Z = np.split(
+            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
+            3, axis=1
+        )
+        inside = np.where(arr[X, Y, Z] > 0)[0]
 
         return (
             self._profiles[inside, :],
@@ -132,8 +135,12 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
+        if not regionobj.is_leaf:
+            space = WagstylProfileLoader._get_supported_space(regionobj)
+            leaves_defined_on_space = [r for r in regionobj.leaves if r.mapped_in_space(space)]
+
         matched_profiles, boundary_depths, coords = zip(
-            *[loader.match(subregion) for subregion in regionobj.leaves]
+            *[loader.match(subregion, space) for subregion in leaves_defined_on_space]
         )
         result = bigbrain_intensity_profile.BigBrainIntensityProfile(
             regionname=regionobj.name,
@@ -154,8 +161,12 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        matched_profiles, boundary_depths, _ = zip(
-            *[loader.match(subregion) for subregion in regionobj.leaves]
+        if not regionobj.is_leaf:
+            space = WagstylProfileLoader._get_supported_space(regionobj)
+            leaves_defined_on_space = [r for r in regionobj.leaves if r.mapped_in_space(space)]
+
+        matched_profiles, boundary_depths, coords = zip(
+            *[loader.match(subregion, space) for subregion in leaves_defined_on_space]
         )
         matched_profiles = np.concatenate(matched_profiles)
         boundary_depths = np.concatenate(boundary_depths)
