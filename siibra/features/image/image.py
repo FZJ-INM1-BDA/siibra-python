@@ -39,7 +39,7 @@ class Image(feature.Feature, _volume.Volume):
             anchor=anchor,  # lazy implementation below!
             datasets=datasets
         )
-
+        assert anchor.space is not None, f"{anchor} has no space defined."
         _volume.Volume.__init__(
             self,
             space_spec=anchor.space.id,
