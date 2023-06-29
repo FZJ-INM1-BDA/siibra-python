@@ -18,7 +18,7 @@ Neurotransmitter receptor densities
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 EBRAINS provides transmitter receptor density measurements linked to a selection of cytoarchitectonic brain regions
-in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the 
+in the human brain (Palomero-Gallagher, Amunts, Zilles et al.). These can be accessed by calling the
 ``siibra.features.get()`` method with feature types in ``siibra.features.molecular`` modality, and by
 specifying a cytoarchitectonic region. Receptor densities come as cortical profiles and regional fingerprints,
 both tabular style data features.

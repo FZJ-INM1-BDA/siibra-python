@@ -140,7 +140,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
             coords=np.concatenate(coords),
             depths=loader.profile_labels,
             values=np.concatenate(matched_profiles),
-            boundary_depths=np.concatenate(boundary_depths),
+            boundary_positions=np.concatenate(boundary_depths),
         )
         return [result]
 

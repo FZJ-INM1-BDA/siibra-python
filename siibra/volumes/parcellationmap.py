@@ -60,7 +60,7 @@ class NonUniqueIndexError(RuntimeError): pass
 @dataclass
 class Assignment:
     input_structure: int
-    centroid: Union[Tuple[np.ndarray], point.Point] 
+    centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
     fragment: str
     map_value: np.ndarray
@@ -794,7 +794,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0
     ):
-        """Assign an input image to brain regions.
+        """
+        Assign an input image to brain regions.
 
         The input image is assumed to be defined in the same coordinate space
         as this parcellation map.

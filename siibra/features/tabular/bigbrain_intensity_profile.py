@@ -15,15 +15,16 @@
 
 from . import spatial
 
-from typing import Union, List
+from typing import Union, List, Tuple
 from ...locations import PointSet
 from .. import anchor as _anchor
-from .cortical_profile import BOUNDARIES
+from . import cortical_profile
 import numpy as np
 
 
 class BigBrainIntensityProfile(
     spatial.PointCloud,
+    cortical_profile.CorticalProfile,
     category='cellular'
 ):
 
@@ -43,15 +44,13 @@ class BigBrainIntensityProfile(
         coords: Union[np.ndarray, List['tuple']],
         depths: list,
         values: list,
-        boundary_depths: list,
+        boundary_positions: list,
     ):
         pointset = PointSet(coords, space="bigbrain")
-        self._depths = depths
-        self._values = values
-        self.unit = "staining intensity"
+        modality = "Modified silver staining"
         self.boundary_depths = [
-            {b: vertex_depths[b[0]] for b in BOUNDARIES}
-            for vertex_depths in boundary_depths
+            {b: vertex_depths[b[0]] for b in self.BOUNDARIES}
+            for vertex_depths in boundary_positions
         ]
         anchor = _anchor.AnatomicalAnchor(
             species="Homo Sapiens",
@@ -61,35 +60,34 @@ class BigBrainIntensityProfile(
         spatial.PointCloud.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Modified silver staining",
+            modality=modality,
             anchor=anchor,
             pointset=pointset,
             value_headers=depths
         )
+        cortical_profile.CorticalProfile.__init__(
+            self,
+            description=self.DESCRIPTION,
+            modality=modality,
+            anchor=anchor,
+            depths=depths,
+            values=values,
+            unit="staining intensity",
+            boundary_positions=[
+                {b: vertex_depths[b[0]] for b in self.BOUNDARIES}
+                for vertex_depths in boundary_positions
+            ]
+        )
 
-    def _check_sanity(self):
-        # check plausibility of the profile
-        assert isinstance(self._depths, (list, np.ndarray))
-        assert isinstance(self._values, (list, np.ndarray))
-        assert len(self._values) == len(self._depths)
-        assert all(0 <= d <= 1 for d in self._depths)
-        if self.boundaries_mapped:
-            assert all(0 <= d <= 1 for d in self.boundary_depths.values())
-            assert all(
-                layerpair in BOUNDARIES
-                for layerpair in self.boundary_depths.keys()
-            )
-
-    def assign_layer(self, coordinate, depth: float):
-        """Compute the cortical layer for a given depth from the
-        layer boundary positions. If no positions are available
-        for this profile, return None."""
-        assert 0 <= depth <= 1, "Cortical depth can only be in [0,1]"
-        if not isinstance(coordinate, int):
-            index = self.points.index(coordinate)
-        if len(self.boundary_depths[index]) == 0:
-            return None
+    def plot(self, coordinate_or_index: Union[int, Tuple], **kwargs):
+        if isinstance(coordinate_or_index, tuple):
+            try:
+                index = self.points.index(coordinate_or_index)
+            except Exception:
+                raise ValueError(
+                    f"The coordinate {coordinate_or_index} cannot be found"
+                    " within the coordinates of the profile."
+                )
         else:
-            return max(
-                [l2 for (l1, l2), d in self.boundary_depths[index].items() if d < depth]
-            )
+            index = coordinate_or_index
+        return self.data.iloc[index, 1:].plot(**kwargs)

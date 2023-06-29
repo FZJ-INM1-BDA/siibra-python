@@ -15,7 +15,7 @@
 
 from . import tabular
 
-from .cortical_profile import LAYERS
+from . import cortical_profile
 import pandas as pd
 import numpy as np
 
@@ -51,7 +51,7 @@ class LayerwiseBigBrainIntensities(
         data = pd.DataFrame(
             np.array([means, stds]).T,
             columns=['mean', 'std'],
-            index=list(LAYERS.values())[1: -1]
+            index=list(cortical_profile.CorticalProfile.LAYERS.values())[1: -1]
         )
         data.index.name = "layer"
         tabular.Tabular.__init__(

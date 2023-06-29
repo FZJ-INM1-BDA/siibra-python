@@ -95,7 +95,7 @@ class LayerwiseCellDensity(
                     list(densities.std(axis=1))
                 ]).T,
                 columns=['mean', 'std'],
-                index=[cortical_profile.LAYERS[_] for _ in densities.index]
+                index=[cortical_profile.CorticalProfile.LAYERS[_] for _ in densities.index]
             )
             self._data_cached.index.name = 'layer'
         return self._data_cached

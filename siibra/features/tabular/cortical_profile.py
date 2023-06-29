@@ -18,12 +18,10 @@ from . import tabular
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, List
 from textwrap import wrap
 import numpy as np
 
-LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
-BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
 class CorticalProfile(tabular.Tabular):
     """
@@ -41,6 +39,9 @@ class CorticalProfile(tabular.Tabular):
     to implement lazy loading instead of direct initialiation.
 
     """
+
+    LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
+    BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
     def __init__(
         self,
@@ -103,7 +104,7 @@ class CorticalProfile(tabular.Tabular):
         if self.boundaries_mapped:
             assert all(0 <= d <= 1 for d in self.boundary_positions.values())
             assert all(
-                layerpair in BOUNDARIES
+                layerpair in self.BOUNDARIES
                 for layerpair in self.boundary_positions.keys()
             )
 
@@ -115,22 +116,47 @@ class CorticalProfile(tabular.Tabular):
         return self._unit
 
     @property
-    def boundary_positions(self) -> Dict[Tuple[int, int], float]:
+    def boundary_positions(self) -> Union[Dict[Tuple[int, int], float], List[Dict[Tuple[int, int], float]]]:
         if self._boundary_positions is None:
             return {}
         else:
             return self._boundary_positions
 
-    def assign_layer(self, depth: float):
-        """Compute the cortical layer for a given depth from the
-        layer boundary positions. If no positions are available
-        for this profile, return None."""
-        assert 0 <= depth <= 1
-        if len(self.boundary_positions) == 0:
+    def assign_layer(
+        self, depth: float, coordinate_or_index: Union[tuple, int] = None
+    ):
+        """
+        Compute the cortical layer for a given depth from the layer boundary
+        positions. Returns None if no positions are available for this profile
+
+        Parameters
+        ----------
+        depth: float
+        coordinate_or_index: tuple or int
+            For cortical profiles that have coordinate data only. Index of the
+            coordinate in self.data or a coordinate tuple listed in self.data.
+        """
+        assert 0 <= depth <= 1, "Cortical depth can only be in [0,1]"
+        if coordinate_or_index is None:
+            boundary_positions = self.boundary_positions
+        else:
+            if isinstance(coordinate_or_index, tuple):
+                try:
+                    index = self.points.index(coordinate_or_index)
+                except Exception:
+                    raise ValueError(
+                        f"The coordinate {coordinate_or_index} cannot be found"
+                        " within the coordinates of the profile."
+                    )
+            else:
+                index = coordinate_or_index
+            boundary_positions = self.boundary_depths[index]
+
+        if len(boundary_positions) == 0:
             return None
         else:
             return max(
-                [l2 for (l1, l2), d in self.boundary_positions.items() if d < depth]
+                [l2 for (l1, l2), d in boundary_positions.items() if d < depth]
             )
 
     @property
@@ -138,7 +164,13 @@ class CorticalProfile(tabular.Tabular):
         if self.boundary_positions is None:
             return False
         else:
-            return all((b in self.boundary_positions) for b in BOUNDARIES)
+            if isinstance(self.boundary_positions, list):
+                return all(
+                    (b in boundary_position) for b in self.BOUNDARIES
+                    for boundary_position in self.boundary_positions
+                )
+            else:
+                return all((b in self.boundary_positions) for b in self.BOUNDARIES)
 
     @property
     def _layers(self):
@@ -181,7 +213,7 @@ class CorticalProfile(tabular.Tabular):
                 axs.text(
                     d1 + (d2 - d1) / 2.0,
                     10,
-                    LAYERS[i + 1],
+                    self.LAYERS[i + 1],
                     weight="normal",
                     ha="center",
                 )
