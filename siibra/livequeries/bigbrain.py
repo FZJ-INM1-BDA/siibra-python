@@ -135,12 +135,17 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
+        space = WagstylProfileLoader._get_supported_space(regionobj)
         if not regionobj.is_leaf:
-            space = WagstylProfileLoader._get_supported_space(regionobj)
             leaves_defined_on_space = [r for r in regionobj.leaves if r.mapped_in_space(space)]
+        else:
+            leaves_defined_on_space = [regionobj]
 
         matched_profiles, boundary_depths, coords = zip(
-            *[loader.match(subregion, space) for subregion in leaves_defined_on_space]
+            *[
+                loader.match(subregion, space)
+                for subregion in leaves_defined_on_space
+            ]
         )
         result = bigbrain_intensity_profile.BigBrainIntensityProfile(
             regionname=regionobj.name,

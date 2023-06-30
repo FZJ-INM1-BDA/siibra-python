@@ -49,7 +49,7 @@ class BigBrainIntensityProfile(
     ):
         pointset = PointSet(coords, space="bigbrain")
         modality = "Modified silver staining"
-        self.boundary_positions = [
+        self._boundary_positions = [
             {b: vertex_depths[b[0]] for b in self.BOUNDARIES}
             for vertex_depths in boundary_positions
         ]
