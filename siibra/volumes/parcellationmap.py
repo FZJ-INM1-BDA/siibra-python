@@ -601,7 +601,28 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         return centroids
 
-    def colorize(self, values: dict, **kwargs):
+    def get_resampled_template(self, **fetch_kwargs) -> Nifti1Image:
+        """
+        Resample the reference space template to fetched map image. Uses
+        nilearn.image.resample_to_img to resample the template.
+
+        Parameters
+        ----------
+        **fetch_kwargs: takes the arguments of Map.fetch()
+
+        Returns
+        -------
+        Nifti1Image
+        """
+        source_template = self.space.get_template().fetch()
+        map_image = self.fetch(**fetch_kwargs)
+        return image.resample_to_img(
+            source_template,
+            map_image,
+            interpolation='continuous'
+        )
+
+    def colorize(self, values: dict, **kwargs) -> Nifti1Image:
         """Colorize the map with the provided regional values.
 
         Parameters
