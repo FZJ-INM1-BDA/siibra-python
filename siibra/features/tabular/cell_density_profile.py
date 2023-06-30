@@ -13,10 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
+from . import spatial
 from . import cortical_profile
 
-from ...commons import PolyLine, logger, create_key
+from .. import anchor as _anchor
+from ...locations import PointSet
+from ...commons import PolyLine, logger
 from ...retrieval import requests
 
 from skimage.draw import polygon
@@ -24,10 +26,11 @@ from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 
 
 class CellDensityProfile(
+    spatial.PointCloud,
     cortical_profile.CorticalProfile,
     configuration_folder="features/tabular/corticalprofiles/celldensity",
     category='cellular'
@@ -64,9 +67,8 @@ class CellDensityProfile(
 
     def __init__(
         self,
-        section: int,
-        patch: int,
-        url: str,
+        coords: Union[np.ndarray, List['tuple']],
+        urls: str,
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = []
     ):
@@ -74,25 +76,48 @@ class CellDensityProfile(
         Generate a cell density profile from a URL to a cloud folder
         formatted according to the structure used by Bludau/Dickscheid et al.
         """
+        pointset = PointSet(coords, space="bigbrain")
+        modality = "Segmented cell body density"
+        spatial.PointCloud.__init__(
+            self,
+            description=self.DESCRIPTION,
+            modality=modality,
+            anchor=anchor,
+            pointset=pointset,
+            value_headers=[]
+        )
         cortical_profile.CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            modality="Segmented cell body density",
+            modality=modality,
             unit="detected cells / 0.1mm3",
             anchor=anchor,
-            datasets=datasets,
+            datasets=datasets
         )
         self._step = 0.01
-        self._url = url
-        self._cell_loader = requests.HttpRequest(url, self.CELL_READER)
-        self._layer_loader = requests.HttpRequest(
-            url.replace("segments", "layerinfo"), self.LAYER_READER
-        )
+        self._urls = urls
+        self._build_loaders()
+        self._extract_patch_info_from_url()
         self._density_image = None
         self._layer_mask = None
         self._depth_image = None
-        self.section = section
-        self.patch = patch
+
+    def _build_loaders(self):
+        self._cell_loaders = [
+            requests.HttpRequest(url, self.CELL_READER) for url in self._urls
+        ]
+        self._layer_loaders = [
+            requests.HttpRequest(
+                url.replace("segments", "layerinfo"), self.LAYER_READER
+            )
+            for url in self._urls
+        ]
+
+    def _extract_patch_info_from_url(self):
+        si = self._urls[0].index("segments")
+        self.sections, self.patches = zip(
+            *[url[si - 10:si - 1].split('/') for url in self._urls]
+        )
 
     @property
     def shape(self) -> Tuple[int, int]:
@@ -114,14 +139,17 @@ class CellDensityProfile(
         basename = "{}_{}.json".format(
             *(self.LAYERS[layer] for layer in boundary)
         ).replace("0_I", "0")
-        url = self._url.replace("segments.txt", basename)
-        poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
+        polys = []
+        for u in self._urls:
+            url = u.replace("segments.txt", basename)
+            poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
 
-        # ensure full width
-        poly[0, 0] = 0
-        poly[-1, 0] = x1
+            # ensure full width
+            poly[0, 0] = 0
+            poly[-1, 0] = x1
+            polys.append(poly)
 
-        return poly
+        return np.concatenate(polys)
 
     def layer_annotation(self, layer: int) -> np.ndarray:
         return np.vstack(
@@ -193,7 +221,7 @@ class CellDensityProfile(
     @property
     def density_image(self) -> np.ndarray:
         if self._density_image is None:
-            logger.debug("Computing density image for", self._url)
+            logger.debug("Computing density image for", self._urls)
             # we integrate cell counts into 2D bins
             # of square shape with a fixed sidelength
             pixel_size_micron = 100
@@ -221,16 +249,17 @@ class CellDensityProfile(
 
     @property
     def cells(self) -> pd.DataFrame:
-        return self._cell_loader.get()
+        return pd.concat([loader.get() for loader in self._cell_loaders])
 
     @property
     def layers(self) -> pd.DataFrame:
-        return self._layer_loader.get()
+        return pd.concat([loader.get() for loader in self._layer_loaders])
 
     @property
     def _depths(self) -> List[np.float64]:
         if self._depths_cached is None:
             self._depths_cached = [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+            self._value_headers = self._depths_cached
         return self._depths_cached
 
     @property
@@ -246,14 +275,3 @@ class CellDensityProfile(
                     densities.append(np.NaN)
             self._values_cached = densities
         return self._values_cached
-
-    @property
-    def key(self):
-        assert len(self.species) == 1
-        return create_key("{}_{}_{}_{}_{}".format(
-            self.id,
-            self.species[0]['name'],
-            self.regionspec,
-            self.section,
-            self.patch
-        ))
