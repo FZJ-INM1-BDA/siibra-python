@@ -24,6 +24,7 @@ from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
+from typing import Tuple, Dict, List
 
 
 class CellDensityProfile(
@@ -54,11 +55,11 @@ class CellDensityProfile(
         return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
 
     @staticmethod
-    def poly_srt(poly):
+    def poly_srt(poly: np.ndarray) -> np.ndarray:
         return poly[poly[:, 0].argsort(), :]
 
     @staticmethod
-    def poly_rev(poly):
+    def poly_rev(poly: np.ndarray) -> np.ndarray:
         return poly[poly[:, 0].argsort()[::-1], :]
 
     def __init__(
@@ -94,10 +95,10 @@ class CellDensityProfile(
         self.patch = patch
 
     @property
-    def shape(self):
+    def shape(self) -> Tuple[int, int]:
         return tuple(self.cells[["y", "x"]].max().astype("int") + 1)
 
-    def boundary_annotation(self, boundary):
+    def boundary_annotation(self, boundary: Tuple[int, int]) -> np.ndarray:
         """Returns the annotation of a specific layer boundary."""
         y1, x1 = self.shape
 
@@ -122,7 +123,7 @@ class CellDensityProfile(
 
         return poly
 
-    def layer_annotation(self, layer):
+    def layer_annotation(self, layer: int) -> np.ndarray:
         return np.vstack(
             (
                 self.boundary_annotation((layer - 1, layer)),
@@ -132,7 +133,7 @@ class CellDensityProfile(
         )
 
     @property
-    def layer_mask(self):
+    def layer_mask(self) -> np.ndarray:
         """Generates a layer mask from boundary annotations."""
         if self._layer_mask is None:
             self._layer_mask = np.zeros(np.array(self.shape).astype("int") + 1)
@@ -143,7 +144,7 @@ class CellDensityProfile(
         return self._layer_mask
 
     @property
-    def depth_image(self):
+    def depth_image(self) -> np.ndarray:
         """Cortical depth image from layer boundary polygons by equidistant sampling."""
 
         if self._depth_image is None:
@@ -179,7 +180,7 @@ class CellDensityProfile(
         return self._depth_image
 
     @property
-    def boundary_positions(self):
+    def boundary_positions(self) -> Dict[Tuple[int, int], float]:
         if self._boundary_positions is None:
             self._boundary_positions = {}
             for b in self.BOUNDARIES:
@@ -190,7 +191,7 @@ class CellDensityProfile(
         return self._boundary_positions
 
     @property
-    def density_image(self):
+    def density_image(self) -> np.ndarray:
         if self._density_image is None:
             logger.debug("Computing density image for", self._url)
             # we integrate cell counts into 2D bins
@@ -219,28 +220,32 @@ class CellDensityProfile(
         return self._density_image
 
     @property
-    def cells(self):
+    def cells(self) -> pd.DataFrame:
         return self._cell_loader.get()
 
     @property
-    def layers(self):
+    def layers(self) -> pd.DataFrame:
         return self._layer_loader.get()
 
     @property
-    def _depths(self):
-        return [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+    def _depths(self) -> List[np.float64]:
+        if self._depths_cached is None:
+            self._depths_cached = [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+        return self._depths_cached
 
     @property
-    def _values(self):
-        densities = []
-        delta = self._step / 2.0
-        for d in self._depths:
-            mask = (self.depth_image >= d - delta) & (self.depth_image < d + delta)
-            if np.sum(mask) > 0:
-                densities.append(self.density_image[mask].mean())
-            else:
-                densities.append(np.NaN)
-        return densities
+    def _values(self) -> List[np.float64]:
+        if self._values_cached is None:
+            densities = []
+            delta = self._step / 2.0
+            for d in self._depths:
+                mask = (self.depth_image >= d - delta) & (self.depth_image < d + delta)
+                if np.sum(mask) > 0:
+                    densities.append(self.density_image[mask].mean())
+                else:
+                    densities.append(np.NaN)
+            self._values_cached = densities
+        return self._values_cached
 
     @property
     def key(self):
