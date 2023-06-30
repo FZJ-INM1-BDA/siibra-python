@@ -14,11 +14,12 @@
 # limitations under the License.
 
 from . import spatial
+from . import cortical_profile
 
-from typing import Union, List, Tuple
 from ...locations import PointSet
 from .. import anchor as _anchor
-from . import cortical_profile
+
+from typing import Union, List, Tuple
 import numpy as np
 
 
@@ -48,7 +49,7 @@ class BigBrainIntensityProfile(
     ):
         pointset = PointSet(coords, space="bigbrain")
         modality = "Modified silver staining"
-        self.boundary_depths = [
+        self.boundary_positions = [
             {b: vertex_depths[b[0]] for b in self.BOUNDARIES}
             for vertex_depths in boundary_positions
         ]
