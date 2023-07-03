@@ -32,6 +32,7 @@ except ImportError:  # support python 3.7
     from typing_extensions import Literal
 
 
+
 class RegionalConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
@@ -142,7 +143,10 @@ class RegionalConnectivity(Feature):
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject].copy()
 
-    def plot_matrix(self, subject: str = None, regions: List[str] = None, logscale: bool = False, **kwargs):
+    def plot_matrix(
+        self, subject: str = None, regions: List[str] = None,
+        logscale: bool = False, *args, backend="nilearn", **kwargs
+    ):
         """
         Plots the heatmap of the connectivity matrix using nilearn.plotting.
 
@@ -157,6 +161,8 @@ class RegionalConnectivity(Feature):
             It can only be a subset of regions of the feature.
         logscale: bool
             Display the data in log10 scale
+        backend: str
+            "nilearn" or "plotly"
         **kwargs:
             Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
@@ -175,14 +181,22 @@ class RegionalConnectivity(Feature):
             "title",
             f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
-        kwargs["figure"] = kwargs.get("figure", (15, 15))
 
-        from nilearn import plotting
-        plotting.plot_matrix(
-            matrix,
-            labels=regions,
-            **kwargs
-        )
+        if kwargs.get("reorder") or (backend == "nilearn"):
+            kwargs["figure"] = kwargs.get("figure", (15, 15))
+            from nilearn import plotting
+            plotting.plot_matrix(
+                matrix,
+                labels=regions,
+                **kwargs
+            )
+        elif backend == "plotly":
+            from plotly.express import imshow
+            return imshow(matrix, *args, x=regions, y=regions, **kwargs)
+        else:
+            raise NotImplementedError(
+                f"Plotting connectivity matrices with {backend} is not supported."
+            )
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)

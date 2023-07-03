@@ -155,6 +155,10 @@ class Feature:
         )
         return cls._preconfigured_instances
 
+    def plot(self, *args, **kwargs):
+        """Feature subclasses override this with their customized plot methods."""
+        raise NotImplementedError("Generic feature class does not have a standardized plot.")
+
     @classmethod
     def clean_instances(cls):
         """ Removes all instantiated object instances"""

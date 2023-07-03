@@ -55,41 +55,53 @@ class Tabular(feature.Feature):
 
     @property
     def data(self):
-        return self._data_cached
+        return self._data_cached.copy()
 
-    def plot(self, **kwargs):
+    def plot(self, *args, backend="matplotlib", **kwargs):
         """
         Create a bar plot of a columns of the data.
         Parameters
         ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
         **kwargs
             takes Matplotlib.pyplot keyword arguments
         """
-
-        try:
-            import matplotlib.pyplot as plt
-        except ImportError:
-            commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-            return None
-
-        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-
-        # default kwargs
         kwargs["y"] = kwargs.get("y", self.data.columns[0])
-        kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-        kwargs["width"] = kwargs.get("width", 0.95)
-        kwargs["ylabel"] = kwargs.get(
-            "ylabel",
-            f"{kwargs['y']} {self.unit if hasattr(self, 'unit') else ''}"
-        )
-        kwargs["xlabel"] = kwargs.get("xlabel")
-        kwargs["title"] = kwargs.get(
-            "title",
-            "\n".join(wrap(f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}", wrapwidth))
-        )
-        kwargs["grid"] = kwargs.get("grid", True)
-        kwargs["legend"] = kwargs.get("legend", False)
-        ax = self.data.plot(kind="bar", **kwargs)
-        ax.set_title(ax.get_title(), fontsize="medium")
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
-        plt.tight_layout()
+        if backend == "matplotlib":
+            try:
+                import matplotlib.pyplot as plt
+            except ImportError:
+                commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
+                return None
+
+            wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+            # default kwargs
+            if kwargs.get("error_y") is None:
+                kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
+            kwargs["width"] = kwargs.get("width", 0.95)
+            kwargs["ylabel"] = kwargs.get(
+                "ylabel",
+                f"{kwargs['y']} {self.unit if hasattr(self, 'unit') else ''}"
+            )
+            kwargs["title"] = kwargs.get(
+                "title",
+                "\n".join(wrap(f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}", wrapwidth))
+            )
+            kwargs["grid"] = kwargs.get("grid", True)
+            kwargs["legend"] = kwargs.get("legend", False)
+            ax = self.data.plot(kind="bar", *args, backend=backend, **kwargs)
+            ax.set_title(ax.get_title(), fontsize="medium")
+            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+            plt.tight_layout()
+            return ax
+        elif backend == "plotly":
+            kwargs["labels"] = {
+                "index": kwargs.pop("xlabel", ""),
+                "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
+            }
+            kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
+            return self.data.plot(kind="bar", *args, backend=backend, **kwargs)
+        else:
+            return self.data.plot(*args, backend=backend, **kwargs)
