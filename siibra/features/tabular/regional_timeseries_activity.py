@@ -196,10 +196,10 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             df = df.rename(columns=remapper)
         return df
 
-    def plot(self, subject: str = None, **kwargs):
+    def plot(self, subject: str = None, *args, backend="matplotlib", **kwargs):
         table = self.get_table(subject)
         table.columns = [str(r) for r in table.columns]
-        return table.mean().plot(kind="bar", **kwargs)
+        return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
 
 class RegionalBOLD(
