@@ -57,7 +57,7 @@ for i, region in enumerate(regions):
         print(region, modality, len(features))
         if len(features) > 0:
             fp = features[-1]
-            fp.plot(ax=axs[j, i], backend='matplotlib')
+            fp.plot(ax=axs[j, i])
             axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
 
@@ -83,6 +83,6 @@ for i, region in enumerate(regions):
         )
         # fetch a random sample from the available ones
         p = features[int(np.random.rand() * (len(features)))]
-        p.plot(ax=axs[j, i], layercolor="darkblue", backend='matplotlib')
+        p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
