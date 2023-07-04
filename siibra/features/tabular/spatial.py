@@ -60,7 +60,7 @@ class PointCloud(Spatial):
         anchor: _anchor.AnatomicalAnchor,
         pointset: None,
         loader: MultiSourcedRequest = None,
-        value_headers: list = [],
+        headers: list = [],
         datasets: list = []
     ):
         Spatial.__init__(
@@ -72,12 +72,16 @@ class PointCloud(Spatial):
         )
         self._loader = loader
         self._pointset_cached = pointset
-        self._value_headers = value_headers
+        self._headers = headers
+
+    def __len__(self):
+        """Returns the count of the points in the cloud."""
+        return len(self.as_pointset())
 
     def _load(self):
         headers, coordinates, self._values = self._loader.data
-        if len(self._value_headers):
-            self._value_headers = headers
+        if len(self._headers):
+            self._headers = headers
         self._pointset_cached = PointSet(coordinates, self.anchor.space)
 
     def as_pointset(self) -> PointSet:
@@ -94,7 +98,7 @@ class PointCloud(Spatial):
         """Return a pandas DataFrame representing the profile."""
         # self._check_sanity()
         coords = pd.Series(self.points, name='coordinate')
-        values = pd.DataFrame(self._values, columns=self._value_headers)
+        values = pd.DataFrame(self._values, columns=self._headers)
         return pd.concat([coords, values], axis=1)
 
     def get_point_index(self, point: Union[Tuple, Point, int]):

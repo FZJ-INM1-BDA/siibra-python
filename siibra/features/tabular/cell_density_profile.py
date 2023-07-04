@@ -18,7 +18,7 @@ from . import cortical_profile
 
 from .. import anchor as _anchor
 from ...locations import PointSet
-from ...commons import PolyLine, logger
+from ...commons import PolyLine, logger, siibra_tqdm
 from ...retrieval import requests
 
 from skimage.draw import polygon
@@ -48,21 +48,21 @@ class CellDensityProfile(
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
     @classmethod
-    def CELL_READER(cls, b):
+    def _CELL_READER(cls, b):
         return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
             {"layer": int, "label": int}
         )
 
     @classmethod
-    def LAYER_READER(cls, b):
+    def _LAYER_READER(cls, b):
         return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0, index_col=0)
 
     @staticmethod
-    def poly_srt(poly: np.ndarray) -> np.ndarray:
+    def _poly_srt(poly: np.ndarray) -> np.ndarray:
         return poly[poly[:, 0].argsort(), :]
 
     @staticmethod
-    def poly_rev(poly: np.ndarray) -> np.ndarray:
+    def _poly_rev(poly: np.ndarray) -> np.ndarray:
         return poly[poly[:, 0].argsort()[::-1], :]
 
     def __init__(
@@ -84,7 +84,7 @@ class CellDensityProfile(
             modality=modality,
             anchor=anchor,
             pointset=pointset,
-            value_headers=[]
+            headers=[]
         )
         cortical_profile.CorticalProfile.__init__(
             self,
@@ -98,17 +98,19 @@ class CellDensityProfile(
         self._urls = urls
         self._build_loaders()
         self._extract_patch_info_from_url()
-        self._density_image = None
-        self._layer_mask = None
-        self._depth_image = None
+        self._density_image = {}
+        self._layer_mask = {}
+        self._depth_image = {}
+        self._boundary_positions = {}
+        self._depths_cached = None
 
     def _build_loaders(self):
         self._cell_loaders = [
-            requests.HttpRequest(url, self.CELL_READER) for url in self._urls
+            requests.HttpRequest(url, self._CELL_READER) for url in self._urls
         ]
         self._layer_loaders = [
             requests.HttpRequest(
-                url.replace("segments", "layerinfo"), self.LAYER_READER
+                url.replace("segments", "layerinfo"), self._LAYER_READER
             )
             for url in self._urls
         ]
@@ -119,13 +121,12 @@ class CellDensityProfile(
             *[url[si - 10:si - 1].split('/') for url in self._urls]
         )
 
-    @property
-    def shape(self) -> Tuple[int, int]:
-        return tuple(self.cells[["y", "x"]].max().astype("int") + 1)
+    def shape(self, point: int = 0) -> Tuple[int, int]:
+        return tuple(self.cells[point][["y", "x"]].max().astype("int") + 1)
 
-    def boundary_annotation(self, boundary: Tuple[int, int]) -> np.ndarray:
+    def boundary_annotation(self, boundary: Tuple[int, int], point: int = 0) -> np.ndarray:
         """Returns the annotation of a specific layer boundary."""
-        y1, x1 = self.shape
+        y1, x1 = self.shape(point)
 
         # start of image patch
         if boundary == (-1, 0):
@@ -139,47 +140,41 @@ class CellDensityProfile(
         basename = "{}_{}.json".format(
             *(self.LAYERS[layer] for layer in boundary)
         ).replace("0_I", "0")
-        polys = []
-        for u in self._urls:
-            url = u.replace("segments.txt", basename)
-            poly = self.poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
+        url = self._urls[point].replace("segments.txt", basename)
+        poly = self._poly_srt(np.array(requests.HttpRequest(url).get()["segments"]))
 
-            # ensure full width
-            poly[0, 0] = 0
-            poly[-1, 0] = x1
-            polys.append(poly)
+        # ensure full width
+        poly[0, 0] = 0
+        poly[-1, 0] = x1
 
-        return np.concatenate(polys)
+        return poly
 
-    def layer_annotation(self, layer: int) -> np.ndarray:
-        return np.vstack(
-            (
-                self.boundary_annotation((layer - 1, layer)),
-                self.poly_rev(self.boundary_annotation((layer, layer + 1))),
-                self.boundary_annotation((layer - 1, layer))[0, :],
-            )
-        )
+    def layer_annotation(self, layer: int, point: int = 0) -> np.ndarray:
+        ba0 = self.boundary_annotation((layer - 1, layer), point)
+        ba1 = self.boundary_annotation((layer, layer + 1), point)
+        return np.vstack((ba0, self._poly_rev(ba1), ba0[0, :]))
 
-    @property
-    def layer_mask(self) -> np.ndarray:
+    def layer_mask(self, point: int = 0) -> np.ndarray:
         """Generates a layer mask from boundary annotations."""
-        if self._layer_mask is None:
-            self._layer_mask = np.zeros(np.array(self.shape).astype("int") + 1)
+        if self._layer_mask.get(point) is None:
+            self._layer_mask[point] = np.zeros(np.array(self.shape(point)).astype("int") + 1)
             for layer in range(1, 8):
-                pl = self.layer_annotation(layer)
+                pl = self.layer_annotation(layer, point)
                 X, Y = polygon(pl[:, 0], pl[:, 1])
-                self._layer_mask[Y, X] = layer
-        return self._layer_mask
+                try:
+                    self._layer_mask[point][Y, X] = layer
+                except Exception:
+                    self._layer_mask[point].resize((max(Y) + 1, self._layer_mask[point].shape[1]))
+                    self._layer_mask[point][Y, X] = layer
+        return self._layer_mask[point]
 
-    @property
-    def depth_image(self) -> np.ndarray:
+    def depth_image(self, point: int = 0) -> np.ndarray:
         """Cortical depth image from layer boundary polygons by equidistant sampling."""
 
-        if self._depth_image is None:
-
+        if self._depth_image.get(point) is None:
             # compute equidistant cortical depth image from inner and outer contour
             scale = 0.1
-            D = np.zeros((np.array(self.density_image.shape) * scale).astype("int") + 1)
+            D = np.zeros((np.array(self.density_image(point).shape) * scale).astype("int") + 1)
 
             # determine sufficient stepwidth for profile sampling
             # to match downscaled image resolution
@@ -188,8 +183,8 @@ class CellDensityProfile(
             hsteps = np.arange(0, 1 + vstep, hstep)
 
             # build straight profiles between outer and inner cortical boundary
-            s0 = PolyLine(self.boundary_annotation((0, 1)) * scale).sample(hsteps)
-            s1 = PolyLine(self.boundary_annotation((6, 7)) * scale).sample(hsteps)
+            s0 = PolyLine(self.boundary_annotation((0, 1), point) * scale).sample(hsteps)
+            s1 = PolyLine(self.boundary_annotation((6, 7), point) * scale).sample(hsteps)
             profiles = [PolyLine(_.reshape(2, 2)) for _ in np.hstack((s0, s1))]
 
             # write sample depths to their location in the depth image
@@ -198,39 +193,43 @@ class CellDensityProfile(
                 D[XY[:, 1], XY[:, 0]] = vsteps
 
             # fix wm region, account for rounding error
-            XY = self.layer_annotation(7) * scale
+            XY = self.layer_annotation(7, point) * scale
             D[polygon(XY[:, 1] - 1, XY[:, 0])] = 1
             D[-1, :] = 1
 
             # rescale depth image to original patch size
-            self._depth_image = resize(D, self.density_image.shape)
+            self._depth_image[point] = resize(D, self.density_image(point).shape)
 
-        return self._depth_image
+        return self._depth_image[point]
+
+    def set_boundary_positions(self, point: int = 0):
+        if self._boundary_positions.get(point) is not None:
+            return
+        self._boundary_positions[point] = {}
+        for b in self.BOUNDARIES:
+            XY = self.boundary_annotation(b, point).astype("int")
+            self._boundary_positions[point][b] = self.depth_image(point)[
+                XY[:, 1], XY[:, 0]
+            ].mean()
 
     @property
-    def boundary_positions(self) -> Dict[Tuple[int, int], float]:
-        if self._boundary_positions is None:
-            self._boundary_positions = {}
-            for b in self.BOUNDARIES:
-                XY = self.boundary_annotation(b).astype("int")
-                self._boundary_positions[b] = self.depth_image[
-                    XY[:, 1], XY[:, 0]
-                ].mean()
-        return self._boundary_positions
+    def boundary_positions(self) -> List[Dict[Tuple[int, int], float]]:
+        for point in range(len(self)):
+            if self._boundary_positions.get(point) is None:
+                self.set_boundary_positions(point)
+        return list(self._boundary_positions.values())
 
-    @property
-    def density_image(self) -> np.ndarray:
-        if self._density_image is None:
+    def density_image(self, point: int = 0) -> np.ndarray:
+        if self._density_image.get(point) is None:
             logger.debug("Computing density image for", self._urls)
             # we integrate cell counts into 2D bins
             # of square shape with a fixed sidelength
             pixel_size_micron = 100
+            bins = (np.array(self.layer_mask(point).shape) / pixel_size_micron + 0.5).astype("int")
             counts, xedges, yedges = np.histogram2d(
-                self.cells.y,
-                self.cells.x,
-                bins=(np.array(self.layer_mask.shape) / pixel_size_micron + 0.5).astype(
-                    "int"
-                ),
+                self.cells[point].y,
+                self.cells[point].x,
+                bins=bins
             )
 
             # rescale the counts from count / pixel_size**2  to count / 0.1mm^3,
@@ -243,37 +242,40 @@ class CellDensityProfile(
             counts /= np.cbrt(self.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR) ** 2
 
             # to go to 0.1 millimeter cube, we multiply by 0.1 / 0.0002 = 500
-            self._density_image = resize(counts, self.layer_mask.shape, order=2)
+            self._density_image[point] = resize(counts, self.layer_mask(point).shape, order=2)
 
-        return self._density_image
-
-    @property
-    def cells(self) -> pd.DataFrame:
-        return pd.concat(
-            [loader.get() for loader in self._cell_loaders], ignore_index=True
-        )
+        return self._density_image[point]
 
     @property
-    def layers(self) -> pd.DataFrame:
-        return pd.concat([loader.get() for loader in self._layer_loaders])
+    def cells(self) -> List[pd.DataFrame]:
+        return [loader.get() for loader in self._cell_loaders]
 
     @property
-    def _depths(self) -> List[np.float64]:
+    def layers(self) -> List[pd.DataFrame]:
+        return [loader.get() for loader in self._layer_loaders]
+
+    @property
+    def _depths(self) -> np.float64:
         if self._depths_cached is None:
-            self._depths_cached = [d + self._step / 2. for d in np.arange(0, 1, self._step)]
-            self._value_headers = self._depths_cached
+            self._depths_cached = np.arange(self._step / 2., 1., self._step)
+            self._headers = self._depths_cached
         return self._depths_cached
 
     @property
     def _values(self) -> List[np.float64]:
         if self._values_cached is None:
-            densities = []
+            self._values_cached = []
             delta = self._step / 2.0
-            for d in self._depths:
-                mask = (self.depth_image >= d - delta) & (self.depth_image < d + delta)
-                if np.sum(mask) > 0:
-                    densities.append(self.density_image[mask].mean())
-                else:
-                    densities.append(np.NaN)
-            self._values_cached = densities
+            for i in siibra_tqdm(
+                range(len(self)),
+                unit="Coordinate"
+            ):
+                densities = []
+                for d in self._depths:
+                    mask = (self.depth_image(i) >= d - delta) & (self.depth_image(i) < d + delta)
+                    if np.sum(mask) > 0:
+                        densities.append(self.density_image(i)[mask].mean())
+                    else:
+                        densities.append(np.NaN)
+                self._values_cached.append(densities)
         return self._values_cached

@@ -19,7 +19,7 @@ from . import cortical_profile
 from ...locations import PointSet
 from .. import anchor as _anchor
 
-from typing import Union, List, Tuple
+from typing import Union, List
 import numpy as np
 
 
@@ -64,7 +64,7 @@ class BigBrainIntensityProfile(
             modality=modality,
             anchor=anchor,
             pointset=pointset,
-            value_headers=depths
+            headers=depths
         )
         cortical_profile.CorticalProfile.__init__(
             self,

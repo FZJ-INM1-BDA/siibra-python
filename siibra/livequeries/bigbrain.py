@@ -47,7 +47,7 @@ class WagstylProfileLoader:
 
     @property
     def profile_labels(self):
-        return np.arange(0, 1, 1 / self._profiles.shape[1])
+        return np.arange(0., 1., 1. / self._profiles.shape[1])
 
     @classmethod
     def _load(cls):
