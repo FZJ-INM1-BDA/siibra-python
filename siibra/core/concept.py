@@ -90,6 +90,13 @@ class AtlasConcept:
         self.datasets = datasets
 
     @property
+    def spec(self):
+        return {
+            'id': self._id,
+            'name': self.name
+        }
+
+    @property
     def description(self):
         if self._description:
             return self._description
