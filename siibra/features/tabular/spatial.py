@@ -21,7 +21,7 @@ from ...locations import PointSet
 from ...retrieval.requests import MultiSourcedRequest
 
 import pandas as pd
-from typing import List
+from typing import List, Tuple, Union
 
 
 class Spatial(tabular.Tabular):
@@ -96,3 +96,22 @@ class PointCloud(Spatial):
         coords = pd.Series(self.points, name='coordinate')
         values = pd.DataFrame(self._values, columns=self._value_headers)
         return pd.concat([coords, values], axis=1)
+
+    def get_point_index(self, coordinate: Tuple):
+        try:
+            return self.points.index(coordinate)
+        except Exception:
+            raise ValueError(
+                f"The coordinate {coordinate} cannot be found"
+                " within the coordinates of the profile."
+            )
+
+    def plot(
+        self, coordinate: Union[int, Tuple],
+        *args, backend='matplotlib', **kwargs
+    ):
+        if isinstance(coordinate, tuple):
+            index = self.get_point_index(coordinate)
+        else:
+            index = coordinate
+        return self.data.iloc[index, 1:].plot(*args, backend=backend, **kwargs)

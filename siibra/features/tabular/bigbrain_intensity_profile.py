@@ -79,16 +79,3 @@ class BigBrainIntensityProfile(
                 for vertex_depths in boundary_positions
             ]
         )
-
-    def plot(self, coordinate_or_index: Union[int, Tuple], **kwargs):
-        if isinstance(coordinate_or_index, tuple):
-            try:
-                index = self.points.index(coordinate_or_index)
-            except Exception:
-                raise ValueError(
-                    f"The coordinate {coordinate_or_index} cannot be found"
-                    " within the coordinates of the profile."
-                )
-        else:
-            index = coordinate_or_index
-        return self.data.iloc[index, 1:].plot(**kwargs)
