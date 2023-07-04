@@ -17,7 +17,7 @@ from . import tabular
 
 from .. import anchor as _anchor
 from ...locations import boundingbox as _boundingbox
-from ...locations import PointSet
+from ...locations import PointSet, Point
 from ...retrieval.requests import MultiSourcedRequest
 
 import pandas as pd
@@ -97,21 +97,49 @@ class PointCloud(Spatial):
         values = pd.DataFrame(self._values, columns=self._value_headers)
         return pd.concat([coords, values], axis=1)
 
-    def get_point_index(self, coordinate: Tuple):
+    def get_point_index(self, point: Union[Tuple, Point, int]):
+        if isinstance(point, int):
+            assert point in self.data.index
+            return point
+        if isinstance(point, Point):
+            return self.get_point_index(point.coordinate)
         try:
-            return self.points.index(coordinate)
+            return self.points.index(point)
         except Exception:
             raise ValueError(
-                f"The coordinate {coordinate} cannot be found"
+                f"The coordinate {point} cannot be found"
                 " within the coordinates of the profile."
             )
 
     def plot(
-        self, coordinate: Union[int, Tuple],
+        self, point: Union[int, Point, Tuple],
         *args, backend='matplotlib', **kwargs
     ):
-        if isinstance(coordinate, tuple):
-            index = self.get_point_index(coordinate)
-        else:
-            index = coordinate
+        index = self.get_point_index(point)
         return self.data.iloc[index, 1:].plot(*args, backend=backend, **kwargs)
+
+    def __getitem__(self, index: int):
+        index = self.get_point_index(index)
+        return self.get_point_profile(index)
+
+    def get_point_profile(self, point: Union[int, Point, Tuple], **kwargs):
+        """
+        Extract the data for a profile data of a single coordinate. Only for
+        cortical profile features displayed in Pointcloud format.
+        """
+        index = self.get_point_index(point)
+        bases = self.__class__.__bases__
+        assert bases[0] is PointCloud
+        profileclass = bases[1]
+        anchor = _anchor.AnatomicalAnchor(
+            species=self.anchor.species,
+            location=self.as_pointset()[index],
+            region=self.anchor._regionspec
+        )
+        kwargs.update(self._pass_point_profile_args(point))
+        return profileclass(
+            description=self.description,
+            modality=self.modality,
+            anchor=anchor,
+            **kwargs
+        )

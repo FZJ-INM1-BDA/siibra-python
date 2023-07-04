@@ -249,7 +249,9 @@ class CellDensityProfile(
 
     @property
     def cells(self) -> pd.DataFrame:
-        return pd.concat([loader.get() for loader in self._cell_loaders])
+        return pd.concat(
+            [loader.get() for loader in self._cell_loaders], ignore_index=True
+        )
 
     @property
     def layers(self) -> pd.DataFrame:
@@ -258,7 +260,7 @@ class CellDensityProfile(
     @property
     def _depths(self) -> List[np.float64]:
         if self._depths_cached is None:
-            self._depths_cached = [d + self._step / 2 for d in np.arange(0, 1, self._step)]
+            self._depths_cached = [d + self._step / 2. for d in np.arange(0, 1, self._step)]
             self._value_headers = self._depths_cached
         return self._depths_cached
 

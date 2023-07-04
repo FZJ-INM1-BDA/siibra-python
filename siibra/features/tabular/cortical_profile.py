@@ -249,3 +249,11 @@ class CorticalProfile(tabular.Tabular):
                 f"'_values' not available for {self.__class__.__name__}."
             )
         return self._values_cached
+
+    def _pass_point_profile_args(self, point: Union[int, Tuple]):
+        return {
+            "depths": self._depths,
+            "values": self._values[point],
+            "unit": self.unit,
+            "boundary_positions": self.boundary_positions[point]
+        }
