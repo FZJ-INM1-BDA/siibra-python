@@ -88,6 +88,9 @@ def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, 
     )
 
 
+add_nifti_map = _parcellationmap.Map.from_nifti
+
+
 # convenient access to regions of a parcellation
 def get_region(parcellation: str, region: str):
     return (
@@ -124,6 +127,7 @@ def __dir__():
         "get_region",
         "find_regions",
         "get_map",
+        "add_nifti_map",
         "get_template",
         "MapType",
         "Point",

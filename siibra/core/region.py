@@ -123,6 +123,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._CACHED_REGION_SEARCHES = {}
+        self.related_regions = {}
 
     @property
     def id(self):
@@ -418,13 +419,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             fetch_space = _space.Space.get_instance(fetch_space)
 
         for m in parcellationmap.Map.registry():
-            if (
-                m.space.matches(fetch_space) and
-                m.parcellation == self.parcellation and
-                m.provides_image and
-                m.maptype == maptype and
+            if all([
+                m.space.matches(fetch_space),
+                m.parcellation == self.parcellation,
+                m.provides_image,
+                m.maptype == maptype,
                 self.name in m.regions
-            ):
+            ]):
                 result = m.fetch(region=self, format='image')
                 if (maptype == MapType.STATISTICAL) and (threshold is not None):
                     logger.info(f"Thresholding statistical map at {threshold}")
@@ -694,3 +695,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
+
+    def add_related_region(self, other: "Region", score: float):
+        """
+        Links a related region object to this region, and assigns it a score
+        between 0.0 and 1.0, where
+        - 0 means dissimilar / disjoint
+        - 1 means identical
+        """
+        assert (0 <= score <= 1.)
+        self.related_regions[other] = score

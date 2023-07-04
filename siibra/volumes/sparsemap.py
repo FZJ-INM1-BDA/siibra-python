@@ -15,7 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
-from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
+from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm, CompareMapsResult
 from ..locations import boundingbox
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
@@ -441,7 +441,14 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[parcellationmap.AssignImageResult]:
+    def _assign_image(
+        self,
+        queryimg: Nifti1Image,
+        minsize_voxel: int,
+        lower_threshold: float,
+        split_components: bool = True,
+        quiet: bool = False
+    ) -> List[parcellationmap.MapAssignment]:
         """
         Assign an image volume to this parcellation map.
 
@@ -493,12 +500,15 @@ class SparseMap(parcellationmap.Map):
 
             spind = self.sparse_index
 
-            for volume in siibra_tqdm(
-                range(len(self)),
-                desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
-                total=len(self),
-                unit=" map"
-            ):
+            def progress(it):
+                return iter(it) if quiet else siibra_tqdm(
+                    it,
+                    desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
+                    total=len(self),
+                    unit=" map"
+                )
+
+            for volume in progress(range(len(self))):
                 bbox1 = boundingbox.BoundingBox(
                     self.sparse_index.bboxes[volume]["minpoint"],
                     self.sparse_index.bboxes[volume]["maxpoint"],
@@ -550,19 +560,23 @@ class SparseMap(parcellationmap.Map):
 
                 maxval = v1.max()
 
+                result = CompareMapsResult(
+                    intersection_over_union=iou,
+                    intersection_over_first=intersection / (v1 > 0).sum(),
+                    intersection_over_second=intersection / (v2 > 0).sum(),
+                    correlation=rho,
+                    weighted_mean_of_first=np.sum(v1 * v2) / np.sum(v2),
+                    weighted_mean_of_second=np.sum(v1 * v2) / np.sum(v1)
+                )
+
                 assignments.append(
-                    parcellationmap.AssignImageResult(
+                    parcellationmap.MapAssignment(
                         input_structure=mode,
                         centroid=tuple(position.round(2)),
                         volume=volume,
                         fragment=None,
                         map_value=maxval,
-                        intersection_over_union=iou,
-                        intersection_over_first=intersection / (v1 > 0).sum(),
-                        intersection_over_second=intersection / (v2 > 0).sum(),
-                        correlation=rho,
-                        weighted_mean_of_first=np.sum(v1 * v2) / np.sum(v2),
-                        weighted_mean_of_second=np.sum(v1 * v2) / np.sum(v1)
+                        result=result
                     )
                 )
 

@@ -33,7 +33,6 @@ class AssignmentQualification(Enum):
     OVERLAPS = 2
     CONTAINED = 3
     CONTAINS = 4
-    APPROXIMATE = 5
 
     @property
     def verb(self):
@@ -46,7 +45,6 @@ class AssignmentQualification(Enum):
             'OVERLAPS': 'overlaps with',
             'CONTAINED': 'is contained in',
             'CONTAINS': 'contains',
-            'APPROXIMATE': 'approximates to',
         }
         return transl[self.name]
 
@@ -59,7 +57,6 @@ class AssignmentQualification(Enum):
             "OVERLAPS": "OVERLAPS",
             "CONTAINED": "CONTAINS",
             "CONTAINS": "CONTAINED",
-            "APPROXIMATE": "APPROXIMATE",
         }
         return AssignmentQualification[inverses[self.name]]
 
@@ -93,7 +90,7 @@ class AnatomicalAssignment:
 
     def __str__(self):
         msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
-        return msg if self.explanation == "" else f"{msg} - {self.explanation}"
+        return msg if self.explanation == "" else f"{msg}. Explanation: {self.explanation}"
 
     def invert(self):
         return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
@@ -223,10 +220,26 @@ class AnatomicalAnchor:
                     )
             elif isinstance(concept, Region):
                 if concept.species in self.species:
-                    if any(_.matches(self._regionspec) for _ in concept) \
-                            or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
-                        for r in self.regions:
-                            matches.append(AnatomicalAnchor.match_regions(r, concept))
+                    for targetregion, score in zip(
+                        [concept] + list(concept.related_regions.keys()),
+                        [1.0] + list(concept.related_regions.values())
+                    ):
+                        if any(_.matches(self._regionspec) for _ in targetregion) \
+                                or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
+                            for r in self.regions:
+                                res = AnatomicalAnchor.match_regions(r, targetregion)
+                                if res is not None:
+                                    if score < 1:  # otherwise regions are assumed identical
+                                        expl = (
+                                            f" '{targetregion.name}' was linked to '{concept.name}' "
+                                            f"with a score of {score:.2f}."
+                                        )
+                                        if res.assigned_structure != concept:
+                                            res.explanation = f"{str(res)}. {expl}"
+                                            res.assigned_structure = concept
+                                            res.qualification = AssignmentQualification.OVERLAPS
+                                    matches.append(res)
+
                     if len(concept.root.find(self._regionspec)) == 0:
                         # We perform the (quite expensive) location-to-region test
                         # only if this anchor's regionspec is not known to the

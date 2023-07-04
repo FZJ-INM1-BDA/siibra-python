@@ -109,11 +109,11 @@ class AtlasConcept:
     def publications(self) -> List[TypePublication]:
         return [
             *self._publications,
-            *[{
-                'citation': 'DOI',
-                'url': url.get("url")
-            } for ds in self.datasets
-            for url in ds.urls]
+            *[
+                {'citation': 'DOI', 'url': url.get("url")}
+                for ds in self.datasets
+                for url in ds.urls
+            ]
         ]
 
     @property

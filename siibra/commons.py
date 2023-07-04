@@ -55,6 +55,16 @@ class CompareMapsResult:
     weighted_mean_of_first: float
     weighted_mean_of_second: float
 
+    def to_dict(self):
+        return {
+            "correlation": self.correlation,
+            "intersection over union": self.intersection_over_union,
+            "map weighted mean": self.weighted_mean_of_first,
+            "map containedness": self.intersection_over_first,
+            "input weighted mean": self.weighted_mean_of_second,
+            "input containedness": self.intersection_over_second,
+        }
+
 
 T = TypeVar("T")
 

@@ -48,6 +48,7 @@ USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
+    ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
     ".tck": lambda b: streamlines.load(BytesIO(b)),
