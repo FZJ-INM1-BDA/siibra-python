@@ -119,7 +119,10 @@ class PointCloud(Spatial):
         self, point: Union[int, Point, Tuple],
         *args, backend='matplotlib', **kwargs
     ):
-        index = self.get_point_index(point)
+        if point is None and len(self) == 1:
+            index = 0
+        else:
+            index = self.get_point_index(point)
         return self.data.iloc[index, 1:].plot(*args, backend=backend, **kwargs)
 
     def __getitem__(self, index: int):

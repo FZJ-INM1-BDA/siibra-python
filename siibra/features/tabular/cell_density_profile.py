@@ -68,7 +68,7 @@ class CellDensityProfile(
     def __init__(
         self,
         coords: Union[np.ndarray, List['tuple']],
-        urls: str,
+        urls: List[str],
         anchor: _anchor.AnatomicalAnchor,
         datasets: list = []
     ):
@@ -268,7 +268,8 @@ class CellDensityProfile(
             delta = self._step / 2.0
             for i in siibra_tqdm(
                 range(len(self)),
-                unit="Coordinate"
+                unit="Coordinate",
+                disable=(len(self) == 1)
             ):
                 densities = []
                 for d in self._depths:

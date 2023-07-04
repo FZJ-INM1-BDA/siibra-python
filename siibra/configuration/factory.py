@@ -113,7 +113,7 @@ class Factory:
 
         if 'location' in spec:
             location = cls.from_json(spec['location'])
-            if isinstance(location, pointset.PointSet):
+            if isinstance(location, (point.Point, pointset.PointSet)):
                 location = location.boundingbox
         else:
             location = None
@@ -406,8 +406,8 @@ class Factory:
     @classmethod
     def build_cell_density_profile(cls, spec):
         return cell_density_profile.CellDensityProfile(
-            coords=spec['location']['coordinates'],
-            urls=spec['files'],
+            coords=spec['location'].get('coordinates') or [spec['location'].get('coordinate')],
+            urls=spec.get('files') or [spec.get('file')],
             anchor=cls.extract_anchor(spec),
             datasets=cls.extract_datasets(spec),
         )
