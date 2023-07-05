@@ -102,7 +102,7 @@ class EbrainsBaseDataset(ABC):
 
 
 class EbrainsDataset(EbrainsBaseDataset):
-
+    """Ebrains dataset v1 connection"""
     def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
         super().__init__()
 
@@ -214,8 +214,19 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @property
     def name(self) -> str:
         fullname = self.detail.get("fullName")
+        for dataset in self.is_version_of:
+            if fullname is not None:
+                break
+            fullname = dataset.name
+            
         version_id = self.detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
+
+    @property
+    def is_version_of(self):
+        if not hasattr(self, "_is_version_of"):
+            self._is_version_of = [EbrainsV3Dataset(id=id.get("id")) for id in self.detail.get("isVersionOf", [])]
+        return self._is_version_of
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
@@ -225,7 +236,12 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def description(self) -> str:
-        return self.detail.get("description", "")
+        description = self.detail.get("description")
+        for ds in self.is_version_of:
+            if description:
+                break
+            description = ds.description
+        return description or ""
 
     @property
     def contributors(self) -> List[EbrainsDatasetPerson]:
@@ -241,15 +257,36 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     def custodians(self) -> EbrainsDatasetPerson:
         return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
 
+    @property
+    def version_changes(self):
+        return self.detail.get("versionInnovation", "")
+
+    @property
+    def version_identifier(self):
+        return self.detail.get("versionIdentifier", "")
+
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
-    # TODO finish implementing me
-    # some fields are currently missing, e.g. desc, contributors etc.
     def __init__(self, id, *, cached_data=None) -> None:
         super().__init__()
 
         self._id = id
         self._cached_data = cached_data
+        self._contributers = None
+
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def name(self) -> str:
+        return self.detail.get("fullName")
+
+    @property
+    def urls(self) -> List[EbrainsDatasetUrl]:
+        return [{
+            "url": doi.get("identifier", None)
+        } for doi in self.detail.get("doi", [])]
 
     @property
     def detail(self):
@@ -265,3 +302,32 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
                 ]
             ).data
         return self._cached_data
+
+    @property
+    def description(self) -> str:
+        return self.detail.get("description", "")
+
+    @property
+    def contributors(self):
+        if self._contributers is None:
+            contributers = {}
+            for version_id in self.version_ids:
+                contributers.update(
+                    {c['@id']: c for c in EbrainsV3DatasetVersion(version_id).contributors}
+                )
+            self._contributers = list(contributers.values())
+        return self._contributers
+
+    @property
+    def ebrains_page(self) -> str:
+        if len(self.urls) > 0:
+            return self.urls[0].get("url")
+        return None
+
+    @property
+    def custodians(self) -> EbrainsDatasetPerson:
+        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+
+    @property
+    def version_ids(self) -> List['str']:
+        return [version.get("id") for version in self.detail.get("versions", [])]

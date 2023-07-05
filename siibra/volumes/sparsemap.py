@@ -225,9 +225,7 @@ class SparseMap(parcellationmap.Map):
         description: str = "",
         modality: str = None,
         publications: list = [],
-        datasets: list = [],
-        is_cached: bool = False,
-        cache_url: str = "",
+        datasets: list = []
     ):
         parcellationmap.Map.__init__(
             self,
@@ -244,7 +242,6 @@ class SparseMap(parcellationmap.Map):
             volumes=volumes,
         )
         self._sparse_index_cached = None
-        self._sparseindex_zip_url = cache_url if is_cached else ""
 
     @property
     def _cache_prefix(self):
@@ -254,14 +251,8 @@ class SparseMap(parcellationmap.Map):
     def sparse_index(self):
         if self._sparse_index_cached is None:
             spind = SparseIndex._from_local_cache(self._cache_prefix)
-            if spind is None and len(self._sparseindex_zip_url) > 0:
-                logger.debug("Loading SparseIndex from precomputed source.")
-                try:
-                    spind = self.load_zipped_sparseindex(self._sparseindex_zip_url)
-                except Exception:
-                    logger.debug("Could not load SparseIndex from precomputed source.", exc_info=1)
             if spind is None:
-                logger.debug("Loading SparseIndex from Gitlab.")
+                logger.info("Downloading precomputed SparseIndex...")
                 gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
                 zip_fname = f"{self.name.replace(' ', '_')}_index.zip"
                 try:
@@ -269,6 +260,7 @@ class SparseMap(parcellationmap.Map):
                     zipfile = gconn.get_loader(zip_fname).url
                     spind = self.load_zipped_sparseindex(zipfile)
                 except Exception:
+                    logger.info("Failed to load precomputed SparseIndex from Gitlab.")
                     logger.debug(f"Could not load SparseIndex from Gitlab at {gconn}", exc_info=1)
             if spind is None:
                 with _volume.SubvolumeProvider.UseCaching():
@@ -449,7 +441,7 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[parcellationmap.AssignImageResult]:
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
@@ -482,7 +474,10 @@ class SparseMap(parcellationmap.Map):
 
         querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        for mode, modeimg in iterate_connected_components(queryimg):
+        iter_func = iterate_connected_components if split_components \
+            else lambda img: [(1, img)]
+
+        for mode, modeimg in iter_func(queryimg):
 
             # determine bounding box of the mode
             modemask = np.asanyarray(modeimg.dataobj)

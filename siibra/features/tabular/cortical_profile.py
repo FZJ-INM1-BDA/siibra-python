@@ -190,39 +190,48 @@ class CorticalProfile(tabular.Tabular):
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
         )
 
-    def plot(self, **kwargs):
+    def plot(self, *args, backend="matplotlib", **kwargs):
         """
         Plot the profile.
 
-        Keyword arguments are passed on to the plot command.
-        'layercolor' can be used to specify a color for cortical layer shading.
+        Parameters
+        ----------
+        backend: str
+            "matplotlib", "plotly", or others supported by pandas DataFrame
+            plotting backend.
+        **kwargs
+            Keyword arguments are passed on to the plot command.
+            'layercolor' can be used to specify a color for cortical layer shading.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
 
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
-        kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
-        kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
-        kwargs["grid"] = kwargs.get("grid", True)
-        kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
-        layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
-        axs = self.data.plot(**kwargs)
 
-        if self.boundaries_mapped:
-            bvals = list(self.boundary_positions.values())
-            for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
-                axs.text(
-                    d1 + (d2 - d1) / 2.0,
-                    10,
-                    self.LAYERS[i + 1],
-                    weight="normal",
-                    ha="center",
-                )
-                if i % 2 == 0:
-                    axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
+        if backend == "matplotlib":
+            kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
+            kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
+            kwargs["grid"] = kwargs.get("grid", True)
+            kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
+            layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
+            axs = self.data.plot(*args, **kwargs, backend=backend)
 
-        axs.set_title(axs.get_title(), fontsize="medium")
+            if self.boundaries_mapped:
+                bvals = list(self.boundary_positions.values())
+                for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
+                    axs.text(
+                        d1 + (d2 - d1) / 2.0,
+                        10,
+                        self.LAYERS[i + 1],
+                        weight="normal",
+                        ha="center",
+                    )
+                    if i % 2 == 0:
+                        axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
 
-        return axs
+            axs.set_title(axs.get_title(), fontsize="medium")
+            return axs
+        else:
+            return self.data.plot(*args, **kwargs, backend=backend)
 
     @property
     def _depths(self):

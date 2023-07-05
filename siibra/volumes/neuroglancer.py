@@ -200,7 +200,7 @@ class NeuroglancerVolume:
             self._transform_nm = np.array(res)
             return self._transform_nm
 
-        self._transform_nm = np.identity(1)
+        self._transform_nm = np.identity(4)
         logger.warning(f"No transform.json found at {self.url}, using identity.")
         return self._transform_nm
 

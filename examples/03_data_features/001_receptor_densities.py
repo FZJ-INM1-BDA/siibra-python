@@ -44,8 +44,7 @@ v1_fingerprints = siibra.features.get(
     siibra.get_region('julich 2.9', 'v1'),
     siibra.features.molecular.ReceptorDensityFingerprint
 )
-for fp in v1_fingerprints:
-    fig = fp.plot()
+v1_fingerprints[0].plot()
 
 # %%
 # Each feature includes a data structure for the fingerprint, with mean and
@@ -68,7 +67,5 @@ for p in v1_profiles:
     if "GABAA" in p.receptor:
         print(p.receptor)
         break
+print(p.data)
 p.plot()
-p.data
-
-# %%
