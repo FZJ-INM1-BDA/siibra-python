@@ -51,7 +51,7 @@ decoder = lambda b: [
 labels = conn.get("economoMNI152volume/economoLUT.txt", decode_func=decoder)
 
 # for efficiency of this example, we create the map from only the first 5 regions
-labels = labels[-5:]
+labels = labels[:6]
 
 # Now we use this to add a custom map to siibra.
 # Note that this assumes our external knowledge that the map is in MNI152 space.
@@ -70,7 +70,7 @@ plotting.plot_roi(custom_map.fetch())
 # %%
 # We can already use this map to find spatial features, such as BigBrain intensity profiles.
 profiles = siibra.features.get(
-    custom_map.parcellation.children[0],
+    custom_map.parcellation.get_region('fcbm'),
     siibra.features.cellular.BigBrainIntensityProfile
 )
 print(f"{len(profiles)} intensity profiles found.")
@@ -79,7 +79,7 @@ print(f"{len(profiles)} intensity profiles found.")
 # This is beccause siibra does not know about the relationships of the custom parcellation's region
 # and its preconfigured parcellations.
 fingerprints = siibra.features.get(
-    custom_map.parcellation.get_region('right TC'),
+    custom_map.parcellation.get_region('fcbm'),
     siibra.features.molecular.ReceptorDensityFingerprint
 )
 print(f"{len(fingerprints)} receptor fingerprints found.")
@@ -90,18 +90,19 @@ print(f"{len(fingerprints)} receptor fingerprints found.")
 # Let's do that with the Julich-Brain cytoarchitectonic maps. 
 custom_map.compute_relations('julich 2.9')
 
+# Now, the system has discovered relationships with known regions
+custom_region = custom_map.parcellation.get_region('fcbm')
+print(custom_region.related_regions)
+
 # %%
 # After this step, we find receptor fingerprints when executing the same call.
 # The 'last_match' attribute of each feature explains why.
 fingerprints = siibra.features.get(
-    custom_map.parcellation.get_region('right TC'),
+    custom_map.parcellation.get_region('fcbm'),
     siibra.features.molecular.ReceptorDensityFingerprint
 )
 print(f"{len(fingerprints)} receptor fingerprints found.")
-
-for fp in fingerprints:
-    print(f"Found related feature: {fp.name}.\n{fp.last_match_description}\n")
-
-print("ok")
+fp=fingerprints[0]
+print(f"Found related feature: {fp.name}.\n{fp.last_match_description}\n")
 
 # %%

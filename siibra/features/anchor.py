@@ -24,7 +24,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Mapping
 from enum import Enum
 
 
@@ -125,7 +125,7 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
-        self._assignments = {}
+        self._assignments: Mapping[AtlasConcept, List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         self._regions_cached = None
         self._regionspec = None

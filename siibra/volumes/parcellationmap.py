@@ -1240,13 +1240,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcobj = other_parcellation
         other_map = parcobj.get_map(space=self.space, maptype='statistical')
         assignment = other_map.assign(self)
-        new_relations = []
+        num_new_relations = 0
         for i, match in assignment.iterrows():
             srclabel = match['input structure']
             srcregion = self.get_region(label=srclabel)
             tgtregion = parcobj.get_region(match.region)
-            similarity = match['input weighted mean']
-            srcregion.add_related_region(tgtregion, similarity)
-            new_relations.append((srcregion, tgtregion, similarity))
-        logger.info(f"{len(new_relations)} region relations found between {self.parcellation.name} and {parcobj.name}.")
-        return new_relations
+            score = match['input weighted mean']
+            srcregion.add_related_region(tgtregion, score)
+            num_new_relations += 1
+        logger.info(f"{num_new_relations} region relations found between {self.parcellation.name} and {parcobj.name}.")
