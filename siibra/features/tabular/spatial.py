@@ -116,10 +116,21 @@ class PointCloud(Spatial):
             )
 
     def plot(
-        self, point: Union[int, Point, Tuple],
+        self, point: Union[int, Point, Tuple] = None,
         *args, backend='matplotlib', **kwargs
     ):
-        if point is None and len(self) == 1:
+        if point is None:
+            if len(self) > 1:
+                df = pd.concat(
+                    (
+                        pd.Series(self.data.iloc[:, 1:].mean(), name='mean'),
+                        pd.Series(self.data.iloc[:, 1:].std(), name='std')
+                    ),
+                    axis=1
+                )
+                kwargs['y'] = 'mean'
+                kwargs['yerr'] = 'std'
+                return df.plot(*args, backend=backend, **kwargs)
             index = 0
         else:
             index = self.get_point_index(point)
