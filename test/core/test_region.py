@@ -5,7 +5,6 @@ from unittest.mock import patch, PropertyMock
 
 
 class TestRegion(unittest.TestCase):
-
     @staticmethod
     def get_instance(name="foo-bar", children=[]):
         return Region(name, children=children)
@@ -13,7 +12,9 @@ class TestRegion(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.child_region = TestRegion.get_instance(name="Area hOc1 (V1, 17, CalcS)")
-        cls.parent_region = TestRegion.get_instance(name="occipital cortex", children=[cls.child_region])
+        cls.parent_region = TestRegion.get_instance(
+            name="occipital cortex", children=[cls.child_region]
+        )
 
     def test_regions_init(self):
         self.assertEqual(self.child_region, "Area hOc1 (V1, 17, CalcS)")
@@ -57,15 +58,21 @@ class TestRegion(unittest.TestCase):
         self.assertFalse(new_region is self.child_region)
         self.assertEqual(new_region.parent, None)
 
+
 @pytest.fixture
 def regions_same_id():
     region = TestRegion.get_instance("foo-bar")
     region1 = TestRegion.get_instance("foo-bar")
-    with patch('siibra.core.region.Region.id', new_callable=PropertyMock) as mock_id_prop:
-        with patch('siibra.core.region.Region.key', new_callable=PropertyMock) as mock_key_prop:
-            mock_id_prop.return_value = 'baz'
-            mock_key_prop.return_value = 'baz.key'
+    with patch(
+        "siibra.core.region.Region.id", new_callable=PropertyMock
+    ) as mock_id_prop:
+        with patch(
+            "siibra.core.region.Region.key", new_callable=PropertyMock
+        ) as mock_key_prop:
+            mock_id_prop.return_value = "baz"
+            mock_key_prop.return_value = "baz.key"
             yield [region, region1]
+
 
 @pytest.fixture
 def regions_different_id():
@@ -73,12 +80,16 @@ def regions_different_id():
         TestRegion.get_instance("foo-bar"),
         TestRegion.get_instance("foo-bar"),
     ]
-    
-    with patch('siibra.core.region.Region.id', new_callable=PropertyMock) as mock_id_prop:
-        with patch('siibra.core.region.Region.key', new_callable=PropertyMock) as mock_key_prop:
+
+    with patch(
+        "siibra.core.region.Region.id", new_callable=PropertyMock
+    ) as mock_id_prop:
+        with patch(
+            "siibra.core.region.Region.key", new_callable=PropertyMock
+        ) as mock_key_prop:
             mock_id_prop.side_effect = [
-                'foo',
-                'bar',
+                "foo",
+                "bar",
             ]
             mock_key_prop.side_effect = [
                 "foo.key",
@@ -86,10 +97,12 @@ def regions_different_id():
             ]
             yield regions
 
+
 def test_same_id_mock(regions_same_id):
     for region in regions_same_id:
-        assert region.id == 'baz'
+        assert region.id == "baz"
         assert region.key == "baz.key"
+
 
 def test_diff_id_mock(regions_different_id):
     id_set = set()
@@ -99,27 +112,34 @@ def test_diff_id_mock(regions_different_id):
         id_set.add(r_id)
     assert len(id_set) == 2
 
-@pytest.mark.parametrize('regions_same_id,compare_to,expected', [
-    ["region-standin", "baz", True ],
-    ["region-standin", "baz.key", True ],
-    ["region-standin", "foo-bar", True ],
-    ["region-standin", "hello world", False ],
-    ["region-standin", None, False ],
-    ["region-standin", [], False ],
-    ["region-standin", set(), False ],
-    ["region-standin", {}, False ],
-], indirect=["regions_same_id"])
-def test_eq_str(regions_same_id,compare_to,expected):
+
+@pytest.mark.parametrize(
+    "regions_same_id,compare_to,expected",
+    [
+        ["region-standin", "baz", True],
+        ["region-standin", "baz.key", True],
+        ["region-standin", "foo-bar", True],
+        ["region-standin", "hello world", False],
+        ["region-standin", None, False],
+        ["region-standin", [], False],
+        ["region-standin", set(), False],
+        ["region-standin", {}, False],
+    ],
+    indirect=["regions_same_id"],
+)
+def test_eq_str(regions_same_id, compare_to, expected):
     for region in regions_same_id:
-        actual = (region == compare_to)
+        actual = region == compare_to
         assert actual == expected
+
 
 def test_eq_region_same_id(regions_same_id):
     assert regions_same_id[0] == regions_same_id[1]
-    
+
+
 def test_eq_region_diff_id(regions_different_id):
     assert regions_different_id[0] != regions_different_id[1]
-    
+
 
 # TODO move these into int tests
 

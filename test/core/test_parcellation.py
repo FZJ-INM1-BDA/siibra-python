@@ -1,5 +1,4 @@
 import unittest
-import pytest
 from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType
 from siibra.core.region import Region
 from siibra.commons import Species, MapIndex
@@ -11,11 +10,11 @@ from typing import Tuple, Union, NamedTuple
 from itertools import product, starmap
 
 correct_json = {
-    'name': 'foobar',
-    'collectionName': 'foobar-collection',
-    '@prev': 'foobar-prev',
-    '@next': 'foobar-next',
-    'deprecated': False,
+    "name": "foobar",
+    "collectionName": "foobar-collection",
+    "@prev": "foobar-prev",
+    "@next": "foobar-next",
+    "deprecated": False,
 }
 
 
@@ -34,7 +33,9 @@ class DummyParcellation:
 
 
 class DummyMap:
-    def __init__(self, space_returns=True, parcellation_returns=True, maptype=MapType.LABELLED) -> None:
+    def __init__(
+        self, space_returns=True, parcellation_returns=True, maptype=MapType.LABELLED
+    ) -> None:
         self.space = DummySpace()
         self.space.matches = MagicMock()
         self.space.matches.return_value = space_returns
@@ -48,7 +49,6 @@ class DummyMap:
 
 
 class TestParcellationVersion(unittest.TestCase):
-
     @staticmethod
     def get_instance():
         return ParcellationVersion(
@@ -57,7 +57,7 @@ class TestParcellationVersion(unittest.TestCase):
             collection=correct_json.get("collectionName"),
             prev_id=correct_json.get("@prev"),
             next_id=correct_json.get("@next"),
-            deprecated=correct_json.get("deprecated")
+            deprecated=correct_json.get("deprecated"),
         )
 
     @classmethod
@@ -65,11 +65,11 @@ class TestParcellationVersion(unittest.TestCase):
         cls.parc_version = TestParcellationVersion.get_instance()
 
     def test_attr(self):
-        self.assertTrue(self.parc_version.deprecated == correct_json['deprecated'])
-        self.assertTrue(self.parc_version.name == correct_json['name'])
-        self.assertTrue(self.parc_version.collection == correct_json['collectionName'])
-        self.assertTrue(self.parc_version.prev_id == correct_json['@prev'])
-        self.assertTrue(self.parc_version.next_id == correct_json['@next'])
+        self.assertTrue(self.parc_version.deprecated == correct_json["deprecated"])
+        self.assertTrue(self.parc_version.name == correct_json["name"])
+        self.assertTrue(self.parc_version.collection == correct_json["collectionName"])
+        self.assertTrue(self.parc_version.prev_id == correct_json["@prev"])
+        self.assertTrue(self.parc_version.next_id == correct_json["@next"])
 
 
 INCORRECT_MAP_TYPE = "incorrect_type"
@@ -94,7 +94,6 @@ MAP_CONFIG_TYPE = Tuple[MapConfig, MapConfig]
 
 
 class TestParcellation(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls) -> None:
         cls.parc = Parcellation(
@@ -114,27 +113,38 @@ class TestParcellation(unittest.TestCase):
             # input, space
             [None, "space arg", DummySpace()],
             # input, maptype
-            [InputMap(None, MapType.LABELLED), InputMap("labelled", MapType.LABELLED), InputMap(MapType.LABELLED, MapType.LABELLED), InputMap(INCORRECT_MAP_TYPE, None)],
+            [
+                InputMap(None, MapType.LABELLED),
+                InputMap("labelled", MapType.LABELLED),
+                InputMap(MapType.LABELLED, MapType.LABELLED),
+                InputMap(INCORRECT_MAP_TYPE, None),
+            ],
             # volume configuration
             product(
-                starmap(MapConfig, product(
-                    # maptype of the maps in the registry
-                    [MapType.LABELLED, MapType.STATISTICAL],
-                    starmap(
-                        # whether map.{space,parcellation}.matches should return True/False
-                        MapSPMatch,
-                        product(
-                            [True, False],
-                            repeat=2,  # mock result of map.{space,parcellation}.matches
-                        )
-                    )
-                )),
+                starmap(
+                    MapConfig,
+                    product(
+                        # maptype of the maps in the registry
+                        [MapType.LABELLED, MapType.STATISTICAL],
+                        starmap(
+                            # whether map.{space,parcellation}.matches should return True/False
+                            MapSPMatch,
+                            product(
+                                [True, False],
+                                repeat=2,  # mock result of map.{space,parcellation}.matches
+                            ),
+                        ),
+                    ),
+                ),
                 repeat=2,  # get 2 maps for each
-            )
+            ),
         )
     )
-    def test_get_map(self, space, maptype_input: InputMap, vol_spec: Tuple[MapConfig, MapConfig]):
+    def test_get_map(
+        self, space, maptype_input: InputMap, vol_spec: Tuple[MapConfig, MapConfig]
+    ):
         from siibra.volumes import Map
+
         ExpectedException = None
         expected_return_idx = None
 
@@ -150,11 +160,20 @@ class TestParcellation(unittest.TestCase):
         if maptype_input.alias is None:
             ExpectedException = KeyError
 
-        with patch.object(Map, 'registry') as map_registry_mock:
-            registry_return = [DummyMap(config.sp_match.space_match, config.sp_match.parc_match, config.map_type) for config in list(vol_spec)]
+        with patch.object(Map, "registry") as map_registry_mock:
+            registry_return = [
+                DummyMap(
+                    config.sp_match.space_match,
+                    config.sp_match.parc_match,
+                    config.map_type,
+                )
+                for config in list(vol_spec)
+            ]
 
             map_registry_mock.return_value = registry_return
-            if inspect.isclass(ExpectedException) and issubclass(ExpectedException, Exception):
+            if inspect.isclass(ExpectedException) and issubclass(
+                ExpectedException, Exception
+            ):
                 with self.assertRaises(ExpectedException):
                     map = self.parc.get_map(space, maptype_input.input)
                 return
@@ -172,13 +191,15 @@ class TestParcellation(unittest.TestCase):
             else:
                 self.assertIsNone(map)
 
-    @parameterized.expand([
-        (True,),
-        (False,),
-    ])
+    @parameterized.expand(
+        [
+            (True,),
+            (False,),
+        ]
+    )
     def test_find_regions(self, parents_only):
         Parcellation._CACHED_REGION_SEARCHES = {}
-        with patch.object(Parcellation, 'registry') as parcellation_registry_mock:
+        with patch.object(Parcellation, "registry") as parcellation_registry_mock:
             parc1 = DummyParcellation([])
             parc2 = DummyParcellation([])
             parc3 = DummyParcellation([parc1, parc2])
@@ -192,20 +213,19 @@ class TestParcellation(unittest.TestCase):
             parcellation_registry_mock.assert_called_once()
             for p in [parc1, parc2, parc3]:
                 p.find.assert_called_once_with(regionspec="fooz")
-            self.assertEqual(result, [
-                parc3
-            ] if parents_only else [parc1, parc2, parc3])
+            self.assertEqual(result, [parc3] if parents_only else [parc1, parc2, parc3])
 
     @parameterized.expand(
         product(
             ["region_spec", 4, MapIndex(0, 1), Region("test-region")],
             [True, False],
-            [True, False]
+            [True, False],
         )
     )
     @unittest.skip
     def test_get_region(self, regionspec, find_topmost, build_group):
         pass
+
 
 # all_parcs = [p for p in parcellations]
 
@@ -244,6 +264,4 @@ class TestParcellation(unittest.TestCase):
 #     parc.get_map(space, map_type)
 
 
-parc_has_ebrains_doi = [
-    ("human", "julich brain 2.9")
-]
+parc_has_ebrains_doi = [("human", "julich brain 2.9")]

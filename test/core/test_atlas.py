@@ -18,15 +18,13 @@ human_atlas_json = {
     "@type": "juelich/iav/atlas/v1.0.0",
     "name": "Multilevel Human Atlas",
     "species": "homo sapiens",
-    "ebrains": {
-            "minds/core/species/v1.0.0": "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9"
-    },
+    "ebrains": {"minds/core/species/v1.0.0": "0ea4e6ba-2681-4f7d-9fa9-49b915caaac9"},
     "order": 1,
     "spaces": [
         "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
         "minds/core/referencespace/v1.0.0/7f39f7be-445b-47c0-9791-e971c0b6d992",
         "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
-        "minds/core/referencespace/v1.0.0/tmp-fsaverage"
+        "minds/core/referencespace/v1.0.0/tmp-fsaverage",
     ],
     "parcellations": [
         "minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290",
@@ -42,8 +40,8 @@ human_atlas_json = {
         "minds/core/parcellationatlas/v1.0.0/63b5794f-79a4-4464-8dc1-b32e170f3d16",
         "minds/core/parcellationatlas/v1.0.0/12fca5c5-b02c-46ce-ab9f-f12babf4c7e1",
         "https://identifiers.org/neurovault.image:23262",
-        "https://doi.org/10.1016/j.jneumeth.2020.108983/mni152"
-    ]
+        "https://doi.org/10.1016/j.jneumeth.2020.108983/mni152",
+    ],
 }
 
 
@@ -59,7 +57,6 @@ class MockParc:
 
 
 class TestAtlas(unittest.TestCase):
-
     @classmethod
     def tearDownClass(cls):
         pass
@@ -79,37 +76,43 @@ class TestAtlas(unittest.TestCase):
 
     def test_spaces(self):
         mocked_spaces = []
-        with patch.object(Space, "registry", return_value=mocked_spaces) as registry_getitem:
-            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
-
-                spaces = self.atlas.spaces
+        with patch.object(
+            Space, "registry", return_value=mocked_spaces
+        ) as registry_getitem:
+            with patch.object(
+                siibra.commons.InstanceTable, "__init__", return_value=None
+            ) as mock_init_method:
+                _ = self.atlas.spaces
                 mock_init_method.assert_called_once_with(
-                    elements={},
-                    matchfunc=Space.match
+                    elements={}, matchfunc=Space.match
                 )
                 registry_getitem.assert_called_once_with()
 
     def test_parcellations(self):
         mocked_parcellations = []
-        with patch.object(Parcellation, "registry", return_value=mocked_parcellations) as registry_getitem:
-            with patch.object(siibra.commons.InstanceTable, "__init__", return_value=None) as mock_init_method:
-
-                parcellations = self.atlas.parcellations
+        with patch.object(
+            Parcellation, "registry", return_value=mocked_parcellations
+        ) as registry_getitem:
+            with patch.object(
+                siibra.commons.InstanceTable, "__init__", return_value=None
+            ) as mock_init_method:
+                _ = self.atlas.parcellations
                 mock_init_method.assert_called_once_with(
-                    elements={},
-                    matchfunc=Parcellation.match
+                    elements={}, matchfunc=Parcellation.match
                 )
                 registry_getitem.assert_called_once_with()
 
-    @parameterized.expand([
-        ('spaces', 'spaces', 'get_space'),
-        ('parcellations', 'parcellations', 'get_parcellation')
-    ])
+    @parameterized.expand(
+        [
+            ("spaces", "spaces", "get_space"),
+            ("parcellations", "parcellations", "get_parcellation"),
+        ]
+    )
     def test_get_attr_no_arg(self, property: str, key: str, fn_name: str):
-        mocked_return_dict = {
-            _id: MockObj(_id) for _id in human_atlas_json.get(key)
-        }
-        with patch(f'siibra.core.atlas.Atlas.{property}', new_callable=PropertyMock) as mocked_property:
+        mocked_return_dict = {_id: MockObj(_id) for _id in human_atlas_json.get(key)}
+        with patch(
+            f"siibra.core.atlas.Atlas.{property}", new_callable=PropertyMock
+        ) as mocked_property:
             mocked_property.return_value = mocked_return_dict
 
             obj = getattr(self.atlas, fn_name)()
@@ -118,17 +121,17 @@ class TestAtlas(unittest.TestCase):
     get_space_arg = MockObj()
     get_parc_arg = MockObj()
 
-    @parameterized.expand([
-        (get_parc_arg, get_space_arg)
-    ])
+    @parameterized.expand([(get_parc_arg, get_space_arg)])
     def test_get_map(self, get_parc_arg, get_space_arg):
-
         space_mock = MockObj()
         parcellation_mock = MockObj()
 
-        with patch.object(Atlas, 'get_space', return_value=space_mock) as get_space_mock:
-            with patch.object(Atlas, 'get_parcellation', return_value=parcellation_mock) as get_parcellation_mock:
-
+        with patch.object(
+            Atlas, "get_space", return_value=space_mock
+        ) as get_space_mock:
+            with patch.object(
+                Atlas, "get_parcellation", return_value=parcellation_mock
+            ) as get_parcellation_mock:
                 get_map_return_value = MockObj()
 
                 parcellation_mock.get_map = MagicMock()
@@ -136,52 +139,52 @@ class TestAtlas(unittest.TestCase):
 
                 maptype_arg = MockObj()
 
-                map_return_obj = self.atlas.get_map(get_space_arg, get_parc_arg, maptype_arg)
+                map_return_obj = self.atlas.get_map(
+                    get_space_arg, get_parc_arg, maptype_arg
+                )
                 assert get_map_return_value is map_return_obj
 
                 get_space_mock.assert_called_once_with(get_space_arg)
                 get_parcellation_mock.assert_called_once_with(get_parc_arg)
-                parcellation_mock.get_map.assert_called_once_with(space=space_mock, maptype=maptype_arg)
+                parcellation_mock.get_map.assert_called_once_with(
+                    space=space_mock, maptype=maptype_arg
+                )
 
     get_region_arg = MockObj()
 
-    @parameterized.expand([
-        (get_region_arg, None),
-        (get_region_arg, get_parc_arg)
-    ])
+    @parameterized.expand([(get_region_arg, None), (get_region_arg, get_parc_arg)])
     def test_get_region(self, get_region_arg, get_parc_arg):
-
         parcellation_mock = MockObj()
         parcellation_mock.get_region = MagicMock()
         got_region = MockObj()
         parcellation_mock.get_region.return_value = got_region
 
-        with patch.object(Atlas, 'get_parcellation', return_value=parcellation_mock) as get_parcellation_mock:
+        with patch.object(
+            Atlas, "get_parcellation", return_value=parcellation_mock
+        ) as get_parcellation_mock:
             got_region_return = self.atlas.get_region(get_region_arg, get_parc_arg)
             assert got_region_return is got_region
             get_parcellation_mock.assert_called_once_with(get_parc_arg)
             parcellation_mock.get_region.assert_called_once_with(get_region_arg)
 
-    @parameterized.expand([
-        (space_arg, fn_name, mock_space_fn_name, arg, kwarg)
-        for space_arg in [get_space_arg, None]
-        for fn_name, mock_space_fn_name, args, kwargs in [
-            (
-                "get_template",
-                "get_template",
-                [[]],
-                [{'variant': None}, {'variant': MockObj()}]
-            ),
-            (
-                "get_voi",
-                "get_bounding_box",
-                [(MockObj(), MockObj())],
-                [{}]
-            )
-        ]
-        for arg in args
-        for kwarg in kwargs
-    ], skip_on_empty=True)
+    @parameterized.expand(
+        [
+            (space_arg, fn_name, mock_space_fn_name, arg, kwarg)
+            for space_arg in [get_space_arg, None]
+            for fn_name, mock_space_fn_name, args, kwargs in [
+                (
+                    "get_template",
+                    "get_template",
+                    [[]],
+                    [{"variant": None}, {"variant": MockObj()}],
+                ),
+                ("get_voi", "get_bounding_box", [(MockObj(), MockObj())], [{}]),
+            ]
+            for arg in args
+            for kwarg in kwargs
+        ],
+        skip_on_empty=True,
+    )
     def test_get_template(self, space_arg, fn_name, mock_space_fn_name, arg, kwarg):
         space_mock = MockObj()
 
@@ -190,7 +193,9 @@ class TestAtlas(unittest.TestCase):
         fn_mock.return_value = fn_mock_return
         setattr(space_mock, mock_space_fn_name, fn_mock)
 
-        with patch.object(Atlas, 'get_space', return_value=space_mock) as get_space_mock:
+        with patch.object(
+            Atlas, "get_space", return_value=space_mock
+        ) as get_space_mock:
             return_val = getattr(self.atlas, fn_name)(space_arg, *arg, **kwarg)
             assert return_val is fn_mock_return
             get_space_mock.assert_called_once_with(space_arg)
@@ -198,17 +203,12 @@ class TestAtlas(unittest.TestCase):
 
     @parameterized.expand(
         product(
-            ["str-input", 3, Region("hello world")],
-            product(
-                [True, False],
-                repeat=3
-            )
+            ["str-input", 3, Region("hello world")], product([True, False], repeat=3)
         )
     )
     def test_find_regions(self, regionspec, bool_flags):
         all_versions, filter_children, _ = bool_flags
-        with patch.object(Parcellation, 'get_instance') as get_instance_mock:
-
+        with patch.object(Parcellation, "get_instance") as get_instance_mock:
             parc1 = MockParc(True)
             parc1.find.return_value = [MockObj(), MockObj(), MockObj()]
             parc2 = MockParc(False)
@@ -220,22 +220,26 @@ class TestAtlas(unittest.TestCase):
 
             get_instance_mock.side_effect = [parc1, parc2, parc3, *repeat(parc4, 35)]
 
-            actual_result = self.atlas.find_regions(regionspec, all_versions, filter_children)
+            actual_result = self.atlas.find_regions(
+                regionspec, all_versions, filter_children
+            )
 
             get_instance_mock.assert_has_calls(
                 [call(pid) for pid in human_atlas_json.get("parcellations")]
             )
             for p in [parc1, parc2, parc3]:
                 if all_versions or p.is_newest_version:
-                    p.find.assert_called_once_with(regionspec, filter_children=filter_children)
+                    p.find.assert_called_once_with(
+                        regionspec, filter_children=filter_children
+                    )
 
             self.assertTrue(isinstance(p, MockObj) for p in actual_result)
-            flattened = [p
-                         for l in actual_result
-                         for p in [l]]
+            flattened = [p for res in actual_result for p in [res]]
             for parc in [parc1, parc2, parc3]:
                 for reg in parc.find.return_value:
-                    self.assertTrue((reg in flattened) is (all_versions or parc.is_newest_version))
+                    self.assertTrue(
+                        (reg in flattened) is (all_versions or parc.is_newest_version)
+                    )
 
 
 if __name__ == "__main__":
