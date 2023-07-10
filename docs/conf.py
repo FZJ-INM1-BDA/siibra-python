@@ -66,6 +66,7 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
     "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
     "m2r2",  # converts a markdown file including rst markups to a valid rst format
+    "sphinxcontrib.jquery"  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
 ]
 
 # napolean settings
