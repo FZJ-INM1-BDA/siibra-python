@@ -18,30 +18,17 @@
 from .. import anchor as _anchor
 from .. import feature
 
-from ...retrieval import datasets
+from ...retrieval.datasets import EbrainsV3DatasetVersion
 
 
-class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='other'):
-
-    def __init__(
-        self,
-        dataset_id: str,
-        name: str,
-        anchor: _anchor.AnatomicalAnchor,
-        embargo_status: str = None,
-    ):
+class EbrainsDataFeature(feature.Feature, category="other"):
+    def __init__(self, dataset_version_id: str, anchor: _anchor.AnatomicalAnchor):
         feature.Feature.__init__(
             self,
             modality=None,  # lazy implementation below
             description=None,  # lazy implementation below
             anchor=anchor,
-            datasets=[]
-        )
-        datasets.EbrainsDataset.__init__(
-            self,
-            id=dataset_id,
-            name=name,
-            embargo_status=embargo_status,
+            datasets=[EbrainsV3DatasetVersion(id=dataset_version_id)],
         )
         self.version = None
         self._next = None
@@ -49,39 +36,40 @@ class EbrainsDataFeature(feature.Feature, datasets.EbrainsDataset, category='oth
 
     @property
     def id(self):
-        # There exists a property name collision (id property implemented by both Feature and dataset.EbrainsDataset)
-        # Explicitly use datasets.EbrainsDataset's implementation of id
-        # We could fix this by reordering the mro, but I feel the below implementation is more explicit.
-        return datasets.EbrainsDataset.id.fget(self)
+        return self._dataset.id
 
     @property
-    def modality(self):
-        return ", ".join(self.detail.get('methods', []))
+    def _dataset(self) -> EbrainsV3DatasetVersion:
+        assert len(self.datasets) == 1
+        return self.datasets[0]
 
     @property
-    def description(self):
-        return self.detail.get("description", "")
+    def description(self) -> str:
+        return self._dataset.description
 
     @property
     def name(self):
-        return self._name
+        if self._dataset.name.startswith(" "):
+            f"Ebrains Dataset: {self._dataset.is_version_of[0].name}"
+        else:
+            return f"Ebrains Dataset: {self._dataset.name}"
+
+    @property
+    def version_identifier(self):
+        return self._dataset.version_identifier
 
     @property
     def version_history(self):
-        if self._prev is None:
-            return [self.version]
-        else:
-            return [self.version] + self._prev.version_history
+        return self._dataset.version_changes
 
     @property
     def url(self):
-        return f"https://search.kg.ebrains.eu/instances/{self.id.split('/')[-1]}"
-
-    def __str__(self):
-        return datasets.EbrainsDataset.__str__(self)
+        return self._dataset.ebrains_page
 
     def __hash__(self):
-        return datasets.EbrainsDataset.__hash__(self)
+        return hash(self._dataset)
 
     def __eq__(self, o: object) -> bool:
-        return datasets.EbrainsDataset.__eq__(self, o)
+        if not isinstance(o, EbrainsDataFeature):
+            return False
+        return self._dataset == o._dataset

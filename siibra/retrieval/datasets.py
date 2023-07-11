@@ -31,23 +31,23 @@ class EbrainsDatasetUrl(TypedDict):
     url: str
 
 
-EbrainsDatasetPerson = TypedDict('EbrainsDatasetPerson', {
-    '@id': str,
-    'schema.org/shortName': str,
-    'identifier': str,
-    'shortName': str,
-    'name': str
-})
+EbrainsDatasetPerson = TypedDict(
+    "EbrainsDatasetPerson",
+    {
+        "@id": str,
+        "schema.org/shortName": str,
+        "identifier": str,
+        "shortName": str,
+        "name": str,
+    },
+)
 
-EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
-    "@id": str,
-    'name': str,
-    'identifier': List[str]
-})
+EbrainsDatasetEmbargoStatus = TypedDict(
+    "EbrainsDatasetEmbargoStatus", {"@id": str, "name": str, "identifier": List[str]}
+)
 
 
 class EbrainsBaseDataset(ABC):
-
     @abstractproperty
     def id(self) -> str:
         raise NotImplementedError
@@ -82,7 +82,7 @@ class EbrainsBaseDataset(ABC):
     def __eq__(self, o: object) -> bool:
         return hasattr(o, "id") and self.id == o.id
 
-    def match(self, spec: Union[str, 'EbrainsBaseDataset']) -> bool:
+    def match(self, spec: Union[str, "EbrainsBaseDataset"]) -> bool:
         """
         Checks if the given specification describes this dataset.
 
@@ -98,12 +98,22 @@ class EbrainsBaseDataset(ABC):
             return True
         if isinstance(spec, str):
             return self.id == spec
-        raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset")
+        raise RuntimeError(
+            f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset"
+        )
 
 
 class EbrainsDataset(EbrainsBaseDataset):
     """Ebrains dataset v1 connection"""
-    def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
+
+    def __init__(
+        self,
+        id,
+        name=None,
+        embargo_status: List[EbrainsDatasetEmbargoStatus] = None,
+        *,
+        cached_data=None,
+    ):
         super().__init__()
 
         self._id = id
@@ -172,18 +182,19 @@ class EbrainsDataset(EbrainsBaseDataset):
 
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
-
     @staticmethod
     def parse_person(d: dict) -> EbrainsDatasetPerson:
-        assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), "Cannot convert a non person to a person dict!"
-        _id = d.get('id')
+        assert "https://openminds.ebrains.eu/core/Person" in d.get(
+            "type"
+        ), "Cannot convert a non person to a person dict!"
+        _id = d.get("id")
         name = f"{d.get('givenName')} {d.get('familyName')}"
         return {
-            '@id': _id,
-            'schema.org/shortName': name,
-            'identifier': _id,
+            "@id": _id,
+            "schema.org/shortName": name,
+            "identifier": _id,
             "shortName": name,
-            "name": name
+            "name": name,
         }
 
     def __init__(self, id, *, cached_data=None) -> None:
@@ -218,21 +229,24 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
             if fullname is not None:
                 break
             fullname = dataset.name
-            
+
         version_id = self.detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
 
     @property
     def is_version_of(self):
         if not hasattr(self, "_is_version_of"):
-            self._is_version_of = [EbrainsV3Dataset(id=id.get("id")) for id in self.detail.get("isVersionOf", [])]
+            self._is_version_of = [
+                EbrainsV3Dataset(id=id.get("id"))
+                for id in self.detail.get("isVersionOf", [])
+            ]
         return self._is_version_of
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
-        return [{
-            "url": doi.get("identifier", None)
-        } for doi in self.detail.get("doi", [])]
+        return [
+            {"url": doi.get("identifier", None)} for doi in self.detail.get("doi", [])
+        ]
 
     @property
     def description(self) -> str:
@@ -245,7 +259,10 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def contributors(self) -> List[EbrainsDatasetPerson]:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("author", [])]
+        return [
+            EbrainsV3DatasetVersion.parse_person(d)
+            for d in self.detail.get("author", [])
+        ]
 
     @property
     def ebrains_page(self) -> str:
@@ -255,7 +272,10 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def custodians(self) -> EbrainsDatasetPerson:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+        return [
+            EbrainsV3DatasetVersion.parse_person(d)
+            for d in self.detail.get("custodian", [])
+        ]
 
     @property
     def version_changes(self):
@@ -284,9 +304,9 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
-        return [{
-            "url": doi.get("identifier", None)
-        } for doi in self.detail.get("doi", [])]
+        return [
+            {"url": doi.get("identifier", None)} for doi in self.detail.get("doi", [])
+        ]
 
     @property
     def detail(self):
@@ -313,7 +333,10 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
             contributers = {}
             for version_id in self.version_ids:
                 contributers.update(
-                    {c['@id']: c for c in EbrainsV3DatasetVersion(version_id).contributors}
+                    {
+                        c["@id"]: c
+                        for c in EbrainsV3DatasetVersion(version_id).contributors
+                    }
                 )
             self._contributers = list(contributers.values())
         return self._contributers
@@ -326,8 +349,11 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
     @property
     def custodians(self) -> EbrainsDatasetPerson:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+        return [
+            EbrainsV3DatasetVersion.parse_person(d)
+            for d in self.detail.get("custodian", [])
+        ]
 
     @property
-    def version_ids(self) -> List['str']:
+    def version_ids(self) -> List["str"]:
         return [version.get("id") for version in self.detail.get("versions", [])]

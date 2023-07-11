@@ -27,8 +27,9 @@ from distutils.version import LooseVersion
 from tempfile import NamedTemporaryFile
 
 
-class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature):
-
+class EbrainsFeatureQuery(
+    query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature
+):
     # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
     VERSION_PATTERN = re.compile(r"^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]")
@@ -60,26 +61,22 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                 dset.id
                 for parc in parcellation.Parcellation.registry()
                 for dset in parc.datasets
-                if isinstance(dset, datasets.EbrainsDataset)
+                if isinstance(dset, datasets.EbrainsV3DatasetVersion)
             ]
 
     def query(self, region: region.Region):
-
         versioned_datasets = defaultdict(dict)
         invalid_species_datasets = {}
         results = self.loader.data.get("results", [])
 
         for r in siibra_tqdm(results, total=len(results)):
-
             regionname = r.get("name", None)
             alias = r.get("alias", None)
             for ds_spec in r.get("datasets", []):
-
                 ds_name = ds_spec.get("name")
                 ds_id = ds_spec.get("@id")
                 if "dataset" not in ds_id:
                     continue
-                ds_embargo_status = ds_spec.get("embargo_status")
 
                 try:
                     ds_species = _anchor.Species.decode(ds_spec)
@@ -95,13 +92,11 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                         continue
 
                 dset = _ebrains.EbrainsDataFeature(
-                    dataset_id=ds_id,
-                    name=ds_name,
+                    dataset_version_id=ds_id,
                     anchor=_anchor.AnatomicalAnchor(
                         region=alias or regionname,
                         species=ds_species,
                     ),
-                    embargo_status=ds_embargo_status
                 )
                 if not dset.matches(region):
                     continue
@@ -114,7 +109,9 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
                     versioned_datasets[name][version] = dset
 
         if len(invalid_species_datasets) > 0:
-            with NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            with NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False, encoding="utf-8"
+            ) as f:
                 for dsid, dsname in invalid_species_datasets.items():
                     f.write(f"{dsid} {dsname}\n")
                 logger.warning(
