@@ -40,7 +40,7 @@ class Configuration:
     ]
 
     CONFIGURATIONS = [
-        GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
+        GitlabConnector(server, project, "addBboxToVOI", skip_branchtest=True)
         for server, project in CONFIG_REPOS
     ]
 
