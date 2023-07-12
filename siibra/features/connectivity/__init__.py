@@ -16,7 +16,7 @@
 from .functional_connectivity import FunctionalConnectivity
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
-from .tracer_connectivity import TracerConnectivity
+from .tracing_connectivity import TracingConnectivity
 
 
 def __dir__():
@@ -24,5 +24,5 @@ def __dir__():
         "FunctionalConnectivity",
         "StreamlineCounts",
         "StreamlineLengths",
-        "TracerConnectivity"
+        "TracingConnectivity"
     ]

@@ -443,8 +443,8 @@ class Factory:
         elif modality == "RestingState":
             kwargs["paradigm"] = spec.get("paradigm", "RestingState")
             return connectivity.FunctionalConnectivity(**kwargs)
-        elif modality == "Tracer":
-            return connectivity.TracerConnectivity(**kwargs)
+        elif modality == "Tracing":
+            return connectivity.TracingConnectivity(**kwargs)
         else:
             raise ValueError(f"No method for building connectivity matrix of type {modality}.")
 
