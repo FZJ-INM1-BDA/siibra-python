@@ -1,5 +1,7 @@
 import pytest
 import siibra
+from siibra.configuration.configuration import Configuration
+import os
 
 
 # We get all registered subclasses of Feature
@@ -39,3 +41,19 @@ def test_subclass_count(fid, foo):
     _ = siibra.features.Feature.get_instance_by_id(fid)
     len_after = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
     assert len_before == len_after
+
+
+def test_local_configuration():
+    local_config_path = os.path.join(siibra.cache.folder, "config_repo")
+    for gitlab_repo in Configuration.CONFIGURATIONS:
+        try:
+            gitlab_repo._archive(local_config_path)
+            break
+        except Exception:
+            continue
+    siibra.use_configuration(local_config_path)
+    fts = siibra.features.get(
+        siibra.get_region('julich 2.9', 'hoc1'),
+        siibra.features.molecular.ReceptorDensityFingerprint
+    )
+    assert len(fts) > 0

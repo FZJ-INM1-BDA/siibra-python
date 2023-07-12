@@ -242,16 +242,13 @@ class GitlabConnector(RepositoryConnector):
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
 
-    def get(self, filename, folder="", decode_func=None):
-        if not self.archive_mode:
-            return super().get(filename, folder, decode_func)
-
-        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
-        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
-
-        if not os.path.isdir(archive_directory):
-
-            url = self.base_url + f"/archive.tar.gz?sha={ref}"
+    def _archive(self, archive_directory: str, reftag: str = None, refresh: bool = False):
+        if reftag is None:
+            reftag = self.reftag
+        if os.path.isdir(archive_directory) and not refresh:
+            logger.info(f"The repository is already archived at {archive_directory}")
+        else:
+            url = self.base_url + f"/archive.tar.gz?sha={reftag}"
             resp = requests.get(url)
             tar_filename = f"{archive_directory}.tar.gz"
 
@@ -266,6 +263,18 @@ class GitlabConnector(RepositoryConnector):
                 for file in os.listdir(f"{archive_directory}/{_dir}"):
                     os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
                 os.rmdir(f"{archive_directory}/{_dir}")
+            logger.debug(f"{self} is archived")
+
+    def get(self, filename, folder="", decode_func=None):
+        if not self.archive_mode:
+            return super().get(filename, folder, decode_func)
+
+        if self.archive_mode:
+            ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+            archive_directory = CACHE.build_filename(self.base_url + ref)
+            self._archive(archive_directory, ref)
+        else:
+            archive_directory = None
 
         suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
         decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
