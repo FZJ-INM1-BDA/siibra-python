@@ -111,14 +111,14 @@ class SparseIndex:
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    def _to_local_cache(self):
+    def _to_local_cache(self, cache_prefix: str):
         """
         Serialize this index to the cache, using the given prefix for the cache
         filenames.
         """
-        probsfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{self._cache_prefix}", suffix="voxels.nii.gz")
+        probsfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="probs.txt.gz")
+        bboxfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="bboxes.txt.gz")
+        voxelfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="voxels.nii.gz")
         Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
         with gzip.open(probsfile, 'wt') as f:
             for D in self.probs:
