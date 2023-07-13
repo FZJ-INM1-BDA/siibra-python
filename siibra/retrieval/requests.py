@@ -223,9 +223,10 @@ class HttpRequest:
 
 class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None, refresh=False):
-        HttpRequest.__init__(self, url, func=func, refresh=refresh)
+        HttpRequest.__init__(self, url, refresh=refresh,
+            func=func or self.find_suitiable_decoder(filename)
+        )
         self.filename = filename
-        self._set_decoder_func(self.find_suitiable_decoder(self.filename))
 
     def get(self):
         self._retrieve()
