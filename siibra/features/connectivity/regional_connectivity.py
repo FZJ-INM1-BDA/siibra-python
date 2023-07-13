@@ -125,30 +125,20 @@ class RegionalConnectivity(Feature):
                     for fname in siibra_tqdm(
                         self._files.values(),
                         total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices",
+                        desc=f"Averaging {len(self)} connectivity matrices"
                     )
                 ]
-                self._matrices["mean"] = self._array_to_dataframe(
-                    np.stack(all_arrays).mean(0)
-                )
-            return self._matrices["mean"].copy()
+                self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
+            return self._matrices['mean'].copy()
         if subject is None:
             subject = next(iter(self._files.keys()))
         if subject not in self._files:
-            raise ValueError(
-                f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}"
-            )
+            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
         if subject not in self._matrices:
             self._matrices[subject] = self._load_matrix(subject)
         return self._matrices[subject].copy()
 
-    def plot_matrix(
-        self,
-        subject: str = None,
-        regions: List[str] = None,
-        logscale: bool = False,
-        **kwargs,
-    ):
+    def plot_matrix(self, subject: str = None, regions: List[str] = None, logscale: bool = False, **kwargs):
         """
         Plots the heatmap of the connectivity matrix using nilearn.plotting.
 
@@ -170,9 +160,7 @@ class RegionalConnectivity(Feature):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        matrix = (
-            self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()
-        )  # nilearn.plotting.plot_matrix works better with a numpy array
+        matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
 
         if logscale:
             matrix = np.log10(matrix)
@@ -181,13 +169,16 @@ class RegionalConnectivity(Feature):
         subject_title = subject or ""
         kwargs["title"] = kwargs.get(
             "title",
-            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}",
+            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
         kwargs["figure"] = kwargs.get("figure", (15, 15))
 
         from nilearn import plotting
-
-        plotting.plot_matrix(matrix, labels=regions, **kwargs)
+        plotting.plot_matrix(
+            matrix,
+            labels=regions,
+            **kwargs
+        )
 
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
@@ -197,7 +188,7 @@ class RegionalConnectivity(Feature):
         region: Union[str, _region.Region],
         subject: str = None,
         min_connectivity: float = 0,
-        max_rows: int = None,
+        max_rows: int = None
     ):
         """
         Extract a regional profile from the matrix, to obtain a tabular data feature
@@ -227,31 +218,29 @@ class RegionalConnectivity(Feature):
         if len(regions) == 0:
             raise ValueError(f"Invalid region specificiation: {region}")
         elif len(regions) > 1:
-            raise ValueError(
-                f"Region specification {region} matched more than one profile: {regions}"
-            )
+            raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
         else:
-            name = (
-                f"Averaged {self.modality}" if subject is None else f"{self.modality}"
-            )
+            name = \
+                f"Averaged {self.modality}" if subject is None \
+                else f"{self.modality}"
             series = matrix[regions[0]]
-            last_index = (
-                len(series) - 1 if max_rows is None else min(max_rows, len(series) - 1)
-            )
+            last_index = len(series) - 1 if max_rows is None \
+                else min(max_rows, len(series) - 1)
             return Tabular(
                 description=self.description,
                 modality=f"{self.modality} {self.cohort}",
                 anchor=_anchor.AnatomicalAnchor(
-                    species=list(self.anchor.species)[0], region=regions[0]
+                    species=list(self.anchor.species)[0],
+                    region=regions[0]
                 ),
                 data=(
                     series[:last_index]
                     .to_frame(name=name)
-                    .query(f"`{name}` > {min_connectivity}")
+                    .query(f'`{name}` > {min_connectivity}')
                     .sort_values(by=name, ascending=False)
-                    .rename_axis("Target regions")
+                    .rename_axis('Target regions')
                 ),
-                datasets=self.datasets,
+                datasets=self.datasets
             )
 
     def __len__(self):
@@ -290,11 +279,9 @@ class RegionalConnectivity(Feature):
                 found = [r for r in region if r.name in all_centroids]
             assert len(found) > 0
             result.append(
-                tuple(
-                    pointset.PointSet(
-                        [all_centroids[r.name] for r in found], space=space
-                    ).centroid
-                )
+                tuple(pointset.PointSet(
+                    [all_centroids[r.name] for r in found], space=space
+                ).centroid)
             )
         return result
 

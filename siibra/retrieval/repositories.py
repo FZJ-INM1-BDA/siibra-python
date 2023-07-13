@@ -14,11 +14,8 @@
 # limitations under the License.
 
 from .requests import (
-    DECODERS,
-    HttpRequest,
-    EbrainsRequest,
-    SiibraHttpRequestError,
-    ZipfileRequest,
+    DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError, BytesIO,
+    ZipfileRequest
 )
 from .cache import CACHE
 
@@ -29,7 +26,7 @@ from abc import ABC, abstractmethod
 from urllib.parse import quote
 import os
 from zipfile import ZipFile
-from typing import List, Callable, Union
+from typing import List, Callable
 import requests
 
 
@@ -101,7 +98,8 @@ class RepositoryConnector(ABC):
             return LocalFileRepository(expurl)
         else:
             raise TypeError(
-                "Do not know how to create a repository " f"connector from url '{url}'."
+                "Do not know how to create a repository "
+                f"connector from url '{url}'."
             )
 
     def __eq__(self, other):
@@ -109,6 +107,7 @@ class RepositoryConnector(ABC):
 
 
 class LocalFileRepository(RepositoryConnector):
+
     def __init__(self, folder: str):
         assert os.path.isdir(folder)
         self._folder = folder
@@ -123,7 +122,6 @@ class LocalFileRepository(RepositoryConnector):
         Just a loads a local file, but mimics the behaviour
         of cached http requests used in other connectors.
         """
-
         def __init__(self, file_url, decode_func):
             self.url = file_url
             self.func = decode_func
@@ -131,7 +129,7 @@ class LocalFileRepository(RepositoryConnector):
 
         @property
         def data(self):
-            with open(self.url, "rb") as f:
+            with open(self.url, 'rb') as f:
                 return self.func(f.read())
 
     def get_loader(self, filename, folder="", decode_func=None):
@@ -146,20 +144,20 @@ class LocalFileRepository(RepositoryConnector):
             return self.FileLoader(url, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
-        exclude = [".", "~"]
+        exclude = ['.', '~']
         result = []
         for root, dirs, files in os.walk(self._folder):
-            subfolder = root.replace(self._folder, "")
+            subfolder = root.replace(self._folder, '')
             if not subfolder.startswith(folder):
                 continue
             dirs[:] = [d for d in dirs if d[0] not in exclude]
-            if subfolder.replace(folder, "") != "" and not recursive:
+            if subfolder.replace(folder, '') != "" and not recursive:
                 continue
             for f in files:
                 if f[0] in exclude:
                     continue
                 if suffix is None or f.endswith(suffix):
-                    result.append(os.path.join(root.replace(self._folder, ""), f))
+                    result.append(os.path.join(root.replace(self._folder, ''), f))
         return result
 
     def __str__(self):
@@ -170,15 +168,8 @@ class LocalFileRepository(RepositoryConnector):
 
 
 class GitlabConnector(RepositoryConnector):
-    def __init__(
-        self,
-        server: str,
-        project: int,
-        reftag: str,
-        skip_branchtest=False,
-        *,
-        archive_mode=False,
-    ):
+
+    def __init__(self, server: str, project: int, reftag: str, skip_branchtest=False, *, archive_mode=False):
         """
         archive_mode: in archive mode, the entire repository is downloaded as an archive. This is necessary/could be useful for repositories with numerous files.
             n.b. only archive_mode should only be set for trusted domains. Extraction of archive can result in files created outside the path
@@ -260,11 +251,10 @@ class GitlabConnector(RepositoryConnector):
             return super().get(filename, folder, decode_func)
 
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
-        archive_directory = (
-            CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
-        )
+        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
 
         if not os.path.isdir(archive_directory):
+
             url = self.base_url + f"/archive.tar.gz?sha={ref}"
             resp = requests.get(url)
             tar_filename = f"{archive_directory}.tar.gz"
@@ -274,36 +264,32 @@ class GitlabConnector(RepositoryConnector):
                 fp.write(resp.content)
 
             import tarfile
-
             tar = tarfile.open(tar_filename, "r:gz")
             tar.extractall(archive_directory)
             for _dir in os.listdir(archive_directory):
                 for file in os.listdir(f"{archive_directory}/{_dir}"):
-                    os.rename(
-                        f"{archive_directory}/{_dir}/{file}",
-                        f"{archive_directory}/{file}",
-                    )
+                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
                 os.rmdir(f"{archive_directory}/{_dir}")
 
-        suitable_decoders = [
-            dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)
-        ]
+        suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
         decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
 
         with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
             return decoder(fp.read())
 
     def __eq__(self, other):
-        return all([self.base_url == other.base_url, self.reftag == other.reftag])
+        return all([
+            self.base_url == other.base_url,
+            self.reftag == other.reftag
+        ])
 
 
 class ZipfileConnector(RepositoryConnector):
+
     def __init__(self, url: str):
         RepositoryConnector.__init__(self, base_url=url)
         self.base_url = url
-        self._zipfile_request = ZipfileRequest(
-            self.base_url, filename="", func=DECODERS[".zip"]
-        )
+        self._zipfile_request = ZipfileRequest(self.base_url, filename="", func=DECODERS[".zip"])
         self._namelist_cached = None
 
     @property
@@ -326,16 +312,13 @@ class ZipfileConnector(RepositoryConnector):
             Use ZipfileConnector.filelist to see all the files within the zip.
         """
         return [
-            fname
-            for fname in self.filelist
+            fname for fname in self.filelist
             if fname.startswith(folder) and fname.endswith(suffix)
         ]
 
     def _build_url(self, folder: str = "", filename: str = "") -> str:
         candidates = [f for f in self.search_files(folder) if filename in f]
-        assert (
-            len(candidates) == 1
-        ), "Criteria was not sufficient for getting a unique file."
+        assert len(candidates) == 1, "Criteria was not sufficient for getting a unique file."
         return candidates[0]
 
     def get_loader(self, filename: str, folder: str = "", decode_func: Callable = None):
@@ -346,7 +329,7 @@ class ZipfileConnector(RepositoryConnector):
         return ZipfileRequest(
             url=self.base_url,
             filename=self._build_url(folder, filename),
-            func=decode_func,
+            func=decode_func
         )
 
     def get(self, filename: str, folder="", decode_func=None):
@@ -422,6 +405,7 @@ class EbrainsHdgConnector(RepositoryConnector):
 
         marker = None
         while True:
+
             # The endpoint implements basic pagination, using the filenames as markers.
 
             if marker is None:
@@ -495,13 +479,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
     base_url = "https://core.kg.ebrains.eu/v3-beta/queries/"
     maxentries = 1000
 
-    def __init__(
-        self,
-        dataset_id: str = None,
-        version_id: str = None,
-        title: str = None,
-        in_progress=False,
-    ):
+    def __init__(self, dataset_id: str = None, version_id: str = None, title: str = None, in_progress=False):
         """Construct a dataset query with the dataset id.
 
         Parameters
@@ -530,31 +508,23 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
             url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&dataset_id={dataset_id}"
         else:
             assert dataset_id is None
-            logger.info(
-                f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'"
-            )
-            url = (
-                f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&title={title}"
-            )
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
+            url = f"{self.base_url}/{self.QUERY_ID}/instances?stage={stage}&title={title}"
 
         response = EbrainsRequest(url, DECODERS[".json"]).get()
-        results = response.get("data", [])
+        results = response.get('data', [])
         if len(results) != 1:
             if dataset_id is None:
                 for r in results:
-                    print(r["name"])
-                    raise RuntimeError(
-                        f"Search for '{title}' yielded {len(results)} datasets. Please refine your specification."
-                    )
+                    print(r['name'])
+                    raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets. Please refine your specification.")
             else:
-                raise RuntimeError(
-                    f"Dataset id {dataset_id} did not yield a unique match, please fix the dataset specification."
-                )
+                raise RuntimeError(f"Dataset id {dataset_id} did not yield a unique match, please fix the dataset specification.")
 
         data = results[0]
-        self.id = data["id"]
+        self.id = data['id']
         if title is not None:
-            self.dataset_id = data["id"]
+            self.dataset_id = data['id']
         self._description += data.get("description", "")
         self._name += data.get("name", "")
         self.versions = {v["versionIdentifier"]: v for v in data["versions"]}
@@ -590,9 +560,7 @@ class EbrainsPublicDatasetConnector(RepositoryConnector):
         result = []
         if self.use_version in self.versions:
             for author_info in self.versions[self.use_version]["authors"]:
-                result.append(
-                    f"{author_info['familyName']}, {author_info['givenName']}"
-                )
+                result.append(f"{author_info['familyName']}, {author_info['givenName']}")
         return result
 
     @property
@@ -664,29 +632,25 @@ class EbrainsPublicDatasetConnectorMinds(RepositoryConnector):
             url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&dataset_id={dataset_id}"
         else:
             assert dataset_id is None
-            logger.info(
-                f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'"
-            )
+            logger.info(f"Using title '{title}' for EBRAINS dataset search, ignoring id '{dataset_id}'")
             url = f"{self.base_url}/{self.QUERY_ID}/instances?databaseScope={stage}&title={title}"
         req = EbrainsRequest(url, DECODERS[".json"])
         response = req.get()
         self._files = {}
-        results = response.get("results", [])
+        results = response.get('results', [])
         if dataset_id is not None:
             assert len(results) < 2
         elif len(results) > 1:
             for r in results:
                 print(r.keys())
-                print(r["name"])
-            raise RuntimeError(
-                f"Search for '{title}' yielded {len(results)} datasets, see above. Please refine your specification."
-            )
+                print(r['name'])
+            raise RuntimeError(f"Search for '{title}' yielded {len(results)} datasets, see above. Please refine your specification.")
         for res in results:
             if title is not None:
-                self.dataset_id = res["id"]
-            self.id = res["id"]
-            for fileinfo in res["https://schema.hbp.eu/myQuery/v1.0.0"]:
-                self._files[fileinfo["relative_path"]] = fileinfo["path"]
+                self.dataset_id = res['id']
+            self.id = res['id']
+            for fileinfo in res['https://schema.hbp.eu/myQuery/v1.0.0']:
+                self._files[fileinfo['relative_path']] = fileinfo['path']
 
     def search_files(self, folder="", suffix=None, recursive=False):
         result = []
