@@ -328,27 +328,28 @@ class EbrainsRequest(HttpRequest):
 
         cls.init_oidc()
 
-        def get_scopes() -> str:
-            scopes = kwargs.get("scopes")
-            if not scopes:
+        def get_scope() -> str:
+            scope = kwargs.get("scope")
+            if not scope:
                 return None
-            if not isinstance(scopes, list):
-                logger.warning("scopes needs to be a list, is but is not... skipping")
+            if not isinstance(scope, list):
+                logger.warning("scope needs to be a list, is but is not... skipping")
                 return None
-            if not all(isinstance(scope, str) for scope in scopes):
-                logger.warning("scopes needs to be all str, but is not")
+            if not all(isinstance(scope, str) for scope in scope):
+                logger.warning("scope needs to be all str, but is not")
                 return None
-            if len(scopes) == 0:
-                logger.warning("provided empty list as scopes... skipping")
+            if len(scope) == 0:
+                logger.warning("provided empty list as scope... skipping")
                 return None
-            return "+".join(scopes)
+            return "+".join(scope)
 
-        scopes = get_scopes()
+        scope = get_scope()
 
         data = {"client_id": cls._IAM_DEVICE_FLOW_CLIENTID}
 
-        if scopes:
-            data["scopes"] = scopes
+        if scope:
+            data["scope"] = scope
+
         resp = requests.post(url=cls._IAM_DEVICE_ENDPOINT, data=data)
         resp.raise_for_status()
         resp_json = resp.json()
@@ -453,10 +454,10 @@ class EbrainsRequest(HttpRequest):
                 "No access token for EBRAINS Knowledge Graph found. "
                 "If you do not have an EBRAINS account, please first register at "
                 "https://ebrains.eu/register. Then, use one of the following option: "
-                "\n 1. Let siibra get you a token by passing your username and password, using siibra.fetch_ebrains_token()"
+                "\n 1. Let siibra get you a token by using siibra.fetch_ebrains_token() and follow the prompt."
                 "\n 2. If you know how to get a token yourself, set it as $HBP_AUTH_TOKEN or siibra.set_ebrains_token()"
-                "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_ENDPOINT, "
-                "$KEYCLOAK_CLIENT_ID and $KEYCLOAK_CLIENT_SECRET."
+                "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_CLIENT_ID"
+                "and $KEYCLOAK_CLIENT_SECRET."
             )
 
         return self.__class__._KG_API_TOKEN
