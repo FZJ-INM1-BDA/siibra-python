@@ -27,9 +27,7 @@ from distutils.version import LooseVersion
 from tempfile import NamedTemporaryFile
 
 
-class EbrainsFeatureQuery(
-    query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature
-):
+class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.EbrainsDataFeature):
     # in EBRAINS knowledge graph prior to v3, versions were modelled
     # in dataset names. Typically found formats are (v1.0) and [rat, v2.1]
     VERSION_PATTERN = re.compile(r"^(.*?) *[\[\(][^v]*?(v[0-9].*?)[\]\)]")
@@ -109,9 +107,7 @@ class EbrainsFeatureQuery(
                     versioned_datasets[name][version] = dset
 
         if len(invalid_species_datasets) > 0:
-            with NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False, encoding="utf-8"
-            ) as f:
+            with NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
                 for dsid, dsname in invalid_species_datasets.items():
                     f.write(f"{dsid} {dsname}\n")
                 logger.warning(

@@ -22,7 +22,11 @@ from ...retrieval.datasets import EbrainsV3DatasetVersion
 
 
 class EbrainsDataFeature(feature.Feature, category="other"):
-    def __init__(self, dataset_version_id: str, anchor: _anchor.AnatomicalAnchor):
+    def __init__(
+        self,
+        dataset_version_id: str,
+        anchor: _anchor.AnatomicalAnchor
+    ):
         feature.Feature.__init__(
             self,
             modality=None,  # lazy implementation below
