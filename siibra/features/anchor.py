@@ -128,7 +128,7 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
-        self._assignments = {}
+        self._assignments: Dict[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         self._regions_cached = None
         self._regionspec = None
@@ -215,7 +215,7 @@ class AnatomicalAnchor:
         Match this anchoring to an atlas concept.
         """
         if concept not in self._assignments:
-            matches = []
+            matches: List[AnatomicalAssignment] = []
             if isinstance(concept, Space):
                 if self.space == concept:
                     matches.append(
@@ -377,11 +377,11 @@ class AnatomicalAnchor:
         ]
 
     @property
-    def last_match_result(self):
-        return self._assignments.get(self._last_matched_concept)
+    def last_match_result(self) -> List[AnatomicalAssignment]:
+        return self._assignments.get(self._last_matched_concept, [])
 
     @property
-    def last_match_description(self):
+    def last_match_description(self) -> str:
         if self.last_match_result is None:
             return ""
         else:

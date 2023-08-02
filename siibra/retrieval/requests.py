@@ -15,7 +15,14 @@
 
 from .cache import CACHE
 from .exceptions import EbrainsAuthenticationError
-from ..commons import logger, HBP_AUTH_TOKEN, KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET, siibra_tqdm, SIIBRA_USE_LOCAL_SNAPSPOT
+from ..commons import (
+    logger,
+    HBP_AUTH_TOKEN,
+    KEYCLOAK_CLIENT_ID,
+    KEYCLOAK_CLIENT_SECRET,
+    siibra_tqdm,
+    SIIBRA_USE_LOCAL_SNAPSPOT,
+)
 from .. import __version__
 
 import json
@@ -23,7 +30,7 @@ from zipfile import ZipFile
 import requests
 import os
 from nibabel import Nifti1Image, GiftiImage, streamlines
-from skimage import io
+from skimage import io as skimage_io
 import gzip
 from io import BytesIO
 import urllib.parse
@@ -47,7 +54,6 @@ if TYPE_CHECKING:
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 DECODERS = {
-    ".nii.gz": lambda b: Nifti1Image.from_bytes(gzip.decompress(b)),
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
     ".json": lambda b: json.loads(b.decode()),
@@ -56,13 +62,12 @@ DECODERS = {
     ".tsv": lambda b: pd.read_csv(BytesIO(b), delimiter="\t").dropna(axis=0, how="all"),
     ".txt": lambda b: pd.read_csv(BytesIO(b), delimiter=" ", header=None),
     ".zip": lambda b: ZipFile(BytesIO(b)),
-    ".png": lambda b: io.imread(BytesIO(b)),
-    ".npy": lambda b: np.load(BytesIO(b))
+    ".png": lambda b: skimage_io.imread(BytesIO(b)),
+    ".npy": lambda b: np.load(BytesIO(b)),
 }
 
 
 class SiibraHttpRequestError(Exception):
-
     def __init__(self, url: str, status_code: int, msg="Cannot execute http request."):
         self.url = url
         self.status_code = status_code
@@ -70,9 +75,7 @@ class SiibraHttpRequestError(Exception):
         Exception.__init__(self)
 
     def __str__(self):
-        return (
-            f"{self.msg}\n\tStatus code: {self.status_code}\n\tUrl: {self.url:76.76}"
-        )
+        return f"{self.msg}\n\tStatus code: {self.status_code}\n\tUrl: {self.url:76.76}"
 
 
 class HttpRequest:
@@ -108,40 +111,42 @@ class HttpRequest:
         """
         assert url is not None
         self.url = url
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if url.endswith(sfx)]
-        if (func is None) and (len(suitable_decoders) > 0):
-            assert len(suitable_decoders) == 1
-            self.func = suitable_decoders[0]
-        else:
-            self.func = func
+        self._set_decoder_func(func)
         self.kwargs = kwargs
         self.cachefile = CACHE.build_filename(self.url + json.dumps(kwargs))
         self.msg_if_not_cached = msg_if_not_cached
         self.refresh = refresh
         self.post = post
-        self._set_decoder_func(func, url)
 
-    def _set_decoder_func(self, func, fileurl: str):
-        urlpath = urllib.parse.urlsplit(fileurl).path
-        if func is None:
-            suitable_decoders = [
-                dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
-            ]
-            if len(suitable_decoders) > 0:
-                assert len(suitable_decoders) == 1
-                self.func = suitable_decoders[0]
-                return
-        self.func = func
+    @staticmethod
+    def find_suitiable_decoder(url: str):
+        urlpath = urllib.parse.urlsplit(url).path
+        if urlpath.endswith(".gz"):
+            dec = HttpRequest.find_suitiable_decoder(urlpath[:-3])
+            return lambda b: dec(gzip.decompress(b))
+
+        suitable_decoders = [
+            dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
+        ]
+        if len(suitable_decoders) > 0:
+            assert len(suitable_decoders) == 1
+            return suitable_decoders[0]
+        else:
+            return None
+
+    def _set_decoder_func(self, func):
+        self.func = func or self.find_suitiable_decoder(self.url)
 
     @property
     def cached(self):
         return os.path.isfile(self.cachefile)
 
     def _retrieve(self, block_size=1024, min_bytesize_with_no_progress_info=2e8):
-        # Populates the file cache with the data from http if required.
-        # noop if 1/ data is already cached and 2/ refresh flag not set
-        # The caller should load the cachefile after _retrieve successfuly executes
-
+        """
+        Populates the file cache with the data from http if required.
+        noop if 1/ data is already cached and 2/ refresh flag not set
+        The caller should load the cachefile after _retrieve successfuly executes
+        """
         if self.cached and not self.refresh:
             return
 
@@ -149,24 +154,34 @@ class HttpRequest:
         if self.msg_if_not_cached is not None:
             logger.debug(self.msg_if_not_cached)
 
-        headers = self.kwargs.get('headers', {})
-        other_kwargs = {key: self.kwargs[key] for key in self.kwargs if key != "headers"}
+        headers = self.kwargs.get("headers", {})
+        other_kwargs = {
+            key: self.kwargs[key] for key in self.kwargs if key != "headers"
+        }
 
         http_method = requests.post if self.post else requests.get
-        r = http_method(self.url, headers={
-            **USER_AGENT_HEADER,
-            **headers,
-        }, **other_kwargs, stream=True)
+        r = http_method(
+            self.url,
+            headers={
+                **USER_AGENT_HEADER,
+                **headers,
+            },
+            **other_kwargs,
+            stream=True,
+        )
 
         if not r.ok:
             raise SiibraHttpRequestError(status_code=r.status_code, url=self.url)
 
-        size_bytes = int(r.headers.get('content-length', 0))
+        size_bytes = int(r.headers.get("content-length", 0))
         if size_bytes > min_bytesize_with_no_progress_info:
             progress_bar = siibra_tqdm(
-                total=size_bytes, unit='iB', unit_scale=True,
-                position=0, leave=True,
-                desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)"
+                total=size_bytes,
+                unit="iB",
+                unit_scale=True,
+                position=0,
+                leave=True,
+                desc=f"Downloading {os.path.split(self.url)[-1]} ({size_bytes / 1024**2:.1f} MiB)",
             )
         temp_cachefile = f"{self.cachefile}_temp"
         lock = Lock(f"{temp_cachefile}.lock")
@@ -196,7 +211,7 @@ class HttpRequest:
             # if that happens, remove cachefile and
             try:
                 os.unlink(self.cachefile)
-            except Exception:  # TODO: do not use bare except
+            except Exception:
                 pass
             raise e
 
@@ -207,10 +222,11 @@ class HttpRequest:
 
 
 class ZipfileRequest(HttpRequest):
-    def __init__(self, url, filename, func=None):
-        HttpRequest.__init__(self, url, func=func)
+    def __init__(self, url, filename, func=None, refresh=False):
+        HttpRequest.__init__(self, url, refresh=refresh,
+            func=func or self.find_suitiable_decoder(filename)
+        )
         self.filename = filename
-        self._set_decoder_func(func, filename)
 
     def get(self):
         self._retrieve()
@@ -262,16 +278,24 @@ class EbrainsRequest(HttpRequest):
         resp = requests.get(f"{cls._IAM_ENDPOINT}/.well-known/openid-configuration")
         json_resp = resp.json()
         if "token_endpoint" in json_resp:
-            logger.debug(f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}")
+            logger.debug(
+                f"token_endpoint exists in .well-known/openid-configuration. Setting _IAM_TOKEN_ENDPOINT to {json_resp.get('token_endpoint')}"
+            )
             cls._IAM_TOKEN_ENDPOINT = json_resp.get("token_endpoint")
         else:
-            logger.warning("expect token endpoint in .well-known/openid-configuration, but was not present")
+            logger.warning(
+                "expect token endpoint in .well-known/openid-configuration, but was not present"
+            )
 
         if "device_authorization_endpoint" in json_resp:
-            logger.debug(f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}")
+            logger.debug(
+                f"device_authorization_endpoint exists in .well-known/openid-configuration. setting _IAM_DEVICE_ENDPOINT to {json_resp.get('device_authorization_endpoint')}"
+            )
             cls._IAM_DEVICE_ENDPOINT = json_resp.get("device_authorization_endpoint")
         else:
-            logger.warning("expected device_authorization_endpoint in .well-known/openid-configuration, but was not present")
+            logger.warning(
+                "expected device_authorization_endpoint in .well-known/openid-configuration, but was not present"
+            )
 
     @classmethod
     def fetch_token(cls, **kwargs):
@@ -279,17 +303,24 @@ class EbrainsRequest(HttpRequest):
         Fetch an EBRAINS token using commandline-supplied username/password
         using the data proxy endpoint.
 
+
         :ref:`Details on how to access EBRAINS are here.<accessEBRAINS>`
         """
         cls.device_flow(**kwargs)
 
     @classmethod
     def device_flow(cls, **kwargs):
-        if all([
-            not sys.__stdout__.isatty(),  # if is tty, do not raise
-            not any(k in ['JPY_INTERRUPT_EVENT', "JPY_PARENT_PID"] for k in os.environ),  # if is notebook environment, do not raise
-            not os.getenv("SIIBRA_ENABLE_DEVICE_FLOW"),  # if explicitly enabled by env var, do not raise
-        ]):
+        if all(
+            [
+                not sys.__stdout__.isatty(),  # if is tty, do not raise
+                not any(
+                    k in ["JPY_INTERRUPT_EVENT", "JPY_PARENT_PID"] for k in os.environ
+                ),  # if is notebook environment, do not raise
+                not os.getenv(
+                    "SIIBRA_ENABLE_DEVICE_FLOW"
+                ),  # if explicitly enabled by env var, do not raise
+            ]
+        ):
             raise EbrainsAuthenticationError(
                 "sys.stdout is not tty, SIIBRA_ENABLE_DEVICE_FLOW is not set,"
                 "and not running in a notebook. Are you running in batch mode?"
@@ -297,33 +328,29 @@ class EbrainsRequest(HttpRequest):
 
         cls.init_oidc()
 
-        def get_scopes() -> str:
-            scopes = kwargs.get("scopes")
-            if not scopes:
+        def get_scope() -> str:
+            scope = kwargs.get("scope")
+            if not scope:
                 return None
-            if not isinstance(scopes, list):
-                logger.warning("scopes needs to be a list, is but is not... skipping")
+            if not isinstance(scope, list):
+                logger.warning("scope needs to be a list, is but is not... skipping")
                 return None
-            if not all(isinstance(scope, str) for scope in scopes):
-                logger.warning("scopes needs to be all str, but is not")
+            if not all(isinstance(scope, str) for scope in scope):
+                logger.warning("scope needs to be all str, but is not")
                 return None
-            if len(scopes) == 0:
-                logger.warning('provided empty list as scopes... skipping')
+            if len(scope) == 0:
+                logger.warning("provided empty list as scope... skipping")
                 return None
-            return "+".join(scopes)
+            return "+".join(scope)
 
-        scopes = get_scopes()
+        scope = get_scope()
 
-        data = {
-            'client_id': cls._IAM_DEVICE_FLOW_CLIENTID
-        }
+        data = {"client_id": cls._IAM_DEVICE_FLOW_CLIENTID}
 
-        if scopes:
-            data['scopes'] = scopes
-        resp = requests.post(
-            url=cls._IAM_DEVICE_ENDPOINT,
-            data=data
-        )
+        if scope:
+            data["scope"] = scope
+
+        resp = requests.post(url=cls._IAM_DEVICE_ENDPOINT, data=data)
         resp.raise_for_status()
         resp_json = resp.json()
         logger.debug("device flow, request full json:", resp_json)
@@ -346,17 +373,19 @@ class EbrainsRequest(HttpRequest):
 
             logger.debug("Calling endpoint")
             if attempt_number > cls._IAM_DEVICE_MAXTRIES:
-                message = f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
+                message = (
+                    f"exceeded max attempts: {cls._IAM_DEVICE_MAXTRIES}, aborting..."
+                )
                 logger.error(message)
                 raise EbrainsAuthenticationError(message)
             attempt_number += 1
             resp = requests.post(
                 url=cls._IAM_TOKEN_ENDPOINT,
                 data={
-                    'grant_type': "urn:ietf:params:oauth:grant-type:device_code",
-                    'client_id': cls._IAM_DEVICE_FLOW_CLIENTID,
-                    'device_code': device_code
-                }
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    "client_id": cls._IAM_DEVICE_FLOW_CLIENTID,
+                    "device_code": device_code,
+                },
             )
 
             if resp.status_code == 200:
@@ -383,7 +412,6 @@ class EbrainsRequest(HttpRequest):
 
     @property
     def kg_token(self):
-
         # token is available, return it
         if self.__class__._KG_API_TOKEN is not None:
             return self.__class__._KG_API_TOKEN
@@ -426,10 +454,10 @@ class EbrainsRequest(HttpRequest):
                 "No access token for EBRAINS Knowledge Graph found. "
                 "If you do not have an EBRAINS account, please first register at "
                 "https://ebrains.eu/register. Then, use one of the following option: "
-                "\n 1. Let siibra get you a token by passing your username and password, using siibra.fetch_ebrains_token()"
+                "\n 1. Let siibra get you a token by using siibra.fetch_ebrains_token() and follow the prompt."
                 "\n 2. If you know how to get a token yourself, set it as $HBP_AUTH_TOKEN or siibra.set_ebrains_token()"
-                "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_ENDPOINT, "
-                "$KEYCLOAK_CLIENT_ID and $KEYCLOAK_CLIENT_SECRET."
+                "\n 3. If you are an application developer, you might configure keycloak access by setting $KEYCLOAK_CLIENT_ID"
+                "and $KEYCLOAK_CLIENT_SECRET."
             )
 
         return self.__class__._KG_API_TOKEN
@@ -450,7 +478,7 @@ class EbrainsRequest(HttpRequest):
 def try_all_connectors():
     def outer(fn):
         @wraps(fn)
-        def inner(self: 'GitlabProxyEnum', *args, **kwargs):
+        def inner(self: "GitlabProxyEnum", *args, **kwargs):
             exceptions = []
             for connector in self.connectors:
                 try:
@@ -461,7 +489,9 @@ def try_all_connectors():
                 for exc in exceptions:
                     logger.error(exc)
                 raise Exception("try_all_connectors failed")
+
         return inner
+
     return outer
 
 
@@ -472,30 +502,40 @@ class GitlabProxyEnum(Enum):
     DATASETVERSION_V3 = "DATASETVERSION_V3"
 
     @property
-    def connectors(self) -> List['GitlabConnector']:
+    def connectors(self) -> List["GitlabConnector"]:
         servers = [
             ("https://jugit.fz-juelich.de", 7846),
             ("https://gitlab.ebrains.eu", 421),
         ]
         from .repositories import GitlabConnector, LocalFileRepository
+
         if SIIBRA_USE_LOCAL_SNAPSPOT:
             logger.info(f"Using localsnapshot at {SIIBRA_USE_LOCAL_SNAPSPOT}")
             return [LocalFileRepository(SIIBRA_USE_LOCAL_SNAPSPOT)]
-        return [GitlabConnector(server[0], server[1], "master", archive_mode=True) for server in servers]
+        return [
+            GitlabConnector(server[0], server[1], "master", archive_mode=True)
+            for server in servers
+        ]
 
     @try_all_connectors()
-    def search_files(self, folder: str, suffix=None, recursive=True, *, connector: 'GitlabConnector' = None) -> List[str]:
+    def search_files(
+        self,
+        folder: str,
+        suffix=None,
+        recursive=True,
+        *,
+        connector: "GitlabConnector" = None,
+    ) -> List[str]:
         assert connector
         return connector.search_files(folder, suffix=suffix, recursive=recursive)
 
     @try_all_connectors()
-    def get(self, filename, decode_func=None, *, connector: 'GitlabConnector' = None):
+    def get(self, filename, decode_func=None, *, connector: "GitlabConnector" = None):
         assert connector
         return connector.get(filename, "", decode_func)
 
 
 class GitlabProxy(HttpRequest):
-
     folder_dict = {
         GitlabProxyEnum.DATASET_V1: "ebrainsquery/v1/dataset",
         GitlabProxyEnum.DATASET_V3: "ebrainsquery/v3/Dataset",
@@ -507,11 +547,11 @@ class GitlabProxy(HttpRequest):
         self,
         flavour: GitlabProxyEnum,
         instance_id=None,
-        postprocess: Callable[['GitlabProxy', Any], Any] = (
+        postprocess: Callable[["GitlabProxy", Any], Any] = (
             lambda proxy, obj: obj
             if hasattr(proxy, "instance_id") and proxy.instance_id
             else {"results": obj}
-        )
+        ),
     ):
         if flavour not in GitlabProxyEnum:
             raise RuntimeError("Can only proxy enum members")
@@ -524,7 +564,9 @@ class GitlabProxy(HttpRequest):
 
     def get(self):
         if self.instance_id:
-            return self.postprocess(self, self.flavour.get(f"{self.folder}/{self.instance_id}.json"))
+            return self.postprocess(
+                self, self.flavour.get(f"{self.folder}/{self.instance_id}.json")
+            )
         return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
 
 
@@ -546,7 +588,9 @@ class MultiSourcedRequest:
             except Exception as e:
                 exceptions.append(e)
         else:
-            raise MultiSourceRequestException("All requests failed:\n" + "\n".join(str(exc) for exc in exceptions))
+            raise MultiSourceRequestException(
+                "All requests failed:\n" + "\n".join(str(exc) for exc in exceptions)
+            )
 
     @property
     def data(self):

@@ -3,13 +3,11 @@ import siibra
 
 
 class TestretrievalDownloadFile(unittest.TestCase):
-
     def test_download_zipped_file(self):
-        url = "https://object.cscs.ch/v1/AUTH_227176556f3c4bb38df9feea4b91200c/test_stefan_destination/MPM.zip"
-        ziptarget = "JulichBrain_v25.xml"
-        loader = siibra.retrieval.requests.ZipfileRequest(url, ziptarget)
+        url = "https://data-proxy.ebrains.eu/api/v1/buckets/d-37258979-8b9f-4817-9d83-f009019a6c38/Semi-quantitative-analysis-siibra-csv.zip"
+        ziptarget = "F9-BDA.csv"
+        loader = siibra.retrieval.requests.ZipfileRequest(url, ziptarget, refresh=True)
         self.assertIsNotNone(loader.data)
-    # TODO Clear cache folder after test (for local testing)
 
 
 if __name__ == "__main__":

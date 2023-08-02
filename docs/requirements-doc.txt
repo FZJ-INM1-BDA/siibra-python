@@ -9,6 +9,8 @@ sphinx-autoapi
 IPython
 m2r2
 sphinx-gallery
+plotly
 matplotlib >= 3.4.0
 sphinx-rtd-theme
 sphinx_autopackagesummary
+sphinxcontrib.jquery

@@ -601,7 +601,28 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         return centroids
 
-    def colorize(self, values: dict, **kwargs):
+    def get_resampled_template(self, **fetch_kwargs) -> Nifti1Image:
+        """
+        Resample the reference space template to fetched map image. Uses
+        nilearn.image.resample_to_img to resample the template.
+
+        Parameters
+        ----------
+        **fetch_kwargs: takes the arguments of Map.fetch()
+
+        Returns
+        -------
+        Nifti1Image
+        """
+        source_template = self.space.get_template().fetch()
+        map_image = self.fetch(**fetch_kwargs)
+        return image.resample_to_img(
+            source_template,
+            map_image,
+            interpolation='continuous'
+        )
+
+    def colorize(self, values: dict, **kwargs) -> Nifti1Image:
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -771,8 +792,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
         minsize_voxel=1,
-        lower_threshold=0.0
-    ) -> List[Union[Assignment, AssignImageResult]]:
+        lower_threshold=0.0,
+        **kwargs
+    ) -> List[Union[Assignment,AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -782,8 +804,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, Nifti1Image):
-            return self._assign_image(item, minsize_voxel, lower_threshold)
-
+            return self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
+        
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
         )
@@ -792,7 +814,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         item: Union[point.Point, pointset.PointSet, Nifti1Image],
         minsize_voxel=1,
-        lower_threshold=0.0
+        lower_threshold=0.0,
+        **kwargs
     ):
         """Assign an input image to brain regions.
 
@@ -840,7 +863,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             a Point or PointSet, returns None.
         """
 
-        assignments = self._assign(item, minsize_voxel, lower_threshold)
+        assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
 
         # format assignments as pandas dataframe
         columns = [
@@ -1020,7 +1043,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     assignments.append(entry)
         return assignments
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float) -> List[AssignImageResult]:
+    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
@@ -1055,6 +1078,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
                 else siibra_tqdm(it, desc=desc, total=N)
+        
+        iter_func = iterate_connected_components if split_components \
+            else lambda img: [(1, img)]
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
@@ -1064,7 +1090,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     desc=f"Assigning to {len(self)} volumes"
                 ):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
-                    for mode, maskimg in iterate_connected_components(queryimg_res):
+                    for mode, maskimg in iter_func(queryimg_res):
                         vol_data = np.asanyarray(vol_img.dataobj)
                         position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
                         labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}

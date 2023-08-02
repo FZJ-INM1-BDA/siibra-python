@@ -16,9 +16,9 @@
 from . import regional_connectivity
 
 
-class TracerConnectivity(
+class TracingConnectivity(
     regional_connectivity.RegionalConnectivity,
-    configuration_folder="features/connectivity/regional/tracer",
+    configuration_folder="features/connectivity/regional/tracing",
     category="connectivity"
 ):
     """
