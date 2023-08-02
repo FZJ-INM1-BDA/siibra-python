@@ -133,7 +133,7 @@ class RegionalConnectivity(Feature):
                         desc=f"Averaging {len(self)} connectivity matrices"
                     )
                 ]
-                self._matrices['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
+                self._matrices['mean'] = self._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
             return self._matrices['mean'].copy()
         if subject is None:
             subject = next(iter(self._files.keys()))
@@ -310,7 +310,7 @@ class RegionalConnectivity(Feature):
             )
         return result
 
-    def _array_to_dataframe(self, array: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
+    def _arraylike_to_dataframe(self, array: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
         """
         Convert a numpy array with the connectivity matrix to
         a DataFrame with regions as column and row headers.
@@ -352,4 +352,4 @@ class RegionalConnectivity(Feature):
                 f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
                 f"from {self._files[subject]} in {str(self._connector)}"
             )
-        return self._array_to_dataframe(array)
+        return self._arraylike_to_dataframe(array)
