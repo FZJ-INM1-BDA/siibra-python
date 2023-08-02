@@ -310,14 +310,16 @@ class RegionalConnectivity(Feature):
             )
         return result
 
-    def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
+    def _array_to_dataframe(self, array: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
         """
         Convert a numpy array with the connectivity matrix to
         a DataFrame with regions as column and row headers.
         """
-        df = pd.DataFrame(array)
-        if not all(all(df.iloc[:, i] == df.iloc[i, :]) for i in range(len(df))):
+        if not isinstance(array, np.ndarray):
+            array = array.to_numpy()
+        if not (array == array.T).all():
             logger.warning("The connectivity matrix is not symmetric.")
+        df = pd.DataFrame(array)
         parcellations = self.anchor.represented_parcellations()
         assert len(parcellations) == 1
         parc = next(iter(parcellations))
