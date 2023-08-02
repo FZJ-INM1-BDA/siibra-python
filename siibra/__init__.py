@@ -113,6 +113,23 @@ if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
+def preload_configurations():
+    """
+    Preload preconfigured siibra concepts.
+
+    Siibra relies on preconfigurations that simplify integrating various
+    concepts such as parcellations, refernce spaces, and multimodal data
+    features. By preloading the instances, siibra commits all preconfigurations
+    to the memory at once instead of commiting them when required.
+    """
+    _ = _atlas.Atlas.registry()
+    _ = _space.Space.registry()
+    _ = _parcellation.Parcellation.registry()
+    _ = _parcellationmap.Map.registry()
+    for ftype in features.TYPES.values():
+        _ = ftype.get_instances()
+
+
 def __dir__():
     return [
         "atlases",
@@ -135,4 +152,5 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
+        "preload_configurations"
     ]
