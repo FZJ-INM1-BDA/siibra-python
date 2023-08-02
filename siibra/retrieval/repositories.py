@@ -13,7 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .requests import DECODERS, HttpRequest, EbrainsRequest, SiibraHttpRequestError
+from .requests import (
+    HttpRequest,
+    EbrainsRequest,
+    SiibraHttpRequestError,
+    find_suitiable_decoder,
+    DECODERS
+)
 from .cache import CACHE
 
 from ..commons import logger, siibra_tqdm
@@ -42,8 +48,8 @@ class RepositoryConnector(ABC):
     def _build_url(self, folder: str, filename: str):
         pass
 
-    def _decode_response(self, response, filename):
-        decoder = HttpRequest.find_suitiable_decoder(filename)
+    def _decode_response(self, response, filename: str):
+        decoder = find_suitiable_decoder(filename)
         return decoder(response) if decoder else response
 
     def get(self, filename, folder="", decode_func=None):
@@ -260,11 +266,8 @@ class GitlabConnector(RepositoryConnector):
                     os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
                 os.rmdir(f"{archive_directory}/{_dir}")
 
-        suitable_decoders = [dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)]
-        decoder = suitable_decoders[0] if len(suitable_decoders) > 0 else lambda b: b
-
         with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
-            return decoder(fp.read())
+            return self._decode_response(fp.read(), filename)
 
     def __eq__(self, other):
         return all([
