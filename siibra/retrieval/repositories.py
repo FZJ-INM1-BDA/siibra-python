@@ -43,15 +43,8 @@ class RepositoryConnector(ABC):
         pass
 
     def _decode_response(self, response, filename):
-        # see if we find a default encoder
-        suitable_decoders = [
-            dec for sfx, dec in DECODERS.items() if filename.endswith(sfx)
-        ]
-        if len(suitable_decoders) > 0:
-            assert len(suitable_decoders) == 1
-            return suitable_decoders[0](response)
-        else:
-            return response
+        decoder = HttpRequest.find_suitiable_decoder(filename)
+        return decoder(response) if decoder else response
 
     def get(self, filename, folder="", decode_func=None):
         """Get a file right away."""
