@@ -16,7 +16,7 @@
 from . import atlas, parcellation, space
 
 
-def load_preconfigurations():
+def warm_cache():
     """Preload preconfigured siibra core concepts."""
     _ = atlas.Atlas.registry()
     _ = space.Space.registry()

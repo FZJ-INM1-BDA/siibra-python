@@ -20,6 +20,6 @@ from .nifti import NiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh
 
 
-def load_preconfigurations():
+def warm_cache():
     """Preload preconfigured parcellation maps."""
     _ = Map.registry()

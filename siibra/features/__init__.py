@@ -46,7 +46,7 @@ def __getattr__(attr: str):
         raise AttributeError(f"No such attribute: {__name__}.{attr} " + hint)
 
 
-def load_preconfigurations():
+def warm_cache():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype.get_instances()

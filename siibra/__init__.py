@@ -113,7 +113,7 @@ if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
-def preload_configurations():
+def warm_cache():
     """
     Preload preconfigured siibra concepts.
 
@@ -152,5 +152,5 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
-        "preload_configurations"
+        "warm_cache"
     ]
