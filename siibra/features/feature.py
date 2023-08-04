@@ -306,21 +306,36 @@ class Feature:
         return live_instances
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
+    def match(
+        cls,
+        concept: Union[region.Region, parcellation.Parcellation, space.Space, List['concept.AtlasConcept']],
+        feature_type: Union[str, Type['Feature'], list],
+        **kwargs
+    ) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 
         Parameters
         ----------
-        concept: AtlasConcept
+        concept: AtlasConcept or List[AtlasConcept]
             An anatomical concept, typically a brain region or parcellation.
-        modality: subclass of Feature
+        feature_type: str, Feature
             specififies the type of features ("modality")
+        kwargs:
+            Feature type specific keyword arguments such as `gene` for
+            GeneExpressions.
         """
+        if isinstance(concept, list):
+            return list(set(
+                sum([cls.match(c, feature_type, **kwargs) for c in concept], [])
+            ))
+
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
+            return list(set(
+                sum((cls.match(concept, t, **kwargs) for t in feature_type), [])
+            ))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
@@ -328,7 +343,10 @@ class Feature:
             # In this case
             candidates = cls.parse_featuretype(feature_type)
             if len(candidates) == 0:
-                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
+                raise ValueError(
+                    f"feature_type {str(feature_type)} did not match with any"
+                    f" features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                )
 
             return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
 
