@@ -44,3 +44,9 @@ def __getattr__(attr: str):
             if len(closest) > 0:
                 hint = f"Did you mean {' or '.join(closest)}?"
         raise AttributeError(f"No such attribute: {__name__}.{attr} " + hint)
+
+
+def warm_cache():
+    """Preload preconfigured multimodal data features."""
+    for ftype in TYPES.values():
+        _ = ftype.get_instances()

@@ -18,3 +18,8 @@ from .parcellationmap import Map
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
 from .nifti import NiftiProvider
 from .gifti import GiftiSurfaceLabeling, GiftiMesh
+
+
+def warm_cache():
+    """Preload preconfigured parcellation maps."""
+    _ = Map.registry()
