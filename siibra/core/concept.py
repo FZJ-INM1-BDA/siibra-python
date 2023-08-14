@@ -227,3 +227,21 @@ class AtlasConcept:
         """Match a given object specification. """
         assert isinstance(obj, cls)
         return obj.matches(spec)
+
+    def __gt__(self, other: 'AtlasConcept'):
+        """
+        Compare this atlas concept with other atlas concepts of the same kind
+        with it's name.
+        """
+        if self.__class__ is not other.__class__:
+            raise ValueError("Cannot compare different atlas concept types.")
+        return self.name > other.name
+
+    def __lt__(self, other: 'AtlasConcept'):
+        """
+        Compare this atlas concept with other atlas concepts of the same kind
+        with it's name.
+        """
+        if self.__class__ is not other.__class__:
+            raise ValueError("Cannot compare different atlas concept types.")
+        return self.name < other.name

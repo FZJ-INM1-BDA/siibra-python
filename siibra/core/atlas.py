@@ -206,9 +206,3 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
                 match = parcobj.find(regionspec, filter_children=filter_children, **kwargs)
                 result.extend(match)
         return result
-
-    def __lt__(self, other: 'Atlas'):
-        """
-        We sort atlases by their names
-        """
-        return self.name < other.name
