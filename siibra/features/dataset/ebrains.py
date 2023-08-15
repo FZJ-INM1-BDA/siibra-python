@@ -18,7 +18,7 @@
 from .. import anchor as _anchor
 from .. import feature
 
-from ...retrieval.datasets import EbrainsV3DatasetVersion
+from ...retrieval import datasets
 
 
 class EbrainsDataFeature(feature.Feature, category="other"):
@@ -32,7 +32,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
             modality=None,  # lazy implementation below
             description=None,  # lazy implementation below
             anchor=anchor,
-            datasets=[EbrainsV3DatasetVersion(id=dataset_version_id)],
+            datasets=[datasets.EbrainsV3DatasetVersion(id=dataset_version_id)],
         )
         self.version = None
         self._next = None
@@ -43,7 +43,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
         return self._dataset.id
 
     @property
-    def _dataset(self) -> EbrainsV3DatasetVersion:
+    def _dataset(self) -> datasets.EbrainsV3DatasetVersion:
         assert len(self.datasets) == 1
         return self.datasets[0]
 
