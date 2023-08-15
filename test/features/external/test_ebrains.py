@@ -6,11 +6,7 @@ from siibra.features.dataset.ebrains import EbrainsDataFeature, feature
 class TestEbrains(unittest.TestCase):
     @staticmethod
     def get_instance(dataset_id=None):
-        return EbrainsDataFeature(
-            dataset_id=dataset_id,
-            anchor=None,
-            name="foo bar",
-        )
+        return EbrainsDataFeature(dataset_version_id=dataset_id, anchor=None)
 
     @classmethod
     def setUpClass(cls) -> None:
