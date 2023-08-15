@@ -281,6 +281,7 @@ class Factory:
             space_spec=spec.get("space", {}),
             parcellation_spec=spec.get("parcellation", {}),
             indices=spec.get("indices", {}),
+            unparcellated_regions=spec.get("unparcellated regions", []),
             volumes=volumes,
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),

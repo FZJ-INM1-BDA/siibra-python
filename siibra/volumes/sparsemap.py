@@ -220,6 +220,7 @@ class SparseMap(parcellationmap.Map):
         space_spec: dict,
         parcellation_spec: dict,
         indices: Dict[str, MapIndex],
+        unparcellated_regions: List[str] = [],
         volumes: list = [],
         shortname: str = "",
         description: str = "",

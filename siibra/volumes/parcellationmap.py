@@ -79,6 +79,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         space_spec: dict,
         parcellation_spec: dict,
         indices: Dict[str, Dict],
+        unparcellated_regions: List[str] = [],
         volumes: list = [],
         shortname: str = "",
         description: str = "",
@@ -131,7 +132,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             datasets=datasets,
             modality=modality
         )
-
+        self._unparcellated_regions = [clear_name(r) for r in unparcellated_regions]
         # Since the volumes might include 4D arrays, where the actual
         # volume index points to a z coordinate, we create subvolume
         # indexers from the given volume provider if 'z' is specified.
@@ -277,7 +278,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             logger.warning(f"Index {index} not defined in {self}")
             return None
         elif len(matches) == 1:
-            return self.parcellation.get_region(matches[0])
+            match = matches[0]
+            if match in self._unparcellated_regions:
+                logger.warning(f"{match} is not listed in the region tree of {self.parcellation}")
+                return None
+            return self.parcellation.get_region(match)
         else:
             # this should not happen, already tested in constructor
             raise RuntimeError(f"Index {index} is not unique in {self}")
@@ -690,6 +695,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     continue
                 else:
                     region = self.get_region(index=index)
+                    if region is None:
+                        logger.info(
+                            f"Cannot find corresponding region of {index} in the"
+                            "parcellation. Skipping this index."
+                        )
+                        continue
                     if region.rgb is not None:
                         colors[index.label] = region.rgb
 
