@@ -32,7 +32,6 @@ except ImportError:  # support python 3.7
     from typing_extensions import Literal
 
 
-
 class RegionalConnectivity(Feature):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
@@ -267,6 +266,33 @@ class RegionalConnectivity(Feature):
                 ),
                 datasets=self.datasets
             )
+
+    def plot_profile(
+        self,
+        region: Union[str, _region.Region],
+        subject: str = None,
+        min_connectivity: float = 0,
+        max_rows: int = None,
+        direction: Literal['column', 'row'] = 'column',
+        logscale: bool = False,
+        *args,
+        backend="matplotlib",
+        **kwargs
+    ):
+        profile = self.get_profile(region, subject, min_connectivity, max_rows, direction)
+        kwargs["kind"] = kwargs.get("kind", "barh")
+        if backend == "matplotlib":
+            kwargs["logx"] = kwargs.get("logx", logscale)
+        elif backend == "plotly":
+            kwargs.update({
+                "color": kwargs.get("color", profile.data.columns[0]),
+                "x": kwargs.get("x", profile.data.columns[0]),
+                "y": kwargs.get("y", [r.name for r in profile.data.index]),
+                "log_x": logscale,
+                "labels": {"index": "Regions"},
+                "color_continuous_scale": "jet"
+            })
+        return profile.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
         return len(self._files)
