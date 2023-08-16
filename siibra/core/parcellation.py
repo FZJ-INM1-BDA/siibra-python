@@ -307,7 +307,8 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             if len(exact_match) == 1:
                 return exact_match[0]
             if len(exact_match) > 1:
-                raise ValueError("multiple exact matches")
+                logger.info(f"Found multiple region with exact match to {regionspec}. Returning the first one.")
+                return exact_match[0]
 
 
         if regionspec.startswith("Group"):  # backwards compatibility with old "Group: <region a>, <region b>" specs
