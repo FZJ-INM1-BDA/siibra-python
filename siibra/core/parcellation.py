@@ -295,11 +295,20 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         RuntimeError
             If the spec matches multiple regions
         ValueError
-            If the spec cannot be matched against any region
+            If the spec cannot be matched against any region, or if the spec matched exactly with more than one region
         """
         assert isinstance(regionspec, (str, region.Region)), f"get_region takes str or Region but you provided {type(regionspec)}"
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
+
+        # if there exist an exact match of region spec to region name, return 
+        if isinstance(regionspec, str):
+            exact_match = [region for region in self if hasattr(region, "name") and region.name == regionspec]
+            if len(exact_match) == 1:
+                return exact_match[0]
+            if len(exact_match) > 1:
+                raise ValueError("multiple exact matches")
+
 
         if regionspec.startswith("Group"):  # backwards compatibility with old "Group: <region a>, <region b>" specs
             candidates = {
@@ -309,10 +318,6 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             }
         else:
             candidates = self.find(regionspec, filter_children=True, find_topmost=find_topmost)
-
-        exact_matches = [r for r in candidates if regionspec == r]
-        if len(exact_matches) == 1:
-            return exact_matches[0]
 
         if len(candidates) > 1 and isinstance(regionspec, str):
             # if we have an exact match of words in one region, discard other candidates.
