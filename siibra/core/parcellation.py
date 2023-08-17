@@ -288,14 +288,19 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         Returns
         -------
         Region
-            A region object defined in the parcellation
+            A region object defined in the parcellation.
+
+            Note
+            ----
+            If the spec exactly matched with more than one region, the first
+            will be returned.
 
         Raises
         ------
         RuntimeError
             If the spec matches multiple regions
         ValueError
-            If the spec cannot be matched against any region, or if the spec matched exactly with more than one region
+            If the spec cannot be matched against any region.
         """
         assert isinstance(regionspec, (str, region.Region)), f"get_region takes str or Region but you provided {type(regionspec)}"
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
@@ -309,7 +314,6 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             if len(exact_match) > 1:
                 logger.info(f"Found multiple region with exact match to {regionspec}. Returning the first one.")
                 return exact_match[0]
-
 
         if regionspec.startswith("Group"):  # backwards compatibility with old "Group: <region a>, <region b>" specs
             candidates = {
