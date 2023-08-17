@@ -120,7 +120,8 @@ class GeneExpressions(
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
-        Create a bar plot of the average per gene.
+        Create a box plot per gene.
+
         Parameters
         ----------
         backend: str
@@ -130,33 +131,18 @@ class GeneExpressions(
             Keyword arguments are passed on to the plot command.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-        title = kwargs.pop("title", None) \
+        kwargs["title"] = kwargs.pop("title", None) \
             or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
+        kwargs["kind"] = "box"
         if backend == "matplotlib":
-            try:
-                import matplotlib.pyplot as plt
-            except ImportError:
-                logger.error("matplotlib not available. Plotting of fingerprints disabled.")
-                raise
-
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
                 assert arg not in kwargs
             passed_kwarg = {
-                "kind": 'box', "grid": True, "legend": False, 'by': "gene",
-                'column': ['level'], 'showfliers': False, 'ax': None,
-                **kwargs
+                "grid": True, "legend": False, 'by': "gene", 'column': ['level'], 'showfliers': False, 'ax': None, **kwargs
             }
-            ax = self.data.plot(
-                *args, **passed_kwarg, backend=backend
-            )
-
-            plt.title('')
-            plt.suptitle('')
-            ax.set_title(title, fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
-            ax.set_xlabel("")
-
-            plt.tight_layout()
-            return ax
+            return self.data.plot(*args, **passed_kwarg, backend=backend)
+        elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace('\n', "<br>")
+            return self.data.plot(y='level', x='gene', backend=backend, **kwargs)
         else:
-            return self.data.plot(kind='box', y='level', x='gene', **kwargs)
+            return self.data.plot(*args, backend=backend, **kwargs)

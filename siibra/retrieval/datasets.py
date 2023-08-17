@@ -31,23 +31,22 @@ class EbrainsDatasetUrl(TypedDict):
     url: str
 
 
-EbrainsDatasetPerson = TypedDict('EbrainsDatasetPerson', {
-    '@id': str,
-    'schema.org/shortName': str,
-    'identifier': str,
-    'shortName': str,
-    'name': str
+EbrainsDatasetPerson = TypedDict("EbrainsDatasetPerson", {
+    "@id": str,
+    "schema.org/shortName": str,
+    "identifier": str,
+    "shortName": str,
+    "name": str,
 })
 
-EbrainsDatasetEmbargoStatus = TypedDict('EbrainsDatasetEmbargoStatus', {
+EbrainsDatasetEmbargoStatus = TypedDict("EbrainsDatasetEmbargoStatus", {
     "@id": str,
-    'name': str,
-    'identifier': List[str]
+    "name": str,
+    "identifier": List[str]
 })
 
 
 class EbrainsBaseDataset(ABC):
-
     @abstractproperty
     def id(self) -> str:
         raise NotImplementedError
@@ -98,11 +97,14 @@ class EbrainsBaseDataset(ABC):
             return True
         if isinstance(spec, str):
             return self.id == spec
-        raise RuntimeError(f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset")
+        raise RuntimeError(
+            f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset"
+        )
 
 
 class EbrainsDataset(EbrainsBaseDataset):
     """Ebrains dataset v1 connection"""
+
     def __init__(self, id, name=None, embargo_status: List[EbrainsDatasetEmbargoStatus] = None, *, cached_data=None):
         super().__init__()
 
@@ -172,18 +174,17 @@ class EbrainsDataset(EbrainsBaseDataset):
 
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
-
     @staticmethod
     def parse_person(d: dict) -> EbrainsDatasetPerson:
         assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), "Cannot convert a non person to a person dict!"
-        _id = d.get('id')
+        _id = d.get("id")
         name = f"{d.get('givenName')} {d.get('familyName')}"
         return {
             '@id': _id,
             'schema.org/shortName': name,
             'identifier': _id,
-            "shortName": name,
-            "name": name
+            'shortName': name,
+            'name': name
         }
 
     def __init__(self, id, *, cached_data=None) -> None:
@@ -218,7 +219,7 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
             if fullname is not None:
                 break
             fullname = dataset.name
-            
+
         version_id = self.detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
 

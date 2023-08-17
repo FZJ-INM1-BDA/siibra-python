@@ -173,10 +173,9 @@ class CorticalProfile(tabular.Tabular):
             'layercolor' can be used to specify a color for cortical layer shading.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
-
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
 
-        if backend == "matplotlib":
+        if backend == "matplotlib":    
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
@@ -199,6 +198,30 @@ class CorticalProfile(tabular.Tabular):
 
             axs.set_title(axs.get_title(), fontsize="medium")
             return axs
+        elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
+            kwargs["labels"] = {
+                "index": kwargs.pop("xlabel", "Cortical depth"),
+                "value": kwargs.pop("ylabel", self.unit)
+            }
+            fig = self.data.plot(*args, **kwargs, backend=backend)
+            if self.boundaries_mapped:
+                bvals = list(self.boundary_positions.values())
+                for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
+                    fig.add_vrect(
+                        x0=d1, x1=d2, line_width=0, fillcolor="gray",
+                        opacity=0.2 if i % 2 == 0 else 0.0,
+                        label=dict(text=self.LAYERS[i + 1], textposition="bottom center")
+                    )
+            fig.update_layout(
+                showlegend=False,
+                yaxis_range=(0, max(self._values)),
+                title=dict(
+                    automargin=True, yref="container", xref="container",
+                    pad=dict(t=15), xanchor="left"
+                )
+            )
+            return fig
         else:
             return self.data.plot(*args, **kwargs, backend=backend)
 

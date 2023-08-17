@@ -67,6 +67,39 @@ DECODERS = {
 }
 
 
+def find_suitiable_decoder(url: str) -> Callable:
+    """
+    By supplying a url or a filename, obtain a suitable decoder function
+    for siibra to digest based on predifined DECODERS. An extra layer of 
+    gzip decompresser automatically added for gzipped files.
+
+    Parameters
+    ----------
+    url : str
+        The url or filename with extension.
+
+    Returns
+    -------
+    Callable or None
+    """
+    urlpath = urllib.parse.urlsplit(url).path
+    if urlpath.endswith(".gz"):
+        dec = find_suitiable_decoder(urlpath[:-3])
+        if dec is None:
+            return lambda b: gzip.decompress(b)
+        else:
+            return lambda b: dec(gzip.decompress(b))
+
+    suitable_decoders = [
+        dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
+    ]
+    if len(suitable_decoders) > 0:
+        assert len(suitable_decoders) == 1
+        return suitable_decoders[0]
+    else:
+        return None
+
+
 class SiibraHttpRequestError(Exception):
     def __init__(self, url: str, status_code: int, msg="Cannot execute http request."):
         self.url = url
@@ -118,24 +151,16 @@ class HttpRequest:
         self.refresh = refresh
         self.post = post
 
-    @staticmethod
-    def find_suitiable_decoder(url: str):
-        urlpath = urllib.parse.urlsplit(url).path
-        if urlpath.endswith(".gz"):
-            dec = HttpRequest.find_suitiable_decoder(urlpath[:-3])
-            return lambda b: dec(gzip.decompress(b))
+    def _set_decoder_func(self, func: Callable = None):
+        """
+        Sets the decoder function of the HttpRequest. If `func` is None,
+        it will try to find a suitable decoder.
 
-        suitable_decoders = [
-            dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
-        ]
-        if len(suitable_decoders) > 0:
-            assert len(suitable_decoders) == 1
-            return suitable_decoders[0]
-        else:
-            return None
-
-    def _set_decoder_func(self, func):
-        self.func = func or self.find_suitiable_decoder(self.url)
+        Parameters
+        ----------
+        func : Callable, default: None
+        """
+        self.func = func or find_suitiable_decoder(self.url)
 
     @property
     def cached(self):
@@ -223,8 +248,9 @@ class HttpRequest:
 
 class ZipfileRequest(HttpRequest):
     def __init__(self, url, filename, func=None, refresh=False):
-        HttpRequest.__init__(self, url, refresh=refresh,
-            func=func or self.find_suitiable_decoder(filename)
+        HttpRequest.__init__(
+            self, url, refresh=refresh,
+            func=func or find_suitiable_decoder(filename)
         )
         self.filename = filename
 

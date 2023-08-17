@@ -68,6 +68,7 @@ class Tabular(feature.Feature):
         **kwargs
             takes Matplotlib.pyplot keyword arguments
         """
+        kwargs["kind"] = kwargs.get("kind", "bar")
         kwargs["y"] = kwargs.get("y", self.data.columns[0])
         if backend == "matplotlib":
             try:
@@ -91,7 +92,7 @@ class Tabular(feature.Feature):
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
-            ax = self.data.plot(kind="bar", *args, backend=backend, **kwargs)
+            ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
             ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
             plt.tight_layout()
@@ -102,6 +103,6 @@ class Tabular(feature.Feature):
                 "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
             }
             kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-            return self.data.plot(kind="bar", *args, backend=backend, **kwargs)
+            return self.data.plot(*args, backend=backend, **kwargs)
         else:
             return self.data.plot(*args, backend=backend, **kwargs)

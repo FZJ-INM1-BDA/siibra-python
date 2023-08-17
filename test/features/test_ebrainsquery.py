@@ -26,8 +26,7 @@ class TestEbrainsQuery(unittest.TestCase):
 
 parameter = [
     (
-        "rat",
-        "v3",
+        "waxholm v3",
         "neocortex hippocampus",
         {
             "exclude": [
@@ -73,10 +72,9 @@ parameter = [
 ]
 
 
-@pytest.mark.parametrize("atlas_id,parc_id,region_id,inc_exc", parameter)
-def test_species(atlas_id, parc_id, region_id, inc_exc):
-    atlas: siibra.core.atlas.Atlas = siibra.atlases[atlas_id]
-    parc: siibra.core.parcellation.Parcellation = atlas.parcellations[parc_id]
+@pytest.mark.parametrize("parc_id,region_id,inc_exc", parameter)
+def test_species(parc_id, region_id, inc_exc):
+    parc: siibra.core.parcellation.Parcellation = siibra.parcellations[parc_id]
     r: siibra.core.region.Region = parc.get_region(region_id)
     features: List[siibra.features._basetypes.Feature] = siibra.features.get(
         r, siibra.features.dataset.EbrainsDataFeature
@@ -89,7 +87,7 @@ def test_species(atlas_id, parc_id, region_id, inc_exc):
 
     includes: List[str] = inc_exc.get("include")
     for inc in includes:
-        assert inc in feature_names
+        assert f"Ebrains Dataset: {inc}" in feature_names
 
 
 if __name__ == "__main__":
