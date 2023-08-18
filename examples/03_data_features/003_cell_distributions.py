@@ -45,7 +45,7 @@ features[0].plot()
 
 # %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-c = features[0].cells
+c = features[0].cells[0]  # choose the first ROI
 print("Number of segmented cells:", len(c))
 c.head()
 

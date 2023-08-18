@@ -83,6 +83,6 @@ for i, region in enumerate(regions):
         )
         # fetch a random sample from the available ones
         p = features[int(np.random.rand() * (len(features)))]
-        p.plot(ax=axs[j, i], layercolor="darkblue")
+        p.plot(ax=axs[j, i])
         axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
