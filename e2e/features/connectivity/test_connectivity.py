@@ -1,9 +1,11 @@
 import siibra
 import pytest
 from typing import List
-
+import sys
 from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
 from e2e.util import check_duplicate
+
+pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="Fails due to memory limitation issues on Windows on Github actions. (Passes on local machines.)")
 
 features = [
     f
