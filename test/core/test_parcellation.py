@@ -17,6 +17,9 @@ correct_json = {
     "deprecated": False,
 }
 
+region_child1 = Region("foo")
+region_child2 = Region("bar")
+region_parent = Region("parent foo bar", children=[region_child1, region_child2])
 
 class DummySpace:
     def matches(self):
@@ -215,16 +218,21 @@ class TestParcellation(unittest.TestCase):
                 p.find.assert_called_once_with(regionspec="fooz")
             self.assertEqual(result, [parc3] if parents_only else [parc1, parc2, parc3])
 
-    @parameterized.expand(
-        product(
-            ["region_spec", 4, MapIndex(0, 1), Region("test-region")],
-            [True, False],
-            [True, False],
-        )
-    )
-    @unittest.skip
-    def test_get_region(self, regionspec, find_topmost, build_group):
-        pass
+
+    @parameterized.expand([
+        # partial matches work
+        ("foo bar", False, False, region_parent),
+
+        # exact matches work
+        (region_child1.name, False, False, region_child1),
+
+        # regionspec work
+        (region_parent, False, False, region_parent),
+    ])
+    def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
+        self.parc.children = [region_parent]
+        self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
+        
 
 
 # all_parcs = [p for p in parcellations]
