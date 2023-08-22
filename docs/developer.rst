@@ -2,6 +2,10 @@
 Developer documentation
 =======================
 
+Internal dependency graph
+=========================
+.. image:: Internal_dependency_graph
+   :target: _static/siibra.svg
 
 I. Object instantiation
 =======================
