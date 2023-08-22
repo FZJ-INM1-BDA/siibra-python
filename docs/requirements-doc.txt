@@ -1,5 +1,6 @@
 setuptools >= 67.7.2
 -r ../requirements.txt
+sphinx==5.3.0
 memory-profiler
 ipykernel
 nbsphinx
