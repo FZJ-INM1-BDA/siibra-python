@@ -54,7 +54,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
     @property
     def name(self):
         if self._dataset.name.startswith(" "):
-            f"Ebrains Dataset: {self._dataset.is_version_of[0].name}"
+            return f"Ebrains Dataset: {self._dataset.is_version_of[0].name}"
         else:
             return f"Ebrains Dataset: {self._dataset.name}"
 
