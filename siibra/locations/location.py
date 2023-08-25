@@ -80,6 +80,16 @@ class Location(ABC):
         """
         pass
 
+    @staticmethod
+    def union(loc0: 'Location', loc1: 'Location') -> 'Location':
+        """
+        Overriden at the locations module level for static typing and to avoid
+        circular imports. See siibra.locations.__init__.override_union()
+        """
+        raise NotImplementedError(
+            "This method is designed to be overriden at the module level"
+        )
+
     @abstractmethod
     def __iter__(self):
         """To be implemented in derived classes to return an iterator

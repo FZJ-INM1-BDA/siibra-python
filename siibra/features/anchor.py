@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, Species
+from ..commons import logger, Species, re
 
 from ..core.concept import AtlasConcept
 from ..locations.location import Location
@@ -114,7 +114,12 @@ class AnatomicalAnchor:
     _MATCH_MEMO: Dict[str, Dict[Region, AssignmentQualification]] = {}
     _MASK_MEMO = {}
 
-    def __init__(self, species: Union[List[Species], Species, str], location: Location = None, region: Union[str, Region] = None):
+    def __init__(
+        self,
+        species: Union[List[Species], Species, str],
+        location: Location = None,
+        region: Union[str, Region, Dict[Region, AssignmentQualification]] = None
+    ):
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
@@ -130,15 +135,19 @@ class AnatomicalAnchor:
         self._location_cached = location
         self._assignments: Dict[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
-        self._regions_cached = None
-        self._regionspec = None
-        if isinstance(region, Region):
-            self._regions_cached = {region: AssignmentQualification.EXACT}
-        elif isinstance(region, str):
-            self._regionspec = region
+        if isinstance(region, dict):
+            self._regions_cached = region
+            self._regionspec = ", ".join({r.name for r in region.keys()})
         else:
-            if region is not None:
-                raise ValueError(f"Invalid region specification: {region}")
+            self._regions_cached = None
+            self._regionspec = None
+            if isinstance(region, Region):
+                self._regions_cached = {region: AssignmentQualification.EXACT}
+            elif isinstance(region, str):
+                self._regionspec = region
+            else:
+                if region is not None:
+                    raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
 
     @property
@@ -188,12 +197,12 @@ class AnatomicalAnchor:
             regions = {
                 r: AssignmentQualification.EXACT
                 for species in self.species
-                for r in Parcellation.find_regions(self._regionspec, species)
+                for r in Parcellation.find_regions(self._regionspec, species)  # TODO: find_regions does not use species
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(regionspec, alt_species):
+                    for r in Parcellation.find_regions(regionspec, alt_species):  # TODO: find_regions does not use species
                         if r not in self._regions_cached:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
             self.__class__._MATCH_MEMO[self._regionspec] = regions
@@ -205,7 +214,10 @@ class AnatomicalAnchor:
         region = "" if self._regionspec is None else str(self._regionspec)
         location = "" if self.location is None else str(self.location)
         separator = " " if min(len(region), len(location)) > 0 else ""
-        return region + separator + location
+        if region and location:
+            return region + " with " + location
+        else:
+            return region + separator + location
 
     def __repr__(self):
         return self.__str__()
@@ -386,3 +398,30 @@ class AnatomicalAnchor:
             return ""
         else:
             return ' and '.join({str(_) for _ in self.last_match_result})
+
+    def __add__(self, other: 'AnatomicalAnchor') -> 'AnatomicalAnchor':
+        if not isinstance(other, AnatomicalAnchor):
+            raise ValueError(f"Cannot combine an AnatomicalAnchor with {other.__class__}")
+
+        if self.species != other.species:
+            raise ValueError("Cannot combine an AnatomicalAnchor from different species.")
+        else:
+            species = self.species.union(other.species)
+
+        if self._regionspec != other._regionspec:
+            r0 = re.sub(" * left| right", '', self._regionspec)
+            r1 = re.sub(" * left| right", '', other._regionspec)
+            if r0 == r1:
+                region = r0
+            else:
+                raise NotImplementedError("Anchors with different regions cannnot be added yet.")
+        else:
+            region = self._regionspec
+
+        location = Location.union(self.location, other.location)
+
+        return AnatomicalAnchor(species, location, region)
+
+    def __radd__(self, other):
+        # required to enable `sum`
+        return self if other == 0 else self.__add__(other)

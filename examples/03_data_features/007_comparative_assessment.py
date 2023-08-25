@@ -82,7 +82,8 @@ for i, region in enumerate(regions):
             filter(filterfunc, siibra.features.get(region, modality))
         )
         # fetch a random sample from the available ones
-        p = features[int(np.random.rand() * (len(features)))]
+        random_num = int(np.random.rand() * (len(features)))
+        p = features[0][random_num] if features[0].is_compound else features[random_num]
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()

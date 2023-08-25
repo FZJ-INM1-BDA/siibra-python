@@ -717,7 +717,7 @@ class Species(Enum):
             if key in cls.__members__.keys():
                 return getattr(cls, key)
         else:
-            if isinstance(spec, list):
+            if isinstance(spec, (list, set)):
                 next_specs = spec
             elif isinstance(spec, dict):
                 next_specs = spec.values()

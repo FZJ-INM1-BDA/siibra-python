@@ -36,16 +36,21 @@ from nilearn import plotting
 # Find cell density features for V1
 v1 = siibra.get_region("julich 2.9", "v1")
 features = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)
-print(f"{len(features)} cell density profiles found for region {v1.name}")
+
+# CellDensityProfile querries are returned as a CompoundFeature. These are
+# features that are made from subfeatures of the same kind.
+print(features[0].name)
+print(f"{len(features[0])} cell density profiles found for region {v1.name}")
 
 # %%
-# Look at the default visualization the first of them.
-# This will actually fetch the image and cell segmentation data.
-features[0].plot()
+# Look at the default visualization the first of them. This will actually fetch
+# the image and cell segmentation data. To access the subfeatures, you can use
+# index; in this case 0.
+features[0][0].plot()
 
 # %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-c = features[0].cells
+c = features[0][0].cells
 print("Number of segmented cells:", len(c))
 c.head()
 
@@ -63,14 +68,14 @@ layer1_cells = c.query('layer == 1')
 plt.scatter(
     layer1_cells.x, layer1_cells.y,
     s=layer1_cells["area(micron**2)"], c=layer1_cells.label
-    )
+)
 area_layer1 = layer1_cells["area(micron**2)"]
 plt.title(f"Mean cell area in layer 1: {area_layer1.mean()}")
 
 # %%
 # The features also have location information. We can plot their location in
 # BigBrain space:
-location = features[0].anchor.location
+location = features[0][0].anchor.location
 print(location)
 
 # fetch the template of the location's space

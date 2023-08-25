@@ -272,22 +272,6 @@ class BoundingBox(location.Location):
                 .boundingbox
             )
 
-    def union(self, other):
-        """
-        Computes the union of this boudning box with another one.
-
-        Args:
-            other (BoundingBox): Another bounding box
-        """
-        warped = other.warp(self.space)
-        points = [self.minpoint, self.maxpoint, warped.minpoint, warped.maxpoint]
-        return BoundingBox(
-            point1=[min(p[i] for p in points) for i in range(3)],
-            point2=[max(p[i] for p in points) for i in range(3)],
-            space=self.space,
-            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
-        )
-
     def clip(self, xyzmax, xyzmin=(0, 0, 0)):
         """
         Returns a new bounding box obtained by clipping at the given maximum coordinate.

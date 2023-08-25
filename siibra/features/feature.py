@@ -73,6 +73,7 @@ class Feature:
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
+        self.is_compound = False
 
     @property
     def modality(self):
@@ -80,7 +81,7 @@ class Feature:
         return self._modality_cached
 
     @property
-    def anchor(self):
+    def anchor(self) -> '_anchor.AnatomicalAnchor':
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
@@ -92,8 +93,7 @@ class Feature:
         # query context).
         # do_not_index flag allow the default index behavior to be toggled off.
 
-        if do_not_index == False:
-
+        if do_not_index is False:
             # extend the subclass lists
             # Iterate over all mro, not just immediate base classes
             for BaseCls in cls.__mro__:
@@ -120,7 +120,7 @@ class Feature:
         return self._description
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Returns a short human-readable name of this feature."""
         return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
 
@@ -306,7 +306,12 @@ class Feature:
         return live_instances
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
+    def match(
+        cls,
+        concept: Union[region.Region, parcellation.Parcellation, space.Space],
+        feature_type: Union[str, Type['Feature'], list],
+        **kwargs
+    ) -> List[Union['Feature', 'CompoundFeature']]:
         """
         Retrieve data features of the desired modality.
 
@@ -346,12 +351,19 @@ class Feature:
             for f_type in cls.SUBCLASSES[feature_type]
             for instance in f_type.get_instances()
         ]
-
-        preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+        preconfigured_instances = [
+            f for f in siibra_tqdm(instances, desc=msg, total=len(instances))
+            if f.matches(concept)
+        ]
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
-        return list(set((preconfigured_instances + live_instances)))
+        results = list(set((preconfigured_instances + live_instances)))
+
+        if feature_type.__name__ in CompoundFeature.COMPOUNDABLE_FEATURES:
+            results = CompoundFeature.compound(results)
+
+        return results
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
@@ -431,3 +443,145 @@ class Feature:
                 return getattr(self.inst, __name)
 
         return ProxyFeature(feature, fid)
+
+
+class CompoundFeature(Feature):
+    """
+    A compound of several features of the same type with an anchor created as
+    a sum of adjoinable anchors.
+    """
+    COMPOUNDABLE_FEATURES = [
+        "BigBrainIntensityProfile",
+        "CellDensityProfile"
+    ]
+
+    def __init__(self, features: List['Feature'], filter_keys: list = []):
+        if str(type(features[0])) not in self.COMPOUNDABLE_FEATURES:
+            pass
+            # raise NotImplementedError(f"Cannot compound {type(features[0])}.")#
+
+        if len({type(f) for f in features}) != 1:
+            # raise NotImplementedError("Cannot compound features of different types yet.")
+            pass
+        if len({f.modality for f in features}) == 1:
+            modality = features[0].modality
+        else:
+            logger.info({f.modality for f in features})
+            raise NotImplementedError("Cannot compound features of different modalities yet.")
+
+        if filter_keys:
+            assert len(set(filter_keys)) == len(filter_keys)
+            self._filter_keys = filter_keys
+        else:
+            filter_keys = self._create_filter_keys(features)
+        self._subfeatures = {k: f for k, f in zip(*(filter_keys, features))}
+        logger.debug("Combining anchors...")
+        combined_anchor = sum([f.anchor for f in features])
+        logger.debug("Anchors combined.")
+        Feature.__init__(
+            self,
+            modality=modality,
+            description=f"Compound of {len(features)} {type(features[0])}",
+            anchor=combined_anchor,
+            datasets=[]
+        )
+        self._data_cached = None  # only to be used for the average
+        self.category = features[0].category
+        self.is_compound = True
+
+    @property
+    def subfeatures(self):
+        return list(self._subfeatures.values())
+
+    @property
+    def filter_keys(self):
+        return list(self._subfeatures.keys())
+
+    @property
+    def data(self):
+        if self._data_cached is None:
+            try:
+                self._data_cached = sum([f.data for f in self.subfeatures]) / len(self)
+                return self._data_cached
+            except Exception:
+                raise NotImplementedError(f"Cannot get average data for CompoundFeatures of type {type(self._subfeatures[0])}")
+        else:
+            return self._data_cached
+
+    def __len__(self):
+        return len(self._subfeatures)
+
+    def __getitem__(self, filter_spec: Union[int, '_anchor.AnatomicalAnchor']):
+        if filter_spec in self._subfeatures:
+            return self._subfeatures[filter_spec]
+
+        if isinstance(filter_spec, int):
+            return list(self._subfeatures.values())[filter_spec]
+        if isinstance(filter_spec, _anchor.AnatomicalAnchor):
+            candidates = [
+                fkey for fkey in self._subfeatures.keys() if fkey == filter_spec
+            ]
+            if len(candidates) == 1:
+                return candidates[0]
+            if len(candidates) > 1:
+                raise NotFoundException(
+                    f"{filter_spec} matched several candidates\n{candidates}"
+                )
+        raise NotFoundException(f"{filter_spec} matched no subfeatures")
+
+    @property
+    def name(self) -> str:
+        """Returns a short human-readable name of this feature."""
+        return f"{self.__class__.__name__} of {len(self)} {self[0].__class__.__name__}s ({self.modality}) anchored at {self.anchor}"
+
+    @property
+    def id(self):
+        prefix = ''
+        for ds in self.datasets:
+            if hasattr(ds, "id"):
+                prefix = ds.id + '--'
+                break
+        return prefix + md5(self.name.encode("utf-8")).hexdigest()
+
+    @classmethod
+    def _create_filter_keys(cls, features):
+        return [f.anchor for f in siibra_tqdm(features, desc="Creating subfeature keys")]
+
+    @classmethod
+    def _group_by_type(cls, features: List['Feature']) -> Dict[type, List['Feature']]:
+        """
+        Helper function to group a list features instances by type.
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+        feat_types = {f.__class__ for f in features}
+        grouped_by_type = {
+            ftype: [f for f in features if f.__class__ == ftype]
+            for ftype in feat_types
+        }
+        # grouped_by_type = {ftype: feats for ftype, feats in groupby(features, type)}
+        return grouped_by_type
+
+    @staticmethod
+    def compound(features: List['Feature']) -> List[Union['CompoundFeature', 'Feature']]:
+        """
+        Compound features of the same the same type based on their anchors.
+
+        Returns
+        -------
+        List[Union[Feature, CompoundFeature]]
+        """
+        return [CompoundFeature(features)]
+
+    @classmethod
+    def get_instance_by_id(cls, feature_id: str, **kwargs):
+        pass
+
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        try:
+            return self.data.plot(*args, backend=backend, **kwargs)
+        except Exception:
+            raise NotImplementedError(f"Cannot plot average data for CompoundFeatures of type {type(self._subfeatures[0])}")
