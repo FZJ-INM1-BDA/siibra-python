@@ -456,13 +456,14 @@ class CompoundFeature(Feature):
     ]
 
     def __init__(self, features: List['Feature'], filter_keys: list = []):
-        if str(type(features[0])) not in self.COMPOUNDABLE_FEATURES:
-            pass
-            # raise NotImplementedError(f"Cannot compound {type(features[0])}.")#
+        if len({f.__class__ for f in features}) != 1:
+            raise NotImplementedError("Cannot compound features of different types yet.")
+        else:
+            self._subfeature_type = features[0].__class__
 
-        if len({type(f) for f in features}) != 1:
-            # raise NotImplementedError("Cannot compound features of different types yet.")
-            pass
+        if self._subfeature_type.__name__ not in self.COMPOUNDABLE_FEATURES:
+            raise NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+
         if len({f.modality for f in features}) == 1:
             modality = features[0].modality
         else:
@@ -470,14 +471,17 @@ class CompoundFeature(Feature):
             raise NotImplementedError("Cannot compound features of different modalities yet.")
 
         if filter_keys:
-            assert len(set(filter_keys)) == len(filter_keys)
+            assert len(set(filter_keys)) == len(filter_keys), "Filter keys should be unique to each subfeature."
             self._filter_keys = filter_keys
         else:
-            filter_keys = self._create_filter_keys(features)
-        self._subfeatures = {k: f for k, f in zip(*(filter_keys, features))}
+            self._filter_keys = None
+        self._subfeatures = {
+            fkey: feat
+            for fkey, feat in zip(*(filter_keys or range(len(features)), features))
+        }
         logger.debug("Combining anchors...")
         combined_anchor = sum([f.anchor for f in features])
-        logger.debug("Anchors combined.")
+        logger.debug("Anchors are combined.")
         Feature.__init__(
             self,
             modality=modality,
@@ -495,7 +499,7 @@ class CompoundFeature(Feature):
 
     @property
     def filter_keys(self):
-        return list(self._subfeatures.keys())
+        return self._filter_keys
 
     @property
     def data(self):
@@ -504,29 +508,20 @@ class CompoundFeature(Feature):
                 self._data_cached = sum([f.data for f in self.subfeatures]) / len(self)
                 return self._data_cached
             except Exception:
-                raise NotImplementedError(f"Cannot get average data for CompoundFeatures of type {type(self._subfeatures[0])}")
+                raise NotImplementedError(f"Cannot get average data for CompoundFeatures of type {type(self._subfeatures.nex[0])}")
         else:
             return self._data_cached
 
     def __len__(self):
         return len(self._subfeatures)
 
-    def __getitem__(self, filter_spec: Union[int, '_anchor.AnatomicalAnchor']):
-        if filter_spec in self._subfeatures:
+    def __getitem__(self, filter_spec: Union[int, str, tuple]):
+        if filter_spec in self.filter_keys:
             return self._subfeatures[filter_spec]
 
         if isinstance(filter_spec, int):
             return list(self._subfeatures.values())[filter_spec]
-        if isinstance(filter_spec, _anchor.AnatomicalAnchor):
-            candidates = [
-                fkey for fkey in self._subfeatures.keys() if fkey == filter_spec
-            ]
-            if len(candidates) == 1:
-                return candidates[0]
-            if len(candidates) > 1:
-                raise NotFoundException(
-                    f"{filter_spec} matched several candidates\n{candidates}"
-                )
+
         raise NotFoundException(f"{filter_spec} matched no subfeatures")
 
     @property
@@ -548,7 +543,7 @@ class CompoundFeature(Feature):
         return [f.anchor for f in siibra_tqdm(features, desc="Creating subfeature keys")]
 
     @classmethod
-    def _group_by_type(cls, features: List['Feature']) -> Dict[type, List['Feature']]:
+    def _group_by_regionspec(cls, features: List['Feature']) -> Dict[type, List['Feature']]:
         """
         Helper function to group a list features instances by type.
 
@@ -557,16 +552,15 @@ class CompoundFeature(Feature):
         _type_
             _description_
         """
-        feat_types = {f.__class__ for f in features}
-        grouped_by_type = {
-            ftype: [f for f in features if f.__class__ == ftype]
-            for ftype in feat_types
+        regionspecs = {f.anchor._regionspec for f in features}
+        grouped = {
+            spec: [f for f in features if f.anchor._regionspec == spec]
+            for spec in regionspecs
         }
-        # grouped_by_type = {ftype: feats for ftype, feats in groupby(features, type)}
-        return grouped_by_type
+        return grouped
 
-    @staticmethod
-    def compound(features: List['Feature']) -> List[Union['CompoundFeature', 'Feature']]:
+    @classmethod
+    def compound(cls, features: List['Feature']) -> List[Union['CompoundFeature', 'Feature']]:
         """
         Compound features of the same the same type based on their anchors.
 
@@ -574,7 +568,14 @@ class CompoundFeature(Feature):
         -------
         List[Union[Feature, CompoundFeature]]
         """
-        return [CompoundFeature(features)]
+        grouped_features = cls._group_by_regionspec(features)
+        result = []
+        for regionspec, group in grouped_features.items():
+            if len(group) == 1:
+                result.append(group)
+            else:
+                result.append(CompoundFeature(group))
+        return result
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
