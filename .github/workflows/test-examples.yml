@@ -13,7 +13,7 @@ jobs:
         # TODO
         # only run full suite on merge to main
         # run individual push on 3.7 kernel
-        python-version: ['3.7'] # [ '3.10', '3.9', '3.8', '3.7' ]
+        python-version: ['3.8'] # [ '3.10', '3.9', '3.8', '3.7' ]
         
     steps:
     - uses: actions/checkout@v2
