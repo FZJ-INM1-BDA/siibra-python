@@ -50,6 +50,7 @@ set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.Parcellation.find_regions
 from_json = factory.Factory.from_json
+add_nifti_map = _parcellationmap.Map.from_nifti
 
 
 def __getattr__(attr: str):
@@ -141,6 +142,7 @@ def __dir__():
         "get_region",
         "find_regions",
         "get_map",
+        "add_nifti_map",
         "get_template",
         "MapType",
         "Point",

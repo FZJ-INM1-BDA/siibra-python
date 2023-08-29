@@ -33,7 +33,7 @@ from ..commons import (
 import numpy as np
 import re
 import anytree
-from typing import List, Set, Union
+from typing import List, Set, Union, Mapping
 from nibabel import Nifti1Image
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
@@ -123,6 +123,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._CACHED_REGION_SEARCHES = {}
+        self.related_regions: Mapping['Region', float] = {}
 
     @property
     def id(self):
@@ -694,3 +695,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
+
+    def _add_related_region(self, other: 'Region', score: float):
+        """
+        Links a related region object to this region, and assigns it a score
+        between 0.0 and 1.0, where
+        - 0 means dissimilar / disjoint
+        - 1 means identical
+        """
+        assert (0. <= score <= 1.)
+        self.related_regions[other] = score

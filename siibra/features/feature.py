@@ -165,6 +165,20 @@ class Feature:
         cls._preconfigured_instances = None
 
     def matches(self, concept: concept.AtlasConcept) -> bool:
+        """
+        Checks if the concept matches the anchor of a feature instance.
+
+        Parameters
+        ----------
+        concept : concept.AtlasConcept
+            Querried AtlasConcept
+
+        Returns
+        -------
+        bool
+            True if anchor and the concept has a match described by
+            self.last_match_description.
+        """
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True

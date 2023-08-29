@@ -25,10 +25,11 @@ from ..commons import (
     create_key,
     create_gaussian_kernel,
     siibra_tqdm,
+    get_uuid,
     Species,
     CompareMapsResult
 )
-from ..core import concept, space, parcellation, region as _region
+from ..core import concept, space as _space, parcellation, region as _region
 from ..locations import point, pointset
 from ..retrieval import requests
 
@@ -39,10 +40,12 @@ from collections import defaultdict
 from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from os.path import isfile
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from ..core.parcellation import Parcellation
 
 
 class ExcessiveArgumentException(ValueError): pass
@@ -58,16 +61,36 @@ class NonUniqueIndexError(RuntimeError): pass
 
 
 @dataclass
-class Assignment:
+class MapAssignment:
+    """
+    Encodes the (possibly probablistic) assignment of a spatial structure
+    (point, image mask, or map) to a parcellation map.
+    """
     input_structure: int
-    centroid: Union[Tuple[np.ndarray], point.Point] 
+    centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
     fragment: str
     map_value: np.ndarray
+    result: CompareMapsResult = field(default_factory=lambda: CompareMapsResult())
 
+    def get_mapindex(self, maptype: MapType):
+        return MapIndex(
+            volume=int(self.volume),
+            label=self.map_value if maptype == MapType.LABELLED else None,
+            fragment=self.fragment
+        )
 
-@dataclass
-class AssignImageResult(CompareMapsResult, Assignment): pass
+    def to_dict(self):
+        return dict(
+            **{
+                "input structure": self.input_structure,
+                "centroid": self.centroid,
+                "volume": self.volume,
+                "fragment": self.fragment,
+                "map value": self.map_value
+            },
+            **self.result.to_dict()
+        )
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -286,8 +309,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return space.Space.get_instance(self._space_spec[key])
-        return space.Space(None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES)
+                return _space.Space.get_instance(self._space_spec[key])
+        return _space.Space(
+            None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES
+        )
 
     @property
     def parcellation(self):
@@ -788,43 +813,21 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
             ]
 
-    def _assign(
-        self,
-        item: Union[point.Point, pointset.PointSet, Nifti1Image],
-        minsize_voxel=1,
-        lower_threshold=0.0,
-        **kwargs
-    ) -> List[Union[Assignment,AssignImageResult]]:
-        """
-        For internal use only. Returns a dataclass, which provides better static type checking.
-        """
-
-        if isinstance(item, point.Point):
-            return self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
-        if isinstance(item, pointset.PointSet):
-            return self._assign_points(item, lower_threshold)
-        if isinstance(item, Nifti1Image):
-            return self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
-        
-        raise RuntimeError(
-            f"Items of type {item.__class__.__name__} cannot be used for region assignment."
-        )
-
     def assign(
         self,
-        item: Union[point.Point, pointset.PointSet, Nifti1Image],
+        item: Union[point.Point, pointset.PointSet, Nifti1Image, 'Map'],
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
     ):
-        """Assign an input image to brain regions.
+        """Assign points, images or other parcellation maps to brain regions.
 
-        The input image is assumed to be defined in the same coordinate space
+        Inputs are assumed to be defined in the same coordinate space
         as this parcellation map.
 
         Parameters
         ----------
-        item: Point, PointSet, Nifti1Image
+        item: Point, PointSet, Nifti1Image, Map
             A spatial object defined in the same physical reference space as
             this parcellation map, which could be a point, set of points, or
             image. If it is an image, it will be resampled to the same voxel
@@ -863,7 +866,19 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             a Point or PointSet, returns None.
         """
 
-        assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
+        # compute assignment
+        if isinstance(item, point.Point):
+            assignments = self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+        elif isinstance(item, pointset.PointSet):
+            assignments = self._assign_points(item, lower_threshold)
+        elif isinstance(item, Nifti1Image):
+            assignments = self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
+        elif isinstance(item, Map):
+            assignments = self._assign_map(item, **kwargs)
+        else:
+            raise RuntimeError(
+                f"Items of type {item.__class__.__name__} cannot be used for region assignment."
+            )
 
         # format assignments as pandas dataframe
         columns = [
@@ -886,69 +901,22 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # only once for each map index occuring in the point list
         labelled = self.is_labelled  # avoid calling this in a loop
         observed_indices = {  # unique set of observed map indices. NOTE: len(observed_indices) << len(assignments)
-            (
-                a.volume,
-                a.fragment,
-                a.map_value if labelled else None
-            )
-            for a in assignments
+            a.get_mapindex(maptype=self.maptype) for a in assignments
         }
         region_lut = {  # lookup table of observed region objects
-            (v, f, l): self.get_region(
-                index=MapIndex(
-                    volume=int(v),
-                    label=l if l is None else int(l),
-                    fragment=f
-                )
-            )
-            for v, f, l in observed_indices
+            mapindex: self.get_region(index=mapindex)
+            for mapindex in observed_indices
         }
 
         dataframe_list = []
         for a in assignments:
-            item_to_append = {
-                "input structure": a.input_structure,
-                "centroid": a.centroid,
-                "volume": a.volume,
-                "fragment": a.fragment,
-                "region": region_lut[
-                    a.volume,
-                    a.fragment,
-                    a.map_value if labelled else None
-                ],
-            }
-            # because AssignImageResult is a subclass of Assignment
-            # need to check for isinstance AssignImageResult first
-            if isinstance(a, AssignImageResult):
-                item_to_append = {
-                    **item_to_append,
-                    **{
-                        "correlation": a.correlation,
-                        "intersection over union": a.intersection_over_union,
-                        "map value": a.map_value,
-                        "map weighted mean": a.weighted_mean_of_first,
-                        "map containedness": a.intersection_over_first,
-                        "input weighted mean": a.weighted_mean_of_second,
-                        "input containedness": a.intersection_over_second,
-                    }
-                }
-            elif isinstance(a, Assignment):
-                item_to_append = {
-                    **item_to_append,
-                    **{
-                        "correlation": None,
-                        "intersection over union": None,
-                        "map value": a.map_value,
-                        "map weighted mean": None,
-                        "map containedness": None,
-                        "input weighted mean": None,
-                        "input containedness": None,
-                    }
-                }
-            else:
-                raise RuntimeError("assignments must be of type Assignment or AssignImageResult!")
-
-            dataframe_list.append(item_to_append)
+            assert isinstance(a, MapAssignment)
+            dataframe_list.append(
+                dict(
+                    **a.to_dict(),
+                    **{"region": region_lut[a.get_mapindex(labelled)]}
+                )
+            )
         df = pd.DataFrame(dataframe_list)
         return (
             df
@@ -956,7 +924,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             .reindex(columns=columns)
         )
 
-    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:
+    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[MapAssignment]:
         """
         assign a PointSet to this parcellation map.
 
@@ -990,7 +958,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(np.array(position).round(2)),
                                 volume=vol,
@@ -1017,7 +985,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(pt),
                                 volume=vol,
@@ -1037,13 +1005,19 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                for entry in self._assign(W, lower_threshold=lower_threshold):
+                for entry in self.assign(W, lower_threshold=lower_threshold):
                     entry.input_structure = pointindex
                     entry.centroid = tuple(pt)
                     assignments.append(entry)
         return assignments
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[AssignImageResult]:
+    def _assign_image(
+        self,
+        queryimg: Nifti1Image,
+        minsize_voxel: int,
+        lower_threshold: float,
+        split_components: bool = True
+    ) -> List[MapAssignment]:
         """
         Assign an image volume to this parcellation map.
 
@@ -1063,7 +1037,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 return img
             else:
                 interp = "nearest" \
-                    if issubclass(np.asanyarray(img.dataobj).dtype.type, np.integer) \
+                    if issubclass(img.get_data_dtype().type, np.integer) \
                     else "linear"
                 return image.resample_img(
                     img,
@@ -1072,21 +1046,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     interpolation=interp,
                 )
 
-        def progress(it, N: int = None, desc: str = "", min_elements=5):
-            # wraps a progress indicator around the given iterator,
-            # but only if the sequence is long.
-            seqlen = N or len(it)
-            return iter(it) if seqlen < min_elements \
-                else siibra_tqdm(it, desc=desc, total=N)
-        
         iter_func = iterate_connected_components if split_components \
             else lambda img: [(1, img)]
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
-                for vol, vol_img in progress(
+                for vol, vol_img in siibra_tqdm(
                     enumerate(self.fetch_iter(fragment=frag)),
-                    N=len(self),
+                    total=len(self),
                     desc=f"Assigning to {len(self)} volumes"
                 ):
                     queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
@@ -1094,23 +1061,191 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         vol_data = np.asanyarray(vol_img.dataobj)
                         position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
                         labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
-                        for label in progress(
+                        for label in siibra_tqdm(
                             labels,
+                            total=len(labels),
                             desc=f"Assigning to {len(labels)} labelled structures"
                         ):
-                            targetimg = vol_img if label is None \
-                                else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
+                            if label is None:
+                                targetimg = vol_img
+                            else:
+                                targetimg = Nifti1Image(
+                                    (vol_data == label).astype('uint8'), vol_img.affine
+                                )
                             scores = compare_maps(maskimg, targetimg)
                             if scores.intersection_over_union > 0:
                                 assignments.append(
-                                    AssignImageResult(
+                                    MapAssignment(
                                         input_structure=mode,
                                         centroid=tuple(position.round(2)),
                                         volume=vol,
                                         fragment=frag,
                                         map_value=label,
-                                        **asdict(scores)
+                                        result=scores
                                     )
                                 )
 
         return assignments
+
+    def _assign_map(
+        self,
+        srcmap: 'Map',
+        minvalue: float = 0.1
+    ) -> List[MapAssignment]:
+        """
+        Assign another (single-volume & labelled) parcellation map to this
+        parcellation map.
+
+        Parameters:
+        -----------
+        minvalue: float, default: 0.1
+            Minimum mean map value under each parcel for being accepted as assigned
+        """
+        if srcmap.space != self.space:
+            raise NotImplementedError(
+                f"The source map is on {srcmap.space} while the map assigned is"
+                f" on {self.space}."
+            )
+        if srcmap.maptype != MapType.LABELLED:
+            raise NotImplementedError("Cannot only assign labelled maps.")
+        # Compress the map to a single-volume labelled parcellation if source has multiple volumes
+        if len(srcmap.volumes) > 1 or len(self.fragments) > 1:
+            pass  #srcmap = srcmap.compress()
+        assignments = []
+        N = len(srcmap.regions)
+        M = len(self.regions)
+        for srcregion in siibra_tqdm(
+            srcmap.regions, total=N, unit="regions",
+            desc=f"Assigning {N} source to {M} target regions"
+        ):
+            mask = srcmap.fetch(srcregion)
+            candidates = self._assign_image(
+                mask, minsize_voxel=1, lower_threshold=0, split_components=False
+            )
+            for c in candidates:
+                if c.result.weighted_mean_of_first >= minvalue:
+                    c.input_structure = srcmap.get_index(srcregion).label
+                    assignments.append(c)
+
+        return assignments
+
+    @classmethod
+    def from_nifti(
+        cls,
+        name: str,
+        nifti_map: Union[str, Nifti1Image],
+        space_spec: Union[str, _space.Space],
+        regionnames: List[str],
+        regionlabels: List[int]
+    ) -> 'Map':
+        """
+        Add a custom labelled parcellation map to siibra from a labelled NIfTI file.
+
+        Parameters:
+        ------------
+        name: str
+            Human-readable name of the parcellation.
+        nifti_map: str, Nifti1Image
+            NIfTI file destination or image with a labelled volume.
+        space_spec: str, Space
+            Specification of the reference space (space object, name, keyword, or id - e.g. 'mni152').
+        regionnames: list[str]
+            List of human-readable names of the mapped regions.
+        regionlabels: list[int]
+            List of integer labels in the nifti file corresponding to the list of regions.
+        """
+
+        spaceobj = _space.Space.registry().get(space_spec)
+        if not isinstance(nifti_map, Nifti1Image):
+            assert isfile(nifti_map), f"`nifti_map`='{nifti_map}' is not a Nifti1Image or a path to one"
+            nifti_map = Nifti1Image.load(nifti_map)
+        arr = nifti_map.get_fdata()
+        mapped_labels = np.unique(arr)[1:].astype('int')
+        indices = {}
+
+        # populate region indices from given name/label lists
+        for label, regionname in zip(regionlabels, regionnames):
+            if label not in mapped_labels:
+                logger.warning(
+                    f"Label {label} not mapped in the provided NIfTI volume -> "
+                    "region {regionname} is removed from the map."
+                )
+            elif label in indices.values():
+                logger.warning(f"Label {label} already defined, will not map it to {regionname}.")
+            else:
+                assert regionname not in indices
+                indices[regionname] = [{'label': label}]
+
+        # check for any remaining labels in the NIfTI volume
+        unnamed_labels = list(set(mapped_labels) - set(regionlabels))
+        if unnamed_labels:
+            logger.warning(
+                "The following labels appear in the NIfTI volume, but not in "
+                f"the specified regions: {', '.join(str(l) for l in unnamed_labels)}. "
+                "They will be removed from the map."
+            )
+            for label in unnamed_labels:
+                arr[arr == label] = 0
+        provider = nifti.NiftiProvider(Nifti1Image(arr, nifti_map.affine))
+
+        # build the parcellation
+        try:
+            parcobj = parcellation.Parcellation.registry().get(name)
+            if parcobj is not None:
+                logger.info(f"Using '{name}', siibra decoded the parcellation as '{parcobj}'")
+        except Exception:
+            parcobj = parcellation.Parcellation(
+                identifier=get_uuid(','.join(regionnames)),
+                name=name,
+                species=spaceobj.species,
+                regions=list(map(_region.Region, regionnames)),
+            )
+
+        # add it to siibra's registry
+        parcellation.Parcellation.registry().add(parcobj.key, parcobj)
+        logger.info(
+            "Imported region names and label indices:\n",
+            {n: [{'label': l}] for n, l in zip(regionnames, regionlabels)}
+        )
+        # build the parcellation map
+        parcmap = Map(
+            identifier=get_uuid(nifti_map),
+            name=f"{name} map in {spaceobj.name}",
+            space_spec=spaceobj._spec,
+            parcellation_spec=parcobj._spec,
+            indices={n: [{'label': l}] for n, l in zip(regionnames, regionlabels)},
+            volumes=[_volume.Volume(spaceobj._spec, providers=[provider])]
+        )
+
+        # add it to siibra's registry
+        Map.registry().add(parcmap.key, parcmap)
+
+        # return the map - note that it has a pointer to the parcellation
+        return parcmap
+
+    def compute_relations(self, other_parcellation: Union[str, "Parcellation"]):
+        """
+        Computes overlap relationships of this map's regions with a known parcellation.
+        The results will be added to the as region.related_regions attribute
+        of the underlying parcellation's region objects.
+
+        Parameters:
+        -----------
+        other_parcellation: string specification or parcellation object
+            other parcellation, to which links from regions of this parcellation map will be computed.
+        """
+        parcobj = parcellation.Parcellation.registry().get(other_parcellation)
+        other_map = parcobj.get_map(space=self.space, maptype='statistical')
+        assignment = other_map.assign(self)
+        num_new_relations = 0
+        for i, match in assignment.iterrows():
+            srclabel = match['input structure']
+            srcregion = self.get_region(label=srclabel)
+            tgtregion = parcobj.get_region(match.region)
+            score = match['input weighted mean']
+            srcregion._add_related_region(tgtregion, score)
+            num_new_relations += 1
+        logger.info(
+            f"{num_new_relations} region relations found between "
+            f"{self.parcellation.name} and {parcobj.name}."
+        )

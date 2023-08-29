@@ -180,6 +180,10 @@ class AtlasConcept:
     def key(self):
         return create_key(self.name)
 
+    @property
+    def _spec(self):
+        return {'id': self._id, 'name': self.name}
+
     def __init_subclass__(cls, configuration_folder: str = None):
         """
         This method is called whenever AtlasConcept gets subclassed

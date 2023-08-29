@@ -24,7 +24,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Mapping
 from enum import Enum
 
 
@@ -93,7 +93,7 @@ class AnatomicalAssignment:
 
     def __str__(self):
         msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
-        return msg if self.explanation == "" else f"{msg} - {self.explanation}"
+        return msg if self.explanation == "" else f"{msg}. Explanation: {self.explanation}"
 
     def invert(self):
         return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
@@ -128,7 +128,7 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
-        self._assignments: Dict[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
+        self._assignments: Mapping[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         self._regions_cached = None
         self._regionspec = None
@@ -215,7 +215,7 @@ class AnatomicalAnchor:
         Match this anchoring to an atlas concept.
         """
         if concept not in self._assignments:
-            matches: List[AnatomicalAssignment] = []
+            matches = []
             if isinstance(concept, Space):
                 if self.space == concept:
                     matches.append(
@@ -223,10 +223,27 @@ class AnatomicalAnchor:
                     )
             elif isinstance(concept, Region):
                 if concept.species in self.species:
-                    if any(_.matches(self._regionspec) for _ in concept) \
-                            or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
-                        for r in self.regions:
-                            matches.append(AnatomicalAnchor.match_regions(r, concept))
+                    related_regions = {concept: 1.0}
+                    related_regions.update(concept.related_regions)
+                    for targetregion, score in related_regions.items():
+                        if self.has_region_aliases or any(
+                            subregion.matches(self._regionspec)
+                            for subregion in targetregion
+                        ):
+                            for r in self.regions:
+                                res = AnatomicalAnchor.match_regions(r, targetregion)
+                                if res is not None:
+                                    if score < 1:  # otherwise regions are assumed identical
+                                        expl = (
+                                            f" '{targetregion.name}' was linked to '{concept.name}' "
+                                            f"with a score of {score:.2f}."
+                                        )
+                                        if res.assigned_structure != concept:
+                                            res.explanation = f"{str(res)}. {expl}"
+                                            res.assigned_structure = concept
+                                            res.qualification = AssignmentQualification.OVERLAPS
+                                    matches.append(res)
+
                     if len(concept.root.find(self._regionspec)) == 0:
                         # We perform the (quite expensive) location-to-region test
                         # only if this anchor's regionspec is not known to the
@@ -242,9 +259,10 @@ class AnatomicalAnchor:
                     matches.append(None if match is None else match.invert())
             self._assignments[concept] = sorted(m for m in matches if m is not None)
 
-        self._last_matched_concept = concept \
-            if len(self._assignments[concept]) > 0 \
-            else None
+        if len(self._assignments[concept]) > 0:
+            self._last_matched_concept = concept
+        else:
+            self._last_matched_concept = None
 
         return self._assignments[concept]
 

@@ -24,6 +24,8 @@ import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
+import hashlib
+import uuid
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -54,6 +56,16 @@ class CompareMapsResult:
     correlation: float
     weighted_mean_of_first: float
     weighted_mean_of_second: float
+
+    def to_dict(self):
+        return {
+            "correlation": self.correlation,
+            "intersection over union": self.intersection_over_union,
+            "map weighted mean": self.weighted_mean_of_first,
+            "map containedness": self.intersection_over_first,
+            "input weighted mean": self.weighted_mean_of_second,
+            "input containedness": self.intersection_over_second,
+        }
 
 
 T = TypeVar("T")
@@ -144,10 +156,9 @@ class InstanceTable(Generic[T], Iterable):
             raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)
         if len(matches) == 0:
-            print(str(self))
             raise IndexError(
                 f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are: " + ", ".join(self._elements.keys())
+                f"Possible values are:\n-" + "\n- ".join(self._elements.keys())
             )
         elif len(matches) == 1:
             return matches[0]
@@ -747,3 +758,14 @@ class Species(Enum):
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {str(self)}"
+
+
+def get_uuid(string: str):
+    if isinstance(string, str):
+        b = string.encode("UTF-8")
+    elif isinstance(string, Nifti1Image):
+        b = string.to_bytes()
+    else:
+        raise ValueError(f"Cannot build uuid for parameter type {type(string)}")
+    hex_string = hashlib.md5(b).hexdigest()
+    return str(uuid.UUID(hex=hex_string))
