@@ -79,7 +79,7 @@ class RegionalConnectivity(Feature):
         Feature.__init__(
             self,
             modality=modality,
-            description=description,
+            description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
         )
