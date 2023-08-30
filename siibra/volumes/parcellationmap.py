@@ -394,14 +394,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assert isinstance(index, MapIndex)
             mapindex = index
         if mapindex is None:
-            try:
-                assert len(self) == 1
+            if len(self) == 1:
                 mapindex = MapIndex(volume=0, label=None)
-            except AssertionError:
-                raise InsufficientArgumentException(
-                    "Map provides multiple volumes, use 'index' or "
-                    "'region' to specify which one to fetch."
+            elif len(self) > 1:
+                logger.info(
+                    "Map provides multiple volumes and no specification is"
+                    "provided. Resampling all volumes to the space."
                 )
+                resolution = kwargs.get("resolution_mm")
+                template = self.space.get_template().fetch(
+                    resolution_mm=resolution
+                )
+                aggregated_volume = np.zeros(template.shape, dtype='uint8')
+                for i, region in siibra_tqdm(
+                    enumerate(self.regions),
+                    unit=" volume", desc="Fetching", total=len(self)
+                ):
+                    regionlabel = i + 1
+                    regionmap = image.resample_to_img(
+                        self.fetch(region=region, resolution_mm=resolution),
+                        template,
+                        interpolation='nearest'
+                    )
+                    aggregated_volume[regionmap.get_fdata() > 0] = regionlabel
+                return Nifti1Image(aggregated_volume, affine=template.affine)
+            else:
+                raise RuntimeError("Map provides no volumes.")
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
