@@ -963,7 +963,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(np.array(position).round(2)),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                result=CompareMapsResult(
+                                    intersection_over_union=None,
+                                    intersection_over_first=None,
+                                    intersection_over_second=None,
+                                    correlation=None,
+                                    weighted_mean_of_first=None,
+                                    weighted_mean_of_second=None,
+                                )
                             )
                         )
                 return assignments
@@ -990,7 +998,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 centroid=tuple(pt),
                                 volume=vol,
                                 fragment=frag,
-                                map_value=value
+                                map_value=value,
+                                result=CompareMapsResult(
+                                    intersection_over_union=None,
+                                    intersection_over_first=None,
+                                    intersection_over_second=None,
+                                    correlation=None,
+                                    weighted_mean_of_first=None,
+                                    weighted_mean_of_second=None,
+                                )
                             )
                         )
             else:
@@ -1005,10 +1021,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
-                for entry in self.assign(W, lower_threshold=lower_threshold):
-                    entry.input_structure = pointindex
-                    entry.centroid = tuple(pt)
-                    assignments.append(entry)
+                entries = self.assign(W, lower_threshold=lower_threshold)
+                for _, entry in entries.iterrows():
+                    assignments.append(
+                        MapAssignment(
+                            input_structure=pointindex,
+                            centroid=tuple(pt),
+                            volume=entry["volume"],
+                            fragment=entry["fragment"],
+                            map_value=entry["map value"],
+                            result=CompareMapsResult(
+                                intersection_over_union=entry["intersection over union"],
+                                intersection_over_first=entry["map containedness"],
+                                intersection_over_second=entry["input containedness"],
+                                correlation=entry["correlation"],
+                                weighted_mean_of_first=entry["map weighted mean"],
+                                weighted_mean_of_second=entry["input weighted mean"],
+                            )
+                        )
+                    )
         return assignments
 
     def _assign_image(
@@ -1110,7 +1141,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             raise NotImplementedError("Cannot only assign labelled maps.")
         # Compress the map to a single-volume labelled parcellation if source has multiple volumes
         if len(srcmap.volumes) > 1 or len(self.fragments) > 1:
-            pass  #srcmap = srcmap.compress()
+            srcmap = srcmap.compress()
         assignments = []
         N = len(srcmap.regions)
         M = len(self.regions)
@@ -1238,7 +1269,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         other_map = parcobj.get_map(space=self.space, maptype='statistical')
         assignment = other_map.assign(self)
         num_new_relations = 0
-        for i, match in assignment.iterrows():
+        for _, match in assignment.iterrows():
             srclabel = match['input structure']
             srcregion = self.get_region(label=srclabel)
             tgtregion = parcobj.get_region(match.region)
