@@ -55,6 +55,7 @@ class AtlasConcept:
         modality: str = "",
         publications: List[TypePublication] = [],
         datasets: List['TypeDataset'] = [],
+        spec=None
     ):
         """
         Construct a new atlas concept base object.
@@ -88,6 +89,7 @@ class AtlasConcept:
         self._description = description
         self._publications = publications
         self.datasets = datasets
+        self.spec = spec
 
     @property
     def description(self):

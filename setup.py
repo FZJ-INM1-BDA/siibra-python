@@ -52,5 +52,6 @@ setup(
         "nilearn",
         'typing-extensions; python_version < "3.8"',
         "filelock",
+        "git+https://github.com/xgui3783/ebrains-drive.git@feat_allowPublicBktAccess",
     ],
 )

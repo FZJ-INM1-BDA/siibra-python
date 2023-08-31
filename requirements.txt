@@ -7,3 +7,7 @@ neuroglancer-scripts
 nilearn
 typing-extensions; python_version < "3.8"
 filelock
+# using git branch, pending merging of https://github.com/HumanBrainProject/ebrains-drive/pull/23 and releasing
+# allows tokenless access to public buckets
+# also sucks, since installation (via git repo) requires version_query
+git+https://github.com/xgui3783/ebrains-drive.git@feat_allowPublicBktAccess
