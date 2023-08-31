@@ -188,12 +188,15 @@ class AnatomicalAnchor:
             regions = {
                 r: AssignmentQualification.EXACT
                 for species in self.species
-                for r in Parcellation.find_regions(self._regionspec, species)
+                for r in Parcellation.find_regions(self._regionspec)
+                if r.species == species
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(regionspec, alt_species):
+                    for r in Parcellation.find_regions(regionspec):
+                        if r.species != alt_species:
+                            continue
                         if r not in self._regions_cached:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
             self.__class__._MATCH_MEMO[self._regionspec] = regions
