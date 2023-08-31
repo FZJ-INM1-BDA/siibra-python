@@ -12,8 +12,11 @@
             "type": "string"
         },
         "regions": {
-            "$ref": "#/definitions/regionRef",
-            "additionalProperties": false
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/regionRef",
+                "additionalProperties": false
+            }
         }
     },
     "definitions": {
