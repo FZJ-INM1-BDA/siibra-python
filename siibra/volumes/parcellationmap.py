@@ -28,7 +28,7 @@ from ..commons import (
     Species,
     CompareMapsResult
 )
-from ..core import concept, space, parcellation, region as _region
+from ..core import concept, space as _space, parcellation, region as _region
 from ..locations import point, pointset
 from ..retrieval import requests
 
@@ -45,22 +45,26 @@ if TYPE_CHECKING:
     from ..core.region import Region
 
 
-class ExcessiveArgumentException(ValueError): pass
+class ExcessiveArgumentException(ValueError):
+    pass
 
 
-class InsufficientArgumentException(ValueError): pass
+class InsufficientArgumentException(ValueError):
+    pass
 
 
-class ConflictingArgumentException(ValueError): pass
+class ConflictingArgumentException(ValueError):
+    pass
 
 
-class NonUniqueIndexError(RuntimeError): pass
+class NonUniqueIndexError(RuntimeError):
+    pass
 
 
 @dataclass
 class Assignment:
     input_structure: int
-    centroid: Union[Tuple[np.ndarray], point.Point] 
+    centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
     fragment: str
     map_value: np.ndarray
@@ -286,8 +290,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return space.Space.get_instance(self._space_spec[key])
-        return space.Space(None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES)
+                return _space.Space.get_instance(self._space_spec[key])
+        return _space.Space(None, "Unspecified space", species=Species.UNSPECIFIED_SPECIES)
 
     @property
     def parcellation(self):
@@ -794,7 +798,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ) -> List[Union[Assignment,AssignImageResult]]:
+    ) -> List[Union[Assignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -805,7 +809,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, Nifti1Image):
             return self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
-        
+
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
         )
@@ -1078,7 +1082,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
                 else siibra_tqdm(it, desc=desc, total=N)
-        
+
         iter_func = iterate_connected_components if split_components \
             else lambda img: [(1, img)]
 

@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException, NonUniqueIndexError
+from siibra.volumes.parcellationmap import Map, _space, parcellation, MapType, MapIndex, ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException, NonUniqueIndexError
 from siibra.commons import Species
 from siibra.core.region import Region
 from uuid import uuid4
@@ -95,8 +95,8 @@ class TestMap(unittest.TestCase):
 
         self.map = TestMap.get_instance(space_spec=set_space_spec)
 
-        with patch.object(space.Space, 'get_instance') as mock_get_instance:
-            return_space = space.Space(None, "Returned Space", species=Species.HOMO_SAPIENS) if return_space_flag else None
+        with patch.object(_space.Space, 'get_instance') as mock_get_instance:
+            return_space = _space.Space(None, "Returned Space", species=Species.HOMO_SAPIENS) if return_space_flag else None
             mock_get_instance.return_value = return_space
 
             actual_returned_space = self.map.space

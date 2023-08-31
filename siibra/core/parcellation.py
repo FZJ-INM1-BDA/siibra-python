@@ -137,7 +137,12 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                 return True
         return super().matches(spec)
 
-    def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED, spec: str = ""):
+    def get_map(
+        self,
+        space=None,
+        maptype: Union[str, MapType] = MapType.LABELLED,
+        spec: str = ""
+    ):
         """
         Get the maps for the parcellation in the requested template space.
 
@@ -169,15 +174,17 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         if not isinstance(maptype, MapType):
             maptype = MapType[maptype.upper()]
 
+        space_inst = parcellationmap._space.Space.registry()[space]
+
         candidates = [
             m for m in parcellationmap.Map.registry()
-            if m.space.matches(space)
+            if m.space.matches(space_inst)
             and m.maptype == maptype
             and m.parcellation
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:
-            logger.error(f"No {maptype} map in {space} available for {str(self)}")
+            logger.error(f"No {maptype} map in '{space}' available for {str(self)}")
             return None
         if len(candidates) > 1:
             spec_candidates = [
