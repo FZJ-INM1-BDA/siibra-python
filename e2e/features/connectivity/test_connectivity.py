@@ -71,10 +71,11 @@ def test_copy_is_returned():
     assert matrix_again.iloc[0, 0] == prev_val
 
 def test_export():
+    # for now, only test the first feature, given the ci resource concern
     feat: RegionalConnectivity = features[0]
     feat.export("file.zip")
     from zipfile import ZipFile
     z = ZipFile("file.zip")
     filenames = [info.filename for info in z.filelist]
     assert len(filenames) > len(feat.subjects) > 10
-    assert len([f for f in filenames if f.endswith("*.csv")]) > 10
+    assert len([f for f in filenames if f.endswith(".csv")]) > 10
