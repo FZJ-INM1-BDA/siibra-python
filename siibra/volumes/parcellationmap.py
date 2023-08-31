@@ -1273,7 +1273,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             srclabel = match['input structure']
             srcregion = self.get_region(label=srclabel)
             tgtregion = parcobj.get_region(match.region)
-            score = match.weighted_mean_of_second
+            score = match['input weighted mean']
             srcregion._add_related_region(tgtregion, score)
             num_new_relations += 1
         logger.info(
