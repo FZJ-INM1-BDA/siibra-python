@@ -1270,7 +1270,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         assignment = other_map.assign(self)
         num_new_relations = 0
         for _, match in assignment.iterrows():
-            srclabel = match.input_structure
+            srclabel = match['input structure']
             srcregion = self.get_region(label=srclabel)
             tgtregion = parcobj.get_region(match.region)
             score = match.weighted_mean_of_second
