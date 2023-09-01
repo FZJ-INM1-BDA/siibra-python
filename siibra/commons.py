@@ -750,11 +750,3 @@ class Species(Enum):
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {str(self)}"
-
-    def __eq__(self, other: Union['Species', str]):
-        if isinstance(other, Species):
-            return self.value == other.value
-        elif isinstance(other, str):
-            return str(self) == f"{other.lower().replace('_', ' ')}".capitalize()
-        else:
-            raise ValueError(f"Cannot compare {type(self)} with {type(other)}")

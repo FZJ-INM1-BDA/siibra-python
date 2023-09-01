@@ -162,7 +162,7 @@ class AnatomicalAnchor:
     def region_aliases(self):
         if self._aliases_cached is None:
             self._aliases_cached: Dict[str, Dict[str, str]] = {
-                species_str: region_alias_mapping
+                Species.decode(species_str): region_alias_mapping
                 for s in self.species
                 for species_str, region_alias_mapping in REGION_ALIASES.get(str(s), {}).get(self._regionspec, {}).items()
             }
