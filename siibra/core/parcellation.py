@@ -31,6 +31,9 @@ import re
 #                except Exception as e:
 #                    pass
 
+class ConflictingArgumentException(ValueError):
+    pass
+
 
 class ParcellationVersion:
     def __init__(
@@ -166,8 +169,9 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             A ParcellationMap representing the volumetric map or
             a SparseMap representing the list of statistical maps.
         """
-        if not isinstance(maptype, MapType):
+        if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
+        assert isinstance(maptype, MapType), f"`maptype` have to be a MapType or str, not {type(maptype)}"
 
         candidates = [
             m for m in parcellationmap.Map.registry()
@@ -177,15 +181,18 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             and m.parcellation.matches(self)
         ]
         if len(candidates) == 0:
-            logger.error(f"No {maptype} map in {space} available for {str(self)}")
-            return None
+            raise ConflictingArgumentException(
+                f"No {maptype} map with space specification '{space}' available for {str(self)}"
+            )
         if len(candidates) > 1:
             spec_candidates = [
-                c for c in candidates if all(w.lower() in c.name.lower() for w in spec.split())
+                c for c in candidates
+                if all(w.lower() in c.name.lower() for w in spec.split())
             ]
             if len(spec_candidates) == 0:
-                logger.warning(f"'{spec}' does not match any options from {[c.name for c in candidates]}.")
-                return None
+                raise ConflictingArgumentException(
+                    f"'{spec}' does not match any options from {[c.name for c in candidates]}."
+                )
             if len(spec_candidates) > 1:
                 logger.warning(
                     f"Multiple maps are available in this specification of space, parcellation, and map type.\n"

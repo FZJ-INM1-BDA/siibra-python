@@ -1,7 +1,9 @@
 import unittest
-from siibra.core.parcellation import Parcellation, ParcellationVersion, MapType
+from siibra.core.parcellation import (
+    Parcellation, ParcellationVersion, MapType, ConflictingArgumentException
+)
 from siibra.core.region import Region
-from siibra.commons import Species, MapIndex
+from siibra.commons import Species
 from uuid import uuid4
 from parameterized import parameterized
 from unittest.mock import patch, MagicMock
@@ -20,6 +22,7 @@ correct_json = {
 region_child1 = Region("foo")
 region_child2 = Region("bar")
 region_parent = Region("parent foo bar", children=[region_child1, region_child2])
+
 
 class DummySpace:
     def matches(self):
@@ -218,7 +221,6 @@ class TestParcellation(unittest.TestCase):
                 p.find.assert_called_once_with(regionspec="fooz")
             self.assertEqual(result, [parc3] if parents_only else [parc1, parc2, parc3])
 
-
     @parameterized.expand([
         # partial matches work
         ("foo bar", False, False, region_parent),
@@ -232,7 +234,6 @@ class TestParcellation(unittest.TestCase):
     def test_get_region(self, regionspec, find_topmost, allow_tuple, result):
         self.parc.children = [region_parent]
         self.assertIs(self.parc.get_region(regionspec, find_topmost, allow_tuple), result)
-        
 
 
 # all_parcs = [p for p in parcellations]
@@ -270,6 +271,5 @@ class TestParcellation(unittest.TestCase):
 #     parc = atlas.parcellations[parc_id]
 
 #     parc.get_map(space, map_type)
-
 
 parc_has_ebrains_doi = [("human", "julich brain 2.9")]
