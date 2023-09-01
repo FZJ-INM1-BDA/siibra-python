@@ -19,9 +19,10 @@ from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
 from hashlib import md5
 from collections import defaultdict
+from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -39,6 +40,21 @@ class EncodeLiveQueryIdException(Exception):
 class NotFoundException(Exception):
     pass
 
+
+README_TMPL = """
+name
+---
+{name}
+
+description
+---
+{description}
+
+modality
+---
+{modality}
+
+"""
 
 class Feature:
     """
@@ -189,6 +205,23 @@ class Feature:
                 prefix = ds.id + '--'
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
+    
+    def _export(self, fh: ZipFile):
+        """Internal implementation. Subclasses can override but call super()._export(fh).
+        This allows all classes in the __mro__ to have the opportunity to append files 
+        of interest."""
+        fh.writestr("README.md", README_TMPL.format(name=self.name, description=self.description, modality=self.modality))
+
+    def export(self, filelike: Union[str, BinaryIO]):
+        """
+        Export as a zip archive.
+
+        Args:
+            filelike (string or filelike): name or filehandle to write the zip file. User is responsible to ensure the correct extension (.zip) is set.
+        """
+        fh = ZipFile(filelike, "w")
+        self._export(fh)
+        fh.close()
 
     @staticmethod
     def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
