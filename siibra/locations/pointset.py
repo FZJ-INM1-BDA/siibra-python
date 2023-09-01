@@ -158,7 +158,7 @@ class PointSet(location.Location):
         return len(self.points)
 
     def __str__(self):
-        return f"Set of {len(self)} points {self.space.name} in the {self.boundingbox}"
+        return f"Set of {len(self)} points in the {self.boundingbox}"
 
     @property
     def boundingbox(self):

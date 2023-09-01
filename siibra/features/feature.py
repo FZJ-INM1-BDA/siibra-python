@@ -221,6 +221,35 @@ class Feature:
         if not hasattr(feat.__class__, '_live_queries'):
             raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
 
+        encoded_c = Feature._encode_concept(concept)
+
+        return f"lq0::{feat.__class__.__name__}::{encoded_c}::{feat.id}"
+
+    @classmethod
+    def deserialize_query_context(cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+        """
+        Deserialize id into query context.
+
+        See docstring of serialize_query_context for context.
+        """
+        lq_version, *rest = feature_id.split("::")
+        if lq_version != "lq0":
+            raise ParseLiveQueryIdException("livequery id must start with lq0::")
+
+        clsname, *concepts, fid = rest
+
+        Features = cls.parse_featuretype(clsname)
+
+        if len(Features) == 0:
+            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
+        F = Features[0]
+
+        concept = cls._decode_concept(concepts)
+
+        return (F, concept, fid)
+
+    @staticmethod
+    def _encode_concept(concept: concept.AtlasConcept):
         encoded_c = []
         if isinstance(concept, space.Space):
             encoded_c.append(f"s:{concept.id}")
@@ -233,27 +262,10 @@ class Feature:
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
 
-        return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
+        return '::'.join(encoded_c)
 
     @classmethod
-    def deserialize_query_context(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
-        """
-        Deserialize id into query context.
-
-        See docstring of serialize_query_context for context.
-        """
-        lq_version, *rest = feature_id.split("::")
-        if lq_version != "lq0":
-            raise ParseLiveQueryIdException("livequery id must start with lq0::")
-
-        clsname, *concepts, fid = rest
-
-        Features = Cls.parse_featuretype(clsname)
-
-        if len(Features) == 0:
-            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
-        F = Features[0]
-
+    def _decode_concept(cls, concepts: List[str]) -> concept.AtlasConcept:
         concept = None
         for c in concepts:
             if c.startswith("s:"):
@@ -270,10 +282,10 @@ class Feature:
                 if not isinstance(concept, parcellation.Parcellation):
                     raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
+        
         if concept is None:
-            raise ParseLiveQueryIdException(f"concept was not populated: {feature_id!r}")
-
-        return (F, concept, fid)
+            raise ParseLiveQueryIdException("concept was not populated in feature id")
+        return concept
 
     @classmethod
     def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
@@ -361,7 +373,7 @@ class Feature:
         results = list(set((preconfigured_instances + live_instances)))
 
         if feature_type.__name__ in CompoundFeature.COMPOUNDABLE_FEATURES:
-            results = CompoundFeature.compound(results)
+            results = CompoundFeature.compound(results, concept)
 
         return results
 
@@ -450,16 +462,22 @@ class CompoundFeature(Feature):
     A compound of several features of the same type with an anchor created as
     a sum of adjoinable anchors.
     """
-    COMPOUNDABLE_FEATURES = [
-        "BigBrainIntensityProfile",
-        "CellDensityProfile"
-    ]
+    COMPOUNDABLE_FEATURES = {
+        "BigBrainIntensityProfile": "bbip",
+        "CellDensityProfile": "cdp"
+    }
 
-    def __init__(self, features: List['Feature'], filter_keys: list = []):
+    def __init__(
+        self,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space],
+        filter_keys: list = []
+    ):
         if len({f.__class__ for f in features}) != 1:
             raise NotImplementedError("Cannot compound features of different types yet.")
         else:
             self._subfeature_type = features[0].__class__
+            self.category = features[0].category
 
         if self._subfeature_type.__name__ not in self.COMPOUNDABLE_FEATURES:
             raise NotImplementedError(f"Cannot compound {self._subfeature_type}.")
@@ -487,11 +505,11 @@ class CompoundFeature(Feature):
             modality=modality,
             description=f"Compound of {len(features)} {type(features[0])}",
             anchor=combined_anchor,
-            datasets=[]
+            datasets=list({ds for f in features for ds in f.datasets})
         )
         self._data_cached = None  # only to be used for the average
-        self.category = features[0].category
         self.is_compound = True
+        self._queryconcept = queryconcept
 
     @property
     def subfeatures(self):
@@ -516,7 +534,7 @@ class CompoundFeature(Feature):
         return len(self._subfeatures)
 
     def __getitem__(self, filter_spec: Union[int, str, tuple]):
-        if filter_spec in self.filter_keys:
+        if filter_spec and filter_spec in self.filter_keys:
             return self._subfeatures[filter_spec]
 
         if isinstance(filter_spec, int):
@@ -527,16 +545,21 @@ class CompoundFeature(Feature):
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
-        return f"{self.__class__.__name__} of {len(self)} {self[0].__class__.__name__}s ({self.modality}) anchored at {self.anchor}"
+        return " ".join((
+            f"{self.__class__.__name__} of {len(self)}",
+            f"{self._subfeature_type.__name__}s ({self.modality}) anchored at",
+            str(self.anchor)
+        ))
 
     @property
     def id(self):
-        prefix = ''
-        for ds in self.datasets:
-            if hasattr(ds, "id"):
-                prefix = ds.id + '--'
-                break
-        return prefix + md5(self.name.encode("utf-8")).hexdigest()
+        return "::".join((
+            "cf0",
+            f"{self.COMPOUNDABLE_FEATURES[self._subfeature_type.__name__]}",
+            self._encode_concept(self._queryconcept),
+            self.datasets[0].id if self.datasets else "nodsid",
+            md5(self.name.encode("utf-8")).hexdigest()
+        ))
 
     @classmethod
     def _create_filter_keys(cls, features):
@@ -560,7 +583,11 @@ class CompoundFeature(Feature):
         return grouped
 
     @classmethod
-    def compound(cls, features: List['Feature']) -> List[Union['CompoundFeature', 'Feature']]:
+    def compound(
+        cls,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ) -> List[Union['CompoundFeature', 'Feature']]:
         """
         Compound features of the same the same type based on their anchors.
 
@@ -574,12 +601,29 @@ class CompoundFeature(Feature):
             if len(group) == 1:
                 result.append(group)
             else:
-                result.append(CompoundFeature(group))
+                result.append(CompoundFeature(group, queryconcept))
         return result
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
-        pass
+        cf_version, clsabv, *queryconcept, dsid, fid = feature_id.split("::")
+        if cf_version != "cf0":
+            raise ValueError("CompoundFeature id must start with cf0::")
+
+        clsname = {v: k for k, v in cls.COMPOUNDABLE_FEATURES.items()}.get(clsabv)
+        if clsname:
+            return [
+                f
+                for f in Feature.match(
+                    concept=cls._decode_concept(queryconcept),
+                    feature_type=clsname
+                )
+                if f.id == fid or f.id == feature_id
+            ][0]
+        else:
+            raise ValueError(
+                f"There is no id abbreviation for {clsabv} in CompoundFeatures."
+            )
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         try:
