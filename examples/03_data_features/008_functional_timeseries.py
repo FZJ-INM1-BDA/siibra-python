@@ -55,7 +55,17 @@ table = bold.get_table(subject)
 print(f"Timestep: {bold.timestep}")
 table[jubrain.get_region("hOc3v left")]
 
-
+# %%
+# We can visualize the signal strength per region by time via a carpet plot.
+# In fact, `plot_carpet` method can take a list of regions to display the
+# data for selected regions only.
+selected_regions = [
+    'SF (Amygdala) left', 'SF (Amygdala) right', 'Area Ph2 (PhG) left',
+    'Area Ph2 (PhG) right', 'Area Fo4 (OFC) left', 'Area Fo4 (OFC) right',
+    'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
+    'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
+]
+bold.plot_carpet(subject=bold.subjects[0], regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold.plot(subject=bold.subjects[0], regions=bold.regions[:15])
+bold.plot(subject=bold.subjects[0], regions=selected_regions)
