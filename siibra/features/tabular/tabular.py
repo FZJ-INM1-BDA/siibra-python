@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from zipfile import ZipFile
 from .. import feature
 
 from .. import anchor as _anchor
@@ -56,6 +57,10 @@ class Tabular(feature.Feature):
     @property
     def data(self):
         return self._data_cached.copy()
+
+    def _export(self, fh: ZipFile):
+        super()._export(fh)
+        fh.writestr("tabular.csv", self.data.to_csv())
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
