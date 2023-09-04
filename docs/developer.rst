@@ -15,25 +15,25 @@ There are two main approaches of object creation:
 
 1. Preconfigured objects, via the configuration module. This happens automatically
    for
-    * subclasses of `AtlasConcept`, if the class parameter `configuration_folder`
+    * subclasses of ``AtlasConcept``, if the class parameter ``configuration_folder``
       points to a subfolder of siibra configuration repositories.
-    * subclasses of `Feature`, if the class parameter `configuration_folder` points
+    * subclasses of ``Feature``, if the class parameter ``configuration_folder`` points
       to a subfolder of siibra configuration repositories.
-   The implementation of these queries is centralized in `AtlasConcept.get_instances()`
-   and `Feature.get_instances()`, respectively, and relies on the registrations
-   done in `AtlasConcept.__init_subclass__()` and `Feature.__init_subclass__()`.
+   The implementation of these queries is centralized in ``AtlasConcept.get_instances()``
+   and ``Feature.get_instances()``, respectively, and relies on the registrations
+   done in ``AtlasConcept.__init_subclass__()`` and ``Feature.__init_subclass__()``.
 
 2. Live queries, via the livequery module. This applies to subclasses of `Feature`,
-   and relies on subclasses of `LiveQuery` with the class parameter `FeatureType`
-   set to the corresponding subclass of `Feature`. This triggers the query to be
-   registered in the `Feature._live_queries` list via `LiveQuery.__init_subclass__()`.
+   and relies on subclasses of ``LiveQuery`` with the class parameter ``FeatureType``
+   set to the corresponding subclass of ``Feature``. This triggers the query to be
+   registered in the ``Feature._live_queries`` list via ``LiveQuery.__init_subclass__()``.
    Any registered live queries will then automatically be called in
-   `Feature.get_instances()`, extending the list of possible preconfigured
+   ``Feature.get_instances()``, extending the list of possible preconfigured
    object instances.
 
-Note that `AtlasConcept` keeps the list of instances in an `InstanceTable` during
-runtime, which can be accessed via `AtlasConcept.registry()` for any subclass.
-Instances of `Feature` subclasses are just stored as a list at class level.
+Note that ``AtlasConcept`` keeps the list of instances in an ``InstanceTable`` during
+runtime, which can be accessed via ``AtlasConcept.registry()`` for any subclass.
+Instances of ``Feature`` subclasses are just stored as a list at class level.
 
 
 II. Frequently used design patterns
@@ -75,7 +75,7 @@ deferring the class creating to a later stage in the code:
         s = space.Space()
 
 In general, it seems a good practice to import specific classes only in the
-`__init__.py` files, and use module imports in other python files.
+``__init__.py`` files, and use module imports in other python files.
 However, this rule of thumb is not yet consistently implemented and verified in siibra. 
 
 
@@ -113,22 +113,19 @@ Basic definitions and notes
 * **Volume:** is a complete 3D object, typically a complete brain.
 * **Volume provider:** is a resource that provides access to volumes. A volume
   can have multiple providers in different formats.
-* **Variant:** refers to alternative representations of the same volume.
-  (e.g. inflated surface).
-    * If the volume has variants, they need to be listed in the configuration file.
+* **Variant:** refers to alternative representations of the same volume (e.g. inflated surface).
+  * If the volume has variants, they need to be listed in the configuration file.
 * **Fragments:** are individually addressable components of a volume.
 
-    * If a volume has fragments, either the user or the code needs to retrieve
-      from multiple sources to access the complete volume.
-    * Fragments need to be named (e.g. left and right hemisphere), because they
-      inevitably split the whole object into distinct anatomical parts that
-      require semantic labeling.
+  * If a volume has fragments, either the user or the code needs to retrieve
+    from multiple sources to access the complete volume.
+  * Fragments need to be named (e.g. left and right hemisphere), because they
+    inevitably split the whole object into distinct anatomical parts that
+    require semantic labeling.
 * **Brain regions (label):** are structures mapped inside a specific volume or fragment.
 
-    * The structure appears by interpreting the labels inside the volume listed in
-      the configuration file.
-        * In special cases, a brain region could be represented by the complete
-          volume or fragment.
+  * The structure appears by interpreting the labels inside the volume listed in
+    the configuration file. *In special cases, a brain region could be represented by the complete volume or fragment.*
 * **Volume index:** the index of the volume in case there is more than one;
   typically used for probability maps, where each area has a different volume.
 * **Z:** for 4D volumes, it specifies the 4th coordinate identifying an actual
@@ -136,7 +133,7 @@ Basic definitions and notes
   are concatenated in one array and share the same affine transformation.
 * **Source type (format):** the format of the volume data.
 
-    * See :data:`SUPPORTED_FORMATS` (:data:`IMAGE_FORMATS` and :data:`SURFACE_FORMATS`)
+    * See ``SUPPORTED_FORMATS`` (``IMAGE_FORMATS`` and ``SURFACE_FORMATS``)
       at volumes.volume.py for the currently supported formats.
 
 Fetching volumes
@@ -145,19 +142,19 @@ Fetching volumes
 Fetching volumes occurs in two main stages:
 
 1. The determination of the volume by the user.
-   
+
   * The user sets the object they would like to fetch a volume from:
 
-     * a space template -> using `get_template()` which provides a volume template.
-     * or a map -> getting the desired map by setting desired specs.
+    * a space template -> using ``get_template()`` which provides a volume template.
+    * or a map -> getting the desired map by setting desired specs.
   
-  * The user invokes `fetch()` method to retrieve the volume from the template or map.
+  * The user invokes ``fetch()`` method to retrieve the volume from the template or map.
 
-     * template directly accesses to `volume.fetch()`
-     * `fetch()` first goes through `map.fetch()` to determine the associated volume.
+    * template directly accesses to ``volume.fetch()``
+    * ``fetch()`` first goes through ``map.fetch()`` to determine the associated volume.
 
 2. Actual retrieval of the volume object by siibra after the user asks for the
-   volume via `fetch()` method. When `fetch()` is invoked it accesses to
+   volume via ``fetch()`` method. When ``fetch()`` is invoked it accesses to
    corresponding volume provider based on the specifications given by volume
    index, fragment, z, label, variant, and format. According to the source type,
    the provider invokes the correct class and fetches the data accordingly.
@@ -185,13 +182,13 @@ Adding data to siibra-toolsuite
 
 0. Is the feature type class representation for the data?
 
-    * Yes: go to step 1.
-    * No: create feature type subclass and PR to siibra-python main.
+  * Yes: go to step 1.
+  * No: create feature type subclass and PR to siibra-python main.
 
 1. Is the feature type already described by the schema (in siibra-python/config_schema)?
 
-    * Yes: go to step 2.
-    * No: create schema and PR to siibra-python main.
+  * Yes: go to step 2.
+  * No: create schema and PR to siibra-python main.
 
 2. Create feature jsons and create a PR to siibra-configurations.
 3. After merging the PR, create new tag on siibra-configurations.
