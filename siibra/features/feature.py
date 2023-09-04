@@ -534,7 +534,7 @@ class CompoundFeature(Feature):
         return len(self._subfeatures)
 
     def __getitem__(self, filter_spec: Union[int, str, tuple]):
-        if filter_spec in self.filter_keys:
+        if filter_spec and filter_spec in self.filter_keys:
             return self._subfeatures[filter_spec]
 
         if isinstance(filter_spec, int):
