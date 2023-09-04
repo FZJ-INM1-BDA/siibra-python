@@ -526,7 +526,9 @@ class CompoundFeature(Feature):
                 self._data_cached = sum([f.data for f in self.subfeatures]) / len(self)
                 return self._data_cached
             except Exception:
-                raise NotImplementedError(f"Cannot get average data for CompoundFeatures of type {type(self._subfeatures.nex[0])}")
+                raise NotImplementedError(
+                    f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
+                )
         else:
             return self._data_cached
 
@@ -534,7 +536,7 @@ class CompoundFeature(Feature):
         return len(self._subfeatures)
 
     def __getitem__(self, filter_spec: Union[int, str, tuple]):
-        if filter_spec and filter_spec in self.filter_keys:
+        if self.filter_keys and filter_spec in self.filter_keys:
             return self._subfeatures[filter_spec]
 
         if isinstance(filter_spec, int):
