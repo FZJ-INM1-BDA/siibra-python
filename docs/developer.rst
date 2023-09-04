@@ -4,8 +4,11 @@ Developer documentation
 
 Internal dependency graph
 =========================
-.. image:: Internal_dependency_graph
-   :target: _static/siibra.svg
+.. image:: packages_siibra
+  :target: _static/packages_siibra.svg
+
+.. image:: classes_siibra
+  :target: _static/classes_siibra.svg
 
 I. Object instantiation
 =======================

@@ -44,10 +44,3 @@ Retrieval
 ---------
 .. autopackagesummary:: siibra.retrieval
    :toctree: _autosummary
-
-
-
-Inheritance Diagram
-===================
-.. inheritance-diagram:: siibra.core siibra.configuration siibra.volumes siibra.features siibra.locations siibra.livequeries siibra.retrieval siibra.vocabularies
-   :parts: 1
