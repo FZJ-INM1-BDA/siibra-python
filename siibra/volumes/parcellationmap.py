@@ -57,6 +57,8 @@ class ConflictingArgumentException(ValueError): pass
 class NonUniqueIndexError(RuntimeError): pass
 
 
+class NoVolumeFound(RuntimeError): pass
+
 @dataclass
 class Assignment:
     input_structure: int
@@ -419,7 +421,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     aggregated_volume[regionmap.get_fdata() > 0] = regionlabel
                 return Nifti1Image(aggregated_volume, affine=template.affine)
             else:
-                raise RuntimeError("Map provides no volumes.")
+                raise NoVolumeFound("Map provides no volumes.")
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
