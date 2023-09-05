@@ -513,6 +513,10 @@ class CompoundFeature(Feature):
         self._data_cached = None  # only to be used for the average
         self._queryconcept = queryconcept
         self.is_compound = True
+    @property
+    def subfeature_index(self) -> List[Any]:
+        """Indices, in addition to int, by which subfeatures can be accessed"""
+        return list(self._subfeatures.keys())
 
     @property
     def subfeature_type(self):
