@@ -49,6 +49,8 @@ class Feature:
 
     CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
 
+    _IS_COMPOUNDABLE = False
+
     category: str = None
 
     def __init__(
@@ -190,6 +192,11 @@ class Feature:
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
+    @property
+    def _filter_key(self):
+        logger.error(f"No filter key is implemented for {self.__class__}.")
+        return
+
     @staticmethod
     def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
         """
@@ -238,7 +245,7 @@ class Feature:
 
         clsname, *concepts, fid = rest
 
-        Features = cls.parse_featuretype(clsname)
+        Features = cls._parse_featuretype(clsname)
 
         if len(Features) == 0:
             raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
@@ -282,13 +289,13 @@ class Feature:
                 if not isinstance(concept, parcellation.Parcellation):
                     raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
-        
+
         if concept is None:
             raise ParseLiveQueryIdException("concept was not populated in feature id")
         return concept
 
     @classmethod
-    def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
+    def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
         return [
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
@@ -336,18 +343,24 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
-            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
+            assert all(
+                (isinstance(t, str) or issubclass(t, cls))
+                for t in feature_type
+            )
+            return list(set(
+                sum((
+                    cls.match(concept, t, **kwargs) for t in feature_type
+                ), [])
+            ))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
-            # Some string inputs, such as connectivity, may hit multiple matches
-            # In this case
-            candidates = cls.parse_featuretype(feature_type)
-            if len(candidates) == 0:
+            # Some string inputs, such as connectivity, may hit multiple matches.
+            ftype_candidates = cls._parse_featuretype(feature_type)
+            if len(ftype_candidates) == 0:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-
-            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
+            logger.info(f"'{feature_type}' decoded as feature type/s:\n{ftype_candidates}.")
+            return cls.match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -364,7 +377,7 @@ class Feature:
             for instance in f_type.get_instances()
         ]
         preconfigured_instances = [
-            f for f in siibra_tqdm(instances, desc=msg, total=len(instances))
+            f for f in siibra_tqdm(instances, desc=msg, total=len(instances), disable=not instances)
             if f.matches(concept)
         ]
 
@@ -372,7 +385,7 @@ class Feature:
 
         results = list(set((preconfigured_instances + live_instances)))
 
-        if feature_type.__name__ in CompoundFeature.COMPOUNDABLE_FEATURES:
+        if feature_type._IS_COMPOUNDABLE:
             results = CompoundFeature.compound(results, concept)
 
         return results
@@ -462,44 +475,31 @@ class CompoundFeature(Feature):
     A compound of several features of the same type with an anchor created as
     a sum of adjoinable anchors.
     """
-    COMPOUNDABLE_FEATURES = {
-        "BigBrainIntensityProfile": "bbip",
-        "CellDensityProfile": "cdp"
-    }
 
     def __init__(
         self,
         features: List['Feature'],
-        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space],
-        filter_keys: list = []
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
     ):
-        if len({f.__class__ for f in features}) != 1:
-            raise NotImplementedError("Cannot compound features of different types yet.")
-        else:
-            self._subfeature_type = features[0].__class__
-            self.category = features[0].category
-
-        if self._subfeature_type.__name__ not in self.COMPOUNDABLE_FEATURES:
-            raise NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+        assert len({f.__class__ for f in features}) == 1, NotImplementedError("Cannot compound features of different types.")
+        self._subfeature_type = features[0].__class__
+        assert self._subfeature_type._IS_COMPOUNDABLE, NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+        self.category = features[0].category
 
         if len({f.modality for f in features}) == 1:
             modality = features[0].modality
         else:
-            logger.info({f.modality for f in features})
-            raise NotImplementedError("Cannot compound features of different modalities yet.")
+            logger.error({f.modality for f in features})
+            raise NotImplementedError("Cannot compound features of different modalities.")
 
-        if filter_keys:
-            assert len(set(filter_keys)) == len(filter_keys), "Filter keys should be unique to each subfeature."
-            self._filter_keys = filter_keys
-        else:
-            self._filter_keys = None
-        self._subfeatures = {
-            fkey: feat
-            for fkey, feat in zip(*(filter_keys or range(len(features)), features))
-        }
-        logger.debug("Combining anchors...")
-        combined_anchor = sum([f.anchor for f in features])
-        logger.debug("Anchors are combined.")
+        assert not any(isinstance(f._filter_key, int) for f in features), "Filter keys cannot be integers."
+        self._subfeatures = {f._filter_key: f for f in features}
+
+        combined_anchor = sum(
+            [f.anchor for f in siibra_tqdm(
+                features, desc="Combining anchors", disable=logger.level < 30
+            )]
+        )
         Feature.__init__(
             self,
             modality=modality,
@@ -508,16 +508,15 @@ class CompoundFeature(Feature):
             datasets=list({ds for f in features for ds in f.datasets})
         )
         self._data_cached = None  # only to be used for the average
-        self.is_compound = True
         self._queryconcept = queryconcept
+
+    @property
+    def subfeature_type(self):
+        return self._subfeature_type
 
     @property
     def subfeatures(self):
         return list(self._subfeatures.values())
-
-    @property
-    def filter_keys(self):
-        return self._filter_keys
 
     @property
     def data(self):
@@ -536,7 +535,7 @@ class CompoundFeature(Feature):
         return len(self._subfeatures)
 
     def __getitem__(self, filter_spec: Union[int, str, tuple]):
-        if self.filter_keys and filter_spec in self.filter_keys:
+        if filter_spec in self._subfeatures:
             return self._subfeatures[filter_spec]
 
         if isinstance(filter_spec, int):
@@ -557,75 +556,73 @@ class CompoundFeature(Feature):
     def id(self):
         return "::".join((
             "cf0",
-            f"{self.COMPOUNDABLE_FEATURES[self._subfeature_type.__name__]}",
+            f"{self._subfeature_type.__name__}",
             self._encode_concept(self._queryconcept),
             self.datasets[0].id if self.datasets else "nodsid",
             md5(self.name.encode("utf-8")).hexdigest()
         ))
 
     @classmethod
-    def _create_filter_keys(cls, features):
-        return [f.anchor for f in siibra_tqdm(features, desc="Creating subfeature keys")]
+    def compound(
+        cls,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ) -> List['CompoundFeature']:
+        """
+        Compound features of the same the same type based on their anchors.
+
+        Parameters
+        ----------
+        features
+        queryconcept
+
+        Returns
+        -------
+        List[CompoundFeature]
+        """
+        return [CompoundFeature(features, queryconcept)]
 
     @classmethod
-    def _group_by_regionspec(cls, features: List['Feature']) -> Dict[type, List['Feature']]:
-        """
-        Helper function to group a list features instances by type.
+    def get_instance_by_id(cls, feature_id: str, **kwargs):
+        """_summary_
+
+        Parameters
+        ----------
+        feature_id : str
+            _description_
 
         Returns
         -------
         _type_
             _description_
-        """
-        regionspecs = {f.anchor._regionspec for f in features}
-        grouped = {
-            spec: [f for f in features if f.anchor._regionspec == spec]
-            for spec in regionspecs
-        }
-        return grouped
 
-    @classmethod
-    def compound(
-        cls,
-        features: List['Feature'],
-        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
-    ) -> List[Union['CompoundFeature', 'Feature']]:
+        Raises
+        ------
+        ValueError
+            _description_
+        ValueError
+            _description_
         """
-        Compound features of the same the same type based on their anchors.
-
-        Returns
-        -------
-        List[Union[Feature, CompoundFeature]]
-        """
-        grouped_features = cls._group_by_regionspec(features)
-        result = []
-        for regionspec, group in grouped_features.items():
-            if len(group) == 1:
-                result.append(group)
-            else:
-                result.append(CompoundFeature(group, queryconcept))
-        return result
-
-    @classmethod
-    def get_instance_by_id(cls, feature_id: str, **kwargs):
-        cf_version, clsabv, *queryconcept, dsid, fid = feature_id.split("::")
+        cf_version, clsname, *queryconcept, dsid, fid = feature_id.split("::")
         if cf_version != "cf0":
             raise ValueError("CompoundFeature id must start with cf0::")
 
-        clsname = {v: k for k, v in cls.COMPOUNDABLE_FEATURES.items()}.get(clsabv)
-        if clsname:
-            return [
-                f
-                for f in Feature.match(
-                    concept=cls._decode_concept(queryconcept),
-                    feature_type=clsname
-                )
-                if f.id == fid or f.id == feature_id
-            ][0]
-        else:
-            raise ValueError(
-                f"There is no id abbreviation for {clsabv} in CompoundFeatures."
+        candidates = [
+            f
+            for f in Feature.match(
+                concept=cls._decode_concept(queryconcept),
+                feature_type=clsname
             )
+            if f.id == fid or f.id == feature_id
+        ][0]
+        if candidates:
+            if len(candidates) == 1:
+                return candidates[0]
+            else:
+                raise ValueError(
+                    f"The query with id '{feature_id}' have resulted multiple instances.")
+        else:
+            raise ValueError
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         try:

@@ -68,8 +68,8 @@ class WagstylProfileLoader:
             for url in [profile_left_url, profile_right_url]
         ):
             logger.info(
-                "First request to BigBrain profiles. Downloading and "
-                "preprocessing the data now. This may take a little."
+                "First request to BigBrain profiles. Preprocessing the data "
+                "now. This may take a moment."
             )
         profiles_l = requests.HttpRequest(profile_left_url).data.to_numpy()
         profiles_r = requests.HttpRequest(profile_right_url).data.to_numpy()
@@ -122,7 +122,7 @@ class WagstylProfileLoader:
         Parameters
         ----------
         regionobj : region.Region
-            Region or parecellation 
+            Region or parecellation
         space_spec : str, optional
             The space in which the region masks will be calculated. By default,
             siibra tries to fetch in BigBrain first and then the other spaces.

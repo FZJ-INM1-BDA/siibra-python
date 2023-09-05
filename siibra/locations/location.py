@@ -96,6 +96,9 @@ class Location(ABC):
         over the coordinates associated with the location."""
         pass
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {self}"
+
     def __str__(self):
         if self.space is None:
             return (

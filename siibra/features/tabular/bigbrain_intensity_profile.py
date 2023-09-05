@@ -33,6 +33,8 @@ class BigBrainIntensityProfile(
         "and assigned to cytoarchitectonic regions of Julich-Brain."
     )
 
+    _IS_COMPOUNDABLE = True
+
     def __init__(
         self,
         regionname: str,
@@ -61,3 +63,7 @@ class BigBrainIntensityProfile(
             }
         )
         self.location = location
+
+    @property
+    def _filter_key(self):
+        return self.anchor.location

@@ -43,6 +43,8 @@ class CellDensityProfile(
 
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
+    _IS_COMPOUNDABLE = True
+
     @classmethod
     def CELL_READER(cls, b):
         return pd.read_csv(BytesIO(b[2:]), delimiter=" ", header=0).astype(
@@ -252,3 +254,7 @@ class CellDensityProfile(
             self.section,
             self.patch
         ))
+
+    @property
+    def _filter_key(self):
+        return self.anchor.location

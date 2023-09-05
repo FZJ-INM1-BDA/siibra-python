@@ -104,12 +104,12 @@ def mock_all(
 
 
 def test_mock_featuretype(mock_parse_featuretype):
-    feature_types = Feature.parse_featuretype()
+    feature_types = Feature._parse_featuretype()
     mock_parse_featuretype.assert_called_once()
     assert feature_types == [FooFeature, FooFeatureBase]
 
     mock_parse_featuretype.return_value = "foo"
-    feature_types = Feature.parse_featuretype()
+    feature_types = Feature._parse_featuretype()
     assert feature_types == "foo"
 
 
