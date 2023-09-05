@@ -19,7 +19,7 @@ from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any
 from hashlib import md5
 from collections import defaultdict
 
@@ -513,6 +513,7 @@ class CompoundFeature(Feature):
         self._data_cached = None  # only to be used for the average
         self._queryconcept = queryconcept
         self.is_compound = True
+
     @property
     def subfeature_index(self) -> List[Any]:
         """Indices, in addition to int, by which subfeatures can be accessed"""
@@ -542,7 +543,7 @@ class CompoundFeature(Feature):
     def __len__(self):
         return len(self._subfeatures)
 
-    def __getitem__(self, filter_spec: Union[int, str, tuple]):
+    def __getitem__(self, filter_spec: Any):
         if filter_spec in self._subfeatures:
             return self._subfeatures[filter_spec]
 
