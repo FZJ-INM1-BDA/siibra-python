@@ -2,13 +2,15 @@
 Developer documentation
 =======================
 
-Internal dependency graph
-=========================
-.. image:: packages_siibra
+Internal dependency graphs
+==========================
+.. image:: Package diagram
   :target: _static/packages_siibra.svg
 
-.. image:: classes_siibra
+
+.. image:: Class diagram
   :target: _static/classes_siibra.svg
+
 
 I. Object instantiation
 =======================
@@ -117,18 +119,18 @@ Basic definitions and notes
 * **Volume provider:** is a resource that provides access to volumes. A volume
   can have multiple providers in different formats.
 * **Variant:** refers to alternative representations of the same volume (e.g. inflated surface).
-  * If the volume has variants, they need to be listed in the configuration file.
+    * If the volume has variants, they need to be listed in the configuration file.
 * **Fragments:** are individually addressable components of a volume.
 
-  * If a volume has fragments, either the user or the code needs to retrieve
-    from multiple sources to access the complete volume.
-  * Fragments need to be named (e.g. left and right hemisphere), because they
-    inevitably split the whole object into distinct anatomical parts that
-    require semantic labeling.
+    * If a volume has fragments, either the user or the code needs to retrieve
+      from multiple sources to access the complete volume.
+    * Fragments need to be named (e.g. left and right hemisphere), because they
+      inevitably split the whole object into distinct anatomical parts that
+      require semantic labeling.
 * **Brain regions (label):** are structures mapped inside a specific volume or fragment.
 
-  * The structure appears by interpreting the labels inside the volume listed in
-    the configuration file. *In special cases, a brain region could be represented by the complete volume or fragment.*
+    * The structure appears by interpreting the labels inside the volume listed in
+      the configuration file. *In special cases, a brain region could be represented by the complete volume or fragment.*
 * **Volume index:** the index of the volume in case there is more than one;
   typically used for probability maps, where each area has a different volume.
 * **Z:** for 4D volumes, it specifies the 4th coordinate identifying an actual
@@ -146,15 +148,15 @@ Fetching volumes occurs in two main stages:
 
 1. The determination of the volume by the user.
 
-  * The user sets the object they would like to fetch a volume from:
+    * The user sets the object they would like to fetch a volume from:
 
-    * a space template -> using ``get_template()`` which provides a volume template.
-    * or a map -> getting the desired map by setting desired specs.
-  
-  * The user invokes ``fetch()`` method to retrieve the volume from the template or map.
+        * a space template -> using ``get_template()`` which provides a volume template.
+        * or a map -> getting the desired map by setting desired specs.
+    
+    * The user invokes ``fetch()`` method to retrieve the volume from the template or map.
 
-    * template directly accesses to ``volume.fetch()``
-    * ``fetch()`` first goes through ``map.fetch()`` to determine the associated volume.
+        * template directly accesses to ``volume.fetch()``
+        * ``fetch()`` first goes through ``map.fetch()`` to determine the associated volume.
 
 2. Actual retrieval of the volume object by siibra after the user asks for the
    volume via ``fetch()`` method. When ``fetch()`` is invoked it accesses to
@@ -185,13 +187,13 @@ Adding data to siibra-toolsuite
 
 0. Is the feature type class representation for the data?
 
-  * Yes: go to step 1.
-  * No: create feature type subclass and PR to siibra-python main.
+    * Yes: go to step 1.
+    * No: create feature type subclass and PR to siibra-python main.
 
 1. Is the feature type already described by the schema (in siibra-python/config_schema)?
 
-  * Yes: go to step 2.
-  * No: create schema and PR to siibra-python main.
+    * Yes: go to step 2.
+    * No: create schema and PR to siibra-python main.
 
 2. Create feature jsons and create a PR to siibra-configurations.
 3. After merging the PR, create new tag on siibra-configurations.
