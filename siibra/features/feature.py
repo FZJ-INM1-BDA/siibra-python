@@ -28,6 +28,10 @@ if TYPE_CHECKING:
     TypeDataset = EbrainsDataset
 
 
+class ParseCompoundFeatureIdException(Exception):
+    pass
+
+
 class ParseLiveQueryIdException(Exception):
     pass
 
@@ -273,21 +277,27 @@ class Feature:
 
     @classmethod
     def _decode_concept(cls, concepts: List[str]) -> concept.AtlasConcept:
+        # choose exception to divert try-except correctly
+        if issubclass(cls, CompoundFeature):
+            exception = ParseCompoundFeatureIdException
+        else:
+            exception = ParseLiveQueryIdException
+
         concept = None
         for c in concepts:
             if c.startswith("s:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = space.Space.registry()[c.replace("s:", "")]
             if c.startswith("p:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = parcellation.Parcellation.registry()[c.replace("p:", "")]
             if c.startswith("r:"):
                 if concept is None:
-                    raise ParseLiveQueryIdException("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
+                    raise exception("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
                 if not isinstance(concept, parcellation.Parcellation):
-                    raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
+                    raise exception("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
 
         if concept is None:
@@ -395,6 +405,11 @@ class Feature:
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
+        try:
+            return CompoundFeature.get_instance_by_id(feature_id, **kwargs)
+        except ParseCompoundFeatureIdException:
+            pass
+
         try:
             F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
@@ -589,32 +604,30 @@ class CompoundFeature(Feature):
         -------
         List[CompoundFeature]
         """
-        return [CompoundFeature(features, queryconcept)]
+        return [cls(features, queryconcept)]
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
-        """_summary_
+        """
+        Use the feature id to obtain the same feature instance.
 
         Parameters
         ----------
         feature_id : str
-            _description_
 
         Returns
         -------
-        _type_
-            _description_
+        CompoundFeature
 
         Raises
         ------
-        ValueError
-            _description_
-        ValueError
-            _description_
+        ParseCompoundFeatureIdException
+            If no or multiple matches are found. Or id is not fitting to
+            compound features.
         """
+        if not feature_id.startswith("cf0::"):
+            raise ParseCompoundFeatureIdException("CompoundFeature id must start with cf0::")
         cf_version, clsname, *queryconcept, dsid, fid = feature_id.split("::")
-        if cf_version != "cf0":
-            raise ValueError("CompoundFeature id must start with cf0::")
 
         candidates = [
             f
@@ -628,10 +641,10 @@ class CompoundFeature(Feature):
             if len(candidates) == 1:
                 return candidates[0]
             else:
-                raise ValueError(
+                raise ParseCompoundFeatureIdException(
                     f"The query with id '{feature_id}' have resulted multiple instances.")
         else:
-            raise ValueError
+            raise ParseCompoundFeatureIdException
 
     def plot(self, *args, backend="matplotlib", **kwargs):
         try:
