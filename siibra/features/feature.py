@@ -227,9 +227,19 @@ class Feature:
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
-        ebrains_page = "\n".join({ds.ebrains_page for ds in self.datasets if ds.ebrains_page})
-        doi = "\n".join({ds.urls for ds in self.datasets if ds.urls})
-        authors = "\n".join({ds.contributors for ds in self.datasets if ds.contributors})
+        ebrains_page = "EBRAINS page:" + "\n".join(
+            {ds.ebrains_page for ds in self.datasets if ds.ebrains_page}
+        )
+        doi = "DOI:\n" + "\n".join({
+            u.get("url")
+            for ds in self.datasets if ds.urls
+            for u in ds.urls
+        })
+        authors = "Authors:" + ", ".join({
+            cont.get('name')
+            for ds in self.datasets if ds.contributors
+            for cont in ds.contributors
+        })
         if ebrains_page and doi and authors:
             publications = _README_PUBLICATIONS.format(
                 ebrains_page=ebrains_page,

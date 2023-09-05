@@ -27,7 +27,7 @@ from ...retrieval.repositories import RepositoryConnector
 import pandas as pd
 import numpy as np
 from typing import Callable, Dict, Union, List
-from io import StringIO
+
 try:
     from typing import Literal
 except ImportError:  # support python 3.7
@@ -207,7 +207,6 @@ class RegionalConnectivity(Feature):
         for sub in self.subjects:
             df = self.get_matrix(sub)
             fh.writestr(f"sub/{sub}/matrix.csv", df.to_csv())
-            
 
     def get_profile(
         self,

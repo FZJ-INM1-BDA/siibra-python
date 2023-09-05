@@ -81,7 +81,7 @@ class Image(feature.Feature, _volume.Volume):
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
         self._name_cached = name
-    
+
     def _export(self, fh: ZipFile):
         super()._export(fh)
         # How, what do we download?
