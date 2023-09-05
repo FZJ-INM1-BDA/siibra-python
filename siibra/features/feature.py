@@ -15,7 +15,7 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, siibra_tqdm
+from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 
@@ -41,20 +41,35 @@ class NotFoundException(Exception):
     pass
 
 
-README_TMPL = """
+_README_TMPL = """
+Downloaded from siibra toolsuite.
+siibra-python version: {version}
+
+All releated resources (e.g. doi, web resources) are categorized under publications.
+
 name
----
+----
 {name}
 
 description
----
+-----------
 {description}
 
 modality
----
+--------
 {modality}
 
+{publications}
 """
+_README_PUBLICATIONS = """
+publications
+------------
+{doi}
+{ebrains_page}
+{authors}
+
+"""
+
 
 class Feature:
     """
@@ -205,12 +220,44 @@ class Feature:
                 prefix = ds.id + '--'
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
-    
+
     def _export(self, fh: ZipFile):
-        """Internal implementation. Subclasses can override but call super()._export(fh).
-        This allows all classes in the __mro__ to have the opportunity to append files 
-        of interest."""
-        fh.writestr("README.md", README_TMPL.format(name=self.name, description=self.description, modality=self.modality))
+        """
+        Internal implementation. Subclasses can override but call super()._export(fh).
+        This allows all classes in the __mro__ to have the opportunity to append files
+        of interest.
+        """
+        ebrains_page = "EBRAINS page:" + "\n".join(
+            {ds.ebrains_page for ds in self.datasets if ds.ebrains_page}
+        )
+        doi = "DOI:\n" + "\n".join({
+            u.get("url")
+            for ds in self.datasets if ds.urls
+            for u in ds.urls
+        })
+        authors = "Authors:" + ", ".join({
+            cont.get('name')
+            for ds in self.datasets if ds.contributors
+            for cont in ds.contributors
+        })
+        if ebrains_page and doi and authors:
+            publications = _README_PUBLICATIONS.format(
+                ebrains_page=ebrains_page,
+                doi=doi,
+                authors=authors
+            )
+        else:
+            publications = "Note: could not obtain any publication information. The data may not have been published yet."
+        fh.writestr(
+            "README.md",
+            _README_TMPL.format(
+                version=__version__,
+                name=self.name,
+                description=self.description,
+                modality=self.modality,
+                publications=publications
+            )
+        )
 
     def export(self, filelike: Union[str, BinaryIO]):
         """
