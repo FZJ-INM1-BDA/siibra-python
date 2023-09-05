@@ -97,13 +97,12 @@ class WagstylProfileLoader:
 
         Returns
         -------
-        _type_
-            _description_
+        Space specification
 
         Raises
         ------
         RuntimeError
-            _description_
+            If there is no suitable space.
         """
         if regionobj.mapped_in_space('bigbrain'):
             return 'bigbrain'

@@ -408,19 +408,12 @@ class AnatomicalAnchor:
         else:
             species = self.species.union(other.species)
 
-        if self._regionspec != other._regionspec:
-            r0 = re.sub(" * left| right", '', self._regionspec)
-            r1 = re.sub(" * left| right", '', other._regionspec)
-            if r0 == r1:
-                region = r0
-            else:
-                raise NotImplementedError("Anchors with different regions cannnot be added yet.")
-        else:
-            region = self._regionspec
+        regions = self.regions
+        regions.update(other.regions)
 
         location = Location.union(self.location, other.location)
 
-        return AnatomicalAnchor(species, location, region)
+        return AnatomicalAnchor(species, location, regions)
 
     def __radd__(self, other):
         # required to enable `sum`

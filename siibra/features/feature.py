@@ -359,7 +359,10 @@ class Feature:
             ftype_candidates = cls._parse_featuretype(feature_type)
             if len(ftype_candidates) == 0:
                 raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-            logger.info(f"'{feature_type}' decoded as feature type/s:\n{ftype_candidates}.")
+            logger.info(
+                f"'{feature_type}' decoded as feature type/s: "
+                f"{[c.__name__ for c in ftype_candidates]}."
+            )
             return cls.match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
@@ -509,6 +512,7 @@ class CompoundFeature(Feature):
         )
         self._data_cached = None  # only to be used for the average
         self._queryconcept = queryconcept
+        self.is_compound = True
 
     @property
     def subfeature_type(self):
@@ -614,7 +618,7 @@ class CompoundFeature(Feature):
                 feature_type=clsname
             )
             if f.id == fid or f.id == feature_id
-        ][0]
+        ]
         if candidates:
             if len(candidates) == 1:
                 return candidates[0]
