@@ -41,9 +41,11 @@ class NotFoundException(Exception):
     pass
 
 
-README_TMPL = """
+_README_TMPL = """
 Downloaded from siibra toolsuite.
 siibra-python version: {version}
+
+All releated resources (e.g. doi, web resources) are categorized under publications.
 
 name
 ----
@@ -57,16 +59,13 @@ modality
 --------
 {modality}
 
-ebrains page
+{publications}
+"""
+_README_PUBLICATIONS = """
+publications
 ------------
-{ebrains_page}
-
-doi
----
 {doi}
-
-authors
--------
+{ebrains_page}
 {authors}
 
 """
@@ -228,16 +227,25 @@ class Feature:
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
+        ebrains_page = "\n".join({ds.ebrains_page for ds in self.datasets if ds.ebrains_page})
+        doi = "\n".join({ds.urls for ds in self.datasets if ds.urls})
+        authors = "\n".join({ds.contributors for ds in self.datasets if ds.contributors})
+        if ebrains_page and doi and authors:
+            publications = _README_PUBLICATIONS.format(
+                ebrains_page=ebrains_page,
+                doi=doi,
+                authors=authors
+            )
+        else:
+            publications = "Note: could not obtain any publication information. The data may not have been published yet."
         fh.writestr(
             "README.md",
-            README_TMPL.format(
+            _README_TMPL.format(
                 version=__version__,
                 name=self.name,
                 description=self.description,
                 modality=self.modality,
-                ebrains_page="\n".join({ds.ebrains_page for ds in self.datasets if ds.ebrains_page}),
-                doi="\n".join({ds.urls for ds in self.datasets if ds.urls}),
-                authors="\n".join({ds.contributors for ds in self.datasets if ds.contributors})
+                publications=publications
             )
         )
 
