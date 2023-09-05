@@ -330,7 +330,7 @@ class Feature:
         concept: Union[region.Region, parcellation.Parcellation, space.Space],
         feature_type: Union[str, Type['Feature'], list],
         **kwargs
-    ) -> List[Union['Feature', 'CompoundFeature']]:
+    ) -> List['Feature']:
         """
         Retrieve data features of the desired modality.
 
