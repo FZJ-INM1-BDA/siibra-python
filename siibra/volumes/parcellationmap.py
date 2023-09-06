@@ -60,7 +60,7 @@ class NonUniqueIndexError(RuntimeError): pass
 @dataclass
 class Assignment:
     input_structure: int
-    centroid: Union[Tuple[np.ndarray], point.Point] 
+    centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
     fragment: str
     map_value: np.ndarray
@@ -203,6 +203,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         matches = self.find_indices(region)
         if len(matches) > 1:
+            # if there is an exact match, we still use it. If not, we cannot proceed.
+            regionname = region.name if isinstance(region, _region.Region) \
+                else region
+            for index, matched_name in matches.items():
+                if matched_name == regionname:
+                    return index
             raise NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
@@ -794,7 +800,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ) -> List[Union[Assignment,AssignImageResult]]:
+    ) -> List[Union[Assignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -805,7 +811,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, Nifti1Image):
             return self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
-        
+
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
         )
@@ -1078,7 +1084,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             seqlen = N or len(it)
             return iter(it) if seqlen < min_elements \
                 else siibra_tqdm(it, desc=desc, total=N)
-        
+
         iter_func = iterate_connected_components if split_components \
             else lambda img: [(1, img)]
 
