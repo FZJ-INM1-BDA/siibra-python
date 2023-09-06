@@ -316,9 +316,20 @@ class RegionalConnectivity(Feature):
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
                 "log_x": logscale,
-                "labels": {"index": "Regions"},
-                "color_continuous_scale": "jet"
+                "labels": {"y": " ", "x": ""},
+                "color_continuous_scale": "jet",
+                "width": 600, "height": 3800
             })
+            fig = profile.data.plot(*args, backend=backend, **kwargs)
+            fig.update_layout({
+                "font": dict(size=9),
+                "yaxis": {"autorange": "reversed"},
+                "coloraxis": {"colorbar": {
+                    "orientation": "h", "title": "", "xpad": 0, "ypad": 10
+                }},
+                "margin": dict(l=0, r=0, b=0, t=0, pad=0)
+            })
+            return fig
         return profile.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
