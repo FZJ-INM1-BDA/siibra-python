@@ -66,8 +66,18 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
     "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
     "m2r2",  # converts a markdown file including rst markups to a valid rst format
-    "sphinxcontrib.jquery"  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
+    "sphinxcontrib.jquery"  # work around for jQuery not being loaded automatically dependency removal from sphinx 7,
 ]
+
+
+rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
+if rtds_action_github_token:
+    extensions.append("rtds_action")
+    # rtds action settings
+    rtds_action_github_repo = "FZJ-INM1-BDA/siibra-python"  # The name of GitHub repository
+    rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
+    rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
+    nbsphinx_execute = 'never'
 
 # napolean settings
 napoleon_google_docstring = False
@@ -123,7 +133,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": False,
-    "run_stale_examples": True
+    "run_stale_examples": False
 }
 
 html_theme_options = {
