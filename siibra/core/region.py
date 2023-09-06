@@ -13,9 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Representation of a brain region."""
+
+from __future__ import annotations
+
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..locations import boundingbox, point, pointset
+from ..locations import location, boundingbox, point, pointset, assignment
 from ..volumes import parcellationmap
 
 from ..commons import (
@@ -64,6 +67,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
     _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
     _accepted_flags = "aiLmsux"
+    _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
     def __init__(
         self,
@@ -240,6 +244,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             return MEM[key]
 
         if isinstance(regionspec, str):
+            # convert the specified string into a regex for matching
             regex_match = self._regex_re.match(regionspec)
             if regex_match:
                 flags = regex_match.group('flags')
@@ -416,7 +421,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         fetch_space = space if via_space is None else via_space
         if isinstance(fetch_space, str):
             fetch_space = _space.Space.get_instance(fetch_space)
-
         for m in parcellationmap.Map.registry():
             if (
                 m.space.matches(fetch_space) and
@@ -529,9 +533,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
 
     def __str__(self):
-        return self.name
-
-    def __repr__(self):
         return self.name
 
     def tree2str(self):
@@ -694,3 +695,22 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         (including this parent region)
         """
         return anytree.PreOrderIter(self)
+
+    def assign(self, other: ["Region", "location.Location"]) -> assignment.AnatomicalAssignment:
+        """ Assigns this region to another region. """
+        if (self, other) not in self._ASSIGNMENT_CACHE:
+            if isinstance(other, location.Location):
+                a = other.assign(self)
+                self._ASSIGNMENT_CACHE[self, other] = None if a is None else a.invert()
+            else:
+                if self == other:
+                    qualification = assignment.AssignmentQualification.EXACT
+                elif self in other:
+                    qualification = assignment.AssignmentQualification.CONTAINED
+                elif other in self:
+                    qualification = assignment.AssignmentQualification.CONTAINS
+                else:
+                    qualification = None
+                self._ASSIGNMENT_CACHE[self, other] = None if qualification is None \
+                    else assignment.AnatomicalAssignment(self, other, qualification)
+        return self._ASSIGNMENT_CACHE[self, other]
