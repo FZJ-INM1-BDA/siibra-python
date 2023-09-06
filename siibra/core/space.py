@@ -17,7 +17,6 @@
 
 from .concept import AtlasConcept
 
-from ..locations import Point, BoundingBox
 from ..commons import logger, Species
 
 from typing import List, TYPE_CHECKING, Union
@@ -125,39 +124,3 @@ class Space(AtlasConcept, configuration_folder="spaces"):
     @property
     def provides_image(self):
         return any(v.provides_image for v in self.volumes)
-
-    def __getitem__(self, slices):
-        """
-        Get a volume of interest specification from this space.
-
-        Parameters
-        ----------
-            slices: triple of slice
-                Defines the x, y and z range
-        """
-        if len(slices) != 3:
-            raise TypeError(
-                "Slice access to spaces needs to define x,y and z ranges (e.g. Space[10:30,0:10,200:300])"
-            )
-        point1 = [0 if s.start is None else s.start for s in slices]
-        point2 = [s.stop for s in slices]
-        if None in point2:
-            # fill upper bounds with maximum physical coordinates
-            T = self.get_template()
-            shape = Point(T.get_shape(-1), None).transform(T.build_affine(-1))
-            point2 = [shape[i] if v is None else v for i, v in enumerate(point2)]
-        return self.get_bounding_box(point1, point2)
-
-    def get_bounding_box(self, point1, point2):
-        """
-        Get a volume of interest specification from this space.
-
-        Parameters
-        ----------
-            point1: 3D tuple defined in physical coordinates of this reference space
-            point2: 3D tuple defined in physical coordinates of this reference space
-        Returns
-        -------
-            BoundingBox
-        """
-        return BoundingBox(point1, point2, self)
