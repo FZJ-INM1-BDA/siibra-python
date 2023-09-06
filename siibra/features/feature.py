@@ -427,7 +427,11 @@ class Feature:
             for instance in f_type.get_instances()
         ]
 
-        preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+        preconfigured_instances = [
+            f for f in siibra_tqdm(
+                instances, desc=msg, total=len(instances), disable=(not instances)
+            ) if f.matches(concept)
+        ]
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
