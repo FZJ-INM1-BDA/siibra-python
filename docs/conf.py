@@ -16,7 +16,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme
 import sphinx_autopackagesummary
 
-
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
@@ -69,6 +68,7 @@ extensions = [
     "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
     "sphinx.ext.graphviz",  # to allow drawing diagrams
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
+    "sphinx_copybutton"
 ]
 
 # napolean settings
