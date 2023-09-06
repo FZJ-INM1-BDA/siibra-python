@@ -17,3 +17,4 @@ from .location import WholeBrain
 from .point import Point
 from .pointset import PointSet
 from .boundingbox import BoundingBox
+from .featuremap import FeatureMap

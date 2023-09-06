@@ -17,13 +17,14 @@ from . import query
 
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..commons import logger
-from ..locations import point, pointset
+from ..locations import point, pointset, featuremap
 from ..core import space, region
 from ..retrieval import requests, cache
 
 import numpy as np
-from typing import List
+from typing import List, Union
 from os import path
+from nibabel import Nifti1Image
 
 
 class WagstylProfileLoader:
@@ -75,6 +76,25 @@ class WagstylProfileLoader:
     def __len__(self):
         return self._vertices.shape[0]
 
+    def match_mask(self, mask: Nifti1Image, space):
+        voxels = (
+            pointset.PointSet(self._vertices, space="bigbrain")
+            .warp(space)
+            .transform(np.linalg.inv(mask.affine), space=None)
+        )
+        arr = np.asanyarray(mask.dataobj)
+        XYZ = np.array(voxels.as_list()).astype('int')
+        X, Y, Z = np.split(
+            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
+            3, axis=1
+        )
+        inside = np.where(arr[X, Y, Z] > 0)[0]
+        return (
+            self._profiles[inside, :],
+            self._boundary_depths[inside, :],
+            self._vertices[inside, :]
+        )
+
     def match(self, regionobj: region.Region):
         assert isinstance(regionobj, region.Region)
         logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
@@ -86,27 +106,9 @@ class WagstylProfileLoader:
                 except RuntimeError:
                     continue
                 logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {spaceobj}...")
-                voxels = (
-                    pointset.PointSet(self._vertices, space="bigbrain")
-                    .warp(spaceobj)
-                    .transform(np.linalg.inv(mask.affine), space=None)
-                )
-                arr = np.asanyarray(mask.dataobj)
-                XYZ = np.array(voxels.as_list()).astype('int')
-                X, Y, Z = np.split(
-                    XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-                    3, axis=1
-                )
-                inside = np.where(arr[X, Y, Z] > 0)[0]
-                break
-        else:
-            raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
+                return self.match_map(mask, spaceobj)
 
-        return (
-            self._profiles[inside, :],
-            self._boundary_depths[inside, :],
-            self._vertices[inside, :]
-        )
+        raise RuntimeError(f"Could not filter big brain profiles by {regionobj}")
 
 
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
@@ -114,17 +116,29 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, regionobj: region.Region, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
-        assert isinstance(regionobj, region.Region)
+    def query(self, concept: Union[region.Region, featuremap.FeatureMap], **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
 
+        # build match functions depending on the provided concept 
+        matchers = []
+        if isinstance(concept, featuremap.FeatureMap):
+            matchers.append(
+                (lambda featuremap=concept: loader.match_mask(featuremap.image, featuremap.space), None)
+            )
+        elif isinstance(concept, region.Region):
+            for subregion in concept.leaves:
+                matchers.append(
+                    (lambda subregion=concept: loader.match(subregion), subregion.name)
+                )
+        
+        # execute match functions
         features = []
-        for subregion in regionobj.leaves:
-            matched_profiles, boundary_depths, coords = loader.match(subregion)
-            bbspace = space.Space.get_instance('bigbrain')
+        bbspace = space.Space.get_instance('bigbrain')
+        for matcher, regionname in matchers:
+            matched_profiles, boundary_depths, coords = matcher()
             for i, profile in enumerate(matched_profiles):
                 prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                    regionname=subregion.name,
+                    regionname=regionname,
                     depths=loader.profile_labels,
                     values=profile,
                     boundaries=boundary_depths[i, :],

@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..commons import logger, Species
+from ..commons import Species
 
 from ..core.concept import AtlasConcept
+from ..locations.assignment import AnatomicalAssignment, AssignmentQualification
 from ..locations.location import Location
-from ..locations.boundingbox import BoundingBox
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 from ..core.space import Space
@@ -25,83 +25,6 @@ from ..core.space import Space
 from ..vocabularies import REGION_ALIASES
 
 from typing import Union, List, Dict
-from enum import Enum
-
-
-class AssignmentQualification(Enum):
-    EXACT = 1
-    OVERLAPS = 2
-    CONTAINED = 3
-    CONTAINS = 4
-    APPROXIMATE = 5
-
-    @property
-    def verb(self):
-        """
-        a string that can be used as a verb in a sentence
-        for producing human-readable messages.
-        """
-        transl = {
-            'EXACT': 'coincides with',
-            'OVERLAPS': 'overlaps with',
-            'CONTAINED': 'is contained in',
-            'CONTAINS': 'contains',
-            'APPROXIMATE': 'approximates to',
-        }
-        return transl[self.name]
-
-    def invert(self):
-        """
-        Return a MatchPrecision object with the inverse meaning
-        """
-        inverses = {
-            "EXACT": "EXACT",
-            "OVERLAPS": "OVERLAPS",
-            "CONTAINED": "CONTAINS",
-            "CONTAINS": "CONTAINED",
-            "APPROXIMATE": "APPROXIMATE",
-        }
-        return AssignmentQualification[inverses[self.name]]
-
-    def __str__(self):
-        return f"{self.__class__.__name__}={self.name.lower()}"
-
-    def __repr__(self):
-        return str(self)
-
-
-class AnatomicalAssignment:
-    """
-    An assignment of an anatomical anchor to an atlas concept.
-    """
-
-    def __init__(
-        self,
-        query_structure: Union[Region, Location],
-        assigned_structure: Union[Region, Location],
-        qualification: AssignmentQualification,
-        explanation: str = ""
-    ):
-        self.query_structure = query_structure
-        self.assigned_structure = assigned_structure
-        self.qualification = qualification
-        self.explanation = explanation.strip()
-
-    @property
-    def is_exact(self):
-        return self.qualification == AssignmentQualification.EXACT
-
-    def __str__(self):
-        msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
-        return msg if self.explanation == "" else f"{msg} - {self.explanation}"
-
-    def invert(self):
-        return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
-
-    def __lt__(self, other: 'AnatomicalAssignment'):
-        if not isinstance(other, AnatomicalAssignment):
-            raise ValueError(f"Cannot compare AnatomicalAssignment with instances of '{type(other)}'")
-        return self.qualification.value < other.qualification.value
 
 
 class AnatomicalAnchor:
@@ -132,13 +55,14 @@ class AnatomicalAnchor:
         self._last_matched_concept = None
         self._regions_cached = None
         self._regionspec = None
+
         if isinstance(region, Region):
             self._regions_cached = {region: AssignmentQualification.EXACT}
         elif isinstance(region, str):
+            # we will decode regions only when needed, see self.regions property
             self._regionspec = region
-        else:
-            if region is not None:
-                raise ValueError(f"Invalid region specification: {region}")
+        elif region is not None:
+            raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
 
     @property
@@ -153,13 +77,11 @@ class AnatomicalAnchor:
     @property
     def space(self) -> Space:
         # may be overriden by derived classes, e.g. in features.VolumeOfInterest
-        if self.location is None:
-            return None
-        else:
-            return self.location.space
+        return None if self.location is None else self.location.space
 
     @property
     def region_aliases(self):
+        # return any predefined aliases for the region specified in this anchor.
         if self._aliases_cached is None:
             self._aliases_cached: Dict[str, Dict[str, str]] = {
                 species_str: region_alias_mapping
@@ -174,21 +96,30 @@ class AnatomicalAnchor:
 
     @property
     def regions(self) -> Dict[Region, AssignmentQualification]:
+        """
+        Return the list of regions associated with this anchor.
+        Decode the self._regionspec string into region objects now,
+        if applicable and called for the first time.
+        """
         # decoding region strings is quite compute intensive, so we cache this at the class level
         if self._regions_cached is not None:
             return self._regions_cached
 
-        if self._regionspec is None:
+        elif self._regionspec is None:
             self._regions_cached = {}
             return self._regions_cached
 
-        if self._regionspec not in self.__class__._MATCH_MEMO:
+        elif self._regionspec not in self.__class__._MATCH_MEMO:
             self._regions_cached = {}
             # decode the region specification into a set of region objects
             regions = {
-                r: AssignmentQualification.EXACT
+                region: AssignmentQualification.EXACT
                 for species in self.species
-                for r in Parcellation.find_regions(self._regionspec, species)
+                for region in (
+                    p.get_region(self._regionspec)
+                    for p in Parcellation.registry()
+                    if (p.species == species) and (self._regionspec in p)
+                )
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
@@ -196,6 +127,7 @@ class AnatomicalAnchor:
                     for r in Parcellation.find_regions(regionspec, alt_species):
                         if r not in self._regions_cached:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
+
             self.__class__._MATCH_MEMO[self._regionspec] = regions
         self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
 
@@ -207,165 +139,28 @@ class AnatomicalAnchor:
         separator = " " if min(len(region), len(location)) > 0 else ""
         return region + separator + location
 
-    def __repr__(self):
-        return self.__str__()
-
     def assign(self, concept: AtlasConcept):
         """
-        Match this anchoring to an atlas concept.
+        Match this anchor to a query concept.
+        Assignments are cached at runtime,
+        so repeated assignment with the same concept will be cheap.
         """
         if concept not in self._assignments:
             matches: List[AnatomicalAssignment] = []
-            if isinstance(concept, Space):
-                if self.space == concept:
-                    matches.append(
-                        AnatomicalAssignment(self.space, concept, AssignmentQualification.EXACT)
-                    )
-            elif isinstance(concept, Region):
-                if concept.species in self.species:
-                    if any(_.matches(self._regionspec) for _ in concept) \
-                            or self.has_region_aliases:  # dramatic speedup, since decoding _regionspec is expensive
-                        for r in self.regions:
-                            matches.append(AnatomicalAnchor.match_regions(r, concept))
-                    if len(concept.root.find(self._regionspec)) == 0:
-                        # We perform the (quite expensive) location-to-region test
-                        # only if this anchor's regionspec is not known to the
-                        # parcellation of the query region. Otherwise we can rely
-                        # on the region-to-region test.
-                        if self.location is not None:
-                            matches.append(AnatomicalAnchor.match_location_to_region(self.location, concept))
-            elif isinstance(concept, Location):
-                if self.location is not None:
-                    matches.append(AnatomicalAnchor.match_locations(self.location, concept))
-                for region in self.regions:
-                    match = AnatomicalAnchor.match_location_to_region(concept, region)
-                    matches.append(None if match is None else match.invert())
+            if self.location is not None:
+                matches.append(self.location.assign(concept))
+            for region in self.regions:
+                matches.append(region.assign(concept))
+
             self._assignments[concept] = sorted(m for m in matches if m is not None)
 
         self._last_matched_concept = concept \
             if len(self._assignments[concept]) > 0 \
             else None
-
         return self._assignments[concept]
 
     def matches(self, concept: AtlasConcept):
         return len(self.assign(concept)) > 0
-
-    @classmethod
-    def match_locations(cls, location1: Location, location2: Location):
-        assert all(isinstance(loc, Location) for loc in [location1, location2])
-        if (location1, location2) not in cls._MATCH_MEMO:
-            if location1 == location2:
-                res = AnatomicalAssignment(location1, location2, AssignmentQualification.EXACT)
-            elif location1.contained_in(location2):
-                res = AnatomicalAssignment(location1, location2, AssignmentQualification.CONTAINED)
-            elif location1.contains(location2):
-                res = AnatomicalAssignment(location1, location2, AssignmentQualification.CONTAINS)
-            elif location1.intersects(location2):
-                res = AnatomicalAssignment(location1, location2, AssignmentQualification.OVERLAPS)
-            else:
-                res = None
-            cls._MATCH_MEMO[location1, location2] = res
-        return cls._MATCH_MEMO[location1, location2]
-
-    @classmethod
-    def match_regions(cls, region1: Region, region2: Region):
-        assert all(isinstance(r, Region) for r in [region1, region2])
-        if (region1, region2) not in cls._MATCH_MEMO:
-            if region1 == region2:
-                res = AnatomicalAssignment(region1, region2, AssignmentQualification.EXACT)
-            elif region1 in region2:
-                res = AnatomicalAssignment(region1, region2, AssignmentQualification.CONTAINED)
-            elif region2 in region1:
-                res = AnatomicalAssignment(region1, region2, AssignmentQualification.CONTAINS)
-            else:
-                res = None
-            cls._MATCH_MEMO[region1, region2] = res
-        return cls._MATCH_MEMO[region1, region2]
-
-    @classmethod
-    def match_location_to_region(cls, location: Location, region: Region):
-        assert isinstance(location, Location)
-        assert isinstance(region, Region)
-
-        for subregion in region.children:
-            res = cls.match_location_to_region(location, subregion)
-            if res is not None:
-                return res
-
-        if (location, region) not in cls._MATCH_MEMO:
-            # compute mask of the region
-            mask = None
-            if region.mapped_in_space(location.space, recurse=False):
-                if (region, location.space) not in cls._MASK_MEMO:
-                    cls._MASK_MEMO[region, location.space] = \
-                        region.fetch_regional_map(space=location.space, maptype='labelled')
-                mask = cls._MASK_MEMO[region, location.space]
-                mask_space = location.space
-                expl = (
-                    f"{location} was compared with the mask of query region "
-                    f"'{region.name}' in {location.space.name}."
-                )
-            else:
-                for space in region.supported_spaces:
-                    if not region.mapped_in_space(space, recurse=False):
-                        continue
-                    if not space.provides_image:  # siibra does not yet match locations to surface spaces
-                        continue
-                    if (region, space) not in cls._MASK_MEMO:
-                        cls._MASK_MEMO[region, space] = region.fetch_regional_map(space=space, maptype='labelled')
-                    mask = cls._MASK_MEMO[region, space]
-                    mask_space = space
-                    if location.space == mask_space:
-                        expl = (
-                            f"{location} was compared with the mask of query region '{region.name}' "
-                            f"in {mask_space}."
-                        )
-                    else:
-                        expl = (
-                            f"{location} was warped from {location.space.name} and then compared "
-                            f"in this space with the mask of query region '{region.name}'."
-                        )
-                    if mask is not None:
-                        break
-
-            if mask is None:
-                logger.debug(
-                    f"'{region.name}' provides no mask in a space "
-                    f"to which {location} can be warped."
-                )
-                res = None
-            else:
-                # compare mask to location
-                loc_warped = location.warp(mask_space)
-                if loc_warped is None:
-                    # seems we cannot warp our location to the mask space
-                    # this typically happens when the location extends outside
-                    # the brain. We might still be able the warp the
-                    # bounding box of the mask to the location and check.
-                    # TODO in fact we should estimate an affine matrix from the warped bounding box,
-                    # and resample the mask for the inverse test to be more precise.
-                    bbox_mask = BoundingBox.from_image(mask, mask_space).warp(location.space)
-                    return cls.match_locations(location, bbox_mask)
-                elif loc_warped.contained_in(mask):
-                    res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINED, expl)
-                elif loc_warped.contains(mask):
-                    res = AnatomicalAssignment(location, region, AssignmentQualification.CONTAINS, expl)
-                elif loc_warped.intersects(mask):
-                    res = AnatomicalAssignment(location, region, AssignmentQualification.OVERLAPS, expl)
-                else:
-                    logger.debug(
-                        f"{location} does not match mask of '{region.name}' in {mask_space.name}."
-                    )
-                    res = None
-            cls._MATCH_MEMO[location, region] = res
-
-        # keep mask cache small
-        if len(cls._MASK_MEMO) > 3:
-            # from Python 3.6, this remove the *oldest* entry
-            cls._MASK_MEMO.pop(next(iter(cls._MASK_MEMO)))
-
-        return cls._MATCH_MEMO[location, region]
 
     def represented_parcellations(self):
         """

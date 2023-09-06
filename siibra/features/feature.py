@@ -18,6 +18,7 @@ from . import anchor as _anchor
 from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
+from ..locations import featuremap
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
 from hashlib import md5
@@ -92,7 +93,7 @@ class Feature:
         # query context).
         # do_not_index flag allow the default index behavior to be toggled off.
 
-        if do_not_index == False:
+        if do_not_index is False:
 
             # extend the subclass lists
             # Iterate over all mro, not just immediate base classes
@@ -165,6 +166,11 @@ class Feature:
         cls._preconfigured_instances = None
 
     def matches(self, concept: concept.AtlasConcept) -> bool:
+        """
+        Match the features anatomical anchor agains the given query concept.
+        Record the most recently matched concept for inspection by the caller.
+        TODO storing the last matched concept is not ideal, might cause problems in multithreading
+        """
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True
@@ -229,6 +235,10 @@ class Feature:
         elif isinstance(concept, region.Region):
             encoded_c.append(f"p:{concept.parcellation.id}")
             encoded_c.append(f"r:{concept.name}")
+        elif isinstance(concept, featuremap.FeatureMap):
+            # TODO it seems not really meaningful to serialize such ids for custom feature maps.
+            # maype the serialization for live queries is better placed in siibra-api?
+            encoded_c.append(f"f:{concept.id}")
 
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
@@ -285,7 +295,7 @@ class Feature:
         ]
 
     @classmethod
-    def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
+    def _livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
         if not hasattr(cls, "_live_queries"):
             return []
 
@@ -308,7 +318,14 @@ class Feature:
     @classmethod
     def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
         """
-        Retrieve data features of the desired modality.
+        Retrieve data features of the requested feature type (i.e. modality).
+        This will
+        - call Feature.match(concept) for any registered preconfigured features
+        - run any registered live queries
+        The preconfigured and live query instances are merged and returend as a list.
+
+        If multiple feature types are given, recurse for each of them.
+
 
         Parameters
         ----------
@@ -318,38 +335,49 @@ class Feature:
             specififies the type of features ("modality")
         """
         if isinstance(feature_type, list):
-            # a list of feature types is given, collect match results on those
+            # a list of feature types is given, recurse into each
             assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
             return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
 
-        if isinstance(feature_type, str):
-            # feature type given as a string. Decode the corresponding class.
-            # Some string inputs, such as connectivity, may hit multiple matches
-            # In this case
+        elif isinstance(feature_type, str):
+            # Feature type specified as string.
+            # Some string inputs, such as connectivity, may hit multiple matches.
+            # Decode the matching types and recurse into each.
             candidates = cls.parse_featuretype(feature_type)
             if len(candidates) == 0:
-                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-
+                raise ValueError(
+                    f"Specification {str(feature_type)} did not match with any feature types. "
+                    f"Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                )
             return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
 
         assert issubclass(feature_type, Feature)
 
-        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
+        # At this stage, no recursion is needed.
+        # We expect a specific supported feature type is to be matched now.
+        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space, featuremap.FeatureMap)):
             raise ValueError(
                 "Feature.match / siibra.features.get only accepts Region, "
-                "Space and Parcellation objects as concept."
+                "Space, Parcellation and FeatureMap objects as concept."
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"
+
+        # Collect any preconfigured instances of the requested feature type
+        # which match the query concept
         instances = [
             instance
             for f_type in cls.SUBCLASSES[feature_type]
             for instance in f_type.get_instances()
         ]
+        preconfigured_instances = [
+            f for f in siibra_tqdm(instances, desc=msg, total=len(instances))
+            if f.matches(concept)
+        ]
 
-        preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
-
-        live_instances = feature_type.livequery(concept, **kwargs)
+        # Then run any registered live queries for the requested feature type
+        # with the query concept.
+        live_instances = feature_type._livequery(concept, **kwargs)
 
         return list(set((preconfigured_instances + live_instances)))
 
@@ -359,7 +387,7 @@ class Feature:
             F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
                 f
-                for f in F.livequery(concept, **kwargs)
+                for f in F._livequery(concept, **kwargs)
                 if f.id == fid or f.id == feature_id
             ][0]
         except ParseLiveQueryIdException:

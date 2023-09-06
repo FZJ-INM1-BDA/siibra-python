@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import point, pointset, location, boundingbox
+from . import point, pointset, location, boundingbox, featuremap
 
 from ..commons import logger
 
@@ -150,6 +150,8 @@ class BoundingBox(location.Location):
             ])
         elif isinstance(other, Nifti1Image):
             return self.contains(BoundingBox.from_image(other, space=self.space))
+        elif isinstance(other, featuremap.FeatureMap):
+            return self.contains(other.boundingbox)
         else:
             raise NotImplementedError(
                 f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
@@ -185,6 +187,13 @@ class BoundingBox(location.Location):
             return self._intersect_mask(other, threshold=threshold)
         elif isinstance(other, BoundingBox):
             return self._intersect_bbox(other, dims)
+        elif isinstance(other, featuremap.FeatureMap):
+            # if warping is required, warping the bounding box is easier than the image!
+            warped = self.warp(other.space)
+            if warped is None:
+                logger.warning(f"Could not warp bounding box from {self.space} to {other.space}")
+                return None
+            return warped._intersect_mask(other.image)
         else:
             raise NotImplementedError(
                 f"Intersection of bounding box with {type(other)} not implemented."
@@ -193,7 +202,7 @@ class BoundingBox(location.Location):
     def _intersect_bbox(self, other, dims=[0, 1, 2]):
         warped = other.warp(self.space)
 
-        # Determine the intersecting bounding box by sorting
+        # Determine the intersecting bounsding box by sorting
         # the coordinates of both bounding boxes for each dimension,
         # and fetching the second and third coordinate after sorting.
         # If those belong to a minimum and maximum point,

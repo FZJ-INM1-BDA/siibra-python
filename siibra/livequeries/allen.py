@@ -19,12 +19,12 @@ from ..core import space as _space
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species, MapType
-from ..locations import Point, PointSet
+from ..locations import Point, PointSet, FeatureMap
 from ..core.region import Region
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable, List
+from typing import Iterable, List, Union
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -101,7 +101,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         """
         LiveQuery.__init__(self, **kwargs)
         gene = kwargs.get('gene')
-        self.maptype = kwargs.get("maptype", MapType.LABELLED)
+        self.maptype = kwargs.get("maptype", None)
         if isinstance(self.maptype, str):
             self.maptype = MapType[self.maptype.upper()]
         self.threshold_statistical = kwargs.get("threshold_statistical", 0)
@@ -121,23 +121,40 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, region: Region) -> List[GeneExpressions]:
-        assert isinstance(region, Region)
+    def query(self, concept: Union[Region, FeatureMap]) -> List[GeneExpressions]:
         space = _space.Space.registry().get('mni152')
-        mask = region.fetch_regional_map(space, maptype=self.maptype, threshold=self.threshold_statistical)
+
+        # convert the query concept into a mask in MNI152 space for spatial filtering
+        # on the gene expression locations.
+        if isinstance(concept, Region):
+            mask = concept.fetch_regional_map(space, maptype=self.maptype, threshold=self.threshold_statistical)
+            regionname = concept.name
+            explanation = f"MNI coordinates of tissue samples were compared with mask of '{regionname}' in {space}."
+        elif isinstance(concept, FeatureMap):
+            mask = concept.image
+            regionname = f"Feature map {concept.id}"
+            explanation = f"MNI coordinates of tissue samples were compared with custom feature map in {space}."
+        else:
+            raise NotImplementedError(f"{self.__class__.__name__} does not support querying by {concept.__class__.__name__}.")
+
+        # build the anatomical anchor resulting from the matching.
+        # It will be attached to the returned feature, with the set of matched MNI coordinates
+        # as location.
         anchor = _anchor.AnatomicalAnchor(
-            species=self.species, region=region.name
+            species=self.species, region=regionname
         )
         ass = _anchor.AnatomicalAssignment(
-            query_structure=region,
-            assigned_structure=region,
+            query_structure=concept,
+            assigned_structure=concept,
             qualification=_anchor.AssignmentQualification.CONTAINED,
-            explanation=(f"MNI coordinates of tissue samples were compared with mask of '{region.name}' in {space}.")
+            explanation=explanation
         )
-        anchor._assignments[region] = [ass]
-        anchor._last_matched_concept = region
+        anchor._assignments[concept] = [ass]
+        anchor._last_matched_concept = concept
         anchor._location_cached = PointSet(coordinates=[], space=space)
 
+        # Match the microarray probes to the query mask.
+        # Record the matching instances and their locations.
         measures = []
         contained = {}
         for measure in self:

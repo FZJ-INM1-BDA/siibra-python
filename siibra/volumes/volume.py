@@ -15,7 +15,6 @@
 """A specific mesh or 3D array."""
 from .. import logger
 from ..retrieval import requests
-from ..locations import boundingbox as _boundingbox
 from ..core import space
 
 import nibabel as nib
@@ -26,6 +25,7 @@ from time import sleep
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
+    from ..locations.boundingbox import BoundingBox
     TypeDataset = EbrainsDataset
 
 
@@ -252,7 +252,7 @@ class VolumeProvider(ABC):
 
     @property
     @abstractmethod
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def boundingbox(self) -> "BoundingBox":
         raise NotImplementedError
 
     @property
@@ -300,7 +300,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.z = z
 
     @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def boundingbox(self) -> "BoundingBox":
         return self.provider.boundingbox
 
     def fetch(self, **kwargs):

@@ -13,11 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from ..core.region import Region
-from .location import Location
 
 from enum import Enum
-from typing import Union
+from typing import Union, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .location import Location
+    from ..core.region import Region
 
 
 class AssignmentQualification(Enum):
@@ -69,8 +70,8 @@ class AnatomicalAssignment:
 
     def __init__(
         self,
-        query_structure: Union[Region, Location],
-        assigned_structure: Union[Region, Location],
+        query_structure: Union["Region", "Location"],
+        assigned_structure: Union["Region", "Location"],
         qualification: AssignmentQualification,
         explanation: str = ""
     ):
@@ -88,7 +89,12 @@ class AnatomicalAssignment:
         return msg if self.explanation == "" else f"{msg} - {self.explanation}"
 
     def invert(self):
-        return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
+        return AnatomicalAssignment(
+            self.assigned_structure,
+            self.query_structure,
+            self.qualification.invert(),
+            self.explanation
+        )
 
     def __lt__(self, other: 'AnatomicalAssignment'):
         if not isinstance(other, AnatomicalAssignment):
