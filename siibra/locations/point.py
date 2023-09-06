@@ -204,16 +204,24 @@ class Point(location.Location):
 
     def __lt__(self, other):
         o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return True  # 'other' was warped outside reference space bounds
         return all(self[i] < o[i] for i in range(3))
 
     def __gt__(self, other):
+        assert other is not None
         o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
         return all(self[i] > o[i] for i in range(3))
+
 
     def __eq__(self, other: 'Point'):
         if not isinstance(other, Point):
             return False
         o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
         return all(self[i] == o[i] for i in range(3))
 
     def __le__(self, other):
