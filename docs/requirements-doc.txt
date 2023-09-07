@@ -1,4 +1,6 @@
 setuptools >= 67.7.2
+sphinx == 6.2.1
+rtds_action
 -r ../requirements.txt
 memory-profiler
 ipykernel
@@ -12,3 +14,6 @@ sphinx-gallery
 matplotlib >= 3.4.0
 sphinx-rtd-theme
 sphinx_autopackagesummary
+sphinxcontrib.jquery
+graphviz
+sphinx-copybutton

@@ -30,7 +30,7 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 # If we query this modality for the whole atlas instead of a particular
 # brain region, all linked receptor density features
 # will be returned.
-all_features = siibra.get_features( atlas, siibra.modalities.ReceptorDistribution)
+all_features = siibra.get_features(atlas, siibra.modalities.ReceptorDistribution)
 print("Receptor density features found for the following regions:")
 print("\n".join(f.regionspec for f in all_features))
 
