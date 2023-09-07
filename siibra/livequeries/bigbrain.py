@@ -66,8 +66,8 @@ class WagstylProfileLoader:
             for url in [cls.PROFILES_FILE_LEFT, cls.PROFILES_FILE_RIGHT]
         ):
             logger.info(
-                "First request to BigBrain profiles. Downloading and "
-                "preprocessing the data now. This may take a little."
+                "First request to BigBrain profiles. Preprocessing the data "
+                "now. This may take a little."
             )
         profiles_l = requests.HttpRequest(cls.PROFILES_FILE_LEFT).data.to_numpy()
         profiles_r = requests.HttpRequest(cls.PROFILES_FILE_RIGHT).data.to_numpy()
@@ -111,7 +111,7 @@ class WagstylProfileLoader:
     def __len__(self):
         return self._vertices.shape[0]
 
-    def match(self, regionobj: region.Region, space_spec: str = None):
+    def match(self, regionobj: region.Region, space: str = None):
         """
         Retrieve BigBrainIntesityProfiles .
 
@@ -131,14 +131,14 @@ class WagstylProfileLoader:
         assert isinstance(regionobj, region.Region)
         logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
 
-        if space_spec is None:
-            space_spec = self._choose_space(regionobj)
+        if space is None:
+            space = self._choose_space(regionobj)
 
-        mask = regionobj.fetch_regional_map(space=space_spec, maptype="labelled")
-        logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {space_spec}...")
+        mask = regionobj.fetch_regional_map(space=space, maptype="labelled")
+        logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {space}...")
         voxels = (
             pointset.PointSet(self._vertices, space="bigbrain")
-            .warp(space_spec)
+            .warp(space)
             .transform(np.linalg.inv(mask.affine), space=None)
         )
         arr = mask.get_fdata()
@@ -158,14 +158,15 @@ class WagstylProfileLoader:
 
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
 
-    def __init__(self):
-        query.LiveQuery.__init__(self)
+    def __init__(self, **kwargs):
+        query.LiveQuery.__init__(self, **kwargs)
+        self.space_spec = kwargs.pop('space', None)
 
     def query(self, regionobj: region.Region, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        space = WagstylProfileLoader._choose_space(regionobj)
+        space = self.space_spec or WagstylProfileLoader._choose_space(regionobj)
         if not regionobj.is_leaf:
             leaves_defined_on_space = [
                 r for r in regionobj.leaves if r.mapped_in_space(space)
@@ -175,7 +176,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
         result = []
         for subregion in leaves_defined_on_space:
-            matched_profiles, boundary_depths, coords = loader.match(subregion)
+            matched_profiles, boundary_depths, coords = loader.match(subregion, space)
             for i, profile in enumerate(matched_profiles):
                 prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
                     regionname=subregion.name,
@@ -191,14 +192,15 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
 
-    def __init__(self):
-        query.LiveQuery.__init__(self)
+    def __init__(self, **kwargs):
+        query.LiveQuery.__init__(self, **kwargs)
+        self.space_spec = kwargs.pop('space', None)
 
     def query(self, regionobj: region.Region, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        space = WagstylProfileLoader._choose_space(regionobj)
+        space = self.space_spec or WagstylProfileLoader._choose_space(regionobj)
         if not regionobj.is_leaf:
             leaves_defined_on_space = [
                 r for r in regionobj.leaves if r.mapped_in_space(space)
@@ -208,7 +210,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
 
         result = []
         for subregion in leaves_defined_on_space:
-            matched_profiles, boundary_depths, coords = loader.match(subregion)
+            matched_profiles, boundary_depths, coords = loader.match(subregion, space)
             if matched_profiles.shape[0] == 0:
                 continue
 

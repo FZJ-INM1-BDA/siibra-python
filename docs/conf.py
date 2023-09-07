@@ -16,7 +16,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme
 import sphinx_autopackagesummary
 
-
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
@@ -66,7 +65,10 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
     "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
     "m2r2",  # converts a markdown file including rst markups to a valid rst format
-    "sphinxcontrib.jquery"  # work around for jQuery not being loaded automatically dependency removal from sphinx 7,
+    "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
+    "sphinx.ext.graphviz",  # to allow drawing diagrams
+    "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
+    "sphinx_copybutton"
 ]
 
 
@@ -103,11 +105,16 @@ autoapi_add_toctree_entry = False
 autoapi_options = [
     'members',
     'undoc-members',
-    'show-inheritance',
+    'show-inheritance-diagram',
     'show-module-summary',
     'imported-members'
 ]
 autoclass_content = 'both'
+
+graphviz_output_format = 'png'
+inheritance_graph_attrs = dict(
+    rankdir="LR"
+)
 
 # sphinx_autopackagesummary options
 autosummary_generate = True
