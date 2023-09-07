@@ -1,0 +1,36 @@
+name: Docs
+on: [push, release]
+
+jobs:
+  notebooks:
+    name: "Build and run the notebooks for the docs"
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -U .
+          python -m pip install -r ./docs/requirements-doc.txt
+
+      - name: Build the docs and execute the notebooks
+        run: |
+          sphinx-build docs ./docs/_build/
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: sphinx-docs-built-in-github-${{ github.sha }}
+          path: docs
+
+      - name: Trigger RTDs build
+        uses: dfm/rtds-action@v1
+        with:
+          webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
+          webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
+          commit_ref: ${{ github.ref }}

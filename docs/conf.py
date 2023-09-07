@@ -71,6 +71,16 @@ extensions = [
     "sphinx_copybutton"
 ]
 
+
+rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
+if rtds_action_github_token:
+    extensions.append("rtds_action")
+    # rtds action settings
+    rtds_action_github_repo = "FZJ-INM1-BDA/siibra-python"  # The name of GitHub repository
+    rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
+    rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
+    nbsphinx_execute = 'never'
+
 # napolean settings
 napoleon_google_docstring = False
 napoleon_use_param = True
@@ -130,7 +140,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": False,
-    "run_stale_examples": True
+    "run_stale_examples": False
 }
 
 html_theme_options = {
