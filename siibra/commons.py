@@ -101,7 +101,10 @@ class InstanceTable(Generic[T], Iterable):
 
     def __dir__(self) -> Iterable[str]:
         """List of all object keys in the registry"""
-        return ["dataframe"] + list(self._elements.keys())
+        if isinstance(self[0], type):
+            return list(self._elements.keys())
+        else:    
+            return ["dataframe"] + list(self._elements.keys())
 
     def __str__(self) -> str:
         if len(self) > 0:

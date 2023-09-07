@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from zipfile import ZipFile
 from ..feature import Feature
 from ..tabular.tabular import Tabular
 
@@ -26,6 +27,7 @@ from ...retrieval.repositories import RepositoryConnector
 import pandas as pd
 import numpy as np
 from typing import Callable, Dict, Union, List
+
 try:
     from typing import Literal
 except ImportError:  # support python 3.7
@@ -79,7 +81,7 @@ class RegionalConnectivity(Feature):
         Feature.__init__(
             self,
             modality=modality,
-            description=description,
+            description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
         )
@@ -200,6 +202,12 @@ class RegionalConnectivity(Feature):
     def __iter__(self):
         return ((sid, self.get_matrix(sid)) for sid in self._files)
 
+    def _export(self, fh: ZipFile):
+        super()._export(fh)
+        for sub in self.subjects:
+            df = self.get_matrix(sub)
+            fh.writestr(f"sub/{sub}/matrix.csv", df.to_csv())
+
     def get_profile(
         self,
         region: Union[str, _region.Region],
@@ -289,9 +297,20 @@ class RegionalConnectivity(Feature):
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
                 "log_x": logscale,
-                "labels": {"index": "Regions"},
-                "color_continuous_scale": "jet"
+                "labels": {"y": " ", "x": ""},
+                "color_continuous_scale": "jet",
+                "width": 600, "height": 3800
             })
+            fig = profile.data.plot(*args, backend=backend, **kwargs)
+            fig.update_layout({
+                "font": dict(size=9),
+                "yaxis": {"autorange": "reversed"},
+                "coloraxis": {"colorbar": {
+                    "orientation": "h", "title": "", "xpad": 0, "ypad": 10
+                }},
+                "margin": dict(l=0, r=0, b=0, t=0, pad=0)
+            })
+            return fig
         return profile.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
