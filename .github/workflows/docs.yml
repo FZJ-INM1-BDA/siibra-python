@@ -1,4 +1,4 @@
-name: Docs
+name: '[Docs and examples] Create docs and run examples'
 on: [push, release]
 
 jobs:
@@ -18,6 +18,14 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -U .
           python -m pip install -r ./docs/requirements-doc.txt
+
+      - name: Install apt packages
+        run: |
+          sudo apt-get install graphviz
+
+      - name: Create diagrams with pyreverse
+        run: |
+          pyreverse -k  -o svg -p siibra ./siibra --colorized --output-directory ./docs/_static
 
       - name: Build the docs and execute the notebooks
         run: |
