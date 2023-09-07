@@ -41,9 +41,8 @@ julich_pmaps = siibra.get_map(
 )
 
 # %%
-# As an exemplary input signal, we use a
-# statistical map from the 64-component functional mode
-# parcellation (DiFuMo 64) by Thirion et al.
+# As an exemplary input signal, we use a  statistical map from the 64-component
+# functional mode parcellation (DiFuMo 64) by Thirion et al.
 difumo_maps = siibra.get_map(
     parcellation='difumo 64',
     space='mni152',
@@ -56,15 +55,14 @@ img = difumo_maps.fetch(region=region)
 plotting.view_img(
     img,
     title=f"Functional map created from {region}",
-    symmetric_cmap=False,
-    colorbar="south"
+    colorbar=False
 )
 
 # %%
-# This "fake functional map" has two modes, one in each hemisphere.
-# We now assign cytoarchitectonic regions to this functional map.
-# Since we are here usually interested in correlations of the modes,
-# we filter the result by significant (positive) correlations.
+# This "fake functional map" has two modes, one in each hemisphere. We now
+# assign cytoarchitectonic regions to this functional map. Since we are here
+# usually interested in correlations of the modes, we filter the result by
+# significant (positive) correlations.
 with siibra.QUIET:  # suppress progress output
     assignments = julich_pmaps.assign(img)
 assignments.query('correlation >= 0.35')
