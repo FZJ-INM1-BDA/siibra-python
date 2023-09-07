@@ -38,6 +38,8 @@ class RegionalConnectivity(Feature):
     given modality for a given parcellation.
     """
 
+    _IS_COMPOUNDABLE = True
+
     def __init__(
         self,
         cohort: str,
@@ -101,6 +103,10 @@ class RegionalConnectivity(Feature):
     def name(self):
         supername = super().name
         return f"{supername} with cohort {self.cohort}"
+
+    @property
+    def data(self):
+        return self.get_matrix(self._filter_key)
 
     def get_matrix(self, subject: str = None):
         """
@@ -267,9 +273,9 @@ class RegionalConnectivity(Feature):
                 datasets=self.datasets
             )
 
-    def plot_profile(
+    def plot(
         self,
-        region: Union[str, _region.Region],
+        region: Union[str, _region.Region, List[Union[str, _region.Region]]] = None,
         subject: str = None,
         min_connectivity: float = 0,
         max_rows: int = None,
@@ -279,6 +285,27 @@ class RegionalConnectivity(Feature):
         backend="matplotlib",
         **kwargs
     ):
+        """
+        Parameters
+        ----------
+        region : Union[str, _region.Region], None
+            If None, returns the full connectivity matrix.
+            If a region is provided, returns the profile for that region.
+            If list of regions is provided, returns the matrix for the selected
+            regions.
+        min_connectivity : float, default 0
+        max_rows : int, default None
+        direction : 'column' or 'row', default: 'column'
+        logscale : bool, default: False
+        backend : str, default: "matplotlib"
+        """
+        if region is None or isinstance(region, list):
+            return self.plot_matrix(
+                subject=subject, regions=region, logscale=logscale, *args,
+                backend="nilearn" if backend == "matplotlib" else "plotly",
+                **kwargs
+            )
+
         profile = self.get_profile(region, subject, min_connectivity, max_rows, direction)
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
@@ -379,3 +406,8 @@ class RegionalConnectivity(Feature):
                 f"from {self._files[subject]} in {str(self._connector)}"
             )
         return self._arraylike_to_dataframe(array)
+
+    @property
+    def _filter_key(self):
+        assert len(self) == 1
+        return self.subjects[0]

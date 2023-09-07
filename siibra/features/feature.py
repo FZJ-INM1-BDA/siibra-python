@@ -19,9 +19,10 @@ from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
+from itertools import groupby
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -546,7 +547,11 @@ class CompoundFeature(Feature):
     def data(self):
         if self._data_cached is None:
             try:
-                self._data_cached = sum([f.data for f in self.subfeatures]) / len(self)
+                self._data_cached = sum([
+                    f.data for f in siibra_tqdm(
+                        self.subfeatures, desc='Averaging', unit="subfeature"
+                    )
+                ]) / len(self)
                 return self._data_cached
             except Exception:
                 raise NotImplementedError(
@@ -572,7 +577,7 @@ class CompoundFeature(Feature):
         """Returns a short human-readable name of this feature."""
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
-            f"{self._subfeature_type.__name__}s ({self.modality}) anchored at",
+            f"{self._subfeature_type.__name__} ({self.modality}) anchored at",
             str(self.anchor)
         ))
 
@@ -604,7 +609,25 @@ class CompoundFeature(Feature):
         -------
         List[CompoundFeature]
         """
-        return [cls(features, queryconcept)]
+        grouper = lambda prop, fs: groupby(
+            list(fs), lambda f: getattr(f, prop, "no " + prop)
+        )
+        grouped_features = dict()
+        for m, fts_m in grouper('__class__', features):
+            for c, fts_c in grouper('cohort', fts_m):
+                for p, fts_p in grouper('paradigm', fts_c):
+                    gkey = f"{m.__name__} - {c} - {p}"
+                    if gkey in grouped_features:
+                        grouped_features[gkey].extend(list(fts_p))
+                    else:
+                        grouped_features[gkey] = list(fts_p)
+        logger.debug('Compound grouping:\n' + '\n'.join(
+            [f"{g} - {len(fts)}" for g, fts in grouped_features.items()]
+        ))
+        return [
+            CompoundFeature(fts, queryconcept)
+            for fts in grouped_features.values() if fts
+        ]
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
