@@ -16,3 +16,9 @@
 from .allen import AllenBrainAtlasQuery
 from .bigbrain import LayerwiseBigBrainIntensityQuery, BigBrainProfileQuery
 from .ebrains import EbrainsFeatureQuery
+
+
+def warm_cache():
+    """Preload downloadable livequeries."""
+    from .bigbrain import WagstylProfileLoader
+    WagstylProfileLoader()._load()
