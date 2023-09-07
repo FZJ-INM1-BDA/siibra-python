@@ -421,6 +421,14 @@ class Factory:
 
     @classmethod
     def build_connectivity_matrix(cls, spec):
+        files = spec.pop("files", {})
+        if len(files) > 1:
+            conn_by_file = []
+            for fkey, file in files.items():
+                spec['files'] = {fkey: file}
+                conn_by_file.append(cls.build_connectivity_matrix(spec))
+            return conn_by_file
+
         modality = spec["modality"]
         kwargs = {
             "cohort": spec.get("cohort", ""),
@@ -428,7 +436,7 @@ class Factory:
             "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
             "decode_func": cls.extract_decoder(spec),
-            "files": spec.get("files", {}),
+            "files": files,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
