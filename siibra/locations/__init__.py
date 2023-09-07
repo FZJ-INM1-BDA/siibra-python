@@ -47,6 +47,9 @@ def override_union(loc0: 'Location', loc1: 'Location') -> 'Location':
         - WholeBrain U Location = NotImplementedError
         (all operations are commutative)
     """
+    if loc0 is None or loc1 is None:
+        return loc0 or loc1
+
     if isinstance(loc0, WholeBrain) or isinstance(loc1, WholeBrain):
         raise NotImplementedError("Union of WholeBrains is not yet implemented.")
 
