@@ -215,11 +215,11 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @property
     def name(self) -> str:
         fullname = self._detail.get("fullName")
-        for dataset in self.is_version_of:
-            if fullname is not None:
-                break
-            fullname = dataset.name
-
+        if not fullname:
+            for dataset in self.is_version_of:
+                if fullname:
+                    break
+                fullname = dataset.name
         version_id = self._detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
 

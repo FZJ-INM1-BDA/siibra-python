@@ -16,7 +16,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme
 import sphinx_autopackagesummary
 
-
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
 print("Path:", sys.path)
@@ -66,8 +65,21 @@ extensions = [
     "IPython.sphinxext.ipython_console_highlighting",  # enables ipython syntax highlighting
     "sphinx_rtd_theme",  # readthedocs theme. Requires import or a clone in _static
     "m2r2",  # converts a markdown file including rst markups to a valid rst format
-    "sphinxcontrib.jquery"  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
+    "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
+    "sphinx.ext.graphviz",  # to allow drawing diagrams
+    "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
+    "sphinx_copybutton"
 ]
+
+
+rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
+if rtds_action_github_token:
+    extensions.append("rtds_action")
+    # rtds action settings
+    rtds_action_github_repo = "FZJ-INM1-BDA/siibra-python"  # The name of GitHub repository
+    rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
+    rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
+    nbsphinx_execute = 'never'
 
 # napolean settings
 napoleon_google_docstring = False
@@ -93,11 +105,16 @@ autoapi_add_toctree_entry = False
 autoapi_options = [
     'members',
     'undoc-members',
-    'show-inheritance',
+    'show-inheritance-diagram',
     'show-module-summary',
     'imported-members'
 ]
 autoclass_content = 'both'
+
+graphviz_output_format = 'png'
+inheritance_graph_attrs = dict(
+    rankdir="LR"
+)
 
 # sphinx_autopackagesummary options
 autosummary_generate = True
@@ -123,7 +140,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": False,
-    "run_stale_examples": True
+    "run_stale_examples": False
 }
 
 html_theme_options = {

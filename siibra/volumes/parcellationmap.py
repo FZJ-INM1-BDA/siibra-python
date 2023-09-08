@@ -505,7 +505,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         -------
         parcellationmap.Map
         """
-        if len(self.volumes) == 1 and (self.fragments is None):
+        if len(self.volumes) == 1 and not self.fragments:
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
 
         # initialize empty volume according to the template

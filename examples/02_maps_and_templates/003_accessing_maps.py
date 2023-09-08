@@ -36,8 +36,9 @@ from nilearn import plotting
 # %%
 # Similar to the parcellations, spaces, and atlases, you can access to
 # preconfigured maps by `siibra.maps`. Additionally, we can use a pandas.DataFrame
-# to navigate the details of these maps and filter them.
-siibra.maps.dataframe
+# to navigate the details of these maps and filter them. For example, fetch all
+# the maps defined on "MNI Colin 27" space.
+siibra.maps.dataframe.query('space == "MNI Colin 27"')
 
 # %%
 # We select the maximum probability map of Julich-Brain in MNI152 space,

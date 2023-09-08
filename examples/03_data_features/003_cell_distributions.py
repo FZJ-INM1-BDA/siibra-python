@@ -39,9 +39,9 @@ features = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)
 print(f"{len(features)} cell density profiles found for region {v1.name}")
 
 # %%
-# Look at the default visualization the first of them.
-# This will actually fetch the image and cell segmentation data.
-features[0].plot()
+# Look at the default visualization the first of them, this time using `plotly`
+# backend. This will actually fetch the image and cell segmentation data.
+features[0].plot(backend="plotly")
 
 # %%
 # The segmented cells are stored in each feature as a numpy array with named columns.

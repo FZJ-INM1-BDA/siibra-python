@@ -88,7 +88,7 @@ print(type(icbm_mesh))
 # We can likewise visualize the mesh using
 # plotting functions of `nilearn <https://nilearn.github.io>`_
 plotting.view_surf(
-    surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']]
+    surf_mesh=[icbm_mesh['verts'], icbm_mesh['faces']], colorbar=False
 )
 
 # %%
@@ -103,7 +103,8 @@ plotting.view_surf(
 print(icbm_tpl.fragments)
 icbm_mesh_r = icbm_tpl.fetch(format='mesh', fragment='right')
 plotting.view_surf(
-    surf_mesh=[icbm_mesh_r['verts'], icbm_mesh_r['faces']])
+    surf_mesh=[icbm_mesh_r['verts'], icbm_mesh_r['faces']], colorbar=False
+)
 
 # %%
 # For convenience, templates may also be requested from an atlas,

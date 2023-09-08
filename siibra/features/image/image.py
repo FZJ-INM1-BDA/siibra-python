@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from zipfile import ZipFile
 from .. import feature
 
 from .. import anchor as _anchor
@@ -80,6 +81,13 @@ class Image(feature.Feature, _volume.Volume):
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
         self._name_cached = name
+
+    def _export(self, fh: ZipFile):
+        super()._export(fh)
+        # How, what do we download?
+        # e.g. for marcel's volume, do we download at full resolution?
+        # cannot implement until Volume has an export friendly method
+        fh.writestr("volume.txt", "Volume cannot be downloaded yet.")
 
     @property
     def name(self):
