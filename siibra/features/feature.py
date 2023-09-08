@@ -560,6 +560,10 @@ class CompoundFeature(Feature):
         else:
             return self._data_cached
 
+    def __iter__(self) -> Iterator['Feature']:
+        """Iterate over all subfeatures"""
+        return (f for f in self._subfeatures.values())
+
     def __len__(self):
         return len(self._subfeatures)
 
