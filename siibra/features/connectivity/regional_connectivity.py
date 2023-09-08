@@ -102,7 +102,8 @@ class RegionalConnectivity(Feature):
     @property
     def name(self):
         supername = super().name
-        return f"{supername} with cohort {self.cohort}"
+        postfix = f" and paradigm {self.paradigm}" if hasattr('paradigm') else ""
+        return f"{supername} with cohort {self.cohort}" + postfix
 
     @property
     def data(self):
