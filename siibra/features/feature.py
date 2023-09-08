@@ -511,6 +511,11 @@ class CompoundFeature(Feature):
             logger.error({f.modality for f in features})
             raise NotImplementedError("Cannot compound features of different modalities.")
 
+        if hasattr(features[0], 'cohort') and len({f.cohort for f in features}) == 1:
+            self.cohort = features[0].cohort
+        if hasattr(features[0], 'paradigm') and len({f.paradigm for f in features}) == 1:
+            self.paradigm = features[0].paradigm
+
         assert not any(isinstance(f._filter_key, int) for f in features), "Filter keys cannot be integers."
         self._subfeatures = {f._filter_key: f for f in features}
 
