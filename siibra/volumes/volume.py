@@ -16,6 +16,7 @@
 from .. import logger
 from ..retrieval import requests
 from ..core import space
+from ..locations import location, spatialmap
 
 import nibabel as nib
 from abc import ABC, abstractmethod
@@ -33,7 +34,7 @@ class ColorVolumeNotSupported(NotImplementedError):
     pass
 
 
-class Volume:
+class Volume(location.Location):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
@@ -211,7 +212,9 @@ class Volume:
                     labels = self._providers[selected_format].fetch(**kwargs)
                     return dict(**mesh, **labels)
                 else:
-                    return self._providers[selected_format].fetch(**kwargs)
+                    image = self._providers[selected_format].fetch(**kwargs)
+                    # TODO insert a meaningful description including origin and bounding box
+                    return spatialmap.SpatialMap(image, spacespec=self.space)
             except requests.SiibraHttpRequestError as e:
                 if e.status_code == 429:  # too many requests
                     sleep(0.1)
@@ -241,7 +244,7 @@ class Subvolume(Volume):
 
 
 # TODO add mesh primitive. Check nibabel implementation? Use trimesh? Do we want to add yet another dependency?
-VolumeData = Union[nib.Nifti1Image, Dict]
+VolumeData = Union[nib.Nifti1Image, spatialmap.SpatialMap, Dict]
 
 
 class VolumeProvider(ABC):

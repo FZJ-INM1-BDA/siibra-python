@@ -16,7 +16,7 @@
 from . import parcellationmap, volume as _volume
 
 from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
-from ..locations import boundingbox
+from ..locations import boundingbox, spatialmap
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
 
@@ -424,7 +424,8 @@ class SparseMap(parcellationmap.Map):
         x, y, z, v = self.sparse_index.mapped_voxels(volidx)
         result = np.zeros(self.shape, dtype=np.float32)
         result[x, y, z] = v
-        return Nifti1Image(result, self.affine)
+        return spatialmap.SpatialMap(result, self.affine, self.space, \
+            f"Map of {region.name} from {region.parcellation.name} in {self.space.name}")
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index

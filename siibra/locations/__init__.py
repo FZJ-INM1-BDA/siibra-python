@@ -13,8 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .location import WholeBrain
 from .point import Point
 from .pointset import PointSet
 from .boundingbox import BoundingBox
-from .featuremap import FeatureMap
+from .spatialmap import SpatialMap

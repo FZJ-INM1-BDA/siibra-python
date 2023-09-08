@@ -118,10 +118,10 @@ class Location(ABC):
     def _assign_location(self, other: Location):
         if self == other:
             qualification = assignment.AssignmentQualification.EXACT
-        elif self.contained_in(other):
-            qualification = assignment.AssignmentQualification.CONTAINED
         elif self.contains(other):
             qualification = assignment.AssignmentQualification.CONTAINS
+        elif other.contains(self):
+            qualification = assignment.AssignmentQualification.CONTAINED
         elif self.intersects(other):
             qualification = assignment.AssignmentQualification.OVERLAPS
         else:
@@ -185,10 +185,10 @@ class Location(ABC):
             else:
                 # got a bounding box, so assign this location to the bounding box location.
                 return self.assign(region_bbox)
-        elif loc_warped.contained_in(mask):
-            qualification = assignment.AssignmentQualification.CONTAINED
         elif loc_warped.contains(mask):
             qualification = assignment.AssignmentQualification.CONTAINS
+        elif mask.contains(loc_warped):
+            qualification = assignment.AssignmentQualification.CONTAINED
         elif loc_warped.intersects(mask):
             qualification = assignment.AssignmentQualification.OVERLAPS
         else:
@@ -209,39 +209,16 @@ class Location(ABC):
             else assignment.AnatomicalAssignment(self, region, qualification, expl)
 
 
-class WholeBrain(Location):
-    """
-    Trivial location class for formally representing
-    location in a particular reference space, which
-    is not further specified.
-    """
+class LocationFilter(ABC):
+    """ Abstract base class for types who can act as a location filter. """
 
-    def intersection(self, mask: Nifti1Image) -> bool:
-        """
-        Required for abstract class Location
-        """
-        return True
-
-    def __init__(self, space=None):
-        Location.__init__(self, space)
-
-    def intersects(self, *_args, **_kwargs):
-        """Always true for whole brain features"""
-        return True
-
-    def warp(self, space):
-        """Generates a new whole brain location
-        in another reference space."""
-        return self.__class__(space)
-
-    def transform(self, affine: np.ndarray, space=None):
-        """Does nothing."""
+    @abstractmethod
+    def contains(self, other: "Location") -> bool:
+        """ test for containedness of a location """
         pass
 
-    def __iter__(self):
-        """To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location."""
-        yield from ()
-
-    def __str__(self):
-        return f"{self.__class__.__name__} in {self.space.name}"
+    @abstractmethod
+    def intersection(self, other: "Location") -> "Location":
+        """ Return the intersection of two locations,
+        ie. the other location filtered by this location. """
+        pass

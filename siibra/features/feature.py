@@ -18,7 +18,7 @@ from . import anchor as _anchor
 from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
-from ..locations import featuremap
+from ..locations import spatialmap
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
 from hashlib import md5
@@ -235,7 +235,7 @@ class Feature:
         elif isinstance(concept, region.Region):
             encoded_c.append(f"p:{concept.parcellation.id}")
             encoded_c.append(f"r:{concept.name}")
-        elif isinstance(concept, featuremap.FeatureMap):
+        elif isinstance(concept, spatialmap.SpatialMap):
             # TODO it seems not really meaningful to serialize such ids for custom feature maps.
             # maype the serialization for live queries is better placed in siibra-api?
             encoded_c.append(f"f:{concept.id}")
@@ -308,11 +308,12 @@ class Feature:
                 f"objects linked to {str(concept)}{argstr}"
             )
             q = QueryType(**kwargs)
-            features = [
-                Feature.wrap_livequery_feature(feat, Feature.serialize_query_context(feat, concept))
-                for feat in q.query(concept)
-            ]
-            live_instances.extend(features)
+            features = q.query(concept)
+            live_instances.extend(
+                Feature.wrap_livequery_feature(f, Feature.serialize_query_context(f, concept))
+                for f in features
+            )
+
         return live_instances
 
     @classmethod
@@ -355,7 +356,7 @@ class Feature:
 
         # At this stage, no recursion is needed.
         # We expect a specific supported feature type is to be matched now.
-        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space, featuremap.FeatureMap)):
+        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space, spatialmap.SpatialMap)):
             raise ValueError(
                 "Feature.match / siibra.features.get only accepts Region, "
                 "Space, Parcellation and FeatureMap objects as concept."

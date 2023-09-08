@@ -17,15 +17,13 @@ from . import location, boundingbox, pointset
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
 
-from nibabel.affines import apply_affine
-from nibabel import Nifti1Image
 from urllib.parse import quote
 import re
 import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Union, Tuple
+from typing import Tuple
 
 
 class Point(location.Location):
@@ -100,59 +98,23 @@ class Point(location.Location):
         obtained by appending '1' to the original 3-tuple."""
         return self.coordinate + (1,)
 
-    def intersection(self, other: Union[location.Location, Nifti1Image]) -> "Point":
+    def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
             return self if self == other else None
         elif isinstance(other, pointset.PointSet):
             return self if self in other else None
-        elif isinstance(other, boundingbox.BoundingBox):
-            return self if other.contains(self) else None
-        elif isinstance(other, Nifti1Image):
-            return self if self.intersects(other) else None
         else:
-            raise NotImplementedError(
-                f"Intersection of {self.__class__.__name__} with "
-                f"{other.__class__.__name__} not implemented"
-            )
+            return self if other.contains(self) else None
 
-    def intersects(self, other: Union[location.Location, Nifti1Image]) -> bool:
+    def intersects(self, other: location.Location) -> bool:
         """Returns true if this point lies in the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        # transform physical coordinates to voxel coordinates for the query
-        def coordinate_inside_mask(mask, c):
-            voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
-            if np.any(voxel >= mask.dataobj.shape):
-                return False
-            elif np.any(voxel < 0):
-                return False
-            elif mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
-                return False
-            else:
-                return True
+        return (self.intersection(other) is not None)
 
-        if isinstance(other, location.Location):
-            return (self.intersection(other) is not None)
-        elif isinstance(other, Nifti1Image):
-            if other.ndim == 4:
-                return any(
-                    coordinate_inside_mask(other.slicer[:, :, :, i], self.coordinate)
-                    for i in range(other.shape[3])
-                )
-            else:
-                return coordinate_inside_mask(other, self.coordinate)
-        else:
-            raise NotImplementedError(
-                f"Intersection test of {self.__class__.__name__} with "
-                f"{other.__class__.__name__} not implemented"
-            )
-
-    def contained_in(self, other: Union[location.Location, Nifti1Image]):
-        return self.intersects(other)
-
-    def contains(self, other: Union[location.Location, Nifti1Image]):
+    def contains(self, other: location.Location):
         if isinstance(other, Point):
             return self == other
         else:

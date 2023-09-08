@@ -433,6 +433,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
+
+        result.description = f"Map of {region.name} from {self.parcellation.name} in {self.space.name}"
         return result
 
     def fetch_iter(self, **kwargs):

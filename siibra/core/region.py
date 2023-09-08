@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..locations import location, boundingbox, point, pointset, assignment
+from ..locations import location, boundingbox, point, pointset, assignment, spatialmap
 from ..volumes import parcellationmap
 
 from ..commons import (
@@ -60,7 +60,7 @@ class SpatialProp:
     space: _space.Space = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept):
+class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
     """
     Representation of a region with name and more optional attributes
     """
@@ -376,7 +376,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
         threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD,
         via_space: Union[str, _space.Space] = None
-    ):
+    ) -> spatialmap.SpatialMap:
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified MapTypes.
@@ -409,7 +409,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 which is currently not supported in siibra-python for images.
         Returns
         -------
-        Nifti1Image
+        SpatialMap
         """
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
@@ -432,9 +432,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 result = m.fetch(region=self, format='image')
                 if (maptype == MapType.STATISTICAL) and (threshold is not None):
                     logger.info(f"Thresholding statistical map at {threshold}")
-                    result = Nifti1Image(
+                    result = spatialmap.SpatialMap(
                         (result.get_fdata() > threshold).astype('uint8'),
-                        result.affine
+                        result.affine,
+                        fetch_space
                     )
                 break
         else:
@@ -450,7 +451,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 ):
                     mask = c.fetch_regional_map(fetch_space, maptype, threshold)
                     if dataobj is None:
-                        dataobj = np.asanyarray(mask.dataobj)
+                        dataobj = np.asanyarray(mask.image.dataobj)
                         affine = mask.affine
                     else:
                         if np.linalg.norm(mask.affine - affine) > 1e-12:
@@ -459,10 +460,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                                 "and the aggregated subtree mask is not supported. "
                                 f"Try fetching masks of the children: {self.children}"
                             )
-                        updates = mask.get_fdata() > dataobj
-                        dataobj[updates] = mask.get_fdata()[updates]
+                        updates = mask.image.get_fdata() > dataobj
+                        dataobj[updates] = mask.image.get_fdata()[updates]
             if dataobj is not None:
-                result = Nifti1Image(dataobj, affine)
+                result = spatialmap.SpatialMap(Nifti1Image(dataobj, affine), space=fetch_space)
 
         if result is None:
             raise RuntimeError(f"Cannot build mask for {self.name} from {maptype} maps in {fetch_space}")
@@ -472,7 +473,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             # We will now transform the affine to match the desired target space.
             bbox = boundingbox.BoundingBox.from_image(result, fetch_space)
             transform = bbox.estimate_affine(space)
-            result = Nifti1Image(result.dataobj, np.dot(transform, result.affine))
+            result = spatialmap.SpatialMap(result.dataobj, np.dot(transform, result.affine), fetch_space)
             logger.info(
                 f"Regional map was fetched from {fetch_space.name}, "
                 f"then linearly corrected to match {space.name}."
@@ -696,10 +697,36 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         return anytree.PreOrderIter(self)
 
+    def contains(self, other: ["Region", "location.Location"]) -> bool:
+        """ Tests if another object is contained in this region. """
+        ass = self.assign(other)
+        return False if ass is None \
+            else ass.qualification == assignment.AssignmentQualification.CONTAINS
+    
+    def intersection(self, other: "location.Location") -> "location.Location":
+        """ Use this region for filtering a location object. """
+
+        if self.supports_space(other.space):
+            spatialmap = self.fetch_regional_map(other.space)
+            return spatialmap.intersection(other)
+
+        for space in sorted(self.supported_spaces):
+            if space.provides_image:
+                logger.info(f"Trying to intersect {other.__class__.__name__} in {space}")
+                warped = other.warp(space)
+                if warped is None:
+                    logger.error(f"Could not warp {other} to {space}")
+                    continue
+                spatialmap = self.fetch_regional_map(space)
+                return spatialmap.intersection(warped).warp(other.space)
+
+        raise RuntimeError(f"Could not intersect {self} with {other}")
+
     def assign(self, other: ["Region", "location.Location"]) -> assignment.AnatomicalAssignment:
         """ Assigns this region to another region. """
         if (self, other) not in self._ASSIGNMENT_CACHE:
             if isinstance(other, location.Location):
+                # containedness of locations in image masks is implemented in Location
                 a = other.assign(self)
                 self._ASSIGNMENT_CACHE[self, other] = None if a is None else a.invert()
             else:

@@ -46,7 +46,7 @@ class LayerwiseBigBrainIntensities(
         from ..anchor import AnatomicalAnchor
         anchor = AnatomicalAnchor(
             region=regionname,
-            species='Homo sapiens'
+            species='Homo sapiens',
         )
         data = pd.DataFrame(
             np.array([means, stds]).T,

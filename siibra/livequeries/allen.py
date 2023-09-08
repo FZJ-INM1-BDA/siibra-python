@@ -19,12 +19,11 @@ from ..core import space as _space
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species, MapType
-from ..locations import Point, PointSet, FeatureMap
-from ..core.region import Region
+from ..locations import location, point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable, List, Union
+from typing import Iterable, List
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -121,28 +120,15 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: Union[Region, FeatureMap]) -> List[GeneExpressions]:
-        space = _space.Space.registry().get('mni152')
+    def query(self, concept: location.LocationFilter) -> List[GeneExpressions]:
 
-        # convert the query concept into a mask in MNI152 space for spatial filtering
-        # on the gene expression locations.
-        if isinstance(concept, Region):
-            mask = concept.fetch_regional_map(space, maptype=self.maptype, threshold=self.threshold_statistical)
-            regionname = concept.name
-            explanation = f"MNI coordinates of tissue samples were compared with mask of '{regionname}' in {space}."
-        elif isinstance(concept, FeatureMap):
-            mask = concept.image
-            regionname = f"Feature map {concept.id}"
-            explanation = f"MNI coordinates of tissue samples were compared with custom feature map in {space}."
-        else:
-            raise NotImplementedError(f"{self.__class__.__name__} does not support querying by {concept.__class__.__name__}.")
+        mnispace = _space.Space.registry().get('mni152')
 
         # build the anatomical anchor resulting from the matching.
         # It will be attached to the returned feature, with the set of matched MNI coordinates
         # as location.
-        anchor = _anchor.AnatomicalAnchor(
-            species=self.species, region=regionname
-        )
+        anchor = _anchor.AnatomicalAnchor(species=self.species)
+        explanation = f"MNI coordinates of tissue samples were filtered using {concept}"
         ass = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
@@ -151,16 +137,16 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         )
         anchor._assignments[concept] = [ass]
         anchor._last_matched_concept = concept
-        anchor._location_cached = PointSet(coordinates=[], space=space)
+        anchor._location_cached = pointset.PointSet(coordinates=[], space=mnispace)
 
         # Match the microarray probes to the query mask.
         # Record the matching instances and their locations.
         measures = []
         contained = {}
         for measure in self:
-            location = Point(measure['mni_xyz'], space=space)
+            location = point.Point(measure['mni_xyz'], space=mnispace)
             if location not in contained:  # cache redundant intersection tests
-                contained[location] = location.intersects(mask)
+                contained[location] = concept.contains(location)
             if contained[location]:
                 measures.append(measure)
                 anchor._location_cached.points.append(location)

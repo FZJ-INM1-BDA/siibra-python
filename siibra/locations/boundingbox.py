@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import point, pointset, location, boundingbox, featuremap
+from . import point, pointset, location, boundingbox, spatialmap
 
 from ..commons import logger
 
@@ -23,7 +23,7 @@ from typing import Union
 from nibabel import Nifti1Image
 
 
-class BoundingBox(location.Location):
+class BoundingBox(location.Location, location.LocationFilter):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
     The box does not necessarily store the given points,
@@ -150,20 +150,12 @@ class BoundingBox(location.Location):
             ])
         elif isinstance(other, Nifti1Image):
             return self.contains(BoundingBox.from_image(other, space=self.space))
-        elif isinstance(other, featuremap.FeatureMap):
+        elif isinstance(other, spatialmap.SpatialMap):
             return self.contains(other.boundingbox)
         else:
             raise NotImplementedError(
                 f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
             )
-
-    def contained_in(self, other: Union[location.Location, Nifti1Image]):
-        if isinstance(other, location.Location):
-            return other.contains(self)
-        elif isinstance(other, Nifti1Image):
-            return self.contained_in(BoundingBox.from_image(other, space=self.space))
-        else:
-            raise RuntimeError(f"Cannot test containedness of {self} in type {other.__class__}")
 
     def intersects(self, other: Union[location.Location, Nifti1Image]):
         intersection = self.intersection(other)
@@ -187,7 +179,7 @@ class BoundingBox(location.Location):
             return self._intersect_mask(other, threshold=threshold)
         elif isinstance(other, BoundingBox):
             return self._intersect_bbox(other, dims)
-        elif isinstance(other, featuremap.FeatureMap):
+        elif isinstance(other, spatialmap.SpatialMap):
             # if warping is required, warping the bounding box is easier than the image!
             warped = self.warp(other.space)
             if warped is None:

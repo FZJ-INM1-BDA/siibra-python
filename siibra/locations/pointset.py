@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import location, point, boundingbox
+from . import location, point, boundingbox, spatialmap
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
@@ -25,11 +25,11 @@ from nibabel import Nifti1Image
 from typing import Union
 
 
-class PointSet(location.Location):
+class PointSet(location.Location, location.LocationFilter):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space=None, sigma_mm=0):
+    def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
         """
         Construct a 3D point set in the given reference space.
 
@@ -41,6 +41,7 @@ class PointSet(location.Location):
             The reference space
         sigma_mm : float, or list of float
             Optional standard deviation of point locations.
+        labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
         if isinstance(sigma_mm, numbers.Number):
@@ -49,6 +50,9 @@ class PointSet(location.Location):
             self.points = [
                 point.Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
             ]
+        if labels is not None:
+            assert len(labels) == len(self.points)
+        self.labels = labels
 
     def intersection(self, other: Union[location.Location, Nifti1Image]):
         """Return the subset of points that are inside the given mask.
@@ -61,7 +65,7 @@ class PointSet(location.Location):
         elif isinstance(other, PointSet):
             return [p for p in self if p in other]
         elif isinstance(other, boundingbox.BoundingBox):
-            return [p for p in self if p.contained_in(other)]
+            return [p for p in self if other.contains(p)]
         inside = [p for p in self if p.intersects(other)]
         if len(inside) == 0:
             return None
@@ -72,6 +76,7 @@ class PointSet(location.Location):
                 [p.coordinate for p in inside],
                 space=self.space,
                 sigma_mm=[p.sigma for p in inside],
+                labels=None if self.labels is None else self.labels[inside]
             )
 
     def intersects(self, other: Union[location.Location, Nifti1Image]):
@@ -121,7 +126,7 @@ class PointSet(location.Location):
             ).data
             tgt_points.extend(list(response["target_points"]))
 
-        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj)
+        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new PointSet obtained by transforming the
@@ -137,7 +142,9 @@ class PointSet(location.Location):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            [c.transform(affine, space) for c in self.points], space
+            [c.transform(affine, space) for c in self.points],
+            space,
+            labels=self.labels
         )
 
     def __getitem__(self, index: int):
@@ -197,3 +204,14 @@ class PointSet(location.Location):
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
         return np.array([c.homogeneous for c in self.points]).reshape((-1, 4))
+
+    def contains(self, other: location.Location) -> bool:
+        if isinstance(other, self.__class__):
+            return all(self.contains(p) for p in other)
+        elif isinstance(other, boundingbox.BoundingBox):
+            return self.boundingbox.contains(other)
+        elif isinstance(other, spatialmap.SpatialMap):
+            return self.contains(other.boundingbox)
+        else:
+            assert isinstance(other, point.Point)
+            return other in self
