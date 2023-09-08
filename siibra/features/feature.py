@@ -19,7 +19,7 @@ from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
 
@@ -554,6 +554,10 @@ class CompoundFeature(Feature):
                 )
         else:
             return self._data_cached
+
+    def __iter__(self) -> Iterator['Feature']:
+        """Iterate over all subfeatures"""
+        return (f for f in self._subfeatures.values())
 
     def __len__(self):
         return len(self._subfeatures)
