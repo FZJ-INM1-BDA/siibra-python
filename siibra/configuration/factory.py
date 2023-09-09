@@ -141,7 +141,7 @@ class Factory:
         if spectype == "siibra/repository/zippedfile/v1.0.0":
             return repositories.ZipfileConnector(repospec['url'])
         if spectype == "siibra/repository/localfolder/v1.0.0":
-            return repositories.LocalFileRepository(repospec['url'])
+            return repositories.LocalFileRepository(repospec['folder'])
         elif spectype == "siibra/repository/gitlab/v1.0.0":
             return repositories.GitlabConnector(
                 server=repospec['server'],
