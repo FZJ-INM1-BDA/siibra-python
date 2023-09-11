@@ -140,18 +140,20 @@ class Factory:
         spectype = repospec["@type"]
         if spectype == "siibra/repository/zippedfile/v1.0.0":
             return repositories.ZipfileConnector(repospec['url'])
-        elif spectype == "siibra/repository/gitlab/v1.0.0":
+        if spectype == "siibra/repository/localfolder/v1.0.0":
+            return repositories.LocalFileRepository(repospec['folder'])
+        if spectype == "siibra/repository/gitlab/v1.0.0":
             return repositories.GitlabConnector(
                 server=repospec['server'],
                 project=repospec['project'],
                 reftag=repospec['branch']
             )
-        else:
-            logger.warning(
-                "Do not know how to create a repository "
-                f"connector from specification type {spectype}."
-            )
-            return None
+
+        logger.warning(
+            "Do not know how to create a repository "
+            f"connector from specification type {spectype}."
+        )
+        return None
 
     @classmethod
     def build_atlas(cls, spec):
