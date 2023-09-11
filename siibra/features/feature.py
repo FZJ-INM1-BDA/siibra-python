@@ -536,7 +536,7 @@ class CompoundFeature(Feature):
         self.is_compound = True
 
     @property
-    def subfeature_index(self) -> List[Any]:
+    def subfeature_keys(self) -> List[Any]:
         """Indices, in addition to int, by which subfeatures can be accessed"""
         return list(self._subfeatures.keys())
 
@@ -572,14 +572,14 @@ class CompoundFeature(Feature):
     def __len__(self):
         return len(self._subfeatures)
 
-    def __getitem__(self, filter_spec: Any):
-        if filter_spec in self._subfeatures:
-            return self._subfeatures[filter_spec]
+    def __getitem__(self, filter_key: Any):
+        if filter_key in self._subfeatures:
+            return self._subfeatures[filter_key]
 
-        if isinstance(filter_spec, int):
-            return list(self._subfeatures.values())[filter_spec]
+        if isinstance(filter_key, int):
+            return list(self._subfeatures.values())[filter_key]
 
-        raise NotFoundException(f"{filter_spec} matched no subfeatures")
+        raise NotFoundException(f"{filter_key} matched no subfeatures")
 
     @property
     def name(self) -> str:
@@ -587,7 +587,9 @@ class CompoundFeature(Feature):
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
             f"{self._subfeature_type.__name__} ({self.modality}) anchored at",
-            str(self.anchor)
+            str(self.anchor),
+            f"with cohort {self.cohort}" if hasattr(self, 'cohort') else "",
+            f"and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
         ))
 
     @property
@@ -678,8 +680,27 @@ class CompoundFeature(Feature):
         else:
             raise ParseCompoundFeatureIdException
 
-    def plot(self, *args, backend="matplotlib", **kwargs):
-        try:
-            return self.data.plot(*args, backend=backend, **kwargs)
-        except Exception:
-            raise NotImplementedError(f"Cannot plot average data for CompoundFeatures of type {type(self._subfeatures[0])}")
+    def plot(self, filter_key: Any = None, *args, backend="matplotlib", **kwargs):
+        """_summary_
+
+        Parameters
+        ----------
+        filter_spec : Any, default: None
+            If None, tries to plot the average of the subfeature data.
+            Otherwise, plots the subfeature `filter_key` corresponds to.
+        backend : str, default: "matplotlib"
+
+        Returns
+        -------
+        Plot of type chosen backend.
+        """
+        if filter_key is not None:
+            return self[filter_key].plot(*args, backend=backend, **kwargs)
+        else:
+            try:
+                return self.data.plot(*args, backend=backend, **kwargs)
+            except Exception:
+                raise NotImplementedError(
+                    "Cannot plot average data for CompoundFeatures of type"
+                    f" {self._subfeature_type}"
+                )
