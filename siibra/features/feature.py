@@ -307,12 +307,16 @@ class Feature:
 
     @classmethod
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        return [
+        ftypes = {
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        ]
+        }
+        if len(ftypes) > 1:
+            return [ft for ft in ftypes if getattr(ft, 'category')]
+        else:
+            return list(ftypes)
 
     @classmethod
     def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
