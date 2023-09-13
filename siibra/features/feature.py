@@ -67,6 +67,7 @@ publications
 {doi}
 {ebrains_page}
 {authors}
+{publication_desc}
 
 """
 
@@ -227,24 +228,26 @@ class Feature:
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
-        ebrains_page = "EBRAINS page:" + "\n".join(
-            {ds.ebrains_page for ds in self.datasets if ds.ebrains_page}
+        ebrains_page = "\n".join(
+            {ds.ebrains_page for ds in self.datasets if getattr(ds, "ebrains_page", None)}
         )
-        doi = "DOI:\n" + "\n".join({
+        doi = "\n".join({
             u.get("url")
             for ds in self.datasets if ds.urls
             for u in ds.urls
         })
-        authors = "Authors:" + ", ".join({
+        authors = ", ".join({
             cont.get('name')
             for ds in self.datasets if ds.contributors
             for cont in ds.contributors
         })
-        if ebrains_page and doi and authors:
+        publication_desc = "\n".join({ds.description for ds in self.datasets})
+        if (ebrains_page or doi) and authors:
             publications = _README_PUBLICATIONS.format(
-                ebrains_page=ebrains_page,
-                doi=doi,
-                authors=authors
+                ebrains_page="EBRAINS page:\n" + ebrains_page if ebrains_page else "",
+                doi="DOI:\n" + doi if doi else "",
+                authors="Authors:\n" + authors if authors else "",
+                publication_desc="Description:\n" + publication_desc if publication_desc else ""
             )
         else:
             publications = "Note: could not obtain any publication information. The data may not have been published yet."

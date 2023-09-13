@@ -1,0 +1,36 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "properties": {
+        "generic_datasets": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/generic_dataset"
+            }
+        }
+    },
+    "definitions": {
+        "generic_dataset": {
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "authors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "citation": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false
+        }
+    }
+}
