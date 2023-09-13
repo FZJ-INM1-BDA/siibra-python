@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import location, point, boundingbox, spatialmap
+from . import location, point, boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
@@ -21,8 +21,6 @@ from ..commons import logger
 import numbers
 import json
 import numpy as np
-from nibabel import Nifti1Image
-from typing import Union
 
 
 class PointSet(location.Location, location.LocationFilter):
@@ -35,7 +33,7 @@ class PointSet(location.Location, location.LocationFilter):
 
         Parameters
         ----------
-        coordinates : list of Point, 3-tuples or string specs
+        coordinates : array-like, Nx3
             Coordinates in mm of the given space
         space : reference space (id, name, or Space object)
             The reference space
@@ -44,17 +42,20 @@ class PointSet(location.Location, location.LocationFilter):
         labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
+        self.coordinates = coordinates if isinstance(coordinates, np.ndarray) \
+            else np.array(coordinates).reshape((-1, 3))
+        assert len(self.coordinates.shape) == 2
+        assert self.coordinates.shape[1] == 3
         if isinstance(sigma_mm, numbers.Number):
-            self.points = [point.Point(c, self.space, sigma_mm) for c in coordinates]
+            self.sigma_mm = [sigma_mm for _ in range(len(self))]
         else:
-            self.points = [
-                point.Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
-            ]
+            assert len(sigma_mm) == len(self)
+            self.sigma_mm = sigma_mm
         if labels is not None:
-            assert len(labels) == len(self.points)
+            assert len(labels) == len(self)
         self.labels = labels
 
-    def intersection(self, other: Union[location.Location, Nifti1Image]):
+    def intersection(self, other: location.Location):
         """Return the subset of points that are inside the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
@@ -79,9 +80,6 @@ class PointSet(location.Location, location.LocationFilter):
                 labels=None if self.labels is None else self.labels[inside]
             )
 
-    def intersects(self, other: Union[location.Location, Nifti1Image]):
-        return len(self.intersection(other)) > 0
-
     @property
     def sigma(self):
         return [p.sigma for p in self]
@@ -93,7 +91,7 @@ class PointSet(location.Location, location.LocationFilter):
     def warp(self, space, chunksize=1000):
         """Creates a new point set by warping its points to another space"""
         from ..core.space import Space
-        spaceobj = Space.get_instance(space)
+        spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
@@ -142,7 +140,7 @@ class PointSet(location.Location, location.LocationFilter):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            [c.transform(affine, space) for c in self.points],
+            np.dot(affine, self.homogeneous.T)[:3, :].T,
             space,
             labels=self.labels
         )
@@ -154,15 +152,26 @@ class PointSet(location.Location, location.LocationFilter):
                 f"but index of {index} was requested."
             )
         else:
-            return self.points[index]
+            return point.Point(
+                self.coordinates[index, :],
+                space=self.space,
+                sigma_mm=self.sigma_mm[index]
+            )
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
-        return iter(self.points)
+        return (
+            point.Point(
+                self.coordinates[i, :],
+                space=self.space,
+                sigma_mm=self.sigma_mm[i]
+            )
+            for i in range(len(self))
+        )
 
     def __len__(self):
         """The number of points in this PointSet."""
-        return len(self.points)
+        return self.coordinates.shape[0]
 
     def __str__(self):
         return f"Set of points {self.space.name}: " + ", ".join(
@@ -198,20 +207,9 @@ class PointSet(location.Location, location.LocationFilter):
 
     def as_list(self):
         """Return the point set as a list of 3D tuples."""
-        return [tuple(p) for p in self]
+        return list(zip(*self.coordinates.T.tolist()))
 
     @property
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        return np.array([c.homogeneous for c in self.points]).reshape((-1, 4))
-
-    def contains(self, other: location.Location) -> bool:
-        if isinstance(other, self.__class__):
-            return all(self.contains(p) for p in other)
-        elif isinstance(other, boundingbox.BoundingBox):
-            return self.boundingbox.contains(other)
-        elif isinstance(other, spatialmap.SpatialMap):
-            return self.contains(other.boundingbox)
-        else:
-            assert isinstance(other, point.Point)
-            return other in self
+        return np.c_[self.coordinates, np.ones(len(self))]

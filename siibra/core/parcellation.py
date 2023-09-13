@@ -129,12 +129,13 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         return self._id
 
     def matches(self, spec):
-        if isinstance(spec, str):
-            if all(
-                w in self.shortname.lower()
-                for w in re.split(r'\s+', spec.lower())
-            ):
-                return True
+        if spec not in self._CACHED_MATCHES:
+            if isinstance(spec, str):
+                if all(
+                    w in self.shortname.lower()
+                    for w in re.split(r'\s+', spec.lower())
+                ):
+                    self._CACHED_MATCHES[spec] = True
         return super().matches(spec)
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED, spec: str = ""):

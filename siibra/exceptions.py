@@ -13,14 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
-from .parcellationmap import Map
-from .providers.gifti import GiftiSurfaceLabeling, GiftiMesh
-from .volume import from_array, from_file
-
-import numpy as np
+class ExcessiveArgumentException(ValueError):
+    pass
 
 
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()
+class InsufficientArgumentException(ValueError):
+    pass
+
+
+class ConflictingArgumentException(ValueError):
+    pass
+
+
+class NonUniqueIndexError(RuntimeError):
+    pass

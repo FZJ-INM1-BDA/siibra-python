@@ -14,13 +14,14 @@
 # limitations under the License.
 """Provides spatial representations for parcellations and regions."""
 
-from . import volume as _volume, nifti
-from .. import logger, QUIET
+from . import volume as _volume
+from .. import logger, QUIET, exceptions
 from ..commons import (
     MapIndex,
     MapType,
-    compare_maps,
-    iterate_connected_components,
+    compare_arrays,
+    resample_array_to_array,
+    connected_components,
     clear_name,
     create_key,
     create_gaussian_kernel,
@@ -29,32 +30,19 @@ from ..commons import (
     CompareMapsResult
 )
 from ..core import concept, space, parcellation, region as _region
-from ..locations import point, pointset
+from ..locations import location, point, pointset
 from ..retrieval import requests
 
 import numpy as np
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
-from nibabel import Nifti1Image
 from nilearn import image
 import pandas as pd
 from dataclasses import dataclass, asdict
 
 if TYPE_CHECKING:
     from ..core.region import Region
-
-
-class ExcessiveArgumentException(ValueError): pass
-
-
-class InsufficientArgumentException(ValueError): pass
-
-
-class ConflictingArgumentException(ValueError): pass
-
-
-class NonUniqueIndexError(RuntimeError): pass
 
 
 @dataclass
@@ -67,7 +55,8 @@ class Assignment:
 
 
 @dataclass
-class AssignImageResult(CompareMapsResult, Assignment): pass
+class AssignImageResult(CompareMapsResult, Assignment):
+    pass
 
 
 class Map(concept.AtlasConcept, configuration_folder="maps"):
@@ -209,12 +198,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for index, matched_name in matches.items():
                 if matched_name == regionname:
                     return index
-            raise NonUniqueIndexError(
+            raise exceptions.NonUniqueIndexError(
                 f"The specification '{region}' matches multiple mapped "
                 f"structures in {str(self)}: {list(matches.values())}"
             )
         elif len(matches) == 0:
-            raise NonUniqueIndexError(
+            raise exceptions.NonUniqueIndexError(
                 f"The specification '{region}' does not match to any structure mapped in {self}"
             )
         else:
@@ -383,7 +372,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assert length == 1
         except AssertionError:
             if length > 1:
-                raise ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
+                raise exceptions.ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
             # user can provide no arguments, which assumes one and only one volume present
 
         if isinstance(region_or_index, MapIndex):
@@ -404,7 +393,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 assert len(self) == 1
                 mapindex = MapIndex(volume=0, label=None)
             except AssertionError:
-                raise InsufficientArgumentException(
+                raise exceptions.InsufficientArgumentException(
                     "Map provides multiple volumes, use 'index' or "
                     "'region' to specify which one to fetch."
                 )
@@ -412,7 +401,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
-                raise ConflictingArgumentException(
+                raise exceptions.ConflictingArgumentException(
                     "Conflicting specifications for fetching volume fragment: "
                     f"{mapindex.fragment} / {kwargs_fragment}"
                 )
@@ -519,8 +508,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # initialize empty volume according to the template
         template = self.space.get_template().fetch(**kwargs)
         result_data = np.zeros_like(np.asanyarray(template.dataobj))
+        result_affine = template.affine
         voxelwise_max = np.zeros_like(result_data)
-        result_nii = Nifti1Image(result_data, template.affine)
         interpolation = 'nearest' if self.is_labelled else 'linear'
         next_labelindex = 1
         region_indices = defaultdict(list)
@@ -537,10 +526,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
                 img = self.fetch(mapindex)
-                if np.linalg.norm(result_nii.affine - img.affine) > 1e-14:
+                if np.linalg.norm(result_affine - img.affine) > 1e-14:
                     logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                    img = image.resample_to_img(img, result_nii, interpolation)
-                img_data = np.asanyarray(img.dataobj)
+                    img_data = resample_array_to_array(img.get_fdata(), img.affine, result_data, result_affine)
+                else:
+                    img_data = img.get_fdata()
 
                 if self.is_labelled:
                     labels = set(np.unique(img_data)) - {0}
@@ -569,12 +559,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             space_spec=self._space_spec,
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
-            volumes=[
-                _volume.Volume(
-                    space_spec=self._space_spec,
-                    providers=[nifti.NiftiProvider(result_nii)]
-                )
-            ]
+            volumes=[_volume.from_array(result_data, result_affine, self._space_spec)]
         )
 
     def compute_centroids(self) -> Dict[str, point.Point]:
@@ -609,7 +594,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             )
         return centroids
 
-    def get_resampled_template(self, **fetch_kwargs) -> Nifti1Image:
+    def get_resampled_template(self, **fetch_kwargs) -> _volume.Volume:
         """
         Resample the reference space template to fetched map image. Uses
         nilearn.image.resample_to_img to resample the template.
@@ -620,17 +605,19 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Returns
         -------
-        Nifti1Image
+        Volume
         """
         source_template = self.space.get_template().fetch()
         map_image = self.fetch(**fetch_kwargs)
-        return image.resample_to_img(
-            source_template,
-            map_image,
-            interpolation='continuous'
+        img = image.resample_to_img(source_template, map_image, interpolation='continuous')
+        return _volume.from_array(
+            img.dataobj,
+            img.affine,
+            self.space,
+            f"{source_template} resampled to coordinate system of {self}"
         )
 
-    def colorize(self, values: dict, **kwargs) -> Nifti1Image:
+    def colorize(self, values: dict, **kwargs) -> _volume.Volume:
         """Colorize the map with the provided regional values.
 
         Parameters
@@ -663,7 +650,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 else:
                     result[img == index.label] = value
 
-        return Nifti1Image(result, affine)
+        return _volume.from_array(result, affine, self.space, f"Custom colorization of {self}")
 
     def get_colormap(self, region_specs: Iterable = None):
         """
@@ -798,7 +785,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def _assign(
         self,
-        item: Union[point.Point, pointset.PointSet, Nifti1Image],
+        item: location.Location,
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
@@ -811,8 +798,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
-        if isinstance(item, Nifti1Image):
-            return self._assign_image(item, minsize_voxel, lower_threshold, **kwargs)
+        if isinstance(item, _volume.Volume):
+            image = item.fetch()
+            return self._assign_image(np.asanyarray(image.dataobj), image.affine, minsize_voxel, lower_threshold, **kwargs)
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -820,7 +808,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def assign(
         self,
-        item: Union[point.Point, pointset.PointSet, Nifti1Image],
+        item: location.Location,
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
@@ -832,10 +820,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters
         ----------
-        item: Point, PointSet, Nifti1Image
+        item: Location
             A spatial object defined in the same physical reference space as
             this parcellation map, which could be a point, set of points, or
-            image. If it is an image, it will be resampled to the same voxel
+            image volume. If it is an image, it will be resampled to the same voxel
             space if its affine transformation differs from that of the
             parcellation map. Resampling will use linear interpolation for float
             image types, otherwise nearest neighbor.
@@ -1044,19 +1032,30 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 shift[:3, -1] = xyz_vox[:3] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
-                W = Nifti1Image(dataobj=kernel, affine=np.dot(self.affine, shift))
+                W = _volume.from_array(kernel, np.dot(self.affine, shift), self.space)
                 for entry in self._assign(W, lower_threshold=lower_threshold):
                     entry.input_structure = pointindex
                     entry.centroid = tuple(pt)
                     assignments.append(entry)
         return assignments
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[AssignImageResult]:
+    def _assign_image(
+        self,
+        imgdata: np.ndarray,
+        imgaffine: np.ndarray,
+        minsize_voxel: int,
+        lower_threshold: float,
+        split_components: bool = True
+    ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
         Parameters:
         -----------
+        imgdata: np.ndarray
+            the image to be compared with maps
+        imgaffine: np.ndarray
+            affine matrix mapping voxels of the image to physical coordinates in the map space
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
@@ -1065,21 +1064,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         assignments = []
 
-        def resample(img: Nifti1Image, affine: np.ndarray, shape: tuple):
-            # resample query image into this image's voxel space, if required
-            if (img.affine - affine).sum() == 0:
-                return img
-            else:
-                interp = "nearest" \
-                    if issubclass(np.asanyarray(img.dataobj).dtype.type, np.integer) \
-                    else "linear"
-                return image.resample_img(
-                    img,
-                    target_affine=affine,
-                    target_shape=shape,
-                    interpolation=interp,
-                )
-
         def progress(it, N: int = None, desc: str = "", min_elements=5):
             # wraps a progress indicator around the given iterator,
             # but only if the sequence is long.
@@ -1087,8 +1071,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return iter(it) if seqlen < min_elements \
                 else siibra_tqdm(it, desc=desc, total=N)
 
-        iter_func = iterate_connected_components if split_components \
-            else lambda img: [(1, img)]
+        iter_func = lambda arr: connected_components(arr) \
+            if split_components else lambda arr: [(1, arr)]
 
         with QUIET and _volume.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
@@ -1097,18 +1081,20 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     N=len(self),
                     desc=f"Assigning to {len(self)} volumes"
                 ):
-                    queryimg_res = resample(queryimg, vol_img.affine, vol_img.shape)
-                    for mode, maskimg in iter_func(queryimg_res):
-                        vol_data = np.asanyarray(vol_img.dataobj)
-                        position = np.array(np.where(maskimg.get_fdata())).T.mean(0)
+                    vol_data = np.asanyarray(vol_img.dataobj)
+                    for mode, voxelmask in iter_func(imgdata):
+                        position = np.array(np.where(voxelmask)).T.mean(0)
                         labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
                         for label in progress(
                             labels,
                             desc=f"Assigning to {len(labels)} labelled structures"
                         ):
-                            targetimg = vol_img if label is None \
-                                else Nifti1Image((vol_data == label).astype('uint8'), vol_img.affine)
-                            scores = compare_maps(maskimg, targetimg)
+
+                            targetdata = vol_img.get_fdata() if label is None else (vol_data == label).astype('uint8')
+                            scores = compare_arrays(
+                                voxelmask, imgaffine,
+                                targetdata, vol_img.affine
+                            )
                             if scores.intersection_over_union > 0:
                                 assignments.append(
                                     AssignImageResult(

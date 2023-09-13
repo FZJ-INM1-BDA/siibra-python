@@ -56,14 +56,14 @@ class TestAtlasConcept(unittest.TestCase):
 
     def test_class_registry_cached(self):
         dummy = DummyItem()
-        DummyClsKwarg._registry_cached = dummy
+        DummyClsKwarg._REGISTRIES[dummy.__class__] = dummy
         assert DummyClsKwarg.registry() is dummy
 
     def test_clear_registry(self):
         dummy = DummyItem()
-        DummyClsKwarg._registry_cached = dummy
+        DummyClsKwarg._REGISTRIES[dummy.__class__] = dummy
         DummyClsKwarg.clear_registry()
-        assert DummyClsKwarg._registry_cached is None
+        assert dummy.__class__ not in DummyClsKwarg._REGISTRIES
 
     def test_get_instance(self):
         with patch.object(AtlasConcept, "registry") as registry_mock:

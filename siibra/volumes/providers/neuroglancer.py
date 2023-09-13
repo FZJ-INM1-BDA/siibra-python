@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import volume
+from . import provider as _provider
 
-from ..commons import logger, MapType, merge_meshes
-from ..retrieval import requests, cache
-from ..locations import boundingbox as _boundingbox
+from ...commons import logger, MapType, merge_meshes
+from ...retrieval import requests, cache
+from ...locations import boundingbox as _boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
@@ -29,10 +29,10 @@ import numpy as np
 from typing import Union, Dict, Tuple
 
 
-class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
+class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
 
     def __init__(self, url: Union[str, Dict[str, str]]):
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
         self._init_url = url
         # TODO duplicated code to giftimesh
         if isinstance(url, str):  # one single image to load
@@ -181,7 +181,7 @@ class NeuroglancerVolume:
 
     def __init__(self, url: str):
         # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
         assert isinstance(url, str)
         self.url = url
         self._scales_cached = None
@@ -457,7 +457,7 @@ class NeuroglancerScale:
         )
 
 
-class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"):
+class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompmesh"):
     """
     A surface mesh provided as neuroglancer precomputed mesh.
     """

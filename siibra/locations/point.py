@@ -96,7 +96,7 @@ class Point(location.Location):
     def homogeneous(self):
         """The homogenous coordinate of this point as a 4-tuple,
         obtained by appending '1' to the original 3-tuple."""
-        return self.coordinate + (1,)
+        return np.atleast_2d(self.coordinate + (1,))
 
     def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
@@ -105,20 +105,6 @@ class Point(location.Location):
             return self if self in other else None
         else:
             return self if other.contains(self) else None
-
-    def intersects(self, other: location.Location) -> bool:
-        """Returns true if this point lies in the given mask.
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        return (self.intersection(other) is not None)
-
-    def contains(self, other: location.Location):
-        if isinstance(other, Point):
-            return self == other
-        else:
-            return False
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
@@ -177,7 +163,6 @@ class Point(location.Location):
             return False  # 'other' was warped outside reference space bounds
         return all(self[i] > o[i] for i in range(3))
 
-
     def __eq__(self, other: 'Point'):
         if not isinstance(other, Point):
             return False
@@ -228,12 +213,10 @@ class Point(location.Location):
             ----
             The consistency of this cannot be checked and is up to the user.
         """
-        from ..core.space import Space
-        spaceobj = Space.get_instance(space)
-        x, y, z, h = np.dot(affine, self.homogeneous)
+        x, y, z, h = np.dot(affine, self.homogeneous.T)
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
-        return self.__class__((x / h, y / h, z / h), spaceobj)
+        return self.__class__((x / h, y / h, z / h), space)
 
     def get_enclosing_cube(self, width_mm):
         """

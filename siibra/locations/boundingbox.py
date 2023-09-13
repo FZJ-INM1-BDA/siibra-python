@@ -13,14 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import point, pointset, location, boundingbox, spatialmap
+from . import point, pointset, location, boundingbox
 
 from ..commons import logger
 
 import hashlib
 import numpy as np
-from typing import Union
-from nibabel import Nifti1Image
 
 
 class BoundingBox(location.Location, location.LocationFilter):
@@ -112,19 +110,6 @@ class BoundingBox(location.Location, location.LocationFilter):
         zmin, zmax = nzz[0][[0, -1]]
         return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
-    @classmethod
-    def from_image(cls, image: Nifti1Image, space, ignore_affine=False, threshold=0):
-        """Construct a bounding box from a nifti image"""
-        bounds = cls._determine_bounds(image.get_fdata(), threshold=threshold)
-        if bounds is None:
-            return None
-        if ignore_affine:
-            target_space = None
-        else:
-            bounds = np.dot(image.affine, bounds)
-            target_space = space
-        return BoundingBox(point1=bounds[:3, 0], point2=bounds[:3, 1], space=target_space)
-
     def __str__(self):
         if self.space is None:
             return (
@@ -148,21 +133,12 @@ class BoundingBox(location.Location, location.LocationFilter):
                 other.minpoint >= self.minpoint,
                 other.maxpoint <= self.maxpoint
             ])
-        elif isinstance(other, Nifti1Image):
-            return self.contains(BoundingBox.from_image(other, space=self.space))
-        elif isinstance(other, spatialmap.SpatialMap):
+        elif hasattr(other, "boundingbox"):
             return self.contains(other.boundingbox)
         else:
             raise NotImplementedError(
                 f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
             )
-
-    def intersects(self, other: Union[location.Location, Nifti1Image]):
-        intersection = self.intersection(other)
-        if intersection is None:
-            return False
-        else:
-            return intersection.volume > 0
 
     def intersection(self, other, dims=[0, 1, 2], threshold=0):
         """Computes the intersection of this bounding box with another one.
@@ -175,17 +151,15 @@ class BoundingBox(location.Location, location.LocationFilter):
             Default: all three. Along dimensions not listed, the union is applied instead.
             threshold: optional intensity threshold for intersecting with image mask
         """
-        if isinstance(other, Nifti1Image):
-            return self._intersect_mask(other, threshold=threshold)
-        elif isinstance(other, BoundingBox):
+        if isinstance(other, BoundingBox):
             return self._intersect_bbox(other, dims)
-        elif isinstance(other, spatialmap.SpatialMap):
+        elif hasattr(other, "image"):
             # if warping is required, warping the bounding box is easier than the image!
             warped = self.warp(other.space)
             if warped is None:
                 logger.warning(f"Could not warp bounding box from {self.space} to {other.space}")
                 return None
-            return warped._intersect_mask(other.image)
+            return warped._intersect_mask(other.image, threshold=threshold)
         else:
             raise NotImplementedError(
                 f"Intersection of bounding box with {type(other)} not implemented."
@@ -320,19 +294,6 @@ class BoundingBox(location.Location, location.LocationFilter):
             except ValueError:
                 logger.debug(f"Warping {str(self)} to {spaceobj.name} not successful.")
                 return None
-
-    def fetch_regional_map(self):
-        """Generate a volumetric binary mask of this
-        bounding box in the reference template space."""
-        tpl = self.space.get_template().fetch()
-        arr = np.zeros(tpl.shape, dtype="uint8")
-        bbvox = self.transform(np.linalg.inv(tpl.affine))
-        arr[
-            int(bbvox.minpoint[0]): int(bbvox.maxpoint[0]),
-            int(bbvox.minpoint[1]): int(bbvox.maxpoint[2]),
-            int(bbvox.minpoint[2]): int(bbvox.maxpoint[2]),
-        ] = 1
-        return Nifti1Image(arr, tpl.affine)
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the

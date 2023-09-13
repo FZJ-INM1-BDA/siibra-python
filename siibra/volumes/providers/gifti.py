@@ -13,17 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import volume
+from . import provider as _provider
 
-from ..retrieval import requests
-from ..commons import logger, merge_meshes
-from ..locations import boundingbox as _boundingbox
+from ...retrieval import requests
+from ...commons import logger, merge_meshes
+from ...locations import boundingbox as _boundingbox
 
 import numpy as np
 from typing import Union, Dict
 
 
-class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
+class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
     """
     One or more surface mesh fragments in Gifti format.
     """
@@ -117,7 +117,7 @@ class GiftiMesh(volume.VolumeProvider, srctype="gii-mesh"):
         return (self.fetch(v) for v in self.variants)
 
 
-class GiftiSurfaceLabeling(volume.VolumeProvider, srctype="gii-label"):
+class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
     """
     A mesh labeling, specified by a gifti file.
     """

@@ -16,4 +16,3 @@
 from .point import Point
 from .pointset import PointSet
 from .boundingbox import BoundingBox
-from .spatialmap import SpatialMap

@@ -16,13 +16,10 @@ from __future__ import annotations
 
 from . import assignment
 
-from ..commons import logger
 from ..core import region as _region
 
 import numpy as np
 from abc import ABC, abstractmethod
-from nibabel import Nifti1Image
-from typing import Union
 
 
 class Location(ABC):
@@ -42,25 +39,19 @@ class Location(ABC):
 
     # The id of BigBrain reference space
     BIGBRAIN_ID = "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588"
-    _ASSIGNMENT_CACHE = {}  # cache assignment results, see Location.assign()
     _MASK_MEMO = {}  # cache region masks for Location._assign_region()
+    _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
     def __init__(self, space):
-        from ..core.space import Space
-        self.space = Space.get_instance(space)
+        self._space_spec = space
+        self._space_cached = None
 
-    @abstractmethod
-    def intersection(self, other: Union[Location, Nifti1Image]) -> Location:
-        """
-        Subclasses of Location must implement intersection with other locations.
-        """
-        pass
-
-    def intersects(self, other: Union[Nifti1Image, Location]) -> bool:
-        """
-        Verifies wether this 3D location intersects the given mask.
-        """
-        return self.intersection(other) is not None
+    @property
+    def space(self):
+        if self._space_cached is None:
+            from ..core.space import Space
+            self._space_cached = Space.get_instance(self._space_spec)
+        return self._space_cached
 
     @abstractmethod
     def warp(self, space):
@@ -88,12 +79,6 @@ class Location(ABC):
         """The number of coordinates or sublocations in a location."""
         return 0
 
-    @abstractmethod
-    def __iter__(self):
-        """To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location."""
-        pass
-
     @property
     def species(self):
         return None if self.space is None else self.space.species
@@ -103,122 +88,40 @@ class Location(ABC):
         coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
         return f"{self.__class__.__name__}{space_str}{coord_str}"
 
-    def assign(self, other: Union[_region.Region, Location]):
-        """ Assign this location to another location. """
-        if (self, other) not in self._ASSIGNMENT_CACHE:
-            if isinstance(other, Location):
-                self._ASSIGNMENT_CACHE[self, other] = self._assign_location(other)
-
-            elif isinstance(other, _region.Region):
-                self._ASSIGNMENT_CACHE[self, other] = self._assign_region(other)
-            else:
-                raise ValueError(f"Cannot assign {self.__class__.__name__} to {other.__class__.__name__} objects.")
-        return self._ASSIGNMENT_CACHE[self, other]
-
-    def _assign_location(self, other: Location):
-        if self == other:
-            qualification = assignment.AssignmentQualification.EXACT
-        elif self.contains(other):
-            qualification = assignment.AssignmentQualification.CONTAINS
-        elif other.contains(self):
-            qualification = assignment.AssignmentQualification.CONTAINED
-        elif self.intersects(other):
-            qualification = assignment.AssignmentQualification.OVERLAPS
-        else:
-            qualification = None
-        return None if qualification is None \
-            else assignment.AnatomicalAssignment(self, other, qualification)
-
-    def _assign_region(self, region: _region.Region):
-        assert isinstance(region, _region.Region)
-
-        if self.species != region.species:
-            return None
-
-        for subregion in region.children:
-            res = self._assign_region(subregion)
-            if res is not None:
-                return res
-
-        # Retrieve a mask of the region, if possible in the same space
-        mask = None
-        if region.mapped_in_space(self.space, recurse=True):
-            # The region is mapped in the space of this location,
-            # so we fetch and memoize the voxel mask.
-            if (region, self.space) not in self._MASK_MEMO:
-                self._MASK_MEMO[region, self.space] = \
-                    region.fetch_regional_map(space=self.space, maptype='labelled')
-            mask_space = self.space
-        else:
-            # the region not mapped in the space of this location.
-            for space in region.supported_spaces:
-                if not space.provides_image:
-                    # siibra does not yet match locations to surface spaces
-                    continue
-                if (region, space) not in self._MASK_MEMO:
-                    self._MASK_MEMO[region, space] = region.fetch_regional_map(space=space, maptype='labelled')
-                mask_space = space
-                if self._MASK_MEMO[region, space] is not None:
-                    break
-
-        if len(self._MASK_MEMO) > 3:
-            # Limit the mask cache to the three masks that were fetched most recently.
-            self._MASK_MEMO.pop(next(iter(self._MASK_MEMO)))
-
-        mask = self._MASK_MEMO[region, mask_space]
-        if mask is None:
-            logger.debug(
-                f"'{region.name}' provides no mask in a space to which {self} can be warped."
-            )
-            return None
-
-        # compare mask to location
-        loc_warped = self.warp(mask_space)
-        if loc_warped is None:
-            logger.warn(
-                f"Cannot warp {self} to {mask_space} for testing against region mask. "
-                "Will try to test against warped bounding box of the region."
-            )
-            region_bbox = region.get_bounding_box(self.space)
-            if region_bbox is None:
-                raise RuntimeError(f"No bounding box obtained from region mask of {region} in {mask_space}")
-            else:
-                # got a bounding box, so assign this location to the bounding box location.
-                return self.assign(region_bbox)
-        elif loc_warped.contains(mask):
-            qualification = assignment.AssignmentQualification.CONTAINS
-        elif mask.contains(loc_warped):
-            qualification = assignment.AssignmentQualification.CONTAINED
-        elif loc_warped.intersects(mask):
-            qualification = assignment.AssignmentQualification.OVERLAPS
-        else:
-            qualification = None
-
-        # put together an explanation for the assignment
-        if self.space == mask_space:
-            expl = (
-                f"{self} was compared with the mask of query region '{region.name}' "
-                f"in {mask_space}."
-            )
-        else:
-            expl = (
-                f"{self} was warped from {self.space.name} and then compared "
-                f"in this space with the mask of query region '{region.name}'."
-            )
-        return None if qualification is None \
-            else assignment.AnatomicalAssignment(self, region, qualification, expl)
-
 
 class LocationFilter(ABC):
     """ Abstract base class for types who can act as a location filter. """
+    _ASSIGNMENT_CACHE = {}  # cache assignment results at class level
 
-    @abstractmethod
-    def contains(self, other: "Location") -> bool:
-        """ test for containedness of a location """
-        pass
+    def intersects(self, loc: "Location") -> bool:
+        return self.intersection(loc) is not None
+
+    def contains(self, loc: "Location") -> bool:
+        return self.intersection(loc) == loc
 
     @abstractmethod
     def intersection(self, other: "Location") -> "Location":
         """ Return the intersection of two locations,
         ie. the other location filtered by this location. """
         pass
+
+    def assign(self, other: "Location"):
+        """ Compute assignment of a location to this filter. """
+        if (self, other) not in self._ASSIGNMENT_CACHE:
+            if isinstance(other, _region.Region):
+                self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
+            else:
+                if self == other:
+                    qualification = assignment.AssignmentQualification.EXACT
+                elif self.contains(other):
+                    qualification = assignment.AssignmentQualification.CONTAINS
+                elif other.contains(self):
+                    qualification = assignment.AssignmentQualification.CONTAINED
+                elif self.intersects(other):
+                    qualification = assignment.AssignmentQualification.OVERLAPS
+                else:
+                    qualification = None
+                self._ASSIGNMENT_CACHE[self, other] = \
+                    None if qualification is None \
+                    else assignment.AnatomicalAssignment(self, other, qualification)
+        return self._ASSIGNMENT_CACHE[self, other]

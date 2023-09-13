@@ -14,13 +14,6 @@
 # limitations under the License.
 
 
-from .parcellationmap import Map
-from .providers.gifti import GiftiSurfaceLabeling, GiftiMesh
-from .volume import from_array, from_file
-
-import numpy as np
-
-
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()
+from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
+from .nifti import NiftiProvider
+from .gifti import GiftiSurfaceLabeling, GiftiMesh

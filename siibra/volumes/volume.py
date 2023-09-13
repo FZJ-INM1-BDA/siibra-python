@@ -13,20 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """A specific mesh or 3D array."""
+
+from .providers import provider as _provider
+
 from .. import logger
 from ..retrieval import requests
-from ..core import space
-from ..locations import location, spatialmap
+from ..core import space as _space
+from ..locations import location, point, pointset, boundingbox
+from ..commons import resample_array_to_array
 
-import nibabel as nib
-from abc import ABC, abstractmethod
+from nibabel import Nifti1Image
+import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
-import json
 from time import sleep
+import json
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
-    from ..locations.boundingbox import BoundingBox
     TypeDataset = EbrainsDataset
 
 
@@ -34,7 +37,7 @@ class ColorVolumeNotSupported(NotImplementedError):
     pass
 
 
-class Volume(location.Location):
+class Volume(location.LocationFilter):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
@@ -63,10 +66,13 @@ class Volume(location.Location):
         "nii": ["nii", "zip/nii"]
     }
 
+    _FETCH_CACHE = {}  # we keep a cache of the most recently fetched volumes
+    _FETCH_CACHE_MAX_ENTRIES = 3
+
     def __init__(
         self,
         space_spec: dict,
-        providers: List['VolumeProvider'],
+        providers: List['_provider.VolumeProvider'],
         name: str = "",
         variant: str = None,
         datasets: List['TypeDataset'] = [],
@@ -74,7 +80,7 @@ class Volume(location.Location):
         self._name_cached = name  # see lazy implementation below
         self._space_spec = space_spec
         self.variant = variant
-        self._providers: Dict[str, 'VolumeProvider'] = {}
+        self._providers: Dict[str, _provider.VolumeProvider] = {}
         self.datasets = datasets
         for provider in providers:
             srctype = provider.srctype
@@ -148,8 +154,8 @@ class Volume(location.Location):
     def space(self):
         for key in ["@id", "name"]:
             if key in self._space_spec:
-                return space.Space.get_instance(self._space_spec[key])
-        return space.Space(None, "Unspecified space", species=space.Species.UNSPECIFIED_SPECIES)
+                return _space.Space.get_instance(self._space_spec[key])
+        return _space.Space(None, "Unspecified space", species=_space.Species.UNSPECIFIED_SPECIES)
 
     def __str__(self):
         if self.space is None:
@@ -159,6 +165,79 @@ class Volume(location.Location):
 
     def __repr__(self):
         return self.__str__()
+
+    def points_inside(self, points: pointset.PointSet, **kwargs) -> List[int]:
+        """
+        Reduce a pointset to the points which fall
+        inside nonzero pixels of this volume.
+        The indices of the original points are stored as point labels in the result.
+        Any additional arguments are passed to the fetch() call
+        for retrieving the image data.
+        """
+        if not self.provides_image:
+            raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
+        img = self.fetch(format='image', **kwargs)
+        arr = np.asanyarray(img.dataobj)
+        warped = points.warp(self.space)
+        assert warped is not None
+        phys2vox = np.linalg.inv(img.affine)
+        voxels = warped.transform(phys2vox, space=None)
+        XYZ = voxels.homogeneous.astype('int')[:, :3]
+        invalid = np.where(
+            np.all(XYZ >= arr.shape, axis=1)
+            | np.all(XYZ < 0, axis=1)
+        )[0]
+        XYZ[invalid] = 0  # set all out-of-bounds vertices to (0, 0, 0)
+        arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
+        inside = np.where(arr[tuple(zip(*XYZ))] != 0)[0]
+        return pointset.PointSet(
+            XYZ[inside],
+            space=points.space,
+            labels=inside
+        )
+
+    def intersection(self, other: location.Location, **kwargs) -> location.Location:
+        """
+        Compute the intersection of a location with this volume.
+        This will fetch actual image data.
+        Any additional arguments are passed to fetch.
+        """
+        if isinstance(other, (pointset.PointSet, point.Point)):
+            result = self.points_inside(other, **kwargs)
+            if len(result) == 0:
+                return None
+            elif len(result) == 1:
+                return result[0]
+            else:
+                return result
+        elif isinstance(other, boundingbox.BoundingBox):
+            return self.boundingbox.intersection(other)
+        elif isinstance(other, self.__class__):
+            v1 = self.fetch()
+            v2 = self.fetch()
+            arr1 = np.asanyarray(v1.dataobj)
+            arr2 = np.asanyarray(v2.dataobj)
+            arr1 = resample_array_to_array(v1.dataobj, v1.affine, v2.dataobj, v2.affine)
+
+        else:
+            raise NotImplementedError(
+                f"Intersection of {self.__class__.__name__} with {other.__class__.__name__} not implemented."
+            )
+
+    def transform(self, affine: np.ndarray, space=None):
+        """ only modifies the affine matrix and space. """
+        return Volume(
+            spacespec=space,
+            providers=[p.transform(affine, space=space) for p in self.providers],
+            name=self.name,
+            variant=self.variant,
+            datasets=self.datasets
+        )
+
+    def warp(self, space):
+        if self.space.matches(space):
+            return self
+        raise NotImplementedError('Warping of full volumes is not yet supported.')
 
     def fetch(
         self,
@@ -184,7 +263,16 @@ class Volume(location.Location):
         -------
         An image or mesh
         """
+        # check for a cached object
+        fetch_hash = hash(
+            (self.__hash__(), hash(format), hash(json.dumps(kwargs, sort_keys=True)))
+        )
+        if fetch_hash in self._FETCH_CACHE:
+            return self._FETCH_CACHE[fetch_hash]
+        
+        result = None
 
+        # no cached object, fetch now
         if format is None:
             requested_formats = self.SUPPORTED_FORMATS
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
@@ -210,11 +298,12 @@ class Volume(location.Location):
                     tpl = self.space.get_template(variant=kwargs.get('variant'))
                     mesh = tpl.fetch(**kwargs)
                     labels = self._providers[selected_format].fetch(**kwargs)
-                    return dict(**mesh, **labels)
+                    result = dict(**mesh, **labels)
+                    break
                 else:
-                    image = self._providers[selected_format].fetch(**kwargs)
+                    result = self._providers[selected_format].fetch(**kwargs)
                     # TODO insert a meaningful description including origin and bounding box
-                    return spatialmap.SpatialMap(image, spacespec=self.space)
+                    break
             except requests.SiibraHttpRequestError as e:
                 if e.status_code == 429:  # too many requests
                     sleep(0.1)
@@ -224,7 +313,27 @@ class Volume(location.Location):
                 f"No format was specified and auto-selected format '{selected_format}' "
                 "was unsuccesful. You can specify another format from "
                 f"{set(self.formats) - set(selected_format)} to try.")
-        return None
+
+        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+            # remove oldest entry
+            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
+        self._FETCH_CACHE[fetch_hash] = result
+        return result
+
+    def fetch_connected_components(self, **kwargs):
+        """
+        Provide an iterator over masks of connected components in the volume
+        """
+        img = self.fetch(**kwargs)
+        from skimage import measure
+        imgdata = np.asanyarray(img.dataobj).squeeze()
+        components = measure.label(imgdata > 0)
+        component_labels = np.unique(components)
+        assert component_labels[0] == 0
+        return (
+            (label, Nifti1Image((components == label).astype('uint8'), img.affine))
+            for label in component_labels[1:]
+        )
 
 
 class Subvolume(Volume):
@@ -237,91 +346,31 @@ class Subvolume(Volume):
             self,
             space_spec=parent_volume._space_spec,
             providers=[
-                SubvolumeProvider(p, z=z)
+                _provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
             ]
         )
 
 
-# TODO add mesh primitive. Check nibabel implementation? Use trimesh? Do we want to add yet another dependency?
-VolumeData = Union[nib.Nifti1Image, spatialmap.SpatialMap, Dict]
+def from_file(filename: str, space: str, name: str = None):
+    """ Builds a nifti volume from a filename. """
+    from ..core.concept import AtlasConcept
+    from .providers.nifti import NiftiProvider
+    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    return Volume(
+        space_spec={"@id": spaceobj.id},
+        providers=[NiftiProvider(filename)],
+        name=filename if name is None else name,
+    )
 
 
-class VolumeProvider(ABC):
-
-    def __init_subclass__(cls, srctype: str) -> None:
-        cls.srctype = srctype
-        return super().__init_subclass__()
-
-    @property
-    @abstractmethod
-    def boundingbox(self) -> "BoundingBox":
-        raise NotImplementedError
-
-    @property
-    def fragments(self) -> List[str]:
-        return []
-
-    @abstractmethod
-    def fetch(self, *args, **kwargs) -> VolumeData:
-        raise NotImplementedError
-
-    @property
-    @abstractmethod
-    def _url(self) -> Union[str, Dict[str, str]]:
-        """
-        This is needed to provide urls to applications that can utilise such resources directly.
-        e.g. siibra-api
-        """
-        return {}
-
-
-class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
-    """
-    This provider wraps around an existing volume provider,
-    but is preconfigured to always fetch a fixed subvolume.
-    The primary use is to provide a fixed z coordinate
-    of a 4D volume provider as a 3D volume under the
-    interface of a normal volume provider.
-    """
-
-    _USE_CACHING = False
-    _FETCHED_VOLUMES = {}
-
-    class UseCaching:
-        def __enter__(self):
-            SubvolumeProvider._USE_CACHING = True
-
-        def __exit__(self, et, ev, tb):
-            SubvolumeProvider._USE_CACHING = False
-            SubvolumeProvider._FETCHED_VOLUMES = {}
-
-    def __init__(self, parent_provider: VolumeProvider, z: int):
-        VolumeProvider.__init__(self)
-        self.provider = parent_provider
-        self.srctype = parent_provider.srctype
-        self.z = z
-
-    @property
-    def boundingbox(self) -> "BoundingBox":
-        return self.provider.boundingbox
-
-    def fetch(self, **kwargs):
-        # activate caching at the caller using "with SubvolumeProvider.UseCaching():""
-        if self.__class__._USE_CACHING:
-            data_key = json.dumps(self.provider._url, sort_keys=True) \
-                + json.dumps(kwargs, sort_keys=True)
-            if data_key not in self.__class__._FETCHED_VOLUMES:
-                vol = self.provider.fetch(**kwargs)
-                self.__class__._FETCHED_VOLUMES[data_key] = vol
-            vol = self.__class__._FETCHED_VOLUMES[data_key]
-        else:
-            vol = self.provider.fetch(**kwargs)
-        return vol.slicer[:, :, :, self.z]
-
-    def __getattr__(self, attr):
-        return self.provider.__getattribute__(attr)
-
-    @property
-    def _url(self) -> Union[str, Dict[str, str]]:
-        return super()._url
+def from_array(data: np.ndarray, affine: np.ndarray, space: str, name: str = ""):
+    """ Builds a siibra volume from an array and an affine matrix. """
+    from ..core.concept import AtlasConcept
+    from .providers.nifti import NiftiProvider
+    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    return Volume(
+        space_spec={"@id": spaceobj.id},
+        providers=[NiftiProvider((data, affine))],
+        name=name,
+    )

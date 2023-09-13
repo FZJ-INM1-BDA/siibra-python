@@ -26,7 +26,8 @@ from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
-from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
+from ..volumes import volume, sparsemap, parcellationmap
+from ..volumes.providers import provider, gifti, neuroglancer, nifti
 
 from os import path
 import json
@@ -251,7 +252,7 @@ class Factory:
                     logger.warning(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-        assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
+        assert all([isinstance(p, provider.VolumeProvider) for p in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,

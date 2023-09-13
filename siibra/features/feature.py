@@ -18,7 +18,8 @@ from . import anchor as _anchor
 from ..commons import logger, InstanceTable, siibra_tqdm
 from ..core import concept
 from ..core import space, region, parcellation
-from ..locations import spatialmap
+from ..locations import location
+from ..volumes import volume
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
 from hashlib import md5
@@ -235,10 +236,8 @@ class Feature:
         elif isinstance(concept, region.Region):
             encoded_c.append(f"p:{concept.parcellation.id}")
             encoded_c.append(f"r:{concept.name}")
-        elif isinstance(concept, spatialmap.SpatialMap):
-            # TODO it seems not really meaningful to serialize such ids for custom feature maps.
-            # maype the serialization for live queries is better placed in siibra-api?
-            encoded_c.append(f"f:{concept.id}")
+        elif isinstance(concept, volume.Volume):
+            encoded_c.append(f"v:{concept.name}")
 
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
@@ -356,10 +355,9 @@ class Feature:
 
         # At this stage, no recursion is needed.
         # We expect a specific supported feature type is to be matched now.
-        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space, spatialmap.SpatialMap)):
+        if not isinstance(concept, location.LocationFilter):
             raise ValueError(
-                "Feature.match / siibra.features.get only accepts Region, "
-                "Space, Parcellation and FeatureMap objects as concept."
+                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a LocationFilter type."
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"

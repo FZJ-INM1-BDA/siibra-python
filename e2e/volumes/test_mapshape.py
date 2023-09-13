@@ -39,7 +39,7 @@ def test_map_shape(space_shape, parc_id, map_endpoint, region_name):
     volume_data = None
     if region_name is not None:
         region = siibra.get_region(parc_id, region_name)
-        volume_data = region.fetch_regional_map(space_id, map_endpoint)
+        volume_data = region.get_regional_map(space_id, map_endpoint)
     else:
         labelled_map = siibra.get_map(parc_id, space_id, map_endpoint)
         assert labelled_map is not None
