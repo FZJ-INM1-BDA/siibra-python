@@ -45,10 +45,11 @@ print(f"Found {len(features)} streamline count matrices.")
 # Typically, connectivity features provide a range of region-to-region
 # connectivity matrices for different files from an imaging cohort. In most
 # cases, these correspond to subjects, like in this example.
-conn = features[0]
-print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort.")
-print(conn.name)
-print("\n" + conn.description)
+for f in features:
+    print(f.name)
+    print(f.description + "\n")
+    if f.cohort == "HCP":  # and let us select the HCP cohort
+        conn = f
 
 # Subjects are encoded via anonymized ids:
 print([f.matrix_keys for f in conn])
