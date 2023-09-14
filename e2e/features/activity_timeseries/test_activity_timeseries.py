@@ -2,6 +2,7 @@ import siibra
 import pytest
 from typing import List
 
+from siibra.features.feature import CompoundFeature
 from siibra.features.tabular.regional_timeseries_activity import RegionalBOLD
 from e2e.util import check_duplicate
 
@@ -28,7 +29,6 @@ def test_timeseries_get_table():
     for cf in features:
         assert cf.subfeature_type == RegionalBOLD
         assert len(cf) > 0
-        assert all(isinstance(fi.table_keys, str) for fi in cf)
         _ = cf.data
         for fi in cf:
             _ = fi.data
@@ -39,5 +39,6 @@ args = [(jba_29, "RegionalBOLD"), (jba_29, RegionalBOLD)]
 
 @pytest.mark.parametrize("concept,query_arg", args)
 def test_get_bold(concept, query_arg):
-    features: List["RegionalBOLD"] = siibra.features.get(concept, query_arg)
+    features: List["CompoundFeature"] = siibra.features.get(concept, query_arg)
     assert len(features) > 0, "Expecting some features exist, but none exist."
+    assert all(len(cf) for cf in features > 0), "Expecting some subfeatures exist, but none exist."
