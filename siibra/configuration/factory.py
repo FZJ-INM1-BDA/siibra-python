@@ -452,6 +452,8 @@ class Factory:
         elif modality == "RestingState":
             kwargs["paradigm"] = spec.get("paradigm", "RestingState")
             return connectivity.FunctionalConnectivity(**kwargs)
+        elif modality == "AnatomoFunctional":
+            return connectivity.AnatomoFunctionalConnectivity(**kwargs)
         elif modality == "Tracing":
             return connectivity.TracingConnectivity(**kwargs)
         else:

@@ -34,3 +34,14 @@ class FunctionalConnectivity(
     @property
     def id(self):
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
+
+
+class AnatomoFunctionalConnectivity(
+    regional_connectivity.RegionalConnectivity,
+    configuration_folder="features/connectivity/regional/anatomofunctional",
+    category="connectivity"
+):
+    """Functional connectivity matrices derived from signal analysis of responses to stimulation"""
+
+    def __init__(self, **kwargs):
+        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

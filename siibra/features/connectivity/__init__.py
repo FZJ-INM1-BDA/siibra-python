@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .functional_connectivity import FunctionalConnectivity
+from .functional_connectivity import FunctionalConnectivity, AnatomoFunctionalConnectivity
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracing_connectivity import TracingConnectivity
@@ -22,6 +22,7 @@ from .tracing_connectivity import TracingConnectivity
 def __dir__():
     return [
         "FunctionalConnectivity",
+        "AnatomoFunctionalConnectivity",
         "StreamlineCounts",
         "StreamlineLengths",
         "TracingConnectivity"
