@@ -18,11 +18,10 @@ from . import tabular
 from .. import anchor as _anchor
 
 from ...commons import logger, QUIET, siibra_tqdm
-from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, List
 import pandas as pd
 import numpy as np
 
@@ -32,9 +31,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
     Datasets that provide regional activity over time.
     """
 
-    DESCRIPTION = (
-        ""
-    )
+    _IS_COMPOUNDABLE = True
 
     def __init__(
         self,
@@ -70,26 +67,41 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         self.timestep = timestep
 
     @property
-    def subjects(self):
+    def table_keys(self):
         """
-        Returns the subject identifiers for which signal tables are available.
+        Returns the matrix_key identifiers for which signal tables are available.
         """
         return list(self._files.keys())
 
     @property
-    def name(self):
-        supername = super().name
-        return f"{supername} with paradigm {self.paradigm}"
+    def _filter_key(self):
+        assert len(self) == 1, "Filter key can only be made from one `table_key`."
+        return self.table_keys[0]
 
-    def get_table(self, subject: str = None):
+    @property
+    def name(self) -> str:
+        """Returns a short human-readable name of this feature."""
+        return " ".join((
+            super().name,
+            f"with cohort {self.cohort}" if hasattr(self, 'cohort') else "",
+            f"and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else "",
+            f" - {self.table_keys[0]}" if len(self.table_keys) == 1 else ""
+        ))
+
+    @property
+    def data(self):
+        assert len(self) == 1, "Data propery requires singular file association. Please use `get_matrix` instead."
+        return self.get_table(self._filter_key)
+
+    def get_table(self, table_key: str = None):
         """
         Returns a pandas dataframe where the column headers are regions and the
         indcies indicate disctrete timesteps.
 
         Parameters
         ----------
-        subject: str, default: None
-            Name of the subject (see RegionalTimeseriesActivity.subjects for available names).
+        table_key: str, default: None
+            Name of the table_key (see RegionalTimeseriesActivity.table_keys for available names).
             If None, the mean is taken in case of multiple available data tables.
         Returns
         -------
@@ -97,37 +109,32 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             A table with region names as the column and timesteps as indices.
         """
         assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple signal tables available, but no subject given - return mean table
-            logger.info(
-                f"No subject name supplied, returning mean signal table across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
-            )
+        if table_key == "mean":
             if "mean" not in self._tables:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
                     for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} signal tables"
+                        self._files["mean"],
+                        total=len(self._files["mean"]),
+                        desc="Averaging signal tables"
                     )
                 ]
                 self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
             return self._tables['mean'].copy()
-        if subject is None:
-            subject = next(iter(self._files.keys()))
-        if subject not in self._files:
-            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._tables:
-            self._tables[subject] = self._load_table(subject)
-        return self._tables[subject].copy()
+        if table_key is None:
+            table_key = next(iter(self._files.keys()))
+        if table_key not in self._files:
+            raise ValueError(f"table_key name '{table_key}' not known, use one of: {', '.join(self._files)}")
+        if table_key not in self._tables:
+            self._tables[table_key] = self._load_table(table_key)
+        return self._tables[table_key].copy()
 
-    def _load_table(self, subject: str):
+    def _load_table(self, table_key: str):
         """
         Extract the timeseries table.
         """
-        assert subject in self.subjects
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
+        assert table_key in self.table_keys
+        array = self._connector.get(self._files[table_key], decode_func=self._decode_func)
         return self._array_to_dataframe(array)
 
     def __len__(self):
@@ -196,10 +203,56 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             df = df.rename(columns=remapper)
         return df
 
-    def plot(self, subject: str = None, *args, backend="matplotlib", **kwargs):
-        table = self.get_table(subject)
+    def plot(
+        self, table_key: str = None, regions: List[str] = None, *args,
+        backend="matplotlib", **kwargs
+    ):
+        """
+        Create a bar plot of averaged timeseries data per region.
+
+        Parameters
+        ----------
+        regions: str, Region
+        table_key: str, default: None
+            If None, returns the table_key averaged table.
+        args and kwargs:
+            takes arguments and keyword arguments for the desired plotting
+            backend.
+        """
+        if regions is None:
+            regions = self.regions
+        indices = [self.regions.index(r) for r in regions]
+        table = self.get_table(table_key).iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
+
+    def plot_carpet(
+        self, table_key: str = None, regions: List[str] = None, *args,
+        backend="plotly", **kwargs
+    ):
+        """
+        Create a carpet plot ofthe timeseries data per region.
+
+        Parameters
+        ----------
+        regions: str, Region
+        table_key: str, default: None
+            If None, returns the table_key averaged table.
+        args and kwargs:
+            takes arguments and keyword arguments for `plotly.express.imshow`
+        """
+        if backend != "plotly":
+            raise NotImplementedError("Currently, carpet plot is only implemented with `plotly`.")
+        if regions is None:
+            regions = self.regions
+        indices = [self.regions.index(r) for r in regions]
+        table = self.get_table(table_key).iloc[:, indices]
+        table.columns = [str(r) for r in table.columns]
+        from plotly.express import imshow
+        return imshow(
+            table.T,
+            title=f"{self.modality}" + f" for table_key={table_key}" if table_key else ""
+        )
 
 
 class RegionalBOLD(
@@ -208,7 +261,7 @@ class RegionalBOLD(
     category="functional"
 ):
     """
-    Blood-oxygen-level-dependent (BOLD) signals per region.
+    Blood-oxygen-level-dependent (BOLD) signals per region over time.
     """
 
     pass

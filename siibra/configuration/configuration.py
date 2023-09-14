@@ -167,7 +167,10 @@ class Configuration:
         ):
             # filename is added to allow Factory creating reasonable default object identifiers\
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-            result.append(obj)
+            if isinstance(obj, list):
+                result.extend(obj)
+            else:
+                result.append(obj)
 
         return result
 

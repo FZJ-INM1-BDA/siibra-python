@@ -38,6 +38,8 @@ class RegionalConnectivity(Feature):
     given modality for a given parcellation.
     """
 
+    _IS_COMPOUNDABLE = True
+
     def __init__(
         self,
         cohort: str,
@@ -66,7 +68,7 @@ class RegionalConnectivity(Feature):
         decode_func: function
             Function to convert the bytestream of a loaded file into an array
         files: dict
-            A dictionary linking names of matrices (typically subject ids)
+            A dictionary linking names of matrices (typically matrix_key ids)
             to the relative filenames of the data array(s) in the repository connector.
         anchor: AnatomicalAnchor
             anatomical localization of the matrix, expected to encode the parcellation
@@ -91,25 +93,36 @@ class RegionalConnectivity(Feature):
         self._matrices = {}
 
     @property
-    def subjects(self):
+    def matrix_keys(self):
         """
-        Returns the subject identifiers for which matrices are available.
+        Returns the matrix_key identifiers for which matrices are available.
         """
         return list(self._files.keys())
 
     @property
+    def _filter_key(self):
+        assert len(self) == 1, "Filter key can only be made from one `matrix_key`."
+        return self.matrix_keys[0]
+
+    @property
     def name(self):
         supername = super().name
-        return f"{supername} with cohort {self.cohort}"
+        postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.matrix_keys[0]}"
 
-    def get_matrix(self, subject: str = None):
+    @property
+    def data(self):
+        assert len(self) == 1, "Data propery requires singular file association. Please use `get_matrix` instead."
+        return self.get_matrix(self._filter_key)
+
+    def get_matrix(self, matrix_key: str = None):
         """
         Returns a matrix as a pandas dataframe.
 
         Parameters
         ----------
-        subject: str, default: None
-            Name of the subject (see ConnectivityMatrix.subjects for available names).
+        matrix_key: str, default: None
+            Name of the matrix_key (see ConnectivityMatrix.matrix_keys for available names).
             If None, the mean is taken in case of multiple available matrices.
         Returns
         -------
@@ -117,33 +130,28 @@ class RegionalConnectivity(Feature):
             A square matrix with region names as the column and row names.
         """
         assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple matrices available, but no subject given - return mean matrix
-            logger.info(
-                f"No subject name supplied, returning mean connectivity across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
-            )
+        if matrix_key == "mean":
             if "mean" not in self._matrices:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
                     for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices"
+                        self._files["mean"],
+                        total=len(self._files["mean"]),
+                        desc="Averaging connectivity matrices"
                     )
                 ]
                 self._matrices['mean'] = self._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
             return self._matrices['mean'].copy()
-        if subject is None:
-            subject = next(iter(self._files.keys()))
-        if subject not in self._files:
-            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._matrices:
-            self._matrices[subject] = self._load_matrix(subject)
-        return self._matrices[subject].copy()
+        if matrix_key is None:
+            matrix_key = next(iter(self._files.keys()))
+        if matrix_key not in self._files:
+            raise ValueError(f"Matrix key '{matrix_key}' not known, use one of: {', '.join(self._files)}")
+        if matrix_key not in self._matrices:
+            self._matrices[matrix_key] = self._load_matrix(matrix_key)
+        return self._matrices[matrix_key].copy()
 
     def plot_matrix(
-        self, subject: str = None, regions: List[str] = None,
+        self, matrix_key: str = None, regions: List[str] = None,
         logscale: bool = False, *args, backend="nilearn", **kwargs
     ):
         """
@@ -151,8 +159,8 @@ class RegionalConnectivity(Feature):
 
         Parameters
         ----------
-        subject: str
-            Name of the subject (see ConnectivityMatrix.subjects for available names).
+        matrix_keys: str
+            Name of the matrix key (see ConnectivityMatrix.matrix_keys for available names).
             If "mean" or None is given, the mean is taken in case of multiple
             available matrices.
         regions: list[str]
@@ -166,19 +174,22 @@ class RegionalConnectivity(Feature):
             Can take all the arguments `nilearn.plotting.plot_matrix` can take. See the doc at
             https://nilearn.github.io/stable/modules/generated/nilearn.plotting.plot_matrix.html
         """
+        if matrix_key is None and len(self) == 1:
+            matrix_key = self._filter_key
+
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+        matrix = self.get_matrix(matrix_key=matrix_key).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
 
         if logscale:
             matrix = np.log10(matrix)
 
         # default kwargs
-        subject_title = subject or ""
+        matrix_key_title = matrix_key or ""
         kwargs["title"] = kwargs.get(
             "title",
-            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+            f"{matrix_key_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
         )
 
         if kwargs.get("reorder") or (backend == "nilearn"):
@@ -203,7 +214,7 @@ class RegionalConnectivity(Feature):
     def get_profile(
         self,
         region: Union[str, _region.Region],
-        subject: str = None,
+        matrix_key: str = None,
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column'
@@ -216,7 +227,7 @@ class RegionalConnectivity(Feature):
         Parameters
         ----------
         region: str, Region
-        subject: str, default: None
+        matrix_key: str, default: None
         min_connectivity: float, default: 0
             Regions with connectivity less than this value are discarded.
         max_rows: int, default: None
@@ -225,7 +236,7 @@ class RegionalConnectivity(Feature):
             Choose the direction of profile extraction particularly for
             non-symmetric matrices. ('column' or 'row')
         """
-        matrix = self.get_matrix(subject)
+        matrix = self.get_matrix(matrix_key)
         if direction.lower() not in ['column', 'row']:
             raise ValueError("Direction can only be 'column' or 'row'")
         if direction.lower() == 'row':
@@ -245,7 +256,7 @@ class RegionalConnectivity(Feature):
             raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
         else:
             name = \
-                f"Averaged {self.modality}" if subject is None \
+                f"Averaged {self.modality}" if matrix_key is None \
                 else f"{self.modality}"
             series = matrix[regions[0]]
             last_index = len(series) - 1 if max_rows is None \
@@ -267,10 +278,10 @@ class RegionalConnectivity(Feature):
                 datasets=self.datasets
             )
 
-    def plot_profile(
+    def plot(
         self,
-        region: Union[str, _region.Region],
-        subject: str = None,
+        regions: Union[str, _region.Region, List[Union[str, _region.Region]]] = None,
+        matrix_key: str = None,
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column',
@@ -279,7 +290,32 @@ class RegionalConnectivity(Feature):
         backend="matplotlib",
         **kwargs
     ):
-        profile = self.get_profile(region, subject, min_connectivity, max_rows, direction)
+        """
+        Parameters
+        ----------
+        regions: Union[str, _region.Region], None
+            If None, returns the full connectivity matrix.
+            If a region is provided, returns the profile for that region.
+            If list of regions is provided, returns the matrix for the selected
+            regions.
+        min_connectivity: float, default 0
+            Only for region profile.
+        max_rows: int, default None
+            Only for region profile.
+        direction: 'column' or 'row', default: 'column'
+            Only for matrix.
+        logscale: bool, default: False
+        backend: str, default: "matplotlib" for profiles and "nilearn" for matrices
+        """
+        if regions is None or isinstance(regions, list):
+            plot_matrix_backend = "nilearn" if backend == "matplotlib" else backend
+            return self.plot_matrix(
+                matrix_key=matrix_key, regions=regions, logscale=logscale, *args,
+                backend=plot_matrix_backend,
+                **kwargs
+            )
+
+        profile = self.get_profile(regions, matrix_key, min_connectivity, max_rows, direction)
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logx"] = kwargs.get("logx", logscale)
@@ -289,9 +325,20 @@ class RegionalConnectivity(Feature):
                 "x": kwargs.get("x", profile.data.columns[0]),
                 "y": kwargs.get("y", [r.name for r in profile.data.index]),
                 "log_x": logscale,
-                "labels": {"index": "Regions"},
-                "color_continuous_scale": "jet"
+                "labels": {"y": " ", "x": ""},
+                "color_continuous_scale": "jet",
+                "width": 600, "height": 3800
             })
+            fig = profile.data.plot(*args, backend=backend, **kwargs)
+            fig.update_layout({
+                "font": dict(size=9),
+                "yaxis": {"autorange": "reversed"},
+                "coloraxis": {"colorbar": {
+                    "orientation": "h", "title": "", "xpad": 0, "ypad": 10
+                }},
+                "margin": dict(l=0, r=0, b=0, t=0, pad=0)
+            })
+            return fig
         return profile.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
@@ -366,16 +413,16 @@ class RegionalConnectivity(Feature):
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
-    def _load_matrix(self, subject: str):
+    def _load_matrix(self, matrix_key: str):
         """
         Extract connectivity matrix.
         """
-        assert subject in self.subjects
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
+        assert matrix_key in self.matrix_keys
+        array = self._connector.get(self._files[matrix_key], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(
                 f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
-                f"from {self._files[subject]} in {str(self._connector)}"
+                f"from {self._files[matrix_key]} in {str(self._connector)}"
             )
         return self._arraylike_to_dataframe(array)

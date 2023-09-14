@@ -43,46 +43,51 @@ print(f"Found {len(features)} streamline count matrices.")
 # expressing structural connectivity in the form of numbers of streamlines
 # connecting pairs of brain regions as estimated from tractography on diffusion imaging.
 # Typically, connectivity features provide a range of region-to-region
-# connectivity matrices for different subjects from an imaging cohort.
-conn = features[0]
-print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort.")
-print(conn.name)
-print("\n" + conn.description)
+# connectivity matrices for different files from an imaging cohort. In most
+# cases, these correspond to subjects, like in this example.
+for f in features:
+    print(f.name)
+    print(f.description + "\n")
+    if f.cohort == "HCP":  # and let us select the HCP cohort
+        conn = f
 
 # Subjects are encoded via anonymized ids:
-print(conn.subjects)
-
+print([f.matrix_keys for f in conn])
+subject = '188'  # let's select subject 188
 
 # %%
 # The connectivity matrices are provided as pandas DataFrames,
 # with region objects as index.
-subject = conn.subjects[0]
-matrix = conn.get_matrix(subject)
+matrix = conn[subject].data
 matrix
 
+# You can also obtain the average by `average_matrix = conn.data`.
 
 # %%
-# Alternatively, we can visualize the matrix using plot_matrix() method
-conn.plot_matrix(subject=conn.subjects[0])
-
+# Alternatively, we can visualize the matrix using plot() method
+# for each subject. The averaged matrix over all is stored under the key "mean".
+conn.plot("mean")
 
 # %%
-# The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to `None`. Also, the matrix can be displayed by specifiying
+# If interested in the profile of a region we can simply plot by
+conn.plot(subject, regions="hoc1 left", backend='plotly')
+
+# %%
+# The average matrix across all subjects can be displayed by leaving out matrix
+# key or setting it to `None`. Also, the matrix can be displayed by specifiying
 # a list of regions.
-selected_regions = conn.regions[0:30]
-conn.plot_matrix(regions=selected_regions, reorder=True, cmap="magma")
+selected_regions = conn[subject].regions[0:30]
+conn.plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-node_coords = conn.compute_centroids('mni152')
-
+node_coords = conn[subject].compute_centroids('mni152')
 
 # %%
-# Now we can plot the structural connectome.
+# Now, using nilearn, we can also plot the structural connectome.
 view = plotting.plot_connectome(
     adjacency_matrix=matrix,
     node_coords=node_coords,

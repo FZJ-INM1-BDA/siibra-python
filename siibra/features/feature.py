@@ -22,6 +22,7 @@ from ..core import space, region, parcellation
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
+from itertools import groupby
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -306,12 +307,16 @@ class Feature:
 
     @classmethod
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        return [
+        ftypes = {
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        ]
+        }
+        if len(ftypes) > 1:
+            return [ft for ft in ftypes if getattr(ft, 'category')]
+        else:
+            return list(ftypes)
 
     @classmethod
     def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -510,6 +515,11 @@ class CompoundFeature(Feature):
             logger.error({f.modality for f in features})
             raise NotImplementedError("Cannot compound features of different modalities.")
 
+        if hasattr(features[0], 'cohort') and len({f.cohort for f in features}) == 1:
+            self.cohort = features[0].cohort
+        if hasattr(features[0], 'paradigm') and len({f.paradigm for f in features}) == 1:
+            self.paradigm = features[0].paradigm
+
         assert not any(isinstance(f._filter_key, int) for f in features), "Filter keys cannot be integers."
         self._subfeatures = {f._filter_key: f for f in features}
 
@@ -530,7 +540,7 @@ class CompoundFeature(Feature):
         self.is_compound = True
 
     @property
-    def subfeature_index(self) -> List[Any]:
+    def subfeature_keys(self) -> List[Any]:
         """Indices, in addition to int, by which subfeatures can be accessed"""
         return list(self._subfeatures.keys())
 
@@ -545,15 +555,24 @@ class CompoundFeature(Feature):
     @property
     def data(self):
         if self._data_cached is None:
-            try:
-                self._data_cached = sum([f.data for f in self.subfeatures]) / len(self)
-                return self._data_cached
-            except Exception:
-                raise NotImplementedError(
-                    f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
-                )
-        else:
-            return self._data_cached
+            if "mean" in self.subfeature_keys:
+                self._data_cached = self['mean'].data
+            else:
+                try:
+                    self._data_cached = sum([
+                        f.data for f in siibra_tqdm(
+                            self.subfeatures, desc='Averaging', unit="subfeature"
+                        )
+                    ]) / len(self)
+                except Exception:
+                    raise NotImplementedError(
+                        f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
+                    )
+        return self._data_cached
+
+    def __iter__(self) -> Iterator['Feature']:
+        """Iterate over all subfeatures"""
+        return (f for f in self._subfeatures.values())
 
     def __iter__(self) -> Iterator['Feature']:
         """Iterate over all subfeatures"""
@@ -562,22 +581,24 @@ class CompoundFeature(Feature):
     def __len__(self):
         return len(self._subfeatures)
 
-    def __getitem__(self, filter_spec: Any):
-        if filter_spec in self._subfeatures:
-            return self._subfeatures[filter_spec]
+    def __getitem__(self, filter_key: Any):
+        if filter_key in self._subfeatures:
+            return self._subfeatures[filter_key]
 
-        if isinstance(filter_spec, int):
-            return list(self._subfeatures.values())[filter_spec]
+        if isinstance(filter_key, int):
+            return list(self._subfeatures.values())[filter_key]
 
-        raise NotFoundException(f"{filter_spec} matched no subfeatures")
+        raise NotFoundException(f"{filter_key} matched no subfeatures")
 
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
-            f"{self._subfeature_type.__name__}s ({self.modality}) anchored at",
-            str(self.anchor)
+            f"{self._subfeature_type.__name__} ({self.modality}) anchored at",
+            str(self.anchor),
+            f"with cohort {self.cohort}" if hasattr(self, 'cohort') else "",
+            f"and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
         ))
 
     @property
@@ -608,7 +629,25 @@ class CompoundFeature(Feature):
         -------
         List[CompoundFeature]
         """
-        return [cls(features, queryconcept)]
+        grouper = lambda prop, fs: groupby(
+            list(fs), lambda f: getattr(f, prop, "no " + prop)
+        )
+        grouped_features = dict()
+        for m, fts_m in grouper('__class__', features):
+            for c, fts_c in grouper('cohort', fts_m):
+                for p, fts_p in grouper('paradigm', fts_c):
+                    gkey = f"{m.__name__} - {c} - {p}"
+                    if gkey in grouped_features:
+                        grouped_features[gkey].extend(list(fts_p))
+                    else:
+                        grouped_features[gkey] = list(fts_p)
+        logger.debug('Compound grouping:\n' + '\n'.join(
+            [f"{g} - {len(fts)}" for g, fts in grouped_features.items()]
+        ))
+        return [
+            CompoundFeature(fts, queryconcept)
+            for fts in grouped_features.values() if fts
+        ]
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
@@ -650,8 +689,31 @@ class CompoundFeature(Feature):
         else:
             raise ParseCompoundFeatureIdException
 
-    def plot(self, *args, backend="matplotlib", **kwargs):
+    def plot(self, filter_key: Any = None, *args, backend="matplotlib", **kwargs):
+        """_summary_
+
+        Parameters
+        ----------
+        filter_spec : Any, default: None
+            If None, tries to plot the average of the subfeature data.
+            Otherwise, plots the subfeature `filter_key` corresponds to.
+        backend : str, default: "matplotlib"
+
+        Returns
+        -------
+        Plot of type chosen backend.
+        """
+        if filter_key is not None:
+            return self[filter_key].plot(*args, backend=backend, **kwargs)
+        if "mean" in self.subfeature_keys:
+            try:
+                return self['mean'].plot(*args, backend=backend, **kwargs)
+            except Exception:
+                pass
         try:
             return self.data.plot(*args, backend=backend, **kwargs)
         except Exception:
-            raise NotImplementedError(f"Cannot plot average data for CompoundFeatures of type {type(self._subfeatures[0])}")
+            raise NotImplementedError(
+                "Cannot plot average data for CompoundFeatures of type"
+                f" {self._subfeature_type}"
+            )
