@@ -557,16 +557,17 @@ class CompoundFeature(Feature):
         if self._data_cached is None:
             if "mean" in self.subfeature_keys:
                 self._data_cached = self['mean'].data
-            try:
-                self._data_cached = sum([
-                    f.data for f in siibra_tqdm(
-                        self.subfeatures, desc='Averaging', unit="subfeature"
+            else:
+                try:
+                    self._data_cached = sum([
+                        f.data for f in siibra_tqdm(
+                            self.subfeatures, desc='Averaging', unit="subfeature"
+                        )
+                    ]) / len(self)
+                except Exception:
+                    raise NotImplementedError(
+                        f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
                     )
-                ]) / len(self)
-            except Exception:
-                raise NotImplementedError(
-                    f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
-                )
         return self._data_cached
 
     def __iter__(self) -> Iterator['Feature']:
