@@ -76,6 +76,17 @@ class Factory:
             result.append(
                 datasets.EbrainsV3Dataset(id=spec["ebrains"]["openminds/Dataset"])
             )
+        if "publications" in spec:
+            result.extend(
+                datasets.GenericDataset(
+                    name=pub["name"],
+                    contributors=pub["authors"],
+                    url=pub["url"],
+                    description=pub["description"],
+                    fullcitation=pub["citation"]
+                )
+                for pub in spec["publications"] if pub.get('name')
+            )
         return result
 
     @classmethod
