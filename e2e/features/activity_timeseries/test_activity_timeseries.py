@@ -25,18 +25,19 @@ def test_feature_unique():
 def test_timeseries_get_table():
     features: List["RegionalBOLD"] = siibra.features.get(jba_29, "bold")
     assert len(features) > 0
-    for f in features:
-        assert isinstance(f, RegionalBOLD)
-        assert len(f.table_keys) > 0
-        assert all(isinstance(subject, str) for subject in f.table_keys)
-        for subject in f.table_keys:
-            f.get_table(subject)
+    for cf in features:
+        assert cf.subfeature_type == RegionalBOLD
+        assert len(cf) > 0
+        assert all(isinstance(fi.table_keys, str) for fi in cf)
+        _ = cf.data
+        for fi in cf:
+            _ = fi.data
 
 
 args = [(jba_29, "RegionalBOLD"), (jba_29, RegionalBOLD)]
 
 
 @pytest.mark.parametrize("concept,query_arg", args)
-def test_get_connectivity(concept, query_arg):
+def test_get_bold(concept, query_arg):
     features: List["RegionalBOLD"] = siibra.features.get(concept, query_arg)
-    assert len(features) > 0, f"Expecting some features exist, but none exist."
+    assert len(features) > 0, "Expecting some features exist, but none exist."
