@@ -27,7 +27,7 @@ import siibra
 
 # %%
 # We start by selecting an atlas parcellation.
-jubrain = siibra.parcellations.get("julich 2.9")
+jubrain = siibra.parcellations.get("julich")
 
 # %%
 # The matrices are queried as expected, using `siibra.features.get`,
@@ -43,16 +43,17 @@ print(f"RegionalBOLD features reflects {bold.modality} of {bold.cohort} cohort."
 print(bold.name)
 print("\n" + bold.description)
 
-# Subjects are encoded via anonymized ids:
-print(bold.subjects)
+# subjects are encoded via anonymized ids:
+print([f.table_keys for f in bold])
+subject = '188'  # let's select subject 188
+print(bold[subject].name)
 
 
 # %%
 # The parcellation-based functional data are provided as pandas DataFrames
 # with region objects as columns and indices as time step.
-subject = bold.subjects[0]
-table = bold.get_table(subject)
-print(f"Timestep: {bold.timestep}")
+table = bold[subject].data
+print(f"Timestep: {bold[subject].timestep}")
 table[jubrain.get_region("hOc3v left")]
 
 # %%
@@ -65,7 +66,9 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold.plot_carpet(subject=bold.subjects[0], regions=selected_regions)
+bold.plot_carpet(subject, regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold.plot(subject=bold.subjects[0], regions=selected_regions)
+bold.plot(subject, regions=selected_regions)
+
+# %%

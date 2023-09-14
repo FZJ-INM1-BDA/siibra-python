@@ -27,9 +27,9 @@ def test_timeseries_get_table():
     assert len(features) > 0
     for f in features:
         assert isinstance(f, RegionalBOLD)
-        assert len(f.subjects) > 0
-        assert all(isinstance(subject, str) for subject in f.subjects)
-        for subject in f.subjects:
+        assert len(f.table_keys) > 0
+        assert all(isinstance(subject, str) for subject in f.table_keys)
+        for subject in f.table_keys:
             f.get_table(subject)
 
 

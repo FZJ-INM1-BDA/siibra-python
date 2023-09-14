@@ -29,7 +29,7 @@ import siibra
 
 # %%
 # We start by selecting an atlas parcellation.
-jubrain = siibra.parcellations.get("julich 2.9")
+jubrain = siibra.parcellations.get("julich")
 
 # %%
 # The matrices are queried as expected, using `siibra.features.get`,

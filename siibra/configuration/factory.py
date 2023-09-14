@@ -458,6 +458,14 @@ class Factory:
 
     @classmethod
     def build_activity_timeseries(cls, spec):
+        files = spec.pop("files", {})
+        if len(files) > 1:
+            timeseries_by_file = []
+            for fkey, file in files.items():
+                spec['files'] = {fkey: file}
+                timeseries_by_file.append(cls.build_activity_timeseries(spec))
+            return timeseries_by_file
+
         modality = spec["modality"]
         kwargs = {
             "cohort": spec["cohort"],
@@ -465,7 +473,7 @@ class Factory:
             "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
             "decode_func": cls.extract_decoder(spec),
-            "files": spec.get("files", {}),
+            "files": files,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
