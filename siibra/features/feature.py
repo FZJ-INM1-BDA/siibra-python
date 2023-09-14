@@ -555,19 +555,19 @@ class CompoundFeature(Feature):
     @property
     def data(self):
         if self._data_cached is None:
+            if "mean" in self.subfeature_keys:
+                self._data_cached = self['mean'].data
             try:
                 self._data_cached = sum([
                     f.data for f in siibra_tqdm(
                         self.subfeatures, desc='Averaging', unit="subfeature"
                     )
                 ]) / len(self)
-                return self._data_cached
             except Exception:
                 raise NotImplementedError(
                     f"Cannot get average data for CompoundFeatures of type {self._subfeature_type}"
                 )
-        else:
-            return self._data_cached
+        return self._data_cached
 
     def __iter__(self) -> Iterator['Feature']:
         """Iterate over all subfeatures"""
@@ -700,11 +700,15 @@ class CompoundFeature(Feature):
         """
         if filter_key is not None:
             return self[filter_key].plot(*args, backend=backend, **kwargs)
-        else:
+        if "mean" in self.subfeature_keys:
             try:
-                return self.data.plot(*args, backend=backend, **kwargs)
+                return self['mean'].plot(*args, backend=backend, **kwargs)
             except Exception:
-                raise NotImplementedError(
-                    "Cannot plot average data for CompoundFeatures of type"
-                    f" {self._subfeature_type}"
-                )
+                pass
+        try:
+            return self.data.plot(*args, backend=backend, **kwargs)
+        except Exception:
+            raise NotImplementedError(
+                "Cannot plot average data for CompoundFeatures of type"
+                f" {self._subfeature_type}"
+            )

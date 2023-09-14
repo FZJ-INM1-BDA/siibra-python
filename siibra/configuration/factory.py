@@ -423,7 +423,8 @@ class Factory:
     def build_connectivity_matrix(cls, spec):
         files = spec.pop("files", {})
         if len(files) > 1:
-            conn_by_file = []
+            spec['files'] = {"mean": list(files.values())}
+            conn_by_file = [cls.build_connectivity_matrix(spec)]
             for fkey, file in files.items():
                 spec['files'] = {fkey: file}
                 conn_by_file.append(cls.build_connectivity_matrix(spec))
@@ -460,7 +461,8 @@ class Factory:
     def build_activity_timeseries(cls, spec):
         files = spec.pop("files", {})
         if len(files) > 1:
-            timeseries_by_file = []
+            spec['files'] = {"mean": list(files.values())}
+            timeseries_by_file = [cls.build_activity_timeseries(spec)]
             for fkey, file in files.items():
                 spec['files'] = {fkey: file}
                 timeseries_by_file.append(cls.build_activity_timeseries(spec))

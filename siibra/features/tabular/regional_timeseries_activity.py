@@ -90,7 +90,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
 
     @property
     def data(self):
-        return self.get_table()
+        assert len(self) == 1, "Data propery requires singular file association. Please use `get_matrix` instead."
+        return self.get_table(self._filter_key)
 
     def get_table(self, table_key: str = None):
         """
@@ -108,19 +109,14 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             A table with region names as the column and timesteps as indices.
         """
         assert len(self) > 0
-        if (table_key is None) and (len(self) > 1):
-            # multiple signal tables available, but no table_key given - return mean table
-            logger.info(
-                f"No table_key name supplied, returning mean signal table across {len(self)} table_keys. "
-                "You might alternatively specify an individual table_key."
-            )
+        if table_key == "mean":
             if "mean" not in self._tables:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
                     for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} signal tables"
+                        self._files["mean"],
+                        total=len(self._files["mean"]),
+                        desc="Averaging signal tables"
                     )
                 ]
                 self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))

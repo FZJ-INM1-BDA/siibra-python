@@ -29,7 +29,7 @@ import siibra
 
 # %%
 # We start by selecting an atlas parcellation.
-jubrain = siibra.parcellations.get("julich")
+jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # The matrices are queried as expected, using `siibra.features.get`,
@@ -64,8 +64,8 @@ matrix
 
 # %%
 # Alternatively, we can visualize the matrix using plot() method
-# for each subject
-conn.plot(subject)
+# for each subject. The averaged matrix over all is stored under the key "mean".
+conn.plot("mean")
 
 # %%
 # If interested in the profile of a region we can simply plot by
@@ -76,7 +76,7 @@ conn.plot(subject, regions="hoc1 left", backend='plotly')
 # key or setting it to `None`. Also, the matrix can be displayed by specifiying
 # a list of regions.
 selected_regions = conn[subject].regions[0:30]
-conn.plot(regions=selected_regions, reorder=True, cmap="magma") 
+conn.plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using

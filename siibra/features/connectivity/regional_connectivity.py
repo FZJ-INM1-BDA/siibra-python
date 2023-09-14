@@ -130,19 +130,14 @@ class RegionalConnectivity(Feature):
             A square matrix with region names as the column and row names.
         """
         assert len(self) > 0
-        if (matrix_key is None) and (len(self) > 1):
-            # multiple matrices available, but no matrix_key given - return mean matrix
-            logger.info(
-                f"No matrix_key name supplied, returning mean connectivity across {len(self)} matrix keys. "
-                "You might alternatively specify an individual matrix_key."
-            )
+        if matrix_key == "mean":
             if "mean" not in self._matrices:
                 all_arrays = [
                     self._connector.get(fname, decode_func=self._decode_func)
                     for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices"
+                        self._files["mean"],
+                        total=len(self._files["mean"]),
+                        desc="Averaging connectivity matrices"
                     )
                 ]
                 self._matrices['mean'] = self._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
