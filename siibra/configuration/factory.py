@@ -76,16 +76,16 @@ class Factory:
             result.append(
                 datasets.EbrainsV3Dataset(id=spec["ebrains"]["openminds/Dataset"])
             )
-        if "generic_datasets" in spec:
+        if "publications" in spec:
             result.extend(
                 datasets.GenericDataset(
-                    name=ds["name"],
-                    contributors=ds["authors"],
-                    url=ds["url"],
-                    description=ds["description"],
-                    fullcitation=ds["citation"]
+                    name=pub["name"],
+                    contributors=pub["authors"],
+                    url=pub["url"],
+                    description=pub["description"],
+                    fullcitation=pub["citation"]
                 )
-                for ds in spec["generic_datasets"]
+                for pub in spec["publications"] if pub.get('name')
             )
         return result
 

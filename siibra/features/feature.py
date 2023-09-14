@@ -47,26 +47,29 @@ siibra-python version: {version}
 
 All releated resources (e.g. doi, web resources) are categorized under publications.
 
-name
+Name
 ----
 {name}
 
-description
+Description
 -----------
 {description}
 
-modality
+Modality
 --------
 {modality}
 
 {publications}
 """
 _README_PUBLICATIONS = """
-publications
+Publications
 ------------
 {doi}
+
 {ebrains_page}
+
 {authors}
+
 {publication_desc}
 
 """
@@ -244,10 +247,10 @@ class Feature:
         publication_desc = "\n".join({ds.description for ds in self.datasets})
         if (ebrains_page or doi) and authors:
             publications = _README_PUBLICATIONS.format(
-                ebrains_page="EBRAINS page:\n" + ebrains_page if ebrains_page else "",
-                doi="DOI:\n" + doi if doi else "",
-                authors="Authors:\n" + authors if authors else "",
-                publication_desc="Description:\n" + publication_desc if publication_desc else ""
+                ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
+                doi="DOI\n" + doi if doi else "",
+                authors="Authors\n" + authors if authors else "",
+                publication_desc="Publication description\n" + publication_desc if publication_desc else ""
             )
         else:
             publications = "Note: could not obtain any publication information. The data may not have been published yet."
