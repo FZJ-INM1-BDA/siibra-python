@@ -86,10 +86,11 @@ class Tabular(feature.Feature):
             # default kwargs
             if kwargs.get("error_y") is None:
                 kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
+                yerr_label = f" \u00b1 {kwargs.get('yerr')}" if kwargs.get('yerr') else ''
             kwargs["width"] = kwargs.get("width", 0.95)
             kwargs["ylabel"] = kwargs.get(
                 "ylabel",
-                f"{kwargs['y']} {self.unit if hasattr(self, 'unit') else ''}"
+                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
             )
             kwargs["title"] = kwargs.get(
                 "title",
@@ -103,11 +104,14 @@ class Tabular(feature.Feature):
             plt.tight_layout()
             return ax
         elif backend == "plotly":
+            kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
+            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", ""),
-                "value": kwargs.pop("ylabel", f"{kwargs.get('y')} {self.unit if hasattr(self, 'unit') else ''}")
+                "value": kwargs.pop("ylabel", f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}")
             }
-            kwargs["error_y"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
-            return self.data.plot(*args, backend=backend, **kwargs)
+            fig = self.data.plot(*args, backend=backend, **kwargs)
+            fig.update_layout(yaxis_title=kwargs["labels"]['value'])
+            return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)
