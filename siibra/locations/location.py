@@ -98,6 +98,9 @@ class Location(ABC):
                 f"[{','.join(str(l) for l in iter(self))}]"
             )
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {self}"
+
     @staticmethod
     def union(loc0: 'Location', loc1: 'Location') -> 'Location':
         """
