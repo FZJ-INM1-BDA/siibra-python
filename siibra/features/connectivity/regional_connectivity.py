@@ -14,7 +14,7 @@
 # limitations under the License.
 
 from zipfile import ZipFile
-from ..feature import Feature
+from ..feature import Feature, Compoundable
 from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
@@ -34,7 +34,7 @@ except ImportError:  # support python 3.7
     from typing_extensions import Literal
 
 
-class RegionalConnectivity(Feature):
+class RegionalConnectivity(Feature, Compoundable):
     """
     Parcellation-averaged connectivity, providing one or more matrices of a
     given modality for a given parcellation.
@@ -93,6 +93,23 @@ class RegionalConnectivity(Feature):
         self._matrices = {}
 
     @property
+    def _attributes(self):
+        return {
+            "class": self.__class__.__name__,
+            "modality": self.modality,
+            "cohort": self.cohort,
+            "subject": self.subjects[0]
+        }
+
+    @property
+    def _groupby_attrs(self):
+        return ["class", "modality", "cohort"]
+
+    @property
+    def compound_key(self):
+        return self.subjects[0]
+
+    @property
     def subjects(self):
         """
         Returns the subject identifiers for which matrices are available.
@@ -102,7 +119,8 @@ class RegionalConnectivity(Feature):
     @property
     def name(self):
         supername = super().name
-        return f"{supername} with cohort {self.cohort}"
+        postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.subjects[0]}"
 
     def get_matrix(self, subject: str = None):
         """
