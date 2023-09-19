@@ -27,3 +27,7 @@ class ConflictingArgumentException(ValueError):
 
 class NonUniqueIndexError(RuntimeError):
     pass
+
+
+class NoMapAvailableError(RuntimeError):
+    pass

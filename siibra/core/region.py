@@ -32,6 +32,7 @@ from ..commons import (
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
 )
+from ..exceptions import NoMapAvailableError
 
 import numpy as np
 import re
@@ -39,6 +40,7 @@ import anytree
 from typing import List, Set, Union
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
+import json
 
 
 REGEX_TYPE = type(re.compile("test"))
@@ -66,6 +68,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
 
     _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
     _accepted_flags = "aiLmsux"
+    _FETCH_CACHE_MAX_ENTRIES = 1
 
     def __init__(
         self,
@@ -125,6 +128,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._CACHED_REGION_SEARCHES = {}
+        self._FETCH_CACHE = {}
 
     @property
     def id(self):
@@ -414,6 +418,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         -------
         Volume (use fetch() to get a NiftiImage)
         """
+        # check for a cached object
+        fetch_hash = hash(
+            (self.__hash__(), hash(str(space)), hash(str(maptype)), hash(threshold), hash(str(via_space)))
+        )
+        if fetch_hash in self._FETCH_CACHE:
+            return self._FETCH_CACHE[fetch_hash]
+
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
         result = None
@@ -455,11 +466,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                         name=f"Mask of {self.name} in {m.parcellation.name}",
                     )
                 break
-        else:
-            # all children are mapped instead
-            dataobj = None
-            affine = None
-            if all(c.mapped_in_space(fetch_space) for c in self.children):
+
+            elif all(c.mapped_in_space(fetch_space) for c in self.children):
+                dataobj = None
+                affine = None
                 for c in siibra_tqdm(
                     self.children,
                     desc=f"Building mask of {self.name}",
@@ -479,11 +489,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                             )
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
-            if dataobj is not None:
-                result = volume.from_array(dataobj, affine, space, f"Subtree mask built from {self.name}")
-
+                if dataobj is not None:
+                    result = volume.from_array(dataobj, affine, space, f"Subtree mask built from {self.name}")
+        
         if result is None:
-            raise RuntimeError(f"Cannot build region map for {self.name} from {maptype} maps in {fetch_space}")
+            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {maptype} maps in {fetch_space}")                
 
         if via_space is not None:
             # fetch used an intermediate reference space provided by 'via_space'.
@@ -500,6 +510,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                 )
             )
 
+        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
+        self._FETCH_CACHE[fetch_hash] = result
         return result
 
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
@@ -728,11 +741,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
 
         for space in sorted(self.supported_spaces):
             if space.provides_image:
-                logger.info(f"Intersect {other.__class__.__name__} in {space}")
-                warped = other.warp(space)
+                logger.info(f"Intersect {other} with {self} in {space}")
+                try:
+                    warped = other.warp(space)
+                except NotImplementedError:
+                    continue
                 if warped is not None:
                     volume = self.get_regional_map(space)
                     if volume is not None:
                         return volume.intersection(warped).warp(other.space)
 
-        raise RuntimeError(f"Could not intersect {self} with {other}")
+        return None

@@ -21,6 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_array_to_array
+from ..exceptions import NoMapAvailableError
 
 from nibabel import Nifti1Image
 import numpy as np
@@ -201,6 +202,7 @@ class Volume(location.LocationFilter):
         Compute the intersection of a location with this volume.
         This will fetch actual image data.
         Any additional arguments are passed to fetch.
+        TODO write a test for the volume-volume and volume-region intersection
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
             result = self.points_inside(other, **kwargs)
@@ -212,17 +214,25 @@ class Volume(location.LocationFilter):
                 return result
         elif isinstance(other, boundingbox.BoundingBox):
             return self.boundingbox.intersection(other)
-        elif isinstance(other, self.__class__):
-            v1 = self.fetch()
-            v2 = self.fetch()
+        elif hasattr(other, "fetch"):
+            v1 = self.fetch(**kwargs)
+            v2 = other.fetch(**kwargs)
             arr1 = np.asanyarray(v1.dataobj)
-            arr2 = np.asanyarray(v2.dataobj)
-            arr1 = resample_array_to_array(v1.dataobj, v1.affine, v2.dataobj, v2.affine)
-
-        else:
-            raise NotImplementedError(
-                f"Intersection of {self.__class__.__name__} with {other.__class__.__name__} not implemented."
+            arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
+            return from_array(
+                np.minimum(arr1, arr2),
+                v1.affine, self.space,
+                name=f"Intersection of {self} and {other}"
             )
+        elif hasattr(other, "get_regional_map"):  # Region objects
+            try:
+                volume = other.get_regional_map(space=self.space, **kwargs)
+                return self.intersection(volume)
+            except NoMapAvailableError as e:
+                logger.warn(str(e))
+
+        # no intersection possible
+        return None
 
     def transform(self, affine: np.ndarray, space=None):
         """ only modifies the affine matrix and space. """
@@ -274,7 +284,7 @@ class Volume(location.LocationFilter):
 
         # no cached object, fetch now
         if format is None:
-            requested_formats = self.SUPPORTED_FORMATS
+            requested_formats = list(self._providers.keys())
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
             requested_formats = self._FORMAT_LOOKUP[format]
         elif format in self.SUPPORTED_FORMATS:
@@ -282,37 +292,29 @@ class Volume(location.LocationFilter):
         else:
             raise ValueError(f"Invalid format requested: {format}")
 
-        # select the first source unless the user specifically requests a format
-        for fmt in requested_formats:
-            if fmt in self.formats:
-                selected_format = fmt
-                logger.debug(f"Requested format was '{format}', selected format is '{selected_format}'")
-                break
-        else:
+        possible_formats = set(requested_formats) & set(self.formats)
+        if len(possible_formats) == 0:
             raise ValueError(f"Invalid format requested: {format}")
 
         # try the selected format only
-        for try_count in range(6):
+        for selected_format in possible_formats:
+            fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             try:
                 if selected_format == "gii-label":
                     tpl = self.space.get_template(variant=kwargs.get('variant'))
                     mesh = tpl.fetch(**kwargs)
-                    labels = self._providers[selected_format].fetch(**kwargs)
+                    labels = self._providers[selected_format].fetch(**fwd_args)
                     result = dict(**mesh, **labels)
                     break
                 else:
-                    result = self._providers[selected_format].fetch(**kwargs)
+                    assert selected_format in self._providers
+                    result = self._providers[selected_format].fetch(**fwd_args)
                     # TODO insert a meaningful description including origin and bounding box
                     break
             except requests.SiibraHttpRequestError as e:
                 if e.status_code == 429:  # too many requests
                     sleep(0.1)
-                logger.error(f"Cannot access {self._providers[selected_format]}", exc_info=(try_count == 5))
-        if format is None and len(self.formats) > 1:
-            logger.info(
-                f"No format was specified and auto-selected format '{selected_format}' "
-                "was unsuccesful. You can specify another format from "
-                f"{set(self.formats) - set(selected_format)} to try.")
+                logger.error(f"Cannot access {self._providers[selected_format]}")
 
         while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
             # remove oldest entry
