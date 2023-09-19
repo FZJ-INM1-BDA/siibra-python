@@ -19,10 +19,11 @@ from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator, Iterable
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
+from abc import ABC, abstractmethod
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -460,7 +461,12 @@ class Feature:
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
-        return list(set((preconfigured_instances + live_instances)))
+        results = list(set((preconfigured_instances + live_instances)))
+
+        if issubclass(feature_type, Compoundable):
+            results = CompoundFeature.compound(results, concept)
+
+        return results
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
@@ -540,3 +546,155 @@ class Feature:
                 return getattr(self.inst, __name)
 
         return ProxyFeature(feature, fid)
+
+
+class Compoundable(ABC):
+    """Determines the necessary grouping and compounding attributes."""
+
+    @property
+    @abstractmethod
+    def _attributes(self) -> Dict[str, Any]:
+        """Attributes to pass over to the CompoundFeature from."""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def _groupby_attrs(self) -> List[str]:
+        """Attributes used to reduce the list of features to CompoundFeatures."""
+        raise NotImplementedError
+
+    @property
+    def _groupby_key(self):
+        """
+        Attribute key-value pairs used to reduce the list of features to
+        CompoundFeatures based on groupby property. Can be overriden if need be.
+        """
+        return tuple((attr, self._attributes[attr]) for attr in self._groupby_attrs)
+
+    @property
+    @abstractmethod
+    def compound_key(self):
+        """Unique key to seperate features making subfeatures"""
+        raise NotImplementedError
+
+
+class CompoundFeature(Feature):
+    """
+    A compound of several features of the same type with an anchor created as
+    a sum of adjoinable anchors.
+    """
+
+    def __init__(
+        self,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ):
+        """
+        A compound of several features of the same type with an anchor created as
+        a sum of adjoinable anchors.
+        """
+        assert len({f.__class__ for f in features}) == 1, \
+            NotImplementedError("Cannot compound features of different types.")
+        self._subfeature_type = features[0].__class__
+        self.category = features[0].category
+        assert issubclass(self._subfeature_type, Compoundable), \
+            NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+
+        assert len({f.modality for f in features}) == 1, \
+            NotImplementedError("Cannot compound features of different modalities.")
+        modality = features[0].modality
+
+        groupby_key = {feature._groupby_key for feature in features}
+        assert len(groupby_key) == 1, \
+            ValueError("Cannot compound features with different `groupby_key`")
+        self._groupby_key = groupby_key.__iter__().__next__()
+
+        subfeatures = {f.compound_key: f for f in features}
+        self._subfeatures = {k: subfeatures[k] for k in sorted(subfeatures)}
+        Feature.__init__(
+            self,
+            modality=modality,
+            description="\n".join({f.description for f in features}),
+            anchor=sum([f.anchor for f in features]),
+            datasets=list({ds for f in features for ds in f.datasets})
+        )
+        self._queryconcept = queryconcept
+
+    @property
+    def subfeatures(self):
+        return list(self._subfeatures.values())
+
+    @property
+    def subfeature_type(self):
+        return self._subfeature_type
+
+    @property
+    def name(self) -> str:
+        """Returns a short human-readable name of this feature."""
+        return " ".join((
+            f"{self.__class__.__name__} of {len(self)}",
+            f"grouped by ({', '.join(val for _, val in self._groupby_key)})",
+            str(self.anchor)
+        ))
+
+    def __iter__(self) -> Iterator['Feature']:
+        """Iterate over subfeatures"""
+        return self.subfeatures.__iter__()
+
+    def __len__(self):
+        """Number of subfeatures making the CompoundFeature"""
+        return len(self._subfeatures)
+
+    def __getitem__(self, compound_key: Any):
+        """Get the subfeature correspnding to compound_key or integer index."""
+        if compound_key in self._subfeatures:
+            return self._subfeatures[compound_key]
+        if isinstance(compound_key, int):
+            return list(self._subfeatures.values())[compound_key]
+        raise NotFoundException(f"{compound_key} matched no subfeatures")
+
+    def _can_append(self, feature: Feature):
+        return isinstance(feature, Feature) and \
+            isinstance(feature, Compoundable) and \
+            self._groupby_key == feature._groupby_key and \
+            feature.compound_key not in self._subfeatures
+
+    def append(self, feature: Feature):
+        assert self._can_append(feature)
+        self.achor += feature.anchor
+        self._subfeatures.update({feature.compound_key: feature})
+
+    def extend(self, features: Iterable[Feature]):
+        assert all(self.can_append(f) for f in features)
+        self.achor += sum([f.anchor for f in features])
+        self._subfeatures.update({f.compound_key: f for f in features})
+
+    @classmethod
+    def compound(
+        cls,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ) -> List['CompoundFeature']:
+        """
+        Compound features of the same the same type based on their anchors.
+        Parameters
+        ----------
+        features: List[Feature]
+            Feature instances to be compounded.
+        queryconcept:
+            AtlasConcept used for the query.
+
+        Returns
+        -------
+        List[CompoundFeature]
+        """
+        grouped_features = dict()
+        for f in features:
+            if f._groupby_key in grouped_features:
+                grouped_features[f._groupby_key].append(f)
+            else:
+                grouped_features[f._groupby_key] = [f]
+        return [
+            CompoundFeature(fts, queryconcept)
+            for fts in grouped_features.values() if fts
+        ]
