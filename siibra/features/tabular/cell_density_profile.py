@@ -13,21 +13,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
 from . import cortical_profile
+from ..feature import Compoundable
 
+from .. import anchor as _anchor
 from ...commons import PolyLine, logger, create_key
 from ...retrieval import requests
+from ...locations import point
 
 from skimage.draw import polygon
 from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
+from typing import List, Dict
 
 
 class CellDensityProfile(
     cortical_profile.CorticalProfile,
+    Compoundable,
     configuration_folder="features/tabular/corticalprofiles/celldensity",
     category='cellular'
 ):
@@ -92,6 +96,23 @@ class CellDensityProfile(
         self._depth_image = None
         self.section = section
         self.patch = patch
+
+    @property
+    def _attributes(self) -> Dict[str, point.Point]:
+        return {
+            "class": self.__class__.__name__,
+            "modality": self.modality,
+            "section": self.section,
+            "patch": self.patch
+        }
+
+    @property
+    def _groupby_attrs(self) -> List[str]:
+        return ["class", "modality"]
+
+    @property
+    def compound_key(self):
+        return (self.section, self.patch)
 
     @property
     def shape(self):
