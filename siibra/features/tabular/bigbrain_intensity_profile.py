@@ -14,12 +14,15 @@
 # limitations under the License.
 
 from . import cortical_profile
+from ..feature import Compoundable
 
 from ...locations import point
+from typing import List, Dict
 
 
 class BigBrainIntensityProfile(
     cortical_profile.CorticalProfile,
+    Compoundable,
     category='cellular'
 ):
 
@@ -61,3 +64,19 @@ class BigBrainIntensityProfile(
             }
         )
         self.location = location
+
+    @property
+    def _attributes(self) -> Dict[str, point.Point]:
+        return {
+            "class": self.__class__.__name__,
+            "modality": self.modality,
+            "location": self.location
+        }
+
+    @property
+    def _groupby_attrs(self) -> List[str]:
+        return ["class", "modality"]
+
+    @property
+    def compound_key(self):
+        return self.location
