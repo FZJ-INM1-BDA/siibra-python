@@ -127,7 +127,7 @@ class Feature:
         # query context).
         # do_not_index flag allow the default index behavior to be toggled off.
 
-        if do_not_index == False:
+        if do_not_index is False:
 
             # extend the subclass lists
             # Iterate over all mro, not just immediate base classes
