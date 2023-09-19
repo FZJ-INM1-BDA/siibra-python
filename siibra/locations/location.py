@@ -98,6 +98,16 @@ class Location(ABC):
                 f"[{','.join(str(l) for l in iter(self))}]"
             )
 
+    @staticmethod
+    def union(loc0: 'Location', loc1: 'Location') -> 'Location':
+        """
+        Reassigned at the locations module level for static typing and to avoid
+        circular imports. See siibra.locations.__init__.reassign_union()
+        """
+        raise NotImplementedError(
+            "This method is designed to be reassigned at the module level"
+        )
+
 
 class WholeBrain(Location):
     """
