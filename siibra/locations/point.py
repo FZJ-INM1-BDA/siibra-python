@@ -204,11 +204,11 @@ class Point(location.Location):
 
     def __lt__(self, other):
         o = other if self.space is None else other.warp(self.space)
-        return all(self[i] < o[i] for i in range(3))
+        return np.linalg.norm(self.coordinate) < np.linalg.norm(o.coordinate)
 
     def __gt__(self, other):
         o = other if self.space is None else other.warp(self.space)
-        return all(self[i] > o[i] for i in range(3))
+        return np.linalg.norm(self.coordinate) > np.linalg.norm(o.coordinate)
 
     def __eq__(self, other: 'Point'):
         if not isinstance(other, Point):
