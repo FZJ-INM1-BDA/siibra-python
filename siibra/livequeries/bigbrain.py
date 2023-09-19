@@ -119,7 +119,7 @@ class WagstylProfileLoader:
         ----------
         regionobj : region.Region
             Region or parcellation
-        space_spec : str, optional
+        space : str, optional
             The space in which the region masks will be calculated. By default,
             siibra tries to fetch in BigBrain first and then the other spaces.
 
@@ -158,15 +158,14 @@ class WagstylProfileLoader:
 
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
 
-    def __init__(self, **kwargs):
-        query.LiveQuery.__init__(self, **kwargs)
-        self.space_spec = kwargs.pop('space', None)
+    def __init__(self):
+        query.LiveQuery.__init__(self)
 
     def query(self, regionobj: region.Region, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        space = self.space_spec or WagstylProfileLoader._choose_space(regionobj)
+        space = WagstylProfileLoader._choose_space(regionobj)
         if not regionobj.is_leaf:
             leaves_defined_on_space = [
                 r for r in regionobj.leaves if r.mapped_in_space(space)
@@ -192,15 +191,14 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
 
-    def __init__(self, **kwargs):
-        query.LiveQuery.__init__(self, **kwargs)
-        self.space_spec = kwargs.pop('space', None)
+    def __init__(self):
+        query.LiveQuery.__init__(self)
 
     def query(self, regionobj: region.Region, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
         assert isinstance(regionobj, region.Region)
         loader = WagstylProfileLoader()
 
-        space = self.space_spec or WagstylProfileLoader._choose_space(regionobj)
+        space = WagstylProfileLoader._choose_space(regionobj)
         if not regionobj.is_leaf:
             leaves_defined_on_space = [
                 r for r in regionobj.leaves if r.mapped_in_space(space)
