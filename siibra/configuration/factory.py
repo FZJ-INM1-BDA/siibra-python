@@ -433,19 +433,31 @@ class Factory:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
-    def build_connectivity_matrix(cls, spec):
+    def build_connectivity_matrix(cls, spec, comp_kwargs=None):
+        files = spec.pop("files", {})
         modality = spec["modality"]
-        kwargs = {
-            "cohort": spec.get("cohort", ""),
-            "modality": modality,
-            "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
-            "files": spec.get("files", {}),
-            "anchor": cls.extract_anchor(spec),
-            "description": spec.get("description", ""),
-            "datasets": cls.extract_datasets(spec),
-        }
+        if comp_kwargs:
+            kwargs = comp_kwargs
+        else:
+            kwargs = {
+                "cohort": spec.get("cohort", ""),
+                "modality": modality,
+                "regions": spec["regions"],
+                "connector": cls.extract_connector(spec),
+                "decode_func": cls.extract_decoder(spec),
+                "anchor": cls.extract_anchor(spec),
+                "description": spec.get("description", ""),
+                "datasets": cls.extract_datasets(spec),
+            }
+        if len(files) > 1:
+            comp_kwargs = kwargs
+            comp_kwargs['files'] = {"mean": list(files.values())}
+            conn_by_file = [cls.build_connectivity_matrix(spec, comp_kwargs)]
+            for fkey, file in files.items():
+                comp_kwargs['files'] = {fkey: file}
+                conn_by_file.append(cls.build_connectivity_matrix(spec, comp_kwargs))
+            return conn_by_file
+
         if modality == "StreamlineCounts":
             return connectivity.StreamlineCounts(**kwargs)
         elif modality == "StreamlineLengths":
