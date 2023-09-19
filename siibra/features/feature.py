@@ -42,6 +42,10 @@ class NotFoundException(Exception):
     pass
 
 
+class ParseCompoundFeatureIdException(Exception):
+    pass
+
+
 _README_TMPL = """
 Downloaded from siibra toolsuite.
 siibra-python version: {version}
@@ -308,6 +312,35 @@ class Feature:
         if not hasattr(feat.__class__, '_live_queries'):
             raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
 
+        encoded_c = Feature._encode_concept(concept)
+
+        return f"lq0::{feat.__class__.__name__}::{encoded_c}::{feat.id}"
+
+    @classmethod
+    def deserialize_query_context(cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+        """
+        Deserialize id into query context.
+
+        See docstring of serialize_query_context for context.
+        """
+        lq_version, *rest = feature_id.split("::")
+        if lq_version != "lq0":
+            raise ParseLiveQueryIdException("livequery id must start with lq0::")
+
+        clsname, *concepts, fid = rest
+
+        Features = cls._parse_featuretype(clsname)
+
+        if len(Features) == 0:
+            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
+        F = Features[0]
+
+        concept = cls._decode_concept(concepts)
+
+        return (F, concept, fid)
+
+    @staticmethod
+    def _encode_concept(concept: concept.AtlasConcept):
         encoded_c = []
         if isinstance(concept, space.Space):
             encoded_c.append(f"s:{concept.id}")
@@ -320,47 +353,36 @@ class Feature:
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
 
-        return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
+        return '::'.join(encoded_c)
 
     @classmethod
-    def deserialize_query_context(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
-        """
-        Deserialize id into query context.
-
-        See docstring of serialize_query_context for context.
-        """
-        lq_version, *rest = feature_id.split("::")
-        if lq_version != "lq0":
-            raise ParseLiveQueryIdException("livequery id must start with lq0::")
-
-        clsname, *concepts, fid = rest
-
-        Features = Cls.parse_featuretype(clsname)
-
-        if len(Features) == 0:
-            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
-        F = Features[0]
+    def _decode_concept(cls, concepts: List[str]) -> concept.AtlasConcept:
+        # choose exception to divert try-except correctly
+        if issubclass(cls, CompoundFeature):
+            exception = ParseCompoundFeatureIdException
+        else:
+            exception = ParseLiveQueryIdException
 
         concept = None
         for c in concepts:
             if c.startswith("s:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = space.Space.registry()[c.replace("s:", "")]
             if c.startswith("p:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = parcellation.Parcellation.registry()[c.replace("p:", "")]
             if c.startswith("r:"):
                 if concept is None:
-                    raise ParseLiveQueryIdException("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
+                    raise exception("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
                 if not isinstance(concept, parcellation.Parcellation):
-                    raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
+                    raise exception("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
-        if concept is None:
-            raise ParseLiveQueryIdException(f"concept was not populated: {feature_id!r}")
 
-        return (F, concept, fid)
+        if concept is None:
+            raise ParseLiveQueryIdException("concept was not populated in feature id")
+        return concept
 
     @classmethod
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
@@ -469,7 +491,12 @@ class Feature:
         return results
 
     @classmethod
-    def get_instance_by_id(cls, feature_id: str, **kwargs):
+    def _get_instance_by_id(cls, feature_id: str, **kwargs):
+        try:
+            return CompoundFeature._get_instance_by_id(feature_id, **kwargs)
+        except ParseCompoundFeatureIdException:
+            pass
+
         try:
             F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
@@ -634,7 +661,17 @@ class CompoundFeature(Feature):
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
             f"grouped by ({', '.join(val for _, val in self._groupby_key)})",
-            str(self.anchor)
+            f"anchored at {self.anchor}"
+        ))
+
+    @property
+    def id(self):
+        return "::".join((
+            "cf0",
+            f"{self._subfeature_type.__name__}",
+            self._encode_concept(self._queryconcept),
+            self.datasets[0].id if self.datasets else "nodsid",
+            md5(self.name.encode("utf-8")).hexdigest()
         ))
 
     def __iter__(self) -> Iterator['Feature']:
@@ -698,3 +735,43 @@ class CompoundFeature(Feature):
             CompoundFeature(fts, queryconcept)
             for fts in grouped_features.values() if fts
         ]
+
+    @classmethod
+    def _get_instance_by_id(cls, feature_id: str, **kwargs):
+        """
+        Use the feature id to obtain the same feature instance.
+
+        Parameters
+        ----------
+        feature_id : str
+
+        Returns
+        -------
+        CompoundFeature
+
+        Raises
+        ------
+        ParseCompoundFeatureIdException
+            If no or multiple matches are found. Or id is not fitting to
+            compound features.
+        """
+        if not feature_id.startswith("cf0::"):
+            raise ParseCompoundFeatureIdException("CompoundFeature id must start with cf0::")
+        cf_version, clsname, *queryconcept, dsid, fid = feature_id.split("::")
+
+        candidates = [
+            f
+            for f in Feature.match(
+                concept=cls._decode_concept(queryconcept),
+                feature_type=clsname
+            )
+            if f.id == fid or f.id == feature_id
+        ]
+        if candidates:
+            if len(candidates) == 1:
+                return candidates[0]
+            else:
+                raise ParseCompoundFeatureIdException(
+                    f"The query with id '{feature_id}' have resulted multiple instances.")
+        else:
+            raise ParseCompoundFeatureIdException
