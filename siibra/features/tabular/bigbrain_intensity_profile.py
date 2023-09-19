@@ -61,3 +61,12 @@ class BigBrainIntensityProfile(
             }
         )
         self.location = location
+
+    def __lt__(self, other):
+        return self.location.__lt__(other.location)
+
+    def __gt__(self, other):
+        return self.location.__gt__(other.location)
+
+    def __hash__(self) -> int:
+        return hash(self.id)
