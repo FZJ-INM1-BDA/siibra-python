@@ -130,15 +130,19 @@ class AnatomicalAnchor:
         self._location_cached = location
         self._assignments: Dict[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
-        self._regions_cached = None
-        self._regionspec = None
-        if isinstance(region, Region):
-            self._regions_cached = {region: AssignmentQualification.EXACT}
-        elif isinstance(region, str):
-            self._regionspec = region
+        if isinstance(region, dict):
+            self._regions_cached = region
+            self._regionspec = ", ".join({r.name for r in region.keys()})
         else:
-            if region is not None:
-                raise ValueError(f"Invalid region specification: {region}")
+            self._regions_cached = None
+            self._regionspec = None
+            if isinstance(region, Region):
+                self._regions_cached = {region: AssignmentQualification.EXACT}
+            elif isinstance(region, str):
+                self._regionspec = region
+            else:
+                if region is not None:
+                    raise ValueError(f"Invalid region specification: {region}")
         self._aliases_cached = None
 
     @property
@@ -208,7 +212,10 @@ class AnatomicalAnchor:
         region = "" if self._regionspec is None else str(self._regionspec)
         location = "" if self.location is None else str(self.location)
         separator = " " if min(len(region), len(location)) > 0 else ""
-        return region + separator + location
+        if region and location:
+            return region + " with " + location
+        else:
+            return region + separator + location
 
     def __repr__(self):
         return self.__str__()
@@ -389,3 +396,23 @@ class AnatomicalAnchor:
             return ""
         else:
             return ' and '.join({str(_) for _ in self.last_match_result})
+
+    def __add__(self, other: 'AnatomicalAnchor') -> 'AnatomicalAnchor':
+        if not isinstance(other, AnatomicalAnchor):
+            raise ValueError(f"Cannot combine an AnatomicalAnchor with {other.__class__}")
+
+        if self.species != other.species:
+            raise ValueError("Cannot combine an AnatomicalAnchor from different species.")
+        else:
+            species = self.species.union(other.species)
+
+        regions = self.regions
+        regions.update(other.regions)
+
+        location = Location.union(self.location, other.location)
+
+        return AnatomicalAnchor(species, location, regions)
+
+    def __radd__(self, other):
+        # required to enable `sum`
+        return self if other == 0 else self.__add__(other)
