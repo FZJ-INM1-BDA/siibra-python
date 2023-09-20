@@ -484,11 +484,7 @@ class Feature:
         live_instances = feature_type.livequery(concept, **kwargs)
 
         results = list(set((preconfigured_instances + live_instances)))
-
-        if issubclass(feature_type, Compoundable):
-            results = CompoundFeature.compound(results, concept)
-
-        return results
+        return CompoundFeature.compound(results, concept)
 
     @classmethod
     def _get_instance_by_id(cls, feature_id: str, **kwargs):
@@ -695,10 +691,12 @@ class CompoundFeature(Feature):
         raise NotFoundException(f"{compound_key} matched no subfeatures")
 
     def _can_append(self, feature: Feature):
-        return isinstance(feature, Feature) and \
-            isinstance(feature, Compoundable) and \
-            self._groupby_key == feature._groupby_key and \
-            feature.compound_key not in self._subfeatures
+        return (
+            isinstance(feature, Feature)
+            and isinstance(feature, Compoundable)
+            and self._groupby_key == feature._groupby_key
+            and feature.compound_key not in self._subfeatures
+        )
 
     def append(self, feature: Feature):
         assert self._can_append(feature)
@@ -729,13 +727,15 @@ class CompoundFeature(Feature):
         -------
         List[CompoundFeature]
         """
-        grouped_features = dict()
+        non_compound_features = []
+        grouped_features = defaultdict(list)
+        non_compound_features = []
         for f in features:
-            if f._groupby_key in grouped_features:
+            if isinstance(f, Compoundable):
                 grouped_features[f._groupby_key].append(f)
-            else:
-                grouped_features[f._groupby_key] = [f]
-        return [
+                continue
+            non_compound_features.append(f)
+        return non_compound_features + [
             CompoundFeature(fts, queryconcept)
             for fts in grouped_features.values() if fts
         ]
