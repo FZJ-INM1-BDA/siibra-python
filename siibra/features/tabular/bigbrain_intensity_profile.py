@@ -17,7 +17,7 @@ from . import cortical_profile
 from ..feature import Compoundable
 
 from ...locations import point
-from typing import List, Dict
+from typing import List, Dict, Union
 
 
 class BigBrainIntensityProfile(
@@ -66,7 +66,7 @@ class BigBrainIntensityProfile(
         self.location = location
 
     @property
-    def attributes(self) -> Dict[str, point.Point]:
+    def attributes(self) -> Dict[str, Union[str, point.Point]]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,

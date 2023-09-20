@@ -19,14 +19,13 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 from ...commons import PolyLine, logger, create_key
 from ...retrieval import requests
-from ...locations import point
 
 from skimage.draw import polygon
 from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Union
 
 
 class CellDensityProfile(
@@ -98,7 +97,7 @@ class CellDensityProfile(
         self.patch = patch
 
     @property
-    def attributes(self) -> Dict[str, point.Point]:
+    def attributes(self) -> Dict[str, Union[str, int]]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,

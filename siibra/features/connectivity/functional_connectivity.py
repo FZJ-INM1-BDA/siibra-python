@@ -14,7 +14,9 @@
 # limitations under the License.
 
 from . import regional_connectivity
+
 from hashlib import md5
+from typing import Dict
 
 
 class FunctionalConnectivity(
@@ -36,5 +38,5 @@ class FunctionalConnectivity(
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
 
     @property
-    def attributes(self):
+    def attributes(self) -> Dict[str, str]:
         return dict(**super().attributes, **{"paradigm": self.paradigm})

@@ -69,7 +69,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         self.timestep = timestep
 
     @property
-    def attributes(self):
+    def attributes(self) -> Dict[str, str]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -79,7 +79,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         }
 
     @property
-    def _groupby_attrs(self):
+    def _groupby_attrs(self) -> List[str]:
         return ["class", "modality", "cohort"]
 
     @property
