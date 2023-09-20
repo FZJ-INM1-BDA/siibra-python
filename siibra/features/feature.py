@@ -702,12 +702,12 @@ class CompoundFeature(Feature):
 
     def append(self, feature: Feature):
         assert self._can_append(feature)
-        self.achor += feature.anchor
+        self.anchor += feature.anchor
         self._subfeatures.update({feature.compound_key: feature})
 
     def extend(self, features: Iterable[Feature]):
         assert all(self.can_append(f) for f in features)
-        self.achor += sum([f.anchor for f in features])
+        self.anchor += sum([f.anchor for f in features])
         self._subfeatures.update({f.compound_key: f for f in features})
 
     @classmethod
