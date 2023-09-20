@@ -69,7 +69,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         self.timestep = timestep
 
     @property
-    def _attributes(self):
+    def attributes(self):
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -80,11 +80,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def _groupby_attrs(self):
-        return ["class", "modality", "paradigm", "cohort"]
-
-    @property
-    def compound_key(self):
-        return self.subjects[0]
+        return ["class", "modality", "cohort"]
 
     @property
     def subjects(self):

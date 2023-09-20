@@ -98,7 +98,7 @@ class CellDensityProfile(
         self.patch = patch
 
     @property
-    def _attributes(self) -> Dict[str, point.Point]:
+    def attributes(self) -> Dict[str, point.Point]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -109,10 +109,6 @@ class CellDensityProfile(
     @property
     def _groupby_attrs(self) -> List[str]:
         return ["class", "modality"]
-
-    @property
-    def compound_key(self):
-        return (self.section, self.patch)
 
     @property
     def shape(self):

@@ -93,7 +93,7 @@ class RegionalConnectivity(Feature, Compoundable):
         self._matrices = {}
 
     @property
-    def _attributes(self):
+    def attributes(self):
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -104,10 +104,6 @@ class RegionalConnectivity(Feature, Compoundable):
     @property
     def _groupby_attrs(self):
         return ["class", "modality", "cohort"]
-
-    @property
-    def compound_key(self):
-        return self.subjects[0]
 
     @property
     def subjects(self):

@@ -19,6 +19,7 @@ from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 
+from pandas import DataFrame
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator, Iterable
 from hashlib import md5
 from collections import defaultdict
@@ -576,7 +577,7 @@ class Compoundable(ABC):
 
     @property
     @abstractmethod
-    def _attributes(self) -> Dict[str, Any]:
+    def attributes(self) -> Dict[str, Any]:
         """Attributes to pass over to the CompoundFeature from."""
         raise NotImplementedError
 
@@ -592,13 +593,7 @@ class Compoundable(ABC):
         Attribute key-value pairs used to reduce the list of features to
         CompoundFeatures based on groupby property. Can be overriden if need be.
         """
-        return tuple((attr, self._attributes[attr]) for attr in self._groupby_attrs)
-
-    @property
-    @abstractmethod
-    def compound_key(self):
-        """Unique key to seperate features making subfeatures"""
-        raise NotImplementedError
+        return tuple((attr, self.attributes[attr]) for attr in self._groupby_attrs)
 
 
 class CompoundFeature(Feature):
@@ -616,24 +611,26 @@ class CompoundFeature(Feature):
         A compound of several features of the same type with an anchor created as
         a sum of adjoinable anchors.
         """
-        assert len({f.__class__ for f in features}) == 1, \
-            NotImplementedError("Cannot compound features of different types.")
+        assert len({f.__class__ for f in features}) == 1, NotImplementedError("Cannot compound features of different types.")
         self._subfeature_type = features[0].__class__
         self.category = features[0].category
-        assert issubclass(self._subfeature_type, Compoundable), \
-            NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+        assert issubclass(self._subfeature_type, Compoundable), NotImplementedError(f"Cannot compound {self._subfeature_type}.")
 
-        assert len({f.modality for f in features}) == 1, \
-            NotImplementedError("Cannot compound features of different modalities.")
+        assert len({f.modality for f in features}) == 1, NotImplementedError("Cannot compound features of different modalities.")
         modality = features[0].modality
 
         groupby_key = {feature._groupby_key for feature in features}
-        assert len(groupby_key) == 1, \
-            ValueError("Cannot compound features with different `groupby_key`")
+        assert len(groupby_key) == 1, ValueError("Cannot compound features with different `groupby_key`")
         self._groupby_key = groupby_key.__iter__().__next__()
 
-        subfeatures = {f.compound_key: f for f in features}
-        self._subfeatures = {k: subfeatures[k] for k in sorted(subfeatures)}
+        sorting_attrs = [
+            attr for attr in features[0].attributes.keys()
+            if attr not in features[0]._groupby_attrs
+        ]
+        self._subfeatures = features
+        for attr in sorting_attrs:
+            self._subfeatures .sort(key=lambda f: f.attributes[attr])
+
         Feature.__init__(
             self,
             modality=modality,
@@ -642,14 +639,22 @@ class CompoundFeature(Feature):
             datasets=list({ds for f in features for ds in f.datasets})
         )
         self._queryconcept = queryconcept
+        self._dataframe_cached = None
 
     @property
     def subfeatures(self):
-        return list(self._subfeatures.values())
+        return self._subfeatures
 
     @property
-    def subfeature_keys(self):
-        return list(self._subfeatures.keys())
+    def dataframe(self) -> DataFrame:
+        """
+        Attribute data frame constructed with subfeature attribute-value pairs.
+        """
+        if self._dataframe_cached is None:
+            self._dataframe_cached = DataFrame(
+                [f.attributes for f in self]
+            )
+        return self._dataframe_cached
 
     @property
     def subfeature_type(self):
@@ -682,31 +687,32 @@ class CompoundFeature(Feature):
         """Number of subfeatures making the CompoundFeature"""
         return len(self._subfeatures)
 
-    def __getitem__(self, compound_key: Any):
-        """Get the subfeature correspnding to compound_key or integer index."""
-        if compound_key in self._subfeatures:
-            return self._subfeatures[compound_key]
-        if isinstance(compound_key, int):
-            return list(self._subfeatures.values())[compound_key]
-        raise NotFoundException(f"{compound_key} matched no subfeatures")
+    def __getitem__(self, index: Any):
+        """Get the subfeature corresponding to integer index."""
+        return self.subfeatures[index]
 
     def _can_append(self, feature: Feature):
         return (
             isinstance(feature, Feature)
             and isinstance(feature, Compoundable)
             and self._groupby_key == feature._groupby_key
-            and feature.compound_key not in self._subfeatures
         )
 
     def append(self, feature: Feature):
         assert self._can_append(feature)
         self.anchor += feature.anchor
-        self._subfeatures.update({feature.compound_key: feature})
+        self._subfeatures.append(feature)
+        if self._dataframe_cached is not None:
+            self._dataframe_cached.append(feature.attributes, ignore_index=True)
 
     def extend(self, features: Iterable[Feature]):
         assert all(self.can_append(f) for f in features)
         self.anchor += sum([f.anchor for f in features])
-        self._subfeatures.update({f.compound_key: f for f in features})
+        self._subfeatures.extend(features)
+        if self._dataframe_cached is not None:
+            self._dataframe_cached.append(
+                DataFrame([f.attributes for f in features]), ignore_index=True
+            )
 
     @classmethod
     def compound(
@@ -729,7 +735,6 @@ class CompoundFeature(Feature):
         """
         non_compound_features = []
         grouped_features = defaultdict(list)
-        non_compound_features = []
         for f in features:
             if isinstance(f, Compoundable):
                 grouped_features[f._groupby_key].append(f)
