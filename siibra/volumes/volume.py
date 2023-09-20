@@ -114,9 +114,9 @@ class Volume(location.LocationFilter):
             try:
                 bbox = provider.boundingbox
                 if bbox.space is None:  # provider does usually not know the space!
-                    bbox.space = self.space
-                    bbox.minpoint.space = self.space
-                    bbox.maxpoint.space = self.space
+                    bbox._space_cached = self.space
+                    bbox.minpoint._space_cached = self.space
+                    bbox.maxpoint._space_cached = self.space
             except NotImplementedError as e:
                 print(str(e))
                 continue
@@ -157,6 +157,11 @@ class Volume(location.LocationFilter):
             if key in self._space_spec:
                 return _space.Space.get_instance(self._space_spec[key])
         return _space.Space(None, "Unspecified space", species=_space.Species.UNSPECIFIED_SPECIES)
+
+    @property
+    def species(self):
+        s = self.space
+        return None if s is None else s.species
 
     def __str__(self):
         if self.space is None:

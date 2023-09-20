@@ -32,7 +32,7 @@ from ..commons import (
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
 )
-from ..exceptions import NoMapAvailableError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 import numpy as np
 import re
@@ -467,15 +467,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                     )
                 break
 
-            elif all(c.mapped_in_space(fetch_space) for c in self.children):
+            elif (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
                 dataobj = None
                 affine = None
-                for c in siibra_tqdm(
-                    self.children,
-                    desc=f"Building mask of {self.name}",
-                    leave=False,
-                    unit=" child region"
-                ):
+                logger.info(f"Building mask of {self.name} from {len(self.children)} child regions.")
+                for c in self.children:
                     mask = c.get_regional_map(fetch_space, maptype, threshold).fetch(format='image')
                     if dataobj is None:
                         dataobj = np.asanyarray(mask.dataobj)
@@ -744,11 +740,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                 logger.info(f"Intersect {other} with {self} in {space}")
                 try:
                     warped = other.warp(space)
-                except NotImplementedError:
+                except SpaceWarpingFailedError:
                     continue
-                if warped is not None:
-                    volume = self.get_regional_map(space)
-                    if volume is not None:
-                        return volume.intersection(warped).warp(other.space)
+                assert warped is not None
+                volume = self.get_regional_map(space)
+                if volume is not None:
+                    return volume.intersection(warped).warp(other.space)
 
         return None

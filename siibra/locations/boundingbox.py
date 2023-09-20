@@ -16,6 +16,7 @@
 from . import point, pointset, location, boundingbox
 
 from ..commons import logger
+from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
@@ -122,24 +123,6 @@ class BoundingBox(location.Location, location.LocationFilter):
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
-    def contains(self, other: location.Location):
-        """Returns true if the bounding box contains the given location."""
-        if isinstance(other, point.Point):
-            return (other >= self.minpoint) and (other <= self.maxpoint)
-        elif isinstance(other, pointset.PointSet):
-            return all(self.contains(p) for p in other)
-        elif isinstance(other, boundingbox.BoundingBox):
-            return all([
-                other.minpoint >= self.minpoint,
-                other.maxpoint <= self.maxpoint
-            ])
-        elif hasattr(other, "boundingbox"):
-            return self.contains(other.boundingbox)
-        else:
-            raise NotImplementedError(
-                f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
-            )
-
     def intersection(self, other, dims=[0, 1, 2], threshold=0):
         """Computes the intersection of this bounding box with another one.
 
@@ -152,18 +135,14 @@ class BoundingBox(location.Location, location.LocationFilter):
             threshold: optional intensity threshold for intersecting with image mask
         """
         if isinstance(other, BoundingBox):
-            return self._intersect_bbox(other, dims)
-        elif hasattr(other, "image"):
-            # if warping is required, warping the bounding box is easier than the image!
-            warped = self.warp(other.space)
-            if warped is None:
-                logger.warning(f"Could not warp bounding box from {self.space} to {other.space}")
-                return None
-            return warped._intersect_mask(other.image, threshold=threshold)
+            try:
+                return self._intersect_bbox(other, dims)
+            except SpaceWarpingFailedError:
+                return other._intersect_bbox(self, dims)
+        elif hasattr(other, "boundingbox"):
+            return self.intersection(other.boundingbox)
         else:
-            raise NotImplementedError(
-                f"Intersection of bounding box with {type(other)} not implemented."
-            )
+            other.intersection(self)
 
     def _intersect_bbox(self, other, dims=[0, 1, 2]):
         warped = other.warp(self.space)
@@ -292,8 +271,7 @@ class BoundingBox(location.Location, location.LocationFilter):
                     space=spaceobj,
                 )
             except ValueError:
-                logger.debug(f"Warping {str(self)} to {spaceobj.name} not successful.")
-                return None
+                raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the

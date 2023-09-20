@@ -31,3 +31,7 @@ class NonUniqueIndexError(RuntimeError):
 
 class NoMapAvailableError(RuntimeError):
     pass
+
+
+class SpaceWarpingFailedError(RuntimeError):
+    pass
