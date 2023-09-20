@@ -650,11 +650,7 @@ class CompoundFeature(Feature):
         """
         Attribute data frame constructed with subfeature attribute-value pairs.
         """
-        if self._dataframe_cached is None:
-            self._dataframe_cached = DataFrame(
-                [f.attributes for f in self]
-            )
-        return self._dataframe_cached
+        return DataFrame([f.attributes for f in self])
 
     @property
     def subfeature_type(self):
@@ -702,17 +698,11 @@ class CompoundFeature(Feature):
         assert self._can_append(feature)
         self.anchor += feature.anchor
         self._subfeatures.append(feature)
-        if self._dataframe_cached is not None:
-            self._dataframe_cached.append(feature.attributes, ignore_index=True)
 
     def extend(self, features: Iterable[Feature]):
-        assert all(self.can_append(f) for f in features)
+        assert all(self._can_append(f) for f in features)
         self.anchor += sum([f.anchor for f in features])
         self._subfeatures.extend(features)
-        if self._dataframe_cached is not None:
-            self._dataframe_cached.append(
-                DataFrame([f.attributes for f in features]), ignore_index=True
-            )
 
     @classmethod
     def compound(
