@@ -736,7 +736,7 @@ class CompoundFeature(Feature):
                 continue
             non_compound_features.append(f)
         return non_compound_features + [
-            CompoundFeature(fts, queryconcept)
+            cls(fts, queryconcept)
             for fts in grouped_features.values() if fts
         ]
 
