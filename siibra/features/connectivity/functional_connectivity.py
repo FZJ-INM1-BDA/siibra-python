@@ -36,9 +36,5 @@ class FunctionalConnectivity(
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
 
     @property
-    def _attributes(self):
-        return dict(**super()._attributes, **{"paradigm": self.paradigm})
-
-    @property
-    def _groupby_attrs(self):
-        return super()._groupby_attrs + ["paradigm"]
+    def attributes(self):
+        return dict(**super().attributes, **{"paradigm": self.paradigm})
