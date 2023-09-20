@@ -14,9 +14,9 @@
 # limitations under the License.
 
 from . import tabular
+from ..feature import Compoundable
 
 from .. import anchor as _anchor
-
 from ...commons import logger, QUIET, siibra_tqdm
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -26,7 +26,7 @@ import pandas as pd
 import numpy as np
 
 
-class RegionalTimeseriesActivity(tabular.Tabular):
+class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     """
     Datasets that provide regional activity over time.
     """
@@ -69,6 +69,24 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         self.timestep = timestep
 
     @property
+    def _attributes(self):
+        return {
+            "class": self.__class__.__name__,
+            "modality": self.modality,
+            "cohort": self.cohort,
+            "paradigm": self.paradigm,
+            "subject": self.subjects[0]
+        }
+
+    @property
+    def _groupby_attrs(self):
+        return ["class", "modality", "paradigm", "cohort"]
+
+    @property
+    def compound_key(self):
+        return self.subjects[0]
+
+    @property
     def subjects(self):
         """
         Returns the subject identifiers for which signal tables are available.
@@ -78,7 +96,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
     @property
     def name(self):
         supername = super().name
-        return f"{supername} with paradigm {self.paradigm}"
+        postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.subjects[0]}"
 
     def get_table(self, subject: str = None):
         """
