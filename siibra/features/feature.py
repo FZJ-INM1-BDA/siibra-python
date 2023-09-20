@@ -652,6 +652,10 @@ class CompoundFeature(Feature):
         return list(self._subfeatures.values())
 
     @property
+    def subfeature_keys(self):
+        return list(self._subfeatures.keys())
+
+    @property
     def subfeature_type(self):
         return self._subfeature_type
 
