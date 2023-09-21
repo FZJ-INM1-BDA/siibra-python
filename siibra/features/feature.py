@@ -682,23 +682,6 @@ class CompoundFeature(Feature):
         """Get the subfeature corresponding to integer index."""
         return self.subfeatures[index]
 
-    def _can_append(self, feature: Feature):
-        return (
-            isinstance(feature, Feature)
-            and isinstance(feature, Compoundable)
-            and self._groupby_key == feature._groupby_key
-        )
-
-    def append(self, feature: Feature):
-        assert self._can_append(feature)
-        self.anchor += feature.anchor
-        self._subfeatures.append(feature)
-
-    def extend(self, features: Iterable[Feature]):
-        assert all(self._can_append(f) for f in features)
-        self.anchor += sum([f.anchor for f in features])
-        self._subfeatures.extend(features)
-
     @classmethod
     def compound(
         cls,
