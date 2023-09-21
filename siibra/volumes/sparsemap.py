@@ -424,8 +424,13 @@ class SparseMap(parcellationmap.Map):
         x, y, z, v = self.sparse_index.mapped_voxels(volidx)
         result = np.zeros(self.shape, dtype=np.float32)
         result[x, y, z] = v
-        return result, self.affine, self.space, \
-            f"Map of {region.name} from {region.parcellation.name} in {self.space.name}"
+        volume = _volume.from_array(
+            result,
+            self.affine,
+            self.space,
+            f"Map of {region} from {self.parcellation} in {self.space.name}"
+        )
+        return volume.fetch()
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index

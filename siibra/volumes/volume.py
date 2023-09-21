@@ -202,6 +202,7 @@ class Volume(location.LocationFilter):
             labels=inside
         )
 
+    # TODO: Seek alternative solutions to hasattr
     def intersection(self, other: location.Location, **kwargs) -> location.Location:
         """
         Compute the intersection of a location with this volume.
@@ -284,7 +285,7 @@ class Volume(location.LocationFilter):
         )
         if fetch_hash in self._FETCH_CACHE:
             return self._FETCH_CACHE[fetch_hash]
-        
+
         result = None
 
         # no cached object, fetch now

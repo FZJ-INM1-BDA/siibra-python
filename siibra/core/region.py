@@ -27,7 +27,6 @@ from ..commons import (
     affine_scaling,
     create_key,
     clear_name,
-    siibra_tqdm,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
@@ -40,7 +39,6 @@ import anytree
 from typing import List, Set, Union
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
-import json
 
 
 REGEX_TYPE = type(re.compile("test"))
@@ -337,7 +335,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         if regionspec not in self._CACHED_MATCHES:
             def splitstr(s):
                 return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
-            
+
             if regionspec is None:
                 self._CACHED_MATCHES[regionspec] = False
 
@@ -437,11 +435,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
             fetch_space = _space.Space.get_instance(fetch_space)
         for m in parcellationmap.Map.registry():
             if (
-                m.space.matches(fetch_space) and
-                m.parcellation == self.parcellation and
-                m.provides_image and
-                m.maptype == maptype and
-                self.name in m.regions
+                m.space.matches(fetch_space)
+                and m.parcellation == self.parcellation
+                and m.provides_image
+                and m.maptype == maptype
+                and self.name in m.regions
             ):
                 if maptype == MapType.STATISTICAL and threshold is None:
                     # return the statistical map as is
@@ -487,9 +485,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                         dataobj[updates] = mask.get_fdata()[updates]
                 if dataobj is not None:
                     result = volume.from_array(dataobj, affine, space, f"Subtree mask built from {self.name}")
-        
+
         if result is None:
-            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {maptype} maps in {fetch_space}")                
+            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {maptype} maps in {fetch_space}")
 
         if via_space is not None:
             # fetch used an intermediate reference space provided by 'via_space'.
