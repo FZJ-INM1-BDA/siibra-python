@@ -25,7 +25,7 @@ from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
-from typing import List, Dict, Union
+from typing import Dict, Union
 
 
 class CellDensityProfile(
@@ -106,8 +106,8 @@ class CellDensityProfile(
         }
 
     @property
-    def _groupby_attrs(self) -> List[str]:
-        return ["class", "modality"]
+    def _groupby_key(self):
+        return (self.__class__.__name__, self.modality)
 
     @property
     def shape(self):

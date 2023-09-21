@@ -79,8 +79,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         }
 
     @property
-    def _groupby_attrs(self) -> List[str]:
-        return ["class", "modality", "cohort"]
+    def _groupby_key(self):
+        return (self.__class__.__name__, self.modality, self.cohort)
 
     @property
     def subjects(self):

@@ -583,17 +583,12 @@ class Compoundable(ABC):
 
     @property
     @abstractmethod
-    def _groupby_attrs(self) -> List[str]:
-        """Attributes used to reduce the list of features to CompoundFeatures."""
-        raise NotImplementedError
-
-    @property
-    def _groupby_key(self):
+    def _groupby_key(self) -> Tuple[Any]:
         """
         Attribute key-value pairs used to reduce the list of features to
         CompoundFeatures based on groupby property. Can be overriden if need be.
         """
-        return tuple((attr, self.attributes[attr]) for attr in self._groupby_attrs)
+        raise NotImplementedError
 
 
 class CompoundFeature(Feature):
@@ -624,12 +619,12 @@ class CompoundFeature(Feature):
         self._groupby_key = groupby_key.__iter__().__next__()
 
         sorting_attrs = [
-            attr for attr in features[0].attributes.keys()
-            if attr not in features[0]._groupby_attrs
+            attr for attr, val in features[0].attributes.items()
+            if val not in features[0]._groupby_key
         ]
         self._subfeatures = features
         for attr in sorting_attrs:
-            self._subfeatures .sort(key=lambda f: f.attributes[attr])
+            self._subfeatures.sort(key=lambda f: f.attributes[attr])
 
         Feature.__init__(
             self,
@@ -661,7 +656,7 @@ class CompoundFeature(Feature):
         """Returns a short human-readable name of this feature."""
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
-            f"grouped by ({', '.join(val for _, val in self._groupby_key)})",
+            f"grouped by ({', '.join(val for val in self._groupby_key)})",
             f"anchored at {self.anchor}"
         ))
 
