@@ -77,6 +77,17 @@ class Factory:
             result.append(
                 datasets.EbrainsV3Dataset(id=spec["ebrains"]["openminds/Dataset"])
             )
+        if "publications" in spec:
+            result.extend(
+                datasets.GenericDataset(
+                    name=pub["name"],
+                    contributors=pub["authors"],
+                    url=pub["url"],
+                    description=pub["description"],
+                    fullcitation=pub["citation"]
+                )
+                for pub in spec["publications"] if pub.get('name')
+            )
         return result
 
     @classmethod
@@ -141,18 +152,20 @@ class Factory:
         spectype = repospec["@type"]
         if spectype == "siibra/repository/zippedfile/v1.0.0":
             return repositories.ZipfileConnector(repospec['url'])
-        elif spectype == "siibra/repository/gitlab/v1.0.0":
+        if spectype == "siibra/repository/localfolder/v1.0.0":
+            return repositories.LocalFileRepository(repospec['folder'])
+        if spectype == "siibra/repository/gitlab/v1.0.0":
             return repositories.GitlabConnector(
                 server=repospec['server'],
                 project=repospec['project'],
                 reftag=repospec['branch']
             )
-        else:
-            logger.warning(
-                "Do not know how to create a repository "
-                f"connector from specification type {spectype}."
-            )
-            return None
+
+        logger.warning(
+            "Do not know how to create a repository "
+            f"connector from specification type {spectype}."
+        )
+        return None
 
     @classmethod
     def build_atlas(cls, spec):

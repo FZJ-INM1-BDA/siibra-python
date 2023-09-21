@@ -84,7 +84,7 @@ class AnatomicalAnchor:
         # return any predefined aliases for the region specified in this anchor.
         if self._aliases_cached is None:
             self._aliases_cached: Dict[str, Dict[str, str]] = {
-                species_str: region_alias_mapping
+                Species.decode(species_str): region_alias_mapping
                 for s in self.species
                 for species_str, region_alias_mapping in REGION_ALIASES.get(str(s), {}).get(self._regionspec, {}).items()
             }
@@ -124,7 +124,9 @@ class AnatomicalAnchor:
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(regionspec, alt_species):
+                    for r in Parcellation.find_regions(regionspec):
+                        if r.species != alt_species:
+                            continue
                         if r not in self._regions_cached:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
 

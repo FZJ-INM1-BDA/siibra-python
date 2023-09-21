@@ -15,15 +15,16 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, siibra_tqdm
+from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 from ..locations import location
 from ..volumes import volume
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
 from hashlib import md5
 from collections import defaultdict
+from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -40,6 +41,40 @@ class EncodeLiveQueryIdException(Exception):
 
 class NotFoundException(Exception):
     pass
+
+
+_README_TMPL = """
+Downloaded from siibra toolsuite.
+siibra-python version: {version}
+
+All releated resources (e.g. doi, web resources) are categorized under publications.
+
+Name
+----
+{name}
+
+Description
+-----------
+{description}
+
+Modality
+--------
+{modality}
+
+{publications}
+"""
+_README_PUBLICATIONS = """
+Publications
+------------
+{doi}
+
+{ebrains_page}
+
+{authors}
+
+{publication_desc}
+
+"""
 
 
 class Feature:
@@ -196,6 +231,57 @@ class Feature:
                 prefix = ds.id + '--'
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
+
+    def _export(self, fh: ZipFile):
+        """
+        Internal implementation. Subclasses can override but call super()._export(fh).
+        This allows all classes in the __mro__ to have the opportunity to append files
+        of interest.
+        """
+        ebrains_page = "\n".join(
+            {ds.ebrains_page for ds in self.datasets if getattr(ds, "ebrains_page", None)}
+        )
+        doi = "\n".join({
+            u.get("url")
+            for ds in self.datasets if ds.urls
+            for u in ds.urls
+        })
+        authors = ", ".join({
+            cont.get('name')
+            for ds in self.datasets if ds.contributors
+            for cont in ds.contributors
+        })
+        publication_desc = "\n".join({ds.description for ds in self.datasets})
+        if (ebrains_page or doi) and authors:
+            publications = _README_PUBLICATIONS.format(
+                ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
+                doi="DOI\n" + doi if doi else "",
+                authors="Authors\n" + authors if authors else "",
+                publication_desc="Publication description\n" + publication_desc if publication_desc else ""
+            )
+        else:
+            publications = "Note: could not obtain any publication information. The data may not have been published yet."
+        fh.writestr(
+            "README.md",
+            _README_TMPL.format(
+                version=__version__,
+                name=self.name,
+                description=self.description,
+                modality=self.modality,
+                publications=publications
+            )
+        )
+
+    def export(self, filelike: Union[str, BinaryIO]):
+        """
+        Export as a zip archive.
+
+        Args:
+            filelike (string or filelike): name or filehandle to write the zip file. User is responsible to ensure the correct extension (.zip) is set.
+        """
+        fh = ZipFile(filelike, "w")
+        self._export(fh)
+        fh.close()
 
     @staticmethod
     def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
@@ -369,9 +455,11 @@ class Feature:
             for f_type in cls.SUBCLASSES[feature_type]
             for instance in f_type.get_instances()
         ]
+
         preconfigured_instances = [
-            f for f in siibra_tqdm(instances, desc=msg, total=len(instances))
-            if f.matches(concept)
+            f for f in siibra_tqdm(
+                instances, desc=msg, total=len(instances), disable=(not instances)
+            ) if f.matches(concept)
         ]
 
         # Then run any registered live queries for the requested feature type

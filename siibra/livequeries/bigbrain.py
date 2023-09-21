@@ -31,10 +31,13 @@ class WagstylProfileLoader:
 
     REPO = "https://github.com/kwagstyl/cortical_layers_tutorial"
     BRANCH = "main"
-    PROFILES_FILE = "data/profiles_left.npy"
-    THICKNESSES_FILE = "data/thicknesses_left.npy"
-    MESH_FILE = "data/gray_left_327680.surf.gii"
-
+    PROFILES_FILE_LEFT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_left.txt"
+    PROFILES_FILE_RIGHT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_right.txt"
+    THICKNESSES_FILE_LEFT = "data/thicknesses_left.npy"
+    THICKNESSES_FILE_RIGHT = ""
+    MESH_FILE_LEFT = "gray_left_327680.surf.gii"
+    MESH_FILE_RIGHT = "gray_right_327680.surf.gii"
+    BASEURL = "https://ftp.bigbrainproject.org/bigbrain-ftp/BigBrainRelease.2015/3D_Surfaces/Apr7_2016/gii/"
     _profiles = None
     _vertices = None
     _boundary_depths = None
@@ -45,33 +48,66 @@ class WagstylProfileLoader:
 
     @property
     def profile_labels(self):
-        return np.arange(0, 1, 1 / self._profiles.shape[1])
+        return np.arange(0., 1., 1. / self._profiles.shape[1])
 
     @classmethod
     def _load(cls):
         # read thicknesses, in mm, and normalize by their last column which is the total thickness
-        mesh_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.MESH_FILE}").data
-        T = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE}").data.T
-        total = T[:, :-1].sum(1)
-        valid = np.where(total > 0)[0]
-        boundary_depths = np.c_[np.zeros_like(valid), (T[valid, :-1] / total[valid, None]).cumsum(1)]
-        boundary_depths[:, -1] = 1
+        thickness_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE_LEFT}").data.T
+        thickness_right = np.zeros(shape=thickness_left.shape)  # TODO: replace with thickness data for te right hemisphere
+        thickness = np.concatenate((thickness_left[:, :-1], thickness_right[:, :-1]))  # last column is the computed total thickness
+        total_thickness = thickness.sum(1)
+        valid = np.where(total_thickness > 0)[0]
+        cls._boundary_depths = np.c_[np.zeros_like(valid), (thickness[valid, :] / total_thickness[valid, None]).cumsum(1)]
+        cls._boundary_depths[:, -1] = 1  # account for float calculation errors
 
-        # read profiles with valid thickenss
-        url = f"{cls.REPO}/raw/{cls.BRANCH}/{cls.PROFILES_FILE}"
-        if not path.exists(cache.CACHE.build_filename(url)):
+        # find profiles with valid thickness
+        if not all(
+            path.exists(cache.CACHE.build_filename(url))
+            for url in [cls.PROFILES_FILE_LEFT, cls.PROFILES_FILE_RIGHT]
+        ):
             logger.info(
-                "First request to BigBrain profiles. "
-                "Downloading and preprocessing the data now. "
-                "This may take a little."
+                "First request to BigBrain profiles. Preprocessing the data "
+                "now. This may take a little."
             )
-        req = requests.HttpRequest(url)
+        profiles_l = requests.HttpRequest(cls.PROFILES_FILE_LEFT).data.to_numpy()
+        profiles_r = requests.HttpRequest(cls.PROFILES_FILE_RIGHT).data.to_numpy()
+        cls._profiles = np.concatenate((profiles_l, profiles_r))[valid, :]
 
-        cls._boundary_depths = boundary_depths
-        cls._vertices = mesh_left.darrays[0].data[valid, :]
-        cls._profiles = req.data[valid, :]
+        # read mesh vertices
+        mesh_left = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_LEFT}").data
+        mesh_right = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_RIGHT}").data
+        mesh_vertices = np.concatenate((mesh_left.darrays[0].data, mesh_right.darrays[0].data))
+        cls._vertices = mesh_vertices[valid, :]
+
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
+
+    @staticmethod
+    def _choose_space(regionobj: region.Region):
+        """
+        Helper function to obtain a suitable space to fetch a regional mask.
+        BigBrain space has priorty.
+
+        Parameters
+        ----------
+        regionobj : region.Region
+
+        Returns
+        -------
+        Space
+
+        Raises
+        ------
+        RuntimeError
+            When there is no supported space that provides image for `regionobj`.
+        """
+        if regionobj.mapped_in_space('bigbrain'):
+            return 'bigbrain'
+        supported_spaces = [s for s in regionobj.supported_spaces if s.provides_image]
+        if len(supported_spaces) == 0:
+            raise RuntimeError(f"Could not find a supported space for {regionobj}")
+        return supported_spaces[0]
 
     def __len__(self):
         return self._vertices.shape[0]
@@ -104,7 +140,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
             )
             features.append(prof)
 
-        return features
+        return result
 
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
@@ -116,24 +152,28 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         assert isinstance(concept, location.LocationFilter)
 
         loader = WagstylProfileLoader()
-        regionname = concept.name if isinstance(concept, region.Region) else str(concept)
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        if isinstance(concept, region.Region):
+            regionname = concept.name
+            space = WagstylProfileLoader._choose_space(concept)
+        else:
+            regionname = str(concept)
+            space = 'bigbrain'
+        matched = concept.intersection(pointset.PointSet(loader._vertices, space=space))
         indices = matched.labels
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]
-
         # compute array of layer labels for all coefficients in profiles_left
         N = matched_profiles.shape[1]
         prange = np.arange(N)
-        region_labels = 7 - np.array([
+        layer_labels = 7 - np.array([
             [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
             for b in boundary_depths
         ]).reshape((-1, 200))
 
         result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
             regionname=regionname,
-            means=[matched_profiles[region_labels == _].mean() for _ in range(1, 7)],
-            stds=[matched_profiles[region_labels == _].std() for _ in range(1, 7)],
+            means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
+            stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
         )
         result.anchor._location_cached = pointset.PointSet(loader._vertices[indices, :], space='bigbrain')
         result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(

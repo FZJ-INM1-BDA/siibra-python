@@ -33,3 +33,6 @@
 	padding: 0;
 }
 
+.wy-nav-content {
+    max-width: 100dvw !important;
+}

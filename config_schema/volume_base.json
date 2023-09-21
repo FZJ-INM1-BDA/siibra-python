@@ -10,6 +10,13 @@
         },
         "name": {
             "type": "string"
+        },
+        "regions": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/regionRef",
+                "additionalProperties": false
+            }
         }
     },
     "definitions": {
@@ -50,6 +57,20 @@
                 },
                 "gii-mesh": {
                     "$ref": "#/definitions/provider"
+                }
+            }
+        },
+        "regionRef": {
+            "type": "object",
+            "properties": {
+                "parcellation": {
+                    "$ref": "/config_schema/at_id.json"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         }
