@@ -106,6 +106,10 @@ class RegionalConnectivity(Feature, Compoundable):
         return (self.__class__.__name__, self.modality, self.cohort)
 
     @property
+    def compound_key(self) -> str:
+        return self.subjects[0]
+
+    @property
     def subjects(self):
         """
         Returns the subject identifiers for which matrices are available.

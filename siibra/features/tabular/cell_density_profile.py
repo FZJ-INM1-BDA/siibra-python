@@ -25,7 +25,7 @@ from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
-from typing import Dict, Union
+from typing import Dict, Union, Tuple
 
 
 class CellDensityProfile(
@@ -108,6 +108,10 @@ class CellDensityProfile(
     @property
     def _groupby_key(self):
         return (self.__class__.__name__, self.modality)
+
+    @property
+    def compound_key(self) -> Tuple[int, int]:
+        return (self.section, self.patch)
 
     @property
     def shape(self):

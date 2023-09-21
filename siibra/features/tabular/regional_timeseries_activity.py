@@ -83,6 +83,10 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return (self.__class__.__name__, self.modality, self.cohort)
 
     @property
+    def compound_key(self) -> str:
+        return self.subjects[0]
+
+    @property
     def subjects(self):
         """
         Returns the subject identifiers for which signal tables are available.

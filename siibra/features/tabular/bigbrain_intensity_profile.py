@@ -76,3 +76,7 @@ class BigBrainIntensityProfile(
     @property
     def _groupby_key(self):
         return (self.__class__.__name__, self.modality)
+
+    @property
+    def compound_key(self) -> point.Point:
+        return self.location

@@ -20,7 +20,7 @@ from ..core import concept
 from ..core import space, region, parcellation
 
 from pandas import DataFrame
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator, Iterable
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
@@ -590,6 +590,15 @@ class Compoundable(ABC):
         """
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def compound_key(self) -> Any:
+        """
+        Unique key to distinguish subfeatures making a CompoundFeature. Should
+        not be integer (see CompoundFeature.__get_item__). Should be hashable.
+        """
+        raise NotImplementedError
+
 
 class CompoundFeature(Feature):
     """
@@ -618,13 +627,16 @@ class CompoundFeature(Feature):
         assert len(groupby_key) == 1, ValueError("Cannot compound features with different `groupby_key`")
         self._groupby_key = groupby_key.__iter__().__next__()
 
+        assert len({f.compound_key for f in features}) == len(features), RuntimeError("Compund keys should be unique to each subfeature within the CompoundFeature.")
+
+        # sort subfeatures for reproduciblity
         sorting_attrs = [
             attr for attr, val in features[0].attributes.items()
             if val not in features[0]._groupby_key
         ]
-        self._subfeatures = features
         for attr in sorting_attrs:
-            self._subfeatures.sort(key=lambda f: f.attributes[attr])
+            features.sort(key=lambda f: f.attributes[attr])
+        self._subfeatures = {f.compound_key: f for f in features}
 
         Feature.__init__(
             self,
@@ -638,7 +650,11 @@ class CompoundFeature(Feature):
 
     @property
     def subfeatures(self):
-        return self._subfeatures
+        return list(self._subfeatures.values())
+
+    @property
+    def subfeature_keys(self):
+        return list(self._subfeatures.keys())
 
     @property
     def dataframe(self) -> DataFrame:
@@ -678,9 +694,13 @@ class CompoundFeature(Feature):
         """Number of subfeatures making the CompoundFeature"""
         return len(self._subfeatures)
 
-    def __getitem__(self, index: Any):
-        """Get the subfeature corresponding to integer index."""
-        return self.subfeatures[index]
+    def __getitem__(self, compound_key: Any):
+        """Get the subfeature correspnding to compound_key or integer index."""
+        if isinstance(compound_key, int):
+            return list(self._subfeatures.values())[compound_key]
+        if compound_key in self._subfeatures:
+            return self._subfeatures[compound_key]
+        raise NotFoundException(f"'{compound_key}' matched no subfeatures.")
 
     @classmethod
     def compound(

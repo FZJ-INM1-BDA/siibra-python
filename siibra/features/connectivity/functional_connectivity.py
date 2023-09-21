@@ -16,7 +16,7 @@
 from . import regional_connectivity
 
 from hashlib import md5
-from typing import Dict
+from typing import Dict, Tuple
 
 
 class FunctionalConnectivity(
@@ -40,3 +40,7 @@ class FunctionalConnectivity(
     @property
     def attributes(self) -> Dict[str, str]:
         return dict(**super().attributes, **{"paradigm": self.paradigm})
+
+    @property
+    def compound_key(self) -> Tuple[str]:
+        return (self.subjects[0], self.paradigm)
