@@ -657,6 +657,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         """
         Compute spatial properties for connected components of this region in the given space.
 
+        TODO: this should go to the Volume class and just be called from here.
+
         Parameters
         ----------
         space: Space
@@ -692,7 +694,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         # build binary mask of the image
         pimg = self.get_regional_map(
             space, maptype=maptype, threshold=threshold_statistical
-        )
+        ).fetch()
 
         # determine scaling factor from voxels to cube mm
         scale = affine_scaling(pimg.affine)
