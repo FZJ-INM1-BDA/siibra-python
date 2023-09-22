@@ -82,9 +82,9 @@ class BrainStructure(ABC):
         else:  # other is a location object, just check spatial relationships
             if self == other:
                 qualification = assignment.AssignmentQualification.EXACT
-            elif self in other:
+            elif self.__contains__(other):
                 qualification = assignment.AssignmentQualification.CONTAINS
-            elif other in self:
+            elif other.__contains__(self):
                 qualification = assignment.AssignmentQualification.CONTAINED
             elif self.intersects(other):
                 qualification = assignment.AssignmentQualification.OVERLAPS

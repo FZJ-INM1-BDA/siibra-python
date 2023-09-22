@@ -106,7 +106,7 @@ class Point(location.Location, structure.BrainStructure):
         elif isinstance(other, pointset.PointSet):
             return self if self in other else None
         else:
-            return self if self in other else None
+            return self if other.__contains__(self) else None
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""

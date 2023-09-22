@@ -599,7 +599,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         if (other, self) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
-        if isinstance(other, Union[location.Location, volume.Volume]):
+        if isinstance(other, (location.Location, volume.Volume)):
             try:
                 regionmap = self.get_regional_map(space=other.space)
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
@@ -610,9 +610,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             assert isinstance(other, Region)
             if self == other:
                 qualification = assignment.AssignmentQualification.EXACT
-            elif self in other:
+            elif self.__contains__(other):
                 qualification = assignment.AssignmentQualification.CONTAINS
-            elif other in self:
+            elif other.__contains__(self):
                 qualification = assignment.AssignmentQualification.CONTAINED
             else:
                 qualification = None
