@@ -204,7 +204,7 @@ class Volume(structure.BrainStructure, location.Location):
         )
 
     # TODO: Seek alternative solutions to hasattr
-    def intersection(self, other: location.Location, **kwargs) -> location.Location:
+    def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume.
         This will fetch actual image data.
@@ -226,12 +226,15 @@ class Volume(structure.BrainStructure, location.Location):
             v2 = other.fetch(**kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
-            result = from_array(
-                np.minimum(arr1, arr2),
-                v1.affine, self.space,
-                name=f"Intersection between {self} and {other} computed as their pointwise minimum"
-            )
-            return result
+            pointwise_min = np.minimum(arr1, arr2)
+            if np.any(pointwise_min):
+                return from_array(
+                    pointwise_min,
+                    v1.affine, self.space,
+                    name=f"Intersection between {self} and {other} computed as their pointwise minimum"
+                )
+            else:
+                return None
         elif hasattr(other, "get_regional_map"):  # Region objects
             try:
                 volume = other.get_regional_map(space=self.space, **kwargs)
