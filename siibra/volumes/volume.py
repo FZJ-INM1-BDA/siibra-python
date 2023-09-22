@@ -220,25 +220,26 @@ class Volume(location.LocationFilter):
                 return result
         elif isinstance(other, boundingbox.BoundingBox):
             return self.boundingbox.intersection(other)
-        elif hasattr(other, "fetch"):
+        elif isinstance(other, Volume):
             v1 = self.fetch(**kwargs)
             v2 = other.fetch(**kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
-            return from_array(
+            result = from_array(
                 np.minimum(arr1, arr2),
                 v1.affine, self.space,
-                name=f"Intersection of {self} and {other}"
+                name=f"Intersection between {self} and {other} computed as their pointwise minimum"
             )
+            return result
         elif hasattr(other, "get_regional_map"):  # Region objects
             try:
                 volume = other.get_regional_map(space=self.space, **kwargs)
                 return self.intersection(volume)
             except NoMapAvailableError:
-                pass
+                return None
 
         # no intersection possible
-        return None
+        raise NotImplementedError(f"No intersection defined for {self.__class__} with {other.__class__}")
 
     def transform(self, affine: np.ndarray, space=None):
         """ only modifies the affine matrix and space. """

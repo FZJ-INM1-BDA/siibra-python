@@ -577,7 +577,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: Union[location.Location, Region]) -> assignment.AnatomicalAssignment:
+    def assign(self, other: Union[location.Location, volume.Volume, Region]) -> assignment.AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 
@@ -599,11 +599,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         if (other, self) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
-        if isinstance(other, location.Location):
-            regionmap = self.get_regional_map(space=other.space)
-            self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
+        if isinstance(other, Union[location.Location, volume.Volume]):
+            try:
+                regionmap = self.get_regional_map(space=other.space)
+                self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
+            except NoMapAvailableError:
+                self._ASSIGNMENT_CACHE[self, other] = None
             return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a Region
+            assert isinstance(other, Region)
             if self == other:
                 qualification = assignment.AssignmentQualification.EXACT
             elif self in other:
