@@ -442,7 +442,7 @@ class Feature:
                 (isinstance(t, str) or issubclass(t, cls))
                 for t in feature_type
             )
-            return list(set(
+            return list(dict.fromkeys(
                 sum((
                     cls.match(concept, t, **kwargs) for t in feature_type
                 ), [])
@@ -453,8 +453,10 @@ class Feature:
             # Some string inputs, such as connectivity, may hit multiple matches.
             ftype_candidates = cls._parse_featuretype(feature_type)
             if len(ftype_candidates) == 0:
-                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-
+                raise ValueError(
+                    f"feature_type {str(feature_type)} did not match with any "
+                    f"features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                )
             logger.info(
                 f"'{feature_type}' decoded as feature type/s: "
                 f"{[c.__name__ for c in ftype_candidates]}."
@@ -484,7 +486,7 @@ class Feature:
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
-        results = list(set((preconfigured_instances + live_instances)))
+        results = list(dict.fromkeys(preconfigured_instances + live_instances))
         return CompoundFeature.compound(results, concept)
 
     @classmethod
@@ -628,14 +630,6 @@ class CompoundFeature(Feature):
         self._groupby_key = groupby_key.__iter__().__next__()
 
         assert len({f.compound_key for f in features}) == len(features), RuntimeError("Compund keys should be unique to each subfeature within the CompoundFeature.")
-
-        # sort subfeatures for reproduciblity
-        sorting_attrs = [
-            attr for attr, val in features[0].attributes.items()
-            if val not in features[0]._groupby_key
-        ]
-        for attr in sorting_attrs:
-            features.sort(key=lambda f: f.attributes[attr])
         self._subfeatures = {f.compound_key: f for f in features}
 
         Feature.__init__(
