@@ -22,6 +22,8 @@ from ..commons import logger
 import numbers
 import json
 import numpy as np
+from hdbscan import HDBSCAN
+from matplotlib.pyplot import cm as colormaps
 
 
 class PointSet(location.Location, structure.BrainStructure):
@@ -214,3 +216,22 @@ class PointSet(location.Location, structure.BrainStructure):
     def homogeneous(self):
         """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
         return np.c_[self.coordinates, np.ones(len(self))]
+
+    def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
+        points = np.array(self.as_list())
+        N = points.shape[0]
+        clustering = HDBSCAN(
+            min_cluster_size=int(N * min_fraction),
+            max_cluster_size=int(N * max_fraction),
+        )
+        if self.labels is not None:
+            logger.warn("Existing labels of PointSet will be overwritten with cluster labels.")
+        self.labels = clustering.fit_predict(points)
+        return self.labels
+
+    def label_colors(self):
+        """ return a set of colors for a given point labeling. """
+        if self.labels is None:
+            return []
+        else:
+            return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))

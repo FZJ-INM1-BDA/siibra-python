@@ -28,6 +28,7 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
+from skimage import filters
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -345,6 +346,38 @@ class Volume(structure.BrainStructure, location.Location):
             for label in component_labels[1:]
         )
 
+    def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, **kwargs):
+        """
+        Draw samples from the volume, by interpreting its values as an
+        unnormalized empirical probability distribtution.
+        """
+        if not self.provides_image:
+            raise NotImplementedError(
+                "Drawing samples is so far only implemented for image-type volumes, "
+                f"not {self.__class__.__name__}."
+            )
+        img = self.fetch(**kwargs)
+        array = np.asanyarray(img.dataobj)
+        samples = []
+        P = (array - array.min()) / (array.max() - array.min())
+        P = P**e
+        while True:
+            pts = (np.random.rand(sample_size, 3) * max(P.shape))
+            inside = np.all(pts < P.shape, axis=1)
+            Y, X, Z = np.split(pts[inside, :].astype('int'), 3, axis=1)
+            T = np.random.rand(1)
+            choice = np.where(P[Y, X, Z] >= T)[0]
+            samples.extend(list(pts[inside, :][choice, :]))
+            if len(samples) > N:
+                break
+        return (
+            pointset.PointSet(
+                np.random.permutation(samples)[:N, :],
+                space=None
+            )
+            .transform(img.affine, space='mni152')
+        )
+
 
 class Subvolume(Volume):
     """
@@ -383,4 +416,31 @@ def from_array(data: np.ndarray, affine: np.ndarray, space: str, name: str = "")
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider((data, affine))],
         name=name,
+    )
+
+
+def from_pointset(
+    points: pointset.PointSet,
+    label: int,
+    target: Volume,
+    bandwidth: float,
+    min_num_points=10,
+    **kwargs
+):
+    targetimg = target.fetch(**kwargs)
+    voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
+    selection = points.labels == label
+    X, Y, Z = np.split(
+        np.array(voxels.as_list()).astype('int')[selection, :],
+        3, axis=1
+    )
+    if len(X) < min_num_points:
+        return None
+    cimg = np.zeros_like(targetimg.get_fdata())
+    cimg[X, Y, Z] += 1
+    return from_array(
+        filters.gaussian(cimg, bandwidth),
+        affine=targetimg.affine,
+        space=target.space,
+        name=f'KDE map of {sum(selection)} points labelled {label}'
     )

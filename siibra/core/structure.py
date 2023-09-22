@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" 
+"""
 Abstract base class for any kind of brain structure.
 A brain structure is more general than a brain region.
 It refers to any object defining a spatial extent in one or more reference spaces,
