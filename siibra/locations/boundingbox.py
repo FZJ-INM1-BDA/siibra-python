@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from . import point, pointset, location, boundingbox
+from . import point, pointset, location
 
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError

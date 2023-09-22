@@ -471,6 +471,7 @@ class SparseMap(parcellationmap.Map):
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
+        assert isinstance(imgdata, np.ndarray)
 
         # resample query image into this image's voxel space, if required
         if (imgaffine - self.affine).sum() == 0:
@@ -492,12 +493,11 @@ class SparseMap(parcellationmap.Map):
         iter_func = connected_components if split_components \
             else lambda img: [(1, img)]
 
-        for mode, modeimg in iter_func(queryimg):
+        for mode, modemask in iter_func(querydata):
 
             # determine bounding box of the mode
-            modemask = np.asanyarray(modeimg.dataobj)
             XYZ2 = np.array(np.where(modemask)).T
-            position = np.dot(modeimg.affine, np.r_[XYZ2.mean(0), 1])[:3]
+            position = np.dot(self.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
