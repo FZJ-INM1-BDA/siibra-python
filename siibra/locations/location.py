@@ -113,9 +113,14 @@ class LocationFilter(ABC):
         """
         pass
 
-    def assign(self, other: Location) -> assignment.AnatomicalAssignment:
+    def assign(self, other: Union[Location, _region.Region]) -> assignment.AnatomicalAssignment:
         """
         Compute assignment of a location to this filter.
+
+        Two cases:
+        1) self is location, other is location -> look at spatial intersection/relationship, do it here
+        2) self is location, other is region -> get region map, then call again. do it here
+        If self is region -> Region overwrite this method, adressed there
 
         Parameters
         ----------
@@ -126,22 +131,23 @@ class LocationFilter(ABC):
         assignment.AnatomicalAssignment or None
             None if there is no AssignmentQualification found.
         """
+        assert not isinstance(self, _region.Region)  # method is overwritten by Region!
         if (self, other) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[self, other]
         if (other, self) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
-        if isinstance(other, _region.Region) and not isinstance(self, _region.Region):
+        if isinstance(other, _region.Region):
             self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
             return self._ASSIGNMENT_CACHE[self, other]
-        else:
+        else:  # other is a location object, just check spatial relationships
             if self == other:
                 qualification = assignment.AssignmentQualification.EXACT
             elif self in other:
                 qualification = assignment.AssignmentQualification.CONTAINS
             elif other in self:
                 qualification = assignment.AssignmentQualification.CONTAINED
-            elif isinstance(other, Location) and self.intersects(other):
+            elif self.intersects(other):
                 qualification = assignment.AssignmentQualification.OVERLAPS
             else:
                 qualification = None

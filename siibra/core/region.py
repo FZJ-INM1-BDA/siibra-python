@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from . import concept, space as _space, parcellation as _parcellation
 
-from ..locations import location, boundingbox, point, pointset
+from ..locations import location, boundingbox, point, pointset, assignment
 from ..volumes import parcellationmap, volume
 
 from ..commons import (
@@ -567,12 +567,54 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
             elements={s.key: s for s in self.supported_spaces},
         )
 
-    def __contains__(self, other):
+    def __contains__(self, other: Union[location.Location, Region]) -> bool:
         if isinstance(other, Region):
-            return self in other.descendants
+            return len(self.find(other)) > 0
+        else:
+            assert isinstance(other, location.Location)
+            regionmap = self.get_regional_map(space=other.space)
+            return regionmap.__contains__(other)
+
+    def assign(self, other: Union[location.Location, Region]) -> assignment.AnatomicalAssignment:
+        """
+        Compute assignment of a location to this region.
+
+        Two cases:
+        1) other is location -> get region map, call regionmap.assign(other)
+        2) other is region -> just do a semantic check for the regions
+
+        Parameters
+        ----------
+        other : Location or Region
+
+        Returns
+        -------
+        assignment.AnatomicalAssignment or None
+            None if there is no AssignmentQualification found.
+        """
+        if (self, other) in self._ASSIGNMENT_CACHE:
+            return self._ASSIGNMENT_CACHE[self, other]
+        if (other, self) in self._ASSIGNMENT_CACHE:
+            return self._ASSIGNMENT_CACHE[other, self].invert()
+
         if isinstance(other, location.Location):
-            return self.get_regional_map(other.space) in other
-        raise NotImplementedError
+            regionmap = self.get_regional_map(space=other.space)
+            self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
+            return self._ASSIGNMENT_CACHE[self, other]
+        else:  # other is a Region
+            if self == other:
+                qualification = assignment.AssignmentQualification.EXACT
+            elif self in other:
+                qualification = assignment.AssignmentQualification.CONTAINS
+            elif other in self:
+                qualification = assignment.AssignmentQualification.CONTAINED
+            else:
+                qualification = None
+            if qualification is None:
+                self._ASSIGNMENT_CACHE[self, other] = None
+            else:
+                self._ASSIGNMENT_CACHE[self, other] = assignment.AnatomicalAssignment(self, other, qualification)
+        return self._ASSIGNMENT_CACHE[self, other]
 
     def __str__(self):
         return self.name
