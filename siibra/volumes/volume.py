@@ -21,7 +21,7 @@ from ..retrieval import requests
 from ..core import space as _space
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_array_to_array
-from ..exceptions import NoMapAvailableError
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
 import numpy as np
@@ -253,7 +253,8 @@ class Volume(location.LocationFilter):
     def warp(self, space):
         if self.space.matches(space):
             return self
-        raise NotImplementedError('Warping of full volumes is not yet supported.')
+        else:
+            raise SpaceWarpingFailedError('Warping of full volumes is not yet supported.')
 
     def fetch(
         self,
