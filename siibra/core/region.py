@@ -610,9 +610,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             assert isinstance(other, Region)
             if self == other:
                 qualification = assignment.AssignmentQualification.EXACT
-            elif self in other:
+            elif self.__contains__(other):
                 qualification = assignment.AssignmentQualification.CONTAINS
-            elif other in self:
+            elif other.__contains__(self):
                 qualification = assignment.AssignmentQualification.CONTAINED
             else:
                 qualification = None
