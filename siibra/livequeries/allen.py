@@ -150,8 +150,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             if contained[location]:
                 measures.append(measure)
                 coordinates.append(location)
-            else:
-                print(f"{location.coordinate} not in {concept}")
         anchor._location_cached = pointset.PointSet(coordinates=coordinates, space=mnispace)
 
         yield GeneExpressions(
