@@ -346,7 +346,7 @@ class Volume(structure.BrainStructure, location.Location):
             for label in component_labels[1:]
         )
 
-    def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, **kwargs):
+    def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, **kwargs):
         """
         Draw samples from the volume, by interpreting its values as an
         unnormalized empirical probability distribtution.
@@ -370,13 +370,13 @@ class Volume(structure.BrainStructure, location.Location):
             samples.extend(list(pts[inside, :][choice, :]))
             if len(samples) > N:
                 break
-        return (
-            pointset.PointSet(
-                np.random.permutation(samples)[:N, :],
-                space=None
-            )
-            .transform(img.affine, space='mni152')
+        voxels = pointset.PointSet(
+            np.random.permutation(samples)[:N, :],
+            space=None
         )
+        result = voxels.transform(img.affine, space='mni152')
+        result.sigma_mm = sigma_mm
+        return result
 
 
 class Subvolume(Volume):
@@ -423,7 +423,6 @@ def from_pointset(
     points: pointset.PointSet,
     label: int,
     target: Volume,
-    bandwidth: float,
     min_num_points=10,
     **kwargs
 ):
@@ -438,6 +437,16 @@ def from_pointset(
         return None
     cimg = np.zeros_like(targetimg.get_fdata())
     cimg[X, Y, Z] += 1
+    if isinstance(points.sigma_mm, (int, float)):
+        bandwidth = points.sigma_mm
+    elif isinstance(points.sigma_mm, list):
+        logger.warn(
+            "Computing kernel density estimate from pointset using their average uncertainty."
+        )
+        bandwidth = np.sum(points.sigma_mm) / len(points)
+    else:
+        logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
+        bandwidth = 1
     return from_array(
         filters.gaussian(cimg, bandwidth),
         affine=targetimg.affine,
