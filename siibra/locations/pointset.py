@@ -229,9 +229,10 @@ class PointSet(location.Location, structure.BrainStructure):
         self.labels = clustering.fit_predict(points)
         return self.labels
 
+    @property
     def label_colors(self):
-        """ return a set of colors for a given point labeling. """
+        """ return a color for the given label. """
         if self.labels is None:
-            return []
+            return None
         else:
             return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))
