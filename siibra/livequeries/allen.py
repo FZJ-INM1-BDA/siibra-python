@@ -137,7 +137,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         )
         anchor._assignments[concept] = [ass]
         anchor._last_matched_concept = concept
-        coordinates  []
+        coordinates = []
 
         # Match the microarray probes to the query mask.
         # Record the matching instances and their locations.
