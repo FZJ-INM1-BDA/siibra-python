@@ -599,7 +599,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         if (other, self) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
-        if isinstance(other, Union[location.Location, volume.Volume]):
+        if isinstance(other, (location.Location, volume.Volume)):
             try:
                 regionmap = self.get_regional_map(space=other.space)
                 self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
