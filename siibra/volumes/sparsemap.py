@@ -471,7 +471,6 @@ class SparseMap(parcellationmap.Map):
             this threshold will be excluded from the assignment computation.
         """
         assignments = []
-        assert isinstance(imgdata, np.ndarray)
 
         # resample query image into this image's voxel space, if required
         if (imgaffine - self.affine).sum() == 0:
