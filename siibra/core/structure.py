@@ -77,7 +77,11 @@ class BrainStructure(ABC):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, _region.Region):
-            self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
+            inverse_assignment = other.assign(self)
+            if inverse_assignment is None:
+                self._ASSIGNMENT_CACHE[self, other] = None
+            else:
+                self._ASSIGNMENT_CACHE[self, other] = inverse_assignment.invert()
             return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a location object, just check spatial relationships
             if self == other:
