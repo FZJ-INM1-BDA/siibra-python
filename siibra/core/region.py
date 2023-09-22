@@ -16,9 +16,9 @@
 
 from __future__ import annotations
 
-from . import concept, space as _space, parcellation as _parcellation
+from . import assignment, concept, space as _space, parcellation as _parcellation, structure
 
-from ..locations import location, boundingbox, point, pointset, assignment
+from ..locations import location, boundingbox, point, pointset
 from ..volumes import parcellationmap, volume
 
 from ..commons import (
@@ -59,7 +59,7 @@ class SpatialProp:
     space: _space.Space = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
+class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     """
     Representation of a region with name and more optional attributes
     """
@@ -577,7 +577,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: Union[location.Location, volume.Volume, Region]) -> assignment.AnatomicalAssignment:
+    def assign(self, other: structure.BrainStructure) -> assignment.AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 

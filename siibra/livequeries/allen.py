@@ -15,11 +15,11 @@
 
 from .query import LiveQuery
 
-from ..core import space as _space
+from ..core import space as _space, structure
 from ..features import anchor as _anchor
 from ..features.tabular.gene_expression import GeneExpressions
 from ..commons import logger, Species, MapType
-from ..locations import location, point, pointset
+from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
@@ -120,7 +120,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: location.LocationFilter) -> List[GeneExpressions]:
+    def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
 
         mnispace = _space.Space.registry().get('mni152')
 

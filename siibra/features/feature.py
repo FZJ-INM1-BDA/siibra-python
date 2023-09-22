@@ -16,9 +16,7 @@
 from . import anchor as _anchor
 
 from ..commons import logger, InstanceTable, siibra_tqdm, __version__
-from ..core import concept
-from ..core import space, region, parcellation
-from ..locations import location
+from ..core import concept, space, region, parcellation, structure
 from ..volumes import volume
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
@@ -441,7 +439,7 @@ class Feature:
 
         # At this stage, no recursion is needed.
         # We expect a specific supported feature type is to be matched now.
-        if not isinstance(concept, location.LocationFilter):
+        if not isinstance(concept, structure.BrainStructure):
             raise ValueError(
                 f"{concept.__class__.__name__} cannot be used for feature queries as it is not a LocationFilter type."
             )

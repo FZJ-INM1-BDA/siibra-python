@@ -19,7 +19,7 @@ from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_in
 from ..features import anchor as _anchor
 from ..commons import logger
 from ..locations import location, point, pointset
-from ..core import region
+from ..core import region, structure
 from ..retrieval import requests, cache
 
 import numpy as np
@@ -118,7 +118,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: location.LocationFilter, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
+    def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
         features = []
         regionname = concept.name if isinstance(concept, region.Region) else str(concept)
@@ -140,7 +140,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
             )
             features.append(prof)
 
-        return result
+        return features
 
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
@@ -148,8 +148,8 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: location.LocationFilter, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
-        assert isinstance(concept, location.LocationFilter)
+    def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
+        assert isinstance(concept, location.BrainStructure)
 
         loader = WagstylProfileLoader()
         if isinstance(concept, region.Region):

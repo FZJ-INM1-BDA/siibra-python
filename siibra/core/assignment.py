@@ -17,8 +17,8 @@
 from enum import Enum
 from typing import Union, TYPE_CHECKING
 if TYPE_CHECKING:
-    from .location import Location
-    from ..core.region import Region
+    from ..locations.location import Location
+    from .region import Region
 
 
 class AssignmentQualification(Enum):

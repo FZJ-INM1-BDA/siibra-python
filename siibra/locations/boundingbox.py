@@ -16,13 +16,14 @@
 from . import point, pointset, location
 
 from ..commons import logger
+from ..core import structure
 from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
 
 
-class BoundingBox(location.Location, location.LocationFilter):
+class BoundingBox(location.Location, structure.BrainStructure):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
     The box does not necessarily store the given points,

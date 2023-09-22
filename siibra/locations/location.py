@@ -14,13 +14,8 @@
 # limitations under the License.
 from __future__ import annotations
 
-from . import assignment
-
-from ..core import region as _region
-
 import numpy as np
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Union
 
 
 class Location(ABC):
@@ -88,71 +83,3 @@ class Location(ABC):
         space_str = "" if self.space is None else f" in {self.space.name}"
         coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
         return f"{self.__class__.__name__}{space_str}{coord_str}"
-
-
-class LocationFilter(ABC):
-    """ Abstract base class for types who can act as a location filter. """
-
-    # cache assignment results at class level
-    _ASSIGNMENT_CACHE: Dict[
-        Tuple[Union[Location, "_region.Region"], Union[Location, "_region.Region"]],
-        assignment.AnatomicalAssignment
-    ] = {}
-
-    def intersects(self, loc: Location) -> bool:
-        return self.intersection(loc) is not None
-
-    def __contains__(self, loc: Location) -> bool:
-        return self.intersection(loc) == loc
-
-    @abstractmethod
-    def intersection(self, other: Location) -> Location:
-        """
-        Return the intersection of two locations,
-        ie. the other location filtered by this location.
-        """
-        pass
-
-    def assign(self, other: Union[Location, _region.Region]) -> assignment.AnatomicalAssignment:
-        """
-        Compute assignment of a location to this filter.
-
-        Two cases:
-        1) self is location, other is location -> look at spatial intersection/relationship, do it here
-        2) self is location, other is region -> get region map, then call again. do it here
-        If self is region -> Region overwrite this method, adressed there
-
-        Parameters
-        ----------
-        other : Location or Region
-
-        Returns
-        -------
-        assignment.AnatomicalAssignment or None
-            None if there is no AssignmentQualification found.
-        """
-        assert not isinstance(self, _region.Region)  # method is overwritten by Region!
-        if (self, other) in self._ASSIGNMENT_CACHE:
-            return self._ASSIGNMENT_CACHE[self, other]
-        if (other, self) in self._ASSIGNMENT_CACHE:
-            return self._ASSIGNMENT_CACHE[other, self].invert()
-
-        if isinstance(other, _region.Region):
-            self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
-            return self._ASSIGNMENT_CACHE[self, other]
-        else:  # other is a location object, just check spatial relationships
-            if self == other:
-                qualification = assignment.AssignmentQualification.EXACT
-            elif self in other:
-                qualification = assignment.AssignmentQualification.CONTAINS
-            elif other in self:
-                qualification = assignment.AssignmentQualification.CONTAINED
-            elif self.intersects(other):
-                qualification = assignment.AssignmentQualification.OVERLAPS
-            else:
-                qualification = None
-            if qualification is None:
-                self._ASSIGNMENT_CACHE[self, other] = None
-            else:
-                self._ASSIGNMENT_CACHE[self, other] = assignment.AnatomicalAssignment(self, other, qualification)
-        return self._ASSIGNMENT_CACHE[self, other]

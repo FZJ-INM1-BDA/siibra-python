@@ -18,7 +18,7 @@ from .providers import provider as _provider
 
 from .. import logger
 from ..retrieval import requests
-from ..core import space as _space
+from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_array_to_array
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
@@ -38,7 +38,7 @@ class ColorVolumeNotSupported(NotImplementedError):
     pass
 
 
-class Volume(location.LocationFilter):
+class Volume(structure.BrainStructure, location.Location):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.

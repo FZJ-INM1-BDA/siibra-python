@@ -16,6 +16,7 @@
 from . import location, point, boundingbox
 
 from ..retrieval.requests import HttpRequest
+from ..core import structure
 from ..commons import logger
 
 import numbers
@@ -23,7 +24,7 @@ import json
 import numpy as np
 
 
-class PointSet(location.Location, location.LocationFilter):
+class PointSet(location.Location, structure.BrainStructure):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 

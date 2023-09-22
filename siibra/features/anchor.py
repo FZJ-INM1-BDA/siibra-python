@@ -16,7 +16,7 @@
 from ..commons import Species
 
 from ..core.concept import AtlasConcept
-from ..locations.assignment import AnatomicalAssignment, AssignmentQualification
+from ..core.assignment import AnatomicalAssignment, AssignmentQualification
 from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region

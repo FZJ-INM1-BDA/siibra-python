@@ -14,8 +14,10 @@
 # limitations under the License.
 
 from . import location, boundingbox, pointset
+
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
+from ..core import structure
 
 from urllib.parse import quote
 import re
@@ -26,7 +28,7 @@ import hashlib
 from typing import Tuple
 
 
-class Point(location.Location, location.LocationFilter):
+class Point(location.Location, structure.BrainStructure):
     """A single 3D point in reference space."""
 
     @staticmethod
