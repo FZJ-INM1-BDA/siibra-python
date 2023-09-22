@@ -149,7 +149,6 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         query.LiveQuery.__init__(self)
 
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
-        assert isinstance(concept, location.BrainStructure)
 
         loader = WagstylProfileLoader()
         if isinstance(concept, region.Region):

@@ -201,37 +201,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
 
-    def find_peaks(self, min_distance_mm=5):
-        """
-        Find peaks in the image data.
-
-        Parameters
-        ----------
-        min_distance_mm : float
-            Minimum distance between peaks in mm
-
-        Returns:
-        --------
-        PointSet
-        """
-
-        from skimage.feature.peak import peak_local_max
-        from ...commons import affine_scaling
-
-        img = self.fetch()
-        dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
-        voxels = peak_local_max(
-            img.get_fdata(),
-            exclude_border=False,
-            min_distance=dist,
-        )
-        return (
-            pointset.PointSet(
-                [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
-                space=self.space,
-            ),
-            img,
-        )
 
 
 class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):

@@ -28,7 +28,7 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
-from skimage import filters
+from skimage import filters, feature
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -349,10 +349,11 @@ class Volume(structure.BrainStructure, location.Location):
             for label in component_labels[1:]
         )
 
-    def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, **kwargs):
+    def draw_samples(self, N: int, sample_size: int = 100, e: float = 1, sigma_mm=None, invert=False, **kwargs):
         """
         Draw samples from the volume, by interpreting its values as an
         unnormalized empirical probability distribtution.
+        Any keyword arguments are passed over to fetch()
         """
         if not self.provides_image:
             raise NotImplementedError(
@@ -363,6 +364,8 @@ class Volume(structure.BrainStructure, location.Location):
         array = np.asanyarray(img.dataobj)
         samples = []
         P = (array - array.min()) / (array.max() - array.min())
+        if invert:
+            P = 1 - P
         P = P**e
         while True:
             pts = (np.random.rand(sample_size, 3) * max(P.shape))
@@ -380,6 +383,21 @@ class Volume(structure.BrainStructure, location.Location):
         result = voxels.transform(img.affine, space='mni152')
         result.sigma_mm = sigma_mm
         return result
+
+    def find_peaks(self, mindist=5, **kwargs):
+        """
+        Find local peaks in the volume.
+        Additional keyword arguments are passed over to fetch()
+        """
+        if not self.provides_image:
+            raise NotImplementedError(
+                "Finding peaks is so far only implemented for image-type volumes, "
+                f"not {self.__class__.__name__}."
+            )
+        img = self.fetch(**kwargs)
+        array = np.asanyarray(img.dataobj)
+        voxels = feature.peak_local_max(array, min_distance=mindist)
+        return pointset.PointSet(voxels, space=None).transform(img.affine, space=self.space)
 
 
 class Subvolume(Volume):
@@ -454,5 +472,5 @@ def from_pointset(
         filters.gaussian(cimg, bandwidth),
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {sum(selection)} points labelled {label}'
+        name=f'KDE map of {sum(selection)} points with label={label}'
     )
