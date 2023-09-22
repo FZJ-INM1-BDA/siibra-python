@@ -183,7 +183,7 @@ class Volume(location.LocationFilter):
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
         img = self.fetch(format='image', **kwargs)
-        arr = np.asanyarray(img.dataobj)
+        arr = img.get_fdata()
         warped = points.warp(self.space)
         assert warped is not None
         phys2vox = np.linalg.inv(img.affine)

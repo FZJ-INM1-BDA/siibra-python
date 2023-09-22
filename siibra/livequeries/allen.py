@@ -146,7 +146,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         for measure in self:
             location = point.Point(measure['mni_xyz'], space=mnispace)
             if location not in contained:  # cache redundant intersection tests
-                contained[location] = concept.contains(location)
+                contained[location] = concept in location
             if contained[location]:
                 measures.append(measure)
                 coordinates.append(location)

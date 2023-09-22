@@ -66,7 +66,7 @@ class PointSet(location.Location, location.LocationFilter):
         elif isinstance(other, PointSet):
             return [p for p in self if p in other]
         elif isinstance(other, boundingbox.BoundingBox):
-            return [p for p in self if other.contains(p)]
+            return [p for p in self if other in p]
         inside = [p for p in self if p.intersects(other)]
         if len(inside) == 0:
             return None

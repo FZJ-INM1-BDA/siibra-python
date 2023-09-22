@@ -567,6 +567,13 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
             elements={s.key: s for s in self.supported_spaces},
         )
 
+    def __contains__(self, other):
+        if isinstance(other, Region):
+            return self in other.descendants
+        if isinstance(other, location.Location):
+            return self.get_regional_map(other.space) in other
+        raise NotImplementedError
+
     def __str__(self):
         return self.name
 

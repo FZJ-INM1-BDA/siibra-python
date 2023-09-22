@@ -118,7 +118,7 @@ class AnatomicalAnchor:
                 for region in (
                     p.get_region(self._regionspec)
                     for p in Parcellation.registry()
-                    if (p.species == species) and (self._regionspec in p)
+                    if (p.species == species) and p.find(self._regionspec)
                 )
             }
             # add more regions from possible aliases of the region spec

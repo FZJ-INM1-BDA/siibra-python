@@ -20,6 +20,7 @@ from ..core import region as _region
 
 import numpy as np
 from abc import ABC, abstractmethod
+from typing import Dict, Tuple, Union
 
 
 class Location(ABC):
@@ -91,37 +92,61 @@ class Location(ABC):
 
 class LocationFilter(ABC):
     """ Abstract base class for types who can act as a location filter. """
-    _ASSIGNMENT_CACHE = {}  # cache assignment results at class level
 
-    def intersects(self, loc: "Location") -> bool:
+    # cache assignment results at class level
+    _ASSIGNMENT_CACHE: Dict[
+        Tuple[Union[Location, "_region.Region"], Union[Location, "_region.Region"]],
+        assignment.AnatomicalAssignment
+    ] = {}
+
+    def intersects(self, loc: Location) -> bool:
         return self.intersection(loc) is not None
 
-    def contains(self, loc: "Location") -> bool:
+    def __contains__(self, loc: Location) -> bool:
         return self.intersection(loc) == loc
 
     @abstractmethod
-    def intersection(self, other: "Location") -> "Location":
-        """ Return the intersection of two locations,
-        ie. the other location filtered by this location. """
+    def intersection(self, other: Location) -> Location:
+        """
+        Return the intersection of two locations,
+        ie. the other location filtered by this location.
+        """
         pass
 
-    def assign(self, other: "Location"):
-        """ Compute assignment of a location to this filter. """
-        if (self, other) not in self._ASSIGNMENT_CACHE:
-            if isinstance(other, _region.Region):
-                self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
+    def assign(self, other: Location) -> assignment.AnatomicalAssignment:
+        """
+        Compute assignment of a location to this filter.
+
+        Parameters
+        ----------
+        other : Location or Region
+
+        Returns
+        -------
+        assignment.AnatomicalAssignment or None
+            None if there is no AssignmentQualification found.
+        """
+        if (self, other) in self._ASSIGNMENT_CACHE:
+            return self._ASSIGNMENT_CACHE[self, other]
+        if (other, self) in self._ASSIGNMENT_CACHE:
+            return self._ASSIGNMENT_CACHE[other, self].invert()
+
+        if isinstance(other, _region.Region) and not isinstance(self, _region.Region):
+            self._ASSIGNMENT_CACHE[self, other] = other.assign(self).invert()
+            return self._ASSIGNMENT_CACHE[self, other]
+        else:
+            if self == other:
+                qualification = assignment.AssignmentQualification.EXACT
+            elif self in other:
+                qualification = assignment.AssignmentQualification.CONTAINS
+            elif other in self:
+                qualification = assignment.AssignmentQualification.CONTAINED
+            elif isinstance(other, Location) and self.intersects(other):
+                qualification = assignment.AssignmentQualification.OVERLAPS
             else:
-                if self == other:
-                    qualification = assignment.AssignmentQualification.EXACT
-                elif self.contains(other):
-                    qualification = assignment.AssignmentQualification.CONTAINS
-                elif other.contains(self):
-                    qualification = assignment.AssignmentQualification.CONTAINED
-                elif self.intersects(other):
-                    qualification = assignment.AssignmentQualification.OVERLAPS
-                else:
-                    qualification = None
-                self._ASSIGNMENT_CACHE[self, other] = \
-                    None if qualification is None \
-                    else assignment.AnatomicalAssignment(self, other, qualification)
+                qualification = None
+            if qualification is None:
+                self._ASSIGNMENT_CACHE[self, other] = None
+            else:
+                self._ASSIGNMENT_CACHE[self, other] = assignment.AnatomicalAssignment(self, other, qualification)
         return self._ASSIGNMENT_CACHE[self, other]

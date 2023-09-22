@@ -26,7 +26,7 @@ import hashlib
 from typing import Tuple
 
 
-class Point(location.Location):
+class Point(location.Location, location.LocationFilter):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -104,7 +104,7 @@ class Point(location.Location):
         elif isinstance(other, pointset.PointSet):
             return self if self in other else None
         else:
-            return self if other.contains(self) else None
+            return self if self in other else None
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
