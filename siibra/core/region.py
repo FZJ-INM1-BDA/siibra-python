@@ -425,7 +425,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
 
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
-        result = None
 
         # prepare space instances
         if isinstance(space, str):
@@ -433,6 +432,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         fetch_space = space if via_space is None else via_space
         if isinstance(fetch_space, str):
             fetch_space = _space.Space.get_instance(fetch_space)
+
+        result = None  # try to replace this with the actual regionmap volume
+
+        # see if we find a map supporting the requested region
         for m in parcellationmap.Map.registry():
             if (
                 m.space.matches(fetch_space)
@@ -463,12 +466,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                         space=fetch_space,
                         name=f"Mask of {self.name} in {m.parcellation.name}",
                     )
+            if result is not None:
                 break
 
-            elif (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
+        if result is None:
+            # No region map available. Then see if we can build a map from the child regions
+            if (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
                 dataobj = None
                 affine = None
-                logger.info(f"Building mask of {self.name} from {len(self.children)} child regions.")
+                logger.debug(f"Building mask of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
                 for c in self.children:
                     mask = c.get_regional_map(fetch_space, maptype, threshold).fetch(format='image')
                     if dataobj is None:
@@ -504,7 +510,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                 )
             )
 
-        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+        while len(self._FETCH_CACHE) > self._FETCH_CACHE_MAX_ENTRIES:
             self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
         self._FETCH_CACHE[fetch_hash] = result
         return result
