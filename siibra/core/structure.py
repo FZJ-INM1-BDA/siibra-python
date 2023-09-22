@@ -13,7 +13,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-""" Abstract base class for any kind of brain structure. """
+""" 
+Abstract base class for any kind of brain structure.
+A brain structure is more general than a brain region.
+It refers to any object defining a spatial extent in one or more reference spaces,
+and can thus be used to compute intersections with other structures in space.
+For example, a brain region is a structure which is at the same time an atlas Concept.
+A bounding box in MNI space is a structure, but not an atlas concept.
+"""
 
 from . import assignment, region as _region
 
