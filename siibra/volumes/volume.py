@@ -197,7 +197,7 @@ class Volume(location.LocationFilter):
         arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
         inside = np.where(arr[tuple(zip(*XYZ))] != 0)[0]
         return pointset.PointSet(
-            XYZ[inside],
+            points.homogeneous[inside, :3],
             space=points.space,
             labels=inside
         )
