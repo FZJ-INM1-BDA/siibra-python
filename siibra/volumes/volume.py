@@ -234,8 +234,8 @@ class Volume(location.LocationFilter):
             try:
                 volume = other.get_regional_map(space=self.space, **kwargs)
                 return self.intersection(volume)
-            except NoMapAvailableError as e:
-                logger.warn(str(e))
+            except NoMapAvailableError:
+                pass
 
         # no intersection possible
         return None

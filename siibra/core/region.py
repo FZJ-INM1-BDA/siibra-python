@@ -493,7 +493,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
                     result = volume.from_array(dataobj, affine, space, f"Subtree mask built from {self.name}")
 
         if result is None:
-            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {maptype} maps in {fetch_space}")
+            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {fetch_space}")
 
         if via_space is not None:
             # fetch used an intermediate reference space provided by 'via_space'.
@@ -571,9 +571,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, location.LocationFilter):
         if isinstance(other, Region):
             return len(self.find(other)) > 0
         else:
-            assert isinstance(other, location.Location)
-            regionmap = self.get_regional_map(space=other.space)
-            return regionmap.__contains__(other)
+            try:
+                regionmap = self.get_regional_map(space=other.space)
+                return regionmap.__contains__(other)
+            except NoMapAvailableError:
+                return False
 
     def assign(self, other: Union[location.Location, Region]) -> assignment.AnatomicalAssignment:
         """
