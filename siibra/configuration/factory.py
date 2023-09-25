@@ -429,6 +429,10 @@ class Factory:
             return volume_of_interest.MRIVolumeOfInterest(
                 modality="T1", **kwargs
             )
+        elif modality == "LSFM":
+            return volume_of_interest.LSFMVolumeOfInterest(
+                modality="Light Sheet Fluorescence Microscopy", **kwargs
+            )
         else:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
