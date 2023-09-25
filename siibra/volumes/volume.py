@@ -203,7 +203,6 @@ class Volume(structure.BrainStructure, location.Location):
             labels=inside
         )
 
-    # TODO: Seek alternative solutions to hasattr
     def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume.
@@ -214,7 +213,7 @@ class Volume(structure.BrainStructure, location.Location):
         if isinstance(other, (pointset.PointSet, point.Point)):
             result = self.points_inside(other, **kwargs)
             if len(result) == 0:
-                return None
+                return pointset.PointSet([], space=other.space)
             elif len(result) == 1:
                 return result[0]
             else:
@@ -222,8 +221,9 @@ class Volume(structure.BrainStructure, location.Location):
         elif isinstance(other, boundingbox.BoundingBox):
             return self.boundingbox.intersection(other)
         elif isinstance(other, Volume):
-            v1 = self.fetch(**kwargs)
-            v2 = other.fetch(**kwargs)
+            format = kwargs.pop('format', 'image')
+            v1 = self.fetch(format=format, **kwargs)
+            v2 = other.fetch(format=format, **kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
             pointwise_min = np.minimum(arr1, arr2)
@@ -235,15 +235,11 @@ class Volume(structure.BrainStructure, location.Location):
                 )
             else:
                 return None
-        elif hasattr(other, "get_regional_map"):  # Region objects
+        else:  # other BrainStructures should have intersection with locations implemented.
             try:
-                volume = other.get_regional_map(space=self.space, **kwargs)
-                return self.intersection(volume)
+                return other.intersection(self)
             except NoMapAvailableError:
                 return None
-
-        # no intersection possible
-        raise NotImplementedError(f"No intersection defined for {self.__class__} with {other.__class__}")
 
     def transform(self, affine: np.ndarray, space=None):
         """ only modifies the affine matrix and space. """
@@ -445,6 +441,7 @@ def from_pointset(
     label: int,
     target: Volume,
     min_num_points=10,
+    normalize=True,
     **kwargs
 ):
     targetimg = target.fetch(**kwargs)
@@ -468,8 +465,11 @@ def from_pointset(
     else:
         logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
         bandwidth = 1
+    data = filters.gaussian(cimg, bandwidth)
+    if normalize:
+        data /= data.sum()
     return from_array(
-        filters.gaussian(cimg, bandwidth),
+        data,
         affine=targetimg.affine,
         space=target.space,
         name=f'KDE map of {sum(selection)} points with label={label}'
