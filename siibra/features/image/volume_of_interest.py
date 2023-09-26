@@ -61,6 +61,14 @@ class XPCTVolumeOfInterest(
         image.Image.__init__(self, **kwargs, modality=modality)
 
 
+class LSFMVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/lsfm",
+    category="cellular"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
+
 # class SegmentedVolumeOfInterest(
 #     image.Image,
 #     configuration_folder="features/images/vois/segmentation",
