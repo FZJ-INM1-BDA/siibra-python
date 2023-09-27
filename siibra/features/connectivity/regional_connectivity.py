@@ -51,6 +51,8 @@ class RegionalConnectivity(Feature, Compoundable):
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
+        subject: list = ["average"],
+        feature: str = None
     ):
         """
         Construct a parcellation-averaged connectivity matrix.
@@ -90,77 +92,71 @@ class RegionalConnectivity(Feature, Compoundable):
         self._files = files
         self._decode_func = decode_func
         self.regions = regions
-        self._matrices = {}
+        self._matrix = pd.DataFrame()
+        self._subject = subject
+        self._feature = feature
 
     @property
-    def attributes(self) -> Dict[str, str]:
+    def filter_attributes(self) -> Dict[str, str]:
         return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
-            "cohort": self.cohort,
-            "subject": self.subjects[0]
+            attr: getattr(self, attr)
+            for attr in ["modality", "cohort", "index"]
         }
 
     @property
-    def _groupby_key(self):
+    def _compound_key(self):
         return (self.__class__.__name__, self.modality, self.cohort)
 
     @property
-    def compound_key(self) -> str:
-        return self.subjects[0]
+    def subfeature_index(self) -> str:
+        return self.index
 
     @property
-    def subjects(self):
+    def index(self):
+        return list(self._files.keys())[0]
+
+    @property
+    def subject(self):
         """
         Returns the subject identifiers for which matrices are available.
         """
-        return list(self._files.keys())
+        return self._subject
+
+    @property
+    def feature(self):
+        return self._feature
 
     @property
     def name(self):
         supername = super().name
         postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
-        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.subjects[0]}"
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index}"
 
-    def get_matrix(self, subject: str = None):
+    @classmethod
+    def _merge_data(cls):
+        assert len(cls) > 0
+        all_arrays = [
+            cls._connector.get(fname, decode_func=cls._decode_func)
+            for fname in siibra_tqdm(
+                cls._files.values(),
+                total=len(cls),
+                desc=f"Averaging {len(cls)} connectivity matrices"
+            )
+        ]
+        average_matrix = cls._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
+        return average_matrix
+
+    def get_matrix(self):
         """
         Returns a matrix as a pandas dataframe.
 
-        Parameters
-        ----------
-        subject: str, default: None
-            Name of the subject (see ConnectivityMatrix.subjects for available names).
-            If None, the mean is taken in case of multiple available matrices.
         Returns
         -------
         pd.DataFrame
             A square matrix with region names as the column and row names.
         """
-        assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple matrices available, but no subject given - return mean matrix
-            logger.info(
-                f"No subject name supplied, returning mean connectivity across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
-            )
-            if "mean" not in self._matrices:
-                all_arrays = [
-                    self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} connectivity matrices"
-                    )
-                ]
-                self._matrices['mean'] = self._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._matrices['mean'].copy()
-        if subject is None:
-            subject = next(iter(self._files.keys()))
-        if subject not in self._files:
-            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._matrices:
-            self._matrices[subject] = self._load_matrix(subject)
-        return self._matrices[subject].copy()
+        self._matrix = self._load_matrix()
+        return self._matrix.copy()
 
     def plot_matrix(
         self, subject: str = None, regions: List[str] = None,
@@ -172,7 +168,7 @@ class RegionalConnectivity(Feature, Compoundable):
         Parameters
         ----------
         subject: str
-            Name of the subject (see ConnectivityMatrix.subjects for available names).
+            Name of the subject (see ConnectivityMatrix.indices for available names).
             If "mean" or None is given, the mean is taken in case of multiple
             available matrices.
         regions: list[str]
@@ -222,7 +218,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
     def _export(self, fh: ZipFile):
         super()._export(fh)
-        for sub in self.subjects:
+        for sub in self.index:
             df = self.get_matrix(sub)
             fh.writestr(f"sub/{sub}/matrix.csv", df.to_csv())
 
@@ -403,11 +399,11 @@ class RegionalConnectivity(Feature, Compoundable):
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
-    def _load_matrix(self, subject: str):
+    def _load_matrix(self, subject: str) -> pd.DataFrame:
         """
         Extract connectivity matrix.
         """
-        assert subject in self.subjects
+        assert subject in self.index
         array = self._connector.get(self._files[subject], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:

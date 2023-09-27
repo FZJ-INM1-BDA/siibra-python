@@ -453,8 +453,8 @@ class Factory:
             comp_kwargs = kwargs
             comp_kwargs['files'] = {"mean": list(files.values())}
             conn_by_file = [cls.build_connectivity_matrix(spec, comp_kwargs)]
-            for fkey, file in files.items():
-                comp_kwargs['files'] = {fkey: file}
+            for fkey, filename in files.items():
+                comp_kwargs['files'] = {fkey: filename}
                 conn_by_file.append(cls.build_connectivity_matrix(spec, comp_kwargs))
             return conn_by_file
 
