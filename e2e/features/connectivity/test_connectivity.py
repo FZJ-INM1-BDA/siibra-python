@@ -29,10 +29,10 @@ def test_connectivity_get_matrix(f: RegionalConnectivity):
     assert isinstance(f, RegionalConnectivity)
     assert len(f.subjects) > 0
     assert all(isinstance(subject, str) for subject in f.subjects)
-    matrix_df = f.get_matrix()
+    matrix_df = f.data
     assert all(matrix_df.index[i] == r for i, r in enumerate(matrix_df.columns))
     for subject in f.subjects:
-        matrix_df = f.get_matrix(subject)
+        matrix_df = f.data(subject)
         assert all(matrix_df.index[i] == r for i, r in enumerate(matrix_df.columns))
 
 
@@ -58,7 +58,7 @@ def test_copy_is_returned():
     feat: RegionalConnectivity = features[0]
 
     # retrieve matrix
-    matrix = feat.get_matrix(feat.subjects[0])
+    matrix = feat.data(feat.subjects[0])
 
     # ensure new val to be put is different from prev val
     prev_val = matrix.iloc[0, 0]
@@ -67,7 +67,7 @@ def test_copy_is_returned():
     matrix.iloc[0, 0] = new_val
 
     # retrieve matrix again
-    matrix_again = feat.get_matrix(feat.subjects[0])
+    matrix_again = feat.data(feat.subjects[0])
     assert matrix_again.iloc[0, 0] == prev_val
 
 def test_export():

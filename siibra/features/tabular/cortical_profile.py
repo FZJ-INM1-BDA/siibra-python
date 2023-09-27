@@ -18,7 +18,7 @@ from . import tabular
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, List
 from textwrap import wrap
 import numpy as np
 
@@ -159,6 +159,15 @@ class CorticalProfile(tabular.Tabular):
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
         )
 
+    @classmethod
+    def _merge_data(cls, instances: List["CorticalProfile"]):
+        assert all(np.array_equal(instances[0]._depths, f._depths) for f in instances)
+        assert len({f.unit for f in instances}) == 1
+        mean_vals = np.stack([f._values for f in instances]).mean(0)
+        return pd.DataFrame(
+            mean_vals, index=instances[0]._depths, columns=[f"{instances[0].modality} ({instances[0].unit})"]
+        )
+
     def plot(self, *args, backend="matplotlib", **kwargs):
         """
         Plot the profile.
@@ -175,7 +184,7 @@ class CorticalProfile(tabular.Tabular):
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
 
-        if backend == "matplotlib":    
+        if backend == "matplotlib":   
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)

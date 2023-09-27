@@ -23,21 +23,22 @@
             "items": {
                 "type": "string"
             }
+        },
+        "files_indexed_by": {
+            "type": "string"
         }
     },
     "required": [
     ],
     "definitions": {
         "connectivityModalities": {
-            "anyOf": [{
-                "const": "StreamlineCounts"
-            }, {
-                "const": "RestingState"
-            }, {
-                "const": "StreamlineLengths"
-            }, {
-                "const": "Tracing"
-            }]
+            "anyOf": [
+                {"const": "StreamlineCounts"},
+                {"const": "FunctionalConnectivity"},
+                {"const": "AnatomoFunctionalConnectivity"},
+                {"const": "StreamlineLengths"},
+                {"const": "TracingConnectivity"}
+            ]
         }
     }
 }

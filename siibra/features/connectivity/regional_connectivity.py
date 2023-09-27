@@ -92,7 +92,7 @@ class RegionalConnectivity(Feature, Compoundable):
         self._files = files
         self._decode_func = decode_func
         self.regions = regions
-        self._matrix = pd.DataFrame()
+        self._matrix = None
         self._subject = subject
         self._feature = feature
 
@@ -133,20 +133,22 @@ class RegionalConnectivity(Feature, Compoundable):
         return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index}"
 
     @classmethod
-    def _merge_data(cls):
-        assert len(cls) > 0
+    def _merge_data(cls, instances: List["RegionalConnectivity"]):
         all_arrays = [
-            cls._connector.get(fname, decode_func=cls._decode_func)
-            for fname in siibra_tqdm(
-                cls._files.values(),
-                total=len(cls),
-                desc=f"Averaging {len(cls)} connectivity matrices"
+            instance._connector.get(fname, decode_func=instance._decode_func)
+            for instance in siibra_tqdm(
+                instances,
+                total=len(instances),
+                desc=f"Averaging {len(instances)} connectivity matrices"
             )
+            for fname in instance._files.values()
         ]
-        average_matrix = cls._arraylike_to_dataframe(np.stack(all_arrays).mean(0))
-        return average_matrix
+        return instances[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
 
-    def get_matrix(self):
+    @property
+    def data(self):
         """
         Returns a matrix as a pandas dataframe.
 
@@ -155,11 +157,12 @@ class RegionalConnectivity(Feature, Compoundable):
         pd.DataFrame
             A square matrix with region names as the column and row names.
         """
-        self._matrix = self._load_matrix()
+        if self._matrix is None:
+            self._matrix = self._load_matrix()
         return self._matrix.copy()
 
     def plot_matrix(
-        self, subject: str = None, regions: List[str] = None,
+        self, regions: List[str] = None,
         logscale: bool = False, *args, backend="nilearn", **kwargs
     ):
         """
@@ -167,10 +170,6 @@ class RegionalConnectivity(Feature, Compoundable):
 
         Parameters
         ----------
-        subject: str
-            Name of the subject (see ConnectivityMatrix.indices for available names).
-            If "mean" or None is given, the mean is taken in case of multiple
-            available matrices.
         regions: list[str]
             Display the matrix only for selected regions. By default, shows all the regions.
             It can only be a subset of regions of the feature.
@@ -185,16 +184,19 @@ class RegionalConnectivity(Feature, Compoundable):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        matrix = self.get_matrix(subject=subject).iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
+        matrix = self.data.iloc[indices, indices].to_numpy()  # nilearn.plotting.plot_matrix works better with a numpy array
 
         if logscale:
             matrix = np.log10(matrix)
 
         # default kwargs
-        subject_title = subject or ""
         kwargs["title"] = kwargs.get(
             "title",
-            f"{subject_title} - {self.modality} in {', '.join({_.name for _ in self.anchor.regions})}"
+            "".join([
+                f"{self.feature if self.feature else ''} - {self.subject} - ",
+                f"{self.modality} in ",
+                f"{', '.join({_.name for _ in self.anchor.regions})}"
+            ])
         )
 
         if kwargs.get("reorder") or (backend == "nilearn"):
@@ -214,18 +216,17 @@ class RegionalConnectivity(Feature, Compoundable):
             )
 
     def __iter__(self):
-        return ((sid, self.get_matrix(sid)) for sid in self._files)
+        return ((sid, self.data(sid)) for sid in self._files)
 
     def _export(self, fh: ZipFile):
         super()._export(fh)
         for sub in self.index:
-            df = self.get_matrix(sub)
+            df = self.data(sub)
             fh.writestr(f"sub/{sub}/matrix.csv", df.to_csv())
 
     def get_profile(
         self,
         region: Union[str, _region.Region],
-        subject: str = None,
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column'
@@ -247,7 +248,7 @@ class RegionalConnectivity(Feature, Compoundable):
             Choose the direction of profile extraction particularly for
             non-symmetric matrices. ('column' or 'row')
         """
-        matrix = self.get_matrix(subject)
+        matrix = self.data
         if direction.lower() not in ['column', 'row']:
             raise ValueError("Direction can only be 'column' or 'row'")
         if direction.lower() == 'row':
@@ -266,9 +267,7 @@ class RegionalConnectivity(Feature, Compoundable):
         elif len(regions) > 1:
             raise ValueError(f"Region specification {region} matched more than one profile: {regions}")
         else:
-            name = \
-                f"Averaged {self.modality}" if subject is None \
-                else f"{self.modality}"
+            name = self.modality
             series = matrix[regions[0]]
             last_index = len(series) - 1 if max_rows is None \
                 else min(max_rows, len(series) - 1)
@@ -289,10 +288,9 @@ class RegionalConnectivity(Feature, Compoundable):
                 datasets=self.datasets
             )
 
-    def plot_profile(
+    def plot(
         self,
-        region: Union[str, _region.Region],
-        subject: str = None,
+        regions: Union[str, _region.Region, List[Union[str, _region.Region]]] = None,
         min_connectivity: float = 0,
         max_rows: int = None,
         direction: Literal['column', 'row'] = 'column',
@@ -301,7 +299,32 @@ class RegionalConnectivity(Feature, Compoundable):
         backend="matplotlib",
         **kwargs
     ):
-        profile = self.get_profile(region, subject, min_connectivity, max_rows, direction)
+        """
+        Parameters
+        ----------
+        regions: Union[str, _region.Region], None
+            If None, returns the full connectivity matrix.
+            If a region is provided, returns the profile for that region.
+            If list of regions is provided, returns the matrix for the selected
+            regions.
+        min_connectivity: float, default 0
+            Only for region profile.
+        max_rows: int, default None
+            Only for region profile.
+        direction: 'column' or 'row', default: 'column'
+            Only for matrix.
+        logscale: bool, default: False
+        backend: str, default: "matplotlib" for profiles and "nilearn" for matrices
+        """
+        if regions is None or isinstance(regions, list):
+            plot_matrix_backend = "nilearn" if backend == "matplotlib" else backend
+            return self.plot_matrix(
+                regions=regions, logscale=logscale, *args,
+                backend=plot_matrix_backend,
+                **kwargs
+            )
+
+        profile = self.get_profile(regions, min_connectivity, max_rows, direction)
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logx"] = kwargs.get("logx", logscale)
@@ -399,16 +422,15 @@ class RegionalConnectivity(Feature, Compoundable):
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
-    def _load_matrix(self, subject: str) -> pd.DataFrame:
+    def _load_matrix(self) -> pd.DataFrame:
         """
         Extract connectivity matrix.
         """
-        assert subject in self.index
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
+        array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(
                 f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
-                f"from {self._files[subject]} in {str(self._connector)}"
+                f"from {self._files[self.index]} in {str(self._connector)}"
             )
         return self._arraylike_to_dataframe(array)

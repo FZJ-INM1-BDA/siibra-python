@@ -600,7 +600,7 @@ class Compoundable(ABC):
     @abstractmethod
     def _merge_data(cls, instances) -> Any:
         """
-        Computed the merged data from a set of instances of this class. 
+        Computed the merged data from a set of instances of this class.
         This will be used by CompoundFeature to create the aggegated data,
         for example, to compute an average connectivity matrix from a set
         of subfeatures.
@@ -661,6 +661,7 @@ class CompoundFeature(Feature):
     @property
     def data(self):
         if self._compound_data is None:
+            assert issubclass(self._subfeature_type, Compoundable)
             self._compound_data = self._subfeature_type._merge_data(self.subfeatures)
         return self._compound_data
 

@@ -57,7 +57,7 @@ print(conn.subjects)
 # The connectivity matrices are provided as pandas DataFrames,
 # with region objects as index.
 subject = conn.subjects[0]
-matrix = conn.get_matrix(subject)
+matrix = conn.data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
 

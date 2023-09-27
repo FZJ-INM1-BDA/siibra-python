@@ -43,4 +43,15 @@ class FunctionalConnectivity(
 
     @property
     def subfeature_index(self) -> Tuple[str]:
-        return (self.subjects[0], self.paradigm)
+        return (self.index, self.paradigm)
+
+
+class AnatomoFunctionalConnectivity(
+    regional_connectivity.RegionalConnectivity,
+    configuration_folder="features/connectivity/regional/anatomofunctional",
+    category="connectivity"
+):
+    """Functional connectivity matrix grouped by a parcellation."""
+
+    def __init__(self, **kwargs):
+        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
