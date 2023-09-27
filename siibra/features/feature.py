@@ -575,37 +575,53 @@ class Feature:
 
 
 class Compoundable(ABC):
-    """Determines the necessary grouping and compounding attributes."""
+    """
+    Base class for structures which allow compounding. 
+    Determines the necessary grouping and compounding attributes."""
 
     @property
     @abstractmethod
-    def attributes(self) -> Dict[str, Any]:
-        """Attributes to pass over to the CompoundFeature from."""
+    def filter_attributes(self) -> Dict[str, Any]:
+        """Names and values of attributes of this feature."""
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def _groupby_key(self) -> Tuple[Any]:
+    def _compound_key(self) -> Tuple[Any]:
         """
-        Attribute key-value pairs used to reduce the list of features to
-        CompoundFeatures based on groupby property. Can be overriden if need be.
+        Unique key of the compound to which this feuatre will be assigned.
+        In other words, features with the same compound key will become subfeatures of the same compound.
+        TODO introduce an assertion at runtime that these are made up as a subset of the filter attributes.
+        """
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def _merge_data(cls, instances) -> Any:
+        """
+        Computed the merged data from a set of instances of this class. 
+        This will be used by CompoundFeature to create the aggegated data,
+        for example, to compute an average connectivity matrix from a set
+        of subfeatures.
         """
         raise NotImplementedError
 
     @property
     @abstractmethod
-    def compound_key(self) -> Any:
+    def subfeature_index(self) -> Any:
         """
-        Unique key to distinguish subfeatures making a CompoundFeature. Should
-        not be integer (see CompoundFeature.__get_item__). Should be hashable.
+        Unique index of this compoundable feature as a subfeature of the Compound.
+        Should be hashable.
         """
         raise NotImplementedError
 
 
 class CompoundFeature(Feature):
     """
-    A compound of several features of the same type with an anchor created as
-    a sum of adjoinable anchors.
+    A compound aggregating mutliple features of the same type.
+    The anatomical anchors and data of the features is merged.
+    Features need to subclass "Compoundable" to allow aggregation
+    into a compound feature. 
     """
 
     def __init__(
@@ -625,11 +641,12 @@ class CompoundFeature(Feature):
         assert len({f.modality for f in features}) == 1, NotImplementedError("Cannot compound features of different modalities.")
         modality = features[0].modality
 
-        groupby_key = {feature._groupby_key for feature in features}
-        assert len(groupby_key) == 1, ValueError("Cannot compound features with different `groupby_key`")
-        self._groupby_key = groupby_key.__iter__().__next__()
+        compound_key = {feature._compound_key for feature in features}
+        assert len(compound_key) == 1, ValueError("Only features with identical compound_key can be aggregated aggregated")
+        self._compound_key = next(iter(compound_key))
 
-        assert len({f.compound_key for f in features}) == len(features), RuntimeError("Compund keys should be unique to each subfeature within the CompoundFeature.")
+        assert len({f.compound_key for f in features}) == len(features), \
+            RuntimeError("Compound keys should be unique to each subfeature within the CompoundFeature.")
         self._subfeatures = {f.compound_key: f for f in features}
 
         Feature.__init__(
@@ -639,8 +656,13 @@ class CompoundFeature(Feature):
             anchor=sum([f.anchor for f in features]),
             datasets=list({ds for f in features for ds in f.datasets})
         )
+        self._compound_data = self._subfeature_type._merge_data(self._subfeatures)
         self._queryconcept = queryconcept
         self._dataframe_cached = None
+
+    @property
+    def data(self):
+        
 
     @property
     def subfeatures(self):
@@ -655,7 +677,7 @@ class CompoundFeature(Feature):
         """
         Attribute data frame constructed with subfeature attribute-value pairs.
         """
-        return DataFrame([f.attributes for f in self])
+        return DataFrame([f.filter_attributes for f in self])
 
     @property
     def subfeature_type(self):
@@ -666,7 +688,7 @@ class CompoundFeature(Feature):
         """Returns a short human-readable name of this feature."""
         return " ".join((
             f"{self.__class__.__name__} of {len(self)}",
-            f"grouped by ({', '.join(val for val in self._groupby_key)})",
+            f"grouped by ({', '.join(val for val in self._compound_key)})",
             f"anchored at {self.anchor}"
         ))
 
@@ -688,13 +710,11 @@ class CompoundFeature(Feature):
         """Number of subfeatures making the CompoundFeature"""
         return len(self._subfeatures)
 
-    def __getitem__(self, compound_key: Any):
+    def __getitem__(self, index: Any):
         """Get the subfeature correspnding to compound_key or integer index."""
-        if isinstance(compound_key, int):
-            return list(self._subfeatures.values())[compound_key]
-        if compound_key in self._subfeatures:
-            return self._subfeatures[compound_key]
-        raise NotFoundException(f"'{compound_key}' matched no subfeatures.")
+        if index in self._subfeatures:
+            return self._subfeatures[index]
+        raise IndexError(f"No feature with index '{index}' in this compound.")
 
     @classmethod
     def compound(
@@ -719,7 +739,7 @@ class CompoundFeature(Feature):
         grouped_features = defaultdict(list)
         for f in features:
             if isinstance(f, Compoundable):
-                grouped_features[f._groupby_key].append(f)
+                grouped_features[f._compound_key].append(f)
                 continue
             non_compound_features.append(f)
         return non_compound_features + [

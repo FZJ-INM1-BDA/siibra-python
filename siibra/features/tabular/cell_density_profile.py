@@ -97,7 +97,7 @@ class CellDensityProfile(
         self.patch = patch
 
     @property
-    def attributes(self) -> Dict[str, Union[str, int]]:
+    def filter_attributes(self) -> Dict[str, Union[str, int]]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -106,11 +106,11 @@ class CellDensityProfile(
         }
 
     @property
-    def _groupby_key(self):
+    def _compound_key(self):
         return (self.__class__.__name__, self.modality)
 
     @property
-    def compound_key(self) -> Tuple[int, int]:
+    def subfeature_index(self) -> Tuple[int, int]:
         return (self.section, self.patch)
 
     @property

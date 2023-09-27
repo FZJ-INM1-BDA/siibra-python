@@ -38,9 +38,9 @@ class FunctionalConnectivity(
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
 
     @property
-    def attributes(self) -> Dict[str, str]:
-        return dict(**super().attributes, **{"paradigm": self.paradigm})
+    def filter_attributes(self) -> Dict[str, str]:
+        return dict(**super().filter_attributes, **{"paradigm": self.paradigm})
 
     @property
-    def compound_key(self) -> Tuple[str]:
+    def subfeature_index(self) -> Tuple[str]:
         return (self.subjects[0], self.paradigm)

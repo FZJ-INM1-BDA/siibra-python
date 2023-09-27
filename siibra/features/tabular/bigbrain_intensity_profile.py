@@ -66,7 +66,7 @@ class BigBrainIntensityProfile(
         self.location = location
 
     @property
-    def attributes(self) -> Dict[str, Union[str, point.Point]]:
+    def filter_attributes(self) -> Dict[str, Union[str, point.Point]]:
         return {
             "class": self.__class__.__name__,
             "modality": self.modality,
@@ -74,9 +74,9 @@ class BigBrainIntensityProfile(
         }
 
     @property
-    def _groupby_key(self):
+    def _compound_key(self):
         return (self.__class__.__name__, self.modality)
 
     @property
-    def compound_key(self) -> point.Point:
+    def subfeature_index(self) -> point.Point:
         return self.location
