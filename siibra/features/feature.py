@@ -363,12 +363,16 @@ class Feature:
 
     @classmethod
     def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        return [
+        ftypes = {
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        ]
+        }
+        if len(ftypes) > 1:
+            return [ft for ft in ftypes if getattr(ft, 'category')]
+        else:
+            return list(ftypes)
 
     @classmethod
     def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -405,18 +409,30 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
-            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
+            assert all(
+                (isinstance(t, str) or issubclass(t, cls))
+                for t in feature_type
+            )
+            return list(dict.fromkeys(
+                sum((
+                    cls.match(concept, t, **kwargs) for t in feature_type
+                ), [])
+            ))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
-            # Some string inputs, such as connectivity, may hit multiple matches
-            # In this case
-            candidates = cls.parse_featuretype(feature_type)
-            if len(candidates) == 0:
-                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-
-            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
+            # Some string inputs, such as connectivity, may hit multiple matches.
+            ftype_candidates = cls.parse_featuretype(feature_type)
+            if len(ftype_candidates) == 0:
+                raise ValueError(
+                    f"feature_type {str(feature_type)} did not match with any "
+                    f"features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                )
+            logger.info(
+                f"'{feature_type}' decoded as feature type/s: "
+                f"{[c.__name__ for c in ftype_candidates]}."
+            )
+            return cls.match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -441,7 +457,7 @@ class Feature:
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
-        return list(set((preconfigured_instances + live_instances)))
+        return list(dict.fromkeys(preconfigured_instances + live_instances))
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
