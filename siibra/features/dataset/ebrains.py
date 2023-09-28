@@ -22,11 +22,12 @@ from .. import feature
 from ...retrieval import datasets
 
 
-DOI_TMPL="""
+DOI_TMPL = """
 doi
 ---
 {doi}
 """
+
 
 class EbrainsDataFeature(feature.Feature, category="other"):
     def __init__(
@@ -84,7 +85,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
         if not isinstance(o, EbrainsDataFeature):
             return False
         return self._dataset == o._dataset
-    
+
     def _export(self, fh: ZipFile):
         super()._export(fh)
-        fh.writestr("doi.md", DOI_TMPL.format(self.url))
+        fh.writestr("doi.md", DOI_TMPL.format(doi=self.url))
