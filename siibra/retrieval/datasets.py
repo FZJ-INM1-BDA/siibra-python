@@ -19,6 +19,7 @@ from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 import re
 from typing import Union, List
 from abc import ABC, abstractproperty
+from hashlib import md5
 
 try:
     from typing import TypedDict
@@ -353,6 +354,10 @@ class GenericDataset():
     @property
     def contributors(self):
         return [{"name": cont} for cont in self._contributors]
+
+    @property
+    def id(self) -> str:
+        return md5(self.name.encode('utf-8')).hexdigest()
 
     @property
     def name(self) -> str:
