@@ -33,26 +33,24 @@ jubrain = siibra.parcellations.get("julich 2.9")
 # The matrices are queried as expected, using `siibra.features.get`,
 # passing the parcellation as a concept.
 # Here, we query for structural connectivity matrices.
-features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
-print(f"Found {len(features)} parcellation-based BOLD signals for {jubrain}.")
-
-# %%
 # We fetch the first result, which is a specific `RegionalBOLD` object.
+features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
 bold = features[0]
-print(f"RegionalBOLD features reflects {bold.modality} of {bold.cohort} cohort.")
+print(f"Found {len(bold)} parcellation-based BOLD signals for {jubrain}.")
+print(f"RegionalBOLD features reflects {bold.modality} of {bold.filter_attributes['cohort']} cohort.")
 print(bold.name)
 print("\n" + bold.description)
 
 # Subjects are encoded via anonymized ids:
-print(bold.subjects)
+print(bold.indices)
 
 
 # %%
 # The parcellation-based functional data are provided as pandas DataFrames
 # with region objects as columns and indices as time step.
-subject = bold.subjects[0]
-table = bold.get_table(subject)
-print(f"Timestep: {bold.timestep}")
+subject = bold.indices[0]
+table = bold[subject].get_table()
+print(f"Timestep: {bold[subject].timestep}")
 table[jubrain.get_region("hOc3v left")]
 
 # %%
@@ -65,7 +63,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold.plot_carpet(subject=bold.subjects[0], regions=selected_regions)
+bold[subject].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold.plot(subject=bold.subjects[0], regions=selected_regions)
+bold[subject].plot(regions=selected_regions)

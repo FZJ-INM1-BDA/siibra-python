@@ -75,29 +75,33 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             "modality": self.modality,
             "cohort": self.cohort,
             "paradigm": self.paradigm,
-            "subject": self.subjects[0]
+            "subject": self.index[0]
         }
 
     @property
     def _compound_key(self):
-        return (self.__class__.__name__, self.modality, self.cohort)
+        return (self.modality, self.cohort)
 
     @property
     def subfeature_index(self) -> str:
-        return self.subjects[0]
+        return self.index
 
     @property
-    def subjects(self):
+    def index(self):
+        return list(self._files.keys())[0]
+
+    @property
+    def subject(self):
         """
-        Returns the subject identifiers for which signal tables are available.
+        Returns the subject identifiers for which matrices are available.
         """
-        return list(self._files.keys())
+        return self._subject
 
     @property
     def name(self):
         supername = super().name
         postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
-        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.subjects[0]}"
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index[0]}"
 
     def get_table(self, subject: str = None):
         """
@@ -140,12 +144,11 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             self._tables[subject] = self._load_table(subject)
         return self._tables[subject].copy()
 
-    def _load_table(self, subject: str):
+    def _load_table(self):
         """
         Extract the timeseries table.
         """
-        assert subject in self.subjects
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
+        array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
         return self._array_to_dataframe(array)
 
     def __len__(self):
@@ -238,7 +241,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
     def plot_carpet(
-        self, subject: str = None, regions: List[str] = None, *args,
+        self, regions: List[str] = None, *args,
         backend="plotly", **kwargs
     ):
         """
@@ -257,12 +260,12 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        table = self.get_table(subject).iloc[:, indices]
+        table = self.get_table(self.index).iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
         from plotly.express import imshow
         return imshow(
             table.T,
-            title=f"{self.modality}" + f" for subject={subject}" if subject else ""
+            title=f"{self.modality}" + f" for subject={self.subject}"
         )
 
 

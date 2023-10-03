@@ -44,34 +44,36 @@ print(f"Found {len(features)} streamline count matrices.")
 # connecting pairs of brain regions as estimated from tractography on diffusion imaging.
 # Typically, connectivity features provide a range of region-to-region
 # connectivity matrices for different subjects from an imaging cohort.
-conn = features[0]
-print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort.")
-print(conn.name)
+print("Connectivity features are compounded by the modality and cohort.")
+for f in features:
+    print(f.name)
+    # let us select the HCP cohort
+    if f.filter_attributes['cohort'] == "HCP":
+        conn = f
+
 print("\n" + conn.description)
-
-# Subjects are encoded via anonymized ids:
-print(conn.subjects)
-
 
 # %%
 # The connectivity matrices are provided as pandas DataFrames,
-# with region objects as index.
-subject = conn.subjects[0]
-matrix = conn.data
+# with region objects as index. We can access to the average by calling `data`
+# property from the CompoundFeature.
+conn.data.iloc[0:15, 0:15]  # see the first 15x15 for simplicity
+
+# %%
+# Subjects are encoded via anonymized ids
+print(conn.indices)
+subject = conn.indices[0]  # let us select the first subject
+
+# %%
+# we can access to corresponding matrix via
+matrix = conn[subject].data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
-
 # %%
-# Alternatively, we can visualize the matrix using plot_matrix() method
-conn.plot_matrix(subject=conn.subjects[0])
-
-
-# %%
-# The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to `None`. Also, the matrix can be displayed by specifiying
-# a list of regions.
+# The matrix can be displayed using `plot` method. Also, it can be
+# displayed only for a specific list of regions.
 selected_regions = conn.regions[0:30]
-conn.plot_matrix(regions=selected_regions, reorder=True, cmap="magma")
+conn[subject].plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using
@@ -90,7 +92,7 @@ view = plotting.plot_connectome(
     node_size=10,
 )
 view.title(
-    f"{conn.modality} of subject {subject} in {conn.cohort} cohort "
+    f"{conn.modality} of subject {subject} in {conn[subject].cohort} cohort "
     f"averaged on {jubrain.name}",
     size=10,
 )

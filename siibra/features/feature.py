@@ -643,9 +643,13 @@ class CompoundFeature(Feature):
         modality = features[0].modality
 
         compound_key = {feature._compound_key for feature in features}
-        assert len(compound_key) == 1, ValueError("Only features with identical compound_key can be aggregated aggregated")
+        assert len(compound_key) == 1, ValueError(
+            "Only features with identical compound_key can be aggregated."
+        )
         self._compound_key = next(iter(compound_key))
-        assert len({f.subfeature_index for f in features}) == len(features), RuntimeError("Subfeature indices should be unique to each subfeature within the CompoundFeature.")
+        assert len({f.subfeature_index for f in features}) == len(features), RuntimeError(
+            "Subfeature indices should be unique to each subfeature within the CompoundFeature."
+        )
         self._subfeatures = {f.subfeature_index: f for f in features}
 
         Feature.__init__(
@@ -670,7 +674,7 @@ class CompoundFeature(Feature):
         return list(self._subfeatures.values())
 
     @property
-    def subfeature_keys(self):
+    def indices(self):
         return list(self._subfeatures.keys())
 
     @property
@@ -687,11 +691,12 @@ class CompoundFeature(Feature):
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
-        return " ".join((
-            f"{self.__class__.__name__} of {len(self)}",
-            f"grouped by ({', '.join(val for val in self._compound_key)})",
+        return (
+            f"{self.__class__.__name__} of {len(self)} "
+            f"{self.subfeature_type.__name__} features "
+            f"grouped by ({', '.join(val for val in self._compound_key)}) "
             f"anchored at {self.anchor}"
-        ))
+        )
 
     @property
     def id(self):
@@ -716,6 +721,9 @@ class CompoundFeature(Feature):
         if index in self._subfeatures:
             return self._subfeatures[index]
         raise IndexError(f"No feature with index '{index}' in this compound.")
+
+    def plot(self, *args, backend="matplotlib", **kwargs):
+        raise NotImplementedError
 
     @classmethod
     def compound(

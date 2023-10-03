@@ -105,7 +105,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
     @property
     def _compound_key(self):
-        return (self.__class__.__name__, self.modality, self.cohort)
+        return (self.modality, self.cohort)
 
     @property
     def subfeature_index(self) -> str:
@@ -161,7 +161,7 @@ class RegionalConnectivity(Feature, Compoundable):
             self._matrix = self._load_matrix()
         return self._matrix.copy()
 
-    def plot_matrix(
+    def _plot_matrix(
         self, regions: List[str] = None,
         logscale: bool = False, *args, backend="nilearn", **kwargs
     ):
@@ -318,7 +318,7 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         if regions is None or isinstance(regions, list):
             plot_matrix_backend = "nilearn" if backend == "matplotlib" else backend
-            return self.plot_matrix(
+            return self._plot_matrix(
                 regions=regions, logscale=logscale, *args,
                 backend=plot_matrix_backend,
                 **kwargs
@@ -336,7 +336,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 "log_x": logscale,
                 "labels": {"y": " ", "x": ""},
                 "color_continuous_scale": "jet",
-                "width": 600, "height": 3800
+                "width": 600, "height": 15 * len(profile.data)
             })
             fig = profile.data.plot(*args, backend=backend, **kwargs)
             fig.update_layout({
@@ -348,7 +348,8 @@ class RegionalConnectivity(Feature, Compoundable):
                 "margin": dict(l=0, r=0, b=0, t=0, pad=0)
             })
             return fig
-        return profile.plot(*args, backend=backend, **kwargs)
+        else:
+            return profile.data.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
         return len(self._files)

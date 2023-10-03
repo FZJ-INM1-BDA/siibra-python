@@ -75,7 +75,7 @@ class BigBrainIntensityProfile(
 
     @property
     def _compound_key(self):
-        return (self.__class__.__name__, self.modality)
+        return (self.modality)
 
     @property
     def subfeature_index(self) -> point.Point:
