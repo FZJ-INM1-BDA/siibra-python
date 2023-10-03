@@ -1027,9 +1027,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
                 r = int(kernel.shape[0] / 2)  # effective radius
-                xyz_vox = (np.dot(phys2vox, pt.homogeneous) + 0.5).astype("int")
+                assert pt.homogeneous.shape[0] == 1
+                xyz_vox = (np.dot(phys2vox, pt.homogeneous.T) + 0.5).astype("int")
                 shift = np.identity(4)
-                shift[:3, -1] = xyz_vox[:3] - r
+                shift[:3, -1] = xyz_vox[:3, 0] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
                 W = _volume.from_array(kernel, np.dot(self.affine, shift), self.space)
