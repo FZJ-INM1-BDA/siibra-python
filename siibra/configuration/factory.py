@@ -329,7 +329,7 @@ class Factory:
 
     @classmethod
     def build_pointset(cls, spec):
-        if spec.get('@type') == '/tmp/poly':
+        if spec.get('@type') == 'tmp/poly':
             space_id = spec["coordinateSpace"]["@id"]
             coords = []
             for coord in spec["coordinates"]:
