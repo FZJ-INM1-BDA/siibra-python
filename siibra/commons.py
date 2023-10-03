@@ -507,11 +507,11 @@ def resample_array_to_array(
     from nilearn.image import resample_to_img
     interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
         else 'linear'
-    return resample_to_img(
+    return np.asanyarray(resample_to_img(
         Nifti1Image(source_data, source_affine),
         Nifti1Image(target_data, target_affine),
         interpolation=interp
-    ).get_fdata()
+    ).dataobj)
 
 
 def connected_components(imgdata: np.ndarray):

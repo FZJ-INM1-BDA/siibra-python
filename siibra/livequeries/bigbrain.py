@@ -159,6 +159,8 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             space = 'bigbrain'
         matched = concept.intersection(pointset.PointSet(loader._vertices, space=space))
         indices = matched.labels
+        if indices is None:
+            return []
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]
         # compute array of layer labels for all coefficients in profiles_left

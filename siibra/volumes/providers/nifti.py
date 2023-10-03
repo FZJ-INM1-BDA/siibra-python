@@ -17,7 +17,7 @@ from . import provider as _provider
 
 from ...commons import logger
 from ...retrieval import requests
-from ...locations import pointset, boundingbox as _boundingbox
+from ...locations import boundingbox as _boundingbox
 
 from typing import Union, Dict, Tuple
 import nibabel as nib

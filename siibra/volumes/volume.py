@@ -90,6 +90,10 @@ class Volume(structure.BrainStructure, location.Location):
             self._providers[srctype] = provider
         if len(self._providers) == 0:
             logger.debug(f"No provider for volume {self}")
+    
+    def __hash__(self):
+        """Enrich the default hash with the name of the volume."""
+        return hash(self.name) ^ super().__hash__()
 
     @property
     def name(self):
@@ -380,7 +384,7 @@ class Volume(structure.BrainStructure, location.Location):
         result.sigma_mm = sigma_mm
         return result
 
-    def find_peaks(self, mindist=5, **kwargs):
+    def find_peaks(self, mindist=5, sigma_mm=0, **kwargs):
         """
         Find local peaks in the volume.
         Additional keyword arguments are passed over to fetch()
@@ -393,7 +397,9 @@ class Volume(structure.BrainStructure, location.Location):
         img = self.fetch(**kwargs)
         array = np.asanyarray(img.dataobj)
         voxels = feature.peak_local_max(array, min_distance=mindist)
-        return pointset.PointSet(voxels, space=None).transform(img.affine, space=self.space)
+        points = pointset.PointSet(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
+        points.sigma_mm = [sigma_mm for _ in points]
+        return points
 
 
 class Subvolume(Volume):
@@ -446,7 +452,9 @@ def from_pointset(
 ):
     targetimg = target.fetch(**kwargs)
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
-    selection = points.labels == label
+    selection = [_ == label for _ in points.labels]
+    if np.count_nonzero(selection) == 0:
+        raise RuntimeError(f"No points with label {label} in the set: {', '.join(map(str, points.labels))}")
     X, Y, Z = np.split(
         np.array(voxels.as_list()).astype('int')[selection, :],
         3, axis=1
@@ -458,7 +466,7 @@ def from_pointset(
     if isinstance(points.sigma_mm, (int, float)):
         bandwidth = points.sigma_mm
     elif isinstance(points.sigma_mm, list):
-        logger.warn(
+        logger.debug(
             "Computing kernel density estimate from pointset using their average uncertainty."
         )
         bandwidth = np.sum(points.sigma_mm) / len(points)
