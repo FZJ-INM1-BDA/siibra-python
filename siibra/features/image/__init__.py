@@ -22,3 +22,4 @@ from .volume_of_interest import (
     LSFMVolumeOfInterest
     # SegmentedVolumeOfInterest
 )
+from .sections import CellbodyStainedSection
