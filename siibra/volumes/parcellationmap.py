@@ -579,22 +579,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Region names as keys and computed centroids as items.
         """
         centroids = {}
-        # list of regions sorted by mapindex
-        regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
-        current_vol_index = MapIndex(volume=0)
         maparr = None
-        for regionname, indexlist in siibra_tqdm(regions, unit="regions", desc="Computing centroids"):
+        for regionname, indexlist in siibra_tqdm(
+            self._indices.items(), unit="regions", desc="Computing centroids"
+        ):
             assert len(indexlist) == 1
             index = indexlist[0]
             if index.label == 0:
                 continue
-            vol_index = MapIndex(volume=index.volume, fragment=index.fragment)
-            if vol_index != current_vol_index:
-                current_vol_index = vol_index
-                with QUIET:
-                    mapimg = self.fetch(index=vol_index)
-                maparr = np.asanyarray(mapimg.dataobj)
-            centroid_vox = np.array(np.where(maparr == index.label)).mean(1)
+            with QUIET:
+                mapimg = self.fetch(index=index)  # returns a mask of the region
+            maparr = np.asanyarray(mapimg.dataobj)
+            centroid_vox = np.mean(np.where(maparr == 1), axis=1)
             assert regionname not in centroids
             centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
