@@ -715,9 +715,10 @@ class Species(Enum):
         if isinstance(spec, Species):
             return spec
         elif isinstance(spec, str):
-            if spec in MINDS_IDS:
+            # split it in case it is an actual uuid from KG
+            if spec.split('/')[-1] in MINDS_IDS:
                 return cls(MINDS_IDS[spec])
-            if spec in OPENMINDS_IDS:
+            if spec.split('/')[-1] in OPENMINDS_IDS:
                 return cls(OPENMINDS_IDS[spec])
             key = cls.name_to_key(spec)
             if key in cls.__members__.keys():
