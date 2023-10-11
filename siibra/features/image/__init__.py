@@ -19,7 +19,8 @@ from .volume_of_interest import (
     PLIVolumeOfInterest,
     MRIVolumeOfInterest,
     XPCTVolumeOfInterest,
-    LSFMVolumeOfInterest
+    LSFMVolumeOfInterest,
+    DTIVolumeOfInterest
     # SegmentedVolumeOfInterest
 )
 from .sections import CellbodyStainedSection
