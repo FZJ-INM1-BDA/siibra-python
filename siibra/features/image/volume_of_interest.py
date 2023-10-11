@@ -34,6 +34,15 @@ class BlockfaceVolumeOfInterest(
         image.Image.__init__(self, **kwargs, modality="blockface")
 
 
+class DTIVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/blockface",
+    category="fibres"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
+
+
 class PLIVolumeOfInterest(
     image.Image,
     configuration_folder="features/images/vois/pli",
