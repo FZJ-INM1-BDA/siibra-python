@@ -203,6 +203,7 @@ class Factory:
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
             rgb=spec.get("rgb", None),
+            spec=spec,
         )
 
     @classmethod

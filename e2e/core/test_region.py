@@ -1,6 +1,11 @@
 import pytest
-import siibra
 import re
+from concurrent.futures import ThreadPoolExecutor
+from itertools import repeat
+
+import siibra
+from siibra.core.relation_qualification import Qualification
+
 
 regions = [
     siibra.get_region("julich 3.0", "Area 4p (PreCG) right"),
@@ -68,3 +73,29 @@ def test_find(parc_spec, region_spec, result_len, check_regions):
     assert isinstance(results, list)
     assert len(results) == result_len
     assert all(r in results for r in check_regions)
+
+
+@pytest.mark.parametrize("parc, reg_spec, has_related, has_homology, has_related_ebrains_reg", [
+    ("2.9", "PGa", True, True, False),
+    ("monkey", "PG", False, True, False),
+    ("waxholm v3", "cornu ammonis 1", True, False, True),
+])
+def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, has_related_ebrains_reg):
+
+
+    reg = siibra.get_region(parc, reg_spec)
+    related_assessments = [val for val in reg.get_related_regions()]
+    homology_assessments = [val for val in related_assessments if val.qualification == Qualification.HOMOLOGOUS]
+    other_v_assessments = [val for val in related_assessments if val.qualification == Qualification.OTHER_VERSION]
+    
+    assert has_related == (len(other_v_assessments) > 0)
+    assert has_homology == (len(homology_assessments) > 0)
+
+    if has_related_ebrains_reg:
+        with ThreadPoolExecutor() as ex:
+            features = ex.map(
+                siibra.features.get,
+                [val.assigned_structure for val in other_v_assessments],
+                repeat("ebrains")
+            )
+        assert len([f for f in features]) > 0
