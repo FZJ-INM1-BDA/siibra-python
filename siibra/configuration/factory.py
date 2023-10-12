@@ -82,8 +82,7 @@ class Factory:
                     name=pub["name"],
                     contributors=pub["authors"],
                     url=pub["url"],
-                    description=pub["description"],
-                    fullcitation=pub["citation"]
+                    description=pub["description"]
                 )
                 for pub in spec["publications"] if pub.get('name')
             )

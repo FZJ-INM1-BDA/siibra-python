@@ -342,14 +342,12 @@ class GenericDataset():
         name: str = None,
         contributors: List[str] = None,
         url: str = None,
-        description: str = None,
-        fullcitation: str = None
+        description: str = None
     ):
         self._name = name
         self._contributors = contributors
         self._url = url
         self._description = description
-        self._fullcitation = fullcitation
 
     @property
     def contributors(self):
@@ -370,10 +368,6 @@ class GenericDataset():
     @property
     def description(self) -> str:
         return self._description
-
-    @property
-    def citation(self):
-        return self._fullcitation
 
     def __hash__(self):
         return hash(self.id)
