@@ -1,6 +1,6 @@
 import unittest
 import pytest
-from unittest.mock import patch, PropertyMock, MagicMock
+from unittest.mock import patch, PropertyMock, MagicMock, call
 from collections import namedtuple
 from itertools import product
 
@@ -252,7 +252,7 @@ def test_get_snapshot_factory(type_str, _id):
             # get_obj_mock.assert_called()
             all_calls = get_obj_mock.call_args_list
             assert len(all_calls) == len(_id)
-            assert [c.args for c in all_calls] == [(f"ebrainsquery/v3/{type_str}/{i}.json",) for i in _id]
+            assert list(all_calls) == [call(f"ebrainsquery/v3/{type_str}/{i}.json",) for i in _id]
             
 
 # TODO move these into int tests
