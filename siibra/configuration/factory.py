@@ -76,6 +76,17 @@ class Factory:
             result.append(
                 datasets.EbrainsV3Dataset(id=spec["ebrains"]["openminds/Dataset"])
             )
+        if "publications" in spec:
+            result.extend(
+                datasets.GenericDataset(
+                    name=pub["name"],
+                    contributors=pub["authors"],
+                    url=pub["url"],
+                    description=pub["description"],
+                    fullcitation=pub["citation"]
+                )
+                for pub in spec["publications"] if pub.get('name')
+            )
         return result
 
     @classmethod
@@ -140,18 +151,20 @@ class Factory:
         spectype = repospec["@type"]
         if spectype == "siibra/repository/zippedfile/v1.0.0":
             return repositories.ZipfileConnector(repospec['url'])
-        elif spectype == "siibra/repository/gitlab/v1.0.0":
+        if spectype == "siibra/repository/localfolder/v1.0.0":
+            return repositories.LocalFileRepository(repospec['folder'])
+        if spectype == "siibra/repository/gitlab/v1.0.0":
             return repositories.GitlabConnector(
                 server=repospec['server'],
                 project=repospec['project'],
                 reftag=repospec['branch']
             )
-        else:
-            logger.warning(
-                "Do not know how to create a repository "
-                f"connector from specification type {spectype}."
-            )
-            return None
+
+        logger.warning(
+            "Do not know how to create a repository "
+            f"connector from specification type {spectype}."
+        )
+        return None
 
     @classmethod
     def build_atlas(cls, spec):
@@ -317,7 +330,7 @@ class Factory:
 
     @classmethod
     def build_pointset(cls, spec):
-        if spec.get('@type') == '/tmp/poly':
+        if spec.get('@type') == 'tmp/poly':
             space_id = spec["coordinateSpace"]["@id"]
             coords = []
             for coord in spec["coordinates"]:
@@ -407,15 +420,19 @@ class Factory:
             return volume_of_interest.XPCTVolumeOfInterest(
                 modality="XPCT", **kwargs
             )
+        elif modality == "DTI":
+            return volume_of_interest.DTIVolumeOfInterest(
+                modality=modality, **kwargs
+            )
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
-        elif modality == "T2 weighted MRI":
+        elif "MRI" in modality:
             return volume_of_interest.MRIVolumeOfInterest(
-                modality="T2", **kwargs
+                modality=modality, **kwargs
             )
-        elif modality == "T1 weighted MRI":
-            return volume_of_interest.MRIVolumeOfInterest(
-                modality="T1", **kwargs
+        elif modality == "LSFM":
+            return volume_of_interest.LSFMVolumeOfInterest(
+                modality="Light Sheet Fluorescence Microscopy", **kwargs
             )
         else:
             raise ValueError(f"No method for building image section feature type {modality}.")

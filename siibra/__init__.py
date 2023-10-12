@@ -126,8 +126,8 @@ def warm_cache():
     _ = _space.Space.registry()
     _ = _parcellation.Parcellation.registry()
     _ = _parcellationmap.Map.registry()
-    for ftype in features.TYPES.values():
-        _ = ftype.get_instances()
+    features.warm_cache()
+    livequeries.warm_cache()
 
 
 def __dir__():

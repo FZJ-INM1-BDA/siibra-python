@@ -159,7 +159,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         else:
             assert len(self._img_loaders) > 0
             fragment_name, loader = next(iter(self._img_loaders.items()))
-            if fragment is not None:
+            if all(s is not None for s in [fragment, fragment_name]):
                 assert fragment.lower() in fragment_name.lower()
             result = loader()
 

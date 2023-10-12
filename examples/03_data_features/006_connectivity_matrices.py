@@ -58,7 +58,7 @@ print(conn.subjects)
 # with region objects as index.
 subject = conn.subjects[0]
 matrix = conn.get_matrix(subject)
-matrix
+matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
 
 # %%

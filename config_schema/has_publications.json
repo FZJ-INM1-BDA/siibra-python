@@ -11,10 +11,25 @@
     "definitions": {
         "publication": {
             "properties": {
-                "citation": {
+                "name": {
                     "type": "string"
                 },
                 "url": {
+                    "type": "string"
+                },
+                "authors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "description": {
+                    "type": "string"
+                },
+                "license": {
+                    "type": "string"
+                },
+                "citation": {
                     "type": "string"
                 }
             },

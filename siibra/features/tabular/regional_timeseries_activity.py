@@ -18,11 +18,10 @@ from . import tabular
 from .. import anchor as _anchor
 
 from ...commons import logger, QUIET, siibra_tqdm
-from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, List
 import pandas as pd
 import numpy as np
 
@@ -55,7 +54,7 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         tabular.Tabular.__init__(
             self,
             modality=modality,
-            description=description,
+            description=description or '\n'.join({ds.description for ds in datasets}),
             anchor=anchor,
             datasets=datasets,
             data=None  # lazy loading below
@@ -196,10 +195,56 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             df = df.rename(columns=remapper)
         return df
 
-    def plot(self, subject: str = None, *args, backend="matplotlib", **kwargs):
-        table = self.get_table(subject)
+    def plot(
+        self, subject: str = None, regions: List[str] = None, *args,
+        backend="matplotlib", **kwargs
+    ):
+        """
+        Create a bar plot of averaged timeseries data per region.
+
+        Parameters
+        ----------
+        regions: str, Region
+        subject: str, default: None
+            If None, returns the subject averaged table.
+        args and kwargs:
+            takes arguments and keyword arguments for the desired plotting
+            backend.
+        """
+        if regions is None:
+            regions = self.regions
+        indices = [self.regions.index(r) for r in regions]
+        table = self.get_table(subject).iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
+
+    def plot_carpet(
+        self, subject: str = None, regions: List[str] = None, *args,
+        backend="plotly", **kwargs
+    ):
+        """
+        Create a carpet plot ofthe timeseries data per region.
+
+        Parameters
+        ----------
+        regions: str, Region
+        subject: str, default: None
+            If None, returns the subject averaged table.
+        args and kwargs:
+            takes arguments and keyword arguments for `plotly.express.imshow`
+        """
+        if backend != "plotly":
+            raise NotImplementedError("Currently, carpet plot is only implemented with `plotly`.")
+        if regions is None:
+            regions = self.regions
+        indices = [self.regions.index(r) for r in regions]
+        table = self.get_table(subject).iloc[:, indices]
+        table.columns = [str(r) for r in table.columns]
+        from plotly.express import imshow
+        return imshow(
+            table.T,
+            title=f"{self.modality}" + f" for subject={subject}" if subject else ""
+        )
 
 
 class RegionalBOLD(

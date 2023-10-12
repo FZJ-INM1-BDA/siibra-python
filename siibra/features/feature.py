@@ -15,13 +15,14 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, siibra_tqdm
+from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
 from hashlib import md5
 from collections import defaultdict
+from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -38,6 +39,40 @@ class EncodeLiveQueryIdException(Exception):
 
 class NotFoundException(Exception):
     pass
+
+
+_README_TMPL = """
+Downloaded from siibra toolsuite.
+siibra-python version: {version}
+
+All releated resources (e.g. doi, web resources) are categorized under publications.
+
+Name
+----
+{name}
+
+Description
+-----------
+{description}
+
+Modality
+--------
+{modality}
+
+{publications}
+"""
+_README_PUBLICATIONS = """
+Publications
+------------
+{doi}
+
+{ebrains_page}
+
+{authors}
+
+{publication_desc}
+
+"""
 
 
 class Feature:
@@ -92,7 +127,7 @@ class Feature:
         # query context).
         # do_not_index flag allow the default index behavior to be toggled off.
 
-        if do_not_index == False:
+        if do_not_index is False:
 
             # extend the subclass lists
             # Iterate over all mro, not just immediate base classes
@@ -190,6 +225,57 @@ class Feature:
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
+    def _export(self, fh: ZipFile):
+        """
+        Internal implementation. Subclasses can override but call super()._export(fh).
+        This allows all classes in the __mro__ to have the opportunity to append files
+        of interest.
+        """
+        ebrains_page = "\n".join(
+            {ds.ebrains_page for ds in self.datasets if getattr(ds, "ebrains_page", None)}
+        )
+        doi = "\n".join({
+            u.get("url")
+            for ds in self.datasets if ds.urls
+            for u in ds.urls
+        })
+        authors = ", ".join({
+            cont.get('name')
+            for ds in self.datasets if ds.contributors
+            for cont in ds.contributors
+        })
+        publication_desc = "\n".join({ds.description for ds in self.datasets})
+        if (ebrains_page or doi) and authors:
+            publications = _README_PUBLICATIONS.format(
+                ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
+                doi="DOI\n" + doi if doi else "",
+                authors="Authors\n" + authors if authors else "",
+                publication_desc="Publication description\n" + publication_desc if publication_desc else ""
+            )
+        else:
+            publications = "Note: could not obtain any publication information. The data may not have been published yet."
+        fh.writestr(
+            "README.md",
+            _README_TMPL.format(
+                version=__version__,
+                name=self.name,
+                description=self.description,
+                modality=self.modality,
+                publications=publications
+            )
+        )
+
+    def export(self, filelike: Union[str, BinaryIO]):
+        """
+        Export as a zip archive.
+
+        Args:
+            filelike (string or filelike): name or filehandle to write the zip file. User is responsible to ensure the correct extension (.zip) is set.
+        """
+        fh = ZipFile(filelike, "w")
+        self._export(fh)
+        fh.close()
+
     @staticmethod
     def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
         """
@@ -277,12 +363,16 @@ class Feature:
 
     @classmethod
     def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        return [
+        ftypes = {
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        ]
+        }
+        if len(ftypes) > 1:
+            return [ft for ft in ftypes if getattr(ft, 'category')]
+        else:
+            return list(ftypes)
 
     @classmethod
     def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -319,18 +409,30 @@ class Feature:
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
-            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
+            assert all(
+                (isinstance(t, str) or issubclass(t, cls))
+                for t in feature_type
+            )
+            return list(dict.fromkeys(
+                sum((
+                    cls.match(concept, t, **kwargs) for t in feature_type
+                ), [])
+            ))
 
         if isinstance(feature_type, str):
             # feature type given as a string. Decode the corresponding class.
-            # Some string inputs, such as connectivity, may hit multiple matches
-            # In this case
-            candidates = cls.parse_featuretype(feature_type)
-            if len(candidates) == 0:
-                raise ValueError(f"feature_type {str(feature_type)} did not match with any features. Available features are: {', '.join(cls.SUBCLASSES.keys())}")
-
-            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
+            # Some string inputs, such as connectivity, may hit multiple matches.
+            ftype_candidates = cls.parse_featuretype(feature_type)
+            if len(ftype_candidates) == 0:
+                raise ValueError(
+                    f"feature_type {str(feature_type)} did not match with any "
+                    f"features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                )
+            logger.info(
+                f"'{feature_type}' decoded as feature type/s: "
+                f"{[c.__name__ for c in ftype_candidates]}."
+            )
+            return cls.match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -347,11 +449,15 @@ class Feature:
             for instance in f_type.get_instances()
         ]
 
-        preconfigured_instances = [f for f in siibra_tqdm(instances, desc=msg, total=len(instances)) if f.matches(concept)]
+        preconfigured_instances = [
+            f for f in siibra_tqdm(
+                instances, desc=msg, total=len(instances), disable=(not instances)
+            ) if f.matches(concept)
+        ]
 
         live_instances = feature_type.livequery(concept, **kwargs)
 
-        return list(set((preconfigured_instances + live_instances)))
+        return list(dict.fromkeys(preconfigured_instances + live_instances))
 
     @classmethod
     def get_instance_by_id(cls, feature_id: str, **kwargs):
