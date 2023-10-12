@@ -130,11 +130,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._CACHED_REGION_SEARCHES = {}
+        self._str_aliases = None
     
-    @property
-    def related_regions(self) -> Iterable["RegionRelationAssessments"]:
-        ebrains_refs = self.spec.get("ebrains", {})
-        yield from RegionRelationAssessments.parse_from_ebrain_refs(self, ebrains_refs)
+    def get_related_regions(self) -> Iterable["RegionRelationAssessments"]:
+        yield from RegionRelationAssessments.parse_from_region(self)
 
     @property
     def id(self):
@@ -190,22 +189,29 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         if isinstance(other, Region):
             return self.id == other.id
-        elif isinstance(other, str):
-            if self.spec:
-                ebrain_ids = [value for value in self.spec.get("ebrains", {}).values() if isinstance(value, str)]
-                ebrain_nested_ids = [_id
-                            for value in self.spec.get("ebrains", {}).values() if isinstance(value, list)
-                            for _id in value]
-                assert all(isinstance(_id, str) for _id in ebrain_nested_ids)
-                all_ebrain_ids = [
-                    *ebrain_ids,
-                    *ebrain_nested_ids
-                ]
-                if other in all_ebrain_ids:
-                    return True
-            return any([self.name == other, self.key == other, self.id == other])
-        else:
-            return False
+        if isinstance(other, str):
+            if not self._str_aliases:
+                
+                self._str_aliases = {
+                    self.name,
+                    self.key,
+                    self.id,
+                }
+                if self.spec:
+                    ebrain_ids = [value for value in self.spec.get("ebrains", {}).values() if isinstance(value, str)]
+                    ebrain_nested_ids = [_id
+                                for value in self.spec.get("ebrains", {}).values() if isinstance(value, list)
+                                for _id in value]
+                    assert all(isinstance(_id, str) for _id in ebrain_nested_ids)
+                    all_ebrain_ids = [
+                        *ebrain_ids,
+                        *ebrain_nested_ids
+                    ]
+                    
+                    self._str_aliases.update(all_ebrain_ids)
+                    
+            return other in self._str_aliases
+        return False
 
     def __hash__(self):
         return hash(self.id)
@@ -721,7 +727,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
 
 
 _get_reg_relation_asmgt_types: Dict[str, Callable] = {}
-def _translate_to_region_relation(ebrain_type: str):
+def _register_region_reference_type(ebrain_type: str):
     def outer(fn: Callable):
         _get_reg_relation_asmgt_types[ebrain_type] = fn
         @wraps(fn)
@@ -754,7 +760,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
         elif isinstance(_id, str):
             _id = [_id]
         else:
-            raise RuntimeError(f"parse_pev error: arg must be eitehr list of str or str")
+            raise RuntimeError(f"parse_pev error: arg must be either list of str or str")
         return _id
 
     @classmethod
@@ -764,16 +770,13 @@ class RegionRelationAssessments(RelationAssignment[Region]):
 
     @classmethod
     def get_snapshot_factory(cls, type_str: str):
-        def get_object(obj: str):
-            bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
-            return json.loads(bucket.get_file(obj).get_content())
         def get_objects(_id: Union[str, List[str]]):
             _id = cls.parse_id_arg(_id)
             with ThreadPoolExecutor() as ex:
-                yield from ex.map(
-                    get_object,
-                    [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id]
-                )
+                return list(ex.map(
+                            cls.get_object,
+                            [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id]
+                        ))
         return get_objects
     
 
@@ -812,7 +815,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
 
     
     @classmethod
-    @_translate_to_region_relation("openminds/CustomAnatomicalEntity")
+    @_register_region_reference_type("openminds/CustomAnatomicalEntity")
     def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
         caes = cls.get_snapshot_factory("CustomAnatomicalEntity")(_id)
         for cae in caes:
@@ -821,7 +824,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
     
 
     @classmethod
-    @_translate_to_region_relation("openminds/ParcellationEntityVersion")
+    @_register_region_reference_type("openminds/ParcellationEntityVersion")
     def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
         pe_uuids = [uuid for uuid in
                      {cls.get_uuid(pe)
@@ -867,11 +870,10 @@ class RegionRelationAssessments(RelationAssignment[Region]):
                 yield from cls.parse_relationship_assessment(src, relation)
 
     @classmethod
-    def parse_from_ebrain_refs(cls, region: "Region", spec) -> Iterable["RegionRelationAssessments"]:
-        if not spec:
+    def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
+        if not region.spec:
             return None
-        for key, value in spec.items():
-            if key in _get_reg_relation_asmgt_types:
-                fn = _get_reg_relation_asmgt_types[key]
-                yield from fn(cls, region, value)
-
+        for ebrain_type, ebrain_ref in region.spec.get("ebrains", {}).items():
+            if ebrain_type in _get_reg_relation_asmgt_types:
+                fn = _get_reg_relation_asmgt_types[ebrain_type]
+                yield from fn(cls, region, ebrain_ref)
