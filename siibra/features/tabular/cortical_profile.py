@@ -14,16 +14,17 @@
 # limitations under the License.
 
 from . import tabular
+from ..feature import Compoundable
 
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple, List
+from typing import Union, Dict, Tuple, List, Any
 from textwrap import wrap
 import numpy as np
 
 
-class CorticalProfile(tabular.Tabular):
+class CorticalProfile(tabular.Tabular, Compoundable):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
     measured at relative depths between 0 representing the pial surface,
@@ -159,13 +160,36 @@ class CorticalProfile(tabular.Tabular):
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
         )
 
+    @property
+    def filter_attributes(self) -> Dict[str, Any]:
+        return {"modality": self.modality}
+
+    @property
+    def _compound_key(self):
+        return (self.modality,)
+
+    @property
+    def subfeature_index(self) -> Tuple[str]:
+        return ("average",)
+
     @classmethod
-    def _merge_data(cls, instances: List["CorticalProfile"]):
+    def _merge_instances(
+        cls,
+        instances: List["CorticalProfile"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
         assert all(np.array_equal(instances[0]._depths, f._depths) for f in instances)
         assert len({f.unit for f in instances}) == 1
-        mean_vals = np.stack([f._values for f in instances]).mean(0)
-        return pd.DataFrame(
-            mean_vals, index=instances[0]._depths, columns=[f"{instances[0].modality} ({instances[0].unit})"]
+        return CorticalProfile(
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            depths=instances[0]._depths,
+            values=np.stack([f._values for f in instances]).mean(0),
+            unit=instances[0].unit,
+            boundary_positions=None,
         )
 
     def plot(self, *args, backend="matplotlib", **kwargs):
@@ -184,7 +208,7 @@ class CorticalProfile(tabular.Tabular):
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
 
-        if backend == "matplotlib":   
+        if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)

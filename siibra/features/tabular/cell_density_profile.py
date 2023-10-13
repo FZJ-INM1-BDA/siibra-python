@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from . import cortical_profile
-from ..feature import Compoundable
 
 from .. import anchor as _anchor
 from ...commons import PolyLine, logger, create_key
@@ -30,7 +29,6 @@ from typing import Dict, Union, Tuple
 
 class CellDensityProfile(
     cortical_profile.CorticalProfile,
-    Compoundable,
     configuration_folder="features/tabular/corticalprofiles/celldensity",
     category='cellular'
 ):
@@ -99,15 +97,10 @@ class CellDensityProfile(
     @property
     def filter_attributes(self) -> Dict[str, Union[str, int]]:
         return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
+            **super().filter_attributes,
             "section": self.section,
             "patch": self.patch
         }
-
-    @property
-    def _compound_key(self):
-        return (self.modality)
 
     @property
     def subfeature_index(self) -> Tuple[int, int]:

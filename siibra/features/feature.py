@@ -387,12 +387,12 @@ class Feature:
 
     @classmethod
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        ftypes = {
+        ftypes = sorted({
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        }
+        }, key=lambda t: t.__name__)
         if len(ftypes) > 1:
             return [ft for ft in ftypes if getattr(ft, 'category')]
         else:
@@ -598,12 +598,19 @@ class Compoundable(ABC):
 
     @classmethod
     @abstractmethod
-    def _merge_data(cls, instances) -> Any:
+    def _merge_instances(
+        cls,
+        instances,
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor
+    ) -> Feature:
         """
-        Computed the merged data from a set of instances of this class.
-        This will be used by CompoundFeature to create the aggegated data,
-        for example, to compute an average connectivity matrix from a set
-        of subfeatures.
+        Compute the merge data and create a merged instance from a set of
+        instances of this class. This will be used by CompoundFeature to
+        create the aggegated data and plot it. For example, to compute an
+        average connectivity matrix from a set of subfeatures, we create a
+        RegionalConnectivtyMatrix.
         """
         raise NotImplementedError
 
@@ -659,15 +666,24 @@ class CompoundFeature(Feature):
             anchor=sum([f.anchor for f in features]),
             datasets=list({ds for f in features for ds in f.datasets})
         )
-        self._compound_data = None
         self._queryconcept = queryconcept
+        self._merged_feature_cached = None
 
     @property
     def data(self):
-        if self._compound_data is None:
+        return self._merged_feature.data
+
+    @property
+    def _merged_feature(self):
+        if self._merged_feature_cached is None:
             assert issubclass(self._subfeature_type, Compoundable)
-            self._compound_data = self._subfeature_type._merge_data(self.subfeatures)
-        return self._compound_data
+            self._merged_feature_cached = self._subfeature_type._merge_instances(
+                instances=self.subfeatures,
+                modality=self.modality,
+                description=self.description,
+                anchor=self.anchor
+            )
+        return self._merged_feature_cached
 
     @property
     def subfeatures(self):
@@ -691,11 +707,14 @@ class CompoundFeature(Feature):
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
+        if len(self._compound_key) == 1:
+            groupedby = self._compound_key[0]
+        else:
+            groupedby = ', '.join(val for val in self._compound_key)
         return (
             f"{self.__class__.__name__} of {len(self)} "
-            f"{self.subfeature_type.__name__} features "
-            f"grouped by ({', '.join(val for val in self._compound_key)}) "
-            f"anchored at {self.anchor}"
+            f"{self.subfeature_type.__name__} features grouped by ({groupedby})"
+            f" anchored at {self.anchor}"
         )
 
     @property
@@ -723,7 +742,7 @@ class CompoundFeature(Feature):
         raise IndexError(f"No feature with index '{index}' in this compound.")
 
     def plot(self, *args, backend="matplotlib", **kwargs):
-        raise NotImplementedError
+        return self._merged_feature.plot(*args, backend=backend, **kwargs)
 
     @classmethod
     def compound(

@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from . import cortical_profile
-from ..feature import Compoundable
 
 from ...locations import point
 from typing import Dict, Union
@@ -22,7 +21,6 @@ from typing import Dict, Union
 
 class BigBrainIntensityProfile(
     cortical_profile.CorticalProfile,
-    Compoundable,
     category='cellular'
 ):
 
@@ -66,16 +64,8 @@ class BigBrainIntensityProfile(
         self.location = location
 
     @property
-    def filter_attributes(self) -> Dict[str, Union[str, point.Point]]:
-        return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
-            "location": self.location
-        }
-
-    @property
-    def _compound_key(self):
-        return (self.modality)
+    def filter_attributes(self) -> Dict[str, Union[str, int]]:
+        return {**super().filter_attributes, "location": self.location}
 
     @property
     def subfeature_index(self) -> point.Point:

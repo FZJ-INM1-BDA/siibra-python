@@ -133,7 +133,27 @@ class RegionalConnectivity(Feature, Compoundable):
         return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index}"
 
     @classmethod
-    def _merge_data(cls, instances: List["RegionalConnectivity"]):
+    def _merge_instances(
+        cls,
+        instances: List["RegionalConnectivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in instances}) == 1
+        compounded = cls(
+            cohort=instances[0].cohort,
+            regions=instances[0].regions,
+            connector=instances[0]._connector,
+            decode_func=instances[0]._decode_func,
+            files=[],
+            subject="average",
+            feature="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "average"} if getattr(instances[0], "paradigm") else {}
+        )
         all_arrays = [
             instance._connector.get(fname, decode_func=instance._decode_func)
             for instance in siibra_tqdm(
@@ -143,9 +163,10 @@ class RegionalConnectivity(Feature, Compoundable):
             )
             for fname in instance._files.values()
         ]
-        return instances[0]._arraylike_to_dataframe(
+        compounded._matrix = instances[0]._arraylike_to_dataframe(
             np.stack(all_arrays).mean(0)
         )
+        return compounded
 
     @property
     def data(self):
