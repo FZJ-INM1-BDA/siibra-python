@@ -103,7 +103,7 @@ class InstanceTable(Generic[T], Iterable):
         """List of all object keys in the registry"""
         if isinstance(self[0], type):
             return list(self._elements.keys())
-        else:    
+        else:
             return ["dataframe"] + list(self._elements.keys())
 
     def __str__(self) -> str:

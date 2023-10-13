@@ -306,7 +306,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         if isinstance(regionspec, region.Region) and (regionspec.parcellation == self):
             return regionspec
 
-        # if there exist an exact match of region spec to region name, return 
+        # if there exist an exact match of region spec to region name, return
         if isinstance(regionspec, str):
             exact_match = [region for region in self if hasattr(region, "name") and region.name == regionspec]
             if len(exact_match) == 1:

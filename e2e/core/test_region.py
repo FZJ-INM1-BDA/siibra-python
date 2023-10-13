@@ -82,12 +82,11 @@ def test_find(parc_spec, region_spec, result_len, check_regions):
 ])
 def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, has_related_ebrains_reg):
 
-
     reg = siibra.get_region(parc, reg_spec)
     related_assessments = [val for val in reg.get_related_regions()]
     homology_assessments = [val for val in related_assessments if val.qualification == Qualification.HOMOLOGOUS]
     other_v_assessments = [val for val in related_assessments if val.qualification == Qualification.OTHER_VERSION]
-    
+
     assert has_related == (len(other_v_assessments) > 0)
     assert has_homology == (len(homology_assessments) > 0)
 

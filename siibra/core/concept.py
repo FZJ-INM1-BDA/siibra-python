@@ -62,23 +62,24 @@ class AtlasConcept:
 
         Parameters
         ----------
-            identifier : str
-                Unique identifier of the parcellation
-            name : str
-                Human-readable name of the parcellation
-            species: Species or string
-                Specification of the species
-            shortname: str
-                Shortform of human-readable name (optional)
-            description: str
-                Textual description of the parcellation
-            modality  :  str or None
-                Specification of the modality underlying this concept
-            datasets : list
-                list of datasets corresponding to this concept
-            publications: list
-                List of publications, each a dictionary with "doi" and/or "citation" fields
-
+        identifier : str
+            Unique identifier of the parcellation
+        name : str
+            Human-readable name of the parcellation
+        species: Species or string
+            Specification of the species
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality underlying this concept
+        datasets : list
+            list of datasets corresponding to this concept
+        publications: list
+            List of publications, each a dictionary with "doi" and/or "citation" fields
+        spec: dict, default: None
+            The preconfigured specification.
         """
         self._id = identifier
         self.name = name

@@ -16,16 +16,20 @@
 
 from enum import Enum
 from typing import Dict, TypeVar, Generic
+from dataclasses import dataclass
+
+T = TypeVar("T")
+
 
 class Qualification(Enum):
-    EXACT=1
-    OVERLAPS=2
-    CONTAINED=3
-    CONTAINS=4
-    APPROXIMATE=5
-    HOMOLOGOUS=6
-    OTHER_VERSION=7
-    
+    EXACT = 1
+    OVERLAPS = 2
+    CONTAINED = 3
+    CONTAINS = 4
+    APPROXIMATE = 5
+    HOMOLOGOUS = 6
+    OTHER_VERSION = 7
+
     @property
     def verb(self):
         """
@@ -65,7 +69,7 @@ class Qualification(Enum):
 
     def __repr__(self):
         return str(self)
-    
+
     @staticmethod
     def parse_relation_assessment(spec: Dict):
         name = spec.get("name")
@@ -73,16 +77,13 @@ class Qualification(Enum):
             return Qualification.HOMOLOGOUS
         raise Exception(f"Cannot parse spec: {spec}")
 
-T = TypeVar("T")
-
-from dataclasses import dataclass
 
 @dataclass
 class RelationAssignment(Generic[T]):
     query_structure: T
     assigned_structure: T
     qualification: Qualification
-    explanation: str=""
+    explanation: str = ""
 
     @property
     def is_exact(self):
@@ -93,7 +94,12 @@ class RelationAssignment(Generic[T]):
         return msg if self.explanation == "" else f"{msg} - {self.explanation}"
 
     def invert(self):
-        return RelationAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
+        return RelationAssignment(
+            self.assigned_structure,
+            self.query_structure,
+            self.qualification.invert(),
+            self.explanation
+        )
 
     def __lt__(self, other: 'RelationAssignment'):
         if not isinstance(other, RelationAssignment):
