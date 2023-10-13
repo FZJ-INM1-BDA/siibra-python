@@ -162,7 +162,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     @property
     def filter_attributes(self) -> Dict[str, Any]:
-        return {"modality": self.modality}
+        raise NotImplementedError
 
     @property
     def _compound_key(self):
@@ -170,7 +170,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     @property
     def subfeature_index(self) -> Tuple[str]:
-        return ("average",)
+        raise NotImplementedError
 
     @classmethod
     def _merge_instances(

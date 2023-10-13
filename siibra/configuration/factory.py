@@ -483,18 +483,16 @@ class Factory:
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
-            "timestep": spec.get("timestep", ("1 no_unit"))
+            "timestep": spec.get("timestep", ("1 timestep"))
         }
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
-        files_indexed_by_subjects = spec.get("files_indexed_by", "subjects") == "subjects"
         timeseries_by_file = []
         for fkey, filename in files.items():
             kwargs.update({
                 "files": {fkey: filename},
-                "subject": fkey if files_indexed_by_subjects else "average",
-                "feature": None if files_indexed_by_subjects else fkey
+                "subject": fkey
             })
             timeseries_by_file.append(timeseries_cls(**kwargs))
         return timeseries_by_file

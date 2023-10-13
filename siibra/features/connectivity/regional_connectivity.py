@@ -51,7 +51,7 @@ class RegionalConnectivity(Feature, Compoundable):
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
-        subject: list = ["average"],
+        subject: str = "average",
         feature: str = None
     ):
         """
@@ -152,7 +152,7 @@ class RegionalConnectivity(Feature, Compoundable):
             description=description,
             modality=modality,
             anchor=anchor,
-            **{"paradigm": "average"} if getattr(instances[0], "paradigm") else {}
+            **{"paradigm": "average"} if hasattr(instances[0], "paradigm") else {}
         )
         all_arrays = [
             instance._connector.get(fname, decode_func=instance._decode_func)
@@ -163,13 +163,13 @@ class RegionalConnectivity(Feature, Compoundable):
             )
             for fname in instance._files.values()
         ]
-        compounded._matrix = instances[0]._arraylike_to_dataframe(
+        compounded._matrix = compounded._arraylike_to_dataframe(
             np.stack(all_arrays).mean(0)
         )
         return compounded
 
     @property
-    def data(self):
+    def data(self) -> pd.DataFrame:
         """
         Returns a matrix as a pandas dataframe.
 

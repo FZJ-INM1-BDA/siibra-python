@@ -45,13 +45,13 @@ print(f"Found {len(features)} streamline count matrices.")
 # Typically, connectivity features provide a range of region-to-region
 # connectivity matrices for different subjects from an imaging cohort.
 print("Connectivity features are compounded by the modality and cohort.")
-for f in features:
-    print(f.name)
+for cf in features:
+    print(cf.name)
     # let us select the HCP cohort
-    if f.filter_attributes['cohort'] == "HCP":
-        conn = f
+    if "HCP" in cf.compounding_attritbutes:
+        conn = cf
 
-print("\n" + conn.description)
+print(f"Selected: {conn.name}'\n'" + conn.description)
 
 # %%
 # The connectivity matrices are provided as pandas DataFrames,
@@ -62,25 +62,25 @@ conn.data.iloc[0:15, 0:15]  # see the first 15x15 for simplicity
 # %%
 # Subjects are encoded via anonymized ids
 print(conn.indices)
-subject = conn.indices[0]  # let us select the first subject
+index = conn.indices[0]  # let us select the first subject
 
 # %%
 # we can access to corresponding matrix via
-matrix = conn[subject].data
+matrix = conn[index].data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
 # %%
 # The matrix can be displayed using `plot` method. Also, it can be
 # displayed only for a specific list of regions.
-selected_regions = conn.regions[0:30]
-conn[subject].plot(regions=selected_regions, reorder=True, cmap="magma")
+selected_regions = conn[index].regions[0:30]
+conn[index].plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-node_coords = conn.compute_centroids('mni152')
+node_coords = conn[index].compute_centroids('mni152')
 
 
 # %%
@@ -92,7 +92,7 @@ view = plotting.plot_connectome(
     node_size=10,
 )
 view.title(
-    f"{conn.modality} of subject {subject} in {conn[subject].cohort} cohort "
+    f"{conn.modality} of subject {index} in {conn[index].cohort} cohort "
     f"averaged on {jubrain.name}",
     size=10,
 )

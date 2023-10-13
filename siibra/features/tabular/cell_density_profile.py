@@ -97,9 +97,8 @@ class CellDensityProfile(
     @property
     def filter_attributes(self) -> Dict[str, Union[str, int]]:
         return {
-            **super().filter_attributes,
-            "section": self.section,
-            "patch": self.patch
+            attr: getattr(self, attr)
+            for attr in ["modality", "section", "patch"]
         }
 
     @property

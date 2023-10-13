@@ -64,8 +64,11 @@ class BigBrainIntensityProfile(
         self.location = location
 
     @property
-    def filter_attributes(self) -> Dict[str, Union[str, int]]:
-        return {**super().filter_attributes, "location": self.location}
+    def filter_attributes(self) -> Dict[str, Union[str, point.Point]]:
+        return {
+            attr: getattr(self, attr)
+            for attr in ["modality", "location"]
+        }
 
     @property
     def subfeature_index(self) -> point.Point:

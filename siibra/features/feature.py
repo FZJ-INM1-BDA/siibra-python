@@ -504,12 +504,21 @@ class Feature:
                 if f.id == fid or f.id == feature_id
             ][0]
         except ParseLiveQueryIdException:
-            return [
+            candidates = [
                 inst
                 for Cls in Feature.SUBCLASSES[Feature]
                 for inst in Cls.get_instances()
                 if inst.id == feature_id
-            ][0]
+            ]
+            if len(candidates) == 0:
+                raise NotFoundException(f"No feature instance wth {feature_id} found.")
+            if len(candidates) == 1:
+                return candidates[0]
+            else:
+                raise RuntimeError(
+                    f"Multiple feature instance match {feature_id}",
+                    [c.name for c in candidates]
+                )
         except IndexError:
             raise NotFoundException
 
@@ -653,7 +662,7 @@ class CompoundFeature(Feature):
         assert len(compound_key) == 1, ValueError(
             "Only features with identical compound_key can be aggregated."
         )
-        self._compound_key = next(iter(compound_key))
+        self._compound_key = list(compound_key)[0]
         assert len({f.subfeature_index for f in features}) == len(features), RuntimeError(
             "Subfeature indices should be unique to each subfeature within the CompoundFeature."
         )
@@ -664,13 +673,18 @@ class CompoundFeature(Feature):
             modality=modality,
             description="\n".join({f.description for f in features}),
             anchor=sum([f.anchor for f in features]),
-            datasets=list({ds for f in features for ds in f.datasets})
+            datasets=list(dict.fromkeys([ds for f in features for ds in f.datasets]))
         )
         self._queryconcept = queryconcept
         self._merged_feature_cached = None
 
     @property
+    def compounding_attritbutes(self):
+        return self._compound_key
+
+    @property
     def data(self):
+        assert isinstance(self._merged_feature, self._subfeature_type)
         return self._merged_feature.data
 
     @property

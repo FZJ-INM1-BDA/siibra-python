@@ -66,8 +66,10 @@ f.tight_layout()
 # showing density distributions from the pial surface to the gray/white matter
 # boundary in individual tissue samples. For the receptor measurements, we
 # supply now an additional filter to choose only GABAB profiles.
+# (ReceptorDensityProfile CompoundFeature is indexed by receptors. List by
+# `indices` property.)
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
+    (siibra.features.molecular.ReceptorDensityProfile, lambda p: p['GABAB (gamma-aminobutyric acid receptor type B)']),
     (siibra.features.cellular.CellDensityProfile, lambda p: True),
     (siibra.features.cellular.BigBrainIntensityProfile, lambda p: True),
 ]
@@ -86,3 +88,5 @@ for i, region in enumerate(regions):
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
+
+# %%

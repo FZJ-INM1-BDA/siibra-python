@@ -17,7 +17,7 @@ from . import tabular
 from ..feature import Compoundable
 
 from .. import anchor as _anchor
-from ...commons import logger, QUIET, siibra_tqdm
+from ...commons import QUIET, siibra_tqdm
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 
@@ -47,7 +47,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         timestep: str,
         description: str = "",
         datasets: list = [],
-        paradigm: str = ""
+        paradigm: str = "",
+        subject: str = "average"
     ):
         """
         """
@@ -64,18 +65,17 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         self._files = files
         self._decode_func = decode_func
         self.regions = regions
-        self._tables = {}
+        self._table = None
         self.paradigm = paradigm
-        self.timestep = timestep
+        self._subject = subject
+        val, unit = timestep.split(" ")
+        self.timestep = (float(val), unit)
 
     @property
     def filter_attributes(self) -> Dict[str, str]:
         return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
-            "cohort": self.cohort,
-            "paradigm": self.paradigm,
-            "subject": self.index[0]
+            attr: getattr(self, attr)
+            for attr in ["modality", "cohort", "index", "paradigm"]
         }
 
     @property
@@ -84,7 +84,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def subfeature_index(self) -> str:
-        return self.index
+        return (self.index, self.paradigm)
 
     @property
     def index(self):
@@ -101,55 +101,65 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     def name(self):
         supername = super().name
         postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
-        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index[0]}"
+        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index}"
 
-    def get_table(self, subject: str = None):
+    @property
+    def data(self):
         """
-        Returns a pandas dataframe where the column headers are regions and the
-        indcies indicate disctrete timesteps.
+        Returns a table as a pandas dataframe.
 
-        Parameters
-        ----------
-        subject: str, default: None
-            Name of the subject (see RegionalTimeseriesActivity.subjects for available names).
-            If None, the mean is taken in case of multiple available data tables.
         Returns
         -------
         pd.DataFrame
-            A table with region names as the column and timesteps as indices.
+            A square table with region names as the column and row names.
         """
-        assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple signal tables available, but no subject given - return mean table
-            logger.info(
-                f"No subject name supplied, returning mean signal table across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
+        if self._table is None:
+            self._table = self._load_table()
+        return self._table.copy()
+
+    @classmethod
+    def _merge_instances(
+        cls,
+        instances: List["RegionalTimeseriesActivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in instances}) == 1
+        assert len({f.timestep for f in instances}) == 1
+        compounded = cls(
+            timestep=f"{instances[0].timestep[0]} {instances[0].timestep[1]}",
+            cohort=instances[0].cohort,
+            regions=instances[0].regions,
+            connector=instances[0]._connector,
+            decode_func=instances[0]._decode_func,
+            files=[],
+            subject="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            paradigm="average"
+        )
+        all_arrays = [
+            instance._connector.get(fname, decode_func=instance._decode_func)
+            for instance in siibra_tqdm(
+                instances,
+                total=len(instances),
+                desc=f"Averaging {len(instances)} connectivity matrices"
             )
-            if "mean" not in self._tables:
-                all_arrays = [
-                    self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} signal tables"
-                    )
-                ]
-                self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._tables['mean'].copy()
-        if subject is None:
-            subject = next(iter(self._files.keys()))
-        if subject not in self._files:
-            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._tables:
-            self._tables[subject] = self._load_table(subject)
-        return self._tables[subject].copy()
+            for fname in instance._files.values()
+        ]
+        compounded._table = compounded._array_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return compounded
 
     def _load_table(self):
         """
         Extract the timeseries table.
         """
         array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
-        return self._array_to_dataframe(array)
+        return self._array_to_dataframe(array.to_numpy())
 
     def __len__(self):
         return len(self._files)
@@ -199,26 +209,33 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         Convert a numpy array with the regional activity data to
         a DataFrame with regions as column headers and timesteps as indices.
         """
-        df = pd.DataFrame(array)
+        ncols = array.shape[1]
+        df = pd.DataFrame(
+            array,
+            index=pd.TimedeltaIndex(
+                np.arange(0, array.shape[0]) * self.timestep[0],
+                unit=self.timestep[1],
+                name="time"
+            )
+        )
         parcellations = self.anchor.represented_parcellations()
         assert len(parcellations) == 1
         parc = next(iter(parcellations))
         with QUIET:
-            indexmap = {
+            columnmap = {
                 i: parc.get_region(regionname, allow_tuple=True)
                 for i, regionname in enumerate(self.regions)
             }
-        ncols = array.shape[1]
-        if len(indexmap) == ncols:
+        if len(columnmap) == ncols:
             remapper = {
-                label - min(indexmap.keys()): region
-                for label, region in indexmap.items()
+                label - min(columnmap.keys()): region
+                for label, region in columnmap.items()
             }
             df = df.rename(columns=remapper)
         return df
 
     def plot(
-        self, subject: str = None, regions: List[str] = None, *args,
+        self, regions: List[str] = None, *args,
         backend="matplotlib", **kwargs
     ):
         """
@@ -236,7 +253,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        table = self.get_table(subject).iloc[:, indices]
+        table = self.data.iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
@@ -260,12 +277,17 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        table = self.get_table(self.index).iloc[:, indices]
+        table = self.data.iloc[:, indices].reset_index(drop=True)
         table.columns = [str(r) for r in table.columns]
+        kwargs["title"] = kwargs.get("title", f"{self.modality}" + f" for subject={self.subject}")
+        kwargs["labels"] = kwargs.get("labels", {
+            "xlabel": self.data.index.to_numpy(dtype='timedelta64[ms]')}
+        )
         from plotly.express import imshow
         return imshow(
+            *args,
             table.T,
-            title=f"{self.modality}" + f" for subject={self.subject}"
+            **kwargs
         )
 
 

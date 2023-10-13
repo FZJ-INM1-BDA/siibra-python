@@ -59,8 +59,11 @@ class ReceptorDensityProfile(
         self._unit_cached = None
 
     @property
-    def filter_attributes(self) -> Dict[str, Union[str, int]]:
-        return {**super().filter_attributes, "receptor": self.receptor}
+    def filter_attributes(self) -> Dict[str, Union[str, str]]:
+        return {
+            attr: getattr(self, attr)
+            for attr in ["modality", "receptor"]
+        }
 
     @property
     def subfeature_index(self) -> str:
@@ -82,6 +85,10 @@ class ReceptorDensityProfile(
             self.type,
             vocabularies.RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
         )
+
+    @property
+    def name(self):
+        return super().name + f" for {self.type}"
 
     @property
     def neurotransmitter(self):
