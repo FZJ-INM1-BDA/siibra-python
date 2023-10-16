@@ -23,6 +23,8 @@ from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
+from ...retrieval.requests import HttpRequest
+
 
 import pandas as pd
 import numpy as np
@@ -88,7 +90,11 @@ class RegionalConnectivity(Feature, Compoundable):
             datasets=datasets,
         )
         self.cohort = cohort.upper()
-        self._connector = connector
+        if isinstance(connector, str):
+            assert len(files) == 1
+            self._connector = HttpRequest(connector, decode_func)
+        else:
+            self._connector = connector
         self._files = files
         self._decode_func = decode_func
         self.regions = regions
@@ -144,7 +150,7 @@ class RegionalConnectivity(Feature, Compoundable):
         compounded = cls(
             cohort=instances[0].cohort,
             regions=instances[0].regions,
-            connector=instances[0]._connector,
+            connector="",
             decode_func=instances[0]._decode_func,
             files=[],
             subject="average",
@@ -154,8 +160,9 @@ class RegionalConnectivity(Feature, Compoundable):
             anchor=anchor,
             **{"paradigm": "average"} if hasattr(instances[0], "paradigm") else {}
         )
+        getter = lambda conn, fname, func: conn.get(fname, func) if conn else conn.data
         all_arrays = [
-            instance._connector.get(fname, decode_func=instance._decode_func)
+            getter(instance._connector, fname, instance._decode_func)
             for instance in siibra_tqdm(
                 instances,
                 total=len(instances),
@@ -448,7 +455,10 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         Extract connectivity matrix.
         """
-        array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
+        if isinstance(self._connector, HttpRequest):
+            array = self._connector.data
+        else:
+            array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(

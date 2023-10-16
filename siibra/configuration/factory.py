@@ -441,12 +441,16 @@ class Factory:
         except Exception:
             raise ValueError(f"No method for building connectivity matrix of type {modality}.")
 
+        decoder_func = cls.extract_decoder(spec)
+        repo_connector = cls.extract_connector(spec) if spec.get('repository', None) else None
+        if repo_connector is None:
+            base_url = spec.get("base_url", "")
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
+            "connector": repo_connector,
+            "decode_func": decoder_func,
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec)
@@ -460,7 +464,8 @@ class Factory:
             kwargs.update({
                 "files": {fkey: filename},
                 "subject": fkey if files_indexed_by_subjects else "average",
-                "feature": None if files_indexed_by_subjects else fkey
+                "feature": None if files_indexed_by_subjects else fkey,
+                "connector": repo_connector or base_url + filename
             })
             conn_by_file.append(conn_cls(**kwargs))
         return conn_by_file
