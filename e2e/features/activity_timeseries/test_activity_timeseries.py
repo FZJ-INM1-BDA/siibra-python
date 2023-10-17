@@ -1,10 +1,12 @@
 import siibra
 import pytest
 from typing import List
-
+import sys
 from siibra.features.tabular.regional_timeseries_activity import RegionalBOLD
 from siibra.features.feature import CompoundFeature
 from e2e.util import check_duplicate
+
+skip_on_windows = pytest.mark.skipif(sys.platform == "win32", reason="Fails due to memory limitation issues on Windows on Github actions. (Passes on local machines.)")
 
 jba_29 = siibra.parcellations["julich 2.9"]
 
@@ -27,23 +29,23 @@ def test_feature_unique():
 
 
 bold_cfs = [
-    siibra.features.get(jba_29, "bold"),
-    siibra.features.get(siibra.parcellations["julich 3"], "bold")
+    *siibra.features.get(jba_29, "bold"),
+    *siibra.features.get(siibra.parcellations["julich 3"], "bold")
 ]
 
 
 # getting data is a rather expensive operation
 # only do once for the master list
-def test_timeseries_get_data():
-    assert len(bold_cfs) == 2
-    for cf in bold_cfs:
-        assert isinstance(cf, CompoundFeature)
-        _ = cf.data
-        for f in cf:
-            assert isinstance(f, RegionalBOLD)
-            assert isinstance(f.subject, str)
-            assert isinstance(f.index, tuple)
-            _ = f.data
+@pytest.mark.parametrize("cf", bold_cfs)
+@skip_on_windows
+def test_timeseries_get_data(cf):
+    assert isinstance(cf, CompoundFeature)
+    _ = cf.data
+    for f in cf:
+        assert isinstance(f, RegionalBOLD)
+        assert isinstance(f.subject, str)
+        assert isinstance(f.index, str)
+        _ = f.data
 
 
 args = [(jba_29, "RegionalBOLD"), (jba_29, RegionalBOLD)]

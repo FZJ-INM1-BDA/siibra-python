@@ -90,7 +90,7 @@ class RegionalConnectivity(Feature, Compoundable):
             datasets=datasets,
         )
         self.cohort = cohort.upper()
-        if isinstance(connector, str):
+        if isinstance(connector, str) and connector:
             assert len(files) == 1
             self._connector = HttpRequest(connector, decode_func)
         else:
@@ -152,7 +152,7 @@ class RegionalConnectivity(Feature, Compoundable):
             regions=instances[0].regions,
             connector="",
             decode_func=instances[0]._decode_func,
-            files=[],
+            files=None,
             subject="average",
             feature="average",
             description=description,
@@ -160,7 +160,8 @@ class RegionalConnectivity(Feature, Compoundable):
             anchor=anchor,
             **{"paradigm": "average"} if hasattr(instances[0], "paradigm") else {}
         )
-        getter = lambda conn, fname, func: conn.get(fname, func) if conn else conn.data
+        # pull the data and cache the matrix
+        getter = lambda conn, fname, func: conn.get(fname, decode_func=func) if isinstance(conn, RepositoryConnector) else conn.data
         all_arrays = [
             getter(instance._connector, fname, instance._decode_func)
             for instance in siibra_tqdm(
@@ -243,14 +244,12 @@ class RegionalConnectivity(Feature, Compoundable):
                 f"Plotting connectivity matrices with {backend} is not supported."
             )
 
-    def __iter__(self):
-        return ((sid, self.data(sid)) for sid in self._files)
-
     def _export(self, fh: ZipFile):
         super()._export(fh)
-        for sub in self.index:
-            df = self.data(sub)
-            fh.writestr(f"sub/{sub}/matrix.csv", df.to_csv())
+        if self.feature is None:
+            fh.writestr(f"sub/{self.index}/matrix.csv", self.data.to_csv())
+        else:
+            fh.writestr(f"feature/{self.index}/matrix.csv", self.data.to_csv())
 
     def get_profile(
         self,
@@ -428,6 +427,7 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         if not isinstance(array, np.ndarray):
             array = array.to_numpy()
+        assert array.shape[0] == array.shape[1], f"Connectivity matrices must be square but found {array.shape}"
         if not (array == array.T).all():
             logger.warning("The connectivity matrix is not symmetric.")
         df = pd.DataFrame(array)
