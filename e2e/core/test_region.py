@@ -98,3 +98,9 @@ def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, h
                 repeat("ebrains")
             )
         assert len([f for f in features]) > 0
+
+def test_related_region_hemisphere():
+    reg = siibra.get_region("2.9", "PGa")
+    all_related_reg = [reg for reg in reg.get_related_regions()]
+    assert any("left" in ass.assigned_structure.name for ass in all_related_reg)
+    assert any("right" in ass.assigned_structure.name for ass in all_related_reg)
