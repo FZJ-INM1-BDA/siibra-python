@@ -895,14 +895,12 @@ class RegionRelationAssessments(RelationAssignment[Region]):
                     logger.warning(f"other version with uuid {uuid} not found")
                     continue
 
-                if len(found_targets) > 1:
-                    logger.warning(f"Found multiple ({len(found_targets)}), returning the first one")
-
-                yield cls(
-                    query_structure=src,
-                    assigned_structure=found_targets[0],
-                    qualification=RegionRelationship.OTHER_VERSION
-                )
+                for found_target in found_targets:
+                    yield cls(
+                        query_structure=src,
+                        assigned_structure=found_target,
+                        qualification=RegionRelationship.OTHER_VERSION
+                    )
 
             # homologuous
             relations = pe.get("inRelationTo", [])
