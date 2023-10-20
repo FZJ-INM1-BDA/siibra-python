@@ -220,15 +220,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                     self.key,
                     self.id,
                 }
-                if self.spec:
+                if self._spec:
                     ebrain_ids = [
                         value
-                        for value in self.spec.get("ebrains", {}).values()
+                        for value in self._spec.get("ebrains", {}).values()
                         if isinstance(value, str)
                     ]
                     ebrain_nested_ids = [
                         _id
-                        for value in self.spec.get("ebrains", {}).values() if isinstance(value, list)
+                        for value in self._spec.get("ebrains", {}).values() if isinstance(value, list)
                         for _id in value
                     ]
                     assert all(isinstance(_id, str) for _id in ebrain_nested_ids)
@@ -909,9 +909,9 @@ class RegionRelationAssessments(RelationAssignment[Region]):
 
     @classmethod
     def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
-        if not region.spec:
+        if not region._spec:
             return None
-        for ebrain_type, ebrain_ref in region.spec.get("ebrains", {}).items():
+        for ebrain_type, ebrain_ref in region._spec.get("ebrains", {}).items():
             if ebrain_type in _get_reg_relation_asmgt_types:
                 fn = _get_reg_relation_asmgt_types[ebrain_type]
                 yield from fn(cls, region, ebrain_ref)

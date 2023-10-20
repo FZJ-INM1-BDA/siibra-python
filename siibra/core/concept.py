@@ -90,7 +90,7 @@ class AtlasConcept:
         self._description = description
         self._publications = publications
         self.datasets = datasets
-        self.spec = spec
+        self._spec = spec
 
     @property
     def description(self):
