@@ -768,20 +768,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
+        def is_index_valid(xyz: tuple, vol_shape: tuple):
+            return all([0 <= xyz[i] < vol_shape[i] for i in range(3)])
+
         fragments = self.fragments or {None}
         if isinstance(x, int):
             return [
                 (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
                 for fragment in fragments
                 for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+                if is_index_valid((x, y, x), volimg.dataobj.shape)
             ]
         else:
+            max_index = len(x) if isinstance(x, list) else x.size
             return [
-                (pointindex, volume, fragment, value)
+                (pointindex, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
                 for fragment in fragments
                 for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                for pointindex, value
-                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
+                if is_index_valid((x, y, x), volimg.dataobj.shape)
+                for pointindex in range(max_index)
             ]
 
     def _assign(
