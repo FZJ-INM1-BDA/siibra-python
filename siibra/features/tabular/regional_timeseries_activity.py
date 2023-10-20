@@ -31,10 +31,6 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     Datasets that provide regional activity over time.
     """
 
-    DESCRIPTION = (
-        ""
-    )
-
     def __init__(
         self,
         cohort: str,
@@ -80,7 +76,10 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def _compound_key(self):
-        return (self.modality, self.cohort)
+        return tuple((
+            self.filter_attributes[attr]
+            for attr in ["modality", "cohort"]
+        ),)
 
     @property
     def subfeature_index(self) -> str:

@@ -111,7 +111,10 @@ class RegionalConnectivity(Feature, Compoundable):
 
     @property
     def _compound_key(self):
-        return (self.modality, self.cohort)
+        return tuple((
+            self.filter_attributes[attr]
+            for attr in ["modality", "cohort"]
+        ),)
 
     @property
     def subfeature_index(self) -> str:

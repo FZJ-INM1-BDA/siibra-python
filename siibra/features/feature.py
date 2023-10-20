@@ -597,11 +597,20 @@ class Compoundable(ABC):
 
     @property
     @abstractmethod
-    def _compound_key(self) -> Tuple[Any]:
+    def _compound_key(self) -> List[Any]:
         """
         Unique key of the compound to which this feuatre will be assigned.
-        In other words, features with the same compound key will become subfeatures of the same compound.
-        TODO introduce an assertion at runtime that these are made up as a subset of the filter attributes.
+        In other words, features with the same compound key will become
+        subfeatures of the same compound.
+
+        This key must only be created from `filter_attributes` as it is the
+        filter for compounding.
+        Example
+        -------
+        return *(
+            self.filter_attributes[attr]
+            for attr in ["modality", "cohort"]
+        ),
         """
         raise NotImplementedError
 
@@ -615,11 +624,14 @@ class Compoundable(ABC):
         anchor: _anchor.AnatomicalAnchor
     ) -> Feature:
         """
-        Compute the merge data and create a merged instance from a set of
-        instances of this class. This will be used by CompoundFeature to
-        create the aggegated data and plot it. For example, to compute an
+        Merge data and create a merged instance from a list of instances of
+        this class. This will be used by CompoundFeature to create the
+        aggegated data and to plot the merged data. For example, to compute an
         average connectivity matrix from a set of subfeatures, we create a
         RegionalConnectivtyMatrix.
+
+        Merged data can have different meaning based on feature type. Usually,
+        just the average.
         """
         raise NotImplementedError
 
@@ -701,10 +713,12 @@ class CompoundFeature(Feature):
 
     @property
     def subfeatures(self):
+        """Features that make up the compound feature."""
         return list(self._subfeatures.values())
 
     @property
     def indices(self):
+        """Unique indices to features making up the compound feature."""
         return list(self._subfeatures.keys())
 
     @property
@@ -765,7 +779,11 @@ class CompoundFeature(Feature):
         queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
     ) -> List['CompoundFeature']:
         """
-        Compound features of the same the same type based on their anchors.
+        Compound features of the same the same type based on their `_compound_key`.
+
+        If there are features that are not of type `Compoundable`, they are
+        returned as is.
+
         Parameters
         ----------
         features: List[Feature]
@@ -775,7 +793,7 @@ class CompoundFeature(Feature):
 
         Returns
         -------
-        List[CompoundFeature]
+        List[CompoundFeature | Feature]
         """
         non_compound_features = []
         grouped_features = defaultdict(list)

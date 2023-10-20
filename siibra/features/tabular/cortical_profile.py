@@ -166,7 +166,10 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     @property
     def _compound_key(self):
-        return (self.modality,)
+        return tuple((
+            self.filter_attributes[attr]
+            for attr in ["modality"]
+        ),)
 
     @property
     def subfeature_index(self) -> Tuple[str]:
