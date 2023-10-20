@@ -20,7 +20,8 @@ from ..features.tabular import (
     receptor_density_fingerprint,
     cell_density_profile,
     layerwise_cell_density,
-    regional_timeseries_activity
+    regional_timeseries_activity,
+    point_distribution
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
@@ -136,8 +137,13 @@ class Factory:
             location = None
 
         if (region is None) and (location is None):
-            print(spec)
-            raise RuntimeError("Spec provides neither region or location - no anchor can be extracted.")
+            if "space" in spec:
+                location = spec["space"]
+            else:
+                raise RuntimeError(
+                    "Specification provides neither region or location - no"
+                    f"anchor can be extracted. Supplied spec:\n{spec}"
+                )
 
         if 'species' in spec:
             species = Species.decode(spec['species'])
@@ -357,6 +363,28 @@ class Factory:
             space_id = spec.get("space").get("@id")
             coords = [tuple(c) for c in spec.get("coordinates")]
         return pointset.PointSet(coords, space=space_id)
+
+    @classmethod
+    @build_type("siibra/feature/point_distribution/v0.1")
+    def build_point_distribution(cls, spec):
+        if "files" in spec:
+            baseurl = spec.get("base_url", "")
+            files = spec.pop("files")
+            return [
+                cls.build_point_distribution(
+                    {**spec, "file": {index: baseurl + fname}}
+                )
+                for index, fname in files.items()
+            ]
+
+        return point_distribution.PointDistribution(
+            modality=spec['modality'],
+            space_spec=spec.get('space'),
+            description=spec.get('description'),
+            file=spec['file'],
+            decoder=cls.extract_decoder(spec),
+            datasets=cls.extract_datasets(spec)
+        )
 
     @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
