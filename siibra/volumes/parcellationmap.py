@@ -768,26 +768,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
-        def is_index_valid(xyz: tuple, vol_shape: tuple):
-            return all([0 <= xyz[i] < vol_shape[i] for i in range(3)])
+        def _read_voxels_from_volume(xyz, volimg):
+            xyz = np.stack(xyz, axis=1)
+            valid_points_mask = np.all([(0 <= di) & (di < vol_size) for vol_size, di in zip(volimg.shape, xyz.T)], axis=0)
+            x, y, z = xyz[valid_points_mask].T
+            valid_points_indices, *_ = np.where(valid_points_mask)
+            valid_data_points = np.asanyarray(volimg.dataobj)[x, y, z]
+            return zip(valid_points_indices, valid_data_points)
+
+        # integers are just single-element arrays, cast to avoid an extra code branch for integers
+        x, y, z = [np.array(di) for di in (x, y, z)]
 
         fragments = self.fragments or {None}
-        if isinstance(x, int):
-            return [
-                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                if is_index_valid((x, y, x), volimg.dataobj.shape)
-            ]
-        else:
-            max_index = len(x) if isinstance(x, list) else x.size
-            return [
-                (pointindex, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                if is_index_valid((x, y, x), volimg.dataobj.shape)
-                for pointindex in range(max_index)
-            ]
+        return [
+            (pointindex, volume, fragment, data_point)
+            for fragment in fragments
+            for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+            # transformations or user input might produce points outside the volume, filter these out.
+            for (pointindex, data_point) in _read_voxels_from_volume((x, y, z), volimg)
+        ]
 
     def _assign(
         self,
