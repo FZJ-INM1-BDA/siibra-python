@@ -15,14 +15,11 @@ license: Apache License, Version 2.0
 
 repository-code: https://github.com/FZJ-INM1-BDA/siibra-python
 
-version: v0.4a75
+version: v0.4a76
 
 date-released: 2023-10-23
 
-identifiers:
-  - description: Machine learning for neuroimaging with scikit-learn
-    type: doi
-    value: 10.5281/zenodo.10033763
+doi: https://zenodo.org/records/7885729
 
 contact:
   - given-names: Timo
