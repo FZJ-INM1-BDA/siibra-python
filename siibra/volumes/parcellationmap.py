@@ -28,7 +28,8 @@ from ..commons import (
     create_gaussian_kernel,
     siibra_tqdm,
     Species,
-    CompareMapsResult
+    CompareMapsResult,
+    get_uuid
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointset
@@ -68,7 +69,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         name: str,
         space_spec: dict,
         parcellation_spec: dict,
-        indices: Dict[str, Dict],
+        indices: Dict[str, List[Dict]],
         volumes: list = [],
         shortname: str = "",
         description: str = "",
@@ -1124,3 +1125,110 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                                 )
 
         return assignments
+
+    @classmethod
+    def create_map_from_volume(
+        cls,
+        name: str,
+        volume: Union[_volume.Volume, List[_volume.Volume]],
+        regionnames: List[str],
+        regionlabels: List[int],
+        parcellation_spec: Union[str, "parcellation.Parcellation"] = None
+    ) -> 'Map':
+        """
+        Add a custom labelled parcellation map to siibra from a labelled NIfTI file.
+
+        Parameters:
+        ------------
+        name: str
+            Human-readable name of the parcellation.
+        volume: Volume, or a list of Volumes.
+        space_spec: str, Space
+            Specification of the reference space (space object, name, keyword, or id - e.g. 'mni152').
+        regionnames: list[str]
+            List of human-readable names of the mapped regions.
+        regionlabels: list[int]
+            List of integer labels in the nifti file corresponding to the list of regions.
+        parcellation: str or Parcellation. Optional.
+            If the related parcellation already defined or preconfigured in siibra.
+        """
+        # providers and map indices
+        providers = []
+        for vol_idx, vol in enumerate(
+            volume if isinstance(volume, list) else [volume]
+        ):
+            image = vol.fetch()
+            arr = np.asanyarray(image.dataobj)
+            labels_in_volume = np.unique(arr)[1:].astype('int')
+
+            # populate region indices from given name/label lists
+            indices = dict()
+            for label, regionname in zip(regionlabels, regionnames):
+                if label not in labels_in_volume:
+                    logger.warning(
+                        f"Label {label} not mapped in the provided NIfTI volume -> "
+                        f"region '{regionname} will not be in the map."
+                    )
+                elif label in [v[0]['label'] for v in indices.values() if v[0]['volume'] == vol_idx]:
+                    logger.warning(f"Label {label} already defined in the same volume; will not map it to '{regionname}'.")
+                else:
+                    assert regionname not in indices, f"'{regionname}' must be unique in `regionnames`."
+                    indices[regionname] = [{'volume': vol_idx, 'label': label}]
+
+            # check for any remaining labels in the NIfTI volume
+            unnamed_labels = list(set(labels_in_volume) - set(regionlabels))
+            if unnamed_labels:
+                logger.warning(
+                    f"The following labels appear in the NIfTI volume {vol_idx}, but not in "
+                    f"the specified regions: {', '.join(str(l) for l in unnamed_labels)}. "
+                    "They will be removed from the nifti volume."
+                )
+                for label in unnamed_labels:
+                    arr[arr == label] = 0
+            providers.extend(vol._providers.values())
+
+        # parcellation
+        if parcellation_spec is None:
+            parcellation_spec = name
+        try:
+            parcobj = parcellation.Parcellation.registry().get(parcellation_spec)
+            logger.info(f"Using '{parcellation_spec}', siibra decoded the parcellation as '{parcobj}'")
+        except Exception:
+            logger.info(
+                f"Using '{parcellation_spec}', siibra could not decode the "
+                " parcellation. Building a new parcellation."
+            )
+            # build a new parcellation
+            parcobj = parcellation.Parcellation(
+                identifier=get_uuid(','.join(regionnames)),
+                name=name,
+                species=vol.space.species,
+                regions=list(map(_region.Region, regionnames)),
+            )
+            if parcobj.key not in list(parcellation.Parcellation.registry()):
+                parcellation.Parcellation.registry().add(parcobj.key, parcobj)
+
+        for region in siibra_tqdm(
+            indices.keys(),
+            desc="Checking if provided regions are defined in the parcellation."
+        ):
+            try:
+                _ = parcobj.get_region(region)
+            except Exception:
+                logger.warning(f"'{region}' is missing in the parcellation.")
+
+        # build the parcellation map object
+        parcmap = Map(
+            identifier=get_uuid(name),
+            name=f"{name} map in {volume.space.name}",
+            space_spec={"@id": volume.space.id},
+            parcellation_spec={'name': parcobj.name},
+            indices=indices,
+            volumes=[_volume.Volume(volume.space, providers=providers)]
+        )
+
+        # add it to siibra's registry
+        Map.registry().add(parcmap.key, parcmap)
+
+        # return the map - note that it has a pointer to the parcellation
+        return parcmap

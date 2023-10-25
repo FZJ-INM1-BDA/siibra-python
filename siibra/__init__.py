@@ -50,6 +50,7 @@ set_ebrains_token = _EbrainsRequest.set_token
 fetch_ebrains_token = _EbrainsRequest.fetch_token
 find_regions = _parcellation.Parcellation.find_regions
 from_json = factory.Factory.from_json
+create_map_from_volume = _parcellationmap.Map.create_map_from_volume
 
 
 def __getattr__(attr: str):
@@ -152,5 +153,6 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
-        "warm_cache"
+        "warm_cache",
+        "create_map_from_volume"
     ]
