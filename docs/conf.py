@@ -68,7 +68,8 @@ extensions = [
     "sphinxcontrib.jquery",  # work around for jQuery not being loaded automatically dependency removal from sphinx 7
     "sphinx.ext.graphviz",  # to allow drawing diagrams
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
-    "sphinx_copybutton"
+    "sphinx_copybutton",  # adds a copy button for code fields
+    "sphinxcontrib.images"  # adds lightbox to images
 ]
 
 

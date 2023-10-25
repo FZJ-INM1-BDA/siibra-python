@@ -18,3 +18,4 @@ sphinx_autopackagesummary
 sphinxcontrib.jquery
 graphviz
 sphinx-copybutton
+sphinxcontrib-images
