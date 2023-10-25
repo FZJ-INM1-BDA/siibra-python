@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# simple data features anchored to a point in space
+"""Non-preconfigured data features hosted at EBRAINS."""
 
 from zipfile import ZipFile
 from .. import anchor as _anchor

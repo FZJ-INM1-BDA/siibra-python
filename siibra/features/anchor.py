@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Handles the relation between study targets and AtlasConcepts."""
 
 from ..commons import logger, Species
 
@@ -28,6 +29,7 @@ from ..vocabularies import REGION_ALIASES
 from typing import Union, List, Dict
 
 AnatomicalAssignment = RelationAssignment[Union[Region, Location]]
+
 
 class AnatomicalAnchor:
     """

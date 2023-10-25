@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Query Allen Human Brain Atlas microarray data in specified volume."""
 
 from .query import LiveQuery
 
