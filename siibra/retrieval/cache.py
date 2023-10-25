@@ -18,6 +18,7 @@ import hashlib
 import os
 from appdirs import user_cache_dir
 import tempfile
+from threading import Lock
 
 from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE
 
@@ -48,6 +49,7 @@ class Cache:
     _instance = None
     folder = user_cache_dir(".".join(__name__.split(".")[:-1]), "")
     SIZE_GIB = 2  # maintenance will delete old files to stay below this limit
+    _threadlock = Lock()
 
     def __init__(self):
         raise RuntimeError(
@@ -74,36 +76,38 @@ class Cache:
         import shutil
 
         logger.info(f"Clearing siibra cache at {self.folder}")
-        shutil.rmtree(self.folder)
-        self.folder = assert_folder(self.folder)
+        with self._threadlock:
+            shutil.rmtree(self.folder)
+            self.folder = assert_folder(self.folder)
 
     def run_maintenance(self):
         """ Shrinks the cache by deleting oldest files first until the total size
         is below cache size (Cache.SIZE) given in GiB."""
-        # build sorted list of cache files and their os attributes
-        files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
-        sfiles = sorted([(fn, os.stat(fn)) for fn in files], key=lambda t: t[1].st_atime)
+        with self._threadlock:
+            # build sorted list of cache files and their os attributes
+            files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
+            sfiles = sorted([(fn, os.stat(fn)) for fn in files], key=lambda t: t[1].st_atime)
 
-        # determine the first n files that need to be deleted to reach the accepted cache size
-        size_gib = sum(t[1].st_size for t in sfiles) / 1024**3
-        targetsize = size_gib
-        index = 0
-        for index, (fn, st) in enumerate(sfiles):
-            if targetsize <= self.SIZE_GIB:
-                break
-            targetsize -= st.st_size / 1024**3
+            # determine the first n files that need to be deleted to reach the accepted cache size
+            size_gib = sum(t[1].st_size for t in sfiles) / 1024**3
+            targetsize = size_gib
+            index = 0
+            for index, (fn, st) in enumerate(sfiles):
+                if targetsize <= self.SIZE_GIB:
+                    break
+                targetsize -= st.st_size / 1024**3
 
-        if index > 0:
-            logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
-            for fn, st in sfiles[:index + 1]:
-                if os.path.isdir(fn):
-                    import shutil
-                    size = sum(os.path.getsize(f) for f in os.listdir(fn) if os.path.isfile(f))
-                    shutil.rmtree(fn)
-                else:
-                    size = st.st_size
-                    os.remove(fn)
-                size_gib -= size / 1024**3
+            if index > 0:
+                logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
+                for fn, st in sfiles[:index + 1]:
+                    if os.path.isdir(fn):
+                        import shutil
+                        size = sum(os.path.getsize(f) for f in os.listdir(fn) if os.path.isfile(f))
+                        shutil.rmtree(fn)
+                    else:
+                        size = st.st_size
+                        os.remove(fn)
+                    size_gib -= size / 1024**3
 
     @property
     def size(self):
