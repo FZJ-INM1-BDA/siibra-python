@@ -119,3 +119,14 @@ This software code is funded from the European Union’s Horizon 2020 Framework 
    :target: https://siibra-python.readthedocs.io/en/latest/?badge=latest
 .. |doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.7885729.svg
    :target: https://doi.org/10.5281/zenodo.7885729
+
+
+.. cite-start
+How to cite
+-----------
+Please cite accoding to citation file (CITATION.cff) of the version used or all
+versions by `Timo Dickscheid, Xiayun Gui, Ahmet Nihat Simsek, Vadim Marcenko,
+Louisa Köhnen, Sebastian Bludau, & Katrin Amunts. (2023). siibra-python -
+Software interface for interacting with brain atlases (v0.4a47). Zenodo.
+https://doi.org/10.5281/zenodo.7885729`.
+.. cite-ends

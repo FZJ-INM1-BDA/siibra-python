@@ -12,11 +12,12 @@ siibra - Software interface for interacting with brain atlases
    start
    concepts
    step-by-step
-   contribute
-   acknowledgements
    api
    create_preconfiguration
    developer
+   contribute
+   acknowledgements
+   cite
 
 ..
     Indices and tables
