@@ -25,6 +25,11 @@ import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -55,6 +60,11 @@ class CompareMapsResult:
     correlation: float
     weighted_mean_of_first: float
     weighted_mean_of_second: float
+
+
+class TypePublication(TypedDict):
+    citation: str
+    url: str
 
 
 T = TypeVar("T")

@@ -173,6 +173,10 @@ class EbrainsDataset(EbrainsBaseDataset):
     def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @staticmethod
@@ -267,6 +271,10 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     def version_identifier(self):
         return self.detail.get("versionIdentifier", "")
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
     def __init__(self, id, *, cached_data=None) -> None:
@@ -334,6 +342,10 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
     def version_ids(self) -> List['str']:
         return [version.get("id") for version in self.detail.get("versions", [])]
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class GenericDataset():
 
@@ -342,12 +354,14 @@ class GenericDataset():
         name: str = None,
         contributors: List[str] = None,
         url: str = None,
-        description: str = None
+        description: str = None,
+        license: str = "No license information is found."
     ):
         self._name = name
         self._contributors = contributors
         self._url = url
         self._description = description
+        self._license = license
 
     @property
     def contributors(self):
@@ -360,6 +374,10 @@ class GenericDataset():
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def LICENSE(self) -> str:
+        return self._license
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:

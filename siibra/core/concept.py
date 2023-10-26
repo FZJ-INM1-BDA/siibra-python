@@ -13,23 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Parent class to siibra main concepts."""
-from ..commons import create_key, clear_name, logger, InstanceTable, Species
+from ..commons import (
+    create_key,
+    clear_name,
+    logger,
+    InstanceTable,
+    Species,
+    TypePublication
+)
 
 import re
 from typing import TypeVar, Type, Union, List, TYPE_CHECKING
 
-try:
-    from typing import TypedDict
-except ImportError:
-    # support python 3.7
-    from typing_extensions import TypedDict
-
 T = TypeVar("T", bound="AtlasConcept")
-
-
-class TypePublication(TypedDict):
-    citation: str
-    url: str
 
 
 if TYPE_CHECKING:
@@ -100,6 +96,26 @@ class AtlasConcept:
             if ds.description:
                 return ds.description
         return ''
+
+    @property
+    def LICENSE(self) -> str:
+        return '\n'.join([ds.LICENSE for ds in self.datasets])
+
+    @property
+    def doi_or_url(self) -> str:
+        return '\n'.join([
+            url.get("url")
+            for ds in self.datasets
+            for url in ds.urls
+        ])
+
+    @property
+    def authors(self):
+        return [
+            contributer['name']
+            for ds in self.datasets
+            for contributer in ds.contributors
+        ]
 
     @property
     def publications(self) -> List[TypePublication]:
