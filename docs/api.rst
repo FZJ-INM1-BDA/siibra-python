@@ -6,7 +6,7 @@
 API Documentation
 =================
 
-The class and package diagrams can be found at the `developer documentation<developer>`.
+The class and package diagrams can be found at the :ref:`developer documentation <developer>`.
 
 :mod:`Siibra<siibra>`
 ====================

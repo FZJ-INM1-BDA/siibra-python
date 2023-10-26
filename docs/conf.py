@@ -90,12 +90,12 @@ napoleon_use_ivar = True
 # Mappings
 intersphinx_mapping = {
     "mainconcepts": ('../concepts.html', None),
-    "matplotlib": ("https://matplotlib.org/", None),
-    "nilearn": ('https://nilearn.github.io/stable/index.html', None),
-    "nibabel": ("https://nipy.org/nibabel/", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable", None),
+    "nilearn": ('https://nilearn.github.io/stable', None),
+    "nibabel": ("https://nipy.org/nibabel", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/dev", None),
-    "python": ("https://docs.python.org/3/", None),
+    "python": ("https://docs.python.org/3", None),
 }
 
 # autoapi options
@@ -140,14 +140,14 @@ sphinx_gallery_conf = {
     "capture_repr": ("_repr_html_", "__repr__"),
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
-    "show_signature": False,
+    "show_signature": True,
     "run_stale_examples": False
 }
 
 html_theme_options = {
     'logo_only': True,
     'display_version': True,
-    'prev_next_buttons_location': None,
+    'prev_next_buttons_location': "bottom",
     'style_external_links': False,
     'vcs_pageview_mode': '',
     'style_nav_header_background': 'white',
@@ -162,7 +162,7 @@ html_theme_options = {
 # -- Options for HTML output -------------------------------------------------
 html_theme = "sphinx_rtd_theme"
 html_show_sourcelink = False
-html_show_sphinx = False
+html_show_sphinx = True
 html_logo = "_static/siibra-python.jpeg"
 html_favicon = "_static/siibra_favicon.ico"
 html_permalinks = False

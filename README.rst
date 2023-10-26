@@ -109,19 +109,7 @@ This software code is funded from the European Union’s Horizon 2020 Framework 
 
 .. acknowledgments-end
 
-.. |License| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
-   :target: https://opensource.org/licenses/Apache-2.0
-.. |PyPI version| image:: https://badge.fury.io/py/siibra.svg
-   :target: https://pypi.org/project/siibra/
-.. |Python versions| image:: https://img.shields.io/pypi/pyversions/siibra.svg
-   :target: https://pypi.python.org/pypi/siibra
-.. |Documentation Status| image:: https://readthedocs.org/projects/siibra-python/badge/?version=latest
-   :target: https://siibra-python.readthedocs.io/en/latest/?badge=latest
-.. |doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.7885728.svg
-   :target: https://doi.org/10.5281/zenodo.7885728
-
-
-.. cite-start
+.. howtocite-start
 
 How to cite
 -----------
@@ -132,4 +120,16 @@ Louisa Köhnen, Sebastian Bludau, & Katrin Amunts. (2023). siibra-python -
 Software interface for interacting with brain atlases. Zenodo.
 https://doi.org/10.5281/zenodo.7885728`.
 
-.. cite-ends
+.. howtocite-ends
+
+
+.. |License| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+   :target: https://opensource.org/licenses/Apache-2.0
+.. |PyPI version| image:: https://badge.fury.io/py/siibra.svg
+   :target: https://pypi.org/project/siibra/
+.. |Python versions| image:: https://img.shields.io/pypi/pyversions/siibra.svg
+   :target: https://pypi.python.org/pypi/siibra
+.. |Documentation Status| image:: https://readthedocs.org/projects/siibra-python/badge/?version=latest
+   :target: https://siibra-python.readthedocs.io/en/latest/?badge=latest
+.. |doi| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.7885728.svg
+   :target: https://doi.org/10.5281/zenodo.7885728
