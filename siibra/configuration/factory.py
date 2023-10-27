@@ -39,14 +39,17 @@ from functools import wraps
 
 _registered_build_fns: Dict[str, Callable] = {}
 
+
 def build_type(type_str: str):
     def outer(fn):
         _registered_build_fns[type_str] = fn
+
         @wraps(fn)
         def inner(*args, **kwargs):
             return fn(*args, **kwargs)
         return inner
     return outer
+
 
 class Factory:
 
@@ -73,7 +76,8 @@ class Factory:
                     name=pub["name"],
                     contributors=pub["authors"],
                     url=pub["url"],
-                    description=pub["description"]
+                    description=pub["description"],
+                    license=pub.get("license")
                 )
                 for pub in spec["publications"] if pub.get('name')
             )

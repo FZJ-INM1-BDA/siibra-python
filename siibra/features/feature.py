@@ -152,8 +152,33 @@ class Feature:
 
     @property
     def description(self):
-        """ Allowssubclasses to overwrite the description with a function call. """
-        return self._description
+        """Allows subclasses to overwrite the description with a function call."""
+        if self._description:
+            return self._description
+        for ds in self.datasets:
+            if ds.description:
+                return ds.description
+        return ''
+
+    @property
+    def LICENSE(self) -> str:
+        return '\n'.join([ds.LICENSE for ds in self.datasets])
+
+    @property
+    def doi_or_url(self) -> str:
+        return '\n'.join([
+            url.get("url")
+            for ds in self.datasets
+            for url in ds.urls
+        ])
+
+    @property
+    def authors(self):
+        return [
+            contributer['name']
+            for ds in self.datasets
+            for contributer in ds.contributors
+        ]
 
     @property
     def name(self):
