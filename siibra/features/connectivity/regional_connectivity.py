@@ -19,7 +19,7 @@ from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET, siibra_tqdm
+from ...commons import logger, QUIET
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -28,7 +28,7 @@ from ...retrieval.requests import HttpRequest
 
 import pandas as pd
 import numpy as np
-from typing import Callable, Dict, Union, List
+from typing import Callable, Union, List
 
 try:
     from typing import Literal
@@ -42,6 +42,9 @@ class RegionalConnectivity(Feature, Compoundable):
     given modality for a given parcellation.
     """
 
+    _filter_attrs = ["modality", "cohort", "subject"]
+    _compound_attr = ["modality", "cohort"]
+
     def __init__(
         self,
         cohort: str,
@@ -49,7 +52,7 @@ class RegionalConnectivity(Feature, Compoundable):
         regions: list,
         connector: RepositoryConnector,
         decode_func: Callable,
-        files: Dict[str, str],
+        filename: str,
         anchor: _anchor.AnatomicalAnchor,
         description: str = "",
         datasets: list = [],
@@ -85,17 +88,16 @@ class RegionalConnectivity(Feature, Compoundable):
         Feature.__init__(
             self,
             modality=modality,
-            description=description or '\n'.join({ds.description for ds in datasets}),
+            description=description,
             anchor=anchor,
             datasets=datasets,
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
-            assert len(files) == 1
             self._connector = HttpRequest(connector, decode_func)
         else:
             self._connector = connector
-        self._files = files
+        self._filename = filename
         self._decode_func = decode_func
         self.regions = regions
         self._matrix = None
@@ -103,81 +105,18 @@ class RegionalConnectivity(Feature, Compoundable):
         self._feature = feature
 
     @property
-    def filter_attributes(self) -> Dict[str, str]:
-        return {
-            attr: getattr(self, attr)
-            for attr in ["modality", "cohort", "index"]
-        }
-
-    @property
-    def _compound_key(self):
-        return tuple((
-            self.filter_attributes[attr]
-            for attr in ["modality", "cohort"]
-        ),)
-
-    @property
-    def subfeature_index(self) -> str:
-        return self.index
-
-    @property
-    def index(self):
-        return list(self._files.keys())[0]
-
-    @property
     def subject(self):
-        """
-        Returns the subject identifiers for which matrices are available.
-        """
+        """Returns the subject identifiers for which the matrix represents."""
         return self._subject
 
     @property
     def feature(self):
+        """If applicable, returns the type of feature for which the matrix represents."""
         return self._feature
 
     @property
     def name(self):
-        supername = super().name
-        postfix = f" and paradigm {self.paradigm}" if hasattr(self, 'paradigm') else ""
-        return f"{supername} with cohort {self.cohort}" + postfix + f" - {self.index}"
-
-    @classmethod
-    def _merge_instances(
-        cls,
-        instances: List["RegionalConnectivity"],
-        description: str,
-        modality: str,
-        anchor: _anchor.AnatomicalAnchor,
-    ):
-        assert len({f.cohort for f in instances}) == 1
-        compounded = cls(
-            cohort=instances[0].cohort,
-            regions=instances[0].regions,
-            connector="",
-            decode_func=instances[0]._decode_func,
-            files=None,
-            subject="average",
-            feature="average",
-            description=description,
-            modality=modality,
-            anchor=anchor,
-            **{"paradigm": "average"} if hasattr(instances[0], "paradigm") else {}
-        )
-        # pull the data and cache the matrix
-        getter = lambda conn, fname, func: conn.get(fname, decode_func=func) if isinstance(conn, RepositoryConnector) else conn.data
-        all_arrays = [
-            getter(instance._connector, fname, instance._decode_func)
-            for instance in siibra_tqdm(
-                instances,
-                total=len(instances),
-                desc=f"Averaging {len(instances)} connectivity matrices"
-            )
-            for fname in instance._files.values()
-        ]
-        compounded._matrix = compounded._arraylike_to_dataframe(
-            np.stack(all_arrays).mean(0)
-        )
-        return compounded
+        return f"{super().name} with cohort {self.cohort} - {self.feature or self.subject}"
 
     @property
     def data(self) -> pd.DataFrame:
@@ -190,7 +129,7 @@ class RegionalConnectivity(Feature, Compoundable):
             A square matrix with region names as the column and row names.
         """
         if self._matrix is None:
-            self._matrix = self._load_matrix()
+            self._load_matrix()
         return self._matrix.copy()
 
     def _plot_matrix(
@@ -250,9 +189,9 @@ class RegionalConnectivity(Feature, Compoundable):
     def _export(self, fh: ZipFile):
         super()._export(fh)
         if self.feature is None:
-            fh.writestr(f"sub/{self.index}/matrix.csv", self.data.to_csv())
+            fh.writestr(f"sub/{self._filename}/matrix.csv", self.data.to_csv())
         else:
-            fh.writestr(f"feature/{self.index}/matrix.csv", self.data.to_csv())
+            fh.writestr(f"feature/{self._filename}/matrix.csv", self.data.to_csv())
 
     def get_profile(
         self,
@@ -382,15 +321,10 @@ class RegionalConnectivity(Feature, Compoundable):
             return profile.data.plot(*args, backend=backend, **kwargs)
 
     def __len__(self):
-        return len(self._files)
+        return len(self._filename)
 
     def __str__(self):
-        return "{} connectivity for {} from {} cohort ({} matrices)".format(
-            self.paradigm if hasattr(self, "paradigm") else self.modality,
-            "_".join(p.name for p in self.anchor.parcellations),
-            self.cohort,
-            len(self._files),
-        )
+        return self.name
 
     def compute_centroids(self, space):
         """
@@ -454,18 +388,18 @@ class RegionalConnectivity(Feature, Compoundable):
             raise RuntimeError("Could not decode connectivity matrix regions.")
         return df
 
-    def _load_matrix(self) -> pd.DataFrame:
+    def _load_matrix(self):
         """
         Extract connectivity matrix.
         """
         if isinstance(self._connector, HttpRequest):
             array = self._connector.data
         else:
-            array = self._connector.get(self._files[self.index], decode_func=self._decode_func)
+            array = self._connector.get(self._filename, decode_func=self._decode_func)
         nrows = array.shape[0]
         if array.shape[1] != nrows:
             raise RuntimeError(
                 f"Non-quadratic connectivity matrix {nrows}x{array.shape[1]} "
-                f"from {self._files[self.index]} in {str(self._connector)}"
+                f"from {self._filename} in {str(self._connector)}"
             )
-        return self._arraylike_to_dataframe(array)
+        self._matrix = self._arraylike_to_dataframe(array)

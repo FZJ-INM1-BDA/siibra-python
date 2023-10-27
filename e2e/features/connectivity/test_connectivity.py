@@ -30,8 +30,6 @@ def test_connectivity_get_data(cf: CompoundFeature):
     assert isinstance(cf, CompoundFeature)
     assert all([isinstance(f, RegionalConnectivity) for f in cf])
     assert len(cf.indices) > 0
-    matrix_df = cf.data  # get average
-    assert all(matrix_df.index[i] == r for i, r in enumerate(matrix_df.columns))
     for f in cf:
         assert isinstance(f, RegionalConnectivity)
         matrix_idx_df = f.data
@@ -57,7 +55,7 @@ args = [
 def test_get_connectivity(concept, query_arg):
     features: List["CompoundFeature"] = siibra.features.get(concept, query_arg)
     assert len(features) > 0, "Expecting some features exist, but none exist."
-    assert all(issubclass(cf.subfeature_type, RegionalConnectivity) for cf in features)
+    assert all(issubclass(cf.feature_type, RegionalConnectivity) for cf in features)
 
 
 def test_copy_is_returned():
@@ -80,7 +78,12 @@ def test_export():
     # for now, only test the first feature, given the ci resource concern
     feat: RegionalConnectivity = all_conn_instances[0]
     feat.export("file.zip")
-    z = ZipFile("file.zip")
-    # TODO: add export function to compound features and reeanble this part of the test
-    # filenames = [info.filename for info in z.filelist]
-    # assert len([f for f in filenames if f.endswith(".csv")]) > 10
+    with ZipFile("file.zip") as z:
+        filenames = [info.filename for info in z.filelist]
+        assert len([f for f in filenames if f.endswith(".csv")]) == 1
+
+    cf: CompoundFeature = compound_conns[0]
+    cf.export("file_compound.zip")
+    with ZipFile("file_compound.zip") as cz:
+        filenames = [info.filename for info in cz.filelist]
+        assert len([f for f in filenames if f.endswith(".csv")]) == len(cf)

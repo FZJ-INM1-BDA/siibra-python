@@ -20,8 +20,6 @@ from ... import vocabularies
 from ...commons import create_key
 from ...retrieval import requests
 
-from typing import Dict, Union
-
 
 class ReceptorDensityProfile(
     cortical_profile.CorticalProfile,
@@ -35,6 +33,8 @@ class ReceptorDensityProfile(
         "single tissue sample, an exemplary density distribution for a single receptor from the pial surface "
         "to the border between layer VI and the white matter."
     )
+
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["receptor"]
 
     def __init__(
         self,
@@ -57,17 +57,6 @@ class ReceptorDensityProfile(
         self._data_cached = None
         self._loader = requests.HttpRequest(tsvfile)
         self._unit_cached = None
-
-    @property
-    def filter_attributes(self) -> Dict[str, Union[str, str]]:
-        return {
-            attr: getattr(self, attr)
-            for attr in ["modality", "receptor"]
-        }
-
-    @property
-    def subfeature_index(self) -> str:
-        return self.receptor
 
     @property
     def key(self):

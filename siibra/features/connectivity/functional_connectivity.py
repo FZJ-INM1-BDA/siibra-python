@@ -16,7 +16,6 @@
 from . import regional_connectivity
 
 from hashlib import md5
-from typing import Dict, Tuple
 
 
 class FunctionalConnectivity(
@@ -25,6 +24,8 @@ class FunctionalConnectivity(
     category="connectivity"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
+
+    _filter_attrs = regional_connectivity.RegionalConnectivity._filter_attrs + ["paradigm"]
 
     def __init__(self, paradigm: str, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
@@ -38,12 +39,8 @@ class FunctionalConnectivity(
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
 
     @property
-    def filter_attributes(self) -> Dict[str, str]:
-        return dict(**super().filter_attributes, **{"paradigm": self.paradigm})
-
-    @property
-    def subfeature_index(self) -> Tuple[str]:
-        return (self.index, self.paradigm)
+    def name(self):
+        return f"{super().name} and paradigm {self.paradigm}"
 
 
 class AnatomoFunctionalConnectivity(
@@ -52,6 +49,8 @@ class AnatomoFunctionalConnectivity(
     category="connectivity"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
+
+    _filter_attrs = ["modality", "cohort", "feature"]
 
     def __init__(self, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

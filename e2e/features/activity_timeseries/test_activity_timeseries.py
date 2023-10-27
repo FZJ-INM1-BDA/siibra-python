@@ -40,11 +40,9 @@ bold_cfs = [
 @skip_on_windows
 def test_timeseries_get_data(cf):
     assert isinstance(cf, CompoundFeature)
-    _ = cf.data
     for f in cf:
         assert isinstance(f, RegionalBOLD)
         assert isinstance(f.subject, str)
-        assert isinstance(f.index, str)
         _ = f.data
 
 

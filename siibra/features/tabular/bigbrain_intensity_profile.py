@@ -16,7 +16,6 @@
 from . import cortical_profile
 
 from ...locations import point
-from typing import Dict, Union
 
 
 class BigBrainIntensityProfile(
@@ -33,6 +32,8 @@ class BigBrainIntensityProfile(
         "Taken from the tutorial at https://github.com/kwagstyl/cortical_layers_tutorial "
         "and assigned to cytoarchitectonic regions of Julich-Brain."
     )
+
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
 
     def __init__(
         self,
@@ -62,14 +63,3 @@ class BigBrainIntensityProfile(
             }
         )
         self.location = location
-
-    @property
-    def filter_attributes(self) -> Dict[str, Union[str, point.Point]]:
-        return {
-            attr: getattr(self, attr)
-            for attr in ["modality", "location"]
-        }
-
-    @property
-    def subfeature_index(self) -> point.Point:
-        return self.location

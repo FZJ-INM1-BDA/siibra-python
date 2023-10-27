@@ -19,7 +19,7 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple, List, Any
+from typing import Union, Dict, Tuple
 from textwrap import wrap
 import numpy as np
 
@@ -43,6 +43,9 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
     BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
+
+    _filter_attrs = ["modality"]
+    _compound_attr = ["modality"]
 
     def __init__(
         self,
@@ -158,41 +161,6 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         self._check_sanity()
         return pd.DataFrame(
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
-        )
-
-    @property
-    def filter_attributes(self) -> Dict[str, Any]:
-        raise NotImplementedError
-
-    @property
-    def _compound_key(self):
-        return tuple((
-            self.filter_attributes[attr]
-            for attr in ["modality"]
-        ),)
-
-    @property
-    def subfeature_index(self) -> Tuple[str]:
-        raise NotImplementedError
-
-    @classmethod
-    def _merge_instances(
-        cls,
-        instances: List["CorticalProfile"],
-        description: str,
-        modality: str,
-        anchor: _anchor.AnatomicalAnchor,
-    ):
-        assert all(np.array_equal(instances[0]._depths, f._depths) for f in instances)
-        assert len({f.unit for f in instances}) == 1
-        return CorticalProfile(
-            description=description,
-            modality=modality,
-            anchor=anchor,
-            depths=instances[0]._depths,
-            values=np.stack([f._values for f in instances]).mean(0),
-            unit=instances[0].unit,
-            boundary_positions=None,
         )
 
     def plot(self, *args, backend="matplotlib", **kwargs):

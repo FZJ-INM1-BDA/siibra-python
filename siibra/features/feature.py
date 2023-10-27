@@ -19,12 +19,11 @@ from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept
 from ..core import space, region, parcellation
 
-from pandas import DataFrame
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
-from abc import ABC, abstractmethod
+from abc import ABC
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -589,159 +588,114 @@ class Compoundable(ABC):
     Determines the necessary grouping and compounding attributes.
     """
 
+    _filter_attrs = []  # the attributes to filter this instance of feature
+    _compound_attr = []  # `compound_key` has to be created from `filter_attributes`
+
     @property
-    @abstractmethod
     def filter_attributes(self) -> Dict[str, Any]:
-        """Names and values of attributes of this feature."""
-        raise NotImplementedError
+        return {attr: getattr(self, attr) for attr in self._filter_attrs}
 
     @property
-    @abstractmethod
     def _compound_key(self) -> List[Any]:
-        """
-        Unique key of the compound to which this feuatre will be assigned.
-        In other words, features with the same compound key will become
-        subfeatures of the same compound.
-
-        This key must only be created from `filter_attributes` as it is the
-        filter for compounding.
-        Example
-        -------
-        return *(
+        assert all(
+            [attr in self.filter_attributes for attr in self._compound_attr]
+        ), "`compound_key` has to be created from `filter_attributes`."
+        return tuple([
             self.filter_attributes[attr]
-            for attr in ["modality", "cohort"]
-        ),
-        """
-        raise NotImplementedError
-
-    @classmethod
-    @abstractmethod
-    def _merge_instances(
-        cls,
-        instances,
-        description: str,
-        modality: str,
-        anchor: _anchor.AnatomicalAnchor
-    ) -> Feature:
-        """
-        Merge data and create a merged instance from a list of instances of
-        this class. This will be used by CompoundFeature to create the
-        aggegated data and to plot the merged data. For example, to compute an
-        average connectivity matrix from a set of subfeatures, we create a
-        RegionalConnectivtyMatrix.
-
-        Merged data can have different meaning based on feature type. Usually,
-        just the average.
-        """
-        raise NotImplementedError
+            for attr in self._compound_attr
+        ])
 
     @property
-    @abstractmethod
-    def subfeature_index(self) -> Any:
+    def _element_index(self) -> Any:
         """
         Unique index of this compoundable feature as a subfeature of the Compound.
         Should be hashable.
         """
-        raise NotImplementedError
+        index = [
+            self.filter_attributes[attr]
+            for attr in self._filter_attrs
+            if attr not in self._compound_attr
+        ]
+        return index[0] if len(index) == 1 else tuple(index)
 
 
 class CompoundFeature(Feature):
     """
-    A compound aggregating mutliple features of the same type.
-    The anatomical anchors and data of the features is merged.
+    A compound aggregating mutliple features of the same type, forming its
+    elements. The anatomical anchors and data of the features is merged.
     Features need to subclass "Compoundable" to allow aggregation
     into a compound feature.
     """
 
     def __init__(
         self,
-        features: List['Feature'],
+        elements: List['Feature'],
         queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
     ):
         """
         A compound of several features of the same type with an anchor created as
         a sum of adjoinable anchors.
         """
-        assert len({f.__class__ for f in features}) == 1, NotImplementedError("Cannot compound features of different types.")
-        self._subfeature_type = features[0].__class__
-        self.category = features[0].category
-        assert issubclass(self._subfeature_type, Compoundable), NotImplementedError(f"Cannot compound {self._subfeature_type}.")
+        assert len({f.__class__ for f in elements}) == 1, NotImplementedError("Cannot compound features of different types.")
+        self._feature_type = elements[0].__class__
+        self.category = elements[0].category
+        assert issubclass(self._feature_type, Compoundable), NotImplementedError(f"Cannot compound {self._feature_type}.")
 
-        assert len({f.modality for f in features}) == 1, NotImplementedError("Cannot compound features of different modalities.")
-        modality = features[0].modality
+        assert len({f.modality for f in elements}) == 1, NotImplementedError("Cannot compound features of different modalities.")
+        modality = elements[0].modality
 
-        compound_key = {feature._compound_key for feature in features}
-        assert len(compound_key) == 1, ValueError(
+        compound_keys = {element._compound_key for element in elements}
+        assert len(compound_keys) == 1, ValueError(
             "Only features with identical compound_key can be aggregated."
         )
-        self._compound_key = list(compound_key)[0]
-        assert len({f.subfeature_index for f in features}) == len(features), RuntimeError(
-            "Subfeature indices should be unique to each subfeature within the CompoundFeature."
+        compound_key = next(iter(compound_keys))
+        self._compounding_attributes = {
+            elements[0]._compound_attr[i]: k
+            for i, k in enumerate(compound_key)
+        }
+
+        assert len({f._element_index for f in elements}) == len(elements), RuntimeError(
+            "Element indices should be unique to each element within a CompoundFeature."
         )
-        self._subfeatures = {f.subfeature_index: f for f in features}
+        self._elements = {f._element_index: f for f in elements}
 
         Feature.__init__(
             self,
             modality=modality,
-            description="\n".join({f.description for f in features}),
-            anchor=sum([f.anchor for f in features]),
-            datasets=list(dict.fromkeys([ds for f in features for ds in f.datasets]))
+            description="\n".join({f.description for f in elements}),
+            anchor=sum([f.anchor for f in elements]),
+            datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
         self._queryconcept = queryconcept
         self._merged_feature_cached = None
 
     @property
-    def compounding_attritbutes(self):
-        return self._compound_key
+    def compounding_attributes(self) -> Dict[str, Any]:
+        return self._compounding_attributes
 
     @property
-    def data(self):
-        assert isinstance(self._merged_feature, self._subfeature_type)
-        return self._merged_feature.data
-
-    @property
-    def _merged_feature(self):
-        if self._merged_feature_cached is None:
-            assert issubclass(self._subfeature_type, Compoundable)
-            self._merged_feature_cached = self._subfeature_type._merge_instances(
-                instances=self.subfeatures,
-                modality=self.modality,
-                description=self.description,
-                anchor=self.anchor
-            )
-        return self._merged_feature_cached
-
-    @property
-    def subfeatures(self):
+    def elements(self):
         """Features that make up the compound feature."""
-        return list(self._subfeatures.values())
+        return list(self._elements.values())
 
     @property
     def indices(self):
         """Unique indices to features making up the compound feature."""
-        return list(self._subfeatures.keys())
+        return list(self._elements.keys())
 
     @property
-    def dataframe(self) -> DataFrame:
-        """
-        Attribute data frame constructed with subfeature attribute-value pairs.
-        """
-        return DataFrame([f.filter_attributes for f in self])
-
-    @property
-    def subfeature_type(self):
-        return self._subfeature_type
+    def feature_type(self):
+        return self._feature_type
 
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
-        if len(self._compound_key) == 1:
-            groupedby = self._compound_key[0]
-        else:
-            groupedby = ', '.join(val for val in self._compound_key)
+        groupby = ', '.join([
+            f"{v} {k}" for k, v in self.compounding_attributes.items()
+        ])
         return (
             f"{self.__class__.__name__} of {len(self)} "
-            f"{self.subfeature_type.__name__} features grouped by ({groupedby})"
+            f"{self.feature_type.__name__} features grouped by ({groupby})"
             f" anchored at {self.anchor}"
         )
 
@@ -749,7 +703,7 @@ class CompoundFeature(Feature):
     def id(self):
         return "::".join((
             "cf0",
-            f"{self._subfeature_type.__name__}",
+            f"{self._feature_type.__name__}",
             self._encode_concept(self._queryconcept),
             self.datasets[0].id if self.datasets else "nodsid",
             md5(self.name.encode("utf-8")).hexdigest()
@@ -757,20 +711,21 @@ class CompoundFeature(Feature):
 
     def __iter__(self) -> Iterator['Feature']:
         """Iterate over subfeatures"""
-        return self.subfeatures.__iter__()
+        return self.elements.__iter__()
 
     def __len__(self):
         """Number of subfeatures making the CompoundFeature"""
-        return len(self._subfeatures)
+        return len(self._elements)
 
     def __getitem__(self, index: Any):
-        """Get the subfeature correspnding to compound_key or integer index."""
-        if index in self._subfeatures:
-            return self._subfeatures[index]
+        """Get the element with its unique index in the compound."""
+        if index in self._elements:
+            return self._elements[index]
         raise IndexError(f"No feature with index '{index}' in this compound.")
 
-    def plot(self, *args, backend="matplotlib", **kwargs):
-        return self._merged_feature.plot(*args, backend=backend, **kwargs)
+    def get_element(self, index: Any):
+        """Get the element with its unique index in the compound."""
+        return self._elements[index]
 
     @classmethod
     def compound(
@@ -846,3 +801,7 @@ class CompoundFeature(Feature):
                     f"The query with id '{feature_id}' have resulted multiple instances.")
         else:
             raise ParseCompoundFeatureIdException
+
+    def _export(self, fh: ZipFile):
+        for element in siibra_tqdm(self, desc="Exporting elements", unit="element"):
+            element._export(fh)

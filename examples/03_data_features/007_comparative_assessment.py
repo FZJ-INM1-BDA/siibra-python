@@ -26,7 +26,6 @@ involved in language processing, and a region from the visual system in the occi
 # %%
 import siibra
 import matplotlib.pyplot as plt
-import numpy as np
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
@@ -64,29 +63,28 @@ f.tight_layout()
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. For the receptor measurements, we
-# supply now an additional filter to choose only GABAB profiles.
-# (ReceptorDensityProfile CompoundFeature is indexed by receptors. List by
-# `indices` property.)
+# boundary in individual tissue samples. Cortical profile queries result in
+# CompoundFeatures with profiles as elements and each element differ according
+# to the modality. So we supply an additional filter to each: a receptor name
+# for ReceptorDensityProfile, section and patch numbers for CellDensityProfile,
+# and a point for BigBrainIntensityProfile.
+
+# The indices are accessible through `indices` property of compound features
+pt = siibra.Point((-7.64739990234375, 59.72719955444336, 5.494609832763672), 'bigbrain')
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, lambda p: p['GABAB (gamma-aminobutyric acid receptor type B)']),
-    (siibra.features.cellular.CellDensityProfile, lambda p: True),
-    (siibra.features.cellular.BigBrainIntensityProfile, lambda p: True),
+    (siibra.features.molecular.ReceptorDensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
+    (siibra.features.cellular.CellDensityProfile, ('4861', '0002')),
+    (siibra.features.cellular.BigBrainIntensityProfile, pt),
 ]
 f, axs = plt.subplots(len(modalities), len(regions))
 f.set(figheight=15, figwidth=10)
 ymax = [3500, 150, 30000]
 
-np.random.seed(1)  # for reproducibility
 for i, region in enumerate(regions):
-    for j, (modality, filterfunc) in enumerate(modalities):
-        features = list(
-            filter(filterfunc, siibra.features.get(region, modality))
-        )
+    for j, (modality, index) in enumerate(modalities):
+        compoundfeature = siibra.features.get(region, modality)[0]
         # fetch a random sample from the available ones
-        p = features[int(np.random.rand() * (len(features)))]
+        p = compoundfeature[index]
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 f.tight_layout()
-
-# %%

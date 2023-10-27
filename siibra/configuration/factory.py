@@ -458,13 +458,14 @@ class Factory:
         paradigm = spec.get("paradigm")
         if paradigm:
             kwargs["paradigm"] = paradigm
-        files_indexed_by_subjects = spec.get("files_indexed_by", "subjects") == "subjects"
+        files_indexed_by = spec.get("files_indexed_by", "subject")
+        assert files_indexed_by in ["subject", "feature"]
         conn_by_file = []
         for fkey, filename in files.items():
             kwargs.update({
-                "files": {fkey: filename},
-                "subject": fkey if files_indexed_by_subjects else "average",
-                "feature": None if files_indexed_by_subjects else fkey,
+                "filename": filename,
+                "subject": fkey if files_indexed_by == "subject" else "average",
+                "feature": fkey if files_indexed_by == "feature" else None,
                 "connector": repo_connector or base_url + filename
             })
             conn_by_file.append(conn_cls(**kwargs))
@@ -496,7 +497,7 @@ class Factory:
         timeseries_by_file = []
         for fkey, filename in files.items():
             kwargs.update({
-                "files": {fkey: filename},
+                "filename": filename,
                 "subject": fkey
             })
             timeseries_by_file.append(timeseries_cls(**kwargs))

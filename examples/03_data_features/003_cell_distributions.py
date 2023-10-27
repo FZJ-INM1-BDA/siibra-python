@@ -79,5 +79,3 @@ print(location)
 template = location.space.get_template().fetch()
 view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
 view.add_markers([tuple(location)])
-
-# %%

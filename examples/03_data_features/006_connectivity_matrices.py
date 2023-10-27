@@ -48,24 +48,21 @@ print("Connectivity features are compounded by the modality and cohort.")
 for cf in features:
     print(cf.name)
     # let us select the HCP cohort
-    if "HCP" in cf.compounding_attritbutes:
+    if cf.compounding_attributes["cohort"] == "HCP":
         conn = cf
 
 print(f"Selected: {conn.name}'\n'" + conn.description)
 
 # %%
-# The connectivity matrices are provided as pandas DataFrames,
-# with region objects as index. We can access to the average by calling `data`
-# property from the CompoundFeature.
-conn.data.iloc[0:15, 0:15]  # see the first 15x15 for simplicity
-
-# %%
-# Subjects are encoded via anonymized ids
+# We can access to the indices element of a CompoundFeature by `indices`. In
+# this, case indicies represent subjects. Let us select the first one
 print(conn.indices)
-index = conn.indices[0]  # let us select the first subject
+index = conn.indices[0]
 
 # %%
-# we can access to corresponding matrix via
+# The connectivity matrices are provided as pandas DataFrames, with region
+# objects as indices and columns. We can access the matrix corresponding to
+# the selected index by
 matrix = conn[index].data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
