@@ -28,15 +28,11 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
-from skimage import filters, feature
+from skimage import filters, feature as skimage_feature
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
     TypeDataset = EbrainsDataset
-
-
-class ColorVolumeNotSupported(NotImplementedError):
-    pass
 
 
 class Volume(structure.BrainStructure, location.Location):
@@ -90,7 +86,7 @@ class Volume(structure.BrainStructure, location.Location):
             self._providers[srctype] = provider
         if len(self._providers) == 0:
             logger.debug(f"No provider for volume {self}")
-    
+
     def __hash__(self):
         """Enrich the default hash with the name of the volume."""
         return hash(self.name) ^ super().__hash__()
@@ -396,7 +392,7 @@ class Volume(structure.BrainStructure, location.Location):
             )
         img = self.fetch(**kwargs)
         array = np.asanyarray(img.dataobj)
-        voxels = feature.peak_local_max(array, min_distance=mindist)
+        voxels = skimage_feature.peak_local_max(array, min_distance=mindist)
         points = pointset.PointSet(voxels, space=None, labels=list(range(len(voxels)))).transform(img.affine, space=self.space)
         points.sigma_mm = [sigma_mm for _ in points]
         return points
@@ -430,11 +426,17 @@ def from_file(filename: str, space: str, name: str = None):
     )
 
 
-def from_array(data: np.ndarray, affine: np.ndarray, space: str, name: str = ""):
+def from_array(
+    data: np.ndarray,
+    affine: np.ndarray,
+    space: Union[str, Dict[str, str]],
+    name: str = ""
+):
     """ Builds a siibra volume from an array and an affine matrix. """
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
-    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    spacespec = next(iter(space.values())) if isinstance(space, dict) else space
+    spaceobj = AtlasConcept.get_registry("Space").get(spacespec)
     return Volume(
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider((data, affine))],

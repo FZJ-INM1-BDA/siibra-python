@@ -499,8 +499,8 @@ def resample_array_to_array(
     target_data: np.ndarray,
     target_affine: np.ndarray
 ):
-    """ 
-    returns the source data resampled to match the target data
+    """
+    Returns the source data resampled to match the target data
     according to their affines.
     """
     from nibabel import Nifti1Image

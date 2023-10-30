@@ -39,7 +39,7 @@ def test_map_shape(space_shape, parc_id, map_endpoint, region_name):
     volume_data = None
     if region_name is not None:
         region = siibra.get_region(parc_id, region_name)
-        volume_data = region.get_regional_map(space_id, map_endpoint)
+        volume_data = region.get_regional_map(space_id, map_endpoint).fetch()
     else:
         labelled_map = siibra.get_map(parc_id, space_id, map_endpoint)
         assert labelled_map is not None
@@ -56,5 +56,5 @@ def test_template_resampling():
     mp_img = mp.fetch()
     template = mp.space.get_template().fetch()
     assert mp_img.shape != template.shape
-    resamp_template = mp.get_resampled_template()
+    resamp_template = mp.get_resampled_template().fetch()
     assert mp_img.shape == resamp_template.shape

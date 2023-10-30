@@ -400,7 +400,12 @@ class Feature:
         return live_instances
 
     @classmethod
-    def match(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], feature_type: Union[str, Type['Feature'], list], **kwargs) -> List['Feature']:
+    def match(
+        cls,
+        concept: structure.BrainStructure,
+        feature_type: Union[str, Type['Feature'], list],
+        **kwargs
+    ) -> List['Feature']:
         """
         Retrieve data features of the requested feature type (i.e. modality).
         This will
@@ -441,7 +446,7 @@ class Feature:
         # We expect a specific supported feature type is to be matched now.
         if not isinstance(concept, structure.BrainStructure):
             raise ValueError(
-                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a LocationFilter type."
+                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a BrainStructure type."
             )
 
         msg = f"Matching {feature_type.__name__} to {concept}"

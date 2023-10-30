@@ -269,7 +269,7 @@ class Factory:
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
-            name=spec.get("name", {}),
+            name=spec.get("name", ""),
             variant=spec.get("variant"),
             datasets=cls.extract_datasets(spec),
         )

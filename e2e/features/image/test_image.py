@@ -2,7 +2,7 @@ import siibra
 import pytest
 
 features = siibra.features.get(
-    siibra.spaces["big brain"], "CellBodyStainedVolumeOfInterest"
+    siibra.get_template("big brain"), "CellBodyStainedVolumeOfInterest"
 )
 
 
