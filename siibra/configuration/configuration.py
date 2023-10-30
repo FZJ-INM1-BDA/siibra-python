@@ -18,7 +18,7 @@ from ..retrieval.repositories import GitlabConnector, RepositoryConnector
 from ..retrieval.exceptions import NoSiibraConfigMirrorsAvailableException
 from ..retrieval.requests import SiibraHttpRequestError
 
-from typing import Union
+from typing import Union, List
 from collections import defaultdict
 from requests.exceptions import ConnectionError
 from os import path
@@ -39,7 +39,7 @@ class Configuration:
         ("https://gitlab.ebrains.eu", 93),
     ]
 
-    CONFIGURATIONS = [
+    CONFIGURATIONS: List[RepositoryConnector] = [
         GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
         for server, project in CONFIG_REPOS
     ]

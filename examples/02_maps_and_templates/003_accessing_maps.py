@@ -42,9 +42,9 @@ siibra.maps.dataframe.query('space == "MNI Colin 27"')
 
 # %%
 # We select the maximum probability map of Julich-Brain in MNI152 space,
-# which is a parcellation map with discrete labels. 
+# which is a parcellation map with discrete labels.
 # `get_map` assumes maptype='labelled' by default.
-julich_mpm = siibra.get_map(space="icbm 2009c", parcellation="julich 2.9", maptype="labelled")
+julich_mpm = siibra.get_map(space="icbm 2009c", parcellation="julich 3", maptype="labelled")
 print(julich_mpm)
 
 # %%
@@ -122,4 +122,3 @@ plotting.plot_roi(v1l_pmap, title="v1 left", cmap='viridis')
 hoc5L = siibra.get_region(parcellation='julich 2.9', region='hoc5 left')
 hoc5L_mask = hoc5L.get_regional_map(space="mni152", maptype="labelled")
 plotting.plot_roi(hoc5L_mask.fetch(), title=f"Mask of {hoc5L.name}")
-

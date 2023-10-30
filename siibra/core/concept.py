@@ -162,7 +162,7 @@ class AtlasConcept:
 
     @classmethod
     def clear_registry(cls):
-        cls._REGISTRIES.pop(cls)
+        cls._REGISTRIES[cls] = None
 
     @classmethod
     def get_instance(cls, spec: str):

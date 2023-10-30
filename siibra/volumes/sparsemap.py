@@ -15,6 +15,7 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
+from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
@@ -263,7 +264,7 @@ class SparseMap(parcellationmap.Map):
                     logger.info("Failed to load precomputed SparseIndex from Gitlab.")
                     logger.debug(f"Could not load SparseIndex from Gitlab at {gconn}", exc_info=1)
             if spind is None:
-                with _volume.SubvolumeProvider.UseCaching():
+                with provider.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
                     for vol in siibra_tqdm(
                         range(len(self)), total=len(self), unit="maps",

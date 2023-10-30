@@ -26,7 +26,7 @@ class DummyItem:
 
 class TestAtlasConcept(unittest.TestCase):
     def setUp(self):
-        DummyClsKwarg._registry_cached = None
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg.__class__] = None
 
     def test_init(self):
         assert issubclass(DummyClsKwarg, AtlasConcept)
@@ -56,12 +56,12 @@ class TestAtlasConcept(unittest.TestCase):
 
     def test_class_registry_cached(self):
         dummy = DummyItem()
-        DummyClsKwarg._REGISTRIES[dummy.__class__] = dummy
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = dummy
         assert DummyClsKwarg.registry() is dummy
 
     def test_clear_registry(self):
         dummy = DummyItem()
-        DummyClsKwarg._REGISTRIES[dummy.__class__] = dummy
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = dummy
         DummyClsKwarg.clear_registry()
         assert dummy.__class__ not in DummyClsKwarg._REGISTRIES
 
