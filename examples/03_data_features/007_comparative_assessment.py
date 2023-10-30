@@ -26,6 +26,7 @@ involved in language processing, and a region from the visual system in the occi
 # %%
 import siibra
 import matplotlib.pyplot as plt
+import numpy as np
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
@@ -48,7 +49,7 @@ modalities = [
 # %%
 # We iterate the regions and modalities to generate a grid plot.
 plt.style.use('seaborn')
-f, axs = plt.subplots(len(modalities), len(regions))
+fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
@@ -58,33 +59,38 @@ for i, region in enumerate(regions):
             fp = features[-1]
             fp.plot(ax=axs[j, i])
             axs[j, i].set_ylim(0, ymax[j])
-f.tight_layout()
+fig.tight_layout()
 
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
 # boundary in individual tissue samples. Cortical profile queries result in
-# CompoundFeatures with profiles as elements and each element differ according
-# to the modality. So we supply an additional filter to each: a receptor name
-# for ReceptorDensityProfile, section and patch numbers for CellDensityProfile,
-# and a point for BigBrainIntensityProfile.
+# CompoundFeatures with profiles as elements and each element differ with an
+# index. Indices change based on modality: a receptor name for
+# ReceptorDensityProfile, section and patch numbers for CellDensityProfile,
+# and a point for BigBrainIntensityProfile. Let us choose `GABAB` receptor
+# and random indices from cell density and BigBrain intensity profiles.
 
-# The indices are accessible through `indices` property of compound features
-pt = siibra.Point((-7.64739990234375, 59.72719955444336, 5.494609832763672), 'bigbrain')
+get_random_index = lambda cf: cf.indices[np.random.randint(0, len(cf) - 1)]
+get_gabab_index = lambda cf: 'GABAB (gamma-aminobutyric acid receptor type B)'
+
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
-    (siibra.features.cellular.CellDensityProfile, ('4861', '0002')),
-    (siibra.features.cellular.BigBrainIntensityProfile, pt),
+    (siibra.features.molecular.ReceptorDensityProfile, get_gabab_index),
+    (siibra.features.cellular.CellDensityProfile, get_random_index),
+    (siibra.features.cellular.BigBrainIntensityProfile, get_random_index),
 ]
-f, axs = plt.subplots(len(modalities), len(regions))
-f.set(figheight=15, figwidth=10)
+
+fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [3500, 150, 30000]
 
 for i, region in enumerate(regions):
-    for j, (modality, index) in enumerate(modalities):
+    for j, (modality, indexfunc) in enumerate(modalities):
         compoundfeature = siibra.features.get(region, modality)[0]
-        # fetch a random sample from the available ones
+        index = indexfunc(compoundfeature)
+        print(index)
         p = compoundfeature[index]
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
-f.tight_layout()
+
+fig.set(figheight=15, figwidth=10)
+fig.tight_layout()
