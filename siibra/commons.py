@@ -521,10 +521,9 @@ def connected_components(imgdata: np.ndarray):
     from skimage import measure
     components = measure.label(imgdata > 0)
     component_labels = np.unique(components)
-    assert component_labels[0] == 0
     return (
         (label, (components == label).astype('uint8'))
-        for label in component_labels[1:]
+        for label in component_labels
     )
 
 
