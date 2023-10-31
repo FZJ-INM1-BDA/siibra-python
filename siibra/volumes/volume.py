@@ -282,8 +282,12 @@ class Volume(structure.BrainStructure, location.Location):
         An image or mesh
         """
         # check for a cached object
+        kwargs_serialized = json.dumps(
+            {k: v.__dict__() if hasattr(v, "__dict__") else v for k, v in kwargs.items()},
+            sort_keys=True
+        )
         fetch_hash = hash(
-            (self.__hash__(), hash(format), hash(json.dumps(kwargs, sort_keys=True)))
+            (self.__hash__(), hash(format), hash(kwargs_serialized))
         )
         if fetch_hash in self._FETCH_CACHE:
             return self._FETCH_CACHE[fetch_hash]

@@ -382,3 +382,10 @@ class BoundingBox(location.Location, structure.BrainStructure):
     def __iter__(self):
         """Iterate the min- and maxpoint of this bounding box."""
         return iter((self.minpoint, self.maxpoint))
+
+    def __dict__(self):
+        return dict(
+            space=self.space.__dict__(),
+            point1=self.minpoint.__dict__(),
+            point2=self.maxpoint.__dict__(),
+        )

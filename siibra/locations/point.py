@@ -282,3 +282,10 @@ class Point(location.Location, structure.BrainStructure):
         return hashlib.md5(
             f"{self.space.id}{','.join(str(val) for val in self)}".encode("utf-8")
         ).hexdigest()
+
+    def __dict__(self):
+        return dict(
+            coordinate=list(self.coordinate),
+            sigma_mm=self.sigma,
+            space=self.space.__dict__()
+        )

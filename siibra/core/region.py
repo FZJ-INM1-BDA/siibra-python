@@ -665,7 +665,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             mask = self.get_regional_map(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return boundingbox.BoundingBox.from_image(mask, space=spaceobj)
+            return mask.boundingbox
         except (RuntimeError, ValueError):
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
