@@ -22,8 +22,7 @@ from ..commons import logger
 import numbers
 import json
 import numpy as np
-from hdbscan import HDBSCAN
-from matplotlib.pyplot import cm as colormaps
+from sklearn.cluster import HDBSCAN
 
 
 class PointSet(location.Location, structure.BrainStructure):
@@ -235,4 +234,9 @@ class PointSet(location.Location, structure.BrainStructure):
         if self.labels is None:
             return None
         else:
+            try:
+                from matplotlib.pyplot import cm as colormaps
+            except Exception:
+                logger.error("Matplotlib is not available. Label colors is disabled.")
+                return None
             return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))
