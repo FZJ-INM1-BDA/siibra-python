@@ -280,9 +280,9 @@ class NeuroglancerVolume:
         else:
             scale = self.scales[0]
             logger.warning(
-                f"Requested resolution {resolution_mm} is not available. "
-                f"Falling back to the highest possible resolution of "
-                f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
+                f"Requested resolution {resolution_mm}mm is not available for "
+                f"all axes. Falling back to the highest possible resolution of "
+                f"({', '.join(map('{:.4f}mm'.format, scale.res_mm))})."
             )
 
         scale_changed = False
