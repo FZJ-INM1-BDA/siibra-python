@@ -16,7 +16,7 @@
 
 from . import volume
 
-from ..commons import logger, MapType, merge_meshes
+from ..commons import logger, MapType, merge_meshes, NEUROGLANCER_MAX_GIB
 from ..retrieval import requests, cache
 from ..locations import boundingbox as _boundingbox
 
@@ -169,16 +169,13 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
 
 
 class NeuroglancerVolume:
-
-    # Number of bytes at which an image array is considered to large to fetch
-    MAX_GiB = 0.2
-
     # Wether to keep fetched data in local cache
     USE_CACHE = False
 
     @property
     def MAX_BYTES(self):
-        return self.MAX_GiB * 1024 ** 3
+        "Number of bytes at which an image array is considered to large to fetch"
+        return NEUROGLANCER_MAX_GIB * 1024 ** 3
 
     def __init__(self, url: str):
         # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
