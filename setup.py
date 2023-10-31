@@ -52,5 +52,6 @@ setup(
         "nilearn",
         'typing-extensions; python_version < "3.8"',
         "filelock",
+        "hdbscan"
     ],
 )

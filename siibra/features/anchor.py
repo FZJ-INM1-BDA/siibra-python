@@ -112,15 +112,14 @@ class AnatomicalAnchor:
         elif self._regionspec not in self.__class__._MATCH_MEMO:
             self._regions_cached = {}
             # decode the region specification into a set of region objects
-            regions = {
-                region: AssignmentQualification.EXACT
-                for species in self.species
-                for region in (
-                    p.get_region(self._regionspec)
-                    for p in Parcellation.registry()
-                    if (p.species == species) and p.find(self._regionspec)
-                )
-            }
+            regions = dict()
+            for p in Parcellation.registry():
+                if p.species not in self.species:
+                    continue
+                try:
+                    regions[p.get_region(self._regionspec)] = AssignmentQualification.EXACT
+                except Exception:
+                    pass
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for regionspec, qualificationspec in aliases.items():

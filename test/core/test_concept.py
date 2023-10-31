@@ -26,7 +26,10 @@ class DummyItem:
 
 class TestAtlasConcept(unittest.TestCase):
     def setUp(self):
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg.__class__] = None
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = None
+
+    def tearDown(self):
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = None
 
     def test_init(self):
         assert issubclass(DummyClsKwarg, AtlasConcept)
@@ -56,14 +59,19 @@ class TestAtlasConcept(unittest.TestCase):
 
     def test_class_registry_cached(self):
         dummy = DummyItem()
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = dummy
-        assert DummyClsKwarg.registry() is dummy
+        table = InstanceTable(
+            elements={dummy.key: dummy}, matchfunc=dummy.match
+        )
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = table
+        assert DummyClsKwarg.registry() is table
 
     def test_clear_registry(self):
         dummy = DummyItem()
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = dummy
+        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = InstanceTable(
+            elements={dummy.key: dummy}, matchfunc=dummy.match
+        )
         DummyClsKwarg.clear_registry()
-        assert dummy.__class__ not in DummyClsKwarg._REGISTRIES
+        assert DummyClsKwarg._REGISTRIES[DummyClsKwarg] is None
 
     def test_get_instance(self):
         with patch.object(AtlasConcept, "registry") as registry_mock:
