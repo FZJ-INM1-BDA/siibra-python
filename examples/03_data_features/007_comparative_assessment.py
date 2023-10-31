@@ -70,25 +70,22 @@ fig.tight_layout()
 # ReceptorDensityProfile, section and patch numbers for CellDensityProfile,
 # and a point for BigBrainIntensityProfile. Let us choose `GABAB` receptor
 # and random indices from cell density and BigBrain intensity profiles.
-
-get_random_index = lambda cf: cf.indices[np.random.randint(0, len(cf) - 1)]
-get_gabab_index = lambda cf: 'GABAB (gamma-aminobutyric acid receptor type B)'
-
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, get_gabab_index),
-    (siibra.features.cellular.CellDensityProfile, get_random_index),
-    (siibra.features.cellular.BigBrainIntensityProfile, get_random_index),
+    (siibra.features.molecular.ReceptorDensityProfile, None),
+    (siibra.features.cellular.CellDensityProfile, None),
+    (siibra.features.cellular.BigBrainIntensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
 ]
 
 fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [3500, 150, 30000]
 
 for i, region in enumerate(regions):
-    for j, (modality, indexfunc) in enumerate(modalities):
-        compoundfeature = siibra.features.get(region, modality)[0]
-        index = indexfunc(compoundfeature)
-        print(index)
-        p = compoundfeature[index]
+    for j, (modality, element_index) in enumerate(modalities):
+        cf = siibra.features.get(region, modality)[0]
+        if element_index is None:
+            p = cf[np.random.randint(0, len(cf) - 1)]  # choose a random one
+        else:
+            p = cf.get_element(element_index)
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 

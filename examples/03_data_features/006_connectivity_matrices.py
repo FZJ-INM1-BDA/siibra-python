@@ -57,27 +57,26 @@ print(f"Selected: {conn.name}'\n'" + conn.description)
 # We can access to the indices element of a CompoundFeature by `indices`. In
 # this, case indicies represent subjects. Let us select the first one
 print(conn.indices)
-index = conn.indices[0]
 
 # %%
 # The connectivity matrices are provided as pandas DataFrames, with region
 # objects as indices and columns. We can access the matrix corresponding to
 # the selected index by
-matrix = conn[index].data
+matrix = conn[0].data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
 # %%
 # The matrix can be displayed using `plot` method. Also, it can be
 # displayed only for a specific list of regions.
-selected_regions = conn[index].regions[0:30]
-conn[index].plot(regions=selected_regions, reorder=True, cmap="magma")
+selected_regions = conn[0].regions[0:30]
+conn[0].plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-node_coords = conn[index].compute_centroids('mni152')
+node_coords = conn[0].compute_centroids('mni152')
 
 
 # %%
@@ -89,7 +88,7 @@ view = plotting.plot_connectome(
     node_size=10,
 )
 view.title(
-    f"{conn.modality} of subject {index} in {conn[index].cohort} cohort "
+    f"{conn.modality} of subject {conn.indices[0]} in {conn[0].cohort} cohort "
     f"averaged on {jubrain.name}",
     size=10,
 )

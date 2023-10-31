@@ -49,8 +49,7 @@ print(bold.indices)
 # The parcellation-based functional data are provided as pandas DataFrames
 # with region objects as columns and indices as time step. The index is of 
 # the table is a Timeseries.
-index = bold.indices[0]
-table = bold[index].data
+table = bold[0].data
 table[jubrain.get_region("hOc3v left")]
 
 # %%
@@ -63,7 +62,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold[index].plot_carpet(regions=selected_regions)
+bold[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold[index].plot(regions=selected_regions)
+bold[0].plot(regions=selected_regions)

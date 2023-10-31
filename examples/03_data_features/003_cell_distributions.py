@@ -42,12 +42,11 @@ print(f"{len(cf)} cell density profiles found for region {v1.name}")
 # %%
 # Look at the default visualization the first of them, this time using `plotly`
 # backend. This will actually fetch the image and cell segmentation data.
-index = cf.indices[0]
-cf[index].plot(backend="plotly")
+cf[0].plot(backend="plotly")
 
 # %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-c = cf[index].cells
+c = cf[0].cells
 print("Number of segmented cells:", len(c))
 c.head()
 
@@ -72,7 +71,7 @@ plt.title(f"Mean cell area in layer 1: {area_layer1.mean()}")
 # %%
 # The features also have location information. We can plot their location in
 # BigBrain space:
-location = cf[index].anchor.location
+location = cf[0].anchor.location
 print(location)
 
 # fetch the template of the location's space

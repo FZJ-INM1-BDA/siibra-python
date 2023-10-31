@@ -718,14 +718,15 @@ class CompoundFeature(Feature):
         return len(self._elements)
 
     def __getitem__(self, index: Any):
-        """Get the element with its unique index in the compound."""
-        if index in self._elements:
-            return self._elements[index]
-        raise IndexError(f"No feature with index '{index}' in this compound.")
+        """Get the nth element in the compound."""
+        return self.elements[index]
 
     def get_element(self, index: Any):
         """Get the element with its unique index in the compound."""
-        return self._elements[index]
+        try:
+            return self._elements[index]
+        except Exception:
+            raise IndexError(f"No feature with index '{index}' in this compound.")
 
     @classmethod
     def compound(
