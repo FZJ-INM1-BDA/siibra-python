@@ -426,6 +426,18 @@ def from_file(filename: str, space: str, name: str = None):
     )
 
 
+def from_nifti(nifti: Nifti1Image, space: str, name: str = None):
+    """Builds a nifti volume from a Nifti image."""
+    from ..core.concept import AtlasConcept
+    from .providers.nifti import NiftiProvider
+    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    return Volume(
+        space_spec={"@id": spaceobj.id},
+        providers=[NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
+        name=name
+    )
+
+
 def from_array(
     data: np.ndarray,
     affine: np.ndarray,

@@ -15,6 +15,7 @@
 """Provides spatial representations for parcellations and regions."""
 
 from . import volume as _volume
+from .providers import provider
 from .. import logger, QUIET, exceptions
 from ..commons import (
     MapIndex,
@@ -423,8 +424,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if result is None:
             raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
 
-        if isinstance(result, _volume.Volume):
-            result.description = f"Map of {region} from {self.parcellation} in {self.space}"
         return result
 
     def fetch_iter(self, **kwargs):
@@ -801,7 +800,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
             image = item.fetch()
-            return self._assign_image(np.asanyarray(image.dataobj), image.affine, minsize_voxel, lower_threshold, **kwargs)
+            return self._assign_volume(np.asanyarray(image.dataobj), image.affine, minsize_voxel, lower_threshold, **kwargs)
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -814,9 +813,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         lower_threshold=0.0,
         **kwargs
     ):
-        """Assign an input image to brain regions.
+        """Assign an input Location to brain regions.
 
-        The input image is assumed to be defined in the same coordinate space
+        The input is assumed to be defined in the same coordinate space
         as this parcellation map.
 
         Parameters
@@ -1041,7 +1040,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     assignments.append(entry)
         return assignments
 
-    def _assign_image(
+    def _assign_volume(
         self,
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
@@ -1076,7 +1075,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         iter_func = lambda arr: connected_components(arr) \
             if split_components else lambda arr: [(1, arr)]
 
-        with QUIET and _volume.SubvolumeProvider.UseCaching():
+        with QUIET and provider.SubvolumeProvider.UseCaching():
             for frag in self.fragments or {None}:
                 for vol, vol_img in progress(
                     enumerate(self.fetch_iter(fragment=frag)),
