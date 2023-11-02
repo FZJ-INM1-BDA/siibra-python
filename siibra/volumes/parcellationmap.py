@@ -399,6 +399,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "'region' to specify which one to fetch."
                 )
 
+        if "resolution_mm" in kwargs and kwargs.get("format") is None:
+            kwargs["format"] = 'neuroglancer/precomputed'
+
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
