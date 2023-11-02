@@ -59,7 +59,7 @@ class Point(location.Location, structure.BrainStructure):
                 assert spec[3] == 1
             return tuple(float(v) for v in spec[:3])
         elif isinstance(spec, np.ndarray) and spec.size == 3:
-            return tuple(float(v) for v in spec[:3])
+            return tuple(float(v.item()) for v in spec[:3])
         elif isinstance(spec, Point):
             return spec.coordinate
 
