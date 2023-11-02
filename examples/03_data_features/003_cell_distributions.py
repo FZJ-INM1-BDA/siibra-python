@@ -33,26 +33,36 @@ from nilearn import plotting
 # sphinx_gallery_thumbnail_number = 1
 
 # %%
-# Find cell density features for V1
-v1 = siibra.get_region("julich 2.9", "v1")
+# Find cell density profiles for V1. Cortical profile features are combined
+# together as elements to form CompoundFeatures.
+v1 = siibra.get_region("julich 3", "v1")
 features = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)
+for f in features:
+    print(f.name)
 cf = features[0]
-print(f"{len(cf)} cell density profiles found for region {v1.name}")
-
 # %%
-# Look at the default visualization the first of them, this time using `plotly`
-# backend. This will actually fetch the image and cell segmentation data.
+# We can browse through the elements with integer index. To illustrate, let us
+# look at the default visualization the first of them, this time using `plotly`
+# backend. This will actually fetch the cell segmentation data.
+print(cf[0].name)
 cf[0].plot(backend="plotly")
 
 # %%
+# Instead of using integer index, we can also use `get_element` method if the
+# unique index is known. We can list these by
+print(cf.indices)
+f = cf.get_element(('0211', '0003'))
+print(f.name)
+
+# %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-c = cf[0].cells
-print("Number of segmented cells:", len(c))
-c.head()
+cells = f.cells
+print("Number of segmented cells:", len(cells))
+cells.head()
 
 # %%
 # We can, for example, plot the 2D distribution of the cell locations colored by layers:
-plt.scatter(c.x, c.y, c=c.layer, s=0.2)
+plt.scatter(cells.x, cells.y, c=cells.layer, s=0.2)
 plt.title(f"Cell distributions in {v1.name}")
 plt.grid(True)
 plt.axis("equal")
@@ -60,7 +70,7 @@ plt.tight_layout()
 
 # %%
 # Having the data in data frame format allows further flexibility such as:
-layer1_cells = c.query('layer == 1')
+layer1_cells = cells.query('layer == 1')
 plt.scatter(
     layer1_cells.x, layer1_cells.y,
     s=layer1_cells["area(micron**2)"], c=layer1_cells.label

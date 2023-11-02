@@ -48,7 +48,6 @@ modalities = [
 
 # %%
 # We iterate the regions and modalities to generate a grid plot.
-plt.style.use('seaborn')
 fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
@@ -64,16 +63,17 @@ fig.tight_layout()
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. Cortical profile queries result in
-# CompoundFeatures with profiles as elements and each element differ with an
-# index. Indices change based on modality: a receptor name for
-# ReceptorDensityProfile, section and patch numbers for CellDensityProfile,
-# and a point for BigBrainIntensityProfile. Let us choose `GABAB` receptor
-# and random indices from cell density and BigBrain intensity profiles.
+# boundary in individual tissue samples. Cortical profiles queries form CompoundFeatures
+# for easy naviagtion of related profiles. We can browse through the elements 
+# with integer index or their unique index via `get_element`. Indices change
+# based on modality: a receptor name for ReceptorDensityProfile, section and
+# patch numbers for CellDensityProfile, and a point for BigBrainIntensityProfile.
+# Let us choose `GABAB` receptor and random indices from cell density and
+# BigBrain intensity profiles.
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, None),
+    (siibra.features.molecular.ReceptorDensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
     (siibra.features.cellular.CellDensityProfile, None),
-    (siibra.features.cellular.BigBrainIntensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
+    (siibra.features.cellular.BigBrainIntensityProfile, None),
 ]
 
 fig, axs = plt.subplots(len(modalities), len(regions))

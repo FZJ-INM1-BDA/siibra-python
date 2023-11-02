@@ -593,10 +593,18 @@ class Compoundable(ABC):
 
     @property
     def filter_attributes(self) -> Dict[str, Any]:
+        """
+        Attributes that help distinguish or combine features of the same type
+        among others.
+        """
         return {attr: getattr(self, attr) for attr in self._filter_attrs}
 
     @property
-    def _compound_key(self) -> List[Any]:
+    def _compound_key(self) -> Tuple[Any]:
+        """
+        A tuple of values that define the basis for compounding elements of
+        the same type.
+        """
         assert all(
             [attr in self.filter_attributes for attr in self._compound_attr]
         ), "`compound_key` has to be created from `filter_attributes`."
@@ -608,8 +616,8 @@ class Compoundable(ABC):
     @property
     def _element_index(self) -> Any:
         """
-        Unique index of this compoundable feature as a subfeature of the Compound.
-        Should be hashable.
+        Unique index of this compoundable feature as a subfeature of the
+        Compound. Should be hashable.
         """
         index = [
             self.filter_attributes[attr]
@@ -633,8 +641,8 @@ class CompoundFeature(Feature):
         queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
     ):
         """
-        A compound of several features of the same type with an anchor created as
-        a sum of adjoinable anchors.
+        A compound of several features of the same type with an anchor created
+        as a sum of adjoinable anchors.
         """
         assert len({f.__class__ for f in elements}) == 1, NotImplementedError("Cannot compound features of different types.")
         self._feature_type = elements[0].__class__
@@ -654,10 +662,10 @@ class CompoundFeature(Feature):
             for i, k in enumerate(compound_key)
         }
 
-        assert len({f._element_index for f in elements}) == len(elements), RuntimeError(
+        self._elements = {f._element_index: f for f in elements}
+        assert len(self._elements) == len(elements), RuntimeError(
             "Element indices should be unique to each element within a CompoundFeature."
         )
-        self._elements = {f._element_index: f for f in elements}
 
         Feature.__init__(
             self,
@@ -667,10 +675,10 @@ class CompoundFeature(Feature):
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
         self._queryconcept = queryconcept
-        self._merged_feature_cached = None
 
     @property
     def compounding_attributes(self) -> Dict[str, Any]:
+        """Attributes and values used to compound the elements."""
         return self._compounding_attributes
 
     @property
@@ -684,7 +692,8 @@ class CompoundFeature(Feature):
         return list(self._elements.keys())
 
     @property
-    def feature_type(self):
+    def feature_type(self) -> Type:
+        """Feature type of the elements forming the CompoundFeature."""
         return self._feature_type
 
     @property
@@ -700,7 +709,7 @@ class CompoundFeature(Feature):
         )
 
     @property
-    def id(self):
+    def id(self) -> str:
         return "::".join((
             "cf0",
             f"{self._feature_type.__name__}",
@@ -785,7 +794,7 @@ class CompoundFeature(Feature):
         if not feature_id.startswith("cf0::"):
             raise ParseCompoundFeatureIdException("CompoundFeature id must start with cf0::")
         cf_version, clsname, *queryconcept, dsid, fid = feature_id.split("::")
-
+        assert cf_version == "cf0"
         candidates = [
             f
             for f in Feature.match(

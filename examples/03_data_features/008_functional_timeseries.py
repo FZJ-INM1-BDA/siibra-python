@@ -31,26 +31,26 @@ jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # The matrices are queried as expected, using `siibra.features.get`,
-# passing the parcellation as a concept.
-# Here, we query for structural connectivity matrices.
-# We fetch the first result, which is a specific `RegionalBOLD` object.
+# passing the parcellation as a concept. Here, we query for regional BOLD signals.
+# RegionalBOLD features, just like connectivity, are initially represented as
+# CompoundFeatures.
 features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
-bold = features[0]
-print(f"Found {len(bold)} parcellation-based BOLD signals for {jubrain}.")
-print(bold.name)
-print("\n" + bold.description)
+for f in features:
+    print(f.name)
+bold_cf = features[0]
 
-# Subjects are encoded via anonymized ids and the CompoundFeature is indexed by
-# subject id and paradigm tuples.
-print(bold.indices)
+# %%
+# Subjects are encoded via anonymized ids and BOLD type CompoundFeatures are
+# indexed by subject id and paradigm tuples.
+print(bold_cf[0].subject)
+print(bold_cf.indices[:10])
 
 
 # %%
-# The parcellation-based functional data are provided as pandas DataFrames
-# with region objects as columns and indices as time step. The index is of 
-# the table is a Timeseries.
-table = bold[0].data
-table[jubrain.get_region("hOc3v left")]
+# The signal data is provided as pandas DataFrames with region objects as
+# columns and indices as as a timeseries.
+table = bold_cf[0].data
+table[jubrain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
 
 # %%
 # We can visualize the signal strength per region by time via a carpet plot.
@@ -62,7 +62,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold[0].plot_carpet(regions=selected_regions)
+bold_cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold[0].plot(regions=selected_regions)
+bold_cf[0].plot(regions=selected_regions)
