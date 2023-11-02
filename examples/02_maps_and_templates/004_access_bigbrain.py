@@ -38,10 +38,7 @@ from nilearn import plotting
 space = siibra.spaces['bigbrain']
 bigbrain_template = space.get_template()
 bigbrain_whole_img = bigbrain_template.fetch()
-try:
-    plotting.view_img(bigbrain_whole_img, bg_img=None, cmap='gray')
-except:
-    print(type(bigbrain_whole_img))
+plotting.view_img(bigbrain_whole_img, bg_img=None, cmap='gray')
 
 # %%
 # To see the full resolution, we may specify a bounding box in the physical

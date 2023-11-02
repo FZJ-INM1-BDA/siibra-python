@@ -799,9 +799,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """ Use this region for filtering a location object. """
 
         if self.supports_space(other.space):
-            volume = self.get_regional_map(other.space)
-            if volume is not None:
-                return volume.intersection(other)
+            try:
+                volume = self.get_regional_map(other.space)
+                if volume is not None:
+                    return volume.intersection(other)
+            except NotImplementedError:
+                for child in self.children:
+                    intersection_w_child = child.intersection(other)
+                    if intersection_w_child is not None:
+                        return intersection_w_child
 
         for space in sorted(self.supported_spaces):
             if space.provides_image:
