@@ -310,8 +310,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
-            if type(regionspec) == str
-            else found_regions
+            if isinstance(regionspec, str) else found_regions
         )
 
         return MEM[key]
@@ -483,9 +482,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     else:
                         if np.linalg.norm(mask.affine - affine) > 1e-12:
                             raise NotImplementedError(
-                                f"Child regions of {self.name} have different voxel spaces "
+                                f"Child regions of '{self.name}' have different voxel spaces "
                                 "and the aggregated subtree mask is not supported. "
-                                f"Try fetching masks of the children: {self.children}"
+                                f"Try getting masks of the children: {self.children}"
                             )
                         updates = mask.get_fdata() > dataobj
                         dataobj[updates] = mask.get_fdata()[updates]
@@ -597,15 +596,23 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         if (self, other) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[self, other]
         if (other, self) in self._ASSIGNMENT_CACHE:
+            if self._ASSIGNMENT_CACHE[other, self] is None:
+                return None
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
-        if isinstance(other, (location.Location, volume.Volume)):
-            try:
-                regionmap = self.get_regional_map(space=other.space)
-                self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(other)
-            except NoMapAvailableError:
+        if isinstance(other, location.Location):
+            for space in [other.space] + list(self.supported_spaces - {other.space}):
+                try:
+                    regionmap = self.get_regional_map(space)
+                    self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
+                        other.warp(space)
+                    )
+                except Exception:
+                    continue
+                finally:
+                    break
+            if (self, other) not in self._ASSIGNMENT_CACHE:
                 self._ASSIGNMENT_CACHE[self, other] = None
-            return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:

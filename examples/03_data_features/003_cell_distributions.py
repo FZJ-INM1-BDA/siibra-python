@@ -63,7 +63,7 @@ layer1_cells = c.query('layer == 1')
 plt.scatter(
     layer1_cells.x, layer1_cells.y,
     s=layer1_cells["area(micron**2)"], c=layer1_cells.label
-    )
+)
 area_layer1 = layer1_cells["area(micron**2)"]
 plt.title(f"Mean cell area in layer 1: {area_layer1.mean()}")
 
@@ -77,5 +77,3 @@ print(location)
 template = location.space.get_template().fetch()
 view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
 view.add_markers([tuple(location)])
-
-# %%
