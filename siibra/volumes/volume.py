@@ -321,7 +321,6 @@ class Volume(structure.BrainStructure, location.Location):
                 else:
                     assert selected_format in self._providers
                     result = self._providers[selected_format].fetch(**fwd_args)
-                    # TODO insert a meaningful description including origin and bounding box
                     break
             except requests.SiibraHttpRequestError as e:
                 if e.status_code == 429:  # too many requests

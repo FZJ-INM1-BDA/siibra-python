@@ -213,7 +213,7 @@ class PointSet(location.Location, structure.BrainStructure):
 
     @property
     def homogeneous(self):
-        """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
+        """Access the list of 3D point as an Nx4 array of homogeneous coordinates."""
         return np.c_[self.coordinates, np.ones(len(self))]
 
     def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
