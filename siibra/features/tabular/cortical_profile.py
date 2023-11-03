@@ -201,8 +201,8 @@ class CorticalProfile(tabular.Tabular):
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
-                "index": kwargs.pop("xlabel", "Cortical depth"),
-                "value": kwargs.pop("ylabel", self.unit)
+                "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
+                "value": kwargs.pop("ylabel", None) or kwargs.pop("value", self.unit)
             }
             fig = self.data.plot(*args, **kwargs, backend=backend)
             if self.boundaries_mapped:
@@ -218,7 +218,7 @@ class CorticalProfile(tabular.Tabular):
                 yaxis_range=(0, max(self._values)),
                 title=dict(
                     automargin=True, yref="container", xref="container",
-                    pad=dict(t=15), xanchor="left"
+                    pad=dict(t=40), xanchor="left", yanchor="top"
                 )
             )
             return fig
