@@ -66,7 +66,7 @@ class AnatomicalAnchor:
         self._aliases_cached = None
 
     @property
-    def location(self):
+    def location(self) -> Location:
         # allow to overwrite in derived classes
         return self._location_cached
 
@@ -105,12 +105,11 @@ class AnatomicalAnchor:
         if self._regions_cached is not None:
             return self._regions_cached
 
-        elif self._regionspec is None:
-            self._regions_cached = {}
+        if self._regionspec is None:
+            self._regions_cached = dict()
             return self._regions_cached
 
-        elif self._regionspec not in self.__class__._MATCH_MEMO:
-            self._regions_cached = {}
+        if self._regionspec not in self.__class__._MATCH_MEMO:
             # decode the region specification into a set of region objects
             regions = dict()
             for p in Parcellation.registry():
@@ -126,7 +125,7 @@ class AnatomicalAnchor:
                     for r in Parcellation.find_regions(regionspec):
                         if r.species != alt_species:
                             continue
-                        if r not in self._regions_cached:
+                        if r not in regions:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
 
             self.__class__._MATCH_MEMO[self._regionspec] = regions
@@ -140,20 +139,18 @@ class AnatomicalAnchor:
         separator = " " if min(len(region), len(location)) > 0 else ""
         return region + separator + location
 
-    def assign(self, concept: AtlasConcept):
+    def assign(self, concept: Union[AtlasConcept, Location]):
         """
-        Match this anchor to a query concept.
-        Assignments are cached at runtime,
+        Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
         if concept not in self._assignments:
-            matches: List[AnatomicalAssignment] = []
+            assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
-                matches.append(self.location.assign(concept))
+                assignments.append(self.location.assign(concept))
             for region in self.regions:
-                matches.append(region.assign(concept))
-
-            self._assignments[concept] = sorted(m for m in matches if m is not None)
+                assignments.append(region.assign(concept))
+            self._assignments[concept] = sorted(a for a in assignments if a is not None)
 
         self._last_matched_concept = concept \
             if len(self._assignments[concept]) > 0 \
