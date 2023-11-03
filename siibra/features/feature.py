@@ -676,10 +676,12 @@ class CompoundFeature(Feature):
         )
         self._queryconcept = queryconcept
 
-    @property
-    def compounding_attributes(self) -> Dict[str, Any]:
-        """Attributes and values used to compound the elements."""
-        return self._compounding_attributes
+    def __getattr__(self, attr: str) -> Any:
+        """ Expose compounding attributes explicitly. """
+        if attr in self._compounding_attributes:
+            return self._compounding_attributes[attr]
+        else:
+            raise AttributeError(f"{self._feature_type.__name__} has no attribute {attr}.")
 
     @property
     def elements(self):
@@ -700,7 +702,7 @@ class CompoundFeature(Feature):
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
         groupby = ', '.join([
-            f"{v} {k}" for k, v in self.compounding_attributes.items()
+            f"{v} {k}" for k, v in self._compounding_attributes.items()
         ])
         return (
             f"{self.__class__.__name__} of {len(self)} "
