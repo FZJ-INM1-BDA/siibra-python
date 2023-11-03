@@ -279,7 +279,7 @@ class Volume(structure.BrainStructure, location.Location):
 
         Returns
         -------
-        An image or mesh
+        An image (Nifti1Image) or mesh (Dict['verts': ndarray, 'faces': ndarray, 'labels': ndarray])
         """
         # check for a cached object
         kwargs_serialized = json.dumps(
@@ -294,7 +294,8 @@ class Volume(structure.BrainStructure, location.Location):
 
         # no cached object, fetch now
         if format is None:
-            possible_formats = list(self._providers.keys())
+            # preseve fetch order in SUPPORTED_FORMATS
+            possible_formats = [f for f in self.SUPPORTED_FORMATS if f in self.formats]
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
             possible_formats = [f for f in self._FORMAT_LOOKUP[format] if f in self.formats]
         elif format in self.SUPPORTED_FORMATS:
@@ -327,6 +328,10 @@ class Volume(structure.BrainStructure, location.Location):
                     break
             if result is not None:
                 break
+        else:
+            # do not poison the cache if none fetched
+            logger.error(f"Could not fetch any formats from {possible_formats}.")
+            return None
 
         self._maintain_fetch_cache()
         self._FETCH_CACHE[fetch_hash] = result
