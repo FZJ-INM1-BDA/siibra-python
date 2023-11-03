@@ -142,7 +142,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             3D volume will be returned, where voxels matching this label
             are marked as "1".
         """
-
         result = None
         if len(self._img_loaders) > 1:
             if fragment is None:
@@ -200,7 +199,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
-
 
 
 class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):

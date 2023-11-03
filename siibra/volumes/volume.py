@@ -292,46 +292,51 @@ class Volume(structure.BrainStructure, location.Location):
         if fetch_hash in self._FETCH_CACHE:
             return self._FETCH_CACHE[fetch_hash]
 
-        result = None
-
         # no cached object, fetch now
         if format is None:
-            requested_formats = list(self._providers.keys())
+            possible_formats = list(self._providers.keys())
         elif format in self._FORMAT_LOOKUP:  # allow use of aliases
-            requested_formats = self._FORMAT_LOOKUP[format]
+            possible_formats = [f for f in self._FORMAT_LOOKUP[format] if f in self.formats]
         elif format in self.SUPPORTED_FORMATS:
-            requested_formats = [format]
-        else:
-            raise ValueError(f"Invalid format requested: {format}")
+            possible_formats = [format] if format in self.formats else []
 
-        possible_formats = set(requested_formats) & set(self.formats)
         if len(possible_formats) == 0:
-            raise ValueError(f"Invalid format requested: {format}")
+            raise ValueError(
+                f"Invalid format requested: {format}. Possible values for this "
+                f"volume are: {self.formats}"
+            )
 
-        # try the selected format only
-        for selected_format in possible_formats:
-            fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
-            try:
-                if selected_format == "gii-label":
-                    tpl = self.space.get_template(variant=kwargs.get('variant'))
-                    mesh = tpl.fetch(**kwargs)
-                    labels = self._providers[selected_format].fetch(**fwd_args)
-                    result = dict(**mesh, **labels)
+        result = None
+        for fmt in possible_formats:
+            # try the each possible format. Repeat in case of too many requests.
+            for try_count in range(6):
+                fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
+                try:
+                    if fmt == "gii-label":
+                        tpl = self.space.get_template(variant=kwargs.get('variant'))
+                        mesh = tpl.fetch(**kwargs)
+                        labels = self._providers[fmt].fetch(**fwd_args)
+                        result = dict(**mesh, **labels)
+                    else:
+                        result = self._providers[fmt].fetch(**fwd_args)
+                except requests.SiibraHttpRequestError as e:
+                    if e.status_code == 429:  # too many requests
+                        sleep(0.1)
+                    logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                finally:
                     break
-                else:
-                    assert selected_format in self._providers
-                    result = self._providers[selected_format].fetch(**fwd_args)
-                    break
-            except requests.SiibraHttpRequestError as e:
-                if e.status_code == 429:  # too many requests
-                    sleep(0.1)
-                logger.error(f"Cannot access {self._providers[selected_format]}")
+            if result is not None:
+                break
 
-        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
-            # remove oldest entry
-            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
+        self._maintain_fetch_cache()
         self._FETCH_CACHE[fetch_hash] = result
         return result
+
+    @classmethod
+    def _maintain_fetch_cache(cls):
+        while len(cls._FETCH_CACHE) >= cls._FETCH_CACHE_MAX_ENTRIES:
+            # remove oldest entry
+            _ = cls._FETCH_CACHE.pop(next(iter(cls._FETCH_CACHE)))
 
     def fetch_connected_components(self, **kwargs):
         """

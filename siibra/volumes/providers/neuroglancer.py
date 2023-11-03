@@ -67,7 +67,6 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
         """
-
         result = None
 
         if 'index' in kwargs:
