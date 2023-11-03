@@ -531,7 +531,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 img = self.fetch(mapindex)
                 if np.linalg.norm(result_affine - img.affine) > 1e-14:
                     logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                    img_data = resample_array_to_array(img.get_fdata(), img.affine, result_data, result_affine)
+                    img_data = resample_array_to_array(
+                        img.get_fdata(), img.affine, result_data, result_affine
+                    )
                 else:
                     img_data = img.get_fdata()
 
@@ -798,12 +800,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
 
         if isinstance(item, point.Point):
-            return self._assign_points(pointset.PointSet([item], item.space, sigma_mm=item.sigma), lower_threshold)
+            return self._assign_points(
+                pointset.PointSet([item], item.space, sigma_mm=item.sigma),
+                lower_threshold
+            )
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
             image = item.fetch()
-            return self._assign_volume(np.asanyarray(image.dataobj), image.affine, minsize_voxel, lower_threshold, **kwargs)
+            return self._assign_volume(
+                np.asanyarray(image.dataobj), image.affine, minsize_voxel,
+                lower_threshold, **kwargs
+            )
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -1088,13 +1096,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     vol_data = np.asanyarray(vol_img.dataobj)
                     for mode, voxelmask in iter_func(imgdata):
                         position = np.array(np.where(voxelmask)).T.mean(0)
-                        labels = {v.label for L in self._indices.values() for v in L if v.volume == vol}
+                        labels = {
+                            index.label
+                            for indices in self._indices.values()
+                            for index in indices if index.volume == vol
+                        }
                         for label in progress(
                             labels,
                             desc=f"Assigning to {len(labels)} labelled structures"
                         ):
-
-                            targetdata = vol_img.get_fdata() if label is None else (vol_data == label).astype('uint8')
+                            targetdata = vol_data if label is None \
+                                else (vol_data == label).astype('uint8')
                             scores = compare_arrays(
                                 voxelmask, imgaffine,
                                 targetdata, vol_img.affine
