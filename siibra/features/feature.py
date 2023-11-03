@@ -674,7 +674,6 @@ class CompoundFeature(Feature):
             anchor=sum([f.anchor for f in elements]),
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
-        self._compound_data = self._subfeature_type._merge_data(self._subfeatures)
         self._queryconcept = queryconcept
 
     @property
