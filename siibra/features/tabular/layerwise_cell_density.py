@@ -108,7 +108,3 @@ class LayerwiseCellDensity(
             self.species[0]['name'],
             self.regionspec
         ))
-
-    def plot(self, *args, **kwargs):
-        kwargs['ylabel'] = self.unit
-        super().plot(*args, **kwargs)

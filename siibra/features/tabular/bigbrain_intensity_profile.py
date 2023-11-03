@@ -14,15 +14,12 @@
 # limitations under the License.
 
 from . import cortical_profile
-from ..feature import Compoundable
 
 from ...locations import point
-from typing import Dict, Union
 
 
 class BigBrainIntensityProfile(
     cortical_profile.CorticalProfile,
-    Compoundable,
     category='cellular'
 ):
 
@@ -35,6 +32,8 @@ class BigBrainIntensityProfile(
         "Taken from the tutorial at https://github.com/kwagstyl/cortical_layers_tutorial "
         "and assigned to cytoarchitectonic regions of Julich-Brain."
     )
+
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
 
     def __init__(
         self,
@@ -64,19 +63,3 @@ class BigBrainIntensityProfile(
             }
         )
         self.location = location
-
-    @property
-    def filter_attributes(self) -> Dict[str, Union[str, point.Point]]:
-        return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
-            "location": self.location
-        }
-
-    @property
-    def _compound_key(self):
-        return (self.__class__.__name__, self.modality)
-
-    @property
-    def subfeature_index(self) -> point.Point:
-        return self.location

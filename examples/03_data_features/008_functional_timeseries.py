@@ -31,29 +31,26 @@ jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # The matrices are queried as expected, using `siibra.features.get`,
-# passing the parcellation as a concept.
-# Here, we query for structural connectivity matrices.
+# passing the parcellation as a concept. Here, we query for regional BOLD signals.
+# RegionalBOLD features, just like connectivity, are initially represented as
+# CompoundFeatures.
 features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
-print(f"Found {len(features)} parcellation-based BOLD signals for {jubrain}.")
+for f in features:
+    print(f.name)
+bold_cf = features[0]
 
 # %%
-# We fetch the first result, which is a specific `RegionalBOLD` object.
-bold = features[0]
-print(f"RegionalBOLD features reflects {bold.modality} of {bold.cohort} cohort.")
-print(bold.name)
-print("\n" + bold.description)
-
-# Subjects are encoded via anonymized ids:
-print(bold.subjects)
+# Subjects are encoded via anonymized ids and BOLD type CompoundFeatures are
+# indexed by subject id and paradigm tuples.
+print(bold_cf[0].subject)
+print(bold_cf.indices[:10])
 
 
 # %%
-# The parcellation-based functional data are provided as pandas DataFrames
-# with region objects as columns and indices as time step.
-subject = bold.subjects[0]
-table = bold.get_table(subject)
-print(f"Timestep: {bold.timestep}")
-table[jubrain.get_region("hOc3v left")]
+# The signal data is provided as pandas DataFrames with region objects as
+# columns and indices as as a timeseries.
+table = bold_cf[0].data
+table[jubrain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
 
 # %%
 # We can visualize the signal strength per region by time via a carpet plot.
@@ -65,7 +62,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold.plot_carpet(subject=bold.subjects[0], regions=selected_regions)
+bold_cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold.plot(subject=bold.subjects[0], regions=selected_regions)
+bold_cf[0].plot(regions=selected_regions)

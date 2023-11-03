@@ -29,56 +29,56 @@ import siibra
 
 # %%
 # We start by selecting an atlas parcellation.
-jubrain = siibra.parcellations.get("julich 2.9")
+julich_brain = siibra.parcellations.get("julich 2.9")
 
 # %%
-# The matrices are queried as expected, using `siibra.features.get`,
-# passing the parcellation as a concept.
-# Here, we query for structural connectivity matrices.
-features = siibra.features.get(jubrain, siibra.features.connectivity.StreamlineCounts)
-print(f"Found {len(features)} streamline count matrices.")
+# The matrices are queried as expected, using `siibra.features.get`, passing
+# the parcellation as a concept. Here, we query for structural connectivity matrices.
+# Connectivity features are compounded into a big set which contain the connectivity
+# matrices as elements. Typically, connectivity features provide a range
+# of region-to-region connectivity matrices for different subjects from an
+# imaging cohort. Let us select "HCP" cohort.
+features = siibra.features.get(julich_brain, siibra.features.connectivity.StreamlineCounts)
+for cf in features:
+    print(cf.name)
+    if cf.compounding_attributes["cohort"] == "HCP":
+        conn_cf = cf
+print(f"Selected: {conn_cf.name}'\n'" + conn_cf.description)
 
 # %%
-# We fetch the first result, which is a specific `StreamlineCounts` object
-# expressing structural connectivity in the form of numbers of streamlines
-# connecting pairs of brain regions as estimated from tractography on diffusion imaging.
-# Typically, connectivity features provide a range of region-to-region
-# connectivity matrices for different subjects from an imaging cohort.
-conn = features[0]
-print(f"Connectivity features reflects {conn.modality} of {conn.cohort} cohort.")
-print(conn.name)
-print("\n" + conn.description)
-
-# Subjects are encoded via anonymized ids:
-print(conn.subjects)
-
+# A specific `StreamlineCounts` object expresses structural connectivity in
+# the form of numbers of streamlines connecting pairs of brain regions as
+# estimated from tractography on diffusion imaging. We can access to these
+# elements by integers or the element indices. In this case indicies represent
+# subjects.
+for i, cf in enumerate(conn_cf[:10]):  # we can iterate over elements of a CompoundFeature
+    print(f"Element index: {conn_cf.indices[i]}, Subject: {cf.subject}")
 
 # %%
-# The connectivity matrices are provided as pandas DataFrames,
-# with region objects as index.
-subject = conn.subjects[0]
-matrix = conn.get_matrix(subject)
+# We can select a specific element by integer index or element index via
+# `get_element` method
+print(conn_cf[5].name)
+print(conn_cf.get_element('005').name)
+
+# %%
+# The connectivity matrices are provided as pandas DataFrames, with region
+# objects as indices and columns. We can access the matrix corresponding to
+# the selected index by
+matrix = conn_cf[0].data
 matrix.iloc[0:15, 0:15]  # let us see the first 15x15
 
-
 # %%
-# Alternatively, we can visualize the matrix using plot_matrix() method
-conn.plot_matrix(subject=conn.subjects[0])
-
-
-# %%
-# The average matrix across all subjects can be displayed by leaving out subjects
-# or setting it to `None`. Also, the matrix can be displayed by specifiying
-# a list of regions.
-selected_regions = conn.regions[0:30]
-conn.plot_matrix(regions=selected_regions, reorder=True, cmap="magma")
+# The matrix can be displayed using `plot` method. In addition, it can be
+# displayed only for a specific list of regions.
+selected_regions = conn_cf[0].regions[0:30]
+conn_cf[0].plot(regions=selected_regions, reorder=True, cmap="magma")
 
 # %%
 # We can create a 3D visualization of the connectivity using
 # the plotting module of `nilearn <https://nilearn.github.io>`_.
 # To do so, we need to provide centroids in
 # the anatomical space for each region (or "node") of the connectivity matrix.
-node_coords = conn.compute_centroids('mni152')
+node_coords = conn_cf[0].compute_centroids('mni152')
 
 
 # %%
@@ -90,8 +90,8 @@ view = plotting.plot_connectome(
     node_size=10,
 )
 view.title(
-    f"{conn.modality} of subject {subject} in {conn.cohort} cohort "
-    f"averaged on {jubrain.name}",
+    f"{conn_cf.modality} of subject {conn_cf.indices[0]} in {conn_cf[0].cohort} cohort "
+    f"averaged on {julich_brain.name}",
     size=10,
 )
 

@@ -40,7 +40,7 @@ class Configuration:
     ]
 
     CONFIGURATIONS = [
-        GitlabConnector(server, project, "siibra-{}".format(__version__), skip_branchtest=True)
+        GitlabConnector(server, project, "add_ftract_connectivity", skip_branchtest=True)
         for server, project in CONFIG_REPOS
     ]
 

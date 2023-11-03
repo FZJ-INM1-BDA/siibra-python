@@ -48,8 +48,7 @@ modalities = [
 
 # %%
 # We iterate the regions and modalities to generate a grid plot.
-plt.style.use('seaborn')
-f, axs = plt.subplots(len(modalities), len(regions))
+fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [4500, 150, 30000]
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
@@ -59,30 +58,36 @@ for i, region in enumerate(regions):
             fp = features[-1]
             fp.plot(ax=axs[j, i])
             axs[j, i].set_ylim(0, ymax[j])
-f.tight_layout()
+fig.tight_layout()
 
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. For the receptor measurements, we
-# supply now an additional filter to choose only GABAB profiles.
+# boundary in individual tissue samples. Cortical profiles queries form CompoundFeatures
+# for easy naviagtion of related profiles. We can browse through the elements 
+# with integer index or their unique index via `get_element`. Indices change
+# based on modality: a receptor name for ReceptorDensityProfile, section and
+# patch numbers for CellDensityProfile, and a point for BigBrainIntensityProfile.
+# Let us choose `GABAB` receptor and random indices from cell density and
+# BigBrain intensity profiles.
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, lambda p: "gabab" in p.receptor.lower()),
-    (siibra.features.cellular.CellDensityProfile, lambda p: True),
-    (siibra.features.cellular.BigBrainIntensityProfile, lambda p: True),
+    (siibra.features.molecular.ReceptorDensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
+    (siibra.features.cellular.CellDensityProfile, None),
+    (siibra.features.cellular.BigBrainIntensityProfile, None),
 ]
-f, axs = plt.subplots(len(modalities), len(regions))
-f.set(figheight=15, figwidth=10)
+
+fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [3500, 150, 30000]
 
-np.random.seed(1)  # for reproducibility
 for i, region in enumerate(regions):
-    for j, (modality, filterfunc) in enumerate(modalities):
-        features = list(
-            filter(filterfunc, siibra.features.get(region, modality))
-        )
-        # fetch a random sample from the available ones
-        p = features[int(np.random.rand() * (len(features)))]
+    for j, (modality, element_index) in enumerate(modalities):
+        cf = siibra.features.get(region, modality)[0]
+        if element_index is None:
+            p = cf[np.random.randint(0, len(cf) - 1)]  # choose a random one
+        else:
+            p = cf.get_element(element_index)
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
-f.tight_layout()
+
+fig.set(figheight=15, figwidth=10)
+fig.tight_layout()

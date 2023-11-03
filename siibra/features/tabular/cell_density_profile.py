@@ -14,7 +14,6 @@
 # limitations under the License.
 
 from . import cortical_profile
-from ..feature import Compoundable
 
 from .. import anchor as _anchor
 from ...commons import PolyLine, logger, create_key
@@ -25,12 +24,10 @@ from skimage.transform import resize
 from io import BytesIO
 import numpy as np
 import pandas as pd
-from typing import Dict, Union, Tuple
 
 
 class CellDensityProfile(
     cortical_profile.CorticalProfile,
-    Compoundable,
     configuration_folder="features/tabular/corticalprofiles/celldensity",
     category='cellular'
 ):
@@ -45,6 +42,8 @@ class CellDensityProfile(
     )
 
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
+
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["section", "patch"]
 
     @classmethod
     def CELL_READER(cls, b):
@@ -95,23 +94,6 @@ class CellDensityProfile(
         self._depth_image = None
         self.section = section
         self.patch = patch
-
-    @property
-    def filter_attributes(self) -> Dict[str, Union[str, int]]:
-        return {
-            "class": self.__class__.__name__,
-            "modality": self.modality,
-            "section": self.section,
-            "patch": self.patch
-        }
-
-    @property
-    def _compound_key(self):
-        return (self.__class__.__name__, self.modality)
-
-    @property
-    def subfeature_index(self) -> Tuple[int, int]:
-        return (self.section, self.patch)
 
     @property
     def shape(self):
