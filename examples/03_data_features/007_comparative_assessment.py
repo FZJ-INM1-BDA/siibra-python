@@ -63,29 +63,23 @@ fig.tight_layout()
 # %%
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
-# boundary in individual tissue samples. Cortical profiles queries form CompoundFeatures
-# for easy naviagtion of related profiles. We can browse through the elements 
-# with integer index or their unique index via `get_element`. Indices change
-# based on modality: a receptor name for ReceptorDensityProfile, section and
-# patch numbers for CellDensityProfile, and a point for BigBrainIntensityProfile.
-# Let us choose `GABAB` receptor and random indices from cell density and
-# BigBrain intensity profiles.
+# boundary in individual tissue samples. Cortical profiles queries form
+# :ref:`CompoundFeatures<compoundfeatures>` for easy handling of the profiles.
+# We can browse through the elements with integer index. Let us select random
+# ones for comparison.
 modalities = [
-    (siibra.features.molecular.ReceptorDensityProfile, 'GABAB (gamma-aminobutyric acid receptor type B)'),
-    (siibra.features.cellular.CellDensityProfile, None),
-    (siibra.features.cellular.BigBrainIntensityProfile, None),
+    siibra.features.molecular.ReceptorDensityProfile,
+    siibra.features.cellular.CellDensityProfile,
+    siibra.features.cellular.BigBrainIntensityProfile,
 ]
 
 fig, axs = plt.subplots(len(modalities), len(regions))
 ymax = [3500, 150, 30000]
 
 for i, region in enumerate(regions):
-    for j, (modality, element_index) in enumerate(modalities):
+    for j, modality in enumerate(modalities):
         cf = siibra.features.get(region, modality)[0]
-        if element_index is None:
-            p = cf[np.random.randint(0, len(cf) - 1)]  # choose a random one
-        else:
-            p = cf.get_element(element_index)
+        p = cf[np.random.randint(0, len(cf) - 1)]
         p.plot(ax=axs[j, i], layercolor="darkblue")
         axs[j, i].set_ylim(0, ymax[j])
 

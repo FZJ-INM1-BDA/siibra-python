@@ -18,8 +18,9 @@ Connectivity matrices
 ~~~~~~~~~~~~~~~~~~~~~
 
 `siibra` provides access to parcellation-averaged connectivity matrices.
-Several types of connectivity are supported.
-As of now, these include "StreamlineCounts", "StreamlineLengths", and "FunctionalConnectivity".
+Several types of connectivity are supported. As of now, these include
+"StreamlineCounts", "StreamlineLengths", "FunctionalConnectivity", and
+"AnatomoFunctionalConnectivity" (F-Tract).
 """
 
 # %%
@@ -35,20 +36,19 @@ julich_brain = siibra.parcellations.get("julich 2.9")
 # The matrices are queried as expected, using `siibra.features.get`, passing
 # the parcellation as a concept. Here, we query for structural connectivity matrices.
 # Since a single query may yield hundreds of connectivity matrices for different
-# subjects of a cohort,
-# siibra groups them as elements into "compound features". 
-# Let us select "HCP" cohort.
+# subjects of a cohort, siibra groups them as elements into
+# :ref:`"CompoundFeatures"<compoundfeatures>`. Let us select "HCP" cohort.
 features = siibra.features.get(julich_brain, siibra.features.connectivity.StreamlineCounts)
-for cf in features:
-    print(cf.name)
-    if cf.cohort == "HCP":
+for f in features:
+    print(f.name)
+    if f.cohort == "HCP":
+        cf = f
         print(f"Selected: {cf.name}'\n'" + cf.description)
-        break
 
 # %%
 # We can select a specific element by integer index
 print(cf[0].name)
-print(cf[0].subject)
+print(cf[0].subject)  # Subjects are encoded via anonymized ids
 
 # %%
 # The connectivity matrices are provided as pandas DataFrames, with region

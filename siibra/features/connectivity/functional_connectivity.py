@@ -41,7 +41,7 @@ class FunctionalConnectivity(
 
     @property
     def name(self):
-        return f"{super().name} and paradigm {self.paradigm}"
+        return f"{super().name}, {self.paradigm} paradigm"
 
 
 class AnatomoFunctionalConnectivity(

@@ -79,7 +79,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def name(self):
-        return f"{super().name} with cohort {self.cohort} - {self.subject}"
+        return f"{super().name} with cohort {self.cohort} - subject {self.subject}"
 
     @property
     def data(self) -> pd.DataFrame:
@@ -235,4 +235,4 @@ class RegionalBOLD(
 
     @property
     def name(self):
-        return f"{super().name} and paradigm {self.paradigm}"
+        return f"{super().name}, paradigm {self.paradigm}"

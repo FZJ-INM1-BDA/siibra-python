@@ -30,26 +30,29 @@ import siibra
 jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
-# The matrices are queried as expected, using `siibra.features.get`,
-# passing the parcellation as a concept. Here, we query for regional BOLD signals.
-# RegionalBOLD features, just like connectivity, are initially represented as
-# CompoundFeatures.
+# The tables are queried as expected, using `siibra.features.get`, passing
+# the parcellation as a concept. Here, we query for regional BOLD signals.
+# Since a single query may yield hundreds of signal tables for different
+# subjects of a cohort and paradigms, siibra groups them as elements into
+# :ref:`CompoundFeatures<compoundfeatures>`. Let us select "rfMRI_REST1_LR_BOLD"
+# paradigm.
 features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
 for f in features:
     print(f.name)
-bold_cf = features[0]
+    if f.paradigm == "rfMRI_REST1_LR_BOLD":
+        cf = f
+        print(f"Selected: {cf.name}'\n'" + cf.description)
 
 # %%
-# Subjects are encoded via anonymized ids and BOLD type CompoundFeatures are
-# indexed by subject id and paradigm tuples.
-print(bold_cf[0].subject)
-print(bold_cf.indices[:10])
+# We can select a specific element by integer index
+print(cf[0].name)
+print(cf[0].subject)  # Subjects are encoded via anonymized ids
 
 
 # %%
 # The signal data is provided as pandas DataFrames with region objects as
 # columns and indices as as a timeseries.
-table = bold_cf[0].data
+table = cf[0].data
 table[jubrain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
 
 # %%
@@ -62,7 +65,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold_cf[0].plot_carpet(regions=selected_regions)
+cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold_cf[0].plot(regions=selected_regions)
+cf[0].plot(regions=selected_regions)

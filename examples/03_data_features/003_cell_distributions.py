@@ -34,12 +34,12 @@ from nilearn import plotting
 
 # %%
 # Find cell density profiles for V1. Cortical profile features are combined
-# together as elements to form CompoundFeatures.
+# together as elements to form :ref:`CompoundFeatures<compoundfeatures>`.
+# Therefore, we can select the first and only item in the results.
 v1 = siibra.get_region("julich 3", "v1")
-features = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)
-for f in features:
-    print(f.name)
-cf = features[0]
+cf = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)[0]
+print(cf.name)
+
 # %%
 # We can browse through the elements with integer index. To illustrate, let us
 # look at the default visualization the first of them, this time using `plotly`
@@ -48,15 +48,8 @@ print(cf[0].name)
 cf[0].plot(backend="plotly")
 
 # %%
-# Instead of using integer index, we can also use `get_element` method if the
-# unique index is known. We can list these by
-print(cf.indices)
-f = cf.get_element(('0211', '0003'))
-print(f.name)
-
-# %%
 # The segmented cells are stored in each feature as a numpy array with named columns.
-cells = f.cells
+cells = cf[0].cells
 print("Number of segmented cells:", len(cells))
 cells.head()
 
