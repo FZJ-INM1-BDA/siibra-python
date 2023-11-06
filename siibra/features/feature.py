@@ -677,11 +677,14 @@ class CompoundFeature(Feature):
         self._queryconcept = queryconcept
 
     def __getattr__(self, attr: str) -> Any:
-        """ Expose compounding attributes explicitly. """
+        """Expose compounding attributes explicitly."""
         if attr in self._compounding_attributes:
             return self._compounding_attributes[attr]
         else:
             raise AttributeError(f"{self._feature_type.__name__} has no attribute {attr}.")
+
+    def __dir__(self):
+        return super().__dir__() + list(self._compounding_attributes.keys())
 
     @property
     def elements(self):
