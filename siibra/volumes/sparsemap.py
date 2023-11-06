@@ -448,7 +448,7 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(
+    def _assign_volume(
         self,
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
