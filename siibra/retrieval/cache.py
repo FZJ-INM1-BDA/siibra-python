@@ -12,13 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Maintaining and hadnling caching files on disk."""
 
 import hashlib
 import os
 from appdirs import user_cache_dir
 import tempfile
 
-from ..commons import logger, SIIBRA_CACHEDIR
+from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHE_MAINTENANCE
 
 
 def assert_folder(folder):
@@ -76,6 +77,9 @@ class Cache:
     def run_maintenance(self):
         """ Shrinks the cache by deleting oldest files first until the total size
         is below cache size (Cache.SIZE) given in GiB."""
+        if SKIP_CACHE_MAINTENANCE:
+            logger.debug("Will not run maintenance on cache as SKIP_CACHE_MAINTENANCE is set to True.")
+            return
 
         # build sorted list of cache files and their os attributes
         files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]

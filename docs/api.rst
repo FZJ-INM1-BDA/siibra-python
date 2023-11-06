@@ -6,11 +6,13 @@
 API Documentation
 =================
 
+The class and package diagrams can be found at the :ref:`developer documentation <developer>`.
+
 :mod:`Siibra<siibra>`
 ====================
 
-Main Packages
-=============
+Main Packages and Modules
+=========================
 .. autopackagesummary:: siibra
    :toctree: _autosummary
 
@@ -24,23 +26,22 @@ Volumes
 .. autopackagesummary:: siibra.volumes
    :toctree: _autosummary
 
-Features
-========
-.. autopackagesummary:: siibra.features
-   :toctree: _autosummary
-
 Locations
 =========
 .. autopackagesummary:: siibra.locations
    :toctree: _autosummary
 
-Miscellaneous Helpers
-=====================
+Features
+========
+.. autopackagesummary:: siibra.features
+   :toctree: _autosummary
+
 Live queries
 ------------
 .. autopackagesummary:: siibra.livequeries
    :toctree: _autosummary
+
 Retrieval
----------
+=========
 .. autopackagesummary:: siibra.retrieval
    :toctree: _autosummary

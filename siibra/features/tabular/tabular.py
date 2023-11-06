@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Base type of features in tabular formats."""
 
 from zipfile import ZipFile
 from .. import feature
@@ -73,6 +74,14 @@ class Tabular(feature.Feature):
         **kwargs
             takes Matplotlib.pyplot keyword arguments
         """
+        wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
+        kwargs["title"] = kwargs.get(
+            "title",
+            "\n".join(wrap(
+                f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}",
+                wrapwidth
+            ))
+        )
         kwargs["kind"] = kwargs.get("kind", "bar")
         kwargs["y"] = kwargs.get("y", self.data.columns[0])
         if backend == "matplotlib":
@@ -81,8 +90,6 @@ class Tabular(feature.Feature):
             except ImportError:
                 commons.logger.error("matplotlib not available. Plotting of fingerprints disabled.")
                 return None
-
-            wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
             # default kwargs
             if kwargs.get("error_y") is None:
                 kwargs["yerr"] = kwargs.get("yerr", 'std' if 'std' in self.data.columns else None)
@@ -92,10 +99,6 @@ class Tabular(feature.Feature):
                 "ylabel",
                 f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
             )
-            kwargs["title"] = kwargs.get(
-                "title",
-                "\n".join(wrap(f"{self.modality} in {', '.join({_.name for _ in self.anchor.regions})}", wrapwidth))
-            )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
             ax = self.data.plot(*args, backend=backend, **kwargs)
@@ -104,14 +107,24 @@ class Tabular(feature.Feature):
             plt.tight_layout()
             return ax
         elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
             error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
             kwargs["labels"] = {
-                "index": kwargs.pop("xlabel", ""),
-                "value": kwargs.pop("ylabel", f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}")
+                "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
+                "value": kwargs.pop("ylabel", None) or kwargs.pop(
+                    "value",
+                    f"{kwargs.get('y')}{error_y_label} {self.unit if hasattr(self, 'unit') else ''}"
+                )
             }
             fig = self.data.plot(*args, backend=backend, **kwargs)
-            fig.update_layout(yaxis_title=kwargs["labels"]['value'])
+            fig.update_layout(
+                yaxis_title=kwargs["labels"]['value'],
+                title=dict(
+                    automargin=True, yref="container", xref="container",
+                    pad=dict(t=40), xanchor="left", yanchor="top"
+                )
+            )
             return fig
         else:
             return self.data.plot(*args, backend=backend, **kwargs)

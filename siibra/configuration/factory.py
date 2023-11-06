@@ -31,30 +31,24 @@ from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellatio
 from os import path
 import json
 import numpy as np
-from typing import List, Type
+from typing import List, Type, Dict, Callable
 import pandas as pd
 from io import BytesIO
+from functools import wraps
 
-BUILDFUNCS = {
-    "juelich/iav/atlas/v1.0.0": "build_atlas",
-    "siibra/space/v0.0.1": "build_space",
-    "siibra/parcellation/v0.0.1": "build_parcellation",
-    "siibra/volume/v0.0.1": "build_volume",
-    "siibra/map/v0.0.1": "build_map",
-    "siibra/snapshots/ebrainsquery/v1": "build_ebrains_dataset",
-    "https://openminds.ebrains.eu/sands/CoordinatePoint": "build_point",
-    "siibra/location/point/v0.1": "build_point",
-    "tmp/poly": "build_pointset",
-    "siibra/location/pointset/v0.1": "build_pointset",
-    "siibra/feature/profile/receptor/v0.1": "build_receptor_density_profile",
-    "siibra/feature/profile/celldensity/v0.1": "build_cell_density_profile",
-    "siibra/feature/fingerprint/receptor/v0.1": "build_receptor_density_fingerprint",
-    "siibra/feature/fingerprint/celldensity/v0.1": "build_cell_density_fingerprint",
-    "siibra/feature/connectivitymatrix/v0.2": "build_connectivity_matrix",
-    "siibra/feature/section/v0.1": "build_section",
-    "siibra/feature/voi/v0.1": "build_volume_of_interest",
-    "siibra/feature/timeseries/activity/v0.1": "build_activity_timeseries"
-}
+
+_registered_build_fns: Dict[str, Callable] = {}
+
+
+def build_type(type_str: str):
+    def outer(fn):
+        _registered_build_fns[type_str] = fn
+
+        @wraps(fn)
+        def inner(*args, **kwargs):
+            return fn(*args, **kwargs)
+        return inner
+    return outer
 
 
 class Factory:
@@ -83,7 +77,7 @@ class Factory:
                     contributors=pub["authors"],
                     url=pub["url"],
                     description=pub["description"],
-                    fullcitation=pub["citation"]
+                    license=pub.get("license")
                 )
                 for pub in spec["publications"] if pub.get('name')
             )
@@ -167,6 +161,7 @@ class Factory:
         return None
 
     @classmethod
+    @build_type("juelich/iav/atlas/v1.0.0")
     def build_atlas(cls, spec):
         a = atlas.Atlas(
             spec["@id"],
@@ -180,6 +175,7 @@ class Factory:
         return a
 
     @classmethod
+    @build_type("siibra/space/v0.0.1")
     def build_space(cls, spec):
         return space.Space(
             identifier=spec["@id"],
@@ -203,9 +199,11 @@ class Factory:
             publications=spec.get("publications", []),
             datasets=cls.extract_datasets(spec),
             rgb=spec.get("rgb", None),
+            spec=spec,
         )
 
     @classmethod
+    @build_type("siibra/parcellation/v0.0.1")
     def build_parcellation(cls, spec):
         regions = []
         for regionspec in spec.get("regions", []):
@@ -242,6 +240,7 @@ class Factory:
         return p
 
     @classmethod
+    @build_type("siibra/volume/v0.0.1")
     def build_volume(cls, spec):
         providers: List[volume.VolumeProvider] = []
         provider_types: List[Type[volume.VolumeProvider]] = [
@@ -276,6 +275,7 @@ class Factory:
         return result
 
     @classmethod
+    @build_type("siibra/map/v0.0.1")
     def build_map(cls, spec):
         # maps have no configured identifier - we require the spec filename to build one
         assert "filename" in spec
@@ -303,6 +303,7 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/snapshots/ebrainsquery/v1")
     def build_ebrains_dataset(cls, spec):
         return datasets.EbrainsDataset(
             id=spec["id"],
@@ -312,6 +313,8 @@ class Factory:
         )
 
     @classmethod
+    @build_type("https://openminds.ebrains.eu/sands/CoordinatePoint")
+    @build_type("siibra/location/point/v0.1")
     def build_point(cls, spec):
         if spec.get('@type') == "https://openminds.ebrains.eu/sands/CoordinatePoint":
             space_id = spec["coordinateSpace"]["@id"]
@@ -328,8 +331,10 @@ class Factory:
         )
 
     @classmethod
+    @build_type("tmp/poly")
+    @build_type("siibra/location/pointset/v0.1")
     def build_pointset(cls, spec):
-        if spec.get('@type') == '/tmp/poly':
+        if spec.get('@type') == 'tmp/poly':
             space_id = spec["coordinateSpace"]["@id"]
             coords = []
             for coord in spec["coordinates"]:
@@ -341,6 +346,7 @@ class Factory:
         return pointset.PointSet(coords, space=space_id)
 
     @classmethod
+    @build_type("siibra/feature/fingerprint/receptor/v0.1")
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
             tsvfile=spec['file'],
@@ -349,6 +355,7 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/fingerprint/celldensity/v0.1")
     def build_cell_density_fingerprint(cls, spec):
         return layerwise_cell_density.LayerwiseCellDensity(
             segmentfiles=spec['segmentfiles'],
@@ -358,6 +365,7 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/profile/receptor/v0.1")
     def build_receptor_density_profile(cls, spec):
         return receptor_density_profile.ReceptorDensityProfile(
             receptor=spec['receptor'],
@@ -367,6 +375,7 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/profile/celldensity/v0.1")
     def build_cell_density_profile(cls, spec):
         return cell_density_profile.CellDensityProfile(
             section=spec['section'],
@@ -377,6 +386,7 @@ class Factory:
         )
 
     @classmethod
+    @build_type("siibra/feature/section/v0.1")
     def build_section(cls, spec):
         vol = cls.build_volume(spec)
         kwargs = {
@@ -393,6 +403,7 @@ class Factory:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
+    @build_type("siibra/feature/voi/v0.1")
     def build_volume_of_interest(cls, spec):
         vol = cls.build_volume(spec)
         kwargs = {
@@ -419,20 +430,25 @@ class Factory:
             return volume_of_interest.XPCTVolumeOfInterest(
                 modality="XPCT", **kwargs
             )
+        elif modality == "DTI":
+            return volume_of_interest.DTIVolumeOfInterest(
+                modality=modality, **kwargs
+            )
         # elif modality == "segmentation":
         #     return volume_of_interest.SegmentedVolumeOfInterest(**kwargs)
-        elif modality == "T2 weighted MRI":
+        elif "MRI" in modality:
             return volume_of_interest.MRIVolumeOfInterest(
-                modality="T2", **kwargs
+                modality=modality, **kwargs
             )
-        elif modality == "T1 weighted MRI":
-            return volume_of_interest.MRIVolumeOfInterest(
-                modality="T1", **kwargs
+        elif modality == "LSFM":
+            return volume_of_interest.LSFMVolumeOfInterest(
+                modality="Light Sheet Fluorescence Microscopy", **kwargs
             )
         else:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
+    @build_type("siibra/feature/connectivitymatrix/v0.2")
     def build_connectivity_matrix(cls, spec):
         files = spec.get("files", {})
         modality = spec["modality"]
@@ -472,6 +488,7 @@ class Factory:
         return conn_by_file
 
     @classmethod
+    @build_type("siibra/feature/timeseries/activity/v0.1")
     def build_activity_timeseries(cls, spec):
         files = spec.get("files", {})
         modality = spec["modality"]
@@ -489,7 +506,7 @@ class Factory:
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
-            "timestep": spec.get("timestep", ("1 timestep"))
+            "timestep": spec.get("timestep")
         }
         paradigm = spec.get("paradigm")
         if paradigm:
@@ -517,8 +534,7 @@ class Factory:
                 spec = json.loads(spec)
 
         spectype = spec.get("@type", None)
-        if spectype in BUILDFUNCS:
-            func = getattr(cls, BUILDFUNCS[spectype])
-            return func(spec)
+        if spectype in _registered_build_fns:
+            return _registered_build_fns[spectype](cls, spec)
         else:
             raise RuntimeError(f"No factory method for specification type {spectype}.")

@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+
+title: "siibra-python"
+
+abstract: |
+  siibra is a Python client to a brain atlas framework that integrates brain
+  parcellations and reference spaces at different spatial scales, and connects
+  them with a broad range of multimodal regional data features. It aims to
+  facilitate programmatic and reproducible incorporation of brain parcellations
+  and brain region features from different sources into neuroscience workflows.
+
+message: "If you use this software, please cite it as below."
+
+license: Apache License, Version 2.0
+
+repository-code: https://github.com/FZJ-INM1-BDA/siibra-python
+
+version: v0.4a77
+
+date-released: 2023-10-23
+
+doi: https://zenodo.org/records/7885729
+
+contact:
+  - given-names: Timo
+    family-names: Dickscheid
+    email: t.dickscheid@fz-juelich.de
+    affiliation: INM-1, Forschungszentrum Juelich, Germany
+
+authors:
+  - family-names: Dickscheid
+    given-names: Timo
+    orcid: https://orcid.org/0000-0002-9051-3701
+  - family-names: Gui
+    given-names: Xiaoyun
+  - family-names: Simsek
+    given-names: Ahmet Nihat 
+  - family-names: Koehnen
+    given-names: Louisa
+  - family-names: Marcenko
+    given-names: Vadim
+  - family-names: Schiffer
+    given-names: Christian
+  - family-names: Bludau
+    given-names: Sebastian
+  - family-names: Amunts
+    given-names: Katrin

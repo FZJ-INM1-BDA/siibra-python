@@ -12,13 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Metadata connection to EBRAINS datasets."""
 
 from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
 from typing import Union, List
 from abc import ABC, abstractproperty
+from hashlib import md5
 
 try:
     from typing import TypedDict
@@ -172,6 +173,10 @@ class EbrainsDataset(EbrainsBaseDataset):
     def custodians(self) -> EbrainsDatasetPerson:
         return self.detail.get("custodians")
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @staticmethod
@@ -266,6 +271,10 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     def version_identifier(self):
         return self.detail.get("versionIdentifier", "")
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
     def __init__(self, id, *, cached_data=None) -> None:
@@ -333,6 +342,10 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
     def version_ids(self) -> List['str']:
         return [version.get("id") for version in self.detail.get("versions", [])]
 
+    @property
+    def LICENSE(self) -> str:
+        return self.detail.get("license", "No license information is found.")
+
 
 class GenericDataset():
 
@@ -342,21 +355,29 @@ class GenericDataset():
         contributors: List[str] = None,
         url: str = None,
         description: str = None,
-        fullcitation: str = None
+        license: str = "No license information is found."
     ):
         self._name = name
         self._contributors = contributors
         self._url = url
         self._description = description
-        self._fullcitation = fullcitation
+        self._license = license
 
     @property
     def contributors(self):
         return [{"name": cont} for cont in self._contributors]
 
     @property
+    def id(self) -> str:
+        return md5(self.name.encode('utf-8')).hexdigest()
+
+    @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def LICENSE(self) -> str:
+        return self._license
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
@@ -365,10 +386,6 @@ class GenericDataset():
     @property
     def description(self) -> str:
         return self._description
-
-    @property
-    def citation(self):
-        return self._fullcitation
 
     def __hash__(self):
         return hash(self.id)

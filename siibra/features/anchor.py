@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Handles the relation between study targets and AtlasConcepts."""
 
 from ..commons import logger, Species
 
@@ -21,87 +22,13 @@ from ..locations.boundingbox import BoundingBox
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 from ..core.space import Space
+from ..core.relation_qualification import Qualification as AssignmentQualification, RelationAssignment
 
 from ..vocabularies import REGION_ALIASES
 
 from typing import Union, List, Dict
-from enum import Enum
 
-
-class AssignmentQualification(Enum):
-    EXACT = 1
-    OVERLAPS = 2
-    CONTAINED = 3
-    CONTAINS = 4
-    APPROXIMATE = 5
-
-    @property
-    def verb(self):
-        """
-        a string that can be used as a verb in a sentence
-        for producing human-readable messages.
-        """
-        transl = {
-            'EXACT': 'coincides with',
-            'OVERLAPS': 'overlaps with',
-            'CONTAINED': 'is contained in',
-            'CONTAINS': 'contains',
-            'APPROXIMATE': 'approximates to',
-        }
-        return transl[self.name]
-
-    def invert(self):
-        """
-        Return a MatchPrecision object with the inverse meaning
-        """
-        inverses = {
-            "EXACT": "EXACT",
-            "OVERLAPS": "OVERLAPS",
-            "CONTAINED": "CONTAINS",
-            "CONTAINS": "CONTAINED",
-            "APPROXIMATE": "APPROXIMATE",
-        }
-        return AssignmentQualification[inverses[self.name]]
-
-    def __str__(self):
-        return f"{self.__class__.__name__}={self.name.lower()}"
-
-    def __repr__(self):
-        return str(self)
-
-
-class AnatomicalAssignment:
-    """
-    An assignment of an anatomical anchor to an atlas concept.
-    """
-
-    def __init__(
-        self,
-        query_structure: Union[Region, Location],
-        assigned_structure: Union[Region, Location],
-        qualification: AssignmentQualification,
-        explanation: str = ""
-    ):
-        self.query_structure = query_structure
-        self.assigned_structure = assigned_structure
-        self.qualification = qualification
-        self.explanation = explanation.strip()
-
-    @property
-    def is_exact(self):
-        return self.qualification == AssignmentQualification.EXACT
-
-    def __str__(self):
-        msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"
-        return msg if self.explanation == "" else f"{msg} - {self.explanation}"
-
-    def invert(self):
-        return AnatomicalAssignment(self.assigned_structure, self.query_structure, self.qualification.invert(), self.explanation)
-
-    def __lt__(self, other: 'AnatomicalAssignment'):
-        if not isinstance(other, AnatomicalAssignment):
-            raise ValueError(f"Cannot compare AnatomicalAssignment with instances of '{type(other)}'")
-        return self.qualification.value < other.qualification.value
+AnatomicalAssignment = RelationAssignment[Union[Region, Location]]
 
 
 class AnatomicalAnchor:

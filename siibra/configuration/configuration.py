@@ -122,7 +122,7 @@ class Configuration:
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         if conn in cls.CONFIGURATION_EXTENSIONS:
-            logger.warn(f"The configuration {str(conn)} is already registered.")
+            logger.warning(f"The configuration {str(conn)} is already registered.")
         else:
             logger.info(f"Extending configuration with {str(conn)}")
             cls.CONFIGURATION_EXTENSIONS.append(conn)

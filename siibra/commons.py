@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Constants, functions, and classes used commonly across siibra."""
+
 import os
 import re
 from enum import Enum
@@ -24,6 +25,11 @@ import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
+try:
+    from typing import TypedDict
+except ImportError:
+    # support python 3.7
+    from typing_extensions import TypedDict
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -39,8 +45,9 @@ KEYCLOAK_CLIENT_SECRET = os.getenv("KEYCLOAK_CLIENT_SECRET")
 SIIBRA_CACHEDIR = os.getenv("SIIBRA_CACHEDIR")
 SIIBRA_LOG_LEVEL = os.getenv("SIIBRA_LOG_LEVEL", "INFO")
 SIIBRA_USE_CONFIGURATION = os.getenv("SIIBRA_USE_CONFIGURATION")
-
 SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
+SKIP_CACHE_MAINTENANCE = os.getenv("SKIP_CACHE_MAINTENANCE")
+NEUROGLANCER_MAX_GIB = os.getenv("NEUROGLANCER_MAX_GIB", 0.2)
 
 with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
@@ -54,6 +61,11 @@ class CompareMapsResult:
     correlation: float
     weighted_mean_of_first: float
     weighted_mean_of_second: float
+
+
+class TypePublication(TypedDict):
+    citation: str
+    url: str
 
 
 T = TypeVar("T")
@@ -103,7 +115,7 @@ class InstanceTable(Generic[T], Iterable):
         """List of all object keys in the registry"""
         if isinstance(self[0], type):
             return list(self._elements.keys())
-        else:    
+        else:
             return ["dataframe"] + list(self._elements.keys())
 
     def __str__(self) -> str:
@@ -703,15 +715,19 @@ class Species(Enum):
         }
 
         OPENMINDS_IDS = {
-            "homoSapiens": 1,
-            "rattusNorvegicus": 2,
-            "musMusculus:": 3,
-            "macacaFascicularis": 4
+            "97c070c6-8e1f-4ee8-9d28-18c7945921dd": 1,
+            "ab532423-1fd7-4255-8c6f-f99dc6df814f": 2,
+            "d9875ebd-260e-4337-a637-b62fed4aa91d:": 3,
+            "0b6df2b3-5297-40cf-adde-9443d3d8214a": 4,
+            "3ad33ec1-5152-497d-9352-1cf4497e0edd": 5,
+            "2ab3ecf5-76cc-46fa-98ab-309e3fd50f57": 6,
+            "b8bf99e7-0914-4b65-a386-d785249725f1": 7
         }
 
         if isinstance(spec, Species):
             return spec
         elif isinstance(spec, str):
+            # split it in case it is an actual uuid from KG
             if spec.split('/')[-1] in MINDS_IDS:
                 return cls(MINDS_IDS[spec])
             if spec.split('/')[-1] in OPENMINDS_IDS:

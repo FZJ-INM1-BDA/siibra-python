@@ -12,11 +12,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Multimodal data features in volume or image formats."""
 
 from .volume_of_interest import (
     CellBodyStainedVolumeOfInterest,
     BlockfaceVolumeOfInterest,
     PLIVolumeOfInterest,
     MRIVolumeOfInterest,
+    XPCTVolumeOfInterest,
+    LSFMVolumeOfInterest,
+    DTIVolumeOfInterest
     # SegmentedVolumeOfInterest
 )
+from .sections import CellbodyStainedSection

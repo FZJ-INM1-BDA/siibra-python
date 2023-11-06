@@ -25,7 +25,9 @@ jobs:
 
       - name: Create diagrams with pyreverse
         run: |
-          pyreverse -k  -o svg -p siibra ./siibra --colorized --output-directory ./docs/_static
+          pyreverse -k  -o dot -p siibra ./siibra --colorized --all-ancestors --output-directory ./docs/_static
+          dot -Grankdir=LR -Tsvg ./docs/_static/packages_siibra.dot -o ./docs/_static/packages_siibra.svg
+          dot -Grankdir=LR -Tsvg ./docs/_static/classes_siibra.dot -o ./docs/_static/classes_siibra.svg
 
       - name: Build the docs and execute the notebooks
         run: |

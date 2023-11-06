@@ -57,6 +57,8 @@ class ConflictingArgumentException(ValueError): pass
 class NonUniqueIndexError(RuntimeError): pass
 
 
+class NoVolumeFound(RuntimeError): pass
+
 @dataclass
 class Assignment:
     input_structure: int
@@ -394,14 +396,32 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             assert isinstance(index, MapIndex)
             mapindex = index
         if mapindex is None:
-            try:
-                assert len(self) == 1
+            if len(self) == 1:
                 mapindex = MapIndex(volume=0, label=None)
-            except AssertionError:
-                raise InsufficientArgumentException(
-                    "Map provides multiple volumes, use 'index' or "
-                    "'region' to specify which one to fetch."
+            elif len(self) > 1:
+                logger.info(
+                    "Map provides multiple volumes and no specification is"
+                    "provided. Resampling all volumes to the space."
                 )
+                resolution = kwargs.get("resolution_mm")
+                template = self.space.get_template().fetch(
+                    resolution_mm=resolution
+                )
+                aggregated_volume = np.zeros(template.shape, dtype='uint8')
+                for i, region in siibra_tqdm(
+                    enumerate(self.regions),
+                    unit=" volume", desc="Fetching", total=len(self)
+                ):
+                    regionlabel = i + 1
+                    regionmap = image.resample_to_img(
+                        self.fetch(region=region, resolution_mm=resolution),
+                        template,
+                        interpolation='nearest'
+                    )
+                    aggregated_volume[regionmap.get_fdata() > 0] = regionlabel
+                return Nifti1Image(aggregated_volume, affine=template.affine)
+            else:
+                raise NoVolumeFound("Map provides no volumes.")
 
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
@@ -579,22 +599,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Region names as keys and computed centroids as items.
         """
         centroids = {}
-        # list of regions sorted by mapindex
-        regions = sorted(self._indices.items(), key=lambda v: min(_.volume for _ in v[1]))
-        current_vol_index = MapIndex(volume=0)
         maparr = None
-        for regionname, indexlist in siibra_tqdm(regions, unit="regions", desc="Computing centroids"):
+        for regionname, indexlist in siibra_tqdm(
+            self._indices.items(), unit="regions", desc="Computing centroids"
+        ):
             assert len(indexlist) == 1
             index = indexlist[0]
             if index.label == 0:
                 continue
-            vol_index = MapIndex(volume=index.volume, fragment=index.fragment)
-            if vol_index != current_vol_index:
-                current_vol_index = vol_index
-                with QUIET:
-                    mapimg = self.fetch(index=vol_index)
-                maparr = np.asanyarray(mapimg.dataobj)
-            centroid_vox = np.array(np.where(maparr == index.label)).mean(1)
+            with QUIET:
+                mapimg = self.fetch(index=index)  # returns a mask of the region
+            maparr = np.asanyarray(mapimg.dataobj)
+            centroid_vox = np.mean(np.where(maparr == 1), axis=1)
             assert regionname not in centroids
             centroids[regionname] = point.Point(
                 np.dot(mapimg.affine, np.r_[centroid_vox, 1])[:3], space=self.space
@@ -772,21 +788,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         y: Union[int, np.ndarray, List],
         z: Union[int, np.ndarray, List]
     ):
+        def _read_voxels_from_volume(xyz, volimg):
+            xyz = np.stack(xyz, axis=1)
+            valid_points_mask = np.all([(0 <= di) & (di < vol_size) for vol_size, di in zip(volimg.shape, xyz.T)], axis=0)
+            x, y, z = xyz[valid_points_mask].T
+            valid_points_indices, *_ = np.where(valid_points_mask)
+            valid_data_points = np.asanyarray(volimg.dataobj)[x, y, z]
+            return zip(valid_points_indices, valid_data_points)
+
+        # integers are just single-element arrays, cast to avoid an extra code branch for integers
+        x, y, z = [np.array(di) for di in (x, y, z)]
+
         fragments = self.fragments or {None}
-        if isinstance(x, int):
-            return [
-                (None, volume, fragment, np.asanyarray(volimg.dataobj)[x, y, z])
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-            ]
-        else:
-            return [
-                (pointindex, volume, fragment, value)
-                for fragment in fragments
-                for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
-                for pointindex, value
-                in enumerate(np.asanyarray(volimg.dataobj)[x, y, z])
-            ]
+        return [
+            (pointindex, volume, fragment, data_point)
+            for fragment in fragments
+            for volume, volimg in enumerate(self.fetch_iter(fragment=fragment))
+            # transformations or user input might produce points outside the volume, filter these out.
+            for (pointindex, data_point) in _read_voxels_from_volume((x, y, z), volimg)
+        ]
 
     def _assign(
         self,

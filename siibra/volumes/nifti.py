@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Handles reading and preparing nifti files."""
 
 from . import volume
 
@@ -159,7 +160,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         else:
             assert len(self._img_loaders) > 0
             fragment_name, loader = next(iter(self._img_loaders.items()))
-            if fragment is not None:
+            if all(s is not None for s in [fragment, fragment_name]):
                 assert fragment.lower() in fragment_name.lower()
             result = loader()
 

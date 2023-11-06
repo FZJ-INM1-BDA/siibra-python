@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Handles spatial concepts and spatial operation like warping between spaces."""
 
 from .location import WholeBrain, Location
 from .point import Point
