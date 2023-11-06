@@ -26,6 +26,7 @@ class FunctionalConnectivity(
     """Functional connectivity matrix grouped by a parcellation."""
 
     _filter_attrs = regional_connectivity.RegionalConnectivity._filter_attrs + ["paradigm"]
+    _compound_attr = regional_connectivity.RegionalConnectivity._compound_attr + ["paradigm"]
 
     def __init__(self, paradigm: str, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

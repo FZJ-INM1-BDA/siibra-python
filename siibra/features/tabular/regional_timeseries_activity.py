@@ -224,6 +224,7 @@ class RegionalBOLD(
     """
 
     _filter_attrs = RegionalTimeseriesActivity._filter_attrs + ["paradigm"]
+    _compound_attr = RegionalTimeseriesActivity._compound_attr + ["paradigm"]
 
     def __init__(self, paradigm: str, **kwargs):
         RegionalTimeseriesActivity.__init__(self, **kwargs)
