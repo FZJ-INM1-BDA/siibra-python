@@ -15,17 +15,20 @@
 
 """
 Adding a custom parcellation map
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Sometimes you might want to use a custom parcellation map to perform feature queries in siibra.
-This brings some challenges as we will see. For this example, we retrieve a
-freely available von Economo map in MNI space from Martijn van den Heuvel's lab.
+Sometimes you might want to use a custom parcellation map to perform feature
+queries in siibra. For this example, we retrieve a freely available AICHA -
+Atlas of Intrinsic Connectivity of Homotopic Areas (Tzourio-Mazoyer N, Landeau B,
+Papathanassiou D, Crivello F, Etard O, Delcroix N, Mazoyer B, Joliot M (2002)
+Automated anatomical labeling of activations in SPM using a macroscopic
+anatomical parcellation of the MNI MRI single-subject brain. Neuroimage
+15:273-289.). This atlas provided in the MNI ICBM 152 space.
 """
 
 
 # %%
 import siibra
-import re  # we need this for text file parsing below
 from nilearn import plotting
 
 # %%
@@ -35,31 +38,36 @@ from nilearn import plotting
 
 # connect to the online zip file
 conn = siibra.retrieval.ZipfileConnector(
-    "http://www.dutchconnectomelab.nl/economo/economoMNI152volume.zip"
+    "http://www.gin.cnrs.fr/wp-content/uploads/aicha_v1.zip"
 )
 
 # the NIfTI file is easily retrieved:
-nifti = conn.get("economoMNI152volume/economoMNI152volume.nii.gz")
-volume = siibra.volumes.volume.from_nifti(nifti, 'mni152', "Economo MNI152 volume")
+nifti = conn.get("AICHA/AICHA.nii")
+# and create a volume on space MNI152 (note that this assumes our
+# external knowledge that the map is in MNI152 space)
+volume = siibra.volumes.volume.from_nifti(nifti, 'mni152', "AICHA")
 
-# The text file with label mappings has a custom format.
-# We provide a simple decoder to extract the list of region/label pairs.
-decoder = lambda b: [
-    re.split(r'\s+', line)[:2]       # fields are separated by one or more whitespaces
-    for line in b.decode().split('\n')
-    if re.match(r'^\d\d\d\d', line)  # only lines starting with 4-digit labels are relevant
-]
-labels = conn.get("economoMNI152volume/economoLUT.txt", decode_func=decoder)
+# The text file with label mappings has a custom format. We provide a tsv
+# decoder to extract the list of region/label pairs since the txt file is tab
+# seperated.
+volume_info = conn.get("AICHA/AICHA_vol1.txt", decode_func=siibra.retrieval.requests.DECODERS['.tsv'])
+volume_info
 
+# %%
 # Now we use this to add a custom map to siibra.
-# Note that this assumes our external knowledge that the map is in MNI152 space.
+regionnames = [
+    name.replace('-R', ' right').replace('-L', ' left')
+    for name in volume_info['nom_l']
+]
+labels = [int(label) for label in volume_info['color']]
 custom_map = siibra.create_map_from_volume(
-    name="Von Economo Atlas",
+    name="AICHA - Atlas of Intrinsic Connectivity of Homotopic Areas",
     volume=volume,
-    regionnames=[name.replace('ctx-rh-', 'right ').replace('ctx-lh-', 'left ') for _, name in labels],
-    regionlabels=[int(label) for label, _ in labels]
+    regionnames=regionnames,
+    regionlabels=labels
 )
 
+# %%
 # let's plot the final map
 plotting.plot_roi(custom_map.fetch())
 
@@ -67,9 +75,9 @@ plotting.plot_roi(custom_map.fetch())
 # %%
 # We can already use this map to find spatial features, such as BigBrain
 # intensity profiles.
-custom_region = custom_map.parcellation.get_region('fcbm left')
+region = custom_map.parcellation.get_region('S_Rolando-1 left')
 profiles = siibra.features.get(
-    custom_region,
+    region,
     siibra.features.cellular.BigBrainIntensityProfile
 )
 print(f"{len(profiles)} intensity profiles found.")
