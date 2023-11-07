@@ -190,13 +190,12 @@ class Volume(structure.BrainStructure, location.Location):
         phys2vox = np.linalg.inv(img.affine)
         voxels = warped.transform(phys2vox, space=None)
         XYZ = voxels.homogeneous.astype('int')[:, :3]
-        invalid = np.where(
-            np.all(XYZ >= arr.shape, axis=1)
-            | np.all(XYZ < 0, axis=1)
-        )[0]
-        XYZ[invalid] = 0  # set all out-of-bounds vertices to (0, 0, 0)
+        X, Y, Z = np.split(
+            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
+            3, axis=1
+        )
         arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
-        inside = np.where(arr[tuple(zip(*XYZ))] != 0)[0]
+        inside = np.where(arr[X, Y, Z] != 0)[0]
         return pointset.PointSet(
             points.homogeneous[inside, :3],
             space=points.space,

@@ -18,7 +18,7 @@ from . import query
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
 from ..features import anchor as _anchor
 from ..commons import logger
-from ..locations import location, point, pointset
+from ..locations import point, pointset
 from ..core import region, structure
 from ..retrieval import requests, cache
 
