@@ -7,7 +7,7 @@
     }],
     "properties": {
         "@type": {
-            "const": "siibra/feature/connectivitymatrix/v0.2"
+            "const": "siibra/feature/connectivitymatrix/v0.3"
         },
         "modality": {
             "$ref": "#/definitions/connectivityModalities"
@@ -23,21 +23,22 @@
             "items": {
                 "type": "string"
             }
+        },
+        "files_indexed_by": {
+            "type": "string"
         }
     },
     "required": [
     ],
     "definitions": {
         "connectivityModalities": {
-            "anyOf": [{
-                "const": "StreamlineCounts"
-            }, {
-                "const": "RestingState"
-            }, {
-                "const": "StreamlineLengths"
-            }, {
-                "const": "Tracing"
-            }]
+            "anyOf": [
+                {"const": "StreamlineCounts"},
+                {"const": "FunctionalConnectivity"},
+                {"const": "AnatomoFunctionalConnectivity"},
+                {"const": "StreamlineLengths"},
+                {"const": "TracingConnectivity"}
+            ]
         }
     }
 }
