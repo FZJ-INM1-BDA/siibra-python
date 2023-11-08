@@ -109,27 +109,25 @@ class AnatomicalAnchor:
             self._regions_cached = dict()
             return self._regions_cached
 
-        if self._regionspec not in self.__class__._MATCH_MEMO:
-            # decode the region specification into a set of region objects
-            regions = dict()
-            for p in Parcellation.registry():
-                if p.species not in self.species:
-                    continue
-                try:
-                    regions[p.get_region(self._regionspec)] = AssignmentQualification.EXACT
-                except Exception:
-                    pass
+        match_key = self._regionspec + '-' + str(self.species)
+        if match_key not in self.__class__._MATCH_MEMO:
+            # decode the region specification into a dict of region objects and assignment qualifications
+            regions = {
+                region: AssignmentQualification.EXACT
+                for region in Parcellation.find_regions(self._regionspec)
+                if region.species in self.species
+            }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
-                for regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(regionspec):
+                for alias_regionspec, qualificationspec in aliases.items():
+                    for r in Parcellation.find_regions(alias_regionspec):
                         if r.species != alt_species:
                             continue
                         if r not in regions:
                             regions[r] = AssignmentQualification[qualificationspec.upper()]
 
-            self.__class__._MATCH_MEMO[self._regionspec] = regions
-        self._regions_cached = self.__class__._MATCH_MEMO[self._regionspec]
+            self.__class__._MATCH_MEMO[match_key] = regions
+        self._regions_cached = self.__class__._MATCH_MEMO[match_key]
 
         return self._regions_cached
 
