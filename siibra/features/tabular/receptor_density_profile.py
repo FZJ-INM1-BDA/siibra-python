@@ -34,6 +34,8 @@ class ReceptorDensityProfile(
         "to the border between layer VI and the white matter."
     )
 
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["receptor"]
+
     def __init__(
         self,
         receptor: str,
@@ -47,7 +49,7 @@ class ReceptorDensityProfile(
         cortical_profile.CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
-            modality=f"{receptor} receptor density",
+            modality="Receptor density",
             anchor=anchor,
             datasets=datasets,
         )
@@ -72,6 +74,10 @@ class ReceptorDensityProfile(
             self.type,
             vocabularies.RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
         )
+
+    @property
+    def name(self):
+        return super().name + f" for {self.type}"
 
     @property
     def neurotransmitter(self):

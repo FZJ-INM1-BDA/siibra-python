@@ -448,56 +448,77 @@ class Factory:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
-    @build_type("siibra/feature/connectivitymatrix/v0.2")
+    @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
+        files = spec.get("files", {})
         modality = spec["modality"]
+        try:
+            conn_cls = getattr(connectivity, modality)
+        except Exception:
+            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
+
+        decoder_func = cls.extract_decoder(spec)
+        repo_connector = cls.extract_connector(spec) if spec.get('repository', None) else None
+        if repo_connector is None:
+            base_url = spec.get("base_url", "")
+        kwargs = {
+            "cohort": spec.get("cohort", ""),
+            "modality": modality,
+            "regions": spec["regions"],
+            "connector": repo_connector,
+            "decode_func": decoder_func,
+            "anchor": cls.extract_anchor(spec),
+            "description": spec.get("description", ""),
+            "datasets": cls.extract_datasets(spec)
+        }
+        paradigm = spec.get("paradigm")
+        if paradigm:
+            kwargs["paradigm"] = paradigm
+        files_indexed_by = spec.get("files_indexed_by", "subject")
+        assert files_indexed_by in ["subject", "feature"]
+        conn_by_file = []
+        for fkey, filename in files.items():
+            kwargs.update({
+                "filename": filename,
+                "subject": fkey if files_indexed_by == "subject" else "average",
+                "feature": fkey if files_indexed_by == "feature" else None,
+                "connector": repo_connector or base_url + filename
+            })
+            conn_by_file.append(conn_cls(**kwargs))
+        return conn_by_file
+
+    @classmethod
+    @build_type("siibra/feature/timeseries/activity/v0.1")
+    def build_activity_timeseries(cls, spec):
+        files = spec.get("files", {})
+        modality = spec["modality"]
+        try:
+            timeseries_cls = getattr(regional_timeseries_activity, modality)
+        except Exception:
+            raise ValueError(f"No method for building signal table of type {modality}.")
+
         kwargs = {
             "cohort": spec.get("cohort", ""),
             "modality": modality,
             "regions": spec["regions"],
             "connector": cls.extract_connector(spec),
             "decode_func": cls.extract_decoder(spec),
-            "files": spec.get("files", {}),
             "anchor": cls.extract_anchor(spec),
             "description": spec.get("description", ""),
             "datasets": cls.extract_datasets(spec),
+            "timestep": spec.get("timestep")
         }
-        if modality == "StreamlineCounts":
-            return connectivity.StreamlineCounts(**kwargs)
-        elif modality == "StreamlineLengths":
-            return connectivity.StreamlineLengths(**kwargs)
-        elif modality == "Functional":
-            kwargs["paradigm"] = spec.get("paradigm")
-            return connectivity.FunctionalConnectivity(**kwargs)
-        elif modality == "RestingState":
-            kwargs["paradigm"] = spec.get("paradigm", "RestingState")
-            return connectivity.FunctionalConnectivity(**kwargs)
-        elif modality == "Tracing":
-            return connectivity.TracingConnectivity(**kwargs)
-        else:
-            raise ValueError(f"No method for building connectivity matrix of type {modality}.")
-
-    @classmethod
-    @build_type("siibra/feature/timeseries/activity/v0.1")
-    def build_activity_timeseries(cls, spec):
-        modality = spec["modality"]
-        kwargs = {
-            "cohort": spec["cohort"],
-            "modality": modality,
-            "regions": spec["regions"],
-            "connector": cls.extract_connector(spec),
-            "decode_func": cls.extract_decoder(spec),
-            "files": spec.get("files", {}),
-            "anchor": cls.extract_anchor(spec),
-            "description": spec.get("description", ""),
-            "datasets": cls.extract_datasets(spec),
-            "timestep": spec.get("timestep", ("1 no_unit"))
-        }
-        if modality == "Regional BOLD signal":
-            kwargs["paradigm"] = spec.get("paradigm", "")
-            return regional_timeseries_activity.RegionalBOLD(**kwargs)
-        else:
-            raise ValueError(f"No method for building signal table of type {modality}.")
+        paradigm = spec.get("paradigm")
+        if paradigm:
+            kwargs["paradigm"] = paradigm
+        timeseries_by_file = []
+        for fkey, filename in files.items():
+            kwargs.update({
+                "filename": filename,
+                "subject": fkey
+            })
+            timeseries_by_file.append(timeseries_cls(**kwargs))
+        return timeseries_by_file
 
     @classmethod
     def from_json(cls, spec: dict):

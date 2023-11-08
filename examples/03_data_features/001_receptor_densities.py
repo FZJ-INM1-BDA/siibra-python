@@ -61,7 +61,7 @@ v1_fingerprints[0].data
 v1_profiles = siibra.features.get(
     siibra.get_region('julich 2.9', 'v1'),
     siibra.features.molecular.ReceptorDensityProfile
-)
+)[0]
 for p in v1_profiles:
     print(p.receptor)
     if "GABAA" in p.receptor:

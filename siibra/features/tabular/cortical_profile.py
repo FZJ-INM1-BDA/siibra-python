@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from . import tabular
+from ..feature import Compoundable
 
 from .. import anchor as _anchor
 
@@ -23,7 +24,7 @@ from textwrap import wrap
 import numpy as np
 
 
-class CorticalProfile(tabular.Tabular):
+class CorticalProfile(tabular.Tabular, Compoundable):
     """
     Represents a 1-dimensional profile of measurements along cortical depth,
     measured at relative depths between 0 representing the pial surface,
@@ -42,6 +43,9 @@ class CorticalProfile(tabular.Tabular):
 
     LAYERS = {0: "0", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI", 7: "WM"}
     BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
+
+    _filter_attrs = ["modality"]
+    _compound_attrs = ["modality"]
 
     def __init__(
         self,
@@ -175,7 +179,7 @@ class CorticalProfile(tabular.Tabular):
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
 
-        if backend == "matplotlib":    
+        if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)

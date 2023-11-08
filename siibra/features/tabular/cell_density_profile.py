@@ -13,9 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .. import anchor as _anchor
 from . import cortical_profile
 
+from .. import anchor as _anchor
 from ...commons import PolyLine, logger, create_key
 from ...retrieval import requests
 
@@ -42,6 +42,8 @@ class CellDensityProfile(
     )
 
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
+
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["section", "patch"]
 
     @classmethod
     def CELL_READER(cls, b):

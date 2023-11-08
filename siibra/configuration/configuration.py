@@ -159,15 +159,19 @@ class Configuration:
                 **{'filename': specloaders[0][0]}
             )
         )
+        obj_class = obj0[0].__class__.__name__ if isinstance(obj0, list) else obj0.__class__.__name__
 
         for fname, loader in siibra_tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured {obj0.__class__.__name__} instances"
+            desc=f"Loading preconfigured {obj_class} instances"
         ):
             # filename is added to allow Factory creating reasonable default object identifiers\
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-            result.append(obj)
+            if isinstance(obj, list):
+                result.extend(obj)
+            else:
+                result.append(obj)
 
         return result
 

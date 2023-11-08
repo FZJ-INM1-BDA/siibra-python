@@ -33,6 +33,8 @@ class BigBrainIntensityProfile(
         "and assigned to cytoarchitectonic regions of Julich-Brain."
     )
 
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
+
     def __init__(
         self,
         regionname: str,

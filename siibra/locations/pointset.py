@@ -159,9 +159,7 @@ class PointSet(location.Location):
         return len(self.points)
 
     def __str__(self):
-        return f"Set of points {self.space.name}: " + ", ".join(
-            f"({','.join(str(v) for v in p)})" for p in self
-        )
+        return f"Set of {len(self)} points in the {self.boundingbox}"
 
     @property
     def boundingbox(self):

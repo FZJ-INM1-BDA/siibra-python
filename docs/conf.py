@@ -90,10 +90,11 @@ napoleon_use_ivar = True
 # Mappings
 intersphinx_mapping = {
     "mainconcepts": ('../concepts.html', None),
-    "matplotlib": ("https://matplotlib.org/stable", None),
-    "nilearn": ('https://nilearn.github.io/stable', None),
-    "nibabel": ("https://nipy.org/nibabel", None),
-    "numpy": ("https://numpy.org/doc/stable", None),
+    "compoundfeatures": ('../examples/03_data_features/009_compound_features.html#sphx-glr-examples-03-data-features-009-compound-features-py', None),
+    "matplotlib": ("https://matplotlib.org/", None),
+    "nilearn": ('https://nilearn.github.io/stable/index.html', None),
+    "nibabel": ("https://nipy.org/nibabel/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
     "pandas": ("http://pandas.pydata.org/pandas-docs/dev", None),
     "python": ("https://docs.python.org/3", None),
 }
