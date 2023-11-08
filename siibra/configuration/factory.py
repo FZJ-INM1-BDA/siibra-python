@@ -448,7 +448,7 @@ class Factory:
             raise ValueError(f"No method for building image section feature type {modality}.")
 
     @classmethod
-    @build_type("siibra/feature/connectivitymatrix/v0.2")
+    @build_type("siibra/feature/connectivitymatrix/v0.3")
     def build_connectivity_matrix(cls, spec):
         files = spec.get("files", {})
         modality = spec["modality"]
