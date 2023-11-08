@@ -128,7 +128,7 @@ class EbrainsDataset(EbrainsBaseDataset):
         return self._id
 
     @property
-    def detail(self):
+    def _detail(self):
         if not self._cached_data:
             match = re.search(r"([a-f0-9-]+)$", self.id)
             instance_id = match.group(1)
@@ -145,7 +145,7 @@ class EbrainsDataset(EbrainsBaseDataset):
     @property
     def name(self) -> str:
         if self._name is None:
-            self._name = self.detail.get("name")
+            self._name = self._detail.get("name")
         return self._name
 
     @property
@@ -154,16 +154,16 @@ class EbrainsDataset(EbrainsBaseDataset):
             {
                 "url": f if f.startswith("http") else f"https://doi.org/{f}",
             }
-            for f in self.detail.get("kgReference", [])
+            for f in self._detail.get("kgReference", [])
         ]
 
     @property
     def description(self) -> str:
-        return self.detail.get("description")
+        return self._detail.get("description")
 
     @property
     def contributors(self) -> List[EbrainsDatasetPerson]:
-        return self.detail.get("contributors")
+        return self._detail.get("contributors")
 
     @property
     def ebrains_page(self):
@@ -171,16 +171,16 @@ class EbrainsDataset(EbrainsBaseDataset):
 
     @property
     def custodians(self) -> EbrainsDatasetPerson:
-        return self.detail.get("custodians")
+        return self._detail.get("custodians")
 
     @property
     def LICENSE(self) -> str:
-        return self.detail.get("license", "No license information is found.")
+        return self._detail.get("license", "No license information is found.")
 
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     @staticmethod
-    def parse_person(d: dict) -> EbrainsDatasetPerson:
+    def _parse_person(d: dict) -> EbrainsDatasetPerson:
         assert "https://openminds.ebrains.eu/core/Person" in d.get("type"), "Cannot convert a non person to a person dict!"
         _id = d.get("id")
         name = f"{d.get('givenName')} {d.get('familyName')}"
@@ -199,7 +199,7 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
         self._cached_data = cached_data
 
     @property
-    def detail(self):
+    def _detail(self):
         if not self._cached_data:
             match = re.search(r"([a-f0-9-]+)$", self._id)
             instance_id = match.group(1)
@@ -219,30 +219,30 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def name(self) -> str:
-        fullname = self.detail.get("fullName")
+        fullname = self._detail.get("fullName")
         if not fullname:
             for dataset in self.is_version_of:
                 if fullname:
                     break
                 fullname = dataset.name
-        version_id = self.detail.get("versionIdentifier")
+        version_id = self._detail.get("versionIdentifier")
         return f"{fullname} ({version_id})"
 
     @property
     def is_version_of(self):
         if not hasattr(self, "_is_version_of"):
-            self._is_version_of = [EbrainsV3Dataset(id=id.get("id")) for id in self.detail.get("isVersionOf", [])]
+            self._is_version_of = [EbrainsV3Dataset(id=id.get("id")) for id in self._detail.get("isVersionOf", [])]
         return self._is_version_of
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
         return [{
             "url": doi.get("identifier", None)
-        } for doi in self.detail.get("doi", [])]
+        } for doi in self._detail.get("doi", [])]
 
     @property
     def description(self) -> str:
-        description = self.detail.get("description")
+        description = self._detail.get("description")
         for ds in self.is_version_of:
             if description:
                 break
@@ -251,7 +251,7 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def contributors(self) -> List[EbrainsDatasetPerson]:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("author", [])]
+        return [EbrainsV3DatasetVersion._parse_person(d) for d in self._detail.get("author", [])]
 
     @property
     def ebrains_page(self) -> str:
@@ -261,19 +261,19 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
 
     @property
     def custodians(self) -> EbrainsDatasetPerson:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+        return [EbrainsV3DatasetVersion._parse_person(d) for d in self._detail.get("custodian", [])]
 
     @property
-    def version_changes(self):
-        return self.detail.get("versionInnovation", "")
+    def version_changelog(self):
+        return self._detail.get("versionInnovation", "")
 
     @property
     def version_identifier(self):
-        return self.detail.get("versionIdentifier", "")
+        return self._detail.get("versionIdentifier", "")
 
     @property
     def LICENSE(self) -> str:
-        return self.detail.get("license", "No license information is found.")
+        return self._detail.get("license", "No license information is found.")
 
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
@@ -290,16 +290,16 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
     @property
     def name(self) -> str:
-        return self.detail.get("fullName")
+        return self._detail.get("fullName")
 
     @property
     def urls(self) -> List[EbrainsDatasetUrl]:
         return [{
             "url": doi.get("identifier", None)
-        } for doi in self.detail.get("doi", [])]
+        } for doi in self._detail.get("doi", [])]
 
     @property
-    def detail(self):
+    def _detail(self):
         if not self._cached_data:
             match = re.search(r"([a-f0-9-]+)$", self._id)
             instance_id = match.group(1)
@@ -315,7 +315,7 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
     @property
     def description(self) -> str:
-        return self.detail.get("description", "")
+        return self._detail.get("description", "")
 
     @property
     def contributors(self):
@@ -336,15 +336,15 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
 
     @property
     def custodians(self) -> EbrainsDatasetPerson:
-        return [EbrainsV3DatasetVersion.parse_person(d) for d in self.detail.get("custodian", [])]
+        return [EbrainsV3DatasetVersion._parse_person(d) for d in self._detail.get("custodian", [])]
 
     @property
     def version_ids(self) -> List['str']:
-        return [version.get("id") for version in self.detail.get("versions", [])]
+        return [version.get("id") for version in self._detail.get("versions", [])]
 
     @property
     def LICENSE(self) -> str:
-        return self.detail.get("license", "No license information is found.")
+        return self._detail.get("license", "No license information is found.")
 
 
 class GenericDataset():

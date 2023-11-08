@@ -71,7 +71,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
 
     @property
     def version_history(self):
-        return self._dataset.version_changes
+        return self._dataset.version_changelog
 
     @property
     def url(self):
