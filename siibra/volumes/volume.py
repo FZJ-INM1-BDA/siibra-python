@@ -173,7 +173,7 @@ class Volume(structure.BrainStructure, location.Location):
     def __repr__(self):
         return self.__str__()
 
-    def points_inside(self, points: pointset.PointSet, **kwargs) -> List[int]:
+    def _points_inside(self, points: pointset.PointSet, **kwargs) -> List[int]:
         """
         Reduce a pointset to the points which fall
         inside nonzero pixels of this volume.
@@ -210,7 +210,7 @@ class Volume(structure.BrainStructure, location.Location):
         TODO write a test for the volume-volume and volume-region intersection
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self.points_inside(other, **kwargs)
+            result = self._points_inside(other, **kwargs)
             if len(result) == 0:
                 return pointset.PointSet([], space=other.space)
             elif len(result) == 1:
@@ -285,6 +285,7 @@ class Volume(structure.BrainStructure, location.Location):
             {k: v.__dict__() if hasattr(v, "__dict__") else v for k, v in kwargs.items()},
             sort_keys=True
         )
+        # TODO: check withhout self.__hash__() and consider implementing __dict__ to volume
         fetch_hash = hash(
             (self.__hash__(), hash(format), hash(kwargs_serialized))
         )
