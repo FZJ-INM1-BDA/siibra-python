@@ -24,6 +24,8 @@ import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
+from hashlib import md5
+from uuid import UUID
 
 logger = logging.getLogger(__name__.split(os.path.extsep)[0])
 ch = logging.StreamHandler()
@@ -147,10 +149,9 @@ class InstanceTable(Generic[T], Iterable):
             raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)
         if len(matches) == 0:
-            print(str(self))
             raise IndexError(
-                f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are: " + ", ".join(self._elements.keys())
+                f"{__class__.__name__} has no entry matching the specification '{spec}'."
+                f"Possible values are:\n" + str(self)
             )
         elif len(matches) == 1:
             return matches[0]
@@ -769,3 +770,14 @@ class Species(Enum):
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {str(self)}"
+
+
+def get_uuid(string: str):
+    if isinstance(string, str):
+        b = string.encode("UTF-8")
+    elif isinstance(string, Nifti1Image):
+        b = string.to_bytes()
+    else:
+        raise ValueError(f"Cannot build uuid for parameter type {type(string)}")
+    hex_string = md5(b).hexdigest()
+    return str(UUID(hex=hex_string))

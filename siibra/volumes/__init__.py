@@ -16,8 +16,10 @@
 
 from .parcellationmap import Map
 from .providers.gifti import GiftiSurfaceLabeling, GiftiMesh
-from .volume import from_array, from_file, from_pointset
+from .volume import from_array, from_file, from_pointset, from_nifti, Volume
 
+from ..commons import logger
+from typing import List, Union
 import numpy as np
 
 
