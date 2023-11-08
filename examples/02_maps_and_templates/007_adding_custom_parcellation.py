@@ -45,7 +45,7 @@ conn = siibra.retrieval.ZipfileConnector(
 nifti = conn.get("AICHA/AICHA.nii")
 # and create a volume on space MNI152 (note that this assumes our
 # external knowledge that the map is in MNI152 space)
-volume = siibra.volumes.volume.from_nifti(nifti, 'mni152', "AICHA")
+volume = siibra.volumes.from_nifti(nifti, 'mni152', "AICHA")
 
 # The text file with label mappings has a custom format. We provide a tsv
 # decoder to extract the list of region/label pairs since the txt file is tab
@@ -60,7 +60,7 @@ regionnames = [
     for name in volume_info['nom_l']
 ]
 labels = [int(label) for label in volume_info['color']]
-custom_map = siibra.create_map_from_volume(
+custom_map = siibra.volumes.parcellationmap.from_volume(
     name="AICHA - Atlas of Intrinsic Connectivity of Homotopic Areas",
     volume=volume,
     regionnames=regionnames,
