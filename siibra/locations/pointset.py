@@ -22,7 +22,16 @@ from ..commons import logger
 import numbers
 import json
 import numpy as np
-from sklearn.cluster import HDBSCAN
+try:
+    from sklearn.cluster import HDBSCAN
+    HAS_HDBSCAN = True
+except ImportError:
+    import sklearn
+    HAS_HDBSCAN = False
+    logger.warning(
+        f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
+        "`PointSet.find_clusters()` will not be avaiable."
+    )
 
 
 class PointSet(location.Location, structure.BrainStructure):
@@ -217,6 +226,11 @@ class PointSet(location.Location, structure.BrainStructure):
         return np.c_[self.coordinates, np.ones(len(self))]
 
     def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
+        if not HAS_HDBSCAN:
+            raise RuntimeError(
+                f"HDBSCAN is not available with your version {sklearn.__version__} "
+                "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."
+            )
         points = np.array(self.as_list())
         N = points.shape[0]
         clustering = HDBSCAN(

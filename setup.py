@@ -49,7 +49,6 @@ setup(
         "scikit-image",
         "requests",
         "neuroglancer-scripts",
-        "scikit-learn>=1.3.0",
         "nilearn",
         'typing-extensions; python_version < "3.8"',
         "filelock"
