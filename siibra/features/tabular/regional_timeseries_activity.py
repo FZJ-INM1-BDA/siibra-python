@@ -33,7 +33,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     """
 
     _filter_attrs = ["modality", "cohort", "subject"]
-    _compound_attr = ["modality", "cohort"]
+    _compound_attrs = ["modality", "cohort"]
 
     def __init__(
         self,
@@ -224,7 +224,7 @@ class RegionalBOLD(
     """
 
     _filter_attrs = RegionalTimeseriesActivity._filter_attrs + ["paradigm"]
-    _compound_attr = RegionalTimeseriesActivity._compound_attr + ["paradigm"]
+    _compound_attrs = RegionalTimeseriesActivity._compound_attrs + ["paradigm"]
 
     def __init__(self, paradigm: str, **kwargs):
         RegionalTimeseriesActivity.__init__(self, **kwargs)

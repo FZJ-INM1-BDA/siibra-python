@@ -45,7 +45,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     BOUNDARIES = list(zip(list(LAYERS.keys())[:-1], list(LAYERS.keys())[1:]))
 
     _filter_attrs = ["modality"]
-    _compound_attr = ["modality"]
+    _compound_attrs = ["modality"]
 
     def __init__(
         self,

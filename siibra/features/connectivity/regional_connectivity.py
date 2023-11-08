@@ -43,7 +43,7 @@ class RegionalConnectivity(Feature, Compoundable):
     """
 
     _filter_attrs = ["modality", "cohort", "subject"]
-    _compound_attr = ["modality", "cohort"]
+    _compound_attrs = ["modality", "cohort"]
 
     def __init__(
         self,

@@ -125,7 +125,7 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
-    def __init_subclass__(cls, configuration_folder=None, category=None, do_not_index=False):
+    def __init_subclass__(cls, configuration_folder=None, category=None, do_not_index=False, **kwargs):
 
         # Feature.SUBCLASSES serves as an index where feature class inheritance is cached. When users
         # queries a branch on the hierarchy, all children will also be queried. There are usecases where
@@ -149,7 +149,7 @@ class Feature:
         cls.category = category
         if category is not None:
             cls.CATEGORIZED[category].add(cls.__name__, cls)
-        return super().__init_subclass__()
+        return super().__init_subclass__(**kwargs)
 
     @classmethod
     def _get_subclasses(cls):
@@ -613,9 +613,17 @@ class Compoundable(ABC):
     Base class for structures which allow compounding.
     Determines the necessary grouping and compounding attributes.
     """
-
     _filter_attrs = []  # the attributes to filter this instance of feature
-    _compound_attr = []  # `compound_key` has to be created from `filter_attributes`
+    _compound_attrs = []  # `compound_key` has to be created from `filter_attributes`
+
+    def __init_subclass__(cls, **kwargs):
+        assert len(cls._filter_attrs) > 0, "All compoundable classes have to have `_filter_attrs` defined."
+        assert len(cls._compound_attrs) > 0, "All compoundable classes have to have `_compound_attrs` defined."
+        assert all(attr in cls._filter_attrs for attr in cls._compound_attrs), "`_compound_attrs` must be a subset of `_filter_attrs`."
+        return super().__init_subclass__(**kwargs)
+
+    def __init__(self):
+        assert all(hasattr(self, attr) for attr in self._filter_attrs), "`_filter_attrs` can only consist of the attributes of the class."
 
     @property
     def filter_attributes(self) -> Dict[str, Any]:
@@ -631,13 +639,7 @@ class Compoundable(ABC):
         A tuple of values that define the basis for compounding elements of
         the same type.
         """
-        assert all(
-            [attr in self.filter_attributes for attr in self._compound_attr]
-        ), "`compound_key` has to be created from `filter_attributes`."
-        return tuple([
-            self.filter_attributes[attr]
-            for attr in self._compound_attr
-        ])
+        return tuple([self.filter_attributes[attr] for attr in self._compound_attrs])
 
     @property
     def _element_index(self) -> Any:
@@ -648,7 +650,7 @@ class Compoundable(ABC):
         index = [
             self.filter_attributes[attr]
             for attr in self._filter_attrs
-            if attr not in self._compound_attr
+            if attr not in self._compound_attrs
         ]
         return index[0] if len(index) == 1 else tuple(index)
 
@@ -670,22 +672,21 @@ class CompoundFeature(Feature):
         A compound of several features of the same type with an anchor created
         as a sum of adjoinable anchors.
         """
-        assert len({f.__class__ for f in elements}) == 1, NotImplementedError("Cannot compound features of different types.")
         self._feature_type = elements[0].__class__
-        self.category = elements[0].category
+        assert all(isinstance(f, self._feature_type) for f in elements), NotImplementedError("Cannot compound features of different types.")
+        self.category = elements[0].category  # same feature types have the same category
         assert issubclass(self._feature_type, Compoundable), NotImplementedError(f"Cannot compound {self._feature_type}.")
 
-        assert len({f.modality for f in elements}) == 1, NotImplementedError("Cannot compound features of different modalities.")
         modality = elements[0].modality
+        assert all(f.modality == modality for f in elements), NotImplementedError("Cannot compound features of different modalities.")
 
         compound_keys = {element._compound_key for element in elements}
         assert len(compound_keys) == 1, ValueError(
             "Only features with identical compound_key can be aggregated."
         )
-        compound_key = next(iter(compound_keys))
         self._compounding_attributes = {
-            elements[0]._compound_attr[i]: k
-            for i, k in enumerate(compound_key)
+            attr: elements[0].filter_attributes[attr]
+            for attr in elements[0]._compound_attrs
         }
 
         self._elements = {f._element_index: f for f in elements}
