@@ -329,18 +329,15 @@ class Volume(structure.BrainStructure, location.Location):
                 break
         else:
             # do not poison the cache if none fetched
+            # TODO: profile if fetching None worth it
             logger.error(f"Could not fetch any formats from {possible_formats}.")
             return None
 
-        self._maintain_fetch_cache()
+        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+            # remove oldest entry
+            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
         self._FETCH_CACHE[fetch_hash] = result
         return result
-
-    @classmethod
-    def _maintain_fetch_cache(cls):
-        while len(cls._FETCH_CACHE) >= cls._FETCH_CACHE_MAX_ENTRIES:
-            # remove oldest entry
-            _ = cls._FETCH_CACHE.pop(next(iter(cls._FETCH_CACHE)))
 
     def fetch_connected_components(self, **kwargs):
         """
