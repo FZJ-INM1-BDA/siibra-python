@@ -13,23 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Parent class to siibra main concepts."""
-from ..commons import create_key, clear_name, logger, InstanceTable, Species
+from ..commons import (
+    create_key,
+    clear_name,
+    logger,
+    InstanceTable,
+    Species,
+    TypePublication
+)
 
 import re
 from typing import TypeVar, Type, Union, List, TYPE_CHECKING
 
-try:
-    from typing import TypedDict
-except ImportError:
-    # support python 3.7
-    from typing_extensions import TypedDict
-
 T = TypeVar("T", bound="AtlasConcept")
-
-
-class TypePublication(TypedDict):
-    citation: str
-    url: str
 
 
 if TYPE_CHECKING:
@@ -57,29 +53,31 @@ class AtlasConcept:
         modality: str = "",
         publications: List[TypePublication] = [],
         datasets: List['TypeDataset'] = [],
+        spec=None
     ):
         """
         Construct a new atlas concept base object.
 
         Parameters
         ----------
-            identifier : str
-                Unique identifier of the parcellation
-            name : str
-                Human-readable name of the parcellation
-            species: Species or string
-                Specification of the species
-            shortname: str
-                Shortform of human-readable name (optional)
-            description: str
-                Textual description of the parcellation
-            modality  :  str or None
-                Specification of the modality underlying this concept
-            datasets : list
-                list of datasets corresponding to this concept
-            publications: list
-                List of publications, each a dictionary with "doi" and/or "citation" fields
-
+        identifier : str
+            Unique identifier of the parcellation
+        name : str
+            Human-readable name of the parcellation
+        species: Species or string
+            Specification of the species
+        shortname: str
+            Shortform of human-readable name (optional)
+        description: str
+            Textual description of the parcellation
+        modality  :  str or None
+            Specification of the modality underlying this concept
+        datasets : list
+            list of datasets corresponding to this concept
+        publications: list
+            List of publications, each a dictionary with "doi" and/or "citation" fields
+        spec: dict, default: None
+            The preconfigured specification.
         """
         self._id = identifier
         self.name = name
@@ -90,6 +88,7 @@ class AtlasConcept:
         self._description = description
         self._publications = publications
         self.datasets = datasets
+        self._spec = spec
         self._CACHED_MATCHES = {}  # we cache match() function results
 
     @property
@@ -100,6 +99,26 @@ class AtlasConcept:
             if ds.description:
                 return ds.description
         return ''
+
+    @property
+    def LICENSE(self) -> str:
+        return '\n'.join([ds.LICENSE for ds in self.datasets])
+
+    @property
+    def doi_or_url(self) -> str:
+        return '\n'.join([
+            url.get("url")
+            for ds in self.datasets
+            for url in ds.urls
+        ])
+
+    @property
+    def authors(self):
+        return [
+            contributer['name']
+            for ds in self.datasets
+            for contributer in ds.contributors
+        ]
 
     @property
     def publications(self) -> List[TypePublication]:

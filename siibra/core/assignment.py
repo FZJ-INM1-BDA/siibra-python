@@ -12,21 +12,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Qualification between two arbitary concepts"""
 
 from enum import Enum
-from typing import Union, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Union, TYPE_CHECKING, Dict
 if TYPE_CHECKING:
     from ..locations.location import Location
     from .region import Region
 
 
-class AssignmentQualification(Enum):
+class Qualification(Enum):
     EXACT = 1
     OVERLAPS = 2
     CONTAINED = 3
     CONTAINS = 4
     APPROXIMATE = 5
+    HOMOLOGOUS = 6
+    OTHER_VERSION = 7
 
     @property
     def verb(self):
@@ -35,26 +38,32 @@ class AssignmentQualification(Enum):
         for producing human-readable messages.
         """
         transl = {
-            'EXACT': 'coincides with',
-            'OVERLAPS': 'overlaps with',
-            'CONTAINED': 'is contained in',
-            'CONTAINS': 'contains',
-            'APPROXIMATE': 'approximates to',
+            Qualification.EXACT: 'coincides with',
+            Qualification.OVERLAPS: 'overlaps with',
+            Qualification.CONTAINED: 'is contained in',
+            Qualification.CONTAINS: 'contains',
+            Qualification.APPROXIMATE: 'approximates to',
+            Qualification.HOMOLOGOUS: 'is homologous to',
+            Qualification.OTHER_VERSION: 'is another version of'
         }
-        return transl[self.name]
+        assert self in transl, f"{str(self)} verb cannot be found."
+        return transl[self]
 
     def invert(self):
         """
         Return qualification with the inverse meaning
         """
         inverses = {
-            "EXACT": "EXACT",
-            "OVERLAPS": "OVERLAPS",
-            "CONTAINED": "CONTAINS",
-            "CONTAINS": "CONTAINED",
-            "APPROXIMATE": "APPROXIMATE",
+            Qualification.EXACT: Qualification.EXACT,
+            Qualification.OVERLAPS: Qualification.OVERLAPS,
+            Qualification.CONTAINED: Qualification.CONTAINS,
+            Qualification.CONTAINS: Qualification.CONTAINED,
+            Qualification.APPROXIMATE: Qualification.APPROXIMATE,
+            Qualification.HOMOLOGOUS: Qualification.HOMOLOGOUS,
+            Qualification.OTHER_VERSION: Qualification.OTHER_VERSION,
         }
-        return AssignmentQualification[inverses[self.name]]
+        assert self in inverses, f"{str(self)} inverses cannot be found."
+        return Qualification[inverses[self]]
 
     def __str__(self):
         return f"{self.__class__.__name__}={self.name.lower()}"
@@ -63,26 +72,27 @@ class AssignmentQualification(Enum):
         return str(self)
 
 
-class AnatomicalAssignment:
+@staticmethod
+def parse_relation_assessment(spec: Dict):
+    name = spec.get("name")
+    if name == "is homologous to":
+        return Qualification.HOMOLOGOUS
+    raise Exception(f"Cannot parse spec: {spec}")
+
+
+@dataclass
+class AnatomicalAssignment(Union["Region", "Location"]):
     """
     Represents a qualified assignment between anatomical structures.
     """
-
-    def __init__(
-        self,
-        query_structure: Union["Region", "Location"],
-        assigned_structure: Union["Region", "Location"],
-        qualification: AssignmentQualification,
-        explanation: str = ""
-    ):
-        self.query_structure = query_structure
-        self.assigned_structure = assigned_structure
-        self.qualification = qualification
-        self.explanation = explanation.strip()
+    query_structure: Union["Region", "Location"]
+    assigned_structure: Union["Region", "Location"]
+    qualification: Qualification
+    explanation: str = ""
 
     @property
     def is_exact(self):
-        return self.qualification == AssignmentQualification.EXACT
+        return self.qualification == Qualification.EXACT
 
     def __str__(self):
         msg = f"'{self.query_structure}' {self.qualification.verb} '{self.assigned_structure}'"

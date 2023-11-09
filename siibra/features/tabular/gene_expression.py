@@ -16,8 +16,6 @@
 from .. import anchor as _anchor
 from . import tabular
 
-from ... import logger
-
 import pandas as pd
 from textwrap import wrap
 from typing import List

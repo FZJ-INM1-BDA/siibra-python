@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Multimodal data features as volumes."""
 
 from . import image
 
@@ -32,6 +33,15 @@ class BlockfaceVolumeOfInterest(
 ):
     def __init__(self, **kwargs):
         image.Image.__init__(self, **kwargs, modality="blockface")
+
+
+class DTIVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/blockface",
+    category="fibres"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
 
 
 class PLIVolumeOfInterest(
@@ -60,6 +70,14 @@ class XPCTVolumeOfInterest(
     def __init__(self, modality, **kwargs):
         image.Image.__init__(self, **kwargs, modality=modality)
 
+
+class LSFMVolumeOfInterest(
+    image.Image,
+    configuration_folder="features/images/vois/lsfm",
+    category="cellular"
+):
+    def __init__(self, modality, **kwargs):
+        image.Image.__init__(self, **kwargs, modality=modality)
 
 # class SegmentedVolumeOfInterest(
 #     image.Image,

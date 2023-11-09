@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Connect to repositories to browse and pull files within."""
 
 from .requests import (
     HttpRequest,
@@ -26,6 +27,7 @@ from ..commons import logger, siibra_tqdm
 
 from abc import ABC, abstractmethod
 from urllib.parse import quote
+import pathlib
 import os
 from zipfile import ZipFile
 from typing import List
@@ -104,13 +106,11 @@ class RepositoryConnector(ABC):
 class LocalFileRepository(RepositoryConnector):
 
     def __init__(self, folder: str):
-        assert os.path.isdir(folder)
-        self._folder = folder
-        if folder[-1] != os.path.sep:
-            self._folder += os.path.sep
+        self._folder = pathlib.Path(folder)
+        assert pathlib.Path.is_dir(self._folder)
 
     def _build_url(self, folder: str, filename: str):
-        return os.path.join(self._folder, folder, filename)
+        return pathlib.Path.joinpath(self._folder, folder, filename)
 
     class FileLoader:
         """
@@ -139,21 +139,13 @@ class LocalFileRepository(RepositoryConnector):
             return self.FileLoader(url, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
-        exclude = ['.', '~']
-        result = []
-        for root, dirs, files in os.walk(self._folder):
-            subfolder = root.replace(self._folder, '')
-            if not subfolder.startswith(folder):
+        results = []
+        walk_pattern = f"{'**/' if recursive else ''}[!.~]*"
+        for file in self._folder.joinpath(folder).glob(walk_pattern):
+            if suffix is not None and not file.as_posix().endswith(suffix):
                 continue
-            dirs[:] = [d for d in dirs if d[0] not in exclude]
-            if subfolder.replace(folder, '') != "" and not recursive:
-                continue
-            for f in files:
-                if f[0] in exclude:
-                    continue
-                if suffix is None or f.endswith(suffix):
-                    result.append(os.path.join(root.replace(self._folder, ''), f))
-        return result
+            results.append(file.relative_to(self._folder).as_posix())
+        return results
 
     def __str__(self):
         return f"{self.__class__.__name__} at {self._folder}"

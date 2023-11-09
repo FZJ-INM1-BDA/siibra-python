@@ -12,6 +12,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Concpets that have primarily spatial meaning."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -83,3 +85,16 @@ class Location(ABC):
         space_str = "" if self.space is None else f" in {self.space.name}"
         coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
         return f"{self.__class__.__name__}{space_str}{coord_str}"
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}: {self}"
+
+    @staticmethod
+    def union(loc0: 'Location', loc1: 'Location') -> 'Location':
+        """
+        Reassigned at the locations module level for static typing and to avoid
+        circular imports. See siibra.locations.__init__.reassign_union()
+        """
+        raise NotImplementedError(
+            "This method is designed to be reassigned at the module level"
+        )

@@ -26,6 +26,9 @@
                 "description": {
                     "type": "string"
                 },
+                "license": {
+                    "type": "string"
+                },
                 "citation": {
                     "type": "string"
                 }

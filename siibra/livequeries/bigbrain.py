@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Matches BigBrain intesity profiles extracted by Wagstyl et al. to volumes."""
 
 from . import query
 
@@ -135,7 +136,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
             prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                 query_structure=concept,
                 assigned_structure=concept,
-                qualification=_anchor.AssignmentQualification.CONTAINED,
+                qualification=_anchor.Qualification.CONTAINED,
                 explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}"
             )
             features.append(prof)
@@ -180,7 +181,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
-            qualification=_anchor.AssignmentQualification.CONTAINED,
+            qualification=_anchor.Qualification.CONTAINED,
             explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}"
         )
 

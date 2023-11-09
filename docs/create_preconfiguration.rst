@@ -56,24 +56,26 @@ Based on the examples and schema, create a json with
     * If local, you can create a localhost with python and write the a url using
       your localhost (i.e. http://localhost:7001/filename.csv where the server
       is started in the folder filename.csv is located.)
+    * Alternatively, a locat repository. (This is particularly useful when
+      one would like to work with sensitive data.)
 
 * If it provides images, make sure to write the correct provider and see if the
   image or mesh type is supported by siibra.
   (see ``siibra.volumes.volume.SUPPORTED_FORMATS``)
 3. ``siibra.retrieval.requests.DECODERS`` lists all the file types that siibra
-  can directly digest. Note that you can specify csv decoders in further detail,
-  see connectivity configurations for examples.
+   can directly digest. Note that you can specify csv decoders in further detail,
+   see connectivity configurations for examples.
 
 III. Test the configuration
 ---------------------------
 
-1. One can digest a preconfiguration to ``siibra`` by
+1. One can digest a preconfiguration by ``siibra`` via
    ``obj = siibra.from_json("path_to_json")``. This is a good first check to see
    if the object type is achieved (``print(type(obj))``).
 2. Check the properties of ``obj``.
 3. Fetch the data connected to ``obj`` based on the object type.
 
-If there are any issues, trace back your steps and see if everyrthing is in
+If there are any issues, trace back your steps and see if everything is in
 order.
 
 IV. Use/share your preconfiguration

@@ -24,6 +24,9 @@
                 },
                 "openminds/DatasetVersion": {
                     "$ref": "#/definitions/ebrainsdef"
+                },
+                "openminds/BrainAtlasVersion": {
+                    "$ref": "#/definitions/ebrainsdef"
                 }
             },
             "additionalProperties": false

@@ -12,8 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-# simple data features anchored to a point in space
+"""Non-preconfigured data features hosted at EBRAINS."""
 
 from zipfile import ZipFile
 from .. import anchor as _anchor
@@ -22,11 +21,12 @@ from .. import feature
 from ...retrieval import datasets
 
 
-DOI_TMPL="""
+DOI_TMPL = """
 doi
 ---
 {doi}
 """
+
 
 class EbrainsDataFeature(feature.Feature, category="other"):
     def __init__(
@@ -71,7 +71,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
 
     @property
     def version_history(self):
-        return self._dataset.version_changes
+        return self._dataset.version_changelog
 
     @property
     def url(self):
@@ -84,7 +84,7 @@ class EbrainsDataFeature(feature.Feature, category="other"):
         if not isinstance(o, EbrainsDataFeature):
             return False
         return self._dataset == o._dataset
-    
+
     def _export(self, fh: ZipFile):
         super()._export(fh)
-        fh.writestr("doi.md", DOI_TMPL.format(self.url))
+        fh.writestr("doi.md", DOI_TMPL.format(doi=self.url))

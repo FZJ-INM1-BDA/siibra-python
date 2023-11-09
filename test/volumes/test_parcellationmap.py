@@ -1,7 +1,12 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from siibra.volumes.parcellationmap import Map, space, parcellation, MapType, MapIndex
-from siibra.exceptions import ExcessiveArgumentException, InsufficientArgumentException, ConflictingArgumentException, NonUniqueIndexError
+from siibra.volumes.parcellationmap import (
+    Map, space, parcellation, MapType, MapIndex
+)
+from siibra.exceptions import (
+    ExcessiveArgumentException, ConflictingArgumentException,
+    NonUniqueIndexError, NoVolumeFound
+)
 from siibra.commons import Species
 from siibra.core.region import Region
 from uuid import uuid4
@@ -267,7 +272,7 @@ class TestMap(unittest.TestCase):
         region = region_kwarg or (region_index_arg if isinstance(region_index_arg, (str, Region)) else None)
 
         if len_arg == 0 and len(volumes) != 1:
-            expected_error = InsufficientArgumentException
+            expected_error = NoVolumeFound
         elif len_arg > 1:
             expected_error = ExcessiveArgumentException
         elif (

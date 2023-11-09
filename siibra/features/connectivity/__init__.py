@@ -12,8 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Multimodal data features concerning connectivity data."""
 
-from .functional_connectivity import FunctionalConnectivity
+from .functional_connectivity import (
+    FunctionalConnectivity,
+    AnatomoFunctionalConnectivity
+)
 from .streamline_counts import StreamlineCounts
 from .streamline_lengths import StreamlineLengths
 from .tracing_connectivity import TracingConnectivity
@@ -24,5 +28,6 @@ def __dir__():
         "FunctionalConnectivity",
         "StreamlineCounts",
         "StreamlineLengths",
-        "TracingConnectivity"
+        "TracingConnectivity",
+        "AnatomoFunctionalConnectivity"
     ]

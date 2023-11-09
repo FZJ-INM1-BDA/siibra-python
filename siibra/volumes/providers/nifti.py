@@ -17,7 +17,7 @@ from . import provider as _provider
 
 from ...commons import logger
 from ...retrieval import requests
-from ...locations import boundingbox as _boundingbox
+from ...locations import pointset, boundingbox as _boundingbox
 
 from typing import Union, Dict, Tuple
 import nibabel as nib
@@ -29,7 +29,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
     def __init__(self, src: Union[str, Dict[str, str], nib.Nifti1Image, Tuple[np.ndarray, np.ndarray]]):
         """
-        Construct a new NIfTI volume source, from url, local file, (data, affine), or Nift1Image object.
+        Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
         _provider.VolumeProvider.__init__(self)
 
@@ -142,6 +142,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             3D volume will be returned, where voxels matching this label
             are marked as "1".
         """
+
         result = None
         if len(self._img_loaders) > 1:
             if fragment is None:
@@ -199,6 +200,38 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
     def is_float(self):
         return self.image.dataobj.dtype.kind == "f"
+
+    def find_peaks(self, min_distance_mm=5):
+        """
+        Find peaks in the image data.
+
+        Parameters
+        ----------
+        min_distance_mm : float
+            Minimum distance between peaks in mm
+
+        Returns:
+        --------
+        PointSet
+        """
+
+        from skimage.feature.peak import peak_local_max
+        from ...commons import affine_scaling
+
+        img = self.fetch()
+        dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
+        voxels = peak_local_max(
+            img.get_fdata(),
+            exclude_border=False,
+            min_distance=dist,
+        )
+        return (
+            pointset.PointSet(
+                [np.dot(img.affine, [x, y, z, 1])[:3] for x, y, z in voxels],
+                space=self.space,
+            ),
+            img,
+        )
 
 
 class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):

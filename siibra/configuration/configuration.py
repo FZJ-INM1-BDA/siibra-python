@@ -122,7 +122,7 @@ class Configuration:
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("conn needs to be an instance of RepositoryConnector or a valid str")
         if conn in cls.CONFIGURATION_EXTENSIONS:
-            logger.warn(f"The configuration {str(conn)} is already registered.")
+            logger.warning(f"The configuration {str(conn)} is already registered.")
         else:
             logger.info(f"Extending configuration with {str(conn)}")
             cls.CONFIGURATION_EXTENSIONS.append(conn)
@@ -159,15 +159,19 @@ class Configuration:
                 **{'filename': specloaders[0][0]}
             )
         )
+        obj_class = obj0[0].__class__.__name__ if isinstance(obj0, list) else obj0.__class__.__name__
 
         for fname, loader in siibra_tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured {obj0.__class__.__name__} instances"
+            desc=f"Loading preconfigured {obj_class} instances"
         ):
             # filename is added to allow Factory creating reasonable default object identifiers\
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
-            result.append(obj)
+            if isinstance(obj, list):
+                result.extend(obj)
+            else:
+                result.append(obj)
 
         return result
 

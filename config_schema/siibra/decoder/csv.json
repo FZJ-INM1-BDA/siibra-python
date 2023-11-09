@@ -26,6 +26,9 @@
         },
         "skiprows": {
             "type": "integer"
+        },
+        "compression": {
+            "type": "string"
         }
     },
     "required": [

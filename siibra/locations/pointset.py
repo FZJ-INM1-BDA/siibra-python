@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A set of coordinates on a reference space."""
 
 from . import location, point, boundingbox
 
@@ -185,9 +186,7 @@ class PointSet(location.Location, structure.BrainStructure):
         return self.coordinates.shape[0]
 
     def __str__(self):
-        return f"Set of points {self.space.name}: " + ", ".join(
-            f"({','.join(str(v) for v in p)})" for p in self
-        )
+        return f"Set of {len(self)} points in the {self.boundingbox}"
 
     @property
     def boundingbox(self):

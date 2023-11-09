@@ -14,6 +14,7 @@
 # limitations under the License.
 
 from . import regional_connectivity
+
 from hashlib import md5
 
 
@@ -23,6 +24,9 @@ class FunctionalConnectivity(
     category="connectivity"
 ):
     """Functional connectivity matrix grouped by a parcellation."""
+
+    _filter_attrs = regional_connectivity.RegionalConnectivity._filter_attrs + ["paradigm"]
+    _compound_attrs = regional_connectivity.RegionalConnectivity._compound_attrs + ["paradigm"]
 
     def __init__(self, paradigm: str, **kwargs):
         regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)
@@ -34,3 +38,20 @@ class FunctionalConnectivity(
     @property
     def id(self):
         return super().id + "--" + md5(self.paradigm.encode("utf-8")).hexdigest()
+
+    @property
+    def name(self):
+        return f"{super().name}, {self.paradigm} paradigm"
+
+
+class AnatomoFunctionalConnectivity(
+    regional_connectivity.RegionalConnectivity,
+    configuration_folder="features/connectivity/regional/anatomofunctional",
+    category="connectivity"
+):
+    """Functional connectivity matrix grouped by a parcellation."""
+
+    _filter_attrs = ["modality", "cohort", "feature"]
+
+    def __init__(self, **kwargs):
+        regional_connectivity.RegionalConnectivity.__init__(self, **kwargs)

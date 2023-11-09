@@ -30,30 +30,30 @@ import siibra
 jubrain = siibra.parcellations.get("julich 2.9")
 
 # %%
-# The matrices are queried as expected, using `siibra.features.get`,
-# passing the parcellation as a concept.
-# Here, we query for structural connectivity matrices.
+# The tables are queried as expected, using `siibra.features.get`, passing
+# the parcellation as a concept. Here, we query for regional BOLD signals.
+# Since a single query may yield hundreds of signal tables for different
+# subjects of a cohort and paradigms, siibra groups them as elements into
+# :ref:`CompoundFeatures<compoundfeatures>`. Let us select "rfMRI_REST1_LR_BOLD"
+# paradigm.
 features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
-print(f"Found {len(features)} parcellation-based BOLD signals for {jubrain}.")
+for f in features:
+    print(f.name)
+    if f.paradigm == "rfMRI_REST1_LR_BOLD":
+        cf = f
+        print(f"Selected: {cf.name}'\n'" + cf.description)
 
 # %%
-# We fetch the first result, which is a specific `RegionalBOLD` object.
-bold = features[0]
-print(f"RegionalBOLD features reflects {bold.modality} of {bold.cohort} cohort.")
-print(bold.name)
-print("\n" + bold.description)
-
-# Subjects are encoded via anonymized ids:
-print(bold.subjects)
+# We can select a specific element by integer index
+print(cf[0].name)
+print(cf[0].subject)  # Subjects are encoded via anonymized ids
 
 
 # %%
-# The parcellation-based functional data are provided as pandas DataFrames
-# with region objects as columns and indices as time step.
-subject = bold.subjects[0]
-table = bold.get_table(subject)
-print(f"Timestep: {bold.timestep}")
-table[jubrain.get_region("hOc3v left")]
+# The signal data is provided as pandas DataFrames with region objects as
+# columns and indices as as a timeseries.
+table = cf[0].data
+table[jubrain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
 
 # %%
 # We can visualize the signal strength per region by time via a carpet plot.
@@ -65,7 +65,7 @@ selected_regions = [
     'Area 7A (SPL) left', 'Area 7A (SPL) right', 'CA1 (Hippocampus) left',
     'CA1 (Hippocampus) right', 'CA1 (Hippocampus) left', 'CA1 (Hippocampus) right'
 ]
-bold.plot_carpet(subject=bold.subjects[0], regions=selected_regions)
+cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-bold.plot(subject=bold.subjects[0], regions=selected_regions)
+cf[0].plot(regions=selected_regions)

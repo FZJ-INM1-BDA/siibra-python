@@ -35,3 +35,7 @@ class NoMapAvailableError(RuntimeError):
 
 class SpaceWarpingFailedError(RuntimeError):
     pass
+
+
+class NoVolumeFound(RuntimeError):
+    pass

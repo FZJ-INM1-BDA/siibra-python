@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""A box defined by two farthest corner coordinates on a specific space."""
 
 from . import point, pointset, location
 
@@ -226,22 +227,6 @@ class BoundingBox(location.Location, structure.BrainStructure):
                 .PointSet(XYZ, space=self.space, sigma_mm=voxel_size.max())
                 .boundingbox
             )
-
-    def union(self, other):
-        """
-        Computes the union of this boudning box with another one.
-
-        Args:
-            other (BoundingBox): Another bounding box
-        """
-        warped = other.warp(self.space)
-        points = [self.minpoint, self.maxpoint, warped.minpoint, warped.maxpoint]
-        return BoundingBox(
-            point1=[min(p[i] for p in points) for i in range(3)],
-            point2=[max(p[i] for p in points) for i in range(3)],
-            space=self.space,
-            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
-        )
 
     def clip(self, xyzmax, xyzmin=(0, 0, 0)):
         """

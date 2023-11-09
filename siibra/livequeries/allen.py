@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Query Allen Human Brain Atlas microarray data in specified volume."""
 
 from .query import LiveQuery
 
@@ -132,7 +133,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         ass = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
-            qualification=_anchor.AssignmentQualification.CONTAINED,
+            qualification=_anchor.Qualification.CONTAINED,
             explanation=explanation
         )
         anchor._assignments[concept] = [ass]

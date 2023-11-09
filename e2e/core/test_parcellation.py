@@ -7,8 +7,9 @@ args = [
     ("julich brain 3", "v1", lambda region: region.name == "Area hOc1 (V1, 17, CalcS)"),
 ]
 
+
 @pytest.mark.parametrize("parc_spec,reg_spec,validator", args)
-def test_get_region(parc_spec,reg_spec,validator):
+def test_get_region(parc_spec, reg_spec, validator):
 
     subclasses_exception = isinstance(validator, type) and issubclass(validator, Exception)
     if callable(validator) and not subclasses_exception:
@@ -16,9 +17,9 @@ def test_get_region(parc_spec,reg_spec,validator):
         assert callable(validator)
         assert validator(result)
         return
-    
+
     if subclasses_exception:
         with pytest.raises(validator) as e:
             siibra.get_region(parc_spec, reg_spec)
-    
-    raise Exception(f"should be either Exception or callable")
+
+    raise e("Should be either Exception or callable")

@@ -14,26 +14,26 @@
 # limitations under the License.
 
 from . import tabular
+from ..feature import Compoundable
 
 from .. import anchor as _anchor
-
-from ...commons import logger, QUIET, siibra_tqdm
+from ...commons import QUIET
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
+from ...retrieval.requests import HttpRequest
 
-from typing import Callable, Dict, List
+from typing import Callable, List
 import pandas as pd
 import numpy as np
 
 
-class RegionalTimeseriesActivity(tabular.Tabular):
+class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
     """
     Datasets that provide regional activity over time.
     """
 
-    DESCRIPTION = (
-        ""
-    )
+    _filter_attrs = ["modality", "cohort", "subject"]
+    _compound_attrs = ["modality", "cohort"]
 
     def __init__(
         self,
@@ -42,103 +42,88 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         regions: list,
         connector: RepositoryConnector,
         decode_func: Callable,
-        files: Dict[str, str],
+        filename: str,
         anchor: _anchor.AnatomicalAnchor,
         timestep: str,
         description: str = "",
         datasets: list = [],
-        paradigm: str = ""
+        subject: str = "average"
     ):
         """
         """
         tabular.Tabular.__init__(
             self,
             modality=modality,
-            description=description or '\n'.join({ds.description for ds in datasets}),
+            description=description,
             anchor=anchor,
             datasets=datasets,
             data=None  # lazy loading below
         )
         self.cohort = cohort.upper()
-        self._connector = connector
-        self._files = files
+        if isinstance(connector, str) and connector:
+            self._connector = HttpRequest(connector, decode_func)
+        else:
+            self._connector = connector
+        self._filename = filename
         self._decode_func = decode_func
         self.regions = regions
-        self._tables = {}
-        self.paradigm = paradigm
-        self.timestep = timestep
+        self._table = None
+        self._subject = subject
+        val, unit = timestep.split(" ")
+        self.timestep = (float(val), unit)
 
     @property
-    def subjects(self):
-        """
-        Returns the subject identifiers for which signal tables are available.
-        """
-        return list(self._files.keys())
+    def subject(self):
+        """Returns the subject identifiers for which the matrix represents."""
+        return self._subject
 
     @property
     def name(self):
-        supername = super().name
-        return f"{supername} with paradigm {self.paradigm}"
+        return f"{super().name} with cohort {self.cohort} - subject {self.subject}"
 
-    def get_table(self, subject: str = None):
+    @property
+    def data(self) -> pd.DataFrame:
         """
-        Returns a pandas dataframe where the column headers are regions and the
-        indcies indicate disctrete timesteps.
-
-        Parameters
-        ----------
-        subject: str, default: None
-            Name of the subject (see RegionalTimeseriesActivity.subjects for available names).
-            If None, the mean is taken in case of multiple available data tables.
-        Returns
-        -------
-        pd.DataFrame
-            A table with region names as the column and timesteps as indices.
+        Returns a table as a pandas dataframe where the index is a timeseries.
         """
-        assert len(self) > 0
-        if (subject is None) and (len(self) > 1):
-            # multiple signal tables available, but no subject given - return mean table
-            logger.info(
-                f"No subject name supplied, returning mean signal table across {len(self)} subjects. "
-                "You might alternatively specify an individual subject."
-            )
-            if "mean" not in self._tables:
-                all_arrays = [
-                    self._connector.get(fname, decode_func=self._decode_func)
-                    for fname in siibra_tqdm(
-                        self._files.values(),
-                        total=len(self),
-                        desc=f"Averaging {len(self)} signal tables"
-                    )
-                ]
-                self._tables['mean'] = self._array_to_dataframe(np.stack(all_arrays).mean(0))
-            return self._tables['mean'].copy()
-        if subject is None:
-            subject = next(iter(self._files.keys()))
-        if subject not in self._files:
-            raise ValueError(f"Subject name '{subject}' not known, use one of: {', '.join(self._files)}")
-        if subject not in self._tables:
-            self._tables[subject] = self._load_table(subject)
-        return self._tables[subject].copy()
+        if self._table is None:
+            self._load_table()
+        return self._table.copy()
 
-    def _load_table(self, subject: str):
+    def _load_table(self):
         """
         Extract the timeseries table.
         """
-        assert subject in self.subjects
-        array = self._connector.get(self._files[subject], decode_func=self._decode_func)
-        return self._array_to_dataframe(array)
-
-    def __len__(self):
-        return len(self._files)
+        array = self._connector.get(self._filename, decode_func=self._decode_func)
+        if not isinstance(array, np.ndarray):
+            assert isinstance(array, pd.DataFrame)
+            array = array.to_numpy()
+        ncols = array.shape[1]
+        self._table = pd.DataFrame(
+            array,
+            index=pd.TimedeltaIndex(
+                np.arange(0, array.shape[0]) * self.timestep[0],
+                unit=self.timestep[1],
+                name="time"
+            )
+        )
+        parcellations = self.anchor.represented_parcellations()
+        assert len(parcellations) == 1
+        parc = next(iter(parcellations))
+        with QUIET:
+            columnmap = {
+                i: parc.get_region(regionname, allow_tuple=True)
+                for i, regionname in enumerate(self.regions)
+            }
+        if len(columnmap) == ncols:
+            remapper = {
+                label - min(columnmap.keys()): region
+                for label, region in columnmap.items()
+            }
+            self._table = self._table.rename(columns=remapper)
 
     def __str__(self):
-        return "{} with paradigm {} for {} from {} cohort ({} signal tables)".format(
-            self.modality, self.paradigm,
-            "_".join(p.name for p in self.anchor.parcellations),
-            self.cohort,
-            len(self._files),
-        )
+        return self.name
 
     def compute_centroids(self, space):
         """
@@ -172,31 +157,8 @@ class RegionalTimeseriesActivity(tabular.Tabular):
             )
         return result
 
-    def _array_to_dataframe(self, array: np.ndarray) -> pd.DataFrame:
-        """
-        Convert a numpy array with the regional activity data to
-        a DataFrame with regions as column headers and timesteps as indices.
-        """
-        df = pd.DataFrame(array)
-        parcellations = self.anchor.represented_parcellations()
-        assert len(parcellations) == 1
-        parc = next(iter(parcellations))
-        with QUIET:
-            indexmap = {
-                i: parc.get_region(regionname, allow_tuple=True)
-                for i, regionname in enumerate(self.regions)
-            }
-        ncols = array.shape[1]
-        if len(indexmap) == ncols:
-            remapper = {
-                label - min(indexmap.keys()): region
-                for label, region in indexmap.items()
-            }
-            df = df.rename(columns=remapper)
-        return df
-
     def plot(
-        self, subject: str = None, regions: List[str] = None, *args,
+        self, regions: List[str] = None, *args,
         backend="matplotlib", **kwargs
     ):
         """
@@ -214,12 +176,12 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        table = self.get_table(subject).iloc[:, indices]
+        table = self.data.iloc[:, indices]
         table.columns = [str(r) for r in table.columns]
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
     def plot_carpet(
-        self, subject: str = None, regions: List[str] = None, *args,
+        self, regions: List[str] = None, *args,
         backend="plotly", **kwargs
     ):
         """
@@ -238,12 +200,17 @@ class RegionalTimeseriesActivity(tabular.Tabular):
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
-        table = self.get_table(subject).iloc[:, indices]
+        table = self.data.iloc[:, indices].reset_index(drop=True)
         table.columns = [str(r) for r in table.columns]
+        kwargs["title"] = kwargs.get("title", f"{self.modality}" + f" for subject={self.subject}")
+        kwargs["labels"] = kwargs.get("labels", {
+            "xlabel": self.data.index.to_numpy(dtype='timedelta64[ms]')}
+        )
         from plotly.express import imshow
         return imshow(
+            *args,
             table.T,
-            title=f"{self.modality}" + f" for subject={subject}" if subject else ""
+            **kwargs
         )
 
 
@@ -256,4 +223,16 @@ class RegionalBOLD(
     Blood-oxygen-level-dependent (BOLD) signals per region.
     """
 
-    pass
+    _filter_attrs = RegionalTimeseriesActivity._filter_attrs + ["paradigm"]
+    _compound_attrs = RegionalTimeseriesActivity._compound_attrs + ["paradigm"]
+
+    def __init__(self, paradigm: str, **kwargs):
+        RegionalTimeseriesActivity.__init__(self, **kwargs)
+        self.paradigm = paradigm
+
+        # paradign is used to distinguish functional connectivity features from each other.
+        assert self.paradigm, "RegionalBOLD must have paradigm defined!"
+
+    @property
+    def name(self):
+        return f"{super().name}, paradigm {self.paradigm}"

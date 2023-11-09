@@ -14,9 +14,7 @@
 # limitations under the License.
 """Representation of a brain region."""
 
-from __future__ import annotations
-
-from . import assignment, concept, space as _space, parcellation as _parcellation, structure
+from . import assignment, concept, structure, space as _space, parcellation as _parcellation
 
 from ..locations import location, boundingbox, point, pointset
 from ..volumes import parcellationmap, volume
@@ -36,9 +34,13 @@ from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 import numpy as np
 import re
 import anytree
-from typing import List, Set, Union
+from typing import List, Set, Union, Iterable, Dict, Callable
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
+from ebrains_drive import BucketApiClient
+import json
+from functools import wraps
+from concurrent.futures import ThreadPoolExecutor
 
 
 REGEX_TYPE = type(re.compile("test"))
@@ -79,6 +81,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         publications: list = [],
         datasets: list = [],
         rgb: str = None,
+        spec=None,
     ):
         """
         Constructs a new Region object.
@@ -102,6 +105,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             datasets associated with this region
         rgb: str, default: None
             Hexcode of preferred color of this region (e.g. "#9FE770")
+        spec: dict, default: None
+            The preconfigured specification.
         """
         anytree.NodeMixin.__init__(self)
         concept.AtlasConcept.__init__(
@@ -114,6 +119,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             modality=modality,
             publications=publications,
             datasets=datasets,
+            spec=spec
         )
 
         # anytree node will take care to use this appropriately
@@ -125,8 +131,34 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
+        self._str_aliases = None
         self._CACHED_REGION_SEARCHES = {}
         self._FETCH_CACHE = {}
+
+    def get_related_regions(self) -> Iterable["assignment.Qualification"]:
+        """
+        Get assements on relations of this region to others defined on EBRAINS.
+
+        Yields
+        ------
+        Qualification
+
+        Example
+        -------
+        >>> region = siibra.get_region("monkey", "PG")^M
+        >>> for assesment in region.get_related_regions():
+        >>>    print(assesment)
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL)'
+        'PG' is homologous to 'Area PGa (IPL) right'
+        'PG' is homologous to 'Area PGa (IPL) left'
+        """
+        yield from assignment.Qualification.parse_from_region(self)
 
     @property
     def id(self):
@@ -182,10 +214,34 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         if isinstance(other, Region):
             return self.id == other.id
-        elif isinstance(other, str):
-            return any([self.name == other, self.key == other, self.id == other])
-        else:
-            return False
+        if isinstance(other, str):
+            if not self._str_aliases:
+                self._str_aliases = {
+                    self.name,
+                    self.key,
+                    self.id,
+                }
+                if self._spec:
+                    ebrain_ids = [
+                        value
+                        for value in self._spec.get("ebrains", {}).values()
+                        if isinstance(value, str)
+                    ]
+                    ebrain_nested_ids = [
+                        _id
+                        for value in self._spec.get("ebrains", {}).values() if isinstance(value, list)
+                        for _id in value
+                    ]
+                    assert all(isinstance(_id, str) for _id in ebrain_nested_ids)
+                    all_ebrain_ids = [
+                        *ebrain_ids,
+                        *ebrain_nested_ids
+                    ]
+
+                    self._str_aliases.update(all_ebrain_ids)
+
+            return other in self._str_aliases
+        return False
 
     def __hash__(self):
         return hash(self.id)
@@ -566,7 +622,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             elements={s.key: s for s in self.supported_spaces},
         )
 
-    def __contains__(self, other: Union[location.Location, Region]) -> bool:
+    def __contains__(self, other: Union[location.Location, 'Region']) -> bool:
         if isinstance(other, Region):
             return len(self.find(other)) > 0
         else:
@@ -591,7 +647,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Returns
         -------
         assignment.AnatomicalAssignment or None
-            None if there is no AssignmentQualification found.
+            None if there is no Qualification found.
         """
         if (self, other) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[self, other]
@@ -616,11 +672,11 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:
-                qualification = assignment.AssignmentQualification.EXACT
+                qualification = assignment.Qualification.EXACT
             elif self.__contains__(other):
-                qualification = assignment.AssignmentQualification.CONTAINS
+                qualification = assignment.Qualification.CONTAINS
             elif other.__contains__(self):
-                qualification = assignment.AssignmentQualification.CONTAINED
+                qualification = assignment.Qualification.CONTAINED
             else:
                 qualification = None
             if qualification is None:
@@ -822,3 +878,165 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     return volume.intersection(warped).warp(other.space)
 
         return None
+
+
+_get_reg_relation_asmgt_types: Dict[str, Callable] = {}
+
+
+def _register_region_reference_type(ebrain_type: str):
+    def outer(fn: Callable):
+        _get_reg_relation_asmgt_types[ebrain_type] = fn
+
+        @wraps(fn)
+        def inner(*args, **kwargs):
+            return fn(*args, **kwargs)
+        return inner
+    return outer
+
+
+class RegionRelationAssessments(assignment.Qualification[Region]):
+
+    anony_client = BucketApiClient()
+
+    @staticmethod
+    def get_uuid(long_id: Union[str, Dict]):
+        if isinstance(long_id, str):
+            pass
+        elif isinstance(long_id, dict):
+            long_id = long_id.get("id")
+            assert isinstance(long_id, str)
+        else:
+            raise RuntimeError("uuid arg must be str or object")
+        uuid_search = re.search(r"(?P<uuid>[a-f0-9-]+)$", long_id)
+        assert uuid_search, "uuid not found"
+        return uuid_search.group("uuid")
+
+    @staticmethod
+    def parse_id_arg(_id: Union[str, List[str]]) -> List[str]:
+        if isinstance(_id, list):
+            assert all(isinstance(_i, str) for _i in _id), "all instances of pev should be str"
+        elif isinstance(_id, str):
+            _id = [_id]
+        else:
+            raise RuntimeError("parse_pev error: arg must be either list of str or str")
+        return _id
+
+    @classmethod
+    def get_object(cls, obj: str):
+        bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
+        return json.loads(bucket.get_file(obj).get_content())
+
+    @classmethod
+    def get_snapshot_factory(cls, type_str: str):
+        def get_objects(_id: Union[str, List[str]]):
+            _id = cls.parse_id_arg(_id)
+            with ThreadPoolExecutor() as ex:
+                return list(
+                    ex.map(
+                        cls.get_object,
+                        [f"ebrainsquery/v3/{type_str}/{_}.json" for _ in _id]
+                    ))
+        return get_objects
+
+    @classmethod
+    def parse_relationship_assessment(cls, src: "Region", assessment):
+
+        all_regions = [
+            region
+            for p in _parcellation.Parcellation.registry()
+            for region in p
+        ]
+
+        overlap = assessment.get("qualitativeOverlap")
+        targets = assessment.get("relationAssessment") or assessment.get("inRelationTo")
+        assert len(overlap) == 1, f"should be 1&o1 overlap {len(overlap)!r} "
+        overlap, = overlap
+        for target in targets:
+            target_id = cls.get_uuid(target)
+
+            found_targets = [
+                region
+                for region in all_regions
+                if region == target_id
+            ]
+
+            for found_target in found_targets:
+                yield cls(query_structure=src, assigned_structure=found_target, qualification=assignment.parse_relation_assessment(overlap))
+
+            if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
+                pev_uuids = [
+                    cls.get_uuid(has_version)
+                    for pe in cls.get_snapshot_factory("ParcellationEntity")(target_id)
+                    for has_version in pe.get("hasVersion")
+                ]
+                for reg in all_regions:
+                    if reg in pev_uuids:
+                        yield cls(query_structure=src, assigned_structure=reg, qualification=assignment.parse_relation_assessment(overlap))
+
+    @classmethod
+    @_register_region_reference_type("openminds/CustomAnatomicalEntity")
+    def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
+        caes = cls.get_snapshot_factory("CustomAnatomicalEntity")(_id)
+        for cae in caes:
+            for ass in cae.get("relationAssessment", []):
+                yield from cls.parse_relationship_assessment(src, ass)
+
+    @classmethod
+    @_register_region_reference_type("openminds/ParcellationEntityVersion")
+    def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
+        pe_uuids = [
+            uuid for uuid in
+            {
+                cls.get_uuid(pe)
+                for pev in cls.get_snapshot_factory("ParcellationEntityVersion")(_id)
+                for pe in pev.get("isVersionOf")
+            }
+        ]
+        pes = cls.get_snapshot_factory("ParcellationEntity")(pe_uuids)
+
+        all_regions = [
+            region
+            for p in _parcellation.Parcellation.registry()
+            for region in p
+        ]
+
+        for pe in pes:
+
+            # other versions
+            has_versions = pe.get("hasVersion", [])
+            for has_version in has_versions:
+                uuid = cls.get_uuid(has_version)
+
+                # ignore if uuid is referring to src region
+                if uuid == src:
+                    continue
+
+                found_targets = [
+                    region
+                    for region in all_regions
+                    if region == uuid
+                ]
+                if len(found_targets) == 0:
+                    logger.warning(f"other version with uuid {uuid} not found")
+                    continue
+
+                for found_target in found_targets:
+                    yield cls(
+                        query_structure=src,
+                        assigned_structure=found_target,
+                        qualification=assignment.Qualification.OTHER_VERSION
+                    )
+
+            # homologuous
+            relations = pe.get("inRelationTo", [])
+            for relation in relations:
+                yield from cls.parse_relationship_assessment(src, relation)
+
+    @classmethod
+    def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
+        if not region._spec:
+            return None
+        for ebrain_type, ebrain_ref in region._spec.get("ebrains", {}).items():
+            if ebrain_type in _get_reg_relation_asmgt_types:
+                fn = _get_reg_relation_asmgt_types[ebrain_type]
+                yield from fn(cls, region, ebrain_ref)

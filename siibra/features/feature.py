@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Handles multimodal data features and related queries."""
 
 from . import anchor as _anchor
 
@@ -19,10 +20,11 @@ from ..commons import logger, InstanceTable, siibra_tqdm, __version__
 from ..core import concept, space, region, parcellation, structure
 from ..volumes import volume
 
-from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO
+from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
+from abc import ABC
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -38,6 +40,10 @@ class EncodeLiveQueryIdException(Exception):
 
 
 class NotFoundException(Exception):
+    pass
+
+
+class ParseCompoundFeatureIdException(Exception):
     pass
 
 
@@ -119,7 +125,7 @@ class Feature:
         # allows subclasses to implement lazy loading of an anchor
         return self._anchor_cached
 
-    def __init_subclass__(cls, configuration_folder=None, category=None, do_not_index=False):
+    def __init_subclass__(cls, configuration_folder=None, category=None, do_not_index=False, **kwargs):
 
         # Feature.SUBCLASSES serves as an index where feature class inheritance is cached. When users
         # queries a branch on the hierarchy, all children will also be queried. There are usecases where
@@ -143,7 +149,7 @@ class Feature:
         cls.category = category
         if category is not None:
             cls.CATEGORIZED[category].add(cls.__name__, cls)
-        return super().__init_subclass__()
+        return super().__init_subclass__(**kwargs)
 
     @classmethod
     def _get_subclasses(cls):
@@ -151,8 +157,33 @@ class Feature:
 
     @property
     def description(self):
-        """ Allowssubclasses to overwrite the description with a function call. """
-        return self._description
+        """Allows subclasses to overwrite the description with a function call."""
+        if self._description:
+            return self._description
+        for ds in self.datasets:
+            if ds.description:
+                return ds.description
+        return ''
+
+    @property
+    def LICENSE(self) -> str:
+        return '\n'.join([ds.LICENSE for ds in self.datasets])
+
+    @property
+    def doi_or_url(self) -> str:
+        return '\n'.join([
+            url.get("url")
+            for ds in self.datasets
+            for url in ds.urls
+        ])
+
+    @property
+    def authors(self):
+        return [
+            contributer['name']
+            for ds in self.datasets
+            for contributer in ds.contributors
+        ]
 
     @property
     def name(self):
@@ -312,6 +343,35 @@ class Feature:
         if not hasattr(feat.__class__, '_live_queries'):
             raise EncodeLiveQueryIdException(f"generate_livequery_featureid can only be used on live queries, but {feat.__class__.__name__} is not.")
 
+        encoded_c = Feature._encode_concept(concept)
+
+        return f"lq0::{feat.__class__.__name__}::{encoded_c}::{feat.id}"
+
+    @classmethod
+    def deserialize_query_context(cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+        """
+        Deserialize id into query context.
+
+        See docstring of serialize_query_context for context.
+        """
+        lq_version, *rest = feature_id.split("::")
+        if lq_version != "lq0":
+            raise ParseLiveQueryIdException("livequery id must start with lq0::")
+
+        clsname, *concepts, fid = rest
+
+        Features = cls._parse_featuretype(clsname)
+
+        if len(Features) == 0:
+            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
+        F = Features[0]
+
+        concept = cls._decode_concept(concepts)
+
+        return (F, concept, fid)
+
+    @staticmethod
+    def _encode_concept(concept: concept.AtlasConcept):
         encoded_c = []
         if isinstance(concept, space.Space):
             encoded_c.append(f"s:{concept.id}")
@@ -326,56 +386,49 @@ class Feature:
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
 
-        return f"lq0::{feat.__class__.__name__}::{'::'.join(encoded_c)}::{feat.id}"
+        return '::'.join(encoded_c)
 
     @classmethod
-    def deserialize_query_context(Cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
-        """
-        Deserialize id into query context.
-
-        See docstring of serialize_query_context for context.
-        """
-        lq_version, *rest = feature_id.split("::")
-        if lq_version != "lq0":
-            raise ParseLiveQueryIdException("livequery id must start with lq0::")
-
-        clsname, *concepts, fid = rest
-
-        Features = Cls.parse_featuretype(clsname)
-
-        if len(Features) == 0:
-            raise ParseLiveQueryIdException(f"classname {clsname!r} could not be parsed correctly. {feature_id!r}")
-        F = Features[0]
+    def _decode_concept(cls, concepts: List[str]) -> concept.AtlasConcept:
+        # choose exception to divert try-except correctly
+        if issubclass(cls, CompoundFeature):
+            exception = ParseCompoundFeatureIdException
+        else:
+            exception = ParseLiveQueryIdException
 
         concept = None
         for c in concepts:
             if c.startswith("s:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = space.Space.registry()[c.replace("s:", "")]
             if c.startswith("p:"):
                 if concept is not None:
-                    raise ParseLiveQueryIdException("Conflicting spec.")
+                    raise exception("Conflicting spec.")
                 concept = parcellation.Parcellation.registry()[c.replace("p:", "")]
             if c.startswith("r:"):
                 if concept is None:
-                    raise ParseLiveQueryIdException("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
+                    raise exception("region has been encoded, but parcellation has not been populated in the encoding, {feature_id!r}")
                 if not isinstance(concept, parcellation.Parcellation):
-                    raise ParseLiveQueryIdException("region has been encoded, but previous encoded concept is not parcellation")
+                    raise exception("region has been encoded, but previous encoded concept is not parcellation")
                 concept = concept.get_region(c.replace("r:", ""))
-        if concept is None:
-            raise ParseLiveQueryIdException(f"concept was not populated: {feature_id!r}")
 
-        return (F, concept, fid)
+        if concept is None:
+            raise ParseLiveQueryIdException("concept was not populated in feature id")
+        return concept
 
     @classmethod
-    def parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
-        return [
+    def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
+        ftypes = sorted({
             feattype
             for FeatCls, feattypes in cls.SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
-        ]
+        }, key=lambda t: t.__name__)
+        if len(ftypes) > 1:
+            return [ft for ft in ftypes if getattr(ft, 'category')]
+        else:
+            return list(ftypes)
 
     @classmethod
     def _livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
@@ -424,21 +477,31 @@ class Feature:
             specififies the type of features ("modality")
         """
         if isinstance(feature_type, list):
-            # a list of feature types is given, recurse into each
-            assert all((isinstance(t, str) or issubclass(t, cls)) for t in feature_type)
-            return list(set(sum((cls.match(concept, t, **kwargs) for t in feature_type), [])))
+            # a list of feature types is given, collect match results on those
+            assert all(
+                (isinstance(t, str) or issubclass(t, cls))
+                for t in feature_type
+            )
+            return list(dict.fromkeys(
+                sum((
+                    cls.match(concept, t, **kwargs) for t in feature_type
+                ), [])
+            ))
 
-        elif isinstance(feature_type, str):
-            # Feature type specified as string.
+        if isinstance(feature_type, str):
+            # feature type given as a string. Decode the corresponding class.
             # Some string inputs, such as connectivity, may hit multiple matches.
-            # Decode the matching types and recurse into each.
-            candidates = cls.parse_featuretype(feature_type)
-            if len(candidates) == 0:
+            ftype_candidates = cls._parse_featuretype(feature_type)
+            if len(ftype_candidates) == 0:
                 raise ValueError(
-                    f"Specification {str(feature_type)} did not match with any feature types. "
-                    f"Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                    f"feature_type {str(feature_type)} did not match with any "
+                    f"features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
                 )
-            return list({feat for c in candidates for feat in cls.match(concept, c, **kwargs)})
+            logger.info(
+                f"'{feature_type}' decoded as feature type/s: "
+                f"{[c.__name__ for c in ftype_candidates]}."
+            )
+            return cls.match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -469,10 +532,16 @@ class Feature:
         # with the query concept.
         live_instances = feature_type._livequery(concept, **kwargs)
 
-        return list(set((preconfigured_instances + live_instances)))
+        results = list(dict.fromkeys(preconfigured_instances + live_instances))
+        return CompoundFeature.compound(results, concept)
 
     @classmethod
-    def get_instance_by_id(cls, feature_id: str, **kwargs):
+    def _get_instance_by_id(cls, feature_id: str, **kwargs):
+        try:
+            return CompoundFeature._get_instance_by_id(feature_id, **kwargs)
+        except ParseCompoundFeatureIdException:
+            pass
+
         try:
             F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
@@ -481,12 +550,21 @@ class Feature:
                 if f.id == fid or f.id == feature_id
             ][0]
         except ParseLiveQueryIdException:
-            return [
+            candidates = [
                 inst
                 for Cls in Feature.SUBCLASSES[Feature]
                 for inst in Cls.get_instances()
                 if inst.id == feature_id
-            ][0]
+            ]
+            if len(candidates) == 0:
+                raise NotFoundException(f"No feature instance wth {feature_id} found.")
+            if len(candidates) == 1:
+                return candidates[0]
+            else:
+                raise RuntimeError(
+                    f"Multiple feature instance match {feature_id}",
+                    [c.name for c in candidates]
+                )
         except IndexError:
             raise NotFoundException
 
@@ -549,3 +627,244 @@ class Feature:
                 return getattr(self.inst, __name)
 
         return ProxyFeature(feature, fid)
+
+
+class Compoundable(ABC):
+    """
+    Base class for structures which allow compounding.
+    Determines the necessary grouping and compounding attributes.
+    """
+    _filter_attrs = []  # the attributes to filter this instance of feature
+    _compound_attrs = []  # `compound_key` has to be created from `filter_attributes`
+
+    def __init_subclass__(cls, **kwargs):
+        assert len(cls._filter_attrs) > 0, "All compoundable classes have to have `_filter_attrs` defined."
+        assert len(cls._compound_attrs) > 0, "All compoundable classes have to have `_compound_attrs` defined."
+        assert all(attr in cls._filter_attrs for attr in cls._compound_attrs), "`_compound_attrs` must be a subset of `_filter_attrs`."
+        return super().__init_subclass__(**kwargs)
+
+    def __init__(self):
+        assert all(hasattr(self, attr) for attr in self._filter_attrs), "`_filter_attrs` can only consist of the attributes of the class."
+
+    @property
+    def filter_attributes(self) -> Dict[str, Any]:
+        """
+        Attributes that help distinguish or combine features of the same type
+        among others.
+        """
+        return {attr: getattr(self, attr) for attr in self._filter_attrs}
+
+    @property
+    def _compound_key(self) -> Tuple[Any]:
+        """
+        A tuple of values that define the basis for compounding elements of
+        the same type.
+        """
+        return tuple([self.filter_attributes[attr] for attr in self._compound_attrs])
+
+    @property
+    def _element_index(self) -> Any:
+        """
+        Unique index of this compoundable feature as a subfeature of the
+        Compound. Should be hashable.
+        """
+        index = [
+            self.filter_attributes[attr]
+            for attr in self._filter_attrs
+            if attr not in self._compound_attrs
+        ]
+        return index[0] if len(index) == 1 else tuple(index)
+
+
+class CompoundFeature(Feature):
+    """
+    A compound aggregating mutliple features of the same type, forming its
+    elements. The anatomical anchors and data of the features is merged.
+    Features need to subclass "Compoundable" to allow aggregation
+    into a compound feature.
+    """
+
+    def __init__(
+        self,
+        elements: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ):
+        """
+        A compound of several features of the same type with an anchor created
+        as a sum of adjoinable anchors.
+        """
+        self._feature_type = elements[0].__class__
+        assert all(isinstance(f, self._feature_type) for f in elements), NotImplementedError("Cannot compound features of different types.")
+        self.category = elements[0].category  # same feature types have the same category
+        assert issubclass(self._feature_type, Compoundable), NotImplementedError(f"Cannot compound {self._feature_type}.")
+
+        modality = elements[0].modality
+        assert all(f.modality == modality for f in elements), NotImplementedError("Cannot compound features of different modalities.")
+
+        compound_keys = {element._compound_key for element in elements}
+        assert len(compound_keys) == 1, ValueError(
+            "Only features with identical compound_key can be aggregated."
+        )
+        self._compounding_attributes = {
+            attr: elements[0].filter_attributes[attr]
+            for attr in elements[0]._compound_attrs
+        }
+
+        self._elements = {f._element_index: f for f in elements}
+        assert len(self._elements) == len(elements), RuntimeError(
+            "Element indices should be unique to each element within a CompoundFeature."
+        )
+
+        Feature.__init__(
+            self,
+            modality=modality,
+            description="\n".join({f.description for f in elements}),
+            anchor=sum([f.anchor for f in elements]),
+            datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
+        )
+        self._queryconcept = queryconcept
+
+    def __getattr__(self, attr: str) -> Any:
+        """Expose compounding attributes explicitly."""
+        if attr in self._compounding_attributes:
+            return self._compounding_attributes[attr]
+        else:
+            raise AttributeError(f"{self._feature_type.__name__} has no attribute {attr}.")
+
+    def __dir__(self):
+        return super().__dir__() + list(self._compounding_attributes.keys())
+
+    @property
+    def elements(self):
+        """Features that make up the compound feature."""
+        return list(self._elements.values())
+
+    @property
+    def indices(self):
+        """Unique indices to features making up the compound feature."""
+        return list(self._elements.keys())
+
+    @property
+    def feature_type(self) -> Type:
+        """Feature type of the elements forming the CompoundFeature."""
+        return self._feature_type
+
+    @property
+    def name(self) -> str:
+        """Returns a short human-readable name of this feature."""
+        groupby = ', '.join([
+            f"{v} {k}" for k, v in self._compounding_attributes.items()
+        ])
+        return (
+            f"{self.__class__.__name__} of {len(self)} "
+            f"{self.feature_type.__name__} features grouped by ({groupby})"
+            f" anchored at {self.anchor}"
+        )
+
+    @property
+    def id(self) -> str:
+        return "::".join((
+            "cf0",
+            f"{self._feature_type.__name__}",
+            self._encode_concept(self._queryconcept),
+            self.datasets[0].id if self.datasets else "nodsid",
+            md5(self.name.encode("utf-8")).hexdigest()
+        ))
+
+    def __iter__(self) -> Iterator['Feature']:
+        """Iterate over subfeatures"""
+        return self.elements.__iter__()
+
+    def __len__(self):
+        """Number of subfeatures making the CompoundFeature"""
+        return len(self._elements)
+
+    def __getitem__(self, index: Any):
+        """Get the nth element in the compound."""
+        return self.elements[index]
+
+    def get_element(self, index: Any):
+        """Get the element with its unique index in the compound."""
+        try:
+            return self._elements[index]
+        except Exception:
+            raise IndexError(f"No feature with index '{index}' in this compound.")
+
+    @classmethod
+    def compound(
+        cls,
+        features: List['Feature'],
+        queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
+    ) -> List['CompoundFeature']:
+        """
+        Compound features of the same the same type based on their `_compound_key`.
+
+        If there are features that are not of type `Compoundable`, they are
+        returned as is.
+
+        Parameters
+        ----------
+        features: List[Feature]
+            Feature instances to be compounded.
+        queryconcept:
+            AtlasConcept used for the query.
+
+        Returns
+        -------
+        List[CompoundFeature | Feature]
+        """
+        non_compound_features = []
+        grouped_features = defaultdict(list)
+        for f in features:
+            if isinstance(f, Compoundable):
+                grouped_features[f._compound_key].append(f)
+                continue
+            non_compound_features.append(f)
+        return non_compound_features + [
+            cls(fts, queryconcept)
+            for fts in grouped_features.values() if fts
+        ]
+
+    @classmethod
+    def _get_instance_by_id(cls, feature_id: str, **kwargs):
+        """
+        Use the feature id to obtain the same feature instance.
+
+        Parameters
+        ----------
+        feature_id : str
+
+        Returns
+        -------
+        CompoundFeature
+
+        Raises
+        ------
+        ParseCompoundFeatureIdException
+            If no or multiple matches are found. Or id is not fitting to
+            compound features.
+        """
+        if not feature_id.startswith("cf0::"):
+            raise ParseCompoundFeatureIdException("CompoundFeature id must start with cf0::")
+        cf_version, clsname, *queryconcept, dsid, fid = feature_id.split("::")
+        assert cf_version == "cf0"
+        candidates = [
+            f
+            for f in Feature.match(
+                concept=cls._decode_concept(queryconcept),
+                feature_type=clsname
+            )
+            if f.id == fid or f.id == feature_id
+        ]
+        if candidates:
+            if len(candidates) == 1:
+                return candidates[0]
+            else:
+                raise ParseCompoundFeatureIdException(
+                    f"The query with id '{feature_id}' have resulted multiple instances.")
+        else:
+            raise ParseCompoundFeatureIdException
+
+    def _export(self, fh: ZipFile):
+        for element in siibra_tqdm(self, desc="Exporting elements", unit="element"):
+            element._export(fh)

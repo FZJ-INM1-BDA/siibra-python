@@ -85,13 +85,13 @@ class BrainStructure(ABC):
             return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a location object, just check spatial relationships
             if self == other:
-                qualification = assignment.AssignmentQualification.EXACT
+                qualification = assignment.Qualification.EXACT
             elif self.__contains__(other):
-                qualification = assignment.AssignmentQualification.CONTAINS
+                qualification = assignment.Qualification.CONTAINS
             elif other.__contains__(self):
-                qualification = assignment.AssignmentQualification.CONTAINED
+                qualification = assignment.Qualification.CONTAINED
             elif self.intersects(other):
-                qualification = assignment.AssignmentQualification.OVERLAPS
+                qualification = assignment.Qualification.OVERLAPS
             else:
                 qualification = None
             if qualification is None:
