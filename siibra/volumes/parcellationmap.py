@@ -454,13 +454,15 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         Returns an iterator to fetch all mapped volumes sequentially.
 
-        All arguments are passed on to function Map.fetch().
+        All arguments are passed on to function Map.fetch(). By default, it
+        will go through all fragments as well.
         """
-        fragment = kwargs.pop('fragment') if 'fragment' in kwargs else None
+        fragments = {kwargs.pop('fragment', None)} or self.fragments or {None}
         return (
             self.fetch(
-                index=MapIndex(volume=i, label=None, fragment=fragment), **kwargs
+                index=MapIndex(volume=i, label=None, fragment=frag), **kwargs
             )
+            for frag in fragments
             for i in range(len(self))
         )
 
@@ -1076,7 +1078,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         self,
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
-        minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True
     ) -> List[AssignImageResult]:
@@ -1097,52 +1098,44 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         assignments = []
 
-        def progress(it, N: int = None, desc: str = "", min_elements=5):
-            # wraps a progress indicator around the given iterator,
-            # but only if the sequence is long.
-            seqlen = N or len(it)
-            return iter(it) if seqlen < min_elements \
-                else siibra_tqdm(it, desc=desc, total=N)
-
         iter_func = lambda arr: connected_components(arr) \
             if split_components else lambda arr: [(1, arr)]
 
         with QUIET and provider.SubvolumeProvider.UseCaching():
-            for frag in self.fragments or {None}:
-                for vol, vol_img in progress(
-                    enumerate(self.fetch_iter(fragment=frag)),
-                    N=len(self),
-                    desc=f"Assigning to {len(self)} volumes"
-                ):
-                    vol_data = np.asanyarray(vol_img.dataobj)
-                    for mode, voxelmask in iter_func(imgdata):
-                        position = np.array(np.where(voxelmask)).T.mean(0)
-                        labels = {
-                            index.label
-                            for indices in self._indices.values()
-                            for index in indices if index.volume == vol
-                        }
-                        for label in progress(
-                            labels,
-                            desc=f"Assigning to {len(labels)} labelled structures"
-                        ):
-                            targetdata = vol_data if label is None \
-                                else (vol_data == label).astype('uint8')
-                            scores = compare_arrays(
-                                voxelmask, imgaffine,
-                                targetdata, vol_img.affine
+            all_indices = [
+                index
+                for regionindices in self._indices.values()
+                for index in regionindices
+            ]
+            for index in siibra_tqdm(
+                all_indices,
+                desc=f"Assigning to {len(all_indices)} maps",
+                disable=len(all_indices) < 5,
+                unit=" map"
+            ):
+                vol_img = self.fetch(index=index)
+                vol_data = np.asanyarray(vol_img.dataobj)
+                for mode, voxelmask in iter_func(imgdata):
+                    position = np.array(np.where(voxelmask)).T.mean(0)
+                    if index.label is None:
+                        targetdata = vol_data
+                    else:
+                        targetdata = (vol_data == index.label).astype('uint8')
+                    scores = compare_arrays(
+                        voxelmask, imgaffine,
+                        targetdata, vol_img.affine
+                    )
+                    if scores.intersection_over_union > lower_threshold:
+                        assignments.append(
+                            AssignImageResult(
+                                input_structure=mode,
+                                centroid=tuple(position.round(2)),
+                                volume=index.volume,
+                                fragment=index.fragment,
+                                map_value=index.label,
+                                **asdict(scores)
                             )
-                            if scores.intersection_over_union > 0:
-                                assignments.append(
-                                    AssignImageResult(
-                                        input_structure=mode,
-                                        centroid=tuple(position.round(2)),
-                                        volume=vol,
-                                        fragment=frag,
-                                        map_value=label,
-                                        **asdict(scores)
-                                    )
-                                )
+                        )
 
         return assignments
 
