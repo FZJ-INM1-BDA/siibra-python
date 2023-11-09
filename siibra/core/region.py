@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,11 +14,11 @@
 # limitations under the License.
 """Representation of a brain region."""
 
-from . import assignment, concept, structure, space as _space, parcellation as _parcellation
+from . import concept, structure, space as _space, parcellation as _parcellation
+from .assignment import Qualification, AnatomicalAssignment
 
 from ..locations import location, boundingbox, point, pointset
 from ..volumes import parcellationmap, volume
-
 from ..commons import (
     logger,
     MapType,
@@ -135,7 +135,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self._CACHED_REGION_SEARCHES = {}
         self._FETCH_CACHE = {}
 
-    def get_related_regions(self) -> Iterable["assignment.Qualification"]:
+    def get_related_regions(self) -> Iterable["Qualification"]:
         """
         Get assements on relations of this region to others defined on EBRAINS.
 
@@ -158,7 +158,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         'PG' is homologous to 'Area PGa (IPL) right'
         'PG' is homologous to 'Area PGa (IPL) left'
         """
-        yield from assignment.Qualification.parse_from_region(self)
+        yield from Qualification.parse_from_region(self)
 
     @property
     def id(self):
@@ -632,7 +632,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: structure.BrainStructure) -> assignment.AnatomicalAssignment:
+    def assign(self, other: structure.BrainStructure) -> AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 
@@ -646,7 +646,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Returns
         -------
-        assignment.AnatomicalAssignment or None
+        AnatomicalAssignment or None
             None if there is no Qualification found.
         """
         if (self, other) in self._ASSIGNMENT_CACHE:
@@ -672,17 +672,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:
-                qualification = assignment.Qualification.EXACT
+                qualification = Qualification.EXACT
             elif self.__contains__(other):
-                qualification = assignment.Qualification.CONTAINS
+                qualification = Qualification.CONTAINS
             elif other.__contains__(self):
-                qualification = assignment.Qualification.CONTAINED
+                qualification = Qualification.CONTAINED
             else:
                 qualification = None
             if qualification is None:
                 self._ASSIGNMENT_CACHE[self, other] = None
             else:
-                self._ASSIGNMENT_CACHE[self, other] = assignment.AnatomicalAssignment(self, other, qualification)
+                self._ASSIGNMENT_CACHE[self, other] = AnatomicalAssignment(self, other, qualification)
         return self._ASSIGNMENT_CACHE[self, other]
 
     def __str__(self):
@@ -860,6 +860,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 if volume is not None:
                     return volume.intersection(other)
             except NotImplementedError:
+                # TODO: merge volumes and union locations
                 for child in self.children:
                     intersection_w_child = child.intersection(other)
                     if intersection_w_child is not None:
@@ -894,12 +895,13 @@ def _register_region_reference_type(ebrain_type: str):
     return outer
 
 
-class RegionRelationAssessments(assignment.Qualification[Region]):
+class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     anony_client = BucketApiClient()
 
     @staticmethod
     def get_uuid(long_id: Union[str, Dict]):
+        # TODO: merge with the one in commons
         if isinstance(long_id, str):
             pass
         elif isinstance(long_id, dict):
@@ -961,7 +963,7 @@ class RegionRelationAssessments(assignment.Qualification[Region]):
             ]
 
             for found_target in found_targets:
-                yield cls(query_structure=src, assigned_structure=found_target, qualification=assignment.parse_relation_assessment(overlap))
+                yield cls(query_structure=src, assigned_structure=found_target, qualification=Qualification.parse_relation_assessment(overlap))
 
             if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
                 pev_uuids = [
@@ -971,7 +973,7 @@ class RegionRelationAssessments(assignment.Qualification[Region]):
                 ]
                 for reg in all_regions:
                     if reg in pev_uuids:
-                        yield cls(query_structure=src, assigned_structure=reg, qualification=assignment.parse_relation_assessment(overlap))
+                        yield cls(query_structure=src, assigned_structure=reg, qualification=Qualification.parse_relation_assessment(overlap))
 
     @classmethod
     @_register_region_reference_type("openminds/CustomAnatomicalEntity")
@@ -1024,7 +1026,7 @@ class RegionRelationAssessments(assignment.Qualification[Region]):
                     yield cls(
                         query_structure=src,
                         assigned_structure=found_target,
-                        qualification=assignment.Qualification.OTHER_VERSION
+                        qualification=Qualification.OTHER_VERSION
                     )
 
             # homologuous

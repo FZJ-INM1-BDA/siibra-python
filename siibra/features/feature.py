@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -512,8 +512,6 @@ class Feature:
                 f"{concept.__class__.__name__} cannot be used for feature queries as it is not a BrainStructure type."
             )
 
-        msg = f"Matching {feature_type.__name__} to {concept}"
-
         # Collect any preconfigured instances of the requested feature type
         # which match the query concept
         instances = [
@@ -524,8 +522,12 @@ class Feature:
 
         preconfigured_instances = [
             f for f in siibra_tqdm(
-                instances, desc=msg, total=len(instances), disable=(not instances)
-            ) if f.matches(concept)
+                instances,
+                desc=f"Matching {feature_type.__name__} to {concept}",
+                total=len(instances),
+                disable=(not instances)
+            )
+            if f.matches(concept)
         ]
 
         # Then run any registered live queries for the requested feature type

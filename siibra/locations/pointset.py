@@ -54,8 +54,9 @@ class PointSet(location.Location, structure.BrainStructure):
         labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
-        self.coordinates = coordinates if isinstance(coordinates, np.ndarray) \
-            else np.array(coordinates).reshape((-1, 3))
+        self.coordinates = coordinates
+        if not isinstance(coordinates, np.ndarray):
+            self.coordinates = np.array(self.coordinates).reshape((-1, 3))
         assert len(self.coordinates.shape) == 2
         assert self.coordinates.shape[1] == 3
         if isinstance(sigma_mm, numbers.Number):

@@ -1,5 +1,5 @@
 
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,6 @@ A bounding box in MNI space is a structure, but not an atlas concept.
 
 from . import assignment, region as _region
 
-
 from abc import ABC, abstractmethod
 from typing import Tuple, Dict
 
@@ -35,7 +34,7 @@ class BrainStructure(ABC):
     # cache assignment results at class level
     _ASSIGNMENT_CACHE: Dict[
         Tuple["BrainStructure", "BrainStructure"],
-        assignment.AnatomicalAssignment
+        "assignment.AnatomicalAssignment"
     ] = {}
 
     def intersects(self, other: "BrainStructure") -> bool:

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,10 +16,11 @@
 
 from enum import Enum
 from dataclasses import dataclass
-from typing import Union, TYPE_CHECKING, Dict
+from typing import Dict, Generic, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
-    from ..locations.location import Location
-    from .region import Region
+    from .structure import BrainStructure
+
+T = TypeVar("T")
 
 
 class Qualification(Enum):
@@ -71,22 +72,19 @@ class Qualification(Enum):
     def __repr__(self):
         return str(self)
 
-
-@staticmethod
-def parse_relation_assessment(spec: Dict):
-    name = spec.get("name")
-    if name == "is homologous to":
-        return Qualification.HOMOLOGOUS
-    raise Exception(f"Cannot parse spec: {spec}")
+    @staticmethod
+    def parse_relation_assessment(spec: Dict):
+        name = spec.get("name")
+        if name == "is homologous to":
+            return Qualification.HOMOLOGOUS
+        raise Exception(f"Cannot parse spec: {spec}")
 
 
 @dataclass
-class AnatomicalAssignment(Union["Region", "Location"]):
-    """
-    Represents a qualified assignment between anatomical structures.
-    """
-    query_structure: Union["Region", "Location"]
-    assigned_structure: Union["Region", "Location"]
+class AnatomicalAssignment(Generic[T]):
+    """Represents a qualified assignment between anatomical structures."""
+    query_structure: "BrainStructure"
+    assigned_structure: "BrainStructure"
     qualification: Qualification
     explanation: str = ""
 

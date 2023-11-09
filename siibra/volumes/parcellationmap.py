@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -396,13 +396,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             elif len(self) > 1:
                 logger.info(
                     "Map provides multiple volumes and no specification is"
-                    "provided. Resampling all volumes to the space."
+                    " provided. Resampling all volumes to the space."
                 )
                 resolution = kwargs.get("resolution_mm")
                 template = self.space.get_template().fetch(
                     resolution_mm=resolution
                 )
-                aggregated_volume = np.zeros(template.shape, dtype='uint8')
+                merged_array = np.zeros(template.shape, dtype='uint8')
                 for i, region in siibra_tqdm(
                     enumerate(self.regions),
                     unit=" volume", desc="Fetching", total=len(self)
@@ -413,9 +413,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         template,
                         interpolation='nearest'
                     )
-                    aggregated_volume[regionmap.get_fdata() > 0] = regionlabel
-                    aggregated_volume = _volume.from_array(aggregated_volume, affine=template.affine)
-                return aggregated_volume.fetch()
+                    merged_array[regionmap.get_fdata() > 0] = regionlabel
+                    merged_volume = _volume.from_array(
+                        merged_array, affine=template.affine, space=self.space)
+                return merged_volume.fetch()
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
 

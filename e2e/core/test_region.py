@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import repeat
 
 import siibra
-from siibra.core.relation_qualification import Qualification
+from siibra.core.assignment import Qualification
 
 
 regions = [
@@ -98,6 +98,7 @@ def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, h
                 repeat("ebrains")
             )
         assert len([f for f in features]) > 0
+
 
 def test_related_region_hemisphere():
     reg = siibra.get_region("2.9", "PGa")

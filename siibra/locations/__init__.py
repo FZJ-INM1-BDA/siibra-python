@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -57,7 +57,7 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
 
     if isinstance(loc0, PointSet):
         if isinstance(loc1_w, PointSet):
-            points = set(loc0.points + loc1_w.points)
+            points = list(dict.fromkeys([*loc0, *loc1_w]))
             return PointSet(
                 points,
                 space=loc0.space,
@@ -67,10 +67,10 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
             return reassign_union(loc0.boundingbox, loc1_w)
 
     if isinstance(loc0, BoundingBox) and isinstance(loc1_w, BoundingBox):
-        points = [loc0.minpoint, loc0.maxpoint, loc1_w.minpoint, loc1_w.maxpoint]
+        coordinates = [loc0.minpoint, loc0.maxpoint, loc1_w.minpoint, loc1_w.maxpoint]
         return BoundingBox(
-            point1=[min(p[i] for p in points) for i in range(3)],
-            point2=[max(p[i] for p in points) for i in range(3)],
+            point1=[min(p[i] for p in coordinates) for i in range(3)],
+            point2=[max(p[i] for p in coordinates) for i in range(3)],
             space=loc0.space,
             sigma_mm=[loc0.minpoint.sigma, loc0.maxpoint.sigma]
         )
