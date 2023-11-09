@@ -16,6 +16,7 @@
 from . import cortical_profile
 
 from ...locations import point
+from ...retrieval.datasets import EbrainsV3DatasetVersion
 
 
 class BigBrainIntensityProfile(
@@ -60,6 +61,7 @@ class BigBrainIntensityProfile(
             boundary_positions={
                 b: boundaries[b[0]]
                 for b in cortical_profile.CorticalProfile.BOUNDARIES
-            }
+            },
+            datasets=[EbrainsV3DatasetVersion(id="26d25994-634c-40af-b88f-2a36e8e1d508")]
         )
         self.location = location

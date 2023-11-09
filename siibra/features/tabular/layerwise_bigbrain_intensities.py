@@ -16,6 +16,7 @@
 from . import cortical_profile
 from . import tabular
 
+from ...retrieval.datasets import EbrainsV3DatasetVersion
 import pandas as pd
 import numpy as np
 
@@ -59,5 +60,6 @@ class LayerwiseBigBrainIntensities(
             description=self.DESCRIPTION,
             modality="Modified silver staining",
             anchor=anchor,
-            data=data
+            data=data,
+            datasets=[EbrainsV3DatasetVersion(id="26d25994-634c-40af-b88f-2a36e8e1d508")]
         )

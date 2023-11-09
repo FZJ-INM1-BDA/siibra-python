@@ -20,24 +20,25 @@ from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_in
 from ..commons import logger
 from ..locations import point, pointset
 from ..core import region
-from ..retrieval import requests, cache
+from ..retrieval import requests
 
 import numpy as np
 from typing import List
-from os import path
 
 
 class WagstylProfileLoader:
 
     REPO = "https://github.com/kwagstyl/cortical_layers_tutorial"
     BRANCH = "main"
-    PROFILES_FILE_LEFT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_left.txt"
-    PROFILES_FILE_RIGHT = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/profiles_right.txt"
     THICKNESSES_FILE_LEFT = "data/thicknesses_left.npy"
     THICKNESSES_FILE_RIGHT = ""
+
+    BASEURL = "https://data-proxy.ebrains.eu/api/v1/public/buckets/d-26d25994-634c-40af-b88f-2a36e8e1d508/profiles/"
+    PROFILES_FILE_LEFT = "profiles_left.txt"
+    PROFILES_FILE_RIGHT = "profiles_right.txt"
     MESH_FILE_LEFT = "gray_left_327680.surf.gii"
     MESH_FILE_RIGHT = "gray_right_327680.surf.gii"
-    BASEURL = "https://ftp.bigbrainproject.org/bigbrain-ftp/BigBrainRelease.2015/3D_Surfaces/Apr7_2016/gii/"
+
     _profiles = None
     _vertices = None
     _boundary_depths = None
@@ -52,6 +53,7 @@ class WagstylProfileLoader:
 
     @classmethod
     def _load(cls):
+        logger.info("First request to BigBrain profiles. Preprocessing the data now. This may take a while.")
         # read thicknesses, in mm, and normalize by their last column which is the total thickness
         thickness_left = requests.HttpRequest(f"{cls.REPO}/raw/{cls.BRANCH}/{cls.THICKNESSES_FILE_LEFT}").data.T
         thickness_right = np.zeros(shape=thickness_left.shape)  # TODO: replace with thickness data for te right hemisphere
@@ -62,25 +64,18 @@ class WagstylProfileLoader:
         cls._boundary_depths[:, -1] = 1  # account for float calculation errors
 
         # find profiles with valid thickness
-        if not all(
-            path.exists(cache.CACHE.build_filename(url))
-            for url in [cls.PROFILES_FILE_LEFT, cls.PROFILES_FILE_RIGHT]
-        ):
-            logger.info(
-                "First request to BigBrain profiles. Preprocessing the data "
-                "now. This may take a little."
-            )
-        profiles_l = requests.HttpRequest(cls.PROFILES_FILE_LEFT).data.to_numpy()
-        profiles_r = requests.HttpRequest(cls.PROFILES_FILE_RIGHT).data.to_numpy()
+        profiles_l = requests.HttpRequest(cls.BASEURL + cls.PROFILES_FILE_LEFT).data.to_numpy()
+        profiles_r = requests.HttpRequest(cls.BASEURL + cls.PROFILES_FILE_RIGHT).data.to_numpy()
         cls._profiles = np.concatenate((profiles_l, profiles_r))[valid, :]
 
         # read mesh vertices
-        mesh_left = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_LEFT}").data
-        mesh_right = requests.HttpRequest(f"{cls.BASEURL}/{cls.MESH_FILE_RIGHT}").data
+        mesh_left = requests.HttpRequest(cls.BASEURL + cls.MESH_FILE_LEFT).data
+        mesh_right = requests.HttpRequest(cls.BASEURL + cls.MESH_FILE_RIGHT).data
         mesh_vertices = np.concatenate((mesh_left.darrays[0].data, mesh_right.darrays[0].data))
         cls._vertices = mesh_vertices[valid, :]
 
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
+        assert cls._profiles.shape[1] == 200
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
 
     @staticmethod
