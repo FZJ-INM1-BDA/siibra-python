@@ -898,7 +898,6 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @staticmethod
     def get_uuid(long_id: Union[str, Dict]):
-        # TODO: merge with the one in commons
         if isinstance(long_id, str):
             pass
         elif isinstance(long_id, dict):

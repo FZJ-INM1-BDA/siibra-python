@@ -29,7 +29,7 @@ from ..commons import (
     siibra_tqdm,
     Species,
     CompareMapsResult,
-    get_uuid
+    generate_uuid
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointset
@@ -1196,7 +1196,7 @@ def from_volume(
         )
         # build a new parcellation
         parcobj = parcellation.Parcellation(
-            identifier=get_uuid(','.join(regionnames)),
+            identifier=generate_uuid(','.join(regionnames)),
             name=name,
             species=vol.space.species,
             regions=list(map(_region.Region, regionnames)),
@@ -1215,7 +1215,7 @@ def from_volume(
 
     # build the parcellation map object
     parcmap = Map(
-        identifier=get_uuid(name),
+        identifier=generate_uuid(name),
         name=f"{name} map in {volume.space.name}",
         space_spec={"@id": volume.space.id},
         parcellation_spec={'name': parcobj.name},

@@ -788,7 +788,7 @@ class Species(Enum):
         return f"{self.__class__.__name__}: {str(self)}"
 
 
-def get_uuid(string: str):
+def generate_uuid(string: str):
     if isinstance(string, str):
         b = string.encode("UTF-8")
     elif isinstance(string, Nifti1Image):
