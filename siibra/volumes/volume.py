@@ -20,7 +20,7 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array
+from ..commons import resample_array_to_array, siibra_tqdm
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
@@ -506,3 +506,55 @@ def from_pointset(
         space=target.space,
         name=f'KDE map of {sum(selection)} points with label={label}'
     )
+
+
+def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volume:
+    """
+    Merge a list of volumes in the same space into a single volume.
+
+    Note
+    ----
+    In case of voxel conflicts, the volumes will be override the previous values
+    in the given order.
+
+    Parameters
+    ----------
+    volumes : List[Volume]
+    labels : List[int], optional
+        Supply new labels to replace exisiting values per volume.
+
+    Returns
+    -------
+    Volume
+    """
+    assert len(volumes) > 1, "Need to supply at least two volumes to merge."
+    if labels:
+        assert len(volumes) == len(labels), "Need to supply as many labels as volumes."
+
+    space = volumes[0].space
+    assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
+
+    template_img = space.get_template().fetch(**fetch_kwargs)
+    template_arr = np.asanyarray(template_img.dataobj)
+    merged_array = np.zeros(template_img.shape, dtype='uint8')
+
+    for i, vol in siibra_tqdm(
+        enumerate(volumes),
+        unit=" volume",
+        desc=f"Resampling volumes to {space.name} and merging",
+        total=len(volumes)
+    ):
+        img = vol.fetch(**fetch_kwargs)
+        arr_resampled = resample_array_to_array(
+            source_data=np.asanyarray(img.dataobj),
+            source_affine=img.affine,
+            target_data=template_arr,
+            target_affine=template_img.affine
+        )
+        nonzero_voxels = arr_resampled > 0
+        if labels:
+            merged_array[nonzero_voxels] = labels[i]
+        else:
+            merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
+
+    return from_array(merged_array, affine=template_img.affine, space=space)

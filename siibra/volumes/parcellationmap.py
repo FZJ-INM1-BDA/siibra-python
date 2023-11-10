@@ -398,24 +398,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     "Map provides multiple volumes and no specification is"
                     " provided. Resampling all volumes to the space."
                 )
-                resolution = kwargs.get("resolution_mm")
-                template = self.space.get_template().fetch(
-                    resolution_mm=resolution
-                )
-                merged_array = np.zeros(template.shape, dtype='uint8')
-                for i, region in siibra_tqdm(
-                    enumerate(self.regions),
-                    unit=" volume", desc="Fetching", total=len(self)
-                ):
-                    regionlabel = i + 1
-                    regionmap = image.resample_to_img(
-                        self.fetch(region=region, resolution_mm=resolution),
-                        template,
-                        interpolation='nearest'
-                    )
-                    merged_array[regionmap.get_fdata() > 0] = regionlabel
-                    merged_volume = _volume.from_array(
-                        merged_array, affine=template.affine, space=self.space)
+                labels = list(range(len(self.volumes)))
+                merged_volume = _volume.merge(self.volumes, labels, **kwargs)
                 return merged_volume.fetch()
             else:
                 raise exceptions.NoVolumeFound("Map provides no volumes.")
