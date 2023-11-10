@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Qualification between two arbitary concepts"""
+"""Qualification between two BrainStructures"""
 
 from enum import Enum
 from dataclasses import dataclass
@@ -64,7 +64,7 @@ class Qualification(Enum):
             Qualification.OTHER_VERSION: Qualification.OTHER_VERSION,
         }
         assert self in inverses, f"{str(self)} inverses cannot be found."
-        return Qualification[inverses[self]]
+        return inverses[self]
 
     def __str__(self):
         return f"{self.__class__.__name__}={self.name.lower()}"
