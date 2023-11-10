@@ -164,7 +164,8 @@ class Configuration:
         for fname, loader in siibra_tqdm(
             specloaders,
             total=len(specloaders),
-            desc=f"Loading preconfigured {obj_class} instances"
+            desc=f"Loading preconfigured {obj_class} instances",
+            unit=obj_class
         ):
             # filename is added to allow Factory creating reasonable default object identifiers\
             obj = Factory.from_json(dict(loader.data, **{'filename': fname}))
