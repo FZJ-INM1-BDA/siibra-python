@@ -173,7 +173,7 @@ class Volume(structure.BrainStructure, location.Location):
     def __repr__(self):
         return self.__str__()
 
-    def _points_inside(self, points: pointset.PointSet, **kwargs) -> List[int]:
+    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
         """
         Reduce a pointset to the points which fall
         inside nonzero pixels of this volume.
@@ -216,13 +216,8 @@ class Volume(structure.BrainStructure, location.Location):
         TODO write a test for the volume-volume and volume-region intersection
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self._points_inside(other, **kwargs)
-            if len(result) == 0:
-                return pointset.PointSet([], space=other.space)
-            elif len(result) == 1:
-                return result[0]
-            else:
-                return result
+            result = self._points_inside(other, **kwargs) or None  # BrainStructure.intersects check for not None
+            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
         elif isinstance(other, boundingbox.BoundingBox):
             return self.boundingbox.intersection(other)
         elif isinstance(other, Volume):
