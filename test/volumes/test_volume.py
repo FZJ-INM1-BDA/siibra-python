@@ -1,5 +1,4 @@
 import unittest
-import pytest
 from unittest.mock import patch
 from siibra.volumes.volume import Volume
 from siibra.core import space

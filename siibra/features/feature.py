@@ -234,8 +234,8 @@ class Feature:
         """
         Match the features anatomical anchor agains the given query concept.
         Record the most recently matched concept for inspection by the caller.
-        TODO storing the last matched concept is not ideal, might cause problems in multithreading
         """
+        # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True

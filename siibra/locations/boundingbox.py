@@ -37,8 +37,6 @@ class BoundingBox(location.Location, structure.BrainStructure):
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
 
-        TODO allow to pass sigma for the points, if tuples
-
         Parameters
         ----------
         point1 : Point or 3-tuple
@@ -53,6 +51,7 @@ class BoundingBox(location.Location, structure.BrainStructure):
         sigma_mm : float, or list of float
             Optional standard deviation of the spanning point locations.
         """
+        # TODO: allow to pass sigma for the points, if tuples
         location.Location.__init__(self, space)
         xyz1 = point.Point.parse(point1)
         xyz2 = point.Point.parse(point2)

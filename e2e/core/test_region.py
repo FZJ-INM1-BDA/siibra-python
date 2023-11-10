@@ -5,6 +5,7 @@ from itertools import repeat
 
 import siibra
 from siibra.core.assignment import Qualification
+from siibra.core.region import Region
 
 
 regions = [
@@ -14,7 +15,7 @@ regions = [
 
 
 @pytest.mark.parametrize("region", regions)
-def test_region_spatial_props(region: siibra.core.parcellation.region.Region):
+def test_region_spatial_props(region: Region):
     props = region.spatial_props("mni152")
     for idx, cmp in enumerate(props.components, start=1):
         assert cmp.volume >= props.components[idx - 1].volume

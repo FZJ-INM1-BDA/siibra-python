@@ -206,17 +206,19 @@ class Volume(structure.BrainStructure, location.Location):
         if isinstance(other, Volume):
             return merge([self, other])
         else:
-            raise NotImplementedError(f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}")
+            raise NotImplementedError(
+                f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
+            )
 
     def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
         """
-        Compute the intersection of a location with this volume.
-        This will fetch actual image data.
-        Any additional arguments are passed to fetch.
-        TODO write a test for the volume-volume and volume-region intersection
+        Compute the intersection of a location with this volume. This will
+        fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self._points_inside(other, **kwargs) or None  # BrainStructure.intersects check for not None
+            result = self._points_inside(other, **kwargs)
+            if len(result) == 0:
+                return None  # BrainStructure.intersects check for not None
             return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
         elif isinstance(other, boundingbox.BoundingBox):
             return self.boundingbox.intersection(other)
