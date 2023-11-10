@@ -39,7 +39,7 @@ from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from ebrains_drive import BucketApiClient
 import json
-from functools import wraps
+from functools import wraps, reduce
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -860,11 +860,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 if volume is not None:
                     return volume.intersection(other)
             except NotImplementedError:
-                # TODO: merge volumes and union locations
-                for child in self.children:
-                    intersection_w_child = child.intersection(other)
-                    if intersection_w_child is not None:
-                        return intersection_w_child
+                intersections = [child.intersection(other) for child in self.children]
+                return reduce(lambda a, b: a.union(b), intersections)
 
         for space in sorted(self.supported_spaces):
             if space.provides_image:
