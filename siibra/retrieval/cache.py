@@ -19,7 +19,7 @@ import os
 from appdirs import user_cache_dir
 import tempfile
 
-from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHE_MAINTENANCE
+from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE
 
 
 def assert_folder(folder):
@@ -64,7 +64,10 @@ class Cache:
                 cls.folder = SIIBRA_CACHEDIR
             cls.folder = assert_folder(cls.folder)
             cls._instance = cls.__new__(cls)
-            cls._instance.run_maintenance()
+            if SKIP_CACHEINIT_MAINTENANCE:
+                logger.debug("Will not run maintenance on cache as SKIP_CACHE_MAINTENANCE is set to True.")
+            else:
+                cls._instance.run_maintenance()
         return cls._instance
 
     def clear(self):
@@ -77,10 +80,6 @@ class Cache:
     def run_maintenance(self):
         """ Shrinks the cache by deleting oldest files first until the total size
         is below cache size (Cache.SIZE) given in GiB."""
-        if SKIP_CACHE_MAINTENANCE:
-            logger.debug("Will not run maintenance on cache as SKIP_CACHE_MAINTENANCE is set to True.")
-            return
-
         # build sorted list of cache files and their os attributes
         files = [os.path.join(self.folder, fname) for fname in os.listdir(self.folder)]
         sfiles = sorted([(fn, os.stat(fn)) for fn in files], key=lambda t: t[1].st_atime)
