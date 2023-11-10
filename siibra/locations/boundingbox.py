@@ -77,22 +77,24 @@ class BoundingBox(location.Location, structure.BrainStructure):
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
 
     @property
-    def volume(self):
+    def volume(self) -> float:
+        """The volume of the boundingbox in mm^3"""
         return np.prod(self.shape)
 
     @property
-    def center(self):
+    def center(self) -> 'point.Point':
         return self.minpoint + (self.maxpoint - self.minpoint) / 2
 
     @property
-    def shape(self):
+    def shape(self) -> float:
+        """The distances of the diagonal points in each axis. (Accounts for sigma)."""
         return tuple(
             (self.maxpoint + self.maxpoint.sigma)
             - (self.minpoint - self.minpoint.sigma)
         )
 
     @property
-    def is_planar(self):
+    def is_planar(self) -> bool:
         return any(d == 0 for d in self.shape)
 
     @staticmethod
