@@ -158,7 +158,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         'PG' is homologous to 'Area PGa (IPL) right'
         'PG' is homologous to 'Area PGa (IPL) left'
         """
-        yield from Qualification.parse_from_region(self)
+        yield from RegionRelationAssessments.parse_from_region(self)
 
     @property
     def id(self):

@@ -6,6 +6,7 @@ from itertools import product
 
 from siibra.core.region import Region, RegionRelationAssessments
 
+
 class TestRegion(unittest.TestCase):
     @staticmethod
     def get_instance(name="foo-bar", children=[]):
@@ -142,18 +143,22 @@ def test_eq_region_same_id(regions_same_id):
 def test_eq_region_diff_id(regions_different_id):
     assert regions_different_id[0] != regions_different_id[1]
 
-fields = ("name","children","parent","shortname","description","modality","publications","datasets","rgb","spec")
-defaults = ("",[],None,"","","",[],[],None,None)
+
+fields = (
+    "name", "children", "parent", "shortname", "description", "modality",
+    "publications", "datasets", "rgb", "spec"
+)
+defaults = ("", [], None, "", "", "", [], [], None, None)
 RegionSpec = namedtuple("RegionSpec", fields, defaults=defaults)
 
+
 @pytest.mark.parametrize("region_spec", [
-    RegionSpec(), 
-    RegionSpec(spec={ "foo": "bar" }), 
-    RegionSpec(spec={ "ebrains": {} }), 
-    RegionSpec(spec={ "ebrains": { "foo": "bar" } }),
+    RegionSpec(),
+    RegionSpec(spec={"foo": "bar"}),
+    RegionSpec(spec={"ebrains": {}}),
+    RegionSpec(spec={"ebrains": {"foo": "bar"}}),
 ])
 def test_get_related_regions(region_spec):
-    
     return_val = ["foo"]
     with patch.object(
         RegionRelationAssessments,
@@ -169,8 +174,8 @@ def test_get_related_regions(region_spec):
 
 @pytest.mark.parametrize("spec, test_against, expected_result", [
     (RegionSpec(), "bar", False),
-    (RegionSpec(spec={"ebrains": { "foo": "bar" }}), "bar", True),
-    (RegionSpec(spec={"ebrains": { "foo": "bar" }}), "foo", False),
+    (RegionSpec(spec={"ebrains": {"foo": "bar"}}), "bar", True),
+    (RegionSpec(spec={"ebrains": {"foo": "bar"}}), "foo", False),
 ])
 def test_region_dunder_eq(spec, test_against, expected_result):
     reg = Region(*spec)
@@ -192,9 +197,10 @@ def test_parse_id_arg(id_param, expected_val, raise_flag):
         return
     assert RegionRelationAssessments.parse_id_arg(id_param) == expected_val
 
+
 @pytest.mark.parametrize("long_id, expected_val, error_flag", [
-    ("hello world/aabbcc-0099","aabbcc-0099", False),
-    ("aabbcc-0099","aabbcc-0099", False),
+    ("hello world/aabbcc-0099", "aabbcc-0099", False),
+    ("aabbcc-0099", "aabbcc-0099", False),
     ({"id": "aabbcc-0099"}, "aabbcc-0099", False),
 
     ({"foo": "aabbcc-0099"}, None, True),
@@ -221,39 +227,46 @@ def test_get_obj(obj_path, get_content_value, expected_return_val, error_flag):
     bucket_magic_mock = MagicMock()
     bucket_magic_mock.get_file.return_value.get_content.return_value = get_content_value
 
-    with patch.object(RegionRelationAssessments.anony_client.buckets,
-                      "get_bucket",
-                      return_value=bucket_magic_mock) as get_bucket_mock:
+    with patch.object(
+        RegionRelationAssessments.anony_client.buckets,
+        "get_bucket",
+        return_value=bucket_magic_mock
+    ) as get_bucket_mock:
         if error_flag:
             with pytest.raises(Exception):
                 val = RegionRelationAssessments.get_object(obj_path)
             return
-        
+
         val = RegionRelationAssessments.get_object(obj_path)
         assert val == expected_return_val
 
         get_bucket_mock.assert_called_once_with("reference-atlas-data")
         bucket_magic_mock.get_file.assert_called_with(obj_path)
         bucket_magic_mock.get_file.return_value.get_content.assert_called_once()
-        
 
-@pytest.mark.parametrize("type_str, _id", product( ("foo", "bar"), ("1", ["1", "2"]) ))
+
+@pytest.mark.parametrize(
+    "type_str, _id",
+    product(
+        ("foo", "bar"), ("1", ["1", "2"])
+    )
+)
 def test_get_snapshot_factory(type_str, _id):
     with patch.object(RegionRelationAssessments, "get_object") as get_obj_mock:
-        return_vals = [ 1, 2 ]
+        return_vals = [1, 2]
         get_obj_mock.side_effect = return_vals
         get_objs = RegionRelationAssessments.get_snapshot_factory(type_str)
         _result = [val for val in get_objs(_id)]
         assert _result == return_vals[:len(_id)]
         if isinstance(_id, str):
             get_obj_mock.assert_called_once_with(f"ebrainsquery/v3/{type_str}/{_id}.json")
-            
+
         if isinstance(_id, list):
             # get_obj_mock.assert_called()
             all_calls = get_obj_mock.call_args_list
             assert len(all_calls) == len(_id)
             assert list(all_calls) == [call(f"ebrainsquery/v3/{type_str}/{i}.json",) for i in _id]
-            
+
 
 # TODO move these into int tests
 
@@ -367,4 +380,3 @@ def test_get_snapshot_factory(type_str, _id):
 
 # if __name__ == "__main__":
 #     unittest.main()
-

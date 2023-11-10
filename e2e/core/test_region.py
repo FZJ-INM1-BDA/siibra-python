@@ -76,7 +76,7 @@ def test_find(parc_spec, region_spec, result_len, check_regions):
 
 
 @pytest.mark.parametrize("parc, reg_spec, has_related, has_homology, has_related_ebrains_reg", [
-    ("2.9", "PGa", True, True, False),
+    ("julich 2.9", "PGa", True, True, False),
     ("monkey", "PG", False, True, False),
     ("waxholm v3", "cornu ammonis 1", True, False, True),
 ])
