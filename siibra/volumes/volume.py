@@ -202,6 +202,12 @@ class Volume(structure.BrainStructure, location.Location):
             labels=inside
         )
 
+    def union(self, other: location.Location):
+        if isinstance(other, Volume):
+            return merge([self, other])
+        else:
+            raise NotImplementedError(f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}")
+
     def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume.

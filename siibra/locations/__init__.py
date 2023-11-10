@@ -48,12 +48,27 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     if loc0 is None or loc1 is None:
         return loc0 or loc1
 
-    loc1_w = loc1.warp(loc0.space)  # adopt the space of the first location
+    # All location types should be unionable among each other and this should
+    # be implemented here to avoid code repetition. Volumes are the only type of
+    # location that has its own union method since it is not a part of locations
+    # module and to avoid importing Volume here.
+    if not all(
+        isinstance(loc, (Point, PointSet, BoundingBox)) for loc in [loc0, loc1]
+    ):
+        try:
+            return loc1.union(loc0)
+        except Exception:
+            raise NotImplementedError(f"There are no union method for {(loc0.__class__.__name__, loc1.__class__.__name__)}")
 
-    if isinstance(loc0, Point):  # turn Points to PointSets
-        return reassign_union(
-            PointSet([loc0], space=loc0.space, sigma_mm=loc0.sigma), loc1_w
-        )
+    # convert Points to PointSets
+    loc0, loc1 = [
+        PointSet([loc], space=loc.space, sigma_mm=loc.sigma)
+        if isinstance(loc, Point) else loc
+        for loc in [loc0, loc1]
+    ]
+
+    # adopt the space of the first location
+    loc1_w = loc1.warp(loc0.space)
 
     if isinstance(loc0, PointSet):
         if isinstance(loc1_w, PointSet):
