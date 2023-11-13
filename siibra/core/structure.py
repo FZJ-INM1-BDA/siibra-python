@@ -43,6 +43,13 @@ class BrainStructure(ABC):
     def __contains__(self, other: "BrainStructure") -> bool:
         return self.intersection(other) == other
 
+    def __hash__(self) -> int:
+        return hash(self.__repr__())
+
+    @abstractmethod
+    def __repr__(self) -> str:
+        raise NotImplementedError
+
     @abstractmethod
     def intersection(self, other: "BrainStructure") -> "BrainStructure":
         """

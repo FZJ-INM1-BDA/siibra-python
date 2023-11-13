@@ -246,6 +246,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     def __hash__(self):
         return hash(self.id)
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(name={self.name})>"
+
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
 

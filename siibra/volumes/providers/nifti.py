@@ -54,7 +54,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             self._img_loaders = {None: lambda data=src[0], affine=src[1]: nib.Nifti1Image(data, affine)}
         else:
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
-        if not isinstance(src, nib.Nifti1Image):
+        if not isinstance(src, (nib.Nifti1Image, tuple)):
             self._init_url = src
 
     @property

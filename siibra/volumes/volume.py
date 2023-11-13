@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     TypeDataset = EbrainsDataset
 
 
-class Volume(structure.BrainStructure, location.Location):
+class Volume(location.Location):
     """
     A volume is a specific mesh or 3D array,
     which can be accessible via multiple providers in different formats.
@@ -88,8 +88,16 @@ class Volume(structure.BrainStructure, location.Location):
             logger.debug(f"No provider for volume {self}")
 
     def __hash__(self):
-        """Enrich the default hash with the name of the volume."""
-        return hash(self.name) ^ super().__hash__()
+        return super().__hash__()
+
+    def __eq__(self, other: 'Volume'):
+        return (
+            isinstance(other, Volume)
+            and self.name == other.name
+            and self.space == other.space
+            and self.variant == other.variant
+            and self._providers == other._providers
+        )
 
     @property
     def name(self):
@@ -165,13 +173,16 @@ class Volume(structure.BrainStructure, location.Location):
         return None if s is None else s.species
 
     def __str__(self):
-        if self.space is None:
-            return f"{self.__class__.__name__} '{self.name}'"
-        else:
-            return f"{self.__class__.__name__} '{self.name}' in space '{self.space.name}'"
+        return (
+            f"{self.__class__.__name__} {f'{self.name}' if self.name else ''}"
+            f"{f' in space {self.space.name}' if self.space else ''}"
+        )
 
     def __repr__(self):
-        return self.__str__()
+        return (
+            f"<{self.__class__.__name__}(space_spec={self._space_spec}, "
+            f"name='{self.name}', providers={self._providers})>"
+        )
 
     def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
         """
@@ -284,16 +295,7 @@ class Volume(structure.BrainStructure, location.Location):
         An image (Nifti1Image) or mesh (Dict['verts': ndarray, 'faces': ndarray, 'labels': ndarray])
         """
         # check for a cached object
-        kwargs_serialized = json.dumps(
-            {k: v.__dict__() if hasattr(v, "__dict__") else v for k, v in kwargs.items()},
-            sort_keys=True
-        )
-        # TODO: check withhout self.__hash__() and consider implementing __dict__ to volume
-        fetch_hash = hash(
-            (self.__hash__(), hash(format), hash(kwargs_serialized))
-        )
-        if fetch_hash in self._FETCH_CACHE:
-            return self._FETCH_CACHE[fetch_hash]
+        kwargs_serialized = json.dumps({k: hash(v) for k, v in kwargs.items()}, sort_keys=True)
 
         # no cached object, fetch now
         if format is None:
@@ -303,7 +305,8 @@ class Volume(structure.BrainStructure, location.Location):
             possible_formats = [f for f in self._FORMAT_LOOKUP[format] if f in self.formats]
         elif format in self.SUPPORTED_FORMATS:
             possible_formats = [format] if format in self.formats else []
-
+        else:
+            possible_formats = []
         if len(possible_formats) == 0:
             raise ValueError(
                 f"Invalid format requested: {format}. Possible values for this "
@@ -312,6 +315,10 @@ class Volume(structure.BrainStructure, location.Location):
 
         result = None
         for fmt in possible_formats:
+            # TODO: check withhout self.__hash__() and consider implementing __dict__ to volume
+            fetch_hash = hash((hash(fmt), hash(kwargs_serialized)))
+            if fetch_hash in self._FETCH_CACHE:
+                return self._FETCH_CACHE[fetch_hash]
             # try the each possible format. Repeat in case of too many requests.
             for try_count in range(6):
                 fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
@@ -327,6 +334,8 @@ class Volume(structure.BrainStructure, location.Location):
                     if e.status_code == 429:  # too many requests
                         sleep(0.1)
                     logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                except Exception as e:
+                    logger.debug(e, exc_info=1)
                 finally:
                     break
             if result is not None:

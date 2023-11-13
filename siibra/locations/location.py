@@ -16,11 +16,13 @@
 
 from __future__ import annotations
 
+from ..core.structure import BrainStructure
+
 import numpy as np
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 
-class Location(ABC):
+class Location(BrainStructure):
     """
     Abstract base class for locations in a given reference space.
     """
@@ -73,10 +75,6 @@ class Location(ABC):
         """
         pass
 
-    def __len__(self):
-        """The number of coordinates or sublocations in a location."""
-        return 0
-
     @property
     def species(self):
         return None if self.space is None else self.space.species
@@ -87,7 +85,15 @@ class Location(ABC):
         return f"{self.__class__.__name__}{space_str}{coord_str}"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}: {self}"
+        return f"<{self.__class__.__name__}({[p.__repr__() for p in self]}), space={self.space.id}>"
+
+    def __hash__(self) -> int:
+        return hash(self.__repr__())
+
+    @abstractmethod
+    def __eq__(self):
+        """Required to provide comparison and making the object hashable"""
+        raise NotImplementedError
 
     @staticmethod
     def union(loc0: 'Location', loc1: 'Location') -> 'Location':

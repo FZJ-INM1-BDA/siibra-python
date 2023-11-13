@@ -17,7 +17,6 @@
 from . import location, point, boundingbox
 
 from ..retrieval.requests import HttpRequest
-from ..core import structure
 from ..commons import logger
 
 import numbers
@@ -35,7 +34,7 @@ except ImportError:
     )
 
 
-class PointSet(location.Location, structure.BrainStructure):
+class PointSet(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
@@ -87,7 +86,7 @@ class PointSet(location.Location, structure.BrainStructure):
             return inside[0]
         else:
             return PointSet(
-                [p.coordinate for p in inside],
+                inside,
                 space=self.space,
                 sigma_mm=[p.sigma for p in inside],
                 labels=None if self.labels is None else self.labels[inside]
@@ -181,6 +180,16 @@ class PointSet(location.Location, structure.BrainStructure):
             )
             for i in range(len(self))
         )
+
+    def __eq__(self, other: 'PointSet'):
+        if isinstance(other, point.Point):
+            return len(self) == 1 and self[0] == other
+        if not isinstance(other, PointSet):
+            return False
+        return list(self) == list(other)
+
+    def __hash__(self):
+        return super().__hash__()
 
     def __len__(self):
         """The number of points in this PointSet."""

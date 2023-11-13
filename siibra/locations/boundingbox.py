@@ -17,14 +17,13 @@
 from . import point, pointset, location
 
 from ..commons import logger
-from ..core import structure
 from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
 
 
-class BoundingBox(location.Location, structure.BrainStructure):
+class BoundingBox(location.Location):
     """
     A 3D axis-aligned bounding box spanned by two 3D corner points.
     The box does not necessarily store the given points,
@@ -143,7 +142,12 @@ class BoundingBox(location.Location, structure.BrainStructure):
             except SpaceWarpingFailedError:
                 return other._intersect_bbox(self, dims)
         elif hasattr(other, "boundingbox"):
-            return self.intersection(other.boundingbox)
+            intersection = self.intersection(other.boundingbox)
+            if intersection and intersection.minpoint == intersection.maxpoint:
+                # the intersection of a boundingbox with a point is either none
+                # or a BoundingBox with maxpoint==minmpoint. Return as a point
+                return intersection.minpoint
+            return intersection
         else:
             other.intersection(self)
 
@@ -369,9 +373,10 @@ class BoundingBox(location.Location, structure.BrainStructure):
         """Iterate the min- and maxpoint of this bounding box."""
         return iter((self.minpoint, self.maxpoint))
 
-    def __dict__(self):
-        return dict(
-            space=self.space.__dict__(),
-            point1=self.minpoint.__dict__(),
-            point2=self.maxpoint.__dict__(),
-        )
+    def __eq__(self, other: 'BoundingBox'):
+        if not isinstance(other, BoundingBox):
+            return False
+        return self.minpoint == other.minpoint and self.maxpoint == other.maxpoint
+
+    def __hash__(self):
+        return super().__hash__()

@@ -18,7 +18,6 @@ from . import location, boundingbox, pointset
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
-from ..core import structure
 
 from urllib.parse import quote
 import re
@@ -29,7 +28,7 @@ import hashlib
 from typing import Tuple
 
 
-class Point(location.Location, structure.BrainStructure):
+class Point(location.Location):
     """A single 3D point in reference space."""
 
     @staticmethod
@@ -67,9 +66,6 @@ class Point(location.Location, structure.BrainStructure):
         raise ValueError(
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
-
-    def __hash__(self):
-        return sum(map(hash, (self.coordinate, self.sigma, self.space.key)))
 
     def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
         """
@@ -166,13 +162,18 @@ class Point(location.Location, structure.BrainStructure):
             return False  # 'other' was warped outside reference space bounds
         return all(self[i] > o[i] for i in range(3))
 
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other: 'Point'):
+        if isinstance(other, pointset.PointSet):
+            return other == self
         if not isinstance(other, Point):
             return False
         o = other if self.space is None else other.warp(self.space)
         if o is None:
             return False  # 'other' was warped outside reference space bounds
-        return all(self[i] == o[i] for i in range(3))
+        return all(self[i] == o[i] for i in range(3)) and self.sigma == other.sigma
 
     def __le__(self, other):
         return (self < other) or (self == other)
@@ -233,6 +234,9 @@ class Point(location.Location, structure.BrainStructure):
             space=self.space,
         )
 
+    def __len__(self):
+        return 1
+
     def __iter__(self):
         """Return an iterator over the location,
         so the Point can be easily cast to list or tuple."""
@@ -284,9 +288,5 @@ class Point(location.Location, structure.BrainStructure):
             f"{self.space.id}{','.join(str(val) for val in self)}".encode("utf-8")
         ).hexdigest()
 
-    def __dict__(self):
-        return dict(
-            coordinate=list(self.coordinate),
-            sigma_mm=self.sigma,
-            space=self.space.__dict__()
-        )
+    def __repr__(self):
+        return f"<Point({self.coordinate}, space={self.space.id}, sigma_mm={self.sigma})>"
