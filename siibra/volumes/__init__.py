@@ -15,7 +15,7 @@
 """Package handling variety of volumes"""
 
 from .parcellationmap import Map
-from .providers.gifti import GiftiSurfaceLabeling, GiftiMesh
+from .providers import provider
 from .volume import from_array, from_file, from_pointset, from_nifti, Volume
 
 from ..commons import logger
