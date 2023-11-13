@@ -62,4 +62,7 @@ class BigBrainIntensityProfile(
                 for b in cortical_profile.CorticalProfile.BOUNDARIES
             }
         )
-        self.location = location
+
+    @property
+    def location(self):
+        return self.anchor.location
