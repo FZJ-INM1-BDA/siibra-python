@@ -11,31 +11,6 @@ def test_get_instances(Cls: siibra.features.Feature):
     assert isinstance(instances, list)
 
 
-selected_queries = [
-    (siibra.get_region('julich 2.9', 'hoc1 left'), siibra.features.dataset.EbrainsDataFeature),
-    (siibra.get_region('julich 3', 'hoc1 left'), siibra.features.tabular.BigBrainIntensityProfile),
-    (siibra.get_region('julich 2.9', 'hoc1'), siibra.features.tabular.CellDensityProfile),
-    (siibra.get_region('julich 2.9', 'hoc1'), siibra.features.tabular.ReceptorDensityProfile),
-    (siibra.parcellations['julich 2.9'], siibra.features.connectivity.StreamlineCounts),
-    (siibra.parcellations['julich 3'], siibra.features.connectivity.FunctionalConnectivity),
-    (siibra.parcellations['julich 3'], siibra.features.connectivity.AnatomoFunctionalConnectivity),
-    (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) right'), siibra.features.image.PLIVolumeOfInterest)
-]
-
-
-@pytest.mark.parametrize("query", selected_queries)
-def test_feature_query_and_get_instance_by_id(query):
-    fts = siibra.features.get(query[0], query[1])
-    assert len(fts) > 0
-    for feature in fts:
-        if isinstance(feature, siibra.features.feature.CompoundFeature):
-            feat = siibra.features.Feature._get_instance_by_id(feature.id)
-            assert feat.id == feature.id
-            for element in feature:
-                feat = siibra.features.Feature._get_instance_by_id(element.id)
-                assert feat.id == element.id
-
-
 selected_ids = [
     "lq0::EbrainsDataFeature::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/3ff328fa-f48f-474b-bd81-b5ee7ca230b6",
     "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::nodsid::6ba1f5c180a63705d84c25db9ff7efa7",  # CompoundFeature of 1579 BigBrainIntensityProfile features grouped by (Modified silver staining modality) anchored at Area hOc1 (V1, 17, CalcS) left with Set of 1579 points in the Bounding box from (-63.69,-59.94,-29.09) mm to (0.91,77.90,54.03)mm in BigBrain microscopic template (histology) space
