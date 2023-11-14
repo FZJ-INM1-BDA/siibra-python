@@ -688,9 +688,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 self._ASSIGNMENT_CACHE[self, other] = AnatomicalAssignment(self, other, qualification)
         return self._ASSIGNMENT_CACHE[self, other]
 
-    def __str__(self):
-        return self.name
-
     def tree2str(self):
         """Render region-tree as a string"""
         return "\n".join(

@@ -124,9 +124,3 @@ class Space(AtlasConcept, configuration_folder="spaces"):
     @property
     def provides_image(self):
         return any(v.provides_image for v in self.volumes)
-
-    def __dict__(self):
-        return dict(
-            name=self.name,
-            id=self._id
-        )

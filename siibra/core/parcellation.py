@@ -347,12 +347,6 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                 f"Spec {regionspec!r} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
 
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
-
     def __getitem__(self, regionspec: Union[str, int]):
         """
         Retrieve a region object from the parcellation by labelindex or partial name.
