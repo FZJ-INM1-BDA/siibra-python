@@ -103,7 +103,7 @@ class Point(location.Location):
         elif isinstance(other, pointset.PointSet):
             return self if self in other else None
         else:
-            return self if other.__contains__(self) else None
+            return self if other.intersection(self) else None
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
@@ -176,10 +176,17 @@ class Point(location.Location):
         return all(self[i] == o[i] for i in range(3)) and self.sigma == other.sigma
 
     def __le__(self, other):
-        return (self < other) or (self == other)
+        o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return True  # 'other' was warped outside reference space bounds
+        return all(self[i] <= o[i] for i in range(3))
 
     def __ge__(self, other):
-        return (self > other) or (self == other)
+        assert other is not None
+        o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
+        return all(self[i] >= o[i] for i in range(3))
 
     def __add__(self, other):
         """Add the coordinates of two points to get
