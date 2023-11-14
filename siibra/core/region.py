@@ -504,9 +504,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 if maptype == MapType.STATISTICAL:  # compute thresholded statistical map, default is 0.0
                     logger.info(f"Thresholding statistical map at {threshold}")
                     imgdata = (imgdata > threshold).astype('uint8')
-                    name = f"Statistical mask of {self.name}{f' thresholded by {threshold}' if threshold else ''}"
+                    name = f"Statistical mask of {self} on {fetch_space}{f' thresholded by {threshold}' if threshold else ''}"
                 else:  # compute region mask from labelled parcellation map
-                    name = f"Mask of {self.name} in {m.parcellation.name}"
+                    name = f"Mask of {self} in {m.parcellation} on {fetch_space}"
                 result = volume.from_array(
                     data=imgdata,
                     affine=region_img.affine,
@@ -515,8 +515,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 )
             if result is not None:
                 break
-
-        assert np.all(np.equal(result.fetch().dataobj, imgdata))  # TODO: remove this line
 
         if result is None:
             # No region map available. Then see if we can build a map from the child regions
@@ -542,7 +540,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 imgdata,
                 np.dot(transform, region_img.affine),
                 space,
-                f"{result.name} fetched from {fetch_space.name} and linearly corrected to match {space.name}"
+                f"{result.name} fetched from {fetch_space} and linearly corrected to match {space}"
             )
 
         while len(self._GETMAP_CACHE) > self._GETMAP_CACHE_MAX_ENTRIES:

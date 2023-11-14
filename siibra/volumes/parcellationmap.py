@@ -661,7 +661,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     result[img == index.label] = value
 
         return _volume.from_array(
-            data=result, 
+            data=result,
             affine=affine,
             space=self.space,
             name=f"Custom colorization of {self}"
