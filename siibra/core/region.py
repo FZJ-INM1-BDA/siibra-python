@@ -68,7 +68,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
     _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
     _accepted_flags = "aiLmsux"
-    _FETCH_CACHE_MAX_ENTRIES = 1
+
+    _GETMAP_CACHE = {}
+    _GETMAP_CACHE_MAX_ENTRIES = 1
 
     def __init__(
         self,
@@ -133,7 +135,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._str_aliases = None
         self._CACHED_REGION_SEARCHES = {}
-        self._FETCH_CACHE = {}
 
     def get_related_regions(self) -> Iterable["Qualification"]:
         """
@@ -245,9 +246,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
     def __hash__(self):
         return hash(self.id)
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__}(name={self.name})>"
 
     def has_parent(self, parent):
         return parent in [a for a in self.ancestors]
@@ -475,11 +473,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         Volume (use fetch() to get a NiftiImage)
         """
         # check for a cached object
-        fetch_hash = hash(
-            (self.__hash__(), hash(str(space)), hash(str(maptype)), hash(threshold), hash(str(via_space)))
-        )
-        if fetch_hash in self._FETCH_CACHE:
-            return self._FETCH_CACHE[fetch_hash]
+
+        getmap_hash = hash(f"{self.id}{space}{maptype}{threshold}{via_space}")
+        if getmap_hash in self._GETMAP_CACHE:
+            return self._GETMAP_CACHE[getmap_hash]
 
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
@@ -502,75 +499,55 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 and m.maptype == maptype
                 and self.name in m.regions
             ):
-                if maptype == MapType.STATISTICAL and threshold is None:
-                    # return the statistical map as is
-                    result = m.volumes[0]
-                elif maptype == MapType.STATISTICAL:
-                    # compute thresholded statistical map
+                region_img = m.fetch(region=self, format='image')
+                imgdata = np.asanyarray(region_img.dataobj)
+                if maptype == MapType.STATISTICAL:  # compute thresholded statistical map, default is 0.0
                     logger.info(f"Thresholding statistical map at {threshold}")
-                    statmap = m.fetch(region=self, format='image')
-                    result = volume.from_array(
-                        data=(statmap.get_fdata() > threshold).astype('uint8'),
-                        affine=statmap.affine,
-                        space=fetch_space,
-                        name=f"Statistical map of {self.name} thresholded by {threshold}",
-                    )
-                else:
-                    # compute region mask from labelled parcellation map
-                    regionmask = m.fetch(region=self, format='image')
-                    result = volume.from_array(
-                        data=regionmask.dataobj,
-                        affine=regionmask.affine,
-                        space=fetch_space,
-                        name=f"Mask of {self.name} in {m.parcellation.name}",
-                    )
+                    imgdata = (imgdata > threshold).astype('uint8')
+                    name = f"Statistical mask of {self.name}{f' thresholded by {threshold}' if threshold else ''}"
+                else:  # compute region mask from labelled parcellation map
+                    name = f"Mask of {self.name} in {m.parcellation.name}"
+                result = volume.from_array(
+                    data=imgdata,
+                    affine=region_img.affine,
+                    space=fetch_space,
+                    name=name,
+                )
             if result is not None:
                 break
+
+        assert np.all(np.equal(result.fetch().dataobj, imgdata))  # TODo: remove this line
 
         if result is None:
             # No region map available. Then see if we can build a map from the child regions
             if (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
-                dataobj = None
-                affine = None
-                logger.debug(f"Building mask of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
-                for c in self.children:
-                    mask = c.get_regional_map(fetch_space, maptype, threshold).fetch(format='image')
-                    if dataobj is None:
-                        dataobj = np.asanyarray(mask.dataobj)
-                        affine = mask.affine
-                    else:
-                        if np.linalg.norm(mask.affine - affine) > 1e-12:
-                            raise NotImplementedError(
-                                f"Child regions of '{self.name}' have different voxel spaces "
-                                "and the aggregated subtree mask is not supported. "
-                                f"Try getting masks of the children: {self.children}"
-                            )
-                        updates = mask.get_fdata() > dataobj
-                        dataobj[updates] = mask.get_fdata()[updates]
-                if dataobj is not None:
-                    result = volume.from_array(dataobj, affine, space, f"Subtree mask built from {self.name}")
+                logger.debug(f"Building regional map of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
+                child_volumes = [
+                    child.get_regional_map(fetch_space, maptype, threshold, via_space)
+                    for child in self.children
+                ]
+                result = volume.merge(child_volumes)
+                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
 
         if result is None:
             raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {fetch_space}")
 
         if via_space is not None:
-            # fetch used an intermediate reference space provided by 'via_space'.
-            # We will now transform the affine to match the desired target space.
-            bbox = boundingbox.BoundingBox.from_image(result, fetch_space)
-            transform = bbox.estimate_affine(space)
+            # the map volume is taken from an intermediary reference space
+            # provided by 'via_space'. Now transform the affine to match the
+            # desired target space.
+            intermediary_result = result
+            transform = intermediary_result.boundingbox.estimate_affine(space)
             result = volume.from_array(
-                result.dataobj,
-                np.dot(transform, result.affine),
+                imgdata,
+                np.dot(transform, region_img.affine),
                 space,
-                (
-                    f"Regional map of {self.name} fetched from {fetch_space.name} "
-                    f"and linearly corrected to match {space.name}."
-                )
+                f"{result.name} fetched from {fetch_space.name} and linearly corrected to match {space.name}"
             )
 
-        while len(self._FETCH_CACHE) > self._FETCH_CACHE_MAX_ENTRIES:
-            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
-        self._FETCH_CACHE[fetch_hash] = result
+        while len(self._GETMAP_CACHE) > self._GETMAP_CACHE_MAX_ENTRIES:
+            self._GETMAP_CACHE.pop(next(iter(self._GETMAP_CACHE)))
+        self._GETMAP_CACHE[getmap_hash] = result
         return result
 
     def mapped_in_space(self, space, recurse: bool = True) -> bool:

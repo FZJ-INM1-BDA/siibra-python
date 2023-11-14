@@ -1150,9 +1150,10 @@ def from_volume(
     """
     # providers and map indices
     providers = []
-    for vol_idx, vol in enumerate(
-        volume if isinstance(volume, list) else [volume]
-    ):
+    volumes = volume if isinstance(volume, list) else [volume]
+    map_space = volumes[0].space
+    assert all(v.space == map_space for v in volumes), "Volumes have to be in the same space"
+    for vol_idx, vol in enumerate(volumes):
         image = vol.fetch()
         arr = np.asanyarray(image.dataobj)
         labels_in_volume = np.unique(arr)[1:].astype('int')
@@ -1216,11 +1217,11 @@ def from_volume(
     # build the parcellation map object
     parcmap = Map(
         identifier=generate_uuid(name),
-        name=f"{name} map in {volume.space.name}",
-        space_spec={"@id": volume.space.id},
+        name=f"{name} map in {map_space.name}",
+        space_spec={"@id": map_space.id},
         parcellation_spec={'name': parcobj.name},
         indices=indices,
-        volumes=[_volume.Volume(volume.space, providers=providers)]
+        volumes=volumes
     )
 
     # add it to siibra's registry

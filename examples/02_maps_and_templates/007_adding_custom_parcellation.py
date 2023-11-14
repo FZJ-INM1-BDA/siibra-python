@@ -79,5 +79,5 @@ region = custom_map.parcellation.get_region('S_Rolando-1 left')
 profiles = siibra.features.get(
     region,
     siibra.features.cellular.BigBrainIntensityProfile
-)
+)[0]
 print(f"{len(profiles)} intensity profiles found.")

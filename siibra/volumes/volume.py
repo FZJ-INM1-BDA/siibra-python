@@ -75,7 +75,7 @@ class Volume(location.Location):
         variant: str = None,
         datasets: List['TypeDataset'] = [],
     ):
-        self._name_cached = name  # see lazy implementation below
+        self._name = name
         self._space_spec = space_spec
         self.variant = variant
         self._providers: Dict[str, _provider.VolumeProvider] = {}
@@ -101,10 +101,8 @@ class Volume(location.Location):
 
     @property
     def name(self):
-        """
-        Allows derived classes to implement a lazy name specification.
-        """
-        return self._name_cached
+        """Allows derived classes to implement a lazy name specification."""
+        return self._name
 
     @property
     def providers(self):
@@ -315,8 +313,7 @@ class Volume(location.Location):
 
         result = None
         for fmt in possible_formats:
-            # TODO: check withhout self.__hash__() and consider implementing __dict__ to volume
-            fetch_hash = hash((hash(fmt), hash(kwargs_serialized)))
+            fetch_hash = hash((hash(self), hash(fmt), hash(kwargs_serialized)))
             if fetch_hash in self._FETCH_CACHE:
                 return self._FETCH_CACHE[fetch_hash]
             # try the each possible format. Repeat in case of too many requests.
@@ -464,7 +461,7 @@ def from_array(
     data: np.ndarray,
     affine: np.ndarray,
     space: Union[str, Dict[str, str]],
-    name: str = ""
+    name: str
 ):
     """ Builds a siibra volume from an array and an affine matrix. """
     from ..core.concept import AtlasConcept
