@@ -14,7 +14,7 @@
 # limitations under the License.
 """A set of coordinates on a reference space."""
 
-from . import location, point, boundingbox
+from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
@@ -73,24 +73,21 @@ class PointSet(location.Location):
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        if isinstance(other, point.Point):
-            return self if other in self else None
-        elif isinstance(other, PointSet):
-            return [p for p in self if p in other]
-        elif isinstance(other, boundingbox.BoundingBox):
-            return [p for p in self if other in p]
-        inside = [p for p in self if p.intersects(other)]
-        if len(inside) == 0:
+        if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
+            return other.intersection(self)
+
+        ids, points = zip(*[(i, p) for i, p in enumerate(self) if p.intersects(other)])
+        labels = None if self.labels is None else [self.labels[i] for i in ids]
+        sigma = [p.sigma for p in points]
+        intersection = PointSet(
+            points,
+            space=self.space,
+            sigma_mm=sigma,
+            labels=labels
+        )
+        if len(intersection) == 0:
             return None
-        elif len(inside) == 1:
-            return inside[0]
-        else:
-            return PointSet(
-                inside,
-                space=self.space,
-                sigma_mm=[p.sigma for p in inside],
-                labels=None if self.labels is None else self.labels[inside]
-            )
+        return intersection[0] if len(intersection) == 1 else intersection
 
     @property
     def sigma(self):
@@ -200,14 +197,11 @@ class PointSet(location.Location):
 
     @property
     def boundingbox(self):
-        """
-        Return the bounding box of these points.
-        """
-        from .boundingbox import BoundingBox
+        """Return the bounding box of these points."""
         XYZ = self.homogeneous[:, :3]
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
-        return BoundingBox(
+        return _boundingbox.BoundingBox(
             point1=XYZ.min(0) - max(sigma_min, 1e-6),
             point2=XYZ.max(0) + max(sigma_max, 1e-6),
             space=self.space,
