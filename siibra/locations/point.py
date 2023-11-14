@@ -167,7 +167,7 @@ class Point(location.Location):
 
     def __eq__(self, other: 'Point'):
         if isinstance(other, pointset.PointSet):
-            return other == self
+            return other == self  # implemented at pointset
         if not isinstance(other, Point):
             return False
         o = other if self.space is None else other.warp(self.space)

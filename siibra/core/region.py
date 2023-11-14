@@ -635,7 +635,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, location.Location):
-            for space in [other.space] + list(self.supported_spaces - {other.space}):
+            for space in self.supported_spaces:
                 try:
                     regionmap = self.get_regional_map(space)
                     self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
@@ -643,8 +643,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     )
                 except Exception:
                     continue
-                finally:
-                    break
+                break
             if (self, other) not in self._ASSIGNMENT_CACHE:
                 self._ASSIGNMENT_CACHE[self, other] = None
         else:  # other is a Region
