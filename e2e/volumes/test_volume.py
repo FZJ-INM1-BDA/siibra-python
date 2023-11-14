@@ -6,12 +6,12 @@ import pytest
 # TODO write a test for the volume-region and volume-volume intersection
 
 
+# add more to the list when centroids can be calculated for non-convex regions as well
 selected_regions = [
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) right'), 'mni152'),
     (siibra.get_region('julich 2.9', 'CA2 (Hippocampus) left'), 'colin27'),
-    (siibra.get_region('julich 2.9', 'hoc1 left'), 'bigbrain'),
-    (siibra.get_region('julich 3', 'sts'), 'mni152'),
-    (siibra.get_region('Von Economo Koskinas', 'TC: Area supratemporalis granulosa right'), 'mni152')
+    (siibra.get_region('julich 2.9', 'hoc1 left'), 'mni152'),
+    (siibra.get_region('julich 3', 'sts'), 'mni152')
 ]
 
 
@@ -31,5 +31,5 @@ def test_region_intersection_with_its_centroid(region, space):
     assert isinstance(region, Region)
     centroids = region.compute_centroids(space)
     assert centroids in region
-    intersection = region.intersection(centroids)
-    assert intersection == centroids
+    assert region.intersection(centroids) == centroids
+    assert centroids.intersection(region) == centroids
