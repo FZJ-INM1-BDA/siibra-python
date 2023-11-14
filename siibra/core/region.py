@@ -516,7 +516,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             if result is not None:
                 break
 
-        assert np.all(np.equal(result.fetch().dataobj, imgdata))  # TODo: remove this line
+        assert np.all(np.equal(result.fetch().dataobj, imgdata))  # TODO: remove this line
 
         if result is None:
             # No region map available. Then see if we can build a map from the child regions

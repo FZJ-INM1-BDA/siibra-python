@@ -240,8 +240,9 @@ class Volume(location.Location):
             pointwise_min = np.minimum(arr1, arr2)
             if np.any(pointwise_min):
                 return from_array(
-                    pointwise_min,
-                    v1.affine, self.space,
+                    data=pointwise_min,
+                    affine=v1.affine,
+                    space=self.space,
                     name=f"Intersection between {self} and {other} computed as their pointwise minimum"
                 )
             else:
@@ -433,7 +434,7 @@ class Subvolume(Volume):
         )
 
 
-def from_file(filename: str, space: str, name: str = None):
+def from_file(filename: str, space: str, name: str):
     """ Builds a nifti volume from a filename. """
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
@@ -445,7 +446,7 @@ def from_file(filename: str, space: str, name: str = None):
     )
 
 
-def from_nifti(nifti: Nifti1Image, space: str, name: str = None):
+def from_nifti(nifti: Nifti1Image, space: str, name: str):
     """Builds a nifti volume from a Nifti image."""
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
@@ -463,7 +464,9 @@ def from_array(
     space: Union[str, Dict[str, str]],
     name: str
 ):
-    """ Builds a siibra volume from an array and an affine matrix. """
+    """Builds a siibra volume from an array and an affine matrix."""
+    if len(name) == 0:
+        raise ValueError("Please provide a non-empty string for `name`")
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
     spacespec = next(iter(space.values())) if isinstance(space, dict) else space
@@ -510,7 +513,7 @@ def from_pointset(
     if normalize:
         data /= data.sum()
     return from_array(
-        data,
+        data=data,
         affine=targetimg.affine,
         space=target.space,
         name=f'KDE map of {sum(selection)} points with label={label}'
@@ -566,4 +569,9 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         else:
             merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
 
-    return from_array(merged_array, affine=template_img.affine, space=space)
+    return from_array(
+        data=merged_array,
+        affine=template_img.affine,
+        space=space,
+        name=f"Resampled and merged volumes: {','.join([v.name for v in volumes])}"
+    )

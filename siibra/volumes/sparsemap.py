@@ -426,10 +426,10 @@ class SparseMap(parcellationmap.Map):
         result = np.zeros(self.shape, dtype=np.float32)
         result[x, y, z] = v
         volume = _volume.from_array(
-            result,
-            self.affine,
-            self.space,
-            f"Map of {region} from {self.parcellation} in {self.space.name}"
+            data=result,
+            affine=self.affine,
+            space=self.space,
+            name=f"Sparse map of {region} from {self.parcellation} in {self.space}"
         )
         return volume.fetch()
 

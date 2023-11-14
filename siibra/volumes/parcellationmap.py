@@ -571,7 +571,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             space_spec=self._space_spec,
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
-            volumes=[_volume.from_array(result_data, result_affine, self._space_spec)]
+            volumes=[_volume.from_array(
+                result_data, result_affine, self._space_spec, name=self.name + " compressed"
+            )]
         )
 
     def compute_centroids(self) -> Dict[str, point.Point]:
@@ -619,10 +621,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         map_image = self.fetch(**fetch_kwargs)
         img = image.resample_to_img(source_template, map_image, interpolation='continuous')
         return _volume.from_array(
-            img.dataobj,
-            img.affine,
-            self.space,
-            f"{source_template} resampled to coordinate system of {self}"
+            data=img.dataobj,
+            affine=img.affine,
+            space=self.space,
+            name=f"{source_template} resampled to coordinate system of {self}"
         )
 
     def colorize(self, values: dict, **kwargs) -> _volume.Volume:
@@ -658,7 +660,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 else:
                     result[img == index.label] = value
 
-        return _volume.from_array(result, affine, self.space, f"Custom colorization of {self}")
+        return _volume.from_array(
+            data=result, 
+            affine=affine,
+            space=self.space,
+            name=f"Custom colorization of {self}"
+        )
 
     def get_colormap(self, region_specs: Iterable = None):
         """
@@ -1051,7 +1058,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 shift[:3, -1] = xyz_vox[:3, 0] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
-                W = _volume.from_array(kernel, np.dot(self.affine, shift), self.space)
+                W = _volume.from_array(
+                    data=kernel,
+                    affine=np.dot(self.affine, shift),
+                    space=self.space,
+                    name=f"Gaussian kernel of {pt}"
+                )
                 for entry in self._assign(W, lower_threshold=lower_threshold):
                     entry.input_structure = pointindex
                     entry.centroid = tuple(pt)
