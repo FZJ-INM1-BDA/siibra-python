@@ -21,6 +21,10 @@ from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..core.structure import BrainStructure
+    from nibabel import Nifti1Image
 
 
 class BoundingBox(location.Location):
@@ -125,33 +129,39 @@ class BoundingBox(location.Location):
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
-    def intersection(self, other, dims=[0, 1, 2], threshold=0):
+    def intersection(self, other: 'BrainStructure', dims=[0, 1, 2]):
         """Computes the intersection of this bounding box with another one.
 
-        TODO process the sigma values o the points
-
-        Args:
-            other (BoundingBox): Another bounding box
-            dims (list of int): Dimensions where the intersection should be computed (applies only to bounding boxes)
-            Default: all three. Along dimensions not listed, the union is applied instead.
-            threshold: optional intensity threshold for intersecting with image mask
+        Parameters
+        ----------
+        other: BrainStructure
+        dims: List[int], default: all three
+            Dimensions where the intersection should be computed
+            (applies only to bounding boxes). Along dimensions not listed,
+            the union is applied instead.
         """
+        # TODO: process the sigma values o the points
         if isinstance(other, BoundingBox):
             try:
                 return self._intersect_bbox(other, dims)
             except SpaceWarpingFailedError:
-                return other._intersect_bbox(self, dims)
-        elif hasattr(other, "boundingbox"):
-            intersection = self.intersection(other.boundingbox)
-            if intersection and intersection.minpoint == intersection.maxpoint:
-                # the intersection of a boundingbox with a point is either none
-                # or a BoundingBox with maxpoint==minmpoint. Return as a point
-                return intersection.minpoint
-            return intersection
-        else:
-            other.intersection(self)
+                return other._intersect_bbox(self, dims)  # TODO: check this mechanism carefully
+        if isinstance(other, point.Point):
+            warped = other.warp(self.space)
+            return other if self.minpoint <= warped <= self.maxpoint else None
+        if isinstance(other, pointset.PointSet):
+            result = pointset.PointSet(
+                [p for p in other if self.intersects(p)],
+                space=other.space,
+                sigma_mm=other.sigma
+            )
+            if len(result) == 0:
+                return None
+            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
 
-    def _intersect_bbox(self, other, dims=[0, 1, 2]):
+        return other.intersection(self)
+
+    def _intersect_bbox(self, other: 'BoundingBox', dims=[0, 1, 2]):
         warped = other.warp(self.space)
 
         # Determine the intersecting bounsding box by sorting
@@ -189,7 +199,7 @@ class BoundingBox(location.Location):
         )
         return bbox if bbox.volume > 0 else None
 
-    def _intersect_mask(self, mask, threshold=0):
+    def _intersect_mask(self, mask: 'Nifti1Image', threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
 
         TODO process the sigma values o the points
