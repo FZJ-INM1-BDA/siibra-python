@@ -5,6 +5,7 @@ from siibra.features.feature import CompoundFeature
 from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
 from e2e.util import check_duplicate
 from zipfile import ZipFile
+import os
 
 all_conn_instances = [
     f
@@ -81,9 +82,11 @@ def test_export():
     with ZipFile("file.zip") as z:
         filenames = [info.filename for info in z.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == 1
+    os.remove("file.zip")
 
     cf: CompoundFeature = compound_conns[0]
     cf.export("file_compound.zip")
     with ZipFile("file_compound.zip") as cz:
         filenames = [info.filename for info in cz.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == len(cf)
+    os.remove("file_compound.zip")

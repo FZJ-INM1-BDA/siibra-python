@@ -262,6 +262,8 @@ class Feature:
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
+        if isinstance(self, Compoundable) and "README.md" in fh.namelist():
+            return
         ebrains_page = "\n".join(
             {ds.ebrains_page for ds in self.datasets if getattr(ds, "ebrains_page", None)}
         )
@@ -300,8 +302,11 @@ class Feature:
         """
         Export as a zip archive.
 
-        Args:
-            filelike (string or filelike): name or filehandle to write the zip file. User is responsible to ensure the correct extension (.zip) is set.
+        Parameters
+        ----------
+        filelike: str or path
+            Filelike to write the zip file. User is responsible to ensure the
+            correct extension (.zip) is set.
         """
         fh = ZipFile(filelike, "w")
         self._export(fh)
@@ -845,5 +850,12 @@ class CompoundFeature(Feature):
             raise ParseCompoundFeatureIdException
 
     def _export(self, fh: ZipFile):
-        for element in siibra_tqdm(self, desc="Exporting elements", unit="element"):
-            element._export(fh)
+        super()._export(fh)
+        for idx, element in siibra_tqdm(self._elements.items(), desc="Exporting elements", unit="element"):
+            if '/' in str(idx):
+                logger.warning(f"'/' will be replaced with ' ' of the file for element with index {idx}")
+            filename = '/'.join([
+                str(i).replace('/', ' ')
+                for i in (idx if isinstance(idx, tuple) else [idx])
+            ])
+            fh.writestr(f"{self.feature_type.__name__}/{filename}.csv", element.data.to_csv())
