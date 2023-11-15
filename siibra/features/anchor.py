@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Handles the relation between study targets and AtlasConcepts."""
+"""Handles the relation between study targets and BrainStructures."""
 
 from ..commons import Species
 
-from ..core.concept import AtlasConcept
+from ..core.structure import BrainStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
 from ..locations.location import Location
 from ..core.parcellation import Parcellation
@@ -30,15 +30,18 @@ from typing import Union, List, Dict
 
 class AnatomicalAnchor:
     """
-    Anatomical anchor to an atlas region,
-    a geometric primitive in an atlas reference space,
-    or both.
+    Anatomical anchor to an atlas region, a geometric primitive in an atlas
+    reference space, or both.
     """
 
     _MATCH_MEMO: Dict[str, Dict[Region, Qualification]] = {}
-    _MASK_MEMO = {}
 
-    def __init__(self, species: Union[List[Species], Species, str], location: Location = None, region: Union[str, Region] = None):
+    def __init__(
+        self,
+        species: Union[List[Species], Species, str],
+        location: Location = None,
+        region: Union[str, Region] = None
+    ):
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
@@ -52,7 +55,7 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
-        self._assignments: Dict[Union[AtlasConcept, Location], List[AnatomicalAssignment]] = {}
+        self._assignments: Dict[BrainStructure, List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         if isinstance(region, dict):
             self._regions_cached = region
@@ -96,7 +99,7 @@ class AnatomicalAnchor:
         return self._aliases_cached
 
     @property
-    def has_region_aliases(self):
+    def has_region_aliases(self) -> bool:
         return len(self.region_aliases) > 0
 
     @property
@@ -145,7 +148,7 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: Union[AtlasConcept, Location]):
+    def assign(self, concept: BrainStructure) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
@@ -163,10 +166,10 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: AtlasConcept):
+    def matches(self, concept: BrainStructure) -> bool:
         return len(self.assign(concept)) > 0
 
-    def represented_parcellations(self):
+    def represented_parcellations(self) -> List[Parcellation]:
         """
         Return any parcellation objects that this anchor explicitly points to.
         """
@@ -202,6 +205,6 @@ class AnatomicalAnchor:
 
         return AnatomicalAnchor(species, location, regions)
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> 'AnatomicalAnchor':
         # required to enable `sum`
         return self if other == 0 else self.__add__(other)
