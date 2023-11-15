@@ -173,18 +173,18 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             "matplotlib", "plotly", or others supported by pandas DataFrame
             plotting backend.
         **kwargs
-            Keyword arguments are passed on to the plot command.
-            'layercolor' can be used to specify a color for cortical layer shading.
+            Keyword arguments are passed on to the plot command. 'layercolor'
+            can be used to specify a color for cortical layer shading.
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
+        layercolor = kwargs.pop("layercolor", "gray")
 
         if backend == "matplotlib":
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
-            layercolor = kwargs.pop("layercolor") if "layercolor" in kwargs else "black"
             axs = self.data.plot(*args, **kwargs, backend=backend)
 
             if self.boundaries_mapped:
@@ -198,7 +198,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                         ha="center",
                     )
                     if i % 2 == 0:
-                        axs.axvspan(d1, d2, color=layercolor, alpha=0.1)
+                        axs.axvspan(d1, d2, color=layercolor, alpha=0.3)
 
             axs.set_title(axs.get_title(), fontsize="medium")
             return axs
@@ -213,7 +213,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 bvals = list(self.boundary_positions.values())
                 for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
                     fig.add_vrect(
-                        x0=d1, x1=d2, line_width=0, fillcolor="gray",
+                        x0=d1, x1=d2, line_width=0, fillcolor=layercolor,
                         opacity=0.2 if i % 2 == 0 else 0.0,
                         label=dict(text=self.LAYERS[i + 1], textposition="bottom center")
                     )
