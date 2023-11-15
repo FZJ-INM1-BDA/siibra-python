@@ -1,5 +1,6 @@
 |License| |PyPI version| |doi| |Python versions| |Documentation Status|
 
+==============================================================
 siibra - Software interface for interacting with brain atlases
 ==============================================================
 
@@ -36,7 +37,7 @@ It aims to provide a safe way of using maps defined across multiple spatial scal
 .. getting-started-start
 
 Installation
-------------
+============
 
 ``siibra`` is available on pypi. 
 To install the latest released version, simply run ``pip install siibra``. 
@@ -52,27 +53,9 @@ There is also an image based on jupyter:scipy-notebook, which already includes `
         --name siibra \
         docker-registry.ebrains.eu/siibra/siibra-python:latest
 
-Access to EBRAINS
------------------
-
-While the core features in ``siibra`` can be accessed without any authentication, siibra can perform dynamic queries to regional datasets stored in the `EBRAINS Knowledge Graph <https://kg.ebrains.eu>`__. 
-To use this functionality, you need to obtain an EBRAINS authentication token with a valid EBRAINS user account.
-`Registering to EBRAINS <https://ebrains.eu/register/>`__ is easy and free of charge, so we strongly recommend to sign up.
-To use your EBRAINS access token in siibra:
-
-1. If you do not yet have an EBRAINS account, register `here <https://ebrains.eu/register>`__.
-2. When using siibra, fetch an authentication token by using `siibra.fetch_ebrains_token()`. You will be asked to visit an ebrains login website. Login, and accept the requested detail.
-
-Since tokens are temporary, step 2. needs to be repeated regularly.
-If you prefer, you can also create your token by visiting `the EBRAINS authorization endpoint <https://nexus-iam.humanbrainproject.org/v0/oauth2/authorize>`__.
-Copy the token, and either store it in the environment variable ``$HBP_AUTH_TOKEN`` or pass it explicitly to ``siibra`` using `siibra.set_ebrains_token()`.
-The token is a string sequence with more than 1000 characters, usually starting with with “ey”.
-
-Note that as of now, you need to to step 2 approximately every day to perform EBRAINS data queries.
-However, ``siibra`` maintains a local cache on disk, so once retrieved, data features become usable and accessible without refreshing the token.
 
 Documentation & Help
---------------------
+====================
 
 ``siibra-python``\ ’s documentation is hosted on https://siibra-python.readthedocs.io.
 The documentation includes a catalogue of documented code examples that walk you through the different concepts and functionalities.
@@ -89,9 +72,8 @@ While care is taken to make everything work reliably, the API of the library is 
 
 .. contribute-start
 
-
 How to contribute
------------------
+=================
 
 If you want to contribute to ``siibra``, feel free to fork it and open a pull request with your changes.
 You are also welcome to contribute to discussions in the issue tracker and of course to report issues you are facing.
@@ -103,7 +85,7 @@ You can also star the project to show us that you are using it.
 .. acknowledgments-start
 
 Acknowledgements
-----------------
+================
 
 This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).
 
@@ -112,7 +94,7 @@ This software code is funded from the European Union’s Horizon 2020 Framework 
 .. howtocite-start
 
 How to cite
------------
+===========
 Please cite the version used according to the citation file
 or all versions by
 `Timo Dickscheid, Xiayun Gui, Ahmet Nihat Simsek, Vadim Marcenko,

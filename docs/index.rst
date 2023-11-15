@@ -1,3 +1,4 @@
+==============================================================
 siibra - Software interface for interacting with brain atlases
 ==============================================================
 
@@ -10,7 +11,6 @@ siibra - Software interface for interacting with brain atlases
    :hidden:
 
    start
-   concepts
    step-by-step
    api
    create_preconfiguration
