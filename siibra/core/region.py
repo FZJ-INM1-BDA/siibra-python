@@ -34,7 +34,7 @@ from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 import numpy as np
 import re
 import anytree
-from typing import List, Set, Union, Iterable, Dict, Callable
+from typing import List, Union, Iterable, Dict, Callable
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from ebrains_drive import BucketApiClient
@@ -578,13 +578,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         return False
 
     @property
-    def supported_spaces(self) -> Set[_space.Space]:
+    def supported_spaces(self) -> List[_space.Space]:
         """
         The set of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = {s for s in _space.Space.registry() if self.mapped_in_space(s)}
+            self._supported_spaces = sorted(
+                {s for s in _space.Space.registry() if self.mapped_in_space(s)}
+            )
         return self._supported_spaces
 
     def supports_space(self, space: _space.Space):
@@ -635,13 +637,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, location.Location):
-            for space in self.supported_spaces:
+            for space in [other.space] + self.supported_spaces:
                 try:
                     regionmap = self.get_regional_map(space)
                     self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
                         other.warp(space)
                     )
-                except Exception:
+                except Exception as e:
+                    logger.debug(e)
                     continue
                 break
             if (self, other) not in self._ASSIGNMENT_CACHE:
@@ -837,7 +840,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                 intersections = [child.intersection(other) for child in self.children]
                 return reduce(lambda a, b: a.union(b), intersections)
 
-        for space in sorted(self.supported_spaces):
+        for space in self.supported_spaces:
             if space.provides_image:
                 logger.info(f"Intersect {other} with {self} in {space}")
                 try:
