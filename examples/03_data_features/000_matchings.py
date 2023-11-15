@@ -124,7 +124,7 @@ for f in siibra.features.get(occ, "ebrains"):
 # Note how `siibra` deals with the fact that the volume of interest is defined in BigBrain space,
 # while the region is only mapped in the MNI spaces - it warps the bounding box
 # of the region to the space of the feature for the test.
-ca1 = siibra.get_region("julich 2.9", "ca1").get_regional_map('mni152')
+ca1 = siibra.get_region("julich 2.9", "ca1")
 features = siibra.features.get(ca1, siibra.features.fibres.PLIVolumeOfInterest)
 print(features[0].name)
 print(features[0].last_match_description)
