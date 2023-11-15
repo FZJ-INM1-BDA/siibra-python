@@ -80,7 +80,7 @@ for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
         cf = siibra.features.get(region, modality)[0]
         p = cf[np.random.randint(0, len(cf) - 1)]
-        p.plot(ax=axs[j, i], layercolor="darkblue")
+        p.plot(ax=axs[j, i])
         axs[j, i].set_ylim(0, ymax[j])
 
 fig.set(figheight=15, figwidth=10)
