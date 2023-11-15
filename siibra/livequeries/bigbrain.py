@@ -20,7 +20,7 @@ from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_in
 from ..features import anchor as _anchor
 from ..commons import logger
 from ..locations import point, pointset
-from ..core import region, structure
+from ..core import structure
 from ..retrieval import requests, cache
 
 import numpy as np
@@ -84,32 +84,6 @@ class WagstylProfileLoader:
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
 
-    @staticmethod
-    def _choose_space(regionobj: region.Region):
-        """
-        Helper function to obtain a suitable space to fetch a regional mask.
-        BigBrain space has priorty.
-
-        Parameters
-        ----------
-        regionobj : region.Region
-
-        Returns
-        -------
-        Space
-
-        Raises
-        ------
-        RuntimeError
-            When there is no supported space that provides image for `regionobj`.
-        """
-        if regionobj.mapped_in_space('bigbrain'):
-            return 'bigbrain'
-        supported_spaces = [s for s in regionobj.supported_spaces if s.provides_image]
-        if len(supported_spaces) == 0:
-            raise RuntimeError(f"Could not find a supported space for {regionobj}")
-        return supported_spaces[0]
-
     def __len__(self):
         return self._vertices.shape[0]
 
@@ -122,12 +96,11 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
         features = []
-        regionname = concept.name if isinstance(concept, region.Region) else str(concept)
         matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
         assert matched.labels is not None
         for i in matched.labels:
             prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                regionname=regionname,
+                regionname=str(concept),
                 depths=loader.profile_labels,
                 values=loader._profiles[i],
                 boundaries=loader._boundary_depths[i],
@@ -152,13 +125,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        if isinstance(concept, region.Region):
-            regionname = concept.name
-            space = WagstylProfileLoader._choose_space(concept)
-        else:
-            regionname = str(concept)
-            space = 'bigbrain'
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space=space))
+        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
         indices = matched.labels
         if indices is None:
             return []
@@ -173,7 +140,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
         ]).reshape((-1, 200))
 
         result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
-            regionname=regionname,
+            regionname=str(concept),
             means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
             stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
         )
