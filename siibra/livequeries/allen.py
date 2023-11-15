@@ -104,7 +104,6 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         self.maptype = kwargs.get("maptype", None)
         if isinstance(self.maptype, str):
             self.maptype = MapType[self.maptype.upper()]
-        self.threshold_statistical = kwargs.get("threshold_statistical", 0)
 
         def parse_gene(spec):
             if isinstance(spec, str):
@@ -125,47 +124,48 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         mnispace = _space.Space.registry().get('mni152')
 
-        # build the anatomical anchor resulting from the matching.
-        # It will be attached to the returned feature, with the set of matched MNI coordinates
-        # as location.
-        anchor = _anchor.AnatomicalAnchor(species=self.species)
+        # Match the microarray probes to the query mask.
+        # Record matched instances and their locations.
+        measurements = []
+        coordinates = []
+        points_inside = dict()
+        for measurement in self:
+            pt = point.Point(measurement['mni_xyz'], space=mnispace)
+            if pt not in points_inside:  # cache redundant intersection tests
+                points_inside[pt] = pt in concept
+            if points_inside[pt]:
+                measurements.append(measurement)
+                coordinates.append(pt)
+
+        # Build the anatomical anchor and assignment to the query concept.
+        # It will be attached to the returned feature, with the set of matched
+        # MNI coordinates as anchor's location.
+        anchor = _anchor.AnatomicalAnchor(
+            location=pointset.PointSet(coordinates=coordinates, space=mnispace),
+            species=self.species
+        )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"
-        ass = _anchor.AnatomicalAssignment(
+        anchor._assignments[concept] = [_anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
             qualification=_anchor.Qualification.CONTAINED,
             explanation=explanation
-        )
-        anchor._assignments[concept] = [ass]
+        )]
         anchor._last_matched_concept = concept
-        coordinates = []
-
-        # Match the microarray probes to the query mask.
-        # Record the matching instances and their locations.
-        measures = []
-        contained = {}
-        for measure in self:
-            location = point.Point(measure['mni_xyz'], space=mnispace)
-            if location not in contained:  # cache redundant intersection tests
-                contained[location] = location in concept
-            if contained[location]:
-                measures.append(measure)
-                coordinates.append(location)
-        anchor._location_cached = pointset.PointSet(coordinates=coordinates, space=mnispace)
 
         yield GeneExpressions(
             anchor=anchor,
-            genes=[m['gene'] for m in measures],
-            levels=[m['expression_level'] for m in measures],
-            z_scores=[m['z_score'] for m in measures],
+            genes=[m['gene'] for m in measurements],
+            levels=[m['expression_level'] for m in measurements],
+            z_scores=[m['z_score'] for m in measurements],
             additional_columns={
-                "race": [m['race'] for m in measures],
-                "gender": [m['gender'] for m in measures],
-                "age": [m['age'] for m in measures],
-                "mni_xyz": [tuple(m['mni_xyz']) for m in measures],
-                "sample": [m['sample_index'] for m in measures],
-                "probe_id": [m['probe_id'] for m in measures],
-                "donor_name": [m['donor_name'] for m in measures],
+                "race": [m['race'] for m in measurements],
+                "gender": [m['gender'] for m in measurements],
+                "age": [m['age'] for m in measurements],
+                "mni_xyz": [tuple(m['mni_xyz']) for m in measurements],
+                "sample": [m['sample_index'] for m in measurements],
+                "probe_id": [m['probe_id'] for m in measurements],
+                "donor_name": [m['donor_name'] for m in measurements],
             }
         )
 
