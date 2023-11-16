@@ -27,13 +27,13 @@ from nilearn import plotting
 import siibra
 # We start by selecting an atlas and the Julich-Brain parcellation.
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-jubrain = atlas.get_parcellation('julich 3')
+julich_brain = atlas.get_parcellation('julich 3')
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/03-002.png'
 
 # %%
 # As in the previous example, we extract all receptor density features linked
 # to Julich-Brain.
-fingerprints = siibra.features.get(jubrain, siibra.features.molecular.ReceptorDensityFingerprint)
+fingerprints = siibra.features.get(julich_brain, siibra.features.molecular.ReceptorDensityFingerprint)
 fingerprints[0].data
 
 # %%
@@ -48,13 +48,13 @@ mapping = {
     c: fp.data['mean'][receptor]
     for fp in fingerprints if receptor in fp.receptors
     for r in fp.anchor.regions
-    if r in jubrain
+    if r in julich_brain
     for c in r.leaves
 }
 
 # %%
 # Now colorize the Julich-Brain maximum probability map and plot it.
-colorized_map = jubrain.get_map(space='mni152').colorize(mapping).fetch()
+colorized_map = julich_brain.get_map(space='mni152').colorize(mapping).fetch()
 plotting.view_img(
     colorized_map, cmap='magma',
     title=f"Average densities available for {receptor}", symmetric_cmap=False

@@ -28,7 +28,7 @@ import siibra
 # %%
 # The instance table can list the keys of all parcellations predefined in `siibra`.
 # Note that this includes parcellations for all supported atlases.
-dir(siibra.parcellations)
+siibra.parcellations.keys
 
 # %%
 # Fetching an object works in the same way as for `siibra.atlases` (see :ref:`atlases`)
@@ -46,7 +46,7 @@ print(julich_brain.id)
 # a given atlas. Atlases provide their own parcellation table for this
 # purpose, which includes the relevant subset of the parcellations.
 atlas = siibra.atlases.get('human')
-dir(atlas.parcellations)
+atlas.parcellations.keys
 
 # %%
 # These are instance tables, and can be used just like siibra.parcellations:
@@ -65,7 +65,7 @@ atlas.parcellations.get('julich 1.18').version
 # atlas, which has the same effect as accessing the Registry.
 atlas.parcellations.get('Deep fibre bundles')
 
-jubrain = atlas.parcellations.get('julich 2.9')
+julich_brain = atlas.parcellations.get('julich 2.9')
 
 # %%
 # The resulting parcellation is a semantic object, including
@@ -74,14 +74,14 @@ jubrain = atlas.parcellations.get('julich 2.9')
 # - the region hierarchy
 # - functions to access parcellation maps in different reference spaces
 # - functions to find and access regions and region masks
-# 
+#
 # Parcellation maps and brain  regions are covered in the next examples. For now let's
 # just look at a few metadata fields:
-print("Name:    ", jubrain.name)
-print("Id:      ", jubrain.id)
-print("Modality:", jubrain.modality)
+print("Name:    ", julich_brain.name)
+print("Id:      ", julich_brain.id)
+print("Modality:", julich_brain.modality)
 print()
-print(jubrain.description)
+print(julich_brain.description)
 print()
-for p in jubrain.publications:
+for p in julich_brain.publications:
     print(p['citation'])

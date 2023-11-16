@@ -20,7 +20,7 @@ Explore brain region hierarchies
 Each parcellation is the root element of a tree of brain regions.
 In fact, Parcellation objects are special Region objects, so they
 inherit all functionalities of a region, while providing additional
-capabilities such as access to parcellation maps. 
+capabilities such as access to parcellation maps.
 Other then "standard" Region objects, parcellations do not have a
 parent region.
 """
@@ -34,8 +34,9 @@ julich_brain
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/01-002.png'
 
 # %%
-# The region hierarchy is a tree structure. Its default representation is a string of the tree.
-print(julich_brain.tree2str())
+# The region hierarchy is a tree structure. Its default representation is a
+# string of the tree.
+julich_brain.render_tree()
 
 # %%
 # Each node is a `Region` object, including the root node.

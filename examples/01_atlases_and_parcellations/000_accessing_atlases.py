@@ -53,7 +53,7 @@ print(type(siibra.atlases))
 #  3. By tab-completion of their "keys"
 
 # We can print the keys of all predefined atlas objects in the registry:
-dir(siibra.atlases)
+siibra.atlases.keys
 
 # %%
 # The keys can be used to select atlas object by autocompletion
@@ -88,9 +88,10 @@ siibra.atlases['human']
 
 # %%
 # An atlas has a range of properties and functions, for example is linked to a species:
+atlas = siibra.atlases.WAXHOLM_SPACE_ATLAS_OF_THE_SPRAGUE_DAWLEY_RAT_BRAIN
 atlas.species
 
 # %%
 # Furthermore, an atlas provides its own registries of supported spaces and parcellations.
 # We will cover these in the next examples.
-dir(atlas.spaces)
+atlas.spaces.keys

@@ -74,10 +74,28 @@ plotting.plot_roi(custom_map.fetch())
 
 # %%
 # We can already use this map to find spatial features, such as BigBrain
-# intensity profiles.
+# intensity profiles, gene expressions, volume of interests, sections...
 region = custom_map.parcellation.get_region('S_Rolando-1 left')
 profiles = siibra.features.get(
     region,
     siibra.features.cellular.BigBrainIntensityProfile
 )[0]
 print(f"{len(profiles)} intensity profiles found.")
+
+
+# %%
+# On the other hand, some features are only anchored to a sementic region
+# object and the link to the custome region is not directly known to siibra.
+# However, siibra circumvents this by comparing volumes of these regions to
+# assign a link between them.
+volume = region.get_regional_map('mni152')
+receptor_density = siibra.features.get(
+    volume,
+    siibra.features.molecular.ReceptorDensityFingerprint
+)
+print(f"{len(receptor_density)} layerwise cell density found.")
+
+# The relation of volume to the anatomical anchor is provided in
+# `anchor.last_match_description`
+for d in receptor_density:
+    print(d.anchor.last_match_description)

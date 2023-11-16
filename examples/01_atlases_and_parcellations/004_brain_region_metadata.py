@@ -21,7 +21,7 @@ Basic brain region properties
 `Region` object represents a subtree with a (possibly empty)
 set of child regions, and has a pointer to its parent region in the hierarchy.
 As mentioned before, Parcellation objects are also special regions,
-with no parent and additional functionalities. 
+with no parent and additional functionalities.
 Consequently, the parcellation of a region can be accessed as the region's
 "root" attribute (but "parcellation" is also provided as a shortcut property to this)
 """
@@ -32,7 +32,7 @@ import siibra
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 
 # %%
-# Let's fetch the region from the Julich-Brain parcellation 
+# Let's fetch the region from the Julich-Brain parcellation
 # representing the primary visual cortex.
 v1 = siibra.get_region('julich 2.9', 'v1')
 
@@ -51,7 +51,7 @@ v1.parent
 # hemisphere:
 
 # show the tree representation
-print(repr(v1))
+v1.render_tree()
 
 # return the actual list of child region objects
 v1.children
@@ -59,5 +59,4 @@ v1.children
 # we can access children with fuzzy string matching using "find"
 # as well as by their index
 v1l = v1.find("left")
-
-# %%
+print(v1l)

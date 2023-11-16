@@ -36,8 +36,9 @@ julich_brain.find('V1')
 julich_brain.find('v1', filter_children=True)
 
 # %%
-# For more powerful searches, regular expressions can be used with '/<pattern>/<flags>' or 
-# using `re.compile()`. Find hOc2 or hOc4 in the right hemisphere:
+# For more powerful searches, regular expressions can be used with
+# '/<pattern>/<flags>' or  using `re.compile()`. Find hOc2 or hOc4 in the right
+# hemisphere:
 julich_brain.find('/hOc[24].*right/')
 
 # %%
@@ -74,7 +75,7 @@ siibra.get_region('julich 2.9', 'v1 left')
 
 # %%
 # In case that the given specification matches multiple regions, which however represent
-# the children of the same parent, `get_region` will return the parent object. 
+# the children of the same parent, `get_region` will return the parent object.
 # In that case, the returned region can be a full subtree:
 julich_brain.get_region('amygdala')
 
@@ -83,4 +84,3 @@ julich_brain.get_region('amygdala')
 # parcellations. This way the above can also be done without explicitly
 # accessing the parcellation object:
 atlas.get_region('amygdala', parcellation='julich')
-

@@ -32,11 +32,11 @@ from nilearn import plotting
 
 # %%
 # Load the Julich-Brain parcellation.
-jubrain = siibra.parcellations.get("julich 2.9")
+julich_brain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # We can tell volumetric from surface spaces using their `is_surface` attribute.
-for space in jubrain.spaces:
+for space in julich_brain.spaces:
     if space.provides_mesh:
         print(space)
 
@@ -44,7 +44,7 @@ for space in jubrain.spaces:
 # The surface map is accessed using the `get map` method where we specify the space. Note that
 # we call the method here on the parcellation object, while previous examples usually called it
 # on an atlas object.
-mp = jubrain.get_map(space='fsaverage6')
+mp = julich_brain.get_map(space='fsaverage6')
 
 # %%
 # For surfaces, the `fetch()` method accepts an additional parameter 'variant'. If not specified,
@@ -59,12 +59,12 @@ print(mesh.keys())
 
 # %%
 # Most meshes are shipped with a color map which we can fetch from the map object by 
-jubrain_cmap = mp.get_colormap()
+julich_brain_cmap = mp.get_colormap()
 
 # Now we can plot the mesh
 plotting.view_surf(
     surf_mesh=[mesh['verts'], mesh['faces']],
     surf_map=mesh['labels'],
-    cmap=jubrain_cmap, symmetric_cmap=False, colorbar=False
+    cmap=julich_brain_cmap, symmetric_cmap=False, colorbar=False
 )
 # %%

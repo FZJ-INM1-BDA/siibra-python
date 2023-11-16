@@ -31,11 +31,12 @@ These are demonstrated in the following example.
 # As for atlases and parcellations, siibra provides a registry of predefined
 # reference spaces:
 import siibra
-dir(siibra.spaces)
+siibra.spaces.keys
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 
 # %%
-# Fetching an object works in the same way as for e.g. `siibra.atlases` (see :ref:`atlases`)
+# Fetching an object works in the same way as for e.g. `siibra.atlases`
+# (see :ref:`atlases`)
 space = siibra.spaces.get('icbm 2009c asym')
 print(space)
 

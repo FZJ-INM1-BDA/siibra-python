@@ -27,7 +27,7 @@ import siibra
 
 # %%
 # We start by selecting an atlas parcellation.
-jubrain = siibra.parcellations.get("julich 2.9")
+julich_brain = siibra.parcellations.get("julich 2.9")
 
 # %%
 # The tables are queried as expected, using `siibra.features.get`, passing
@@ -36,7 +36,7 @@ jubrain = siibra.parcellations.get("julich 2.9")
 # subjects of a cohort and paradigms, siibra groups them as elements into
 # :ref:`CompoundFeatures<compoundfeatures>`. Let us select "rfMRI_REST1_LR_BOLD"
 # paradigm.
-features = siibra.features.get(jubrain, siibra.features.functional.RegionalBOLD)
+features = siibra.features.get(julich_brain, siibra.features.functional.RegionalBOLD)
 for f in features:
     print(f.name)
     if f.paradigm == "rfMRI_REST1_LR_BOLD":
@@ -53,7 +53,7 @@ print(cf[0].subject)  # Subjects are encoded via anonymized ids
 # The signal data is provided as pandas DataFrames with region objects as
 # columns and indices as as a timeseries.
 table = cf[0].data
-table[jubrain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
+table[julich_brain.get_region("hOc3v left")]  # list the data for 'hOc3v left'
 
 # %%
 # We can visualize the signal strength per region by time via a carpet plot.
@@ -68,4 +68,4 @@ selected_regions = [
 cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-cf[0].plot(regions=selected_regions)
+cf[0].plot(regions=selected_regions, backend='plotly')
