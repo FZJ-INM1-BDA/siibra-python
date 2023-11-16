@@ -80,6 +80,9 @@ class AnatomicalAnchor:
 
     @property
     def parcellations(self) -> List[Parcellation]:
+        """
+        Return any parcellation objects that regions of this anchor belong to.
+        """
         return list({region.root for region in self.regions})
 
     @property
@@ -140,7 +143,11 @@ class AnatomicalAnchor:
         return self._regions_cached
 
     def __str__(self):
-        region = "" if self._regionspec is None else str(self._regionspec)
+        parcs = {p.id: p.name for p in self.represented_parcellations()}
+        if len(parcs) == 1 and self._regionspec in [pid for pid in parcs]:
+            region = parcs[self._regionspec]  # if parcellation was anchored with the id instead of the name
+        else:
+            region = "" if self._regionspec is None else str(self._regionspec)
         location = "" if self.location is None else str(self.location)
         separator = " " if min(len(region), len(location)) > 0 else ""
         if region and location:
@@ -173,10 +180,7 @@ class AnatomicalAnchor:
         """
         Return any parcellation objects that this anchor explicitly points to.
         """
-        return [
-            r for r in self.regions
-            if isinstance(r, Parcellation)
-        ]
+        return [r for r in self.regions if isinstance(r, Parcellation)]
 
     @property
     def last_match_result(self) -> List[AnatomicalAssignment]:
