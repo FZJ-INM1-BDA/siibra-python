@@ -152,5 +152,6 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
-        "warm_cache"
+        "warm_cache",
+        "create_map_from_volume"
     ]

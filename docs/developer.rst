@@ -157,9 +157,14 @@ Basic definitions and notes
 Fetching volumes
 ----------------
 
+To access the actual image or mesh data from a volume requires explicit fetching.
+The process of fetching typically involves finding an appropriate volume provider, loading the data, and returning the image or mesh data.
+In simple volume objects however, this might only require to return already loaded image data. 
+Images are typially returned as Nifti1Image, while meshes are returned as a dictionary including the vertices, faces and sometimes label arrays.
+
 Fetching volumes occurs in two main stages:
 
-1. The determination of the volume by the user.
+1. Request of a volume object, such as a template, parcellation map, or other plain image volume.
 
     * The user sets the object they would like to fetch a volume from:
 
@@ -171,7 +176,7 @@ Fetching volumes occurs in two main stages:
         * template directly accesses to ``volume.fetch()``
         * ``fetch()`` first goes through ``map.fetch()`` to determine the associated volume.
 
-2. Actual retrieval of the volume object by siibra after the user asks for the
+2. Actual retrieval of the volume data by siibra after the user asks for the
    volume via ``fetch()`` method. When ``fetch()`` is invoked it accesses to
    corresponding volume provider based on the specifications given by volume
    index, fragment, z, label, variant, and format. According to the source type,

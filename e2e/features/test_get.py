@@ -11,7 +11,7 @@ def test_get_instances(Cls: siibra.features.Feature):
     assert isinstance(instances, list)
 
 
-ids = [
+selected_ids = [
     "lq0::EbrainsDataFeature::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/3ff328fa-f48f-474b-bd81-b5ee7ca230b6",
     "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::nodsid::6ba1f5c180a63705d84c25db9ff7efa7",  # CompoundFeature of 1579 BigBrainIntensityProfile features grouped by (Modified silver staining modality) anchored at Area hOc1 (V1, 17, CalcS) left with Set of 1579 points in the Bounding box from (-63.69,-59.94,-29.09) mm to (0.91,77.90,54.03)mm in BigBrain microscopic template (histology) space
     "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::a48879314d93d15c74e6512e9af9c91d",  # BigBrainIntensityProfile (Modified silver staining) anchored at Area hOc1 (V1, 17, CalcS) left with Point in BigBrain microscopic template (histology) [0.4248340129852295,50.589298248291016,-14.839699745178223]
@@ -27,7 +27,7 @@ ids = [
 ]
 
 
-@pytest.mark.parametrize("fid", ids)
+@pytest.mark.parametrize("fid", selected_ids)
 def test_get_instance(fid):
     feat = siibra.features.Feature._get_instance_by_id(fid)
     assert feat.id == fid
@@ -36,7 +36,7 @@ def test_get_instance(fid):
 # this tests whether or not calling a live query caused proxy feature to be
 # added to subclasses. (It should not: causes memory leak and also increases
 # query time linearly)
-@pytest.mark.parametrize("fid", ids)
+@pytest.mark.parametrize("fid", selected_ids)
 def test_subclass_count(fid):
     len_before = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
     _ = siibra.features.Feature._get_instance_by_id(fid)

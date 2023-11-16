@@ -4,3 +4,4 @@ flake8
 pytest-cov
 coverage
 requests-mock
+matplotlib

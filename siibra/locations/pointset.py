@@ -14,7 +14,7 @@
 # limitations under the License.
 """A set of coordinates on a reference space."""
 
-from . import location, point, boundingbox
+from . import location, point, boundingbox as _boundingbox
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
@@ -22,61 +22,72 @@ from ..commons import logger
 import numbers
 import json
 import numpy as np
-from nibabel import Nifti1Image
-from typing import Union
+try:
+    from sklearn.cluster import HDBSCAN
+    HAS_HDBSCAN = True
+except ImportError:
+    import sklearn
+    HAS_HDBSCAN = False
+    logger.warning(
+        f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
+        "`PointSet.find_clusters()` will not be avaiable."
+    )
 
 
 class PointSet(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space=None, sigma_mm=0):
+    def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
         """
         Construct a 3D point set in the given reference space.
 
         Parameters
         ----------
-        coordinates : list of Point, 3-tuples or string specs
+        coordinates : array-like, Nx3
             Coordinates in mm of the given space
         space : reference space (id, name, or Space object)
             The reference space
         sigma_mm : float, or list of float
             Optional standard deviation of point locations.
+        labels: list of point labels (optional)
         """
         location.Location.__init__(self, space)
+        self.coordinates = coordinates
+        if not isinstance(coordinates, np.ndarray):
+            self.coordinates = np.array(self.coordinates).reshape((-1, 3))
+        assert len(self.coordinates.shape) == 2
+        assert self.coordinates.shape[1] == 3
         if isinstance(sigma_mm, numbers.Number):
-            self.points = [point.Point(c, self.space, sigma_mm) for c in coordinates]
+            self.sigma_mm = [sigma_mm for _ in range(len(self))]
         else:
-            self.points = [
-                point.Point(c, self.space, s) for c, s in zip(coordinates, sigma_mm)
-            ]
+            assert len(sigma_mm) == len(self)
+            self.sigma_mm = sigma_mm
+        if labels is not None:
+            assert len(labels) == len(self)
+        self.labels = labels
 
-    def intersection(self, other: Union[location.Location, Nifti1Image]):
+    def intersection(self, other: location.Location):
         """Return the subset of points that are inside the given mask.
 
         NOTE: The affine matrix of the image must be set to warp voxels
         coordinates into the reference space of this Bounding Box.
         """
-        if isinstance(other, point.Point):
-            return self if other in self else None
-        elif isinstance(other, PointSet):
-            return [p for p in self if p in other]
-        elif isinstance(other, boundingbox.BoundingBox):
-            return [p for p in self if p.contained_in(other)]
-        inside = [p for p in self if p.intersects(other)]
-        if len(inside) == 0:
-            return None
-        elif len(inside) == 1:
-            return inside[0]
-        else:
-            return PointSet(
-                [p.coordinate for p in inside],
-                space=self.space,
-                sigma_mm=[p.sigma for p in inside],
-            )
+        if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
+            return other.intersection(self)
 
-    def intersects(self, other: Union[location.Location, Nifti1Image]):
-        return len(self.intersection(other)) > 0
+        ids, points = zip(*[(i, p) for i, p in enumerate(self) if p.intersects(other)])
+        labels = None if self.labels is None else [self.labels[i] for i in ids]
+        sigma = [p.sigma for p in points]
+        intersection = PointSet(
+            points,
+            space=self.space,
+            sigma_mm=sigma,
+            labels=labels
+        )
+        if len(intersection) == 0:
+            return None
+        return intersection[0] if len(intersection) == 1 else intersection
 
     @property
     def sigma(self):
@@ -89,7 +100,7 @@ class PointSet(location.Location):
     def warp(self, space, chunksize=1000):
         """Creates a new point set by warping its points to another space"""
         from ..core.space import Space
-        spaceobj = Space.get_instance(space)
+        spaceobj = space if isinstance(space, Space) else Space.get_instance(space)
         if spaceobj == self.space:
             return self
         if any(_ not in location.Location.SPACEWARP_IDS for _ in [self.space.id, spaceobj.id]):
@@ -122,7 +133,7 @@ class PointSet(location.Location):
             ).data
             tgt_points.extend(list(response["target_points"]))
 
-        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj)
+        return self.__class__(coordinates=tuple(tgt_points), space=spaceobj, labels=self.labels)
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new PointSet obtained by transforming the
@@ -138,7 +149,9 @@ class PointSet(location.Location):
             of this cannot be checked and is up to the user.
         """
         return self.__class__(
-            [c.transform(affine, space) for c in self.points], space
+            np.dot(affine, self.homogeneous.T)[:3, :].T,
+            space,
+            labels=self.labels
         )
 
     def __getitem__(self, index: int):
@@ -148,29 +161,47 @@ class PointSet(location.Location):
                 f"but index of {index} was requested."
             )
         else:
-            return self.points[index]
+            return point.Point(
+                self.coordinates[index, :],
+                space=self.space,
+                sigma_mm=self.sigma_mm[index]
+            )
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
-        return iter(self.points)
+        return (
+            point.Point(
+                self.coordinates[i, :],
+                space=self.space,
+                sigma_mm=self.sigma_mm[i]
+            )
+            for i in range(len(self))
+        )
+
+    def __eq__(self, other: 'PointSet'):
+        if isinstance(other, point.Point):
+            return len(self) == 1 and self[0] == other
+        if not isinstance(other, PointSet):
+            return False
+        return list(self) == list(other)
+
+    def __hash__(self):
+        return super().__hash__()
 
     def __len__(self):
         """The number of points in this PointSet."""
-        return len(self.points)
+        return self.coordinates.shape[0]
 
     def __str__(self):
         return f"Set of {len(self)} points in the {self.boundingbox}"
 
     @property
     def boundingbox(self):
-        """
-        Return the bounding box of these points.
-        """
-        from .boundingbox import BoundingBox
+        """Return the bounding box of these points."""
         XYZ = self.homogeneous[:, :3]
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
-        return BoundingBox(
+        return _boundingbox.BoundingBox(
             point1=XYZ.min(0) - max(sigma_min, 1e-6),
             point2=XYZ.max(0) + max(sigma_max, 1e-6),
             space=self.space,
@@ -190,9 +221,39 @@ class PointSet(location.Location):
 
     def as_list(self):
         """Return the point set as a list of 3D tuples."""
-        return [tuple(p) for p in self]
+        return list(zip(*self.coordinates.T.tolist()))
 
     @property
     def homogeneous(self):
-        """Access the list of 3D point as an Nx4 array of homogeneous coorindates."""
-        return np.array([c.homogeneous for c in self.points]).reshape((-1, 4))
+        """Access the list of 3D point as an Nx4 array of homogeneous coordinates."""
+        return np.c_[self.coordinates, np.ones(len(self))]
+
+    def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
+        if not HAS_HDBSCAN:
+            raise RuntimeError(
+                f"HDBSCAN is not available with your version {sklearn.__version__} "
+                "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."
+            )
+        points = np.array(self.as_list())
+        N = points.shape[0]
+        clustering = HDBSCAN(
+            min_cluster_size=int(N * min_fraction),
+            max_cluster_size=int(N * max_fraction),
+        )
+        if self.labels is not None:
+            logger.warn("Existing labels of PointSet will be overwritten with cluster labels.")
+        self.labels = clustering.fit_predict(points)
+        return self.labels
+
+    @property
+    def label_colors(self):
+        """ return a color for the given label. """
+        if self.labels is None:
+            return None
+        else:
+            try:
+                from matplotlib.pyplot import cm as colormaps
+            except Exception:
+                logger.error("Matplotlib is not available. Label colors is disabled.")
+                return None
+            return colormaps.rainbow(np.linspace(0, 1, max(self.labels) + 1))

@@ -17,9 +17,10 @@
 from . import query
 
 from ..features.tabular import bigbrain_intensity_profile, layerwise_bigbrain_intensities
+from ..features import anchor as _anchor
 from ..commons import logger
 from ..locations import point, pointset
-from ..core import region
+from ..core import structure
 from ..retrieval import requests, cache
 
 import numpy as np
@@ -72,78 +73,8 @@ class WagstylProfileLoader:
         logger.debug(f"{cls._profiles.shape[0]} BigBrain intensity profiles.")
         assert cls._vertices.shape[0] == cls._profiles.shape[0]
 
-    @staticmethod
-    def _choose_space(regionobj: region.Region):
-        """
-        Helper function to obtain a suitable space to fetch a regional mask.
-        BigBrain space has priorty.
-
-        Parameters
-        ----------
-        regionobj : region.Region
-
-        Returns
-        -------
-        Space
-
-        Raises
-        ------
-        RuntimeError
-            When there is no supported space that provides image for `regionobj`.
-        """
-        if regionobj.mapped_in_space('bigbrain'):
-            return 'bigbrain'
-        supported_spaces = [s for s in regionobj.supported_spaces if s.provides_image]
-        if len(supported_spaces) == 0:
-            raise RuntimeError(f"Could not find a supported space for {regionobj}")
-        return supported_spaces[0]
-
     def __len__(self):
         return self._vertices.shape[0]
-
-    def match(self, regionobj: region.Region, space: str = None):
-        """
-        Retrieve BigBrainIntesityProfiles .
-
-        Parameters
-        ----------
-        regionobj : region.Region
-            Region or parcellation
-        space : str, optional
-            The space in which the region masks will be calculated. By default,
-            siibra tries to fetch in BigBrain first and then the other spaces.
-
-        Returns
-        -------
-        tuple
-            tuple of profiles, boundary depths, and vertices
-        """
-        assert isinstance(regionobj, region.Region)
-        logger.debug(f"Matching locations of {len(self)} BigBrain profiles to {regionobj}")
-
-        if space is None:
-            space = self._choose_space(regionobj)
-
-        mask = regionobj.fetch_regional_map(space=space, maptype="labelled")
-        logger.info(f"Assigning {len(self)} profile locations to {regionobj} in {space}...")
-        voxels = (
-            pointset.PointSet(self._vertices, space="bigbrain")
-            .warp(space)
-            .transform(np.linalg.inv(mask.affine), space=None)
-        )
-        arr = mask.get_fdata()
-        XYZ = np.array(voxels.as_list()).astype('int')
-        X, Y, Z = np.split(
-            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-            3, axis=1
-        )
-        inside = np.where(arr[X, Y, Z] > 0)[0]
-
-        return (
-            self._profiles[inside, :],
-            self._boundary_depths[inside, :],
-            self._vertices[inside, :]
-        )
 
 
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
@@ -151,32 +82,28 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, regionobj: region.Region, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
-        assert isinstance(regionobj, region.Region)
+    def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
+        features = []
+        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        assert matched.labels is not None
+        for i in matched.labels:
+            prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
+                regionname=str(concept),
+                depths=loader.profile_labels,
+                values=loader._profiles[i],
+                boundaries=loader._boundary_depths[i],
+                location=point.Point(loader._vertices[i], space='bigbrain')
+            )
+            prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
+                query_structure=concept,
+                assigned_structure=concept,
+                qualification=_anchor.Qualification.CONTAINED,
+                explanation=f"Surface vertex of BigBrain cortical profile was filtered using {concept}"
+            )
+            features.append(prof)
 
-        space = WagstylProfileLoader._choose_space(regionobj)
-        if not regionobj.is_leaf:
-            leaves_defined_on_space = [
-                r for r in regionobj.leaves if r.mapped_in_space(space)
-            ]
-        else:
-            leaves_defined_on_space = [regionobj]
-
-        result = []
-        for subregion in leaves_defined_on_space:
-            matched_profiles, boundary_depths, coords = loader.match(subregion, space)
-            for i, profile in enumerate(matched_profiles):
-                prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                    regionname=subregion.name,
-                    depths=loader.profile_labels,
-                    values=profile,
-                    boundaries=boundary_depths[i, :],
-                    location=point.Point(coords[i, :], 'bigbrain')  # points are warped into BigBrain
-                )
-                result.append(prof)
-
-        return result
+        return features
 
 
 class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities):
@@ -184,38 +111,34 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, regionobj: region.Region, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
-        assert isinstance(regionobj, region.Region)
+    def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
+
         loader = WagstylProfileLoader()
+        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        indices = matched.labels
+        if indices is None:
+            return []
+        matched_profiles = loader._profiles[indices, :]
+        boundary_depths = loader._boundary_depths[indices, :]
+        # compute array of layer labels for all coefficients in profiles_left
+        N = matched_profiles.shape[1]
+        prange = np.arange(N)
+        layer_labels = 7 - np.array([
+            [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
+            for b in boundary_depths
+        ]).reshape((-1, 200))
 
-        space = WagstylProfileLoader._choose_space(regionobj)
-        if not regionobj.is_leaf:
-            leaves_defined_on_space = [
-                r for r in regionobj.leaves if r.mapped_in_space(space)
-            ]
-        else:
-            leaves_defined_on_space = [regionobj]
+        result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
+            regionname=str(concept),
+            means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
+            stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
+        )
+        result.anchor._location_cached = pointset.PointSet(loader._vertices[indices, :], space='bigbrain')
+        result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
+            query_structure=concept,
+            assigned_structure=concept,
+            qualification=_anchor.Qualification.CONTAINED,
+            explanation=f"Surface vertices of BigBrain cortical profiles were filtered using {concept}"
+        )
 
-        result = []
-        for subregion in leaves_defined_on_space:
-            matched_profiles, boundary_depths, coords = loader.match(subregion, space)
-            if matched_profiles.shape[0] == 0:
-                continue
-
-            # compute array of layer labels for all coefficients in profiles_left
-            N = matched_profiles.shape[1]
-            prange = np.arange(N)
-            layer_labels = 7 - np.array([
-                [np.array([[(prange < T) * 1] for i, T in enumerate((b * N).astype('int'))]).squeeze().sum(0)]
-                for b in boundary_depths
-            ]).reshape((-1, 200))
-
-            fp = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
-                regionname=subregion.name,
-                means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
-                stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
-            )
-            assert fp.matches(subregion)  # to create an assignment result
-            result.append(fp)
-
-        return result
+        return [result]

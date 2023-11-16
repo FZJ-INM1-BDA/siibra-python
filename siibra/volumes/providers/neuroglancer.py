@@ -12,13 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Handles reading and preparing neuroglancer files."""
 
-from . import volume
+from . import provider as _provider
 
-from ..commons import logger, MapType, merge_meshes, NEUROGLANCER_MAX_GIB
-from ..retrieval import requests, cache
-from ..locations import boundingbox as _boundingbox
+from ...commons import logger, MapType, merge_meshes
+from ...retrieval import requests, cache
+from ...locations import boundingbox as _boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
@@ -30,10 +29,10 @@ import numpy as np
 from typing import Union, Dict, Tuple
 
 
-class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precomputed"):
+class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
 
     def __init__(self, url: Union[str, Dict[str, str]]):
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
         self._init_url = url
         # TODO duplicated code to giftimesh
         if isinstance(url, str):  # one single image to load
@@ -169,17 +168,20 @@ class NeuroglancerProvider(volume.VolumeProvider, srctype="neuroglancer/precompu
 
 
 class NeuroglancerVolume:
+
+    # Number of bytes at which an image array is considered to large to fetch
+    MAX_GiB = 0.2
+
     # Wether to keep fetched data in local cache
     USE_CACHE = False
 
     @property
     def MAX_BYTES(self):
-        "Number of bytes at which an image array is considered to large to fetch"
-        return NEUROGLANCER_MAX_GIB * 1024 ** 3
+        return self.MAX_GiB * 1024 ** 3
 
     def __init__(self, url: str):
         # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
         assert isinstance(url, str)
         self.url = url
         self._scales_cached = None
@@ -255,7 +257,7 @@ class NeuroglancerVolume:
     def fetch(self, resolution_mm: float = None, voi: _boundingbox.BoundingBox = None, **kwargs):
         # the caller has to make sure voi is defined in the correct reference space
         scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
-        return scale.fetch(voi, **kwargs)
+        return scale.fetch(voi)
 
     def get_shape(self, resolution_mm=None):
         scale = self._select_scale(resolution_mm)
@@ -277,9 +279,9 @@ class NeuroglancerVolume:
         else:
             scale = self.scales[0]
             logger.warning(
-                f"Requested resolution {resolution_mm}mm is not available for "
-                f"all axes. Falling back to the highest possible resolution of "
-                f"({', '.join(map('{:.4f}mm'.format, scale.res_mm))})."
+                f"Requested resolution {resolution_mm} is not available. "
+                f"Falling back to the highest possible resolution of "
+                f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
             )
 
         scale_changed = False
@@ -380,7 +382,7 @@ class NeuroglancerScale:
             .ravel()
         )
 
-    def _read_chunk(self, gx, gy, gz, channel: int = None):
+    def _read_chunk(self, gx, gy, gz):
         if any(v < 0 for v in (gx, gy, gz)):
             raise RuntimeError('Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
@@ -396,18 +398,12 @@ class NeuroglancerScale:
         z0 = gz * self.chunk_sizes[2]
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
-        if channel is None:
-            channel = 0
-            if chunk_czyx.shape[0] > 1 and not self.color_warning_issued:
-                logger.warning(
-                    f"The volume has {chunk_czyx.shape[0]} color channels. "
-                    "Returning the first channel now but you can specify one "
-                    "with 'channel' keyword."
-                )
-                self.color_warning_issued = True
-        elif channel + 1 > chunk_czyx.shape[0]:
-            raise ValueError(f"There are only {chunk_czyx.shape[0]} color channels.")
-        chunk_zyx = chunk_czyx[channel]
+        if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
+            logger.warning(
+                "Color channel data is not yet supported. Returning first channel only."
+            )
+            self.color_warning_issued = True
+        chunk_zyx = chunk_czyx[0]
 
         if self.volume.USE_CACHE:
             np.save(cachefile, chunk_zyx)
@@ -441,7 +437,7 @@ class NeuroglancerScale:
                 y0 = (gy - gy0) * self.chunk_sizes[1]
                 for gz in range(gz0, gz1):
                     z0 = (gz - gz0) * self.chunk_sizes[2]
-                    chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
+                    chunk = self._read_chunk(gx, gy, gz)
                     z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
                     data_zyx[z0:z1, y0:y1, x0:x1] = chunk
 
@@ -461,7 +457,7 @@ class NeuroglancerScale:
         )
 
 
-class NeuroglancerMesh(volume.VolumeProvider, srctype="neuroglancer/precompmesh"):
+class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompmesh"):
     """
     A surface mesh provided as neuroglancer precomputed mesh.
     """

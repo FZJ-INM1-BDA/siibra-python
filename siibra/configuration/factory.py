@@ -26,7 +26,8 @@ from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
-from ..volumes import gifti, volume, nifti, neuroglancer, sparsemap, parcellationmap
+from ..volumes import volume, sparsemap, parcellationmap
+from ..volumes.providers import provider, gifti, neuroglancer, nifti
 
 from os import path
 import json
@@ -84,15 +85,27 @@ class Factory:
         return result
 
     @classmethod
-    def extract_volumes(cls, spec, space_id: str = None, name: str = None):
+    def extract_volumes(
+        cls,
+        spec,
+        space_id: str = None,
+        names: List[str] = None,
+        name_prefix: str = ""
+    ):
         volume_specs = spec.get("volumes", [])
-        for vspec in volume_specs:
+        if names:
+            if len(names) != len(volume_specs) and len(names) == 1:
+                variants = [vol['variant'] for vol in volume_specs]
+                names = [f"{name_prefix}{names[0]} {var} variant" for var in variants]
+        else:
+            names = [f"{name_prefix} - volume {i}" for i in range(len(volume_specs))]
+        for i, vspec in enumerate(volume_specs):
             if space_id:
                 if 'space' in vspec:
                     logger.warning(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
                 vspec['space'] = {"@id": space_id}
-            if name and vspec.get('name') is None:  # only use provided name if the volume has no specific name
-                vspec['name'] = name
+            if names and vspec.get('name') is None:  # only use provided name if the volume has no specific name
+                vspec['name'] = names[i]
         return list(map(cls.build_volume, volume_specs))
 
     @classmethod
@@ -181,7 +194,7 @@ class Factory:
             identifier=spec["@id"],
             name=spec["name"],
             species=Species.decode(spec.get('species')),
-            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), name=spec.get("name")),
+            volumes=cls.extract_volumes(spec, space_id=spec.get("@id"), names=[spec.get("name")]),
             shortname=spec.get("shortName", ""),
             description=spec.get("description"),
             modality=spec.get("modality"),
@@ -263,11 +276,11 @@ class Factory:
                     logger.warning(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-        assert all([isinstance(provider, volume.VolumeProvider) for provider in providers])
+        assert all([isinstance(p, provider.VolumeProvider) for p in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
-            name=spec.get("name", {}),
+            name=spec.get("name", ""),
             variant=spec.get("variant"),
             datasets=cls.extract_datasets(spec),
         )
@@ -282,7 +295,7 @@ class Factory:
         basename = path.splitext(path.basename(spec['filename']))[0]
         name = basename.replace('-', ' ').replace('_', ' ')
         identifier = f"{spec['@type'].replace('/','-')}_{basename}"
-        volumes = cls.extract_volumes(spec)
+        volumes = cls.extract_volumes(spec, name_prefix=basename)
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):
             Maptype = sparsemap.SparseMap

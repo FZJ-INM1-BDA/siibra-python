@@ -1,8 +1,10 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from siibra.volumes.parcellationmap import (
-    Map, space, parcellation, MapType, MapIndex, ExcessiveArgumentException,
-    InsufficientArgumentException, ConflictingArgumentException,
+    Map, space, parcellation, MapType, MapIndex
+)
+from siibra.exceptions import (
+    ExcessiveArgumentException, ConflictingArgumentException,
     NonUniqueIndexError, NoVolumeFound
 )
 from siibra.commons import Species
@@ -16,6 +18,7 @@ import inspect
 
 class DummyCls:
     _providers = {}
+
     def fetch(self):
         raise NotImplementedError
 
@@ -332,7 +335,6 @@ class TestMap(unittest.TestCase):
                 pdb.set_trace()
             self.assertIs(actual_fetch_result, selected_volume.fetch.return_value)
 
-
     @parameterized.expand(
         product(
             ["foo", Region("")],
@@ -352,5 +354,5 @@ class TestMap(unittest.TestCase):
             else:
                 return_val = self.map.get_index(region)
                 self.assertIs(return_val, list(return_find_indicies.keys())[0])
-            
+
             mock.assert_called_once_with(region)

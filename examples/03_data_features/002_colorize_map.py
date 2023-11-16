@@ -23,10 +23,11 @@ Here we demonstrate it for average densities of the GABAA receptor.
 """
 
 # %%
-# We start by selecting an atlas and the Julich-Brain parcellation.
+from nilearn import plotting
 import siibra
+# We start by selecting an atlas and the Julich-Brain parcellation.
 atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
-jubrain = atlas.get_parcellation('julich 2.9')
+jubrain = atlas.get_parcellation('julich 3')
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/03-002.png'
 
 # %%
@@ -53,8 +54,7 @@ mapping = {
 
 # %%
 # Now colorize the Julich-Brain maximum probability map and plot it.
-colorized_map = jubrain.get_map(space='mni152').colorize(mapping)
-from nilearn import plotting
+colorized_map = jubrain.get_map(space='mni152').colorize(mapping).fetch()
 plotting.view_img(
     colorized_map, cmap='magma',
     title=f"Average densities available for {receptor}", symmetric_cmap=False
@@ -64,6 +64,3 @@ plotting.view_img(
 # Alternatively, we can display this map on a surface mesh using nilearn.
 # Note that, you can switch between the hemispheres or variants (inflated or pial) from the plot itself.
 plotting.view_img_on_surf(colorized_map, cmap='magma', symmetric_cmap=False, surf_mesh="fsaverage6")
-
-
-# %%

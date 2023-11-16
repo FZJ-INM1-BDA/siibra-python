@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,6 +25,8 @@ import pandas as pd
 from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
 from skimage.filters import gaussian
 from dataclasses import dataclass
+from hashlib import md5
+from uuid import UUID
 try:
     from typing import TypedDict
 except ImportError:
@@ -159,10 +161,9 @@ class InstanceTable(Generic[T], Iterable):
             raise IndexError(f"{__class__.__name__} indexed with empty string")
         matches = self.find(spec)
         if len(matches) == 0:
-            print(str(self))
             raise IndexError(
-                f"{__class__.__name__} has no entry matching the specification '{spec}'.\n"
-                f"Possible values are: " + ", ".join(self._elements.keys())
+                f"{__class__.__name__} has no entry matching the specification '{spec}'."
+                f"Possible values are:\n" + str(self)
             )
         elif len(matches) == 1:
             return matches[0]
@@ -354,7 +355,7 @@ class MapType(Enum):
 
 
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
-SIIBRA_DEFAULT_MAP_THRESHOLD = None
+SIIBRA_DEFAULT_MAP_THRESHOLD = 0.0
 
 REMOVE_FROM_NAME = [
     "hemisphere",
@@ -408,26 +409,11 @@ def affine_scaling(affine):
     return np.prod(unit_lengths)
 
 
-def iterate_connected_components(img: Nifti1Image):
+def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affine2: np.ndarray):
     """
-    Provide an iterator over masks of connected components in the given image.
-    """
-    from skimage import measure
-    imgdata = np.asanyarray(img.dataobj).squeeze()
-    components = measure.label(imgdata > 0)
-    component_labels = np.unique(components)
-    assert component_labels[0] == 0
-    return (
-        (label, Nifti1Image((components == label).astype('uint8'), img.affine))
-        for label in component_labels[1:]
-    )
-
-
-def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
-    """
-    Compare two maps, given as Nifti1Image objects.
-    This function exploits that nibabel's get_fdata() caches the numerical arrays,
-    so we can use the object id to cache extraction of the nonzero coordinates.
+    Compare two arrays in physical space as defined by the given affine matrices.
+    Matrices map voxel coordinates to physical coordinates.
+    This function uses the object id to cache extraction of the nonzero coordinates.
     Repeated calls involving the same map will therefore be much faster as they
     will only access the image array if overlapping pixels are detected.
 
@@ -435,7 +421,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     which will further speed this up.
     """
 
-    a1, a2 = [m.get_fdata().squeeze() for m in (map1, map2)]
+    a1, a2 = arr1.squeeze(), arr2.squeeze()
 
     def homog(XYZ):
         return np.c_[XYZ, np.ones(XYZ.shape[0])]
@@ -446,7 +432,7 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     # Compute the nonzero voxels in map2 and their correspondences in map1
     XYZnz2 = nonzero_coordinates(a2)
     N2 = XYZnz2.shape[0]
-    warp2on1 = np.dot(np.linalg.inv(map1.affine), map2.affine)
+    warp2on1 = np.dot(np.linalg.inv(affine1), affine2)
     XYZnz2on1 = (np.dot(warp2on1, homog(XYZnz2).T).T[:, :3] + 0.5).astype("int")
 
     # valid voxel pairs
@@ -454,9 +440,9 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
         np.logical_and.reduce(
             [
                 XYZnz2on1 >= 0,
-                XYZnz2on1 < map1.shape[:3],
+                XYZnz2on1 < arr1.shape[:3],
                 XYZnz2 >= 0,
-                XYZnz2 < map2.shape[:3],
+                XYZnz2 < arr2.shape[:3],
             ]
         ),
         1,
@@ -481,14 +467,14 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
     # Compute the nonzero voxels in map1 with their correspondences in map2
     XYZnz1 = nonzero_coordinates(a1)
     N1 = XYZnz1.shape[0]
-    warp1on2 = np.dot(np.linalg.inv(map2.affine), map1.affine)
+    warp1on2 = np.dot(np.linalg.inv(affine2), affine1)
 
     # Voxels referring to the union of the nonzero pixels in both maps
     XYZa1 = np.unique(np.concatenate((XYZnz1, XYZnz2on1)), axis=0)
     XYZa2 = (np.dot(warp1on2, homog(XYZa1).T).T[:, :3] + 0.5).astype("int")
     valid = np.all(
         np.logical_and.reduce(
-            [XYZa1 >= 0, XYZa1 < map1.shape[:3], XYZa2 >= 0, XYZa2 < map2.shape[:3]]
+            [XYZa1 >= 0, XYZa1 < arr1.shape[:3], XYZa2 >= 0, XYZa2 < arr2.shape[:3]]
         ),
         1,
     )
@@ -517,6 +503,40 @@ def compare_maps(map1: Nifti1Image, map2: Nifti1Image):
         correlation=r,
         weighted_mean_of_first=np.sum(x * y) / np.sum(y),
         weighted_mean_of_second=np.sum(x * y) / np.sum(x),
+    )
+
+
+def resample_array_to_array(
+    source_data: np.ndarray,
+    source_affine: np.ndarray,
+    target_data: np.ndarray,
+    target_affine: np.ndarray
+):
+    """
+    Returns the source data resampled to match the target data
+    according to their affines.
+    """
+    from nibabel import Nifti1Image
+    from nilearn.image import resample_to_img
+    interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
+        else 'linear'
+    return np.asanyarray(resample_to_img(
+        Nifti1Image(source_data, source_affine),
+        Nifti1Image(target_data, target_affine),
+        interpolation=interp
+    ).dataobj)
+
+
+def connected_components(imgdata: np.ndarray):
+    """
+    Provide an iterator over connected components in the array
+    """
+    from skimage import measure
+    components = measure.label(imgdata > 0)
+    component_labels = np.unique(components)
+    return (
+        (label, (components == label).astype('uint8'))
+        for label in component_labels
     )
 
 
@@ -766,3 +786,14 @@ class Species(Enum):
 
     def __repr__(self):
         return f"{self.__class__.__name__}: {str(self)}"
+
+
+def generate_uuid(string: str):
+    if isinstance(string, str):
+        b = string.encode("UTF-8")
+    elif isinstance(string, Nifti1Image):
+        b = string.to_bytes()
+    else:
+        raise ValueError(f"Cannot build uuid for parameter type {type(string)}")
+    hex_string = md5(b).hexdigest()
+    return str(UUID(hex=hex_string))

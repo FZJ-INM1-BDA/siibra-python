@@ -15,18 +15,17 @@
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
 from . import location, boundingbox, pointset
+
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
 
-from nibabel.affines import apply_affine
-from nibabel import Nifti1Image
 from urllib.parse import quote
 import re
 import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Union, Tuple
+from typing import Tuple
 
 
 class Point(location.Location):
@@ -58,18 +57,15 @@ class Point(location.Location):
         elif isinstance(spec, (tuple, list)) and len(spec) in [3, 4]:
             if len(spec) == 4:
                 assert spec[3] == 1
-            return tuple(float(v) for v in spec[:3])
+            return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
         elif isinstance(spec, np.ndarray) and spec.size == 3:
-            return tuple(float(v) for v in spec[:3])
+            return tuple(float(v.item()) if isinstance(v, np.ndarray) else float(v) for v in spec[:3])
         elif isinstance(spec, Point):
             return spec.coordinate
 
         raise ValueError(
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
-
-    def __hash__(self):
-        return sum(map(hash, (self.coordinate, self.sigma, self.space.key)))
 
     def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
         """
@@ -99,65 +95,15 @@ class Point(location.Location):
     def homogeneous(self):
         """The homogenous coordinate of this point as a 4-tuple,
         obtained by appending '1' to the original 3-tuple."""
-        return self.coordinate + (1,)
+        return np.atleast_2d(self.coordinate + (1,))
 
-    def intersection(self, other: Union[location.Location, Nifti1Image]) -> "Point":
+    def intersection(self, other: location.Location) -> "Point":
         if isinstance(other, Point):
             return self if self == other else None
         elif isinstance(other, pointset.PointSet):
             return self if self in other else None
-        elif isinstance(other, boundingbox.BoundingBox):
-            return self if other.contains(self) else None
-        elif isinstance(other, Nifti1Image):
-            return self if self.intersects(other) else None
         else:
-            raise NotImplementedError(
-                f"Intersection of {self.__class__.__name__} with "
-                f"{other.__class__.__name__} not implemented"
-            )
-
-    def intersects(self, other: Union[location.Location, Nifti1Image]) -> bool:
-        """Returns true if this point lies in the given mask.
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        # transform physical coordinates to voxel coordinates for the query
-        def coordinate_inside_mask(mask, c):
-            voxel = (apply_affine(np.linalg.inv(mask.affine), c) + 0.5).astype(int)
-            if np.any(voxel >= mask.dataobj.shape):
-                return False
-            elif np.any(voxel < 0):
-                return False
-            elif mask.dataobj[voxel[0], voxel[1], voxel[2]] == 0:
-                return False
-            else:
-                return True
-
-        if isinstance(other, location.Location):
-            return (self.intersection(other) is not None)
-        elif isinstance(other, Nifti1Image):
-            if other.ndim == 4:
-                return any(
-                    coordinate_inside_mask(other.slicer[:, :, :, i], self.coordinate)
-                    for i in range(other.shape[3])
-                )
-            else:
-                return coordinate_inside_mask(other, self.coordinate)
-        else:
-            raise NotImplementedError(
-                f"Intersection test of {self.__class__.__name__} with "
-                f"{other.__class__.__name__} not implemented"
-            )
-
-    def contained_in(self, other: Union[location.Location, Nifti1Image]):
-        return self.intersects(other)
-
-    def contains(self, other: Union[location.Location, Nifti1Image]):
-        if isinstance(other, Point):
-            return self == other
-        else:
-            return False
+            return self if other.intersection(self) else None
 
     def warp(self, space):
         """Creates a new point by warping this point to another space"""
@@ -205,23 +151,42 @@ class Point(location.Location):
 
     def __lt__(self, other):
         o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return True  # 'other' was warped outside reference space bounds
         return all(self[i] < o[i] for i in range(3))
 
     def __gt__(self, other):
+        assert other is not None
         o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
         return all(self[i] > o[i] for i in range(3))
 
+    def __hash__(self):
+        return super().__hash__()
+
     def __eq__(self, other: 'Point'):
+        if isinstance(other, pointset.PointSet):
+            return other == self  # implemented at pointset
         if not isinstance(other, Point):
             return False
         o = other if self.space is None else other.warp(self.space)
-        return all(self[i] == o[i] for i in range(3))
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
+        return all(self[i] == o[i] for i in range(3)) and self.sigma == other.sigma
 
     def __le__(self, other):
-        return (self < other) or (self == other)
+        o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return True  # 'other' was warped outside reference space bounds
+        return all(self[i] <= o[i] for i in range(3))
 
     def __ge__(self, other):
-        return (self > other) or (self == other)
+        assert other is not None
+        o = other if self.space is None else other.warp(self.space)
+        if o is None:
+            return False  # 'other' was warped outside reference space bounds
+        return all(self[i] >= o[i] for i in range(3))
 
     def __add__(self, other):
         """Add the coordinates of two points to get
@@ -259,12 +224,10 @@ class Point(location.Location):
             ----
             The consistency of this cannot be checked and is up to the user.
         """
-        from ..core.space import Space
-        spaceobj = Space.get_instance(space)
-        x, y, z, h = np.dot(affine, self.homogeneous)
+        x, y, z, h = np.dot(affine, self.homogeneous.T)
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
-        return self.__class__((x / h, y / h, z / h), spaceobj)
+        return self.__class__((x / h, y / h, z / h), space)
 
     def get_enclosing_cube(self, width_mm):
         """
@@ -277,6 +240,9 @@ class Point(location.Location):
             point2=self + offset,
             space=self.space,
         )
+
+    def __len__(self):
+        return 1
 
     def __iter__(self):
         """Return an iterator over the location,
@@ -328,3 +294,6 @@ class Point(location.Location):
         return hashlib.md5(
             f"{self.space.id}{','.join(str(val) for val in self)}".encode("utf-8")
         ).hexdigest()
+
+    def __repr__(self):
+        return f"<Point({self.coordinate}, space={self.space.id}, sigma_mm={self.sigma})>"

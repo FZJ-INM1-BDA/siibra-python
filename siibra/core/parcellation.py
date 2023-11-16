@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -129,12 +129,13 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         return self._id
 
     def matches(self, spec):
-        if isinstance(spec, str):
-            if all(
-                w in self.shortname.lower()
-                for w in re.split(r'\s+', spec.lower())
-            ):
-                return True
+        if spec not in self._CACHED_MATCHES:
+            if isinstance(spec, str):
+                if all(
+                    w in self.shortname.lower()
+                    for w in re.split(r'\s+', spec.lower())
+                ):
+                    self._CACHED_MATCHES[spec] = True
         return super().matches(spec)
 
     def get_map(self, space=None, maptype: Union[str, MapType] = MapType.LABELLED, spec: str = ""):
@@ -345,12 +346,6 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             raise RuntimeError(
                 f"Spec {regionspec!r} resulted in multiple matches: {', '.join(r.name for r in candidates)}."
             )
-
-    def __str__(self):
-        return self.name
-
-    def __repr__(self):
-        return self.name
 
     def __getitem__(self, regionspec: Union[str, int]):
         """

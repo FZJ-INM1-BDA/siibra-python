@@ -35,9 +35,10 @@ from nilearn import plotting
 # %%
 # Per default, `siibra` will fetch the whole brain volume at a reasonably
 # reduced resolution.
-bigbrain = siibra.get_template('bigbrain')
-bigbrain_whole = bigbrain.fetch()
-plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
+space = siibra.spaces['bigbrain']
+bigbrain_template = space.get_template()
+bigbrain_whole_img = bigbrain_template.fetch()
+plotting.view_img(bigbrain_whole_img, bg_img=None, cmap='gray')
 
 # %%
 # To see the full resolution, we may specify a bounding box in the physical
@@ -47,19 +48,24 @@ plotting.view_img(bigbrain_whole, bg_img=None, cmap='gray')
 # a string representation, which could be conveniently copy pasted from the
 # interactive viewer `siibra explorer <https://atlases.ebrains.eu/viewer>`_.
 # Note that the coordinates can be specified by 3-tuples, and in other ways.
-space = siibra.spaces.get('bigbrain')
-voi = space.get_bounding_box(
+voi = siibra.locations.BoundingBox(
     point1="-30.590mm, 3.270mm, 47.814mm",
-    point2="-26.557mm, 6.277mm, 50.631mm"
+    point2="-26.557mm, 6.277mm, 50.631mm",
+    space=space
 )
-bigbrain_chunk = bigbrain.fetch(voi=voi, resolution_mm=0.02)
+bigbrain_chunk = bigbrain_template.fetch(voi=voi, resolution_mm=0.02)
 plotting.view_img(bigbrain_chunk, bg_img=None, cmap='gray')
 
 # %%
 # Note that since both fetched image volumes are spatial images with a properly
 # defined transformation between their voxel and physical spaces, we can
 # directly plot them correctly superimposed on each other:
-plotting.view_img(bigbrain_chunk, bg_img=bigbrain_whole, cmap='magma', cut_coords=tuple(voi.center))
+plotting.view_img(
+    bigbrain_chunk,
+    bg_img=bigbrain_whole_img,
+    cmap='magma',
+    cut_coords=tuple(voi.center)
+)
 
 # %%
 # Next we select a parcellation which provides a map for BigBrain, and extract
@@ -103,7 +109,7 @@ for f in features:
 section1402 = features[3]
 plotting.plot_img(
     section1402.fetch(),
-    bg_img=bigbrain_whole,
+    bg_img=bigbrain_whole_img,
     title="#1402",
     cmap='gray'
 )

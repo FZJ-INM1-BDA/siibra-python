@@ -41,6 +41,8 @@ class AtlasConcept:
     providing data files or additional metadata descriptions on request.
     """
 
+    _REGISTRIES = {}
+
     def __init__(
         self,
         identifier: str,
@@ -87,6 +89,7 @@ class AtlasConcept:
         self._publications = publications
         self.datasets = datasets
         self._spec = spec
+        self._CACHED_MATCHES = {}  # we cache match() function results
 
     @property
     def description(self):
@@ -136,10 +139,19 @@ class AtlasConcept:
         return self._species_cached
 
     @classmethod
+    def get_registry(cls, subclass_name: str):
+        subclasses = {c.__name__: c for c in cls._REGISTRIES}
+        if subclass_name in subclasses:
+            return subclasses[subclass_name].registry()
+        else:
+            logger.warn(f"No registry for atlas concepts named {subclass_name}")
+            return None
+
+    @classmethod
     def registry(cls: Type[T]) -> InstanceTable[T]:
         if cls._configuration_folder is None:
             return None
-        if cls._registry_cached is None:
+        if cls._REGISTRIES[cls] is None:
             from ..configuration import Configuration
             conf = Configuration()
             # visit the configuration to provide a cleanup function
@@ -161,15 +173,15 @@ class AtlasConcept:
             if len({o.__class__ for o in objects}) > 1:
                 logger.warning(f"{cls.__name__} registry contains multiple classes: {', '.join(list({o.__class__.__name__ for o in objects}))}")
             assert hasattr(objects[0].__class__, "match") and callable(objects[0].__class__.match)
-            cls._registry_cached = InstanceTable(
+            cls._REGISTRIES[cls] = InstanceTable(
                 elements={o.key: o for o in objects},
                 matchfunc=objects[0].__class__.match
             )
-        return cls._registry_cached
+        return cls._REGISTRIES[cls]
 
     @classmethod
     def clear_registry(cls):
-        cls._registry_cached = None
+        cls._REGISTRIES[cls] = None
 
     @classmethod
     def get_instance(cls, spec: str):
@@ -204,12 +216,15 @@ class AtlasConcept:
         This method is called whenever AtlasConcept gets subclassed
         (see https://docs.python.org/3/reference/datamodel.html)
         """
-        cls._registry_cached = None
         cls._configuration_folder = configuration_folder
+        cls._REGISTRIES[cls] = None
         return super().__init_subclass__()
 
     def __str__(self):
-        return f"{self.__class__.__name__}: {self.name}"
+        return self.name
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, species={self.species})>"
 
     def matches(self, spec):
         """
@@ -222,24 +237,26 @@ class AtlasConcept:
             bool
                 Whether the given specification matches the name, key or id of the concept.
         """
-        if isinstance(spec, self.__class__) and (spec == self):
-            return True
-        elif isinstance(spec, str):
-            if spec == self.key:
-                return True
-            elif spec == self.id:
-                return True
-            else:
-                # match the name
-                words = [w for w in re.split("[ -]", spec)]
-                squeezedname = clear_name(self.name.lower()).replace(" ", "")
-                return any(
-                    [
-                        all(w.lower() in squeezedname for w in words),
-                        spec.replace(" ", "") in squeezedname,
-                    ]
-                )
-        return False
+        if spec not in self._CACHED_MATCHES:
+            self._CACHED_MATCHES[spec] = False
+            if isinstance(spec, self.__class__) and (spec == self):
+                self._CACHED_MATCHES[spec] = True
+            elif isinstance(spec, str):
+                if spec == self.key:
+                    self._CACHED_MATCHES[spec] = True
+                elif spec == self.id:
+                    self._CACHED_MATCHES[spec] = True
+                else:
+                    # match the name
+                    words = [w for w in re.split("[ -]", spec)]
+                    squeezedname = clear_name(self.name.lower()).replace(" ", "")
+                    self._CACHED_MATCHES[spec] = any(
+                        [
+                            all(w.lower() in squeezedname for w in words),
+                            spec.replace(" ", "") in squeezedname,
+                        ]
+                    )
+        return self._CACHED_MATCHES[spec]
 
     @classmethod
     def match(cls, obj, spec):

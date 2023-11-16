@@ -1,6 +1,6 @@
 import siibra
 import pytest
-from siibra.features.anchor import AssignmentQualification
+from siibra.features.anchor import Qualification
 
 concepts = [
     (
@@ -25,4 +25,4 @@ def features_fixture():
 def test_each_feature(features_fixture):
     for f in features_fixture:
         for qual in f.anchor.regions.values():
-            assert isinstance(qual, AssignmentQualification)
+            assert isinstance(qual, Qualification)

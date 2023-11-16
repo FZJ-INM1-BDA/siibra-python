@@ -77,4 +77,3 @@ plotting.view_surf(
     surf_map=thicknesses[4],
     symmetric_cmap=False, cmap='magma', vmax=0.3
 )
-# %%

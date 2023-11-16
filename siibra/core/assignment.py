@@ -12,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Qualification between two arbitary concepts"""
+"""Qualification between two BrainStructures"""
 
 from enum import Enum
-from typing import Dict, TypeVar, Generic
 from dataclasses import dataclass
+from typing import Dict, Generic, TypeVar, TYPE_CHECKING
+if TYPE_CHECKING:
+    from .structure import BrainStructure
 
 T = TypeVar("T")
 
@@ -43,14 +45,14 @@ class Qualification(Enum):
             Qualification.CONTAINS: 'contains',
             Qualification.APPROXIMATE: 'approximates to',
             Qualification.HOMOLOGOUS: 'is homologous to',
-            Qualification.OTHER_VERSION: 'is another version of',
+            Qualification.OTHER_VERSION: 'is another version of'
         }
-        assert self in transl, f"{str(self)} verb cannot be found!"
+        assert self in transl, f"{str(self)} verb cannot be found."
         return transl[self]
 
     def invert(self):
         """
-        Return a MatchPrecision object with the inverse meaning
+        Return qualification with the inverse meaning
         """
         inverses = {
             Qualification.EXACT: Qualification.EXACT,
@@ -61,7 +63,7 @@ class Qualification(Enum):
             Qualification.HOMOLOGOUS: Qualification.HOMOLOGOUS,
             Qualification.OTHER_VERSION: Qualification.OTHER_VERSION,
         }
-        assert self in inverses, f"{str(self)} inverses cannot be found"
+        assert self in inverses, f"{str(self)} inverses cannot be found."
         return inverses[self]
 
     def __str__(self):
@@ -79,9 +81,10 @@ class Qualification(Enum):
 
 
 @dataclass
-class RelationAssignment(Generic[T]):
-    query_structure: T
-    assigned_structure: T
+class AnatomicalAssignment(Generic[T]):
+    """Represents a qualified assignment between anatomical structures."""
+    query_structure: "BrainStructure"
+    assigned_structure: "BrainStructure"
     qualification: Qualification
     explanation: str = ""
 
@@ -94,14 +97,14 @@ class RelationAssignment(Generic[T]):
         return msg if self.explanation == "" else f"{msg} - {self.explanation}"
 
     def invert(self):
-        return RelationAssignment(
+        return AnatomicalAssignment(
             self.assigned_structure,
             self.query_structure,
             self.qualification.invert(),
             self.explanation
         )
 
-    def __lt__(self, other: 'RelationAssignment'):
-        if not isinstance(other, RelationAssignment):
-            raise ValueError(f"Cannot compare RelationAssignment with instances of '{type(other)}'")
+    def __lt__(self, other: 'AnatomicalAssignment'):
+        if not isinstance(other, AnatomicalAssignment):
+            raise ValueError(f"Cannot compare AnatomicalAssignment with instances of '{type(other)}'")
         return self.qualification.value < other.qualification.value

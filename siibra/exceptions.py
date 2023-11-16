@@ -12,17 +12,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Package handling variety of volumes"""
 
-from .parcellationmap import Map
-from .providers import provider
-from .volume import from_array, from_file, from_pointset, from_nifti, Volume
-
-from ..commons import logger
-from typing import List, Union
-import numpy as np
+class ExcessiveArgumentException(ValueError):
+    pass
 
 
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()
+class InsufficientArgumentException(ValueError):
+    pass
+
+
+class ConflictingArgumentException(ValueError):
+    pass
+
+
+class NonUniqueIndexError(RuntimeError):
+    pass
+
+
+class NoMapAvailableError(RuntimeError):
+    pass
+
+
+class SpaceWarpingFailedError(RuntimeError):
+    pass
+
+
+class NoVolumeFound(RuntimeError):
+    pass

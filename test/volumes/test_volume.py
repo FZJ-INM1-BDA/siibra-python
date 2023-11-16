@@ -1,12 +1,15 @@
 import unittest
-import pytest
 from unittest.mock import patch
-from siibra.commons import MapType
-from siibra.volumes.volume import Volume, VolumeProvider, space
+from siibra.volumes.volume import Volume
+from siibra.core import space
+from siibra.volumes.providers.provider import VolumeProvider
 from parameterized import parameterized
 
+
 class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
-    def fetch(self, *args, **kwargs): pass
+
+    def fetch(self, *args, **kwargs):
+        pass
 
     @property
     def _url(self):
@@ -16,14 +19,16 @@ class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
     def boundingbox(self):
         return None
 
+
 class TestVolumeProvider(unittest.TestCase):
 
     @staticmethod
     def get_instance():
         return DummyVolumeProvider()
-    
+
     def test_volume_srctype(self):
         self.assertEqual(DummyVolumeProvider.srctype, "foo-bar")
+
 
 class TestVolume(unittest.TestCase):
 
@@ -37,18 +42,18 @@ class TestVolume(unittest.TestCase):
 
     def test_init(self):
         self.assertIsNotNone(self.volume)
-    
+
     def test_formats(self):
         self.assertSetEqual(self.volume.formats, {'foo-bar', 'image'})
-    
+
     @parameterized.expand([
-        ({ "@id": "foo" }, "foo", True, True),
-        ({ "name": "bar" }, "bar", True, False),
-        ({ "buzz": "bay" }, None, False, None),
+        ({"@id": "foo"}, "foo", True, True),
+        ({"name": "bar"}, "bar", True, False),
+        ({"buzz": "bay"}, None, False, None),
         ({}, None, False, None),
     ])
     def test_space(self, set_space_spec, called_arg, called_get_instance, returned_space):
-        
+
         self.volume = TestVolume.get_instance(space_spec=set_space_spec)
 
         with patch.object(space.Space, 'get_instance') as mock_get_instance:
@@ -61,7 +66,7 @@ class TestVolume(unittest.TestCase):
                 mock_get_instance.assert_called_once_with(called_arg)
             else:
                 mock_get_instance.assert_not_called()
-            
+
             if not called_get_instance:
                 assert actual_returned_space.name == "Unspecified space"
             else:

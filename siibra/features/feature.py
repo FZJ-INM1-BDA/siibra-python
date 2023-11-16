@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,8 +17,8 @@
 from . import anchor as _anchor
 
 from ..commons import logger, InstanceTable, siibra_tqdm, __version__
-from ..core import concept
-from ..core import space, region, parcellation
+from ..core import concept, space, region, parcellation, structure
+from ..volumes import volume
 
 from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any, Iterator
 from hashlib import md5
@@ -231,6 +231,11 @@ class Feature:
         cls._preconfigured_instances = None
 
     def matches(self, concept: concept.AtlasConcept) -> bool:
+        """
+        Match the features anatomical anchor agains the given query concept.
+        Record the most recently matched concept for inspection by the caller.
+        """
+        # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading
         if self.anchor and self.anchor.matches(concept):
             self.anchor._last_matched_concept = concept
             return True
@@ -380,6 +385,8 @@ class Feature:
         elif isinstance(concept, region.Region):
             encoded_c.append(f"p:{concept.parcellation.id}")
             encoded_c.append(f"r:{concept.name}")
+        elif isinstance(concept, volume.Volume):
+            encoded_c.append(f"v:{concept.name}")
 
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
@@ -429,7 +436,7 @@ class Feature:
             return list(ftypes)
 
     @classmethod
-    def livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
+    def _livequery(cls, concept: Union[region.Region, parcellation.Parcellation, space.Space], **kwargs) -> List['Feature']:
         if not hasattr(cls, "_live_queries"):
             return []
 
@@ -437,27 +444,35 @@ class Feature:
         for QueryType in cls._live_queries:
             argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
                 if len(kwargs) > 0 else ""
-            logger.info(
+            logger.debug(
                 f"Running live query for {QueryType.feature_type.__name__} "
                 f"objects linked to {str(concept)}{argstr}"
             )
             q = QueryType(**kwargs)
-            features = [
-                Feature.wrap_livequery_feature(feat, Feature.serialize_query_context(feat, concept))
-                for feat in q.query(concept)
-            ]
-            live_instances.extend(features)
+            features = q.query(concept)
+            live_instances.extend(
+                Feature.wrap_livequery_feature(f, Feature.serialize_query_context(f, concept))
+                for f in features
+            )
+
         return live_instances
 
     @classmethod
     def match(
         cls,
-        concept: Union[region.Region, parcellation.Parcellation, space.Space],
+        concept: structure.BrainStructure,
         feature_type: Union[str, Type['Feature'], list],
         **kwargs
     ) -> List['Feature']:
         """
-        Retrieve data features of the desired modality.
+        Retrieve data features of the requested feature type (i.e. modality).
+        This will
+        - call Feature.match(concept) for any registered preconfigured features
+        - run any registered live queries
+        The preconfigured and live query instances are merged and returend as a list.
+
+        If multiple feature types are given, recurse for each of them.
+
 
         Parameters
         ----------
@@ -495,13 +510,15 @@ class Feature:
 
         assert issubclass(feature_type, Feature)
 
-        if not isinstance(concept, (region.Region, parcellation.Parcellation, space.Space)):
+        # At this stage, no recursion is needed.
+        # We expect a specific supported feature type is to be matched now.
+        if not isinstance(concept, structure.BrainStructure):
             raise ValueError(
-                "Feature.match / siibra.features.get only accepts Region, "
-                "Space and Parcellation objects as concept."
+                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a BrainStructure type."
             )
 
-        msg = f"Matching {feature_type.__name__} to {concept}"
+        # Collect any preconfigured instances of the requested feature type
+        # which match the query concept
         instances = [
             instance
             for f_type in cls.SUBCLASSES[feature_type]
@@ -510,11 +527,17 @@ class Feature:
 
         preconfigured_instances = [
             f for f in siibra_tqdm(
-                instances, desc=msg, total=len(instances), disable=(not instances)
-            ) if f.matches(concept)
+                instances,
+                desc=f"Matching {feature_type.__name__} to {concept}",
+                total=len(instances),
+                disable=(not instances)
+            )
+            if f.matches(concept)
         ]
 
-        live_instances = feature_type.livequery(concept, **kwargs)
+        # Then run any registered live queries for the requested feature type
+        # with the query concept.
+        live_instances = feature_type._livequery(concept, **kwargs)
 
         results = list(dict.fromkeys(preconfigured_instances + live_instances))
         return CompoundFeature.compound(results, concept)
@@ -530,7 +553,7 @@ class Feature:
             F, concept, fid = cls.deserialize_query_context(feature_id)
             return [
                 f
-                for f in F.livequery(concept, **kwargs)
+                for f in F._livequery(concept, **kwargs)
                 if f.id == fid or f.id == feature_id
             ][0]
         except ParseLiveQueryIdException:

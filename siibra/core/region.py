@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,34 +13,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Representation of a brain region."""
-from . import concept, space as _space, parcellation as _parcellation
-from .relation_qualification import Qualification as RegionRelationship, RelationAssignment
 
-from ..locations import boundingbox, point, pointset
-from ..volumes import parcellationmap
+from . import concept, structure, space as _space, parcellation as _parcellation
+from .assignment import Qualification, AnatomicalAssignment
 
+from ..locations import location, boundingbox, point, pointset
+from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
     MapType,
     affine_scaling,
     create_key,
     clear_name,
-    siibra_tqdm,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
 )
+from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 import numpy as np
 import re
 import anytree
-from typing import List, Set, Union, Iterable, Dict, Callable
-from nibabel import Nifti1Image
+from typing import List, Union, Iterable, Dict, Callable
 from difflib import SequenceMatcher
 from dataclasses import dataclass, field
 from ebrains_drive import BucketApiClient
 import json
-from functools import wraps
+from functools import wraps, reduce
 from concurrent.futures import ThreadPoolExecutor
 
 
@@ -62,13 +61,16 @@ class SpatialProp:
     space: _space.Space = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept):
+class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     """
     Representation of a region with name and more optional attributes
     """
 
     _regex_re = re.compile(r'^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$')
     _accepted_flags = "aiLmsux"
+
+    _GETMAP_CACHE = {}
+    _GETMAP_CACHE_MAX_ENTRIES = 1
 
     def __init__(
         self,
@@ -131,16 +133,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             else tuple(int(rgb[p:p + 2], 16) for p in [1, 3, 5])
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
-        self._CACHED_REGION_SEARCHES = {}
         self._str_aliases = None
+        self._CACHED_REGION_SEARCHES = {}
 
-    def get_related_regions(self) -> Iterable["RegionRelationAssessments"]:
+    def get_related_regions(self) -> Iterable["Qualification"]:
         """
         Get assements on relations of this region to others defined on EBRAINS.
 
         Yields
         ------
-        RegionRelationAssessments
+        Qualification
 
         Example
         -------
@@ -299,6 +301,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             return MEM[key]
 
         if isinstance(regionspec, str):
+            # convert the specified string into a regex for matching
             regex_match = self._regex_re.match(regionspec)
             if regex_match:
                 flags = regex_match.group('flags')
@@ -364,8 +367,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 reverse=True,
                 key=lambda region: SequenceMatcher(None, str(region), regionspec).ratio(),
             )
-            if type(regionspec) == str
-            else found_regions
+            if isinstance(regionspec, str) else found_regions
         )
 
         return MEM[key]
@@ -386,51 +388,56 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         bool
             If the regionspec matches to the Region.
         """
-        if regionspec is None:
-            return False
+        if regionspec not in self._CACHED_MATCHES:
+            def splitstr(s):
+                return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
-        def splitstr(s):
-            return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
+            if regionspec is None:
+                self._CACHED_MATCHES[regionspec] = False
 
-        if isinstance(regionspec, Region):
-            return self == regionspec
+            elif isinstance(regionspec, Region):
+                self._CACHED_MATCHES[regionspec] = self == regionspec
 
-        elif isinstance(regionspec, str):
-            # string is given, perform lazy string matching
-            q = regionspec.lower().strip()
-            if q == self.key.lower().strip():
-                return True
-            elif q == self.id.lower().strip():
-                return True
-            elif q == self.name.lower().strip():
-                return True
+            elif isinstance(regionspec, str):
+                # string is given, perform lazy string matching
+                q = regionspec.lower().strip()
+                if q == self.key.lower().strip():
+                    self._CACHED_MATCHES[regionspec] = True
+                elif q == self.id.lower().strip():
+                    self._CACHED_MATCHES[regionspec] = True
+                elif q == self.name.lower().strip():
+                    self._CACHED_MATCHES[regionspec] = True
+                else:
+                    # match if all words of the query are also included in the region name
+                    W = splitstr(clear_name(self.name.lower()))
+                    Q = splitstr(clear_name(regionspec))
+                    self._CACHED_MATCHES[regionspec] = all([any(
+                        q.lower() == w or 'v' + q.lower() == w
+                        for w in W
+                    ) for q in Q])
+
+            # TODO since dropping 3.6 support, maybe reimplement as re.Pattern ?
+            elif isinstance(regionspec, REGEX_TYPE):
+                # match regular expression
+                self._CACHED_MATCHES[regionspec] = any(regionspec.search(s) is not None for s in [self.name, self.key])
+
+            elif isinstance(regionspec, (list, tuple)):
+                self._CACHED_MATCHES[regionspec] = any(self.matches(_) for _ in regionspec)
+
             else:
-                # match if all words of the query are also included in the region name
-                W = splitstr(clear_name(self.name.lower()))
-                Q = splitstr(clear_name(regionspec))
-                return all([any(
-                    q.lower() == w or 'v' + q.lower() == w
-                    for w in W
-                ) for q in Q])
+                raise TypeError(
+                    f"Cannot interpret region specification of type '{type(regionspec)}'"
+                )
 
-        # TODO since dropping 3.6 support, maybe reimplement as re.Pattern ?
-        elif isinstance(regionspec, REGEX_TYPE):
-            # match regular expression
-            return any(regionspec.search(s) is not None for s in [self.name, self.key])
-        elif isinstance(regionspec, (list, tuple)):
-            return any(self.matches(_) for _ in regionspec)
-        else:
-            raise TypeError(
-                f"Cannot interpret region specification of type '{type(regionspec)}'"
-            )
+        return self._CACHED_MATCHES[regionspec]
 
-    def fetch_regional_map(
+    def get_regional_map(
         self,
         space: Union[str, _space.Space],
         maptype: MapType = SIIBRA_DEFAULT_MAPTYPE,
         threshold: float = SIIBRA_DEFAULT_MAP_THRESHOLD,
         via_space: Union[str, _space.Space] = None
-    ):
+    ) -> volume.Volume:
         """
         Attempts to build a binary mask of this region in the given space,
         using the specified MapTypes.
@@ -463,11 +470,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 which is currently not supported in siibra-python for images.
         Returns
         -------
-        Nifti1Image
+        Volume (use fetch() to get a NiftiImage)
         """
+        # check for a cached object
+
+        getmap_hash = hash(f"{self.id}{space}{maptype}{threshold}{via_space}")
+        if getmap_hash in self._GETMAP_CACHE:
+            return self._GETMAP_CACHE[getmap_hash]
+
         if isinstance(maptype, str):
             maptype = MapType[maptype.upper()]
-        result = None
 
         # prepare space instances
         if isinstance(space, str):
@@ -476,6 +488,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         if isinstance(fetch_space, str):
             fetch_space = _space.Space.get_instance(fetch_space)
 
+        result = None  # try to replace this with the actual regionmap volume
+
+        # see if we find a map supporting the requested region
         for m in parcellationmap.Map.registry():
             if (
                 m.space.matches(fetch_space)
@@ -484,55 +499,53 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
                 and m.maptype == maptype
                 and self.name in m.regions
             ):
-                result = m.fetch(region=self, format='image')
-                if (maptype == MapType.STATISTICAL) and (threshold is not None):
+                region_img = m.fetch(region=self, format='image')
+                imgdata = np.asanyarray(region_img.dataobj)
+                if maptype == MapType.STATISTICAL:  # compute thresholded statistical map, default is 0.0
                     logger.info(f"Thresholding statistical map at {threshold}")
-                    result = Nifti1Image(
-                        (result.get_fdata() > threshold).astype('uint8'),
-                        result.affine
-                    )
+                    imgdata = (imgdata > threshold).astype('uint8')
+                    name = f"Statistical mask of {self} on {fetch_space}{f' thresholded by {threshold}' if threshold else ''}"
+                else:  # compute region mask from labelled parcellation map
+                    name = f"Mask of {self} in {m.parcellation} on {fetch_space}"
+                result = volume.from_array(
+                    data=imgdata,
+                    affine=region_img.affine,
+                    space=fetch_space,
+                    name=name,
+                )
+            if result is not None:
                 break
-        else:
-            # all children are mapped instead
-            dataobj = None
-            affine = None
-            if all(c.mapped_in_space(fetch_space) for c in self.children):
-                for c in siibra_tqdm(
-                    self.children,
-                    desc=f"Building mask of {self.name}",
-                    leave=False,
-                    unit=" child region"
-                ):
-                    mask = c.fetch_regional_map(fetch_space, maptype, threshold)
-                    if dataobj is None:
-                        dataobj = np.asanyarray(mask.dataobj)
-                        affine = mask.affine
-                    else:
-                        if np.linalg.norm(mask.affine - affine) > 1e-12:
-                            raise NotImplementedError(
-                                f"Child regions of {self.name} have different voxel spaces "
-                                "and the aggregated subtree mask is not supported. "
-                                f"Try fetching masks of the children: {self.children}"
-                            )
-                        updates = mask.get_fdata() > dataobj
-                        dataobj[updates] = mask.get_fdata()[updates]
-            if dataobj is not None:
-                result = Nifti1Image(dataobj, affine)
 
         if result is None:
-            raise RuntimeError(f"Cannot build mask for {self.name} from {maptype} maps in {fetch_space}")
+            # No region map available. Then see if we can build a map from the child regions
+            if (len(self.children) > 0) and all(c.mapped_in_space(fetch_space) for c in self.children):
+                logger.debug(f"Building regional map of {self.name} in {self.parcellation} from {len(self.children)} child regions.")
+                child_volumes = [
+                    child.get_regional_map(fetch_space, maptype, threshold, via_space)
+                    for child in self.children
+                ]
+                result = volume.merge(child_volumes)
+                result._name = f"Subtree {'mask' if maptype == MapType.LABELLED else 'statistical map of'} built from {self.name}"
+
+        if result is None:
+            raise NoMapAvailableError(f"Cannot build region map for {self.name} from {str(maptype)} maps in {fetch_space}")
 
         if via_space is not None:
-            # fetch used an intermediate reference space provided by 'via_space'.
-            # We will now transform the affine to match the desired target space.
-            bbox = boundingbox.BoundingBox.from_image(result, fetch_space)
-            transform = bbox.estimate_affine(space)
-            result = Nifti1Image(result.dataobj, np.dot(transform, result.affine))
-            logger.info(
-                f"Regional map was fetched from {fetch_space.name}, "
-                f"then linearly corrected to match {space.name}."
+            # the map volume is taken from an intermediary reference space
+            # provided by 'via_space'. Now transform the affine to match the
+            # desired target space.
+            intermediary_result = result
+            transform = intermediary_result.boundingbox.estimate_affine(space)
+            result = volume.from_array(
+                imgdata,
+                np.dot(transform, region_img.affine),
+                space,
+                f"{result.name} fetched from {fetch_space} and linearly corrected to match {space}"
             )
 
+        while len(self._GETMAP_CACHE) > self._GETMAP_CACHE_MAX_ENTRIES:
+            self._GETMAP_CACHE.pop(next(iter(self._GETMAP_CACHE)))
+        self._GETMAP_CACHE[getmap_hash] = result
         return result
 
     def mapped_in_space(self, space, recurse: bool = True) -> bool:
@@ -565,13 +578,15 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         return False
 
     @property
-    def supported_spaces(self) -> Set[_space.Space]:
+    def supported_spaces(self) -> List[_space.Space]:
         """
         The set of spaces for which a mask could be extracted.
         Overwrites the corresponding method of AtlasConcept.
         """
         if self._supported_spaces is None:
-            self._supported_spaces = {s for s in _space.Space.registry() if self.mapped_in_space(s)}
+            self._supported_spaces = sorted(
+                {s for s in _space.Space.registry() if self.mapped_in_space(s)}
+            )
         return self._supported_spaces
 
     def supports_space(self, space: _space.Space):
@@ -587,11 +602,68 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             elements={s.key: s for s in self.supported_spaces},
         )
 
-    def __str__(self):
-        return self.name
+    def __contains__(self, other: Union[location.Location, 'Region']) -> bool:
+        if isinstance(other, Region):
+            return len(self.find(other)) > 0
+        else:
+            try:
+                regionmap = self.get_regional_map(space=other.space)
+                return regionmap.__contains__(other)
+            except NoMapAvailableError:
+                return False
 
-    def __repr__(self):
-        return self.name
+    def assign(self, other: structure.BrainStructure) -> AnatomicalAssignment:
+        """
+        Compute assignment of a location to this region.
+
+        Two cases:
+        1) other is location -> get region map, call regionmap.assign(other)
+        2) other is region -> just do a semantic check for the regions
+
+        Parameters
+        ----------
+        other : Location or Region
+
+        Returns
+        -------
+        AnatomicalAssignment or None
+            None if there is no Qualification found.
+        """
+        if (self, other) in self._ASSIGNMENT_CACHE:
+            return self._ASSIGNMENT_CACHE[self, other]
+        if (other, self) in self._ASSIGNMENT_CACHE:
+            if self._ASSIGNMENT_CACHE[other, self] is None:
+                return None
+            return self._ASSIGNMENT_CACHE[other, self].invert()
+
+        if isinstance(other, location.Location):
+            for space in [other.space] + self.supported_spaces:
+                try:
+                    regionmap = self.get_regional_map(space)
+                    self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
+                        other.warp(space)
+                    )
+                except Exception as e:
+                    logger.debug(e)
+                    continue
+                break
+            if (self, other) not in self._ASSIGNMENT_CACHE:
+                self._ASSIGNMENT_CACHE[self, other] = None
+        else:  # other is a Region
+            assert isinstance(other, Region)
+            if self == other:
+                qualification = Qualification.EXACT
+            elif self.__contains__(other):
+                qualification = Qualification.CONTAINS
+            elif other.__contains__(self):
+                qualification = Qualification.CONTAINED
+            else:
+                qualification = None
+            if qualification is None:
+                self._ASSIGNMENT_CACHE[self, other] = None
+            else:
+                self._ASSIGNMENT_CACHE[self, other] = AnatomicalAssignment(self, other, qualification)
+        return self._ASSIGNMENT_CACHE[self, other]
 
     def tree2str(self):
         """Render region-tree as a string"""
@@ -630,14 +702,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         spaceobj = _space.Space.get_instance(space)
         try:
-            mask = self.fetch_regional_map(
+            mask = self.get_regional_map(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return boundingbox.BoundingBox.from_image(mask, space=spaceobj)
+            return mask.boundingbox
         except (RuntimeError, ValueError):
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
-                    mask = self.fetch_regional_map(
+                    mask = self.get_regional_map(
                         other_space,
                         maptype=maptype,
                         threshold=threshold_statistical,
@@ -686,6 +758,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         Compute spatial properties for connected components of this region in the given space.
 
+        TODO: this should go to the Volume class and just be called from here.
+
         Parameters
         ----------
         space: Space
@@ -719,9 +793,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
             return result
 
         # build binary mask of the image
-        pimg = self.fetch_regional_map(
+        pimg = self.get_regional_map(
             space, maptype=maptype, threshold=threshold_statistical
-        )
+        ).fetch()
 
         # determine scaling factor from voxels to cube mm
         scale = affine_scaling(pimg.affine)
@@ -754,6 +828,32 @@ class Region(anytree.NodeMixin, concept.AtlasConcept):
         """
         return anytree.PreOrderIter(self)
 
+    def intersection(self, other: "location.Location") -> "location.Location":
+        """ Use this region for filtering a location object. """
+
+        if self.supports_space(other.space):
+            try:
+                volume = self.get_regional_map(other.space)
+                if volume is not None:
+                    return volume.intersection(other)
+            except NotImplementedError:
+                intersections = [child.intersection(other) for child in self.children]
+                return reduce(lambda a, b: a.union(b), intersections)
+
+        for space in self.supported_spaces:
+            if space.provides_image:
+                logger.info(f"Intersect {other} with {self} in {space}")
+                try:
+                    warped = other.warp(space)
+                except SpaceWarpingFailedError:
+                    continue
+                assert warped is not None
+                volume = self.get_regional_map(space)
+                if volume is not None:
+                    return volume.intersection(warped).warp(other.space)
+
+        return None
+
 
 _get_reg_relation_asmgt_types: Dict[str, Callable] = {}
 
@@ -769,7 +869,7 @@ def _register_region_reference_type(ebrain_type: str):
     return outer
 
 
-class RegionRelationAssessments(RelationAssignment[Region]):
+class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     anony_client = BucketApiClient()
 
@@ -836,7 +936,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
             ]
 
             for found_target in found_targets:
-                yield cls(query_structure=src, assigned_structure=found_target, qualification=RegionRelationship.parse_relation_assessment(overlap))
+                yield cls(query_structure=src, assigned_structure=found_target, qualification=Qualification.parse_relation_assessment(overlap))
 
             if "https://openminds.ebrains.eu/sands/ParcellationEntity" in target.get("type"):
                 pev_uuids = [
@@ -846,7 +946,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
                 ]
                 for reg in all_regions:
                     if reg in pev_uuids:
-                        yield cls(query_structure=src, assigned_structure=reg, qualification=RegionRelationship.parse_relation_assessment(overlap))
+                        yield cls(query_structure=src, assigned_structure=reg, qualification=Qualification.parse_relation_assessment(overlap))
 
     @classmethod
     @_register_region_reference_type("openminds/CustomAnatomicalEntity")
@@ -899,7 +999,7 @@ class RegionRelationAssessments(RelationAssignment[Region]):
                     yield cls(
                         query_structure=src,
                         assigned_structure=found_target,
-                        qualification=RegionRelationship.OTHER_VERSION
+                        qualification=Qualification.OTHER_VERSION
                     )
 
             # homologuous

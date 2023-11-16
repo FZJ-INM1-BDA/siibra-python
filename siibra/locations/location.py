@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,13 +14,15 @@
 # limitations under the License.
 """Concpets that have primarily spatial meaning."""
 
+from __future__ import annotations
+
+from ..core.structure import BrainStructure
+
 import numpy as np
-from abc import ABC, abstractmethod
-from nibabel import Nifti1Image
-from typing import Union
+from abc import abstractmethod
 
 
-class Location(ABC):
+class Location(BrainStructure):
     """
     Abstract base class for locations in a given reference space.
     """
@@ -37,26 +39,19 @@ class Location(ABC):
 
     # The id of BigBrain reference space
     BIGBRAIN_ID = "minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588"
+    _MASK_MEMO = {}  # cache region masks for Location._assign_region()
+    _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
     def __init__(self, space):
-        from ..core.space import Space
-        self.space = Space.get_instance(space)
+        self._space_spec = space
+        self._space_cached = None
 
-    @abstractmethod
-    def intersection(self, mask: Nifti1Image) -> bool:
-        """All subclasses of Location must implement intersection, as it is required by SpatialFeature._test_mask()
-        """
-        pass
-
-    @abstractmethod
-    def intersects(self, other: Union[Nifti1Image, 'Location']) -> bool:
-        """
-        Verifies wether this 3D location intersects the given mask.
-
-        NOTE: The affine matrix of the image must be set to warp voxels
-        coordinates into the reference space of this Bounding Box.
-        """
-        raise NotImplementedError
+    @property
+    def space(self):
+        if self._space_cached is None:
+            from ..core.space import Space
+            self._space_cached = Space.get_instance(self._space_spec)
+        return self._space_cached
 
     @abstractmethod
     def warp(self, space):
@@ -80,26 +75,25 @@ class Location(ABC):
         """
         pass
 
-    @abstractmethod
-    def __iter__(self):
-        """To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location."""
-        pass
+    @property
+    def species(self):
+        return None if self.space is None else self.space.species
 
     def __str__(self):
-        if self.space is None:
-            return (
-                f"{self.__class__.__name__} "
-                f"[{','.join(str(l) for l in iter(self))}]"
-            )
-        else:
-            return (
-                f"{self.__class__.__name__} in {self.space.name} "
-                f"[{','.join(str(l) for l in iter(self))}]"
-            )
+        space_str = "" if self.space is None else f" in {self.space.name}"
+        coord_str = "" if len(self) == 0 else f" [{','.join(str(l) for l in iter(self))}]"
+        return f"{self.__class__.__name__}{space_str}{coord_str}"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}: {self}"
+        return f"<{self.__class__.__name__}({[p.__repr__() for p in self]}), space={self.space.id}>"
+
+    def __hash__(self) -> int:
+        return hash(self.__repr__())
+
+    @abstractmethod
+    def __eq__(self):
+        """Required to provide comparison and making the object hashable"""
+        raise NotImplementedError
 
     @staticmethod
     def union(loc0: 'Location', loc1: 'Location') -> 'Location':
@@ -110,41 +104,3 @@ class Location(ABC):
         raise NotImplementedError(
             "This method is designed to be reassigned at the module level"
         )
-
-
-class WholeBrain(Location):
-    """
-    Trivial location class for formally representing
-    location in a particular reference space, which
-    is not further specified.
-    """
-
-    def intersection(self, mask: Nifti1Image) -> bool:
-        """
-        Required for abstract class Location
-        """
-        return True
-
-    def __init__(self, space=None):
-        Location.__init__(self, space)
-
-    def intersects(self, *_args, **_kwargs):
-        """Always true for whole brain features"""
-        return True
-
-    def warp(self, space):
-        """Generates a new whole brain location
-        in another reference space."""
-        return self.__class__(space)
-
-    def transform(self, affine: np.ndarray, space=None):
-        """Does nothing."""
-        pass
-
-    def __iter__(self):
-        """To be implemented in derived classes to return an iterator
-        over the coordinates associated with the location."""
-        yield from ()
-
-    def __str__(self):
-        return f"{self.__class__.__name__} in {self.space.name}"

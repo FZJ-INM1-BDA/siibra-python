@@ -4,7 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from itertools import repeat
 
 import siibra
-from siibra.core.relation_qualification import Qualification
+from siibra.core.assignment import Qualification
+from siibra.core.region import Region
 
 
 regions = [
@@ -14,7 +15,7 @@ regions = [
 
 
 @pytest.mark.parametrize("region", regions)
-def test_region_spatial_props(region: siibra.core.parcellation.region.Region):
+def test_region_spatial_props(region: Region):
     props = region.spatial_props("mni152")
     for idx, cmp in enumerate(props.components, start=1):
         assert cmp.volume >= props.components[idx - 1].volume
@@ -76,7 +77,7 @@ def test_find(parc_spec, region_spec, result_len, check_regions):
 
 
 @pytest.mark.parametrize("parc, reg_spec, has_related, has_homology, has_related_ebrains_reg", [
-    ("2.9", "PGa", True, True, False),
+    ("julich 2.9", "PGa", True, True, False),
     ("monkey", "PG", False, True, False),
     ("waxholm v3", "cornu ammonis 1", True, False, True),
 ])
@@ -98,6 +99,7 @@ def test_homologies_related_regions(parc, reg_spec, has_related, has_homology, h
                 repeat("ebrains")
             )
         assert len([f for f in features]) > 0
+
 
 def test_related_region_hemisphere():
     reg = siibra.get_region("2.9", "PGa")

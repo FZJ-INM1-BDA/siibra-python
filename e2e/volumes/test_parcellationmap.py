@@ -103,3 +103,10 @@ def test_region_1to1ness_in_parcellation():
                     }
                 )
     assert len(failed) == 0, print("The regions in maps that can't be gotten in respective parcellations\n", failed)
+
+
+def test_fetching_merged_volume():
+    # this also tests for volume.merge as it is used in Map.fetch
+    mp = siibra.get_map("julich 2.9", "bigbrain")
+    assert len(mp) > 1
+    _ = mp.fetch()

@@ -1,4 +1,4 @@
-# Copyright 2018-2021
+# Copyright 2018-2023
 # Institute of Neuroscience and Medicine (INM-1), Forschungszentrum Jülich GmbH
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +14,17 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
-from . import point, pointset, location, boundingbox
+from . import point, pointset, location
 
 from ..commons import logger
+from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
-from typing import Union
-from nibabel import Nifti1Image
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ..core.structure import BrainStructure
+    from nibabel import Nifti1Image
 
 
 class BoundingBox(location.Location):
@@ -37,8 +40,6 @@ class BoundingBox(location.Location):
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
 
-        TODO allow to pass sigma for the points, if tuples
-
         Parameters
         ----------
         point1 : Point or 3-tuple
@@ -53,6 +54,7 @@ class BoundingBox(location.Location):
         sigma_mm : float, or list of float
             Optional standard deviation of the spanning point locations.
         """
+        # TODO: allow to pass sigma for the points, if tuples
         location.Location.__init__(self, space)
         xyz1 = point.Point.parse(point1)
         xyz2 = point.Point.parse(point2)
@@ -77,22 +79,24 @@ class BoundingBox(location.Location):
         return hashlib.md5(str(self).encode("utf-8")).hexdigest()
 
     @property
-    def volume(self):
+    def volume(self) -> float:
+        """The volume of the boundingbox in mm^3"""
         return np.prod(self.shape)
 
     @property
-    def center(self):
+    def center(self) -> 'point.Point':
         return self.minpoint + (self.maxpoint - self.minpoint) / 2
 
     @property
-    def shape(self):
+    def shape(self) -> float:
+        """The distances of the diagonal points in each axis. (Accounts for sigma)."""
         return tuple(
             (self.maxpoint + self.maxpoint.sigma)
             - (self.minpoint - self.minpoint.sigma)
         )
 
     @property
-    def is_planar(self):
+    def is_planar(self) -> bool:
         return any(d == 0 for d in self.shape)
 
     @staticmethod
@@ -113,19 +117,6 @@ class BoundingBox(location.Location):
         zmin, zmax = nzz[0][[0, -1]]
         return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
-    @classmethod
-    def from_image(cls, image: Nifti1Image, space, ignore_affine=False, threshold=0):
-        """Construct a bounding box from a nifti image"""
-        bounds = cls._determine_bounds(image.get_fdata(), threshold=threshold)
-        if bounds is None:
-            return None
-        if ignore_affine:
-            target_space = None
-        else:
-            bounds = np.dot(image.affine, bounds)
-            target_space = space
-        return BoundingBox(point1=bounds[:3, 0], point2=bounds[:3, 1], space=target_space)
-
     def __str__(self):
         if self.space is None:
             return (
@@ -138,63 +129,42 @@ class BoundingBox(location.Location):
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
-    def contains(self, other: location.Location):
-        """Returns true if the bounding box contains the given location."""
-        if isinstance(other, point.Point):
-            return (other >= self.minpoint) and (other <= self.maxpoint)
-        elif isinstance(other, pointset.PointSet):
-            return all(self.contains(p) for p in other)
-        elif isinstance(other, boundingbox.BoundingBox):
-            return all([
-                other.minpoint >= self.minpoint,
-                other.maxpoint <= self.maxpoint
-            ])
-        elif isinstance(other, Nifti1Image):
-            return self.contains(BoundingBox.from_image(other, space=self.space))
-        else:
-            raise NotImplementedError(
-                f"Cannot test containedness of {type(other)} in {self.__class__.__name__}"
-            )
-
-    def contained_in(self, other: Union[location.Location, Nifti1Image]):
-        if isinstance(other, location.Location):
-            return other.contains(self)
-        elif isinstance(other, Nifti1Image):
-            return self.contained_in(BoundingBox.from_image(other, space=self.space))
-        else:
-            raise RuntimeError(f"Cannot test containedness of {self} in type {other.__class__}")
-
-    def intersects(self, other: Union[location.Location, Nifti1Image]):
-        intersection = self.intersection(other)
-        if intersection is None:
-            return False
-        else:
-            return intersection.volume > 0
-
-    def intersection(self, other, dims=[0, 1, 2], threshold=0):
+    def intersection(self, other: 'BrainStructure', dims=[0, 1, 2]):
         """Computes the intersection of this bounding box with another one.
 
-        TODO process the sigma values o the points
-
-        Args:
-            other (BoundingBox): Another bounding box
-            dims (list of int): Dimensions where the intersection should be computed (applies only to bounding boxes)
-            Default: all three. Along dimensions not listed, the union is applied instead.
-            threshold: optional intensity threshold for intersecting with image mask
+        Parameters
+        ----------
+        other: BrainStructure
+        dims: List[int], default: all three
+            Dimensions where the intersection should be computed
+            (applies only to bounding boxes). Along dimensions not listed,
+            the union is applied instead.
         """
-        if isinstance(other, Nifti1Image):
-            return self._intersect_mask(other, threshold=threshold)
-        elif isinstance(other, BoundingBox):
-            return self._intersect_bbox(other, dims)
-        else:
-            raise NotImplementedError(
-                f"Intersection of bounding box with {type(other)} not implemented."
+        # TODO: process the sigma values o the points
+        if isinstance(other, BoundingBox):
+            try:
+                return self._intersect_bbox(other, dims)
+            except SpaceWarpingFailedError:
+                return other._intersect_bbox(self, dims)  # TODO: check this mechanism carefully
+        if isinstance(other, point.Point):
+            warped = other.warp(self.space)
+            return other if self.minpoint <= warped <= self.maxpoint else None
+        if isinstance(other, pointset.PointSet):
+            result = pointset.PointSet(
+                [p for p in other if self.intersects(p)],
+                space=other.space,
+                sigma_mm=other.sigma
             )
+            if len(result) == 0:
+                return None
+            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
 
-    def _intersect_bbox(self, other, dims=[0, 1, 2]):
+        return other.intersection(self)
+
+    def _intersect_bbox(self, other: 'BoundingBox', dims=[0, 1, 2]):
         warped = other.warp(self.space)
 
-        # Determine the intersecting bounding box by sorting
+        # Determine the intersecting bounsding box by sorting
         # the coordinates of both bounding boxes for each dimension,
         # and fetching the second and third coordinate after sorting.
         # If those belong to a minimum and maximum point,
@@ -229,7 +199,7 @@ class BoundingBox(location.Location):
         )
         return bbox if bbox.volume > 0 else None
 
-    def _intersect_mask(self, mask, threshold=0):
+    def _intersect_mask(self, mask: 'Nifti1Image', threshold=0):
         """Intersect this bounding box with an image mask. Returns None if they do not intersect.
 
         TODO process the sigma values o the points
@@ -302,21 +272,7 @@ class BoundingBox(location.Location):
                     space=spaceobj,
                 )
             except ValueError:
-                logger.debug(f"Warping {str(self)} to {spaceobj.name} not successful.")
-                return None
-
-    def fetch_regional_map(self):
-        """Generate a volumetric binary mask of this
-        bounding box in the reference template space."""
-        tpl = self.space.get_template().fetch()
-        arr = np.zeros(tpl.shape, dtype="uint8")
-        bbvox = self.transform(np.linalg.inv(tpl.affine))
-        arr[
-            int(bbvox.minpoint[0]): int(bbvox.maxpoint[0]),
-            int(bbvox.minpoint[1]): int(bbvox.maxpoint[2]),
-            int(bbvox.minpoint[2]): int(bbvox.maxpoint[2]),
-        ] = 1
-        return Nifti1Image(arr, tpl.affine)
+                raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new bounding box obtained by transforming the
@@ -426,3 +382,11 @@ class BoundingBox(location.Location):
     def __iter__(self):
         """Iterate the min- and maxpoint of this bounding box."""
         return iter((self.minpoint, self.maxpoint))
+
+    def __eq__(self, other: 'BoundingBox'):
+        if not isinstance(other, BoundingBox):
+            return False
+        return self.minpoint == other.minpoint and self.maxpoint == other.maxpoint
+
+    def __hash__(self):
+        return super().__hash__()

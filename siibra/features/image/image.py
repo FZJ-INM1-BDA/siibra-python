@@ -20,6 +20,7 @@ from .. import feature
 from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
+from ...volumes.providers import provider
 
 from typing import List
 
@@ -59,7 +60,7 @@ class Image(feature.Feature, _volume.Volume):
         name: str,
         modality: str,
         space_spec: dict,
-        providers: List[_volume.VolumeProvider],
+        providers: List[provider.VolumeProvider],
         region: str = None,
         datasets: List = [],
     ):

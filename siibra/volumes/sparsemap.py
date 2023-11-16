@@ -15,7 +15,8 @@
 """Represents lists of probabilistic brain region maps."""
 from . import parcellationmap, volume as _volume
 
-from ..commons import MapIndex, logger, iterate_connected_components, siibra_tqdm
+from .providers import provider
+from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
 from ..retrieval import cache
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
@@ -25,7 +26,6 @@ from zipfile import ZipFile, ZIP_DEFLATED
 import gzip
 from typing import Dict, Union, TYPE_CHECKING, List
 from nilearn import image
-from nibabel import Nifti1Image, load
 import numpy as np
 
 if TYPE_CHECKING:
@@ -43,20 +43,19 @@ class SparseIndex:
         self.shape = None
         self.voxels: np.ndarray = None
 
-    def add_img(self, img: Nifti1Image):
+    def add_img(self, imgdata: np.ndarray, affine: np.ndarray):
 
         if self.num_volumes == 0:
-            self.affine = img.affine
-            self.shape = img.shape
-            self.voxels = np.zeros(img.shape, dtype=np.int32) - 1
+            self.affine = affine
+            self.shape = imgdata.shape
+            self.voxels = np.zeros(imgdata.shape, dtype=np.int32) - 1
         else:
-            if (img.shape != self.shape) or ((img.affine - self.affine).sum() != 0):
+            if (imgdata.shape != self.shape) or ((affine - self.affine).sum() != 0):
                 raise RuntimeError(
                     "Building sparse maps from volumes with different voxel spaces is not yet supported in siibra."
                 )
 
         volume = self.num_volumes
-        imgdata = np.asanyarray(img.dataobj)
         X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
         for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
             coord_id = self.voxels[x, y, z]
@@ -116,6 +115,7 @@ class SparseIndex:
         Serialize this index to the cache, using the given prefix for the cache
         filenames.
         """
+        from nibabel import Nifti1Image
         probsfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="probs.txt.gz")
         bboxfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="bboxes.txt.gz")
         voxelfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="voxels.nii.gz")
@@ -148,6 +148,7 @@ class SparseIndex:
         SparseIndex
             None if cached files are not found or suitable.
         """
+        from nibabel import load
 
         probsfile = cache.CACHE.build_filename(f"{cache_name}", suffix="probs.txt.gz")
         bboxfile = cache.CACHE.build_filename(f"{cache_name}", suffix="bboxes.txt.gz")
@@ -263,7 +264,7 @@ class SparseMap(parcellationmap.Map):
                     logger.info("Failed to load precomputed SparseIndex from Gitlab.")
                     logger.debug(f"Could not load SparseIndex from Gitlab at {gconn}", exc_info=1)
             if spind is None:
-                with _volume.SubvolumeProvider.UseCaching():
+                with provider.SubvolumeProvider.UseCaching():
                     spind = SparseIndex()
                     for vol in siibra_tqdm(
                         range(len(self)), total=len(self), unit="maps",
@@ -424,7 +425,13 @@ class SparseMap(parcellationmap.Map):
         x, y, z, v = self.sparse_index.mapped_voxels(volidx)
         result = np.zeros(self.shape, dtype=np.float32)
         result[x, y, z] = v
-        return Nifti1Image(result, self.affine)
+        volume = _volume.from_array(
+            data=result,
+            affine=self.affine,
+            space=self.space,
+            name=f"Sparse map of {region} from {self.parcellation} in {self.space}"
+        )
+        return volume.fetch()
 
     def _read_voxel(self, x, y, z):
         spind = self.sparse_index
@@ -441,14 +448,23 @@ class SparseMap(parcellationmap.Map):
                 for volume, value in spind.probs[voxel].items()
             )
 
-    def _assign_image(self, queryimg: Nifti1Image, minsize_voxel: int, lower_threshold: float, split_components: bool = True) -> List[parcellationmap.AssignImageResult]:
+    def _assign_volume(
+        self,
+        imgdata: np.ndarray,
+        imgaffine: np.ndarray,
+        minsize_voxel: int,
+        lower_threshold: float,
+        split_components: bool = True
+    ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
 
         Parameters:
         -----------
-        queryimg: Nifti1Image
+        imgdata: np.ndarray
             the image to be compared with maps
+        imgaffine: np.ndarray
+            affine matrix mapping voxels of the image to physical coordinates in the map space
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
@@ -458,31 +474,30 @@ class SparseMap(parcellationmap.Map):
         assignments = []
 
         # resample query image into this image's voxel space, if required
-        if (queryimg.affine - self.affine).sum() == 0:
-            queryimg = queryimg
+        if (imgaffine - self.affine).sum() == 0:
+            querydata = imgdata.squeeze()
         else:
-            if issubclass(np.asanyarray(queryimg.dataobj).dtype.type, np.integer):
+            if issubclass(imgdata.dtype.type, np.integer):
                 interp = "nearest"
             else:
                 interp = "linear"
+            from nibabel import Nifti1Image
             queryimg = image.resample_img(
-                queryimg,
+                Nifti1Image(imgdata, imgaffine),
                 target_affine=self.affine,
                 target_shape=self.shape,
                 interpolation=interp,
             )
+            querydata = np.asanyarray(queryimg.dataobj).squeeze()
 
-        querydata = np.asanyarray(queryimg.dataobj).squeeze()
-
-        iter_func = iterate_connected_components if split_components \
+        iter_func = connected_components if split_components \
             else lambda img: [(1, img)]
 
-        for mode, modeimg in iter_func(queryimg):
+        for mode, modemask in iter_func(querydata):
 
             # determine bounding box of the mode
-            modemask = np.asanyarray(modeimg.dataobj)
             XYZ2 = np.array(np.where(modemask)).T
-            position = np.dot(modeimg.affine, np.r_[XYZ2.mean(0), 1])[:3]
+            position = np.dot(self.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
                 continue
             X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]

@@ -20,9 +20,9 @@ EBRAINS regional datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
 The modality "EbrainsRegionalDataset' is different from the others.
-It returns any datasets in the EBRAINS Knowledge Graph which could be linked to the given atlas concept, and provides access to their metadata, as well as the link to the EBRAINS Knowledge Graph. 
+It returns any datasets in the EBRAINS Knowledge Graph which could be linked to the given atlas concept, and provides access to their metadata, as well as the link to the EBRAINS Knowledge Graph.
 The returned features can thus actually have different modalities, and might include datasets which are also supported as one of the explicitly supported modalities shown in previous examples.
-""" 
+"""
 
 # %%
 # We query regional features for the secondary visual cortex V2.
@@ -31,21 +31,19 @@ atlas = siibra.atlases.MULTILEVEL_HUMAN_ATLAS
 region = atlas.get_region("hoc2")
 features = siibra.features.get(region, siibra.features.dataset.EbrainsDataFeature)
 for feature in features:
-   print(f" - {feature.name}")
+    print(f" - {feature.name}")
 # sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
 
 
 # %%
 # Each EBRAINS feature provides access to the metadata from the EBRAINS Knowledge Graph.
 # We view some of those for the last returned feature (which is accessible from the loop above).
-# ``siibra`` implements a lazy loading mechanism here again: 
+# ``siibra`` implements a lazy loading mechanism here again:
 # Once we access attributes which require deeper metadata, it will run a query to the Knowledge Graph to fetch it.
 print(feature.name)
 print(feature.description)
 
 # %%
-# We can use the url of the feature to access their full information in the Knowledge Graph. 
-# Just click on the link to test it.
+# We can use the url of the feature to access their full information in the
+# Knowledge Graph. Just click on the link to test it.
 print(feature.url)
-
-# %%

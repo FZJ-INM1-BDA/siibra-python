@@ -12,27 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Handles reading and preparing nifti files."""
 
-from . import volume
+from . import provider as _provider
 
-from ..commons import logger
-from ..retrieval import requests
-from ..locations import pointset, boundingbox as _boundingbox
+from ...commons import logger
+from ...retrieval import requests
+from ...locations import pointset, boundingbox as _boundingbox
 
-from typing import Union, Dict
+from typing import Union, Dict, Tuple
 import nibabel as nib
 import os
 import numpy as np
 
 
-class NiftiProvider(volume.VolumeProvider, srctype="nii"):
+class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
-    def __init__(self, src: Union[str, Dict[str, str], nib.Nifti1Image]):
+    def __init__(self, src: Union[str, Dict[str, str], nib.Nifti1Image, Tuple[np.ndarray, np.ndarray]]):
         """
         Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
 
         self._init_url: Union[str, Dict[str, str]] = None
 
@@ -49,9 +48,13 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
             self._img_loaders = {None: loader(src)}
         elif isinstance(src, dict):  # assuming multiple for fragment images
             self._img_loaders = {lbl: loader(url) for lbl, url in src.items()}
+        elif isinstance(src, tuple):
+            assert len(src) == 2
+            assert all(isinstance(_, np.ndarray) for _ in src)
+            self._img_loaders = {None: lambda data=src[0], affine=src[1]: nib.Nifti1Image(data, affine)}
         else:
             raise ValueError(f"Invalid source specification for {self.__class__}: {src}")
-        if not isinstance(src, nib.Nifti1Image):
+        if not isinstance(src, (nib.Nifti1Image, tuple)):
             self._init_url = src
 
     @property
@@ -160,7 +163,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         else:
             assert len(self._img_loaders) > 0
             fragment_name, loader = next(iter(self._img_loaders.items()))
-            if all(s is not None for s in [fragment, fragment_name]):
+            if (fragment_name is not None) and (fragment is not None):
                 assert fragment.lower() in fragment_name.lower()
             result = loader()
 
@@ -213,7 +216,7 @@ class NiftiProvider(volume.VolumeProvider, srctype="nii"):
         """
 
         from skimage.feature.peak import peak_local_max
-        from ..commons import affine_scaling
+        from ...commons import affine_scaling
 
         img = self.fetch()
         dist = int(min_distance_mm / affine_scaling(img.affine) + 0.5)
@@ -237,7 +240,7 @@ class ZipContainedNiftiProvider(NiftiProvider, srctype="zip/nii"):
         """
         Construct a new NIfTI volume source, from url, local file, or Nift1Image object.
         """
-        volume.VolumeProvider.__init__(self)
+        _provider.VolumeProvider.__init__(self)
         zipurl, zipped_file = src.split(" ")
         req = requests.ZipfileRequest(zipurl, zipped_file)
         self._img_loaders = {None: lambda req=req: req.data}

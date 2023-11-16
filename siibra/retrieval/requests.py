@@ -71,7 +71,7 @@ DECODERS = {
 def find_suitiable_decoder(url: str) -> Callable:
     """
     By supplying a url or a filename, obtain a suitable decoder function
-    for siibra to digest based on predifined DECODERS. An extra layer of 
+    for siibra to digest based on predifined DECODERS. An extra layer of
     gzip decompresser automatically added for gzipped files.
 
     Parameters
