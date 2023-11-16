@@ -554,7 +554,8 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         enumerate(volumes),
         unit=" volume",
         desc=f"Resampling volumes to {space.name} and merging",
-        total=len(volumes)
+        total=len(volumes),
+        disable=len(volumes) < 3
     ):
         img = vol.fetch(**fetch_kwargs)
         arr_resampled = resample_array_to_array(
