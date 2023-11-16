@@ -42,3 +42,14 @@ def test_subclass_count(fid):
     _ = siibra.features.Feature._get_instance_by_id(fid)
     len_after = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
     assert len_before == len_after
+
+
+def test_querying_with_volume():
+    # Use features with location anchors only. Because hybrid ones will also
+    # employ sementic links between regions, potentially changing the result.
+    region = siibra.get_region("julich 2.9", "ca1")
+    volume = region.get_regional_map('mni152')
+    profiles_region = siibra.features.get(region, "BigBrainIntensityProfile")[0]
+    profiles_volume = siibra.features.get(volume, "BigBrainIntensityProfile")[0]
+    # the ids will be diffent but the content has to be the same. Even the order.
+    assert [p.location for p in profiles_region] == [p.location for p in profiles_volume]
