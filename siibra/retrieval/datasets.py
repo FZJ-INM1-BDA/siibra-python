@@ -17,15 +17,9 @@
 from .requests import MultiSourcedRequest, GitlabProxy, GitlabProxyEnum
 
 import re
-from typing import Union, List
+from typing import List, TypedDict, Union
 from abc import ABC, abstractproperty
 from hashlib import md5
-
-try:
-    from typing import TypedDict
-except ImportError:
-    # support python 3.7
-    from typing_extensions import TypedDict
 
 
 class EbrainsDatasetUrl(TypedDict):

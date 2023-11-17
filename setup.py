@@ -34,7 +34,6 @@ setup(
     },
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -43,7 +42,7 @@ setup(
         "Operating System :: OS Independent",
         "Intended Audience :: Developers",
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=[
         "anytree",
         "nibabel",
@@ -52,7 +51,6 @@ setup(
         "requests",
         "neuroglancer-scripts",
         "nilearn",
-        'typing-extensions; python_version < "3.8"',
         "filelock",
         "ebrains-drive >= 0.6.0",
     ],

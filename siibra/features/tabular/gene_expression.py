@@ -18,11 +18,7 @@ from . import tabular
 
 import pandas as pd
 from textwrap import wrap
-from typing import List
-try:
-    from typing import TypedDict
-except ImportError:
-    from typing_extensions import TypedDict
+from typing import List, TypedDict
 
 
 class GeneExpressions(

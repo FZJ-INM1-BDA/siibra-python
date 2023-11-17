@@ -14,7 +14,7 @@ class Siibra(PythonPackage):
     version('0.3a10', sha256='f2994cc60baa7a0a5b54ce5cead2439a444d975b0e1d13b1c83754d97e5fc4a3')
     version('0.3a8', sha256='550658e16bc9ff169128217bcb7e3fc6e281f17dba11e168cf1cd756fdce298c')
 
-    depends_on('python@3.6:', type=('build', 'run'))
+    depends_on('python@3.8:', type=('build', 'run'))
     depends_on('py-setuptools', type='build')
 
     depends_on('anytree', type=('build', 'run'))
@@ -27,4 +27,3 @@ class Siibra(PythonPackage):
     depends_on('neuroglancer-scripts', type=('build', 'run'))
     depends_on('nilearn', type=('build', 'run'))
     depends_on('simple-term-menu', type=('build', 'run'))
-    depends_on('importlib-resources; python_version < "3.7"', type=('build', 'run'))

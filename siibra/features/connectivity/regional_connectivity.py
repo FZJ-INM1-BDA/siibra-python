@@ -28,12 +28,7 @@ from ...retrieval.requests import HttpRequest
 
 import pandas as pd
 import numpy as np
-from typing import Callable, Union, List
-
-try:
-    from typing import Literal
-except ImportError:  # support python 3.7
-    from typing_extensions import Literal
+from typing import Callable, List, Literal, Union
 
 
 class RegionalConnectivity(Feature, Compoundable):
