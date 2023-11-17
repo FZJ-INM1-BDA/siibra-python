@@ -277,7 +277,7 @@ class SparseMap(parcellationmap.Map):
                             region = self.get_region(volume=vol)
                             logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                             continue
-                        spind.add_img(img)
+                        spind.add_img(img.get_fdata(), img.affine)
                     spind._to_local_cache(self._cache_prefix)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
