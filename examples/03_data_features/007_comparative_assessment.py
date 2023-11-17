@@ -64,9 +64,9 @@ fig.tight_layout()
 # For the same measurement types, we can also sample individual cortical profiles,
 # showing density distributions from the pial surface to the gray/white matter
 # boundary in individual tissue samples. Cortical profiles queries form
-# :ref:`CompoundFeatures<compoundfeatures>` for easy handling of the profiles.
-# We can browse through the elements with integer index. Let us select random
-# ones for comparison.
+# :ref:`sphx_glr_examples_03_data_features_009_compound_features.py` for easy
+# handling of the profiles. We can browse through the elements with integer
+# index. Let us select the first ones for comparison.
 modalities = [
     siibra.features.molecular.ReceptorDensityProfile,
     siibra.features.cellular.CellDensityProfile,

@@ -37,7 +37,8 @@ julich_brain = siibra.parcellations.get("julich 2.9")
 # the parcellation as a concept. Here, we query for structural connectivity matrices.
 # Since a single query may yield hundreds of connectivity matrices for different
 # subjects of a cohort, siibra groups them as elements into
-# :ref:`"CompoundFeatures"<compoundfeatures>`. Let us select "HCP" cohort.
+# :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
+# Let us select "HCP" cohort.
 features = siibra.features.get(julich_brain, siibra.features.connectivity.StreamlineCounts)
 for f in features:
     print(f.name)

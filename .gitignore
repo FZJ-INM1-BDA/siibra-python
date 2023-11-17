@@ -26,3 +26,4 @@ docs/examples
 docs/make.bat
 geckodriver.log
 venv
+docs/_static/*_siibra.svg

@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""Subpackage handling the digestion of different volume and mesh types"""
 
 from .neuroglancer import NeuroglancerProvider, NeuroglancerMesh
 from .nifti import NiftiProvider

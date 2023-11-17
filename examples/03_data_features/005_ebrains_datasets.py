@@ -32,7 +32,7 @@ region = atlas.get_region("hoc2")
 features = siibra.features.get(region, siibra.features.dataset.EbrainsDataFeature)
 for feature in features:
     print(f" - {feature.name}")
-# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/default_thumbnail.png'
+# sphinx_gallery_thumbnail_path = '_static/example_thumbnails/ebrains_logo.png'
 
 
 # %%

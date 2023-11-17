@@ -23,7 +23,7 @@ blood-oxygen-level-dependent (BOLD) signals.
 
 # %%
 import siibra
-# sphinx_gallery_thumbnail_number = 1
+# sphinx_gallery_thumbnail_number = -1
 
 # %%
 # We start by selecting an atlas parcellation.
@@ -34,8 +34,8 @@ julich_brain = siibra.parcellations.get("julich 2.9")
 # the parcellation as a concept. Here, we query for regional BOLD signals.
 # Since a single query may yield hundreds of signal tables for different
 # subjects of a cohort and paradigms, siibra groups them as elements into
-# :ref:`CompoundFeatures<compoundfeatures>`. Let us select "rfMRI_REST1_LR_BOLD"
-# paradigm.
+# :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
+# Let us select "rfMRI_REST1_LR_BOLD" paradigm.
 features = siibra.features.get(julich_brain, siibra.features.functional.RegionalBOLD)
 for f in features:
     print(f.name)
@@ -68,4 +68,4 @@ selected_regions = [
 cf[0].plot_carpet(regions=selected_regions)
 # %%
 # Alternatively, we can visualize the mean signal strength per region:
-cf[0].plot(regions=selected_regions, backend='plotly')
+cf[0].plot(regions=selected_regions)

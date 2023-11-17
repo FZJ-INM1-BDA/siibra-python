@@ -6,7 +6,7 @@ This section provides a catalogue of documented code examples that is systematic
 
 .. attention:: 
 	
-	Make sure you followed the steps in :ref:`getting-started`. Ideally you have an EBRAINS account registered. While only some functionalities require EBRAINS access, our code examples assume that you set the environment variable ``$HBP_AUTH_TOKEN`` to a freshly obtained EBRAINS access token. 
+	Make sure you followed the steps in :ref:`getting-started`. Only very specialized functionalities require EBRAINS access which requires you to have an EBRAINS account and calling ``siibra.fetch_ebrains_token()`` to set the necessary token.
 
 .. toctree::
    :maxdepth: 3

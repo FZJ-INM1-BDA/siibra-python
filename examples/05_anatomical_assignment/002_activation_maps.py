@@ -17,13 +17,16 @@
 Assign modes in activation maps to brain regions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Statistical parcellations maps can also assign regions to image volumes.
-If given a ``Nifti1Image`` object as input, the assignment method will interpret it as a measurement of a spatial distribution.
-It will first split the image volume into disconnected components, i.e. any subvolumes which are clearly separated by zeros.
-Then, each component will be compared to each statistical maps in the same way that the Gaussian blobs representing uncertain points
-are processed in :ref:`sphx_glr_examples_05_anatomical_assignment_001_coordinates.py`.
+Statistical parcellations maps can also assign regions to image volumes. If
+given a ``Nifti1Image`` object as input, the assignment method will interpret
+it as a measurement of a spatial distribution. It will first split the image
+volume into disconnected components, i.e. any subvolumes which are clearly
+separated by zeros. Then, each component will be compared to each statistical
+maps in the same way that the Gaussian blobs representing uncertain points are
+processed in :ref:`sphx_glr_examples_05_anatomical_assignment_001_coordinates.py`.
 
-We start again by selecting the Julich-Brain probabilistic maps from the human atlas, which we will use for the assignment.
+We start again by selecting the Julich-Brain probabilistic maps from
+the human atlas, which we will use for the assignment.
 """
 
 
@@ -54,8 +57,8 @@ img = difumo_maps.fetch(region=region)
 # let's look at the resulting query image
 plotting.view_img(
     img,
-    title=f"Functional map created from {region}",
-    colorbar=False
+    symmetric_cmap=False,
+    cmap="magma"
 )
 
 # %%

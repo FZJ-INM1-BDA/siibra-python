@@ -34,7 +34,7 @@ from nilearn import plotting
 
 # %%
 # Find cell density profiles for V1. Cortical profile features are combined
-# together as elements to form :ref:`CompoundFeatures<compoundfeatures>`.
+# together as elements to form :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
 # Therefore, we can select the first and only item in the results.
 v1 = siibra.get_region("julich 3", "v1")
 cf = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)[0]

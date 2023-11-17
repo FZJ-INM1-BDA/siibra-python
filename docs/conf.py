@@ -13,8 +13,8 @@
 import os
 import sys
 from sphinx_gallery.sorting import FileNameSortKey
-import sphinx_rtd_theme
-import sphinx_autopackagesummary
+import sphinx_rtd_theme  # this import must be kept to make sphinx_rtd_theme function
+import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
 
 os.environ['SIIBRA_LOG_LEVEL'] = "ERROR"
 sys.path.insert(0, os.path.abspath(".."))
@@ -90,7 +90,6 @@ napoleon_use_ivar = True
 # Mappings
 intersphinx_mapping = {
     "mainconcepts": ('../concepts.html', None),
-    "compoundfeatures": ('../examples/03_data_features/009_compound_features.html#sphx-glr-examples-03-data-features-009-compound-features-py', None),
     "matplotlib": ("https://matplotlib.org/", None),
     "nilearn": ('https://nilearn.github.io/stable/index.html', None),
     "nibabel": ("https://nipy.org/nibabel/", None),
