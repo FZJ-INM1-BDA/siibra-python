@@ -26,7 +26,6 @@ involved in language processing, and a region from the visual system in the occi
 # %%
 import siibra
 import matplotlib.pyplot as plt
-import numpy as np
 # sphinx_gallery_thumbnail_number = -1
 
 # %%
@@ -78,7 +77,7 @@ fig, axs = plt.subplots(len(modalities), len(regions))
 for i, region in enumerate(regions):
     for j, modality in enumerate(modalities):
         cf = siibra.features.get(region, modality)[0]
-        p = cf[np.random.randint(0, len(cf) - 1)]
+        p = cf[0]
         p.plot(ax=axs[j, i])
 
 fig.set(figheight=15, figwidth=10)
