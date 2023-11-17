@@ -38,7 +38,7 @@ def get_registry(subclass_name: str):
     if subclass_name in subclasses:
         return subclasses[subclass_name].registry()
     else:
-        logger.warn(f"No registry for atlas concepts named {subclass_name}")
+        logger.warning(f"No registry for atlas concepts named {subclass_name}")
         return None
 
 

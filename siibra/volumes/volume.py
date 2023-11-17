@@ -569,7 +569,7 @@ def from_pointset(
         )
         bandwidth = np.sum(points.sigma_mm) / len(points)
     else:
-        logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
+        logger.warning("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
         bandwidth = 1
     data = gaussian(cimg, bandwidth)
     if normalize:
