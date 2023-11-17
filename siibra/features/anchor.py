@@ -25,7 +25,7 @@ from ..core.space import Space
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Iterable
 
 
 class AnatomicalAnchor:
@@ -45,7 +45,7 @@ class AnatomicalAnchor:
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
-        elif isinstance(species, list):
+        elif isinstance(species, Iterable):
             assert all(isinstance(_, Species) for _ in species)
             self.species = set(species)
         else:

@@ -15,7 +15,9 @@
 
 from . import cortical_profile
 
-from ...locations import point
+from typing import List, TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...locations import point
 
 
 class BigBrainIntensityProfile(
@@ -42,7 +44,7 @@ class BigBrainIntensityProfile(
         depths: list,
         values: list,
         boundaries: list,
-        location: point.Point
+        location: 'point.Point'
     ):
         from ..anchor import AnatomicalAnchor
         anchor = AnatomicalAnchor(
@@ -67,3 +69,19 @@ class BigBrainIntensityProfile(
     @property
     def location(self):
         return self.anchor.location
+
+    @classmethod
+    def _merge_anchors(cls, anchors: List['AnatomicalAnchor']):
+        from ...locations.pointset import PointSet
+        from ...features.anchor import AnatomicalAnchor
+
+        location = PointSet(
+            [anchor.location for anchor in anchors],
+            space="BigBrain"
+        )
+        regions = {anchor._regionspec for anchor in anchors}
+        return AnatomicalAnchor(
+            location=location,
+            region=", ".join(regions),
+            species='Homo sapiens'
+        )
