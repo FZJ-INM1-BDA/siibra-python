@@ -14,7 +14,7 @@ jobs:
       # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
       # KEYCLOAK_CLIENT_SECRET: ${{ secrets.KEYCLOAK_CLIENT_SECRET }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python 3.7
       uses: actions/setup-python@v4
       with:
@@ -30,7 +30,7 @@ jobs:
         export FAST_RUN=1
         pytest --cov=siibra --cov-report=xml
     - name: Upload coverage report to codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: true # optional (default = false)
         verbose: true # optional (default = false)
