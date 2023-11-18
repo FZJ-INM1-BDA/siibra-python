@@ -39,6 +39,7 @@ jobs:
           path: docs
 
       - name: Trigger RTDs build
+        if: github.repository_owner == 'FZJ-INM1-BDA'
         uses: dfm/rtds-action@v1
         with:
           webhook_url: ${{ secrets.RTDS_WEBHOOK_URL }}
