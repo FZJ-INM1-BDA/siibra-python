@@ -823,8 +823,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, _volume.Volume):
             image = item.fetch()
             return self._assign_volume(
-                np.asanyarray(image.dataobj), image.affine, minsize_voxel,
-                lower_threshold, **kwargs
+                imgdata=np.asanyarray(image.dataobj),
+                imgaffine=image.affine,
+                lower_threshold=lower_threshold,
+                minsize_voxel=minsize_voxel,
+                **kwargs
             )
 
         raise RuntimeError(
@@ -1075,7 +1078,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
         lower_threshold: float,
-        split_components: bool = True
+        split_components: bool = True,
+        **kwargs
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -1092,6 +1096,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
+        # TODO: split_components is not known to `assign`
+        # TODO: `minsize_voxel` is not used here. Consider the implementation again.
+        logger.debug(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
         assignments = []
 
         iter_func = lambda arr: connected_components(arr) \
