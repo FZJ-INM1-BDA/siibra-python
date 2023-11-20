@@ -118,22 +118,35 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         return result
 
-    @property
-    def boundingbox(self):
+    def get_boundingbox(self, clip=False, background=0) -> "_boundingbox.BoundingBox":
         """
         Return the bounding box in physical coordinates
         of the union of fragments in this neuroglancer volume.
         """
         bbox = None
         for frag in self._fragments.values():
-            next_bbox = _boundingbox.BoundingBox((0, 0, 0), frag.shape, space=None) \
-                .transform(frag.affine)
+            if len(frag.shape) > 3:
+                logger.warning(
+                    f"N-D Neuroglancer volume has shape {frag.shape}, but "
+                    f"bounding box considers only {frag.shape[:3]}"
+                )
+            if clip:
+                img = frag.fetch()
+                bounds = _boundingbox.BoundingBox._determine_bounds(np.asanyarray(img.dataobj), background)
+                next_bbox = _boundingbox.BoundingBox(
+                    bounds[:3, 0], bounds[:3, 1], space=None
+                )
+            else:
+                shape = frag.shape[:3]
+                next_bbox = _boundingbox.BoundingBox(
+                    (0, 0, 0), shape, space=None
+                ).transform(frag.affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.boundingbox
+        bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
 
@@ -486,10 +499,9 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
-            f"Fast bounding box access to {self.__class__.__name__} objects not yet implemented."
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
 
     def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:

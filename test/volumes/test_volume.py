@@ -15,8 +15,7 @@ class DummyVolumeProvider(VolumeProvider, srctype="foo-bar"):
     def _url(self):
         return {}
 
-    @property
-    def boundingbox(self):
+    def get_boundingbox(self, clip=True, background=0):
         return None
 
 

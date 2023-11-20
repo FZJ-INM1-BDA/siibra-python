@@ -119,7 +119,7 @@ class Volume(location.Location):
     def boundingbox(self):
         for provider in self._providers.values():
             try:
-                bbox = provider.boundingbox
+                bbox = provider.get_boundingbox()
                 if bbox.space is None:  # provider does usually not know the space!
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space

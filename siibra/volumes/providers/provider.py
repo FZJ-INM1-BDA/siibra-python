@@ -35,9 +35,8 @@ class VolumeProvider(ABC):
         VolumeProvider._SUBCLASSES.append(cls)
         return super().__init_subclass__()
 
-    @property
     @abstractmethod
-    def boundingbox(self) -> "BoundingBox":
+    def get_boundingbox(self, clip=True, background=0.0) -> "BoundingBox":
         raise NotImplementedError
 
     @property
@@ -84,9 +83,8 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.srctype = parent_provider.srctype
         self.z = z
 
-    @property
-    def boundingbox(self) -> "BoundingBox":
-        return self.provider.boundingbox
+    def get_boundingbox(self, clip=True, background=0.0) -> "BoundingBox":
+        return self.provider.get_boundingbox(clip=clip, background=background)
 
     def fetch(self, **kwargs):
         # activate caching at the caller using "with SubvolumeProvider.UseCaching():""

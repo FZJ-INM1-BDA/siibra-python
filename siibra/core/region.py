@@ -17,7 +17,7 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..locations import location, boundingbox, point, pointset
+from ..locations import location, point, pointset
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
