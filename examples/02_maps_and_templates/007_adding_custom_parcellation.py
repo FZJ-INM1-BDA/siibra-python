@@ -104,4 +104,4 @@ for d in receptor_density:
 # %%
 # To get a more detailed assignment scores, one can make use of map assignment
 # discussed in Anatomical Assignment, see
-# :ref:`sphx_glr_examples_05_data_features_002_activation_maps.py`.
+# :ref:`sphx_glr_examples_05_anatomical_assignment_002_activation_maps.py`.
