@@ -718,7 +718,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                         f"No bounding box for {self.name} defined in {spaceobj.name}, "
                         f"will warp the bounding box from {other_space.name} instead."
                     )
-                    bbox = boundingbox.BoundingBox.from_image(mask, space=other_space)
+                    bbox = mask.boundingbox
                     if bbox is not None:
                         return bbox.warp(spaceobj)
                 except RuntimeError:
