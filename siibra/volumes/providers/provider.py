@@ -83,8 +83,8 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.srctype = parent_provider.srctype
         self.z = z
 
-    def get_boundingbox(self, clip=True, background=0.0) -> "BoundingBox":
-        return self.provider.get_boundingbox(clip=clip, background=background)
+    def get_boundingbox(self, clip=True, background=0.0, **fetch_kwargs) -> "BoundingBox":
+        return self.provider.get_boundingbox(clip=clip, background=background, **fetch_kwargs)
 
     def fetch(self, **kwargs):
         # activate caching at the caller using "with SubvolumeProvider.UseCaching():""

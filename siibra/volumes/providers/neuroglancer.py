@@ -118,10 +118,23 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         return result
 
-    def get_boundingbox(self, clip=False, background=0) -> "_boundingbox.BoundingBox":
+    def get_boundingbox(self, clip=False, background=0, **fetch_kwargs) -> "_boundingbox.BoundingBox":
         """
-        Return the bounding box in physical coordinates
-        of the union of fragments in this neuroglancer volume.
+        Return the bounding box in physical coordinates of the union of
+        fragments in this neuroglancer volume.
+
+        Parameters
+        ----------
+        clip: bool, default: True
+            Whether to clip the background of the volume.
+        background: float, default: 0.0
+            The background value to clip.
+            Note
+            ----
+            To use it, clip must be True.
+        fetch_kwargs:
+            key word arguments that are used for fetchin volumes,
+            such as voi or resolution_mm.
         """
         bbox = None
         for frag in self._fragments.values():
@@ -131,11 +144,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                     f"bounding box considers only {frag.shape[:3]}"
                 )
             if clip:
-                img = frag.fetch()
-                bounds = _boundingbox.BoundingBox._determine_bounds(np.asanyarray(img.dataobj), background)
-                next_bbox = _boundingbox.BoundingBox(
-                    bounds[:3, 0], bounds[:3, 1], space=None
-                )
+                img = frag.fetch(**fetch_kwargs)
+                next_bbox = _boundingbox.from_array(
+                    np.asanyarray(img.dataobj), threshold=background, space=None
+                ).transform(img.affine)  # use the affine of the image matching fetch_kwargs
             else:
                 shape = frag.shape[:3]
                 next_bbox = _boundingbox.BoundingBox(
@@ -499,7 +511,10 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
-    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
+    def get_boundingbox(self, clip=False, background=0.0, **fetch_kwargs) -> '_boundingbox.BoundingBox':
+        """
+        Bounding box calculation is not yet implemented for meshes.
+        """
         raise NotImplementedError(
             f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )

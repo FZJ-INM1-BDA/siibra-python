@@ -42,7 +42,7 @@ class ImageAnchor(_anchor.AnatomicalAnchor):
         Loads the bounding box only if required, since it demands image data access.
         """
         if self._location_cached is None:
-            self._location_cached = self.volume.boundingbox
+            self._location_cached = self.volume.get_boundingbox(clip=False)  # use unclipped to preseve exisiting behaviour
         return self._location_cached
 
     @property

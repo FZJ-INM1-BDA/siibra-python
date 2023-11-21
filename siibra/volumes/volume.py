@@ -115,11 +115,41 @@ class Volume(location.Location):
             for srctype, prov in self._providers.items()
         }
 
-    @property
-    def boundingbox(self):
-        for provider in self._providers.values():
+    def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
+        """
+        Obtain the bounding box in physical coordinates of this volume.
+
+        Parameters
+        ----------
+        clip : bool, default: True
+            Whether to clip the background of the volume.
+        background : float, default: 0.0
+            The background value to clip.
+            Note
+            ----
+            To use it, clip must be True.
+        fetch_kwargs:
+            key word arguments that are used for fetchin volumes,
+            such as voi or resolution_mm. Currently, only possible for
+            Neuroglancer volumes except for `format`.
+
+        Raises
+        ------
+        RuntimeError
+            If the volume provider does not have a bounding box calculator.
+        """
+        fmt = fetch_kwargs.get("format")
+        if fmt in self._providers:
+            raise ValueError(
+                f"Requested format {fmt} is not available as provider of "
+                "this volume. See `volume.formats` for possible options."
+            )
+        providers = [self._providers[fmt]] if fmt else self._providers.values()
+        for provider in providers:
             try:
-                bbox = provider.get_boundingbox()
+                bbox = provider.get_boundingbox(
+                    clip=clip, background=background, **fetch_kwargs
+                )
                 if bbox.space is None:  # provider does usually not know the space!
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space
@@ -230,7 +260,7 @@ class Volume(location.Location):
                 return None  # BrainStructure.intersects check for not None
             return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
         elif isinstance(other, boundingbox.BoundingBox):
-            return self.boundingbox.intersection(other)
+            return self.get_boundingbox(clip=True, background=0.0, **kwargs).intersection(other)
         elif isinstance(other, Volume):
             format = kwargs.pop('format', 'image')
             v1 = self.fetch(format=format, **kwargs)
