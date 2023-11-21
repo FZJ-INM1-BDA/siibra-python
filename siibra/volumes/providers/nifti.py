@@ -168,7 +168,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
             result = loader()
 
         if voi is not None:
-            bb_vox = voi.transform_bbox(np.linalg.inv(result.affine))
+            bb_vox = voi.transform(np.linalg.inv(result.affine))
             (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
             shift = np.identity(4)
             shift[:3, -1] = bb_vox.minpoint
@@ -191,15 +191,22 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                 "NiftiVolume does not support to specify different image resolutions"
             )
         try:
-            return self.image.shape
+            loader_shapes = {loader().shape for loader in self._img_loaders.values()}
+            if len(loader_shapes) == 1:
+                return next(iter(loader_shapes))
+            else:
+                raise RuntimeError(f"Fragments have different shapes: {loader_shapes}")
         except AttributeError as e:
             logger.error(
-                f"Invalid object type {type(self.image)} of image for {self} {self.name}"
+                f"Invalid object type/s {[type(loader()) for loader in self._img_loaders.values()]} of image for {self}."
             )
             raise (e)
 
     def is_float(self):
-        return self.image.dataobj.dtype.kind == "f"
+        return all(
+            loader().dataobj.dtype.kind == "f"
+            for loader in self._img_loaders.values()
+        )
 
     def find_peaks(self, min_distance_mm=5):
         """
