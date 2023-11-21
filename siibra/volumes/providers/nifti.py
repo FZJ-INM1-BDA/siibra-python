@@ -65,12 +65,28 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
     def fragments(self):
         return [k for k in self._img_loaders if k is not None]
 
-    @property
-    def boundingbox(self):
+    def get_boundingbox(self, clip=True, background=0, **fetch_kwargs) -> "_boundingbox.BoundingBox":
         """
-        Return the bounding box in physical coordinates
-        of the union of fragments in this nifti volume.
+        Return the bounding box in physical coordinates of the union of
+        fragments in this nifti volume.
+
+        Parameters
+        ----------
+        clip : bool, default: True
+            Whether to clip the background of the volume.
+        background : float, default: 0.0
+            The background value to clip.
+            Note
+            ----
+            To use it, clip must be True.
+        fetch_kwargs:
+            Not used
         """
+        if fetch_kwargs:
+            logger.warning(
+                "`volume.fetch()` keyword arguments supplied. Nifti volumes"
+                " cannot pass them for bounding box calculation."
+            )
         bbox = None
         for loader in self._img_loaders.values():
             img = loader()
@@ -79,15 +95,21 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                     f"N-D NIfTI volume has shape {img.shape}, but "
                     f"bounding box considers only {img.shape[:3]}"
                 )
-            shape = img.shape[:3]
-            next_bbox = _boundingbox.BoundingBox((0, 0, 0), shape, space=None) \
-                .transform(img.affine)
+            if clip:
+                next_bbox = _boundingbox.from_array(
+                    np.asanyarray(img.dataobj), threshold=background, space=None
+                ).transform(img.affine)
+            else:
+                shape = img.shape[:3]
+                next_bbox = _boundingbox.BoundingBox(
+                    (0, 0, 0), shape, space=None
+                ).transform(img.affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.boundingbox
+        bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
 

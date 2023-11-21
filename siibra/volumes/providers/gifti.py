@@ -44,8 +44,10 @@ class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0, **fetch_kwargs) -> '_boundingbox.BoundingBox':
+        """
+        Bounding box calculation is not yet implemented for meshes.
+        """
         raise NotImplementedError(
             f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
@@ -143,10 +145,9 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
 
         return {"labels": np.hstack(labels)}
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0) -> '_boundingbox.BoundingBox':
         raise NotImplementedError(
-            f"Bounding boxes of {self.__class__.__name__} objects not defined."
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
 
     @property
