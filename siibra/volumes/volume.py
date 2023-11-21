@@ -254,14 +254,7 @@ class Volume(location.Location):
                 return None
 
     def transform(self, affine: np.ndarray, space=None):
-        """ only modifies the affine matrix and space. """
-        return Volume(
-            spacespec=space,
-            providers=[p.transform(affine, space=space) for p in self.providers],
-            name=self.name,
-            variant=self.variant,
-            datasets=self.datasets
-        )
+        raise NotImplementedError("Volume transformation is not yet implemented.")
 
     def warp(self, space):
         if self.space.matches(space):
