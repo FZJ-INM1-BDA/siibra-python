@@ -59,8 +59,8 @@ for i, f in enumerate(cf):
 
 # %%
 # So to get the receptor profile on HOC1 for GABAB
-cf.get_element("GABAB (gamma-aminobutyric acid receptor type B)").data
+cf.get_element("GABAB").data
 
 # %%
 # Similarly, to plot
-cf.get_element("GABAB (gamma-aminobutyric acid receptor type B)").plot()
+cf.get_element("GABAB").plot()
