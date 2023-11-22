@@ -18,6 +18,7 @@ from . import provider as _provider
 from ...commons import logger, MapType, merge_meshes
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
+from ...surface import wrap_return_surface
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
 from neuroglancer_scripts.accessor import get_accessor_for_url
@@ -552,6 +553,7 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
 
         return result
 
+    @wrap_return_surface()
     def _fetch_fragment(self, url: str, transform_nm: np.ndarray):
         r = requests.HttpRequest(url, func=lambda b: BytesIO(b))
         (vertices_vox, triangles_vox) = read_precomputed_mesh(r.data)

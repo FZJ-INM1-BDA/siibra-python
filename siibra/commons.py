@@ -14,6 +14,8 @@
 # limitations under the License.
 """Constants, functions, and classes used commonly across siibra."""
 
+from .surface import wrap_return_surface
+
 import os
 import re
 from enum import Enum
@@ -677,6 +679,7 @@ def is_mesh(structure: Union[list, dict]):
         return False
 
 
+@wrap_return_surface()
 def merge_meshes(meshes: list, labels: list = None):
     # merge a list of meshes into one
     # if meshes have no labels, a list of labels of the
