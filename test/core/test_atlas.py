@@ -208,7 +208,7 @@ class TestAtlas(unittest.TestCase):
     )
     def test_find_regions(self, regionspec, bool_flags):
         all_versions, filter_children, _ = bool_flags
-        find_topmost = True  # adds parents if children is matched but parent is not. works only if filter_children is True.
+        find_topmost = False  # adds parents if children is matched but parent is not. works only if filter_children is True.
         with patch.object(Atlas, "parcellations", new_callable=PropertyMock) as parcellations_mock:
             parc1 = MockParc(is_newest_version=True)
             parc1.find.return_value = [MockObj(), MockObj(), MockObj()]

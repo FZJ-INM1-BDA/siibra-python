@@ -211,7 +211,7 @@ class TestParcellation(unittest.TestCase):
         ]
     )
     def test_find_regions(self, filter_children):
-        find_topmost = True  # adds parents if children is matched but parent is not. works only if filter_children is True.
+        find_topmost = False  # adds parents if children is matched but parent is not. works only if filter_children is True.
         with patch.object(Parcellation, "registry") as parcellation_registry_mock:
             parc1 = DummyParcellation([])
             parc2 = DummyParcellation([])

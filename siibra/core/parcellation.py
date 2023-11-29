@@ -331,7 +331,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
 def find_regions(
     regionspec: str,
     filter_children=True,
-    find_topmost=True
+    find_topmost=False
 ):
     """
     Find regions that match the given region specification in the subtree
@@ -346,7 +346,7 @@ def find_regions(
         - a Region object
     filter_children : bool, default: True
         If True, children of matched parents will not be returned
-    find_topmost : bool, default: True
+    find_topmost : bool, default: False
         If True (requires `filter_children=True`), will return parent
         structures if all children are matched, even though the parent
         itself might not match the specification.

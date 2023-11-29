@@ -175,7 +175,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         regionspec: str,
         all_versions: bool = False,
         filter_children: bool = True,
-        find_topmost: bool = True
+        find_topmost: bool = False
     ):
         """
         Find regions with the given specification in all parcellations offered
@@ -191,7 +191,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
             If True, matched regions for all versions of a parcellation are returned.
         filter_children : bool, default: True
             If False, children of matched parents will be returned.
-        find_topmost : bool, default: True
+        find_topmost : bool, default: False
             If True (requires `filter_children=True`), will return parent
             structures if all children are matched, even though the parent
             itself might not match the specification.
