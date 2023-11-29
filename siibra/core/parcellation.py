@@ -30,6 +30,7 @@ import re
 #                        return sorted(matches,key=lambda m:m.version,reverse=True)[0]
 #                except Exception as e:
 #                    pass
+_FIND_REGIONS_CACHE: Dict[str, List[region.Region]] = {}
 
 
 class ParcellationVersion:
@@ -67,8 +68,6 @@ class ParcellationVersion:
 
 
 class Parcellation(region.Region, configuration_folder="parcellations"):
-
-    _CACHED_REGION_SEARCHES: Dict[str, List[region.Region]] = {}
 
     def __init__(
         self,
@@ -194,43 +193,6 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
                 )
             return spec_candidates[0]
         return candidates[0]
-
-    @staticmethod
-    def find_regions(region_spec: str, parents_only=True):
-        """
-        Find regions that match the given region specification in the subtree
-        headed by each parcellation in the registry.
-        Note
-        ----
-        Use Region.find() to search for a region in an instance of a
-        parcellation.
-
-        Parameters
-        ----------
-        regionspec: str
-            a string with a possibly inexact name, which is matched both
-            against the name and the identifier key,
-        parents_only: bool
-            If true, children of matched parents will not be returned
-        Returns
-        -------
-        List[Region]
-            list of matching regions
-        """
-        MEM = Parcellation._CACHED_REGION_SEARCHES
-        if region_spec not in MEM:
-            MEM[region_spec] = [
-                r
-                for p in Parcellation.registry()
-                for r in p.find(regionspec=region_spec)
-            ]
-        if parents_only:
-            return [
-                r for r in MEM[region_spec]
-                if (r.parent is None) or (r.parent not in MEM[region_spec])
-            ]
-        else:
-            return MEM[region_spec]
 
     @property
     def is_newest_version(self):
@@ -364,3 +326,45 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
             )
             return self.name < other.name
         return self.version.__lt__(other.version)
+
+
+def find_regions(
+    regionspec: str,
+    filter_children=True,
+    find_topmost=True
+):
+    """
+    Find regions that match the given region specification in the subtree
+    headed by each parcellation in the registry.
+
+    Parameters
+    ----------
+    regionspec: str, regex, Region
+        - a string with a possibly inexact name (matched both against the name and the identifier key)
+        - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+        - a regex applied to region names
+        - a Region object
+    filter_children : bool, default: True
+        If True, children of matched parents will not be returned
+    find_topmost : bool, default: True
+        If True (requires `filter_children=True`), will return parent
+        structures if all children are matched, even though the parent
+        itself might not match the specification.
+
+    Returns
+    -------
+    list[Region]
+        list of regions matching to the regionspec
+    """
+    key = (regionspec, filter_children, find_topmost)
+    if regionspec not in _FIND_REGIONS_CACHE:
+        _FIND_REGIONS_CACHE[key] = []
+        for p in Parcellation.registry():
+            _FIND_REGIONS_CACHE[key].extend(
+                p.find(
+                    regionspec=regionspec,
+                    filter_children=filter_children,
+                    find_topmost=find_topmost
+                )
+            )
+    return _FIND_REGIONS_CACHE[key]

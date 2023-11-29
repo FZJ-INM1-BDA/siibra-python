@@ -19,7 +19,7 @@ from ..commons import Species
 from ..core.structure import BrainStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
 from ..locations.location import Location
-from ..core.parcellation import Parcellation
+from ..core.parcellation import Parcellation, find_regions
 from ..core.region import Region
 from ..core.space import Space
 
@@ -125,13 +125,13 @@ class AnatomicalAnchor:
             # decode the region specification into a dict of region objects and assignment qualifications
             regions = {
                 region: Qualification.EXACT
-                for region in Parcellation.find_regions(self._regionspec)
+                for region in find_regions(self._regionspec)
                 if region.species in self.species
             }
             # add more regions from possible aliases of the region spec
             for alt_species, aliases in self.region_aliases.items():
                 for alias_regionspec, qualificationspec in aliases.items():
-                    for r in Parcellation.find_regions(alias_regionspec):
+                    for r in find_regions(alias_regionspec):
                         if r.species != alt_species:
                             continue
                         if r not in regions:
