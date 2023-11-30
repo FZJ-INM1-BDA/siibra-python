@@ -20,9 +20,13 @@ from .. import anchor as _anchor
 from ...retrieval.requests import HttpRequest
 from ...locations import BoundingBox, PointSet
 from ...core.space import Space
+from ...volumes.volume import from_pointset
 
-from typing import Dict, Callable
+from typing import Dict, Callable, TYPE_CHECKING
 import pandas as pd
+
+if TYPE_CHECKING:
+    from ...volumes.volume import Volume
 
 
 class PointDistribution(
@@ -90,4 +94,28 @@ class PointDistribution(
         kind = kwargs.pop('kind', "hist")
         return self.data.iloc[:, 3:].plot(
             *args, backend=backend, kind=kind, **kwargs
+        )
+
+    def get_kde_volume(
+        self, normalize: bool = True, min_num_point: int = 0, **kwargs
+    ) -> "Volume":
+        """
+        Get the kernel density estimate from the points using their average
+        uncertainty on the reference space template the coordinates belongs to.
+
+        Parameters
+        ----------
+        normalize : bool, optional
+        min_num_points : int, default 0
+
+        Returns
+        -------
+        Volume
+            _description_
+        """
+        return from_pointset(
+            points=self.as_pointset(),
+            target=self.anchor.space.get_template(**kwargs),
+            normalize=normalize,
+            min_num_point=min_num_point
         )
