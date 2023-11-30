@@ -452,9 +452,10 @@ class SparseMap(parcellationmap.Map):
         self,
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
-        minsize_voxel: int,
         lower_threshold: float,
-        split_components: bool = True
+        minsize_voxel: int = 1,
+        split_components: bool = True,
+        **kwargs
     ) -> List[parcellationmap.AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -510,9 +511,10 @@ class SparseMap(parcellationmap.Map):
 
             for volume in siibra_tqdm(
                 range(len(self)),
-                desc=f"Assigning structure #{mode} to {len(self)} sparse maps",
+                desc=f"Assigning component #{mode} of {kwargs.get('structure', 'volume')} to {len(self)} sparse maps",
                 total=len(self),
-                unit=" map"
+                unit=" map",
+                leave=kwargs.get("leavetqdm", True)
             ):
                 bbox1 = boundingbox.BoundingBox(
                     self.sparse_index.bboxes[volume]["minpoint"],

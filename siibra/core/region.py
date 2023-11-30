@@ -135,6 +135,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._str_aliases = None
         self._CACHED_REGION_SEARCHES = {}
+        self.assigned_regions: Dict['Region', float] = {}
 
     def get_related_regions(self) -> Iterable["Qualification"]:
         """
@@ -854,6 +855,16 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     return volume.intersection(warped).warp(other.space)
 
         return None
+
+    def _add_region_assignment(self, other: 'Region', score: float):
+        """
+        Links a related region object to this region, and assigns it a score
+        between 0.0 and 1.0, where
+        - 0 means dissimilar / disjoint
+        - 1 means identical
+        """
+        assert 0. <= score <= 1.
+        self.assigned_regions[other] = score
 
 
 _get_reg_relation_asmgt_types: Dict[str, Callable] = {}

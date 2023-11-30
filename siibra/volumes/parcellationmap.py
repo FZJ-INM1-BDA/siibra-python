@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Assignment:
+class MapAssignment:
     input_structure: int
     centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
@@ -57,7 +57,7 @@ class Assignment:
 
 
 @dataclass
-class AssignImageResult(CompareMapsResult, Assignment):
+class AssignImageResult(CompareMapsResult, MapAssignment):
     pass
 
 
@@ -804,11 +804,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def _assign(
         self,
-        item: location.Location,
+        item: Union[location.Location, 'Map'],
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ) -> List[Union[Assignment, AssignImageResult]]:
+    ) -> List[Union[MapAssignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -827,8 +827,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 imgaffine=image.affine,
                 lower_threshold=lower_threshold,
                 minsize_voxel=minsize_voxel,
+                structure=item.name,
                 **kwargs
             )
+        if isinstance(item, Map):
+            return self._assign_map(item, **kwargs)
 
         raise RuntimeError(
             f"Items of type {item.__class__.__name__} cannot be used for region assignment."
@@ -836,7 +839,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def assign(
         self,
-        item: location.Location,
+        item: Union[location.Location, 'Map'],
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
@@ -857,29 +860,31 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             image types, otherwise nearest neighbor.
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
-        lower_threshold: float, default: 0
+        lower_threshold: float, default: 0.0
             Lower threshold on values in the statistical map. Values smaller
             than this threshold will be excluded from the assignment computation.
 
         Returns
         -------
-        assignments: pandas.DataFrame
+        assignments: DataFrame
             A table of associated regions and their scores per component found
             in the input image, or per coordinate provided. The scores are:
 
-                - Value: Maximum value of the voxels in the map covered by an
-                input coordinate or input image signal component.
-                - Pearson correlation coefficient between the brain region map
-                and an input image signal component (NaN for exact coordinates)
-                - Contains: Percentage of the brain region map contained in an
-                input image signal component, measured from their binarized
-                masks as the ratio between the volume of their intersection
-                and the volume of the brain region (NaN for exact coordinates)
-                - Contained: Percentage of an input image signal component
-                contained in the brain region map, measured from their binary
-                masks as the ratio between the volume of their intersection and
-                the volume of the input image signal component (NaN for exact
-                coordinates)
+            - map value: Maximum value of the voxels in the map covered by an
+              input coordinate or input image signal component.
+            - correlation: Pearson correlation coefficient between the brain
+              region map and an input image signal component (NaN for exact
+              coordinates)
+            - map containedness: Percentage of the brain region map contained in an
+              input image signal component, measured from their binarized
+              masks as the ratio between the volume of their intersection
+              and the volume of the brain region (NaN for exact coordinates)
+            - input containedness: Percentage of an input image signal component
+              contained in the brain region map, measured from their binary
+              masks as the ratio between the volume of their intersection and
+              the volume of the input image signal component (NaN for exact
+              coordinates)
+
         components: Nifti1Image or None
             If the input was an image, this is a labelled volume mapping the
             detected components in the input image, where pixel values correspond
@@ -956,7 +961,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         "input containedness": a.intersection_over_second,
                     }
                 }
-            elif isinstance(a, Assignment):
+            elif isinstance(a, MapAssignment):
                 item_to_append = {
                     **item_to_append,
                     **{
@@ -977,10 +982,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             pd.DataFrame(dataframe_list)
             .convert_dtypes()  # convert will guess numeric column types
             .reindex(columns=columns)
-            .dropna(axis='columns', how='all')
         )
 
-    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:
+    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[MapAssignment]:
         """
         assign a PointSet to this parcellation map.
 
@@ -1014,7 +1018,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(np.array(position).round(2)),
                                 volume=vol,
@@ -1041,7 +1045,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(pt),
                                 volume=vol,
@@ -1098,11 +1102,12 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         # TODO: split_components is not known to `assign`
         # TODO: `minsize_voxel` is not used here. Consider the implementation again.
-        logger.debug(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
         assignments = []
 
-        iter_func = lambda arr: connected_components(arr) \
-            if split_components else lambda arr: [(1, arr)]
+        if split_components:
+            iter_func = lambda arr: connected_components(arr)
+        else:
+            iter_func = lambda arr: [(0, arr)]
 
         with QUIET and provider.SubvolumeProvider.UseCaching():
             all_indices = [
@@ -1112,13 +1117,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ]
             for index in siibra_tqdm(
                 all_indices,
-                desc=f"Assigning to {len(all_indices)} maps",
+                desc=f"Assigning {kwargs.get('structure', 'volume')} to {len(all_indices)} region masks",
                 disable=len(all_indices) < 5,
-                unit=" map"
+                unit=" map",
+                leave=kwargs.get("leavetqdm", True)
             ):
                 vol_img = self.fetch(index=index)
                 vol_data = np.asanyarray(vol_img.dataobj)
-                for mode, voxelmask in iter_func(imgdata):
+                for component, voxelmask in iter_func(imgdata):
                     position = np.array(np.where(voxelmask)).T.mean(0)
                     if index.label is None:
                         targetdata = vol_data
@@ -1131,7 +1137,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if scores.intersection_over_union > lower_threshold:
                         assignments.append(
                             AssignImageResult(
-                                input_structure=mode,
+                                input_structure=component,
                                 centroid=tuple(position.round(2)),
                                 volume=index.volume,
                                 fragment=index.fragment,
@@ -1141,6 +1147,121 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         )
 
         return assignments
+
+    def _assign_map(
+        self,
+        srcmap: 'Map',
+        minvalue: float = 0.1
+    ) -> List[MapAssignment]:
+        """
+        Assign another (labelled) parcellation map to this parcellation map.
+        Parameters:
+        -----------
+        minvalue: float, default: 0.1
+            Minimum mean map value under each parcel for being accepted as
+            assigned.
+        """
+        if srcmap.space != self.space:
+            raise NotImplementedError(
+                f"The source map is on {srcmap.space} while the map assigned is"
+                f" on {self.space}."
+            )
+        if srcmap.maptype != MapType.LABELLED:
+            raise NotImplementedError("Can only assign labelled maps.")
+        # Compress the map to a single-volume labelled parcellation if source has multiple volumes
+        if len(srcmap.volumes) > 1 or len(srcmap.fragments) > 1:
+            srcmap = srcmap.compress()
+
+        def assign_srcregion(region):
+            srcregion_assignments = []
+            mask = srcmap.fetch(region)
+            candidates = self._assign_volume(
+                imgdata=np.asanyarray(mask.dataobj),
+                imgaffine=mask.affine,
+                lower_threshold=0,
+                split_components=False,
+                leavetqdm=False,
+                structure=region
+            )
+            for c in candidates:
+                if c.weighted_mean_of_first >= minvalue:
+                    c.input_structure = region
+                    srcregion_assignments.append(c)
+            return srcregion_assignments
+
+        try:
+            run_parellel = True
+            from multiprocess import Pool
+        except ImportError:
+            logger.info(
+                "This function supports multiprocessing via `https://github.com/uqfoundation/multiprocess`"
+                " but it was not found."
+            )
+            run_parellel = False
+
+        assignments = []
+        with provider.SubvolumeProvider.UseCaching():
+            if run_parellel:
+                with Pool() as pool:
+                    for srcregion_assignments in pool.imap(
+                        assign_srcregion, srcmap.regions
+                    ):
+                        assignments.extend(srcregion_assignments)
+            else:
+                N = len(srcmap.regions)
+                M = len(self.regions)
+                for srcregion in siibra_tqdm(
+                    srcmap.regions,
+                    total=N,
+                    unit="regions",
+                    desc=f"Assigning {N} maps in '{srcmap}' to {M} target regions in '{self}'"
+                ):
+                    assignments.extend(
+                        assign_srcregion(srcregion)
+                    )
+
+        return assignments
+
+    def compute_relations(self, other_parcellation: Union[str, "parcellation.Parcellation"]):
+        """
+        Computes overlap relationships of this map's regions with a known
+        parcellation. The results will be added to the as region.related_regions
+        attribute of the underlying parcellation's region objects.
+
+        Parameters:
+        -----------
+        other_parcellation: str, Parcellation
+
+        Note:
+        -----
+        An assigned region object to another has a score between 0.0 and 1.0,
+        where
+            - 0 means dissimilar / disjoint
+            - 1 means identical
+        """
+        other_parc = parcellation.Parcellation.registry().get(other_parcellation)
+        try:
+            other_map = other_parc.get_map(space=self.space, maptype='statistical')
+        except Exception:
+            logger.info(f"Cannot find statistical maps for parcellation '{other_parc}'. Will use labelled map.")
+            other_map = other_parc.get_map(space=self.space, maptype='labelled')
+        if other_map is None:
+            raise ValueError(
+                f"Cannot find any maps for selected parcellation '{other_parc}'."
+            )
+        map_assignments = other_map.assign(self)
+        num_new_relations = 0
+        for _, assignment in map_assignments.iterrows():
+            srclabel = assignment['input structure']
+            srcregion = self.get_region(label=srclabel)
+            tgtregion = other_parc.get_region(assignment.region)
+            score = assignment['input weighted mean']
+            srcregion._add_region_assignment(tgtregion, score)
+            num_new_relations += 1
+        logger.info(
+            f"{num_new_relations} region relations found between "
+            f"{self.parcellation.name} and {other_parc.name}."
+        )
 
 
 def from_volume(
