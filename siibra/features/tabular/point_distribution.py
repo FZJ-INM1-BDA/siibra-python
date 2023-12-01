@@ -14,32 +14,42 @@
 # limitations under the License.
 
 from . import tabular
-
+from ..feature import Compoundable
 from .. import anchor as _anchor
 
 from ...retrieval.requests import HttpRequest
-from ...locations import BoundingBox, PointSet
+from ...locations import PointSet
 from ...core.space import Space
 from ...volumes.volume import from_pointset
 
-from typing import Dict, Callable, TYPE_CHECKING
-import pandas as pd
+from typing import Callable, TYPE_CHECKING, Union, List
 
 if TYPE_CHECKING:
     from ...volumes.volume import Volume
+    from ...locations import BoundingBox
+    from pandas import DataFrame
 
 
 class PointDistribution(
     tabular.Tabular,
+    Compoundable,
     configuration_folder="features/tabular/point_distribution",
     category='cellular'
 ):
+    """
+    Represents a data frame with at least 3 columns (x, y, z, value#0, value#1,...)
+    where the coordinates corresponds to a reference space,
+    """
+
+    _filter_attrs = ["modality", "subject"]
+    _compound_attrs = ["modality"]
 
     def __init__(
         self,
         modality: str,
         space_spec: dict,
-        file: Dict[str, str],
+        subject: str,
+        filename: str,
         description: str = "",
         decoder: Callable = None,
         datasets: list = []
@@ -47,7 +57,7 @@ class PointDistribution(
         space = Space.get_instance(space_spec.get('@id') or space_spec.get('name'))
         anchor = _anchor.AnatomicalAnchor(
             species=space.species,
-            location=space.get_template().boundingbox,
+            location=space.get_template().get_boundingbox(clip=False),
             region=None
         )
         tabular.Tabular.__init__(
@@ -58,36 +68,57 @@ class PointDistribution(
             data=None,  # lazy loading below
             datasets=datasets,
         )
-        assert len(file) == 1
-        self._index, filename = list(*file.items())
         self._loader = HttpRequest(filename, decoder)
-        self._pointset_cached = None
+        self._subject = subject
 
     @property
-    def index(self):
-        return self._index
+    def subject(self):
+        return self._subject
 
     def __len__(self):
         """Total number of coordinates."""
         return len(self.as_pointset())
 
-    def as_pointset(self) -> PointSet:
-        coordinates, *self._values = self.data
-        return PointSet(coordinates, self.anchor.space)
+    def as_pointset(
+        self,
+        sigma_mm: Union[float, List[float]] = 0.0,
+        labels: List[int] = None
+    ) -> "PointSet":
+        """
+        Return the coordinates as a siibra PointSet.
+
+        Parameters
+        ----------
+        labels: List[int]
+            Label coordinates with integers.
+        sigma_mm: float or List[float], default: 0.0
+            Optional standard deviation of point locations. By default, only the
+            coordinates are passed on.
+        """
+        coordinates = self.data.iloc[:, :3].to_numpy()
+        return PointSet(
+            coordinates=coordinates,
+            space=self.anchor.space,
+            sigma_mm=sigma_mm,
+            labels=labels
+        )
 
     @property
-    def boundingbox(self) -> BoundingBox:
+    def boundingbox(self) -> "BoundingBox":
         return self.as_pointset().boundingbox
 
     @property
-    def data(self) -> pd.DataFrame:
-        """Return a pandas DataFrame representing the profile."""
+    def data(self) -> 'DataFrame':
+        """
+        Return a pandas DataFrame representing the coordinates and values
+        associated with them. (x, y, z, value#0, value#1, ...)
+        """
         if self._data_cached is None:
             self._data_cached = self._loader.get()
         return self._data_cached.copy()
 
     def plot(self, *args, backend='matplotlib', **kwargs):
-        if self.data.shape[0] <= 3:
+        if self.data.shape[1] <= 3:
             raise NotImplementedError(
                 "The point distribution does not contain any value data."
             )
@@ -97,7 +128,9 @@ class PointDistribution(
         )
 
     def get_kde_volume(
-        self, normalize: bool = True, min_num_point: int = 0, **kwargs
+        self,
+        normalize: bool = True,
+        **template_kwargs
     ) -> "Volume":
         """
         Get the kernel density estimate from the points using their average
@@ -105,17 +138,20 @@ class PointDistribution(
 
         Parameters
         ----------
-        normalize : bool, optional
-        min_num_points : int, default 0
+        normalize: bool, optional
+        template_kwargs:
+            - variant
+            - resolution_mm
+            - voi
 
         Returns
         -------
         Volume
-            _description_
         """
         return from_pointset(
             points=self.as_pointset(),
-            target=self.anchor.space.get_template(**kwargs),
+            target=self.anchor.space.get_template(template_kwargs.pop("variant", None)),
             normalize=normalize,
-            min_num_point=min_num_point
+            min_num_point=1,
+            **template_kwargs
         )
