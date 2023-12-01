@@ -392,16 +392,17 @@ class Factory:
             files = spec.pop("files")
             return [
                 cls.build_point_distribution(
-                    {**spec, "file": {index: baseurl + fname}}
+                    {**spec, "subject": subject, "filename": baseurl + fname}
                 )
-                for index, fname in files.items()
+                for subject, fname in files.items()
             ]
 
         return point_distribution.PointDistribution(
             modality=spec['modality'],
             space_spec=spec.get('space'),
             description=spec.get('description'),
-            file=spec['file'],
+            filename=spec['filename'],
+            subject=spec['subject'],
             decoder=cls.extract_decoder(spec),
             datasets=cls.extract_datasets(spec)
         )
