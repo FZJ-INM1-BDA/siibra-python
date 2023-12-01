@@ -18,8 +18,9 @@ from . import region
 from ..commons import logger, MapType, Species
 from ..volumes import parcellationmap
 
-from typing import Union, List, Dict
+from typing import Union, List
 import re
+from functools import lru_cache
 
 
 # NOTE : such code could be used to automatically resolve
@@ -30,7 +31,6 @@ import re
 #                        return sorted(matches,key=lambda m:m.version,reverse=True)[0]
 #                except Exception as e:
 #                    pass
-_FIND_REGIONS_CACHE: Dict[str, List[region.Region]] = {}
 
 
 class ParcellationVersion:
@@ -328,6 +328,7 @@ class Parcellation(region.Region, configuration_folder="parcellations"):
         return self.version.__lt__(other.version)
 
 
+@lru_cache(maxsize=128)
 def find_regions(
     regionspec: str,
     filter_children=True,
@@ -356,15 +357,13 @@ def find_regions(
     list[Region]
         list of regions matching to the regionspec
     """
-    key = (regionspec, filter_children, find_topmost)
-    if regionspec not in _FIND_REGIONS_CACHE:
-        _FIND_REGIONS_CACHE[key] = []
-        for p in Parcellation.registry():
-            _FIND_REGIONS_CACHE[key].extend(
-                p.find(
-                    regionspec=regionspec,
-                    filter_children=filter_children,
-                    find_topmost=find_topmost
-                )
+    result = []
+    for p in Parcellation.registry():
+        result.extend(
+            p.find(
+                regionspec=regionspec,
+                filter_children=filter_children,
+                find_topmost=find_topmost
             )
-    return _FIND_REGIONS_CACHE[key]
+        )
+    return result
