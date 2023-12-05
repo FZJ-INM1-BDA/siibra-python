@@ -346,9 +346,8 @@ class Volume(location.Location):
                 try:
                     if fmt == "gii-label":
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
-                        mesh = tpl.fetch(**kwargs)
-                        labels = self._providers[fmt].fetch(**fwd_args)
-                        result = dict(**mesh, **labels)
+                        result = tpl.fetch(format='mesh', **kwargs)
+                        result.vertex_labels = self._providers[fmt].fetch(**fwd_args).get('labels')
                     else:
                         result = self._providers[fmt].fetch(**fwd_args)
                 except requests.SiibraHttpRequestError as e:

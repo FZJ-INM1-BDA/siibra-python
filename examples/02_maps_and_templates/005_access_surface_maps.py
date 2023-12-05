@@ -52,13 +52,12 @@ mp = julich_brain.get_map(space='fsaverage6')
 # first one from the list. Now let us fetch a specific variant and also the
 # hemisphere fragment
 mesh = mp.fetch(variant="inflated", fragment="left")
-
-# The returned structure is a dictionary of three numpy arrays representing the
-# vertices, faces, and labels respectively. Each vertex defines a 3D surface
+mesh
+# The returned structure is a Surface consiting of three numpy arrays representing the
+# vertices, faces, and vertex_labels respectively. Each vertex defines a 3D surface
 # point, while the faces are triplets of indices into the list of vertices,
 # defining surface triangles. The labels provide the label index associated with
 # each vertex.
-print(mesh.keys())
 
 # %%
 # Most meshes are shipped with a color map which we can fetch from the map
