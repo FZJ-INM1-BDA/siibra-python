@@ -750,6 +750,11 @@ class CompoundFeature(Feature):
     def __dir__(self):
         return super().__dir__() + list(self._compounding_attributes.keys())
 
+    def plot(self, *args, **kwargs):
+        raise NotImplementedError(
+            "CompoundFeatures does not have a standardized plot. Try plotting the elements instead."
+        )
+
     @property
     def indexing_attributes(self) -> Tuple[str]:
         "The attributes determining the index of this CompoundFeature's elements."
