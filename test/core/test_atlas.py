@@ -169,23 +169,21 @@ class TestAtlas(unittest.TestCase):
 
     @parameterized.expand(
         [
-            (space_arg, fn_name, mock_space_fn_name, arg, kwarg)
+            (space_arg, mock_space_fn_name, arg, kwarg)
             for space_arg in [get_space_arg, None]
-            for fn_name, mock_space_fn_name, args, kwargs in [
+            for mock_space_fn_name, args, kwargs in [
                 (
-                    "get_template",
                     "get_template",
                     [[]],
                     [{"variant": None}, {"variant": MockObj()}],
-                ),
-                ("get_voi", "get_boundingbox", [(MockObj(), MockObj())], [{}]),
+                )
             ]
             for arg in args
             for kwarg in kwargs
         ],
         skip_on_empty=True,
     )
-    def test_get_template(self, space_arg, fn_name, mock_space_fn_name, arg, kwarg):
+    def test_get_template(self, space_arg, mock_space_fn_name, arg, kwarg):
         space_mock = MockObj()
 
         fn_mock = MagicMock()
@@ -196,9 +194,37 @@ class TestAtlas(unittest.TestCase):
         with patch.object(
             Atlas, "get_space", return_value=space_mock
         ) as get_space_mock:
-            return_val = getattr(self.atlas, fn_name)(space_arg, *arg, **kwarg)
+            return_val = self.atlas.get_template(space_arg, *arg, **kwarg)
             assert return_val is fn_mock_return
             get_space_mock.assert_called_once_with(space_arg)
+            fn_mock.assert_called_once_with(*arg, **kwarg)
+
+    @parameterized.expand(
+        [
+            (space_arg, mock_space_fn_name, arg, kwarg)
+            for space_arg in [get_space_arg, None]
+            for mock_space_fn_name, args, kwargs in [
+                ("get_boundingbox", [(MockObj(), MockObj())], [{}]),
+            ]
+            for arg in args
+            for kwarg in kwargs
+        ],
+        skip_on_empty=True,
+    )
+    def test_get_voi(self, space_arg, mock_space_fn_name, arg, kwarg):
+        space_mock = MockObj()
+
+        fn_mock = MagicMock()
+        fn_mock_return = MockObj()
+        fn_mock.return_value = fn_mock_return
+        setattr(space_mock, mock_space_fn_name, fn_mock)
+
+        with patch.object(
+            Atlas, "get_template", return_value=space_mock
+        ) as get_template_mock:
+            return_val = self.atlas.get_voi(space_arg, *arg, **kwarg)
+            assert return_val is fn_mock_return
+            get_template_mock.assert_called_once_with(space_arg)
             fn_mock.assert_called_once_with(*arg, **kwarg)
 
     @parameterized.expand(
