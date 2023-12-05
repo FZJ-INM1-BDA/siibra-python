@@ -115,8 +115,8 @@ spaces = ['mni152', 'colin27']
 def test_boundingbox(space):
     hoc1_l = siibra.get_region('julich', 'hoc1 left')
     hoc1_r = siibra.get_region('julich', 'hoc1 right')
-    bbox_l = hoc1_l.get_bounding_box(space)
-    bbox_r = hoc1_r.get_bounding_box(space)
+    bbox_l = hoc1_l.get_boundingbox(space)
+    bbox_r = hoc1_r.get_boundingbox(space)
     assert bbox_l != bbox_r, "Left and right hoc1 should not have the same bounding boxes"
 
     v_l = hoc1_l.get_regional_map(space)

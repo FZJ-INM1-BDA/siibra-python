@@ -168,7 +168,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         Returns:
             Bounding Box
         """
-        return self.get_space(space).get_bounding_box(point1, point2)
+        return self.get_template(space).get_boundingbox(point1, point2)
 
     def find_regions(
         self,

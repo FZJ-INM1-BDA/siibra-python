@@ -178,7 +178,7 @@ class TestAtlas(unittest.TestCase):
                     [[]],
                     [{"variant": None}, {"variant": MockObj()}],
                 ),
-                ("get_voi", "get_bounding_box", [(MockObj(), MockObj())], [{}]),
+                ("get_voi", "get_boundingbox", [(MockObj(), MockObj())], [{}]),
             ]
             for arg in args
             for kwarg in kwargs

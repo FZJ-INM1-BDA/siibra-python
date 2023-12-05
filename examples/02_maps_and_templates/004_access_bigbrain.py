@@ -117,7 +117,7 @@ plotting.plot_img(
 # %%
 # Let's fetch a crop inside hoc5 at full resolution. We intersect the bounding
 # box of hoc5l and the section.
-hoc5_bbox = hoc5l.get_bounding_box('bigbrain').intersection(section1402)
+hoc5_bbox = hoc5l.get_boundingbox('bigbrain').intersection(section1402)
 print(f"Size of the bounding box: {hoc5_bbox.shape}")
 
 # this is quite large, so we shrink it
