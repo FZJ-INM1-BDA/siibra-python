@@ -9,8 +9,8 @@ import os
 
 all_conn_instances = [
     f
-    for Cls in siibra.features.feature.Feature.SUBCLASSES[RegionalConnectivity]
-    for f in Cls.get_instances()
+    for Cls in siibra.features.feature.Feature._SUBCLASSES[RegionalConnectivity]
+    for f in Cls._get_instances()
 ]
 
 compound_conns = siibra.features.get(siibra.parcellations['julich 3'], RegionalConnectivity)

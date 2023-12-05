@@ -23,19 +23,19 @@ from . import (
 
 
 from .feature import Feature
-get = Feature.match
+get = Feature._match
 
 
-TYPES = Feature._get_subclasses()
+TYPES = Feature._get_subclasses()  # Feature types that can be used to query for features
 
 
 def __dir__():
-    return list(Feature.CATEGORIZED.keys())
+    return list(Feature._CATEGORIZED.keys()) + ["get", "TYPES"]
 
 
 def __getattr__(attr: str):
-    if attr in Feature.CATEGORIZED:
-        return Feature.CATEGORIZED[attr]
+    if attr in Feature._CATEGORIZED:
+        return Feature._CATEGORIZED[attr]
     else:
         hint = ""
         if isinstance(attr, str):
@@ -49,4 +49,4 @@ def __getattr__(attr: str):
 def warm_cache():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
-        _ = ftype.get_instances()
+        _ = ftype._get_instances()
