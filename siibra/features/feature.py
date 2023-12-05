@@ -648,6 +648,11 @@ class Compoundable(ABC):
         assert len(cls._filter_attrs) > 0, "All compoundable classes have to have `_filter_attrs` defined."
         assert len(cls._compound_attrs) > 0, "All compoundable classes have to have `_compound_attrs` defined."
         assert all(attr in cls._filter_attrs for attr in cls._compound_attrs), "`_compound_attrs` must be a subset of `_filter_attrs`."
+        cls._indexing_attrs = [
+            attr
+            for attr in cls._filter_attrs
+            if attr not in cls._compound_attrs
+        ]
         return super().__init_subclass__(**kwargs)
 
     def __init__(self):
@@ -672,15 +677,13 @@ class Compoundable(ABC):
     @property
     def _element_index(self) -> Any:
         """
-        Unique index of this compoundable feature as a subfeature of the
-        Compound. Should be hashable.
+        Unique index of this compoundable feature as an element of the Compound.
+        Must be hashable.
         """
-        index = [
-            self.filter_attributes[attr]
-            for attr in self._filter_attrs
-            if attr not in self._compound_attrs
-        ]
-        return index[0] if len(index) == 1 else tuple(index)
+        index_ = [self.filter_attributes[attr] for attr in self._indexing_attrs]
+        index = index_[0] if len(index_) == 1 else tuple(index_)
+        assert hash(index), "`_element_index` of a compoundable must be hashable."
+        return index
 
 
 class CompoundFeature(Feature):
@@ -735,11 +738,22 @@ class CompoundFeature(Feature):
         """Expose compounding attributes explicitly."""
         if attr in self._compounding_attributes:
             return self._compounding_attributes[attr]
-        else:
-            raise AttributeError(f"{self._feature_type.__name__} has no attribute {attr}.")
+        if hasattr(self._feature_type, attr):
+            raise AttributeError(
+                f"{self.__class__.__name__} does not have access to '{attr}' "
+                "since it does not have the same value for all its elements."
+            )
+        raise AttributeError(
+            f"{self.__class__.__name__} or {self._feature_type.__name__} have no attribute {attr}."
+        )
 
     def __dir__(self):
         return super().__dir__() + list(self._compounding_attributes.keys())
+
+    @property
+    def indexing_attributes(self) -> Tuple[str]:
+        "The attributes determining the index of this CompoundFeature's elements."
+        return tuple(self.elements[0]._indexing_attrs)
 
     @property
     def elements(self):
@@ -748,7 +762,7 @@ class CompoundFeature(Feature):
 
     @property
     def indices(self):
-        """Unique indices to features making up the compound feature."""
+        """Unique indices to features making up the CompoundFeature."""
         return list(self._elements.keys())
 
     @property
