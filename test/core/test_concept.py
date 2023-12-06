@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock, PropertyMock
-from siibra.core.concept import AtlasConcept, InstanceTable
+from siibra.core.concept import AtlasConcept, InstanceTable, _REGISTRIES
 from siibra.commons import Species
 from unittest.mock import patch
 from uuid import uuid4
@@ -26,10 +26,10 @@ class DummyItem:
 
 class TestAtlasConcept(unittest.TestCase):
     def setUp(self):
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = None
+        _REGISTRIES[DummyClsKwarg] = None
 
     def tearDown(self):
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = None
+        _REGISTRIES[DummyClsKwarg] = None
 
     def test_init(self):
         assert issubclass(DummyClsKwarg, AtlasConcept)
@@ -62,16 +62,16 @@ class TestAtlasConcept(unittest.TestCase):
         table = InstanceTable(
             elements={dummy.key: dummy}, matchfunc=dummy.match
         )
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = table
+        _REGISTRIES[DummyClsKwarg] = table
         assert DummyClsKwarg.registry() is table
 
     def test_clear_registry(self):
         dummy = DummyItem()
-        DummyClsKwarg._REGISTRIES[DummyClsKwarg] = InstanceTable(
+        _REGISTRIES[DummyClsKwarg] = InstanceTable(
             elements={dummy.key: dummy}, matchfunc=dummy.match
         )
         DummyClsKwarg.clear_registry()
-        assert DummyClsKwarg._REGISTRIES[DummyClsKwarg] is None
+        assert _REGISTRIES[DummyClsKwarg] is None
 
     def test_get_instance(self):
         with patch.object(AtlasConcept, "registry") as registry_mock:

@@ -16,6 +16,11 @@ from itertools import product
 import inspect
 
 
+class DummyParc():
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+
 class DummyCls:
     _providers = {}
 
@@ -69,14 +74,22 @@ def get_permutations_kwargs_fetch_params():
 class TestMap(unittest.TestCase):
     @staticmethod
     def get_instance(space_spec={}, parcellation_spec={}, indices={}, volumes=[]):
-        return Map(
-            identifier=str(uuid4()),
-            name="map-name",
-            space_spec=space_spec,
-            parcellation_spec=parcellation_spec,
-            indices=indices,
-            volumes=volumes
-        )
+        parcnames = [
+            "parc-name",
+            "prerelease - parc-name",
+            "[PRERELEASE] - parc-name"
+        ]
+        with patch.object(Map, "parcellation") as mock_parc:
+            for parcname in parcnames:
+                mock_parc.return_value = DummyParc(parcname)
+                return Map(
+                    identifier=str(uuid4()),
+                    name="map-name",
+                    space_spec=space_spec,
+                    parcellation_spec=parcellation_spec,
+                    indices=indices,
+                    volumes=volumes
+                )
 
     @classmethod
     def setUpClass(cls) -> None:
