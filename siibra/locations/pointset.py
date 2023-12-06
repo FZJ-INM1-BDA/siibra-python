@@ -24,10 +24,10 @@ import json
 import numpy as np
 try:
     from sklearn.cluster import HDBSCAN
-    HAS_HDBSCAN = True
+    _HAS_HDBSCAN = True
 except ImportError:
     import sklearn
-    HAS_HDBSCAN = False
+    _HAS_HDBSCAN = False
     logger.warning(
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
         "`PointSet.find_clusters()` will not be avaiable."
@@ -229,7 +229,7 @@ class PointSet(location.Location):
         return np.c_[self.coordinates, np.ones(len(self))]
 
     def find_clusters(self, min_fraction=1 / 200, max_fraction=1 / 8):
-        if not HAS_HDBSCAN:
+        if not _HAS_HDBSCAN:
             raise RuntimeError(
                 f"HDBSCAN is not available with your version {sklearn.__version__} "
                 "of sckit-learn. `PointSet.find_clusters()` will not be avaiable."

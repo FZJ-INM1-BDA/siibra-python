@@ -2,7 +2,6 @@
 [run]
 omit =
     */site-packages/*
-    */distutils/*
     test/*
     *siibra_client*
     *.github*

@@ -973,11 +973,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 raise RuntimeError("assignments must be of type Assignment or AssignImageResult!")
 
             dataframe_list.append(item_to_append)
-        df = pd.DataFrame(dataframe_list)
         return (
-            df
+            pd.DataFrame(dataframe_list)
             .convert_dtypes()  # convert will guess numeric column types
             .reindex(columns=columns)
+            .dropna(axis='columns', how='all')
         )
 
     def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:

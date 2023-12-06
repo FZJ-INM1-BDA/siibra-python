@@ -224,7 +224,7 @@ class AtlasConcept:
         return self.name
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(id={self.id}, name={self.name}, species={self.species})>"
+        return f"<{self.__class__.__name__}(identifier='{self.id}', name='{self.name}', species='{self.species}')>"
 
     def matches(self, spec):
         """

@@ -674,7 +674,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """Prints the tree representation of the region"""
         print(self.tree2str())
 
-    def get_bounding_box(
+    def get_boundingbox(
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
