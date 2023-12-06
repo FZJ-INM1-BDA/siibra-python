@@ -459,9 +459,9 @@ class Subvolume(Volume):
 
 def from_file(filename: str, space: str, name: str):
     """ Builds a nifti volume from a filename. """
-    from ..core.concept import AtlasConcept
+    from ..core.concept import get_registry
     from .providers.nifti import NiftiProvider
-    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider(filename)],
@@ -471,9 +471,9 @@ def from_file(filename: str, space: str, name: str):
 
 def from_nifti(nifti: Nifti1Image, space: str, name: str):
     """Builds a nifti volume from a Nifti image."""
-    from ..core.concept import AtlasConcept
+    from ..core.concept import get_registry
     from .providers.nifti import NiftiProvider
-    spaceobj = AtlasConcept.get_registry("Space").get(space)
+    spaceobj = get_registry("Space").get(space)
     return Volume(
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
@@ -490,10 +490,10 @@ def from_array(
     """Builds a siibra volume from an array and an affine matrix."""
     if len(name) == 0:
         raise ValueError("Please provide a non-empty string for `name`")
-    from ..core.concept import AtlasConcept
+    from ..core.concept import get_registry
     from .providers.nifti import NiftiProvider
     spacespec = next(iter(space.values())) if isinstance(space, dict) else space
-    spaceobj = AtlasConcept.get_registry("Space").get(spacespec)
+    spaceobj = get_registry("Space").get(spacespec)
     return Volume(
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider((data, affine))],
