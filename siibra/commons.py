@@ -126,6 +126,9 @@ class InstanceTable(Generic[T], Iterable):
         else:
             return f"Empty {self.__class__.__name__}"
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} of {self[0].__class__}>"
+
     def __iter__(self) -> Iterator[T]:
         """Iterate over all objects in the registry"""
         return (w for w in self._elements.values())
@@ -335,10 +338,11 @@ class MapIndex:
         return f"(volume:{self.volume}, label:{self.label}, fragment:{self.fragment})"
 
     def __repr__(self):
-        return f"{self.__class__.__name__}{str(self)}"
+        frag = f"'{self.fragment}'" if self.fragment else self.fragment
+        return f"<{self.__class__.__name__}(volume={self.volume}, label={self.label}, fragment={frag})>"
 
     def __eq__(self, other):
-        assert isinstance(other, self.__class__)
+        assert isinstance(other, self.__class__), f'Cannot compare {self.__class__} and {other.__class__}'
         return all([
             self.volume == other.volume,
             self.label == other.label,
