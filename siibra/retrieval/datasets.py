@@ -102,6 +102,13 @@ class EbrainsBaseDataset(ABC):
             f"Cannot match {spec.__class__}, must be either str or EbrainsBaseDataset"
         )
 
+    @property
+    def LICENSE(self) -> str:
+        license_ = self._detail.get("license", [])
+        if len(license_) > 0:
+            return license_ if isinstance(license_, str) else '\n'.join(license_)
+        return None
+
 
 class EbrainsDataset(EbrainsBaseDataset):
     """Ebrains dataset v1 connection"""
@@ -172,10 +179,6 @@ class EbrainsDataset(EbrainsBaseDataset):
     @property
     def custodians(self) -> EbrainsDatasetPerson:
         return self._detail.get("custodians")
-
-    @property
-    def LICENSE(self) -> str:
-        return self._detail.get("license", "No license information is found.")
 
 
 class EbrainsV3DatasetVersion(EbrainsBaseDataset):
@@ -271,10 +274,6 @@ class EbrainsV3DatasetVersion(EbrainsBaseDataset):
     def version_identifier(self):
         return self._detail.get("versionIdentifier", "")
 
-    @property
-    def LICENSE(self) -> str:
-        return self._detail.get("license", "No license information is found.")
-
 
 class EbrainsV3Dataset(EbrainsBaseDataset):
     def __init__(self, id, *, cached_data=None) -> None:
@@ -342,10 +341,6 @@ class EbrainsV3Dataset(EbrainsBaseDataset):
     def version_ids(self) -> List['str']:
         return [version.get("id") for version in self._detail.get("versions", [])]
 
-    @property
-    def LICENSE(self) -> str:
-        return self._detail.get("license", "No license information is found.")
-
 
 class GenericDataset():
 
@@ -355,7 +350,7 @@ class GenericDataset():
         contributors: List[str] = None,
         url: str = None,
         description: str = None,
-        license: str = "No license information is found."
+        license: str = None
     ):
         self._name = name
         self._contributors = contributors

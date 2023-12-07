@@ -167,7 +167,13 @@ class Feature:
 
     @property
     def LICENSE(self) -> str:
-        return '\n'.join([ds.LICENSE for ds in self.datasets])
+        licenses = {ds.LICENSE for ds in self.datasets if ds.LICENSE}
+        if not licenses:
+            return "No license information is found."
+        if len(licenses) == 1:
+            return next(iter(licenses))
+        logger.info("Found multiple licenses corresponding to datasets.")
+        return '\n'.join(licenses)
 
     @property
     def doi_or_url(self) -> str:
