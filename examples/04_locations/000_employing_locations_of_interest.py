@@ -53,7 +53,7 @@ print(point.warp('bigbrain'))
 print(point.warp('colin27'))
 
 # %%
-# To explore further, let us first create a random pointset and find the box
+# To explore further, let us first create a random pointset and get the box
 # that contains these points, which is another location type.
 ptset = siibra.PointSet(
     np.concatenate([
@@ -66,18 +66,16 @@ ptset.boundingbox
 
 # %%
 # We can display these points as a kernel density estimated volume
-ptset.labels = np.ones(len(ptset))
-kde_volume = siibra.volumes.from_pointset(ptset, 1, siibra.get_template('mni152'))
+ptset.labels = np.ones(len(ptset), dtype=int)
+kde_volume = siibra.volumes.from_pointset(ptset)
 plotting.view_img(kde_volume.fetch())
 
 # %%
 # `siibra` can find the clusters (using HDBSCAN) and label the points.
 ptset.find_clusters()
-kde_volumes = {
-    label: siibra.volumes.from_pointset(ptset, label, siibra.get_template('mni152'))
-    for label in set(ptset.labels)
-}
-plotting.view_img(kde_volumes[1].fetch())
+ptset.labels += (1 - ptset.labels.min())  # offset the labels to be able to display as nifti
+clusters_kde_volume = siibra.volumes.from_pointset(ptset)
+plotting.view_img(clusters_kde_volume.fetch())
 
 # %%
 # Moreover, a location objects can be used to query features. For illusration,

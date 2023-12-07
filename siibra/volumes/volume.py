@@ -28,7 +28,8 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
-from skimage import filters, feature as skimage_feature
+from skimage import feature as skimage_feature
+from skimage.filters import gaussian
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -457,7 +458,7 @@ class Subvolume(Volume):
         )
 
 
-def from_file(filename: str, space: str, name: str):
+def from_file(filename: str, space: str, name: str) -> Volume:
     """ Builds a nifti volume from a filename. """
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
@@ -469,7 +470,7 @@ def from_file(filename: str, space: str, name: str):
     )
 
 
-def from_nifti(nifti: Nifti1Image, space: str, name: str):
+def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
     """Builds a nifti volume from a Nifti image."""
     from ..core.concept import AtlasConcept
     from .providers.nifti import NiftiProvider
@@ -486,7 +487,7 @@ def from_array(
     affine: np.ndarray,
     space: Union[str, Dict[str, str]],
     name: str
-):
+) -> Volume:
     """Builds a siibra volume from an array and an affine matrix."""
     if len(name) == 0:
         raise ValueError("Please provide a non-empty string for `name`")
@@ -503,25 +504,63 @@ def from_array(
 
 def from_pointset(
     points: pointset.PointSet,
-    label: int,
-    target: Volume,
+    labels: List[int] = [],
+    target: Volume = None,
     min_num_points=10,
     normalize=True,
     **kwargs
-):
+) -> Volume:
+    """
+    Get the kernel density estimate as a volume from the points using their
+    average uncertainty on target volume.
+    Parameters
+    ----------
+    points: pointset.PointSet
+    target: Volume, default: None
+        If no volumes supplied, the template of the space points are defined on
+        will be used.
+    labels: List[int], default: []
+    min_num_points: int, default 10
+    normalize: bool, default: True
+
+    Raises
+    ------
+    RuntimeError
+        If no points with labels found
+    """
+    if target is None:
+        target = points.space.get_template()
     targetimg = target.fetch(**kwargs)
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
-    selection = [_ == label for _ in points.labels]
-    if np.count_nonzero(selection) == 0:
-        raise RuntimeError(f"No points with label {label} in the set: {', '.join(map(str, points.labels))}")
-    X, Y, Z = np.split(
-        np.array(voxels.as_list()).astype('int')[selection, :],
-        3, axis=1
-    )
-    if len(X) < min_num_points:
-        return None
     cimg = np.zeros_like(targetimg.get_fdata())
-    cimg[X, Y, Z] += 1
+
+    if len(labels) == 0:
+        if points.labels is None:
+            labels = [1]
+            logger.info("Found no point labels. Labelling all with 1.")
+            points.labels = np.ones(len(points), dtype=int)
+        else:
+            labels = points.labels
+    found_enough_points = False
+    for label in labels:
+        selection = [_ == label for _ in points.labels]
+        if selection.count(True) == 0:
+            logger.warning(f"No points with label {label} in the set: {set(points.labels)}")
+            continue
+        X, Y, Z = np.split(
+            np.array(voxels.as_list()).astype('int')[selection, :],
+            3,
+            axis=1
+        )
+        if len(X) < min_num_points:
+            logger.warning(f"Not enough points (<{min_num_points}) with label {label}, skipping.")
+            continue
+        found_enough_points = True
+        cimg[X, Y, Z] = label
+
+    if not found_enough_points:
+        raise RuntimeError(f"Not enough poinsts with labels {labels} found in {points}.")
+
     if isinstance(points.sigma_mm, (int, float)):
         bandwidth = points.sigma_mm
     elif isinstance(points.sigma_mm, list):
@@ -532,14 +571,14 @@ def from_pointset(
     else:
         logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
         bandwidth = 1
-    data = filters.gaussian(cimg, bandwidth)
+    data = gaussian(cimg, bandwidth)
     if normalize:
         data /= data.sum()
     return from_array(
         data=data,
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {sum(selection)} points with label={label}'
+        name=f'KDE map of {points} with labels={labels}'
     )
 
 
