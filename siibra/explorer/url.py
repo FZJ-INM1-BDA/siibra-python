@@ -96,8 +96,8 @@ def encode_url(
     nav_string = "/@:0.0.0.-W000.._eCwg.2-FUe3._-s_W.2_evlu..{encoded_pzoom}..{encoded_nav}..{encoded_zoom}"
 
     return_url = (
-        "{root_url}#/a:{atlas_id}/t:{template_id}/p:{parc_id}{overlay_url}".format(
-            root_url=root_url,
+        "{root_url}/#/a:{atlas_id}/t:{template_id}/p:{parc_id}{overlay_url}".format(
+            root_url=root_url.rstrip("/"),
             atlas_id=sanitize_id(atlas.id),
             template_id=sanitize_id(space.id),
             parc_id=sanitize_id(parc.id),
