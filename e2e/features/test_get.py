@@ -4,10 +4,10 @@ import siibra
 
 # We get all registered subclasses of Feature
 @pytest.mark.parametrize(
-    "Cls", [Cls for Cls in siibra.features.Feature.SUBCLASSES[siibra.features.Feature]]
+    "Cls", [Cls for Cls in siibra.features.Feature._SUBCLASSES[siibra.features.Feature]]
 )
 def test_get_instances(Cls: siibra.features.Feature):
-    instances = Cls.get_instances()
+    instances = Cls._get_instances()
     assert isinstance(instances, list)
 
 
@@ -38,9 +38,9 @@ def test_get_instance(fid):
 # query time linearly)
 @pytest.mark.parametrize("fid", selected_ids)
 def test_subclass_count(fid):
-    len_before = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
+    len_before = len(siibra.features.Feature._SUBCLASSES[siibra.features.Feature])
     _ = siibra.features.Feature._get_instance_by_id(fid)
-    len_after = len(siibra.features.Feature.SUBCLASSES[siibra.features.Feature])
+    len_after = len(siibra.features.Feature._SUBCLASSES[siibra.features.Feature])
     assert len_before == len_after
 
 

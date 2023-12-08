@@ -86,9 +86,8 @@ class Feature:
     Base class for anatomically anchored data features.
     """
 
-    SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
-
-    CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
+    _SUBCLASSES: Dict[Type['Feature'], List[Type['Feature']]] = defaultdict(list)
+    _CATEGORIZED: Dict[str, Type['InstanceTable']] = defaultdict(InstanceTable)
 
     category: str = None
 
@@ -141,19 +140,19 @@ class Feature:
                 # some base classes may not be sub class of feature, ignore these
                 if not issubclass(BaseCls, Feature):
                     continue
-                cls.SUBCLASSES[BaseCls].append(cls)
+                cls._SUBCLASSES[BaseCls].append(cls)
 
         cls._live_queries = []
         cls._preconfigured_instances = None
         cls._configuration_folder = configuration_folder
         cls.category = category
         if category is not None:
-            cls.CATEGORIZED[category].add(cls.__name__, cls)
+            cls._CATEGORIZED[category].add(cls.__name__, cls)
         return super().__init_subclass__(**kwargs)
 
     @classmethod
     def _get_subclasses(cls):
-        return {Cls.__name__: Cls for Cls in cls.SUBCLASSES}
+        return {Cls.__name__: Cls for Cls in cls._SUBCLASSES}
 
     @property
     def description(self):
@@ -197,7 +196,7 @@ class Feature:
         return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
 
     @classmethod
-    def get_instances(cls, **kwargs) -> List['Feature']:
+    def _get_instances(cls, **kwargs) -> List['Feature']:
         """
         Retrieve objects of a particular feature subclass.
         Objects can be preconfigured in the configuration,
@@ -215,7 +214,7 @@ class Feature:
 
         from ..configuration.configuration import Configuration
         conf = Configuration()
-        Configuration.register_cleanup(cls.clean_instances)
+        Configuration.register_cleanup(cls._clean_instances)
         assert cls._configuration_folder in conf.folders
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
@@ -232,7 +231,7 @@ class Feature:
         raise NotImplementedError("Generic feature class does not have a standardized plot.")
 
     @classmethod
-    def clean_instances(cls):
+    def _clean_instances(cls):
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
@@ -250,13 +249,13 @@ class Feature:
 
     @property
     def last_match_result(self):
-        return None if self.anchor is None \
-            else self.anchor.last_match_result
+        "The result of the last anchor comparison to a BrainStructure."
+        return None if self.anchor is None else self.anchor.last_match_result
 
     @property
     def last_match_description(self):
-        return "" if self.anchor is None \
-            else self.anchor.last_match_description
+        "The description of the last anchor comparison to a BrainStructure."
+        return "" if self.anchor is None else self.anchor.last_match_description
 
     @property
     def id(self):
@@ -324,7 +323,7 @@ class Feature:
         fh.close()
 
     @staticmethod
-    def serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
+    def _serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
         """
         Serialize feature from livequery and query context.
 
@@ -359,7 +358,7 @@ class Feature:
         return f"lq0::{feat.__class__.__name__}::{encoded_c}::{feat.id}"
 
     @classmethod
-    def deserialize_query_context(cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
+    def _deserialize_query_context(cls, feature_id: str) -> Tuple[Type['Feature'], concept.AtlasConcept, str]:
         """
         Deserialize id into query context.
 
@@ -432,7 +431,7 @@ class Feature:
     def _parse_featuretype(cls, feature_type: str) -> List[Type['Feature']]:
         ftypes = sorted({
             feattype
-            for FeatCls, feattypes in cls.SUBCLASSES.items()
+            for FeatCls, feattypes in cls._SUBCLASSES.items()
             if all(w.lower() in FeatCls.__name__.lower() for w in feature_type.split())
             for feattype in feattypes
         }, key=lambda t: t.__name__)
@@ -457,14 +456,14 @@ class Feature:
             q = QueryType(**kwargs)
             features = q.query(concept)
             live_instances.extend(
-                Feature.wrap_livequery_feature(f, Feature.serialize_query_context(f, concept))
+                Feature._wrap_livequery_feature(f, Feature._serialize_query_context(f, concept))
                 for f in features
             )
 
         return live_instances
 
     @classmethod
-    def match(
+    def _match(
         cls,
         concept: structure.BrainStructure,
         feature_type: Union[str, Type['Feature'], list],
@@ -495,7 +494,7 @@ class Feature:
             )
             return list(dict.fromkeys(
                 sum((
-                    cls.match(concept, t, **kwargs) for t in feature_type
+                    cls._match(concept, t, **kwargs) for t in feature_type
                 ), [])
             ))
 
@@ -506,13 +505,13 @@ class Feature:
             if len(ftype_candidates) == 0:
                 raise ValueError(
                     f"feature_type {str(feature_type)} did not match with any "
-                    f"features. Available features are: {', '.join(cls.SUBCLASSES.keys())}"
+                    f"features. Available features are: {', '.join(cls._SUBCLASSES.keys())}"
                 )
             logger.info(
                 f"'{feature_type}' decoded as feature type/s: "
                 f"{[c.__name__ for c in ftype_candidates]}."
             )
-            return cls.match(concept, ftype_candidates, **kwargs)
+            return cls._match(concept, ftype_candidates, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -527,8 +526,8 @@ class Feature:
         # which match the query concept
         instances = [
             instance
-            for f_type in cls.SUBCLASSES[feature_type]
-            for instance in f_type.get_instances()
+            for f_type in cls._SUBCLASSES[feature_type]
+            for instance in f_type._get_instances()
         ]
 
         preconfigured_instances = [
@@ -546,7 +545,7 @@ class Feature:
         live_instances = feature_type._livequery(concept, **kwargs)
 
         results = list(dict.fromkeys(preconfigured_instances + live_instances))
-        return CompoundFeature.compound(results, concept)
+        return CompoundFeature._compound(results, concept)
 
     @classmethod
     def _get_instance_by_id(cls, feature_id: str, **kwargs):
@@ -556,7 +555,7 @@ class Feature:
             pass
 
         try:
-            F, concept, fid = cls.deserialize_query_context(feature_id)
+            F, concept, fid = cls._deserialize_query_context(feature_id)
             return [
                 f
                 for f in F._livequery(concept, **kwargs)
@@ -565,8 +564,8 @@ class Feature:
         except ParseLiveQueryIdException:
             candidates = [
                 inst
-                for Cls in Feature.SUBCLASSES[Feature]
-                for inst in Cls.get_instances()
+                for Cls in Feature._SUBCLASSES[Feature]
+                for inst in Cls._get_instances()
                 if inst.id == feature_id
             ]
             if len(candidates) == 0:
@@ -581,31 +580,8 @@ class Feature:
         except IndexError:
             raise NotFoundException
 
-    @classmethod
-    def get_ascii_tree(cls):
-        # build an Ascii representation of class hierarchy
-        # under this feature class
-        from anytree.importer import DictImporter
-        from anytree import RenderTree
-
-        def create_treenode(feature_type):
-            return {
-                'name': feature_type.__name__,
-                'children': [
-                    create_treenode(c)
-                    for c in feature_type.__subclasses__()
-                ]
-            }
-        D = create_treenode(cls)
-        importer = DictImporter()
-        tree = importer.import_(D)
-        return "\n".join(
-            "%s%s" % (pre, node.name)
-            for pre, _, node in RenderTree(tree)
-        )
-
     @staticmethod
-    def wrap_livequery_feature(feature: 'Feature', fid: str):
+    def _wrap_livequery_feature(feature: 'Feature', fid: str):
         """
         Wrap live query features, override only the id attribute.
 
@@ -654,6 +630,11 @@ class Compoundable(ABC):
         assert len(cls._filter_attrs) > 0, "All compoundable classes have to have `_filter_attrs` defined."
         assert len(cls._compound_attrs) > 0, "All compoundable classes have to have `_compound_attrs` defined."
         assert all(attr in cls._filter_attrs for attr in cls._compound_attrs), "`_compound_attrs` must be a subset of `_filter_attrs`."
+        cls._indexing_attrs = [
+            attr
+            for attr in cls._filter_attrs
+            if attr not in cls._compound_attrs
+        ]
         return super().__init_subclass__(**kwargs)
 
     def __init__(self):
@@ -678,15 +659,13 @@ class Compoundable(ABC):
     @property
     def _element_index(self) -> Any:
         """
-        Unique index of this compoundable feature as a subfeature of the
-        Compound. Should be hashable.
+        Unique index of this compoundable feature as an element of the Compound.
+        Must be hashable.
         """
-        index = [
-            self.filter_attributes[attr]
-            for attr in self._filter_attrs
-            if attr not in self._compound_attrs
-        ]
-        return index[0] if len(index) == 1 else tuple(index)
+        index_ = [self.filter_attributes[attr] for attr in self._indexing_attrs]
+        index = index_[0] if len(index_) == 1 else tuple(index_)
+        assert hash(index), "`_element_index` of a compoundable must be hashable."
+        return index
 
 
 class CompoundFeature(Feature):
@@ -741,11 +720,27 @@ class CompoundFeature(Feature):
         """Expose compounding attributes explicitly."""
         if attr in self._compounding_attributes:
             return self._compounding_attributes[attr]
-        else:
-            raise AttributeError(f"{self._feature_type.__name__} has no attribute {attr}.")
+        if hasattr(self._feature_type, attr):
+            raise AttributeError(
+                f"{self.__class__.__name__} does not have access to '{attr}' "
+                "since it does not have the same value for all its elements."
+            )
+        raise AttributeError(
+            f"{self.__class__.__name__} or {self._feature_type.__name__} have no attribute {attr}."
+        )
 
     def __dir__(self):
         return super().__dir__() + list(self._compounding_attributes.keys())
+
+    def plot(self, *args, **kwargs):
+        raise NotImplementedError(
+            "CompoundFeatures does not have a standardized plot. Try plotting the elements instead."
+        )
+
+    @property
+    def indexing_attributes(self) -> Tuple[str]:
+        "The attributes determining the index of this CompoundFeature's elements."
+        return tuple(self.elements[0]._indexing_attrs)
 
     @property
     def elements(self):
@@ -754,7 +749,7 @@ class CompoundFeature(Feature):
 
     @property
     def indices(self):
-        """Unique indices to features making up the compound feature."""
+        """Unique indices to features making up the CompoundFeature."""
         return list(self._elements.keys())
 
     @property
@@ -804,7 +799,7 @@ class CompoundFeature(Feature):
             raise IndexError(f"No feature with index '{index}' in this compound.")
 
     @classmethod
-    def compound(
+    def _compound(
         cls,
         features: List['Feature'],
         queryconcept: Union[region.Region, parcellation.Parcellation, space.Space]
@@ -863,7 +858,7 @@ class CompoundFeature(Feature):
         assert cf_version == "cf0"
         candidates = [
             f
-            for f in Feature.match(
+            for f in Feature._match(
                 concept=cls._decode_concept(queryconcept),
                 feature_type=clsname
             )
