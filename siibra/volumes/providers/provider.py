@@ -36,11 +36,11 @@ class VolumeProvider(ABC):
         return super().__init_subclass__()
 
     @abstractmethod
-    def get_boundingbox(self, clip=True, background=0.0) -> "BoundingBox":
+    def get_boundingbox(self, clip=True, background=0.0) -> BoundingBox:
         raise NotImplementedError
 
     @property
-    def fragments(self) -> List[str]:
+    def fragments(self) -> list[str]:
         return []
 
     @abstractmethod
@@ -49,7 +49,7 @@ class VolumeProvider(ABC):
 
     @property
     @abstractmethod
-    def _url(self) -> Union[str, Dict[str, str]]:
+    def _url(self) -> str | dict[str, str]:
         """
         This is needed to provide urls to applications that can utilise such resources directly.
         e.g. siibra-api
@@ -83,7 +83,7 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         self.srctype = parent_provider.srctype
         self.z = z
 
-    def get_boundingbox(self, clip=True, background=0.0, **fetch_kwargs) -> "BoundingBox":
+    def get_boundingbox(self, clip=True, background=0.0, **fetch_kwargs) -> BoundingBox:
         return self.provider.get_boundingbox(clip=clip, background=background, **fetch_kwargs)
 
     def fetch(self, **kwargs):
@@ -103,5 +103,5 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
         return self.provider.__getattribute__(attr)
 
     @property
-    def _url(self) -> Union[str, Dict[str, str]]:
+    def _url(self) -> str | dict[str, str]:
         return super()._url

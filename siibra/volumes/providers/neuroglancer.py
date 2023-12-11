@@ -412,7 +412,7 @@ class NeuroglancerScale:
             raise RuntimeError('Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
             cachefile = cache.CACHE.build_filename(
-                "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
+                f"{self.volume.url}_{self.key}_{gx}_{gy}_{gz}",
                 suffix=".npy",
             )
             if os.path.isfile(cachefile):

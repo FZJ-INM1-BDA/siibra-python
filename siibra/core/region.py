@@ -668,7 +668,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     def tree2str(self):
         """Render region-tree as a string"""
         return "\n".join(
-            "%s%s" % (pre, node.name)
+            "{}{}".format(pre, node.name)
             for pre, _, node
             in anytree.RenderTree(self, style=anytree.render.ContRoundStyle)
         )

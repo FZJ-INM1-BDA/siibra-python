@@ -96,7 +96,7 @@ class Location(BrainStructure):
         raise NotImplementedError
 
     @staticmethod
-    def union(loc0: 'Location', loc1: 'Location') -> 'Location':
+    def union(loc0: Location, loc1: Location) -> Location:
         """
         Reassigned at the locations module level for static typing and to avoid
         circular imports. See siibra.locations.__init__.reassign_union()

@@ -61,11 +61,11 @@ def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
             raise NotImplementedError(f"There are no union method for {(loc0.__class__.__name__, loc1.__class__.__name__)}")
 
     # convert Points to PointSets
-    loc0, loc1 = [
+    loc0, loc1 = (
         PointSet([loc], space=loc.space, sigma_mm=loc.sigma)
         if isinstance(loc, Point) else loc
         for loc in [loc0, loc1]
-    ]
+    )
 
     # adopt the space of the first location
     loc1_w = loc1.warp(loc0.space)

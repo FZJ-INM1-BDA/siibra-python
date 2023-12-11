@@ -77,6 +77,6 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
     importer = DictImporter()
     tree = importer.import_(D)
     print("\n".join(
-        "%s%s" % (pre, node.name)
+        "{}{}".format(pre, node.name)
         for pre, _, node in RenderTree(tree)
     ))

@@ -46,7 +46,7 @@ SIIBRA_USE_LOCAL_SNAPSPOT = os.getenv("SIIBRA_USE_LOCAL_SNAPSPOT")
 SKIP_CACHEINIT_MAINTENANCE = os.getenv("SKIP_CACHEINIT_MAINTENANCE")
 NEUROGLANCER_MAX_GIB = os.getenv("NEUROGLANCER_MAX_GIB", 0.2)
 
-with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
+with open(os.path.join(ROOT_DIR, "VERSION")) as fp:
     __version__ = fp.read().strip()
 
 
@@ -661,7 +661,7 @@ def MI(arr1, arr2, nbins=100, normalized=True):
         assert np.count_nonzero(nz) > 0
         return -np.sum(p[nz] * np.log(p[nz]))
 
-    Hx, Hy = [entropy(p) for p in [px, py]]
+    Hx, Hy = (entropy(p) for p in [px, py])
     assert (Hx + Hy) > 0
     NMI = 2 * MI / (Hx + Hy)
     return NMI

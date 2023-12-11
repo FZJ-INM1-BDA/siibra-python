@@ -6,11 +6,11 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def find_version():
     path_to_version = os.path.join(ROOT_DIR, "siibra", "VERSION")
-    with open(path_to_version, "r", encoding="utf-8") as f:
+    with open(path_to_version, encoding="utf-8") as f:
         return f.read()
 
 
-with open(os.path.join(ROOT_DIR, "README.rst"), "r", encoding="utf-8") as f:
+with open(os.path.join(ROOT_DIR, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 
 setup(

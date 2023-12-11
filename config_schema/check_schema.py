@@ -39,7 +39,7 @@ def get_ref(schema):
         for filename in filenames:
             if not filename.endswith(".json"):
                 continue
-            with open(f"{dirpath}/{filename}", "r") as fp:
+            with open(f"{dirpath}/{filename}") as fp:
 
                 relative_path = dirpath.replace(walk_path, "") + "/" + filename
 
@@ -60,7 +60,7 @@ def validate_json(path_to_json, fail_fast=False):
             ValidationResult.SKIPPED,
             None,
         )
-    with open(path_to_json, "r") as fp:
+    with open(path_to_json) as fp:
         json_obj = json.load(fp)
 
     # skip list
@@ -99,9 +99,7 @@ def validate_json(path_to_json, fail_fast=False):
             )
     path_to_schema = os.path.abspath(abspath)
     with open(
-        path_to_schema,
-        "r"
-    ) as fp:
+        path_to_schema) as fp:
         schema = json.load(fp)
     try:
         resolver = get_ref(schema)

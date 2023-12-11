@@ -56,7 +56,7 @@ class SparseIndex:
                 )
 
         volume = self.num_volumes
-        X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
+        X, Y, Z = (v.astype("int32") for v in np.where(imgdata > 0))
         for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
             coord_id = self.voxels[x, y, z]
             if coord_id >= 0:
@@ -106,7 +106,7 @@ class SparseIndex:
         # returns the x, y, and z coordinates of nonzero voxels for the map
         # with the given index, together with their corresponding values v.
         assert volume in range(self.num_volumes)
-        x, y, z = [v.squeeze() for v in np.split(self.coords(volume), 3)]
+        x, y, z = (v.squeeze() for v in np.split(self.coords(volume), 3))
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
@@ -500,7 +500,7 @@ class SparseMap(parcellationmap.Map):
             position = np.dot(self.affine, np.r_[XYZ2.mean(0), 1])[:3]
             if XYZ2.shape[0] <= minsize_voxel:
                 continue
-            X2, Y2, Z2 = [v.squeeze() for v in np.split(XYZ2, 3, axis=1)]
+            X2, Y2, Z2 = (v.squeeze() for v in np.split(XYZ2, 3, axis=1))
 
             bbox2 = boundingbox.BoundingBox(XYZ2.min(0), XYZ2.max(0) + 1, space=None)
             if bbox2.volume == 0:
@@ -530,7 +530,7 @@ class SparseMap(parcellationmap.Map):
                 # build flattened vector of map values
                 v1 = np.zeros(np.prod(bbshape))
                 XYZ1 = spind.coords(volume).T
-                X1, Y1, Z1 = [v.squeeze() for v in np.split(XYZ1, 3, axis=1)]
+                X1, Y1, Z1 = (v.squeeze() for v in np.split(XYZ1, 3, axis=1))
                 indices1 = np.ravel_multi_index(
                     (X1 - x0, Y1 - y0, Z1 - z0), bbshape
                 )

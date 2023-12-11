@@ -539,7 +539,7 @@ class Factory:
         if isinstance(spec, str):
             if path.isfile(spec):
                 fname = spec
-                with open(spec, "r") as f:
+                with open(spec) as f:
                     spec = json.load(f)
                     assert "filename" not in spec
                     spec['filename'] = fname

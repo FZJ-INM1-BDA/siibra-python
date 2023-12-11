@@ -292,7 +292,7 @@ class Point(location.Location):
     @property
     def id(self) -> str:
         return hashlib.md5(
-            f"{self.space.id}{','.join(str(val) for val in self)}".encode("utf-8")
+            f"{self.space.id}{','.join()}".encode("utf-8")
         ).hexdigest()
 
     def __repr__(self):

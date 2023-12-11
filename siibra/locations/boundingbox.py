@@ -390,7 +390,7 @@ def _determine_bounds(array: np.ndarray, threshold=0):
     x = np.any(array > threshold, axis=(1, 2))
     y = np.any(array > threshold, axis=(0, 2))
     z = np.any(array > threshold, axis=(0, 1))
-    nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
+    nzx, nzy, nzz = (np.where(v) for v in (x, y, z))
     if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
         # empty array
         return None

@@ -218,8 +218,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
             for donor_id in self._DONOR_IDS:
-                for item in self._retrieve_microarray(donor_id, probe_ids):
-                    yield item
+                yield from self._retrieve_microarray(donor_id, probe_ids)
 
     @staticmethod
     def _retrieve_specimen(specimen_id: str):
@@ -230,7 +229,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         response = HttpRequest(url).get()
         if not response["success"]:
             raise Exception(
-                "Invalid response when retrieving specimen information: {}".format(url)
+                f"Invalid response when retrieving specimen information: {url}"
             )
         # we ask for 1 specimen, so list should have length 1
         assert len(response["msg"]) == 1
@@ -263,10 +262,10 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         response = HttpRequest(url, json.loads).get()
         if not response["success"]:
             raise Exception(
-                "Invalid response when retrieving microarray data: {}".format(url)
+                f"Invalid response when retrieving microarray data: {url}"
             )
 
-        probes, samples = [response["msg"][n] for n in ["probes", "samples"]]
+        probes, samples = (response["msg"][n] for n in ["probes", "samples"])
 
         for i, sample in enumerate(samples):
 

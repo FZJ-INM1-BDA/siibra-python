@@ -228,7 +228,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for idx in self._indices[region]
             }
         regionname = region.name if isinstance(region, _region.Region) else region
-        matched_region_names = set(_.name for _ in (self.parcellation.find(regionname)))
+        matched_region_names = {_.name for _ in (self.parcellation.find(regionname))}
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
             logger.warning(f"Region {regionname} not defined in {self}")
@@ -787,7 +787,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             return zip(valid_points_indices, valid_data_points)
 
         # integers are just single-element arrays, cast to avoid an extra code branch for integers
-        x, y, z = [np.array(di) for di in (x, y, z)]
+        x, y, z = (np.array(di) for di in (x, y, z))
 
         fragments = self.fragments or {None}
         return [
