@@ -21,21 +21,21 @@ from . import (
     dataset,
 )
 
-
+from typing import Union
 from .feature import Feature
-get = Feature.match
+get = Feature._match
 
 
-TYPES = Feature._get_subclasses()
+TYPES = Feature._get_subclasses()  # Feature types that can be used to query for features
 
 
 def __dir__():
-    return list(Feature.CATEGORIZED.keys())
+    return list(Feature._CATEGORIZED.keys()) + ["get", "TYPES", "render_ascii_tree"]
 
 
 def __getattr__(attr: str):
-    if attr in Feature.CATEGORIZED:
-        return Feature.CATEGORIZED[attr]
+    if attr in Feature._CATEGORIZED:
+        return Feature._CATEGORIZED[attr]
     else:
         hint = ""
         if isinstance(attr, str):
@@ -49,4 +49,34 @@ def __getattr__(attr: str):
 def warm_cache():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
-        _ = ftype.get_instances()
+        _ = ftype._get_instances()
+
+
+def render_ascii_tree(class_or_classname: Union[type, str]):
+    """
+    Print the ascii hierarchy representation of a feature type.
+
+    Parameters
+    ----------
+    Cls: Feature class, str
+        Any Feature class or string of the feature type name
+    """
+    from anytree.importer import DictImporter
+    from anytree import RenderTree
+    Cls = TYPES[class_or_classname] if isinstance(class_or_classname, str) else class_or_classname
+
+    def create_treenode(feature_type):
+        return {
+            'name': feature_type.__name__,
+            'children': [
+                create_treenode(c)
+                for c in feature_type.__subclasses__()
+            ]
+        }
+    D = create_treenode(Cls)
+    importer = DictImporter()
+    tree = importer.import_(D)
+    print("\n".join(
+        "%s%s" % (pre, node.name)
+        for pre, _, node in RenderTree(tree)
+    ))

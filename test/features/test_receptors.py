@@ -38,7 +38,7 @@ def test_get_hoc1_left_density():
 
 
 regions_has_receptor = ["hOc1", "hOc2", "44"]
-fingerprints = siibra.features.molecular.ReceptorDensityFingerprint.get_instances()
+fingerprints = siibra.features.molecular.ReceptorDensityFingerprint._get_instances()
 
 
 def test_no_receptor_data():
@@ -62,7 +62,7 @@ def test_get_region_receptor(region_spec: str):
     ), f"expect at least one receptor query matching {region_spec}, but had none."
 
 
-profiles = siibra.features.molecular.ReceptorDensityProfile.get_instances()
+profiles = siibra.features.molecular.ReceptorDensityProfile._get_instances()
 
 
 def test_receptor_density_profile_shape():

@@ -48,7 +48,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Assignment:
+class MapAssignment:
     input_structure: int
     centroid: Union[Tuple[np.ndarray], point.Point]
     volume: int
@@ -57,7 +57,7 @@ class Assignment:
 
 
 @dataclass
-class AssignImageResult(CompareMapsResult, Assignment):
+class AssignImageResult(CompareMapsResult, MapAssignment):
     pass
 
 
@@ -122,6 +122,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             datasets=datasets,
             modality=modality
         )
+        self._space_spec = space_spec
+        self._parcellation_spec = parcellation_spec
+        if 'prerelease' in self.parcellation.name.lower():
+            self.name = f"[PRERELEASE] {self.name}"
 
         # Since the volumes might include 4D arrays, where the actual
         # volume index points to a z coordinate, we create subvolume
@@ -154,15 +158,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         duplicates = {x for x in all_indices if x in seen or seen.add(x)}
         if len(duplicates) > 0:
             logger.warning(f"Non unique indices encountered in {self}: {duplicates}")
-
-        self._space_spec = space_spec
-        self._parcellation_spec = parcellation_spec
         self._affine_cached = None
-        for v in self.volumes:
-            # allow the providers to query their parcellation map if needed
-            for p in v._providers.values():
-                p.parcellation_map = self
-            v._space_spec = space_spec
 
     @property
     def species(self) -> Species:
@@ -808,7 +804,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ) -> List[Union[Assignment, AssignImageResult]]:
+    ) -> List[Union[MapAssignment, AssignImageResult]]:
         """
         For internal use only. Returns a dataclass, which provides better static type checking.
         """
@@ -823,8 +819,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, _volume.Volume):
             image = item.fetch()
             return self._assign_volume(
-                np.asanyarray(image.dataobj), image.affine, minsize_voxel,
-                lower_threshold, **kwargs
+                imgdata=np.asanyarray(image.dataobj),
+                imgaffine=image.affine,
+                lower_threshold=lower_threshold,
+                minsize_voxel=minsize_voxel,
+                **kwargs
             )
 
         raise RuntimeError(
@@ -953,7 +952,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         "input containedness": a.intersection_over_second,
                     }
                 }
-            elif isinstance(a, Assignment):
+            elif isinstance(a, MapAssignment):
                 item_to_append = {
                     **item_to_append,
                     **{
@@ -970,14 +969,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 raise RuntimeError("assignments must be of type Assignment or AssignImageResult!")
 
             dataframe_list.append(item_to_append)
-        df = pd.DataFrame(dataframe_list)
         return (
-            df
+            pd.DataFrame(dataframe_list)
             .convert_dtypes()  # convert will guess numeric column types
             .reindex(columns=columns)
+            .dropna(axis='columns', how='all')
         )
 
-    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[Assignment]:
+    def _assign_points(self, points: pointset.PointSet, lower_threshold: float) -> List[MapAssignment]:
         """
         assign a PointSet to this parcellation map.
 
@@ -1011,7 +1010,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                     if value > lower_threshold:
                         position = pts_warped[pointindex].coordinate
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(np.array(position).round(2)),
                                 volume=vol,
@@ -1038,7 +1037,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 for _, vol, frag, value in values:
                     if value > lower_threshold:
                         assignments.append(
-                            Assignment(
+                            MapAssignment(
                                 input_structure=pointindex,
                                 centroid=tuple(pt),
                                 volume=vol,
@@ -1075,7 +1074,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         imgdata: np.ndarray,
         imgaffine: np.ndarray,
         lower_threshold: float,
-        split_components: bool = True
+        split_components: bool = True,
+        **kwargs
     ) -> List[AssignImageResult]:
         """
         Assign an image volume to this parcellation map.
@@ -1092,6 +1092,9 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
         """
+        # TODO: split_components is not known to `assign`
+        # TODO: `minsize_voxel` is not used here. Consider the implementation again.
+        logger.debug(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
         assignments = []
 
         iter_func = lambda arr: connected_components(arr) \

@@ -99,3 +99,9 @@ print(f"{len(receptor_density)} layerwise cell density found.")
 # `anchor.last_match_description`
 for d in receptor_density:
     print(d.anchor.last_match_description)
+
+
+# %%
+# To get a more detailed assignment scores, one can make use of map assignment
+# discussed in Anatomical Assignment, see
+# :ref:`sphx_glr_examples_05_anatomical_assignment_002_activation_maps.py`.

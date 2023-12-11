@@ -72,7 +72,7 @@ extensions = [
     "sphinxcontrib.images"  # adds lightbox to images
 ]
 
-
+run_stale_examples = True
 rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
 if rtds_action_github_token:
     extensions.append("rtds_action")
@@ -81,6 +81,7 @@ if rtds_action_github_token:
     rtds_action_path = ""  # The path where the artifact should be extracted # Note: this is relative to the conf.py file!
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
     nbsphinx_execute = 'never'
+    run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
 
 # napolean settings
 napoleon_google_docstring = False
@@ -141,7 +142,7 @@ sphinx_gallery_conf = {
     "within_subsection_order": FileNameSortKey,
     "remove_config_comments": True,
     "show_signature": True,
-    "run_stale_examples": False
+    "run_stale_examples": run_stale_examples
 }
 
 html_theme_options = {

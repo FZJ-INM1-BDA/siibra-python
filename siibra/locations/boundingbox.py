@@ -21,10 +21,11 @@ from ..exceptions import SpaceWarpingFailedError
 
 import hashlib
 import numpy as np
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from ..core.structure import BrainStructure
     from nibabel import Nifti1Image
+    from ..core.space import Space
 
 
 class BoundingBox(location.Location):
@@ -35,7 +36,14 @@ class BoundingBox(location.Location):
     from the two corner points.
     """
 
-    def __init__(self, point1, point2, space=None, minsize: float = None, sigma_mm=None):
+    def __init__(
+        self,
+        point1,
+        point2,
+        space: Union[str, 'Space'] = None,
+        minsize: float = None,
+        sigma_mm=None
+    ):
         """
         Construct a new bounding box spanned by two 3D coordinates
         in the given reference space.
@@ -98,24 +106,6 @@ class BoundingBox(location.Location):
     @property
     def is_planar(self) -> bool:
         return any(d == 0 for d in self.shape)
-
-    @staticmethod
-    def _determine_bounds(A, threshold=0):
-        """
-        Bounding box of nonzero values in a 3D array.
-        https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
-        """
-        x = np.any(A > threshold, axis=(1, 2))
-        y = np.any(A > threshold, axis=(0, 2))
-        z = np.any(A > threshold, axis=(0, 1))
-        nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
-        if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
-            # empty array
-            return None
-        xmin, xmax = nzx[0][[0, -1]]
-        ymin, ymax = nzy[0][[0, -1]]
-        zmin, zmax = nzz[0][[0, -1]]
-        return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
 
     def __str__(self):
         if self.space is None:
@@ -390,3 +380,35 @@ class BoundingBox(location.Location):
 
     def __hash__(self):
         return super().__hash__()
+
+
+def _determine_bounds(array: np.ndarray, threshold=0):
+    """
+    Bounding box of nonzero values in a 3D array.
+    https://stackoverflow.com/questions/31400769/bounding-box-of-numpy-array
+    """
+    x = np.any(array > threshold, axis=(1, 2))
+    y = np.any(array > threshold, axis=(0, 2))
+    z = np.any(array > threshold, axis=(0, 1))
+    nzx, nzy, nzz = [np.where(v) for v in (x, y, z)]
+    if any(len(nz[0]) == 0 for nz in [nzx, nzy, nzz]):
+        # empty array
+        return None
+    xmin, xmax = nzx[0][[0, -1]]
+    ymin, ymax = nzy[0][[0, -1]]
+    zmin, zmax = nzz[0][[0, -1]]
+    return np.array([[xmin, xmax + 1], [ymin, ymax + 1], [zmin, zmax + 1], [1, 1]])
+
+
+def from_array(array: np.ndarray, threshold=0, space: "Space" = None) -> "BoundingBox":
+    """
+    Find the bounding box of an array.
+
+    Parameters
+    ----------
+    array : np.ndarray
+    threshold : int, default: 0
+    space : Space, default: None
+    """
+    bounds = _determine_bounds(array, threshold)
+    return BoundingBox(bounds[:3, 0], bounds[:3, 1], space=space)

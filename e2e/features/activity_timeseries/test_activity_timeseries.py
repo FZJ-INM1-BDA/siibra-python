@@ -13,8 +13,8 @@ jba_29 = siibra.parcellations["julich 2.9"]
 
 all_bold_instances = [
     f
-    for Cls in siibra.features.feature.Feature.SUBCLASSES[RegionalBOLD]
-    for f in Cls.get_instances()
+    for Cls in siibra.features.feature.Feature._SUBCLASSES[RegionalBOLD]
+    for f in Cls._get_instances()
 ]
 
 

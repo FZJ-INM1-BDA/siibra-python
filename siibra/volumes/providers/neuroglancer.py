@@ -118,22 +118,47 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         return result
 
-    @property
-    def boundingbox(self):
+    def get_boundingbox(self, clip=False, background=0, **fetch_kwargs) -> "_boundingbox.BoundingBox":
         """
-        Return the bounding box in physical coordinates
-        of the union of fragments in this neuroglancer volume.
+        Return the bounding box in physical coordinates of the union of
+        fragments in this neuroglancer volume.
+
+        Parameters
+        ----------
+        clip: bool, default: True
+            Whether to clip the background of the volume.
+        background: float, default: 0.0
+            The background value to clip.
+            Note
+            ----
+            To use it, clip must be True.
+        fetch_kwargs:
+            key word arguments that are used for fetchin volumes,
+            such as voi or resolution_mm.
         """
         bbox = None
         for frag in self._fragments.values():
-            next_bbox = _boundingbox.BoundingBox((0, 0, 0), frag.shape, space=None) \
-                .transform(frag.affine)
+            if len(frag.shape) > 3:
+                logger.warning(
+                    f"N-D Neuroglancer volume has shape {frag.shape}, but "
+                    f"bounding box considers only {frag.shape[:3]}"
+                )
+            if clip:
+                img = frag.fetch(**fetch_kwargs)
+                next_bbox = _boundingbox.from_array(
+                    np.asanyarray(img.dataobj), threshold=background, space=None
+                ).transform(img.affine)  # use the affine of the image matching fetch_kwargs
+            else:
+                shape = frag.shape[:3]
+                next_bbox = _boundingbox.BoundingBox(
+                    (0, 0, 0), shape, space=None
+                ).transform(frag.affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.boundingbox
+        bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
 
@@ -486,10 +511,12 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
-    @property
-    def boundingbox(self) -> _boundingbox.BoundingBox:
+    def get_boundingbox(self, clip=False, background=0.0, **fetch_kwargs) -> '_boundingbox.BoundingBox':
+        """
+        Bounding box calculation is not yet implemented for meshes.
+        """
         raise NotImplementedError(
-            f"Fast bounding box access to {self.__class__.__name__} objects not yet implemented."
+            f"Bounding box access to {self.__class__.__name__} objects not yet implemented."
         )
 
     def _get_fragment_info(self, meshindex: int) -> Dict[str, Tuple[str, ]]:

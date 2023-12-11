@@ -53,7 +53,7 @@ class ReceptorDensityProfile(
             anchor=anchor,
             datasets=datasets,
         )
-        self.type = receptor
+        self.receptor = receptor
         self._data_cached = None
         self._loader = requests.HttpRequest(tsvfile)
         self._unit_cached = None
@@ -65,25 +65,22 @@ class ReceptorDensityProfile(
             self.id,
             create_key(self.species_name),
             create_key(self.regionspec),
-            create_key(self.type)
+            create_key(self.receptor)
         )
 
     @property
-    def receptor(self):
-        return "{} ({})".format(
-            self.type,
-            vocabularies.RECEPTOR_SYMBOLS[self.type]['receptor']['name'],
-        )
+    def receptor_fullname(self):
+        return vocabularies.RECEPTOR_SYMBOLS[self.receptor]['receptor']['name']
 
     @property
     def name(self):
-        return super().name + f" for {self.type}"
+        return super().name + f" for {self.receptor}"
 
     @property
     def neurotransmitter(self):
         return "{} ({})".format(
-            vocabularies.RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['label'],
-            vocabularies.RECEPTOR_SYMBOLS[self.type]['neurotransmitter']['name'],
+            vocabularies.RECEPTOR_SYMBOLS[self.receptor]['neurotransmitter']['label'],
+            vocabularies.RECEPTOR_SYMBOLS[self.receptor]['neurotransmitter']['name'],
         )
 
     @property

@@ -17,7 +17,7 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..locations import location, boundingbox, point, pointset
+from ..locations import location, point, pointset
 from ..volumes import parcellationmap, volume
 from ..commons import (
     logger,
@@ -535,7 +535,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             # provided by 'via_space'. Now transform the affine to match the
             # desired target space.
             intermediary_result = result
-            transform = intermediary_result.boundingbox.estimate_affine(space)
+            transform = intermediary_result.get_boundingbox(clip=True, background=0.0).estimate_affine(space)
             result = volume.from_array(
                 imgdata,
                 np.dot(transform, region_img.affine),
@@ -677,11 +677,12 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """Prints the tree representation of the region"""
         print(self.tree2str())
 
-    def get_bounding_box(
+    def get_boundingbox(
         self,
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
+        **fetch_kwargs
     ):
         """Compute the bounding box of this region in the given space.
 
@@ -705,7 +706,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             mask = self.get_regional_map(
                 spaceobj, maptype=maptype, threshold=threshold_statistical
             )
-            return mask.boundingbox
+            return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
         except (RuntimeError, ValueError):
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
@@ -718,7 +719,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                         f"No bounding box for {self.name} defined in {spaceobj.name}, "
                         f"will warp the bounding box from {other_space.name} instead."
                     )
-                    bbox = boundingbox.BoundingBox.from_image(mask, space=other_space)
+                    bbox = mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
                     if bbox is not None:
                         return bbox.warp(spaceobj)
                 except RuntimeError:

@@ -1,7 +1,7 @@
 import siibra
 
 
-vois = siibra.features.fibres.PLIVolumeOfInterest.get_instances()
+vois = siibra.features.fibres.PLIVolumeOfInterest._get_instances()
 
 
 def test_pli_volume_transform():
