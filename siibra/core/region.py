@@ -146,7 +146,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Example
         -------
-        >>> region = siibra.get_region("monkey", "PG")^M
+        >>> region = siibra.get_region("monkey", "PG")
         >>> for assesment in region.get_related_regions():
         >>>    print(assesment)
         'PG' is homologous to 'Area PGa (IPL)'
