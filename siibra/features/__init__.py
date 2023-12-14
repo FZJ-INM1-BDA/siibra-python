@@ -50,6 +50,8 @@ def warm_cache():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype._get_instances()
+    from ..livequeries.bigbrain import WagstylProfileLoader
+    WagstylProfileLoader._load()
 
 
 def render_ascii_tree(class_or_classname: Union[type, str]):
