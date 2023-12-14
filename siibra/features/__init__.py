@@ -23,8 +23,8 @@ from . import (
 
 from typing import Union
 from .feature import Feature
-get = Feature._match
 
+get = Feature._match
 
 TYPES = Feature._get_subclasses()  # Feature types that can be used to query for features
 
@@ -60,12 +60,13 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
 
     Parameters
     ----------
-    Cls: Feature class, str
+    class_or_classname: type, str
         Any Feature class or string of the feature type name
     """
     from anytree.importer import DictImporter
     from anytree import RenderTree
     Cls = TYPES[class_or_classname] if isinstance(class_or_classname, str) else class_or_classname
+    assert isinstance(Cls, Feature)
 
     def create_treenode(feature_type):
         return {
