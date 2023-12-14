@@ -17,7 +17,7 @@ from . import cortical_profile
 
 from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
-    from ...locations import point
+    from ...features.anchor import AnatomicalAnchor
 
 
 class BigBrainIntensityProfile(
@@ -40,18 +40,11 @@ class BigBrainIntensityProfile(
 
     def __init__(
         self,
-        regionname: str,
+        anchor: "AnatomicalAnchor",
         depths: list,
         values: list,
-        boundaries: list,
-        location: 'point.Point'
+        boundaries: list
     ):
-        from ..anchor import AnatomicalAnchor
-        anchor = AnatomicalAnchor(
-            location=location,
-            region=regionname,
-            species='Homo sapiens'
-        )
         cortical_profile.CorticalProfile.__init__(
             self,
             description=self.DESCRIPTION,
