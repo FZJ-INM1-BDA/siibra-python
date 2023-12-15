@@ -87,7 +87,7 @@ view.title(
 )
 
 # %%
-# or in 3D: s
+# or in 3D:
 plotting.view_connectome(
     adjacency_matrix=matrix,
     node_coords=node_coords,
@@ -95,3 +95,23 @@ plotting.view_connectome(
     node_size=3, colorbar=False,
     edge_cmap="bwr"
 )
+
+# %%
+# You can also access to F-Tract atlases using `siibra`. Unlike the most
+# connectivity matrices in siibra, F-Tract matrices are subject-averaged but
+# distinguished by their "feature".
+ftract = siibra.features.get(
+    siibra.parcellations.get("julich 3.0"),
+    siibra.features.connectivity.AnatomoFunctionalConnectivity
+)[0]  # also compounded
+print(ftract.cohort)
+print(ftract.name)
+print("indexing attributes:", ftract.indexing_attributes)
+for f in ftract:
+    print(f.feature)
+
+# %%
+# We can similarly draw the data as above. This time let us get the element by
+# its feature name
+f = ftract.get_element("P_11: speed__euclidian__peak_delay__median")
+f.plot()
