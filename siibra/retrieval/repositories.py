@@ -19,7 +19,8 @@ from .requests import (
     EbrainsRequest,
     SiibraHttpRequestError,
     find_suitiable_decoder,
-    DECODERS
+    DECODERS,
+    FileLoader
 )
 from .cache import CACHE
 
@@ -127,31 +128,13 @@ class LocalFileRepository(RepositoryConnector):
     def _build_url(self, folder: str, filename: str):
         return pathlib.Path.joinpath(self._folder, folder, filename)
 
-    class FileLoader:
-        """
-        Just a loads a local file, but mimics the behaviour
-        of cached http requests used in other connectors.
-        """
-        def __init__(self, file_url, decode_func):
-            self.url = file_url
-            self.func = decode_func
-            self.cached = True
-
-        @property
-        def data(self):
-            with open(self.url, 'rb') as f:
-                return self.func(f.read())
-
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
-        url = self._build_url(folder, filename)
-        if url is None:
-            raise RuntimeError(f"Cannot build url for ({folder}, {filename})")
-        if decode_func is None:
-            return self.FileLoader(url, lambda b: self._decode_response(b, filename))
-        else:
-            return self.FileLoader(url, decode_func)
+        filepath = self._build_url(folder, filename)
+        if filepath.is_file():
+            raise RuntimeError(f"No file is found in {filepath}")
+        return FileLoader(filepath, decode_func)
 
     def search_files(self, folder="", suffix=None, recursive=False):
         results = []
