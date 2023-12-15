@@ -59,6 +59,9 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
+    "sparseindex.probs.txt": lambda b: b.decode('utf-8').strip().split('\r\n'),
+    "sparseindex.bboxes.txt": lambda b: b.decode('utf-8').strip().split('\r\n'),
+    "sparseindex.voxels.nii": lambda b: Nifti1Image.from_bytes(b),
 }
 
 
@@ -88,9 +91,13 @@ def find_suitiable_decoder(url: str) -> Callable:
     suitable_decoders = [
         dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
     ]
-    if len(suitable_decoders) > 0:
-        assert len(suitable_decoders) == 1
+    if len(suitable_decoders) == 1:
         return suitable_decoders[0]
+    elif len(suitable_decoders) > 1:
+        most_sutiable_suffix = max(
+            [sfx for sfx in DECODERS.keys() if urlpath.endswith(sfx)]
+        )
+        return DECODERS[most_sutiable_suffix]
     else:
         return None
 
