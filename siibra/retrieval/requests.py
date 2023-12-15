@@ -59,8 +59,8 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
-    "sparseindex.probs.txt": lambda b: b.decode('utf-8').strip().split('\r\n'),
-    "sparseindex.bboxes.txt": lambda b: b.decode('utf-8').strip().split('\r\n'),
+    "sparseindex.probs.txt": lambda b: b.decode('utf-8').strip().splitlines(),
+    "sparseindex.bboxes.txt": lambda b: b.decode('utf-8').strip().splitlines(),
     "sparseindex.voxels.nii": lambda b: Nifti1Image.from_bytes(b),
 }
 

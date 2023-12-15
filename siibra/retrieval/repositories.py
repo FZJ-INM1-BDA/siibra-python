@@ -132,7 +132,7 @@ class LocalFileRepository(RepositoryConnector):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
         filepath = self._build_url(folder, filename)
-        if filepath.is_file():
+        if not filepath.is_file():
             raise RuntimeError(f"No file is found in {filepath}")
         return FileLoader(filepath, decode_func)
 
