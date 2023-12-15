@@ -255,7 +255,7 @@ class SparseMap(parcellationmap.Map):
             if spind is None:
                 logger.info("Downloading precomputed SparseIndex...")
                 gconn = GitlabConnector(self._GITLAB_SERVER, self._GITLAB_PROJECT, "main")
-                zip_fname = f"{self.name.replace(' ', '_')}_index.zip"
+                zip_fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}_index.zip"
                 try:
                     assert zip_fname in gconn.search_files(), f"{zip_fname} is not in {gconn}."
                     zipfile = gconn.get_loader(zip_fname).url
