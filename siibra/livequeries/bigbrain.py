@@ -86,6 +86,9 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         loader = WagstylProfileLoader()
         features = []
         matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        if matched is None:
+            return []
+        assert isinstance(matched, (point.Point, pointset.PointSet))
         assert matched.labels is not None
         for i in matched.labels:
             prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
@@ -115,6 +118,9 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
 
         loader = WagstylProfileLoader()
         matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        if matched is None:
+            return []
+        assert isinstance(matched, (point.Point, pointset.PointSet))
         indices = matched.labels
         if indices is None:
             return []
