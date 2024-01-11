@@ -397,10 +397,8 @@ NZCACHE = {}
 
 
 def nonzero_coordinates(arr):
-    obj_id = id(arr)
-    if obj_id not in NZCACHE:
-        NZCACHE[obj_id] = np.c_[np.nonzero(arr > 0)]
-    return NZCACHE[obj_id]
+    # TODO: fix caching
+    return np.c_[np.nonzero(arr > 0)]
 
 
 def affine_scaling(affine):
@@ -515,7 +513,7 @@ def resample_array_to_array(
     source_affine: np.ndarray,
     target_data: np.ndarray,
     target_affine: np.ndarray
-):
+) -> np.ndarray:
     """
     Returns the source data resampled to match the target data
     according to their affines.
@@ -524,11 +522,12 @@ def resample_array_to_array(
     from nilearn.image import resample_to_img
     interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
         else 'linear'
-    return np.asanyarray(resample_to_img(
+    resampled_img = resample_to_img(
         Nifti1Image(source_data, source_affine),
         Nifti1Image(target_data, target_affine),
         interpolation=interp
-    ).dataobj)
+    )
+    return np.asanyarray(resampled_img.dataobj)
 
 
 def connected_components(imgdata: np.ndarray):

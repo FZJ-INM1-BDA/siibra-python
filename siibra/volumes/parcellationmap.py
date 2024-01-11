@@ -817,10 +817,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         if isinstance(item, pointset.PointSet):
             return self._assign_points(item, lower_threshold)
         if isinstance(item, _volume.Volume):
-            image = item.fetch()
             return self._assign_volume(
-                imgdata=np.asanyarray(image.dataobj),
-                imgaffine=image.affine,
+                queryvolume=item,
                 lower_threshold=lower_threshold,
                 minsize_voxel=minsize_voxel,
                 **kwargs
@@ -1025,7 +1023,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         # of the coordinates.
         for pointindex, pt in siibra_tqdm(
             enumerate(points.warp(self.space.id)),
-            total=len(points), desc="Warping points",
+            total=len(points), desc="Assigning points",
         ):
             sigma_vox = pt.sigma / scaling
             if sigma_vox < 3:
@@ -1046,7 +1044,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                             )
                         )
             else:
-                logger.info(
+                logger.debug(
                     f"Assigning uncertain coordinate {tuple(pt)} to {len(self)} maps."
                 )
                 kernel = create_gaussian_kernel(sigma_vox, 3)
@@ -1057,13 +1055,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 shift[:3, -1] = xyz_vox[:3, 0] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
-                W = _volume.from_array(
+                gaus_kernel = _volume.from_array(
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
                     name=f"Gaussian kernel of {pt}"
                 )
-                for entry in self._assign(W, lower_threshold=lower_threshold):
+                for entry in self._assign(
+                    item=gaus_kernel,
+                    lower_threshold=lower_threshold,
+                    split_components=False
+                ):
                     entry.input_structure = pointindex
                     entry.centroid = tuple(pt)
                     assignments.append(entry)
@@ -1071,8 +1073,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
     def _assign_volume(
         self,
-        imgdata: np.ndarray,
-        imgaffine: np.ndarray,
+        queryvolume: "_volume.Volume",
         lower_threshold: float,
         split_components: bool = True,
         **kwargs
@@ -1082,23 +1083,27 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Parameters:
         -----------
-        imgdata: np.ndarray
-            the image to be compared with maps
-        imgaffine: np.ndarray
-            affine matrix mapping voxels of the image to physical coordinates in the map space
+        queryvolume: Volume
+            the volume to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
+        split_components: bool, default: True
+            Whether to split the query volume into disjoint components.
         """
         # TODO: split_components is not known to `assign`
-        # TODO: `minsize_voxel` is not used here. Consider the implementation again.
-        logger.debug(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
+        # TODO: `minsize_voxel` is not used here. Consider the implementation of `assign` again.
+        queryimg = queryvolume.fetch()
+        if kwargs:
+            logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
         assignments = []
 
-        iter_func = lambda arr: connected_components(arr) \
-            if split_components else lambda arr: [(1, arr)]
+        if split_components:
+            iter_components = lambda arr: connected_components(arr)
+        else:
+            iter_components = lambda arr: [(0, arr)]
 
         with QUIET and provider.SubvolumeProvider.UseCaching():
             all_indices = [
@@ -1108,27 +1113,33 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ]
             for index in siibra_tqdm(
                 all_indices,
-                desc=f"Assigning to {len(all_indices)} maps",
+                desc=f"Assigning {queryvolume} to {self}",
                 disable=len(all_indices) < 5,
-                unit=" map"
+                unit="map",
+                leave=False
             ):
-                vol_img = self.fetch(index=index)
-                vol_data = np.asanyarray(vol_img.dataobj)
-                for mode, voxelmask in iter_func(imgdata):
-                    position = np.array(np.where(voxelmask)).T.mean(0)
-                    if index.label is None:
-                        targetdata = vol_data
-                    else:
-                        targetdata = (vol_data == index.label).astype('uint8')
+                region_map = self.fetch(index=index)
+                region_map_arr = np.asanyarray(region_map.dataobj)
+                # TODO: why resmapling was removed during refactoring? Needs to be addressed.
+                # imgdata_res = resample_array_to_array(
+                #     np.asanyarray(queryimg.dataobj),
+                #     queryimg.affine,
+                #     region_map_arr,
+                #     region_map.affine
+                # )
+                for compmode, voxelmask in iter_components(np.asanyarray(queryimg.dataobj)):
                     scores = compare_arrays(
-                        voxelmask, imgaffine,
-                        targetdata, vol_img.affine
+                        voxelmask,
+                        queryimg.affine,
+                        region_map_arr,
+                        region_map.affine
                     )
+                    component_position = np.array(np.where(voxelmask)).T.mean(0)
                     if scores.intersection_over_union > lower_threshold:
                         assignments.append(
                             AssignImageResult(
-                                input_structure=mode,
-                                centroid=tuple(position.round(2)),
+                                input_structure=compmode,
+                                centroid=tuple(component_position.round(2)),
                                 volume=index.volume,
                                 fragment=index.fragment,
                                 map_value=index.label,
