@@ -28,8 +28,7 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
-from skimage import feature as skimage_feature
-from skimage.filters import gaussian
+from skimage import feature as skimage_feature, filters
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -504,23 +503,23 @@ def from_array(
 
 def from_pointset(
     points: pointset.PointSet,
-    labels: List[int] = [],
+    label: int = None,
     target: Volume = None,
-    min_num_points=10,
     normalize=True,
     **kwargs
 ) -> Volume:
     """
     Get the kernel density estimate as a volume from the points using their
     average uncertainty on target volume.
+
     Parameters
     ----------
     points: pointset.PointSet
+    label: int, default: None
+        If None, finds the KDE for all points. Otherwise, selects the points
+        labelled with this integer value.
     target: Volume, default: None
-        If no volumes supplied, the template of the space points are defined on
-        will be used.
-    labels: List[int], default: []
-    min_num_points: int, default 10
+        If None, the template of the space points are defined on will be used.
     normalize: bool, default: True
 
     Raises
@@ -532,53 +531,36 @@ def from_pointset(
         target = points.space.get_template()
     targetimg = target.fetch(**kwargs)
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
-    cimg = np.zeros_like(targetimg.get_fdata())
 
-    if len(labels) == 0:
-        if points.labels is None:
-            labels = [1]
-            logger.info("Found no point labels. Labelling all with 1.")
-            points.labels = np.ones(len(points), dtype=int)
-        else:
-            labels = points.labels
-    found_enough_points = False
-    for label in labels:
-        selection = [_ == label for _ in points.labels]
-        if selection.count(True) == 0:
-            logger.warning(f"No points with label {label} in the set: {set(points.labels)}")
-            continue
-        X, Y, Z = np.split(
-            np.array(voxels.as_list()).astype('int')[selection, :],
-            3,
-            axis=1
-        )
-        if len(X) < min_num_points:
-            logger.warning(f"Not enough points (<{min_num_points}) with label {label}, skipping.")
-            continue
-        found_enough_points = True
-        cimg[X, Y, Z] = label
-
-    if not found_enough_points:
-        raise RuntimeError(f"Not enough poinsts with labels {labels} found in {points}.")
-
-    if isinstance(points.sigma_mm, (int, float)):
-        bandwidth = points.sigma_mm
-    elif isinstance(points.sigma_mm, list):
-        logger.debug(
-            "Computing kernel density estimate from pointset using their average uncertainty."
-        )
-        bandwidth = np.sum(points.sigma_mm) / len(points)
+    if (label is None) or (points.labels is None):
+        selection = [True for _ in points]
     else:
-        logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
-        bandwidth = 1
-    data = gaussian(cimg, bandwidth)
+        assert label in points.labels, f"No points with the label {label} in the set: {set(points.labels)}"
+        selection = points.labels == label
+
+    voxelcount_img = np.zeros_like(targetimg.get_fdata())
+    unique_coords, counts = np.unique(
+        np.array(voxels.as_list(), dtype='int')[selection, :],
+        axis=0,
+        return_counts=True
+    )
+    voxelcount_img[tuple(unique_coords.T)] = counts
+
+    # TODO: consider how to handle pointsets with varied sigma_mm
+    sigmas = np.array(points.sigma_mm)[selection]
+    bandwidth = np.mean(sigmas)
+    if len(np.unique(sigmas)) > 1:
+        logger.warning(f"KDE of pointset uses average bandwith {bandwidth} instead of the points' individual sigmas.")
+
+    filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
     if normalize:
-        data /= data.sum()
+        filtered_arr /= filtered_arr.sum()
+
     return from_array(
-        data=data,
+        data=filtered_arr,
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {points} with labels={labels}'
+        name=f'KDE map of {points}{f"labelled {label}" if label else ""}'
     )
 
 

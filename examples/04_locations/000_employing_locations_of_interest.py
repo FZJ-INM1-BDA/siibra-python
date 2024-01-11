@@ -53,39 +53,27 @@ print(point.warp('bigbrain'))
 print(point.warp('colin27'))
 
 # %%
-# To explore further, let us first create a random pointset and get the box
-# that contains these points. BoundingBox is another location type.
+# To explore further, let us first create a random pointset
 ptset = siibra.PointSet(
-    np.concatenate([
-        np.random.randn(1000, 3) * 5 + (-27.75, -32.0, 63.725),
-        np.random.randn(1000, 3) * 5 + (27.75, -32.0, 63.725)
-    ]),
+    np.array([
+        np.random.randn(10000) * 3 - 27.75,
+        np.random.randn(10000) * 3 - 32.0,
+        np.random.randn(10000) * 3 + 63.725
+    ]).T,
     space='mni152'
 )
-ptset.boundingbox
 
 # %%
 # We can display these points as a kernel density estimated volume
-ptset.labels = np.ones(len(ptset), dtype=int)
 kde_volume = siibra.volumes.from_pointset(ptset)
 plotting.view_img(kde_volume.fetch())
 
 # %%
-# `siibra` can find the clusters (using HDBSCAN) and label the points.
-ptset.find_clusters()
-ptset.labels += (1 - ptset.labels.min())  # offset the labels to be able to display as a labelled nifti
-clusters_kde_volume = siibra.volumes.from_pointset(ptset)
-plotting.view_img(clusters_kde_volume.fetch())
-
-# %%
-# Moreover, a location object can be used to query features. For illustration,
-# we first crate a BoundingBox
-bbox = siibra.locations.BoundingBox(
-    point1=(-29.75, -33.0, 63.725),
-    point2=(-25.75, -30.0, 60.725),
-    space='mni152'
-)
-# let us search for images and print the assignment of the anatomical anchors to our BoundingBox
+# Moreover, a location object can be used to query features. While we can also,
+# query with the pointset, let us use the bounding box that encloses these
+# points. We will query for image features and print the assignment of the
+# anatomical anchors to our BoundingBox
+bbox = ptset.boundingbox
 features_of_interest = siibra.features.get(bbox, 'image')
 for f in features_of_interest:
     print(f.last_match_description)
