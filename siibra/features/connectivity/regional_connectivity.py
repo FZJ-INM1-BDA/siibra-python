@@ -297,6 +297,7 @@ class RegionalConnectivity(Feature, Compoundable):
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logx"] = kwargs.get("logx", logscale)
+            return profile.data.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
                 "color": kwargs.get("color", profile.data.columns[0]),
