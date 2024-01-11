@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from ..commons import Species
+from ..commons import Species, logger
 
 from ..core.structure import BrainStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
@@ -22,6 +22,7 @@ from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 from ..core.space import Space
+from ..exceptions import SpaceWarpingFailedError
 
 from ..vocabularies import REGION_ALIASES
 
@@ -163,7 +164,10 @@ class AnatomicalAnchor:
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
-                assignments.append(self.location.assign(concept))
+                try:
+                    assignments.append(self.location.assign(concept))
+                except SpaceWarpingFailedError as e:
+                    logger.debug(e)
             for region in self.regions:
                 assignments.append(region.assign(concept))
             self._assignments[concept] = sorted(a for a in assignments if a is not None)
