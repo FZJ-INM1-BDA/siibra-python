@@ -43,7 +43,7 @@ class CellDensityProfile(
 
     BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
 
-    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["section", "patch"]
+    _filter_attrs = cortical_profile.CorticalProfile._filter_attrs + ["location"]
 
     @classmethod
     def CELL_READER(cls, b):
@@ -94,6 +94,10 @@ class CellDensityProfile(
         self._depth_image = None
         self.section = section
         self.patch = patch
+
+    @property
+    def location(self):
+        return self.anchor.location
 
     @property
     def shape(self):
