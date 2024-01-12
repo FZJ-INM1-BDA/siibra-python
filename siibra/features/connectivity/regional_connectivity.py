@@ -355,9 +355,10 @@ class RegionalConnectivity(Feature, Compoundable):
         """
         from plotly.express.colors import sample_colorscale
         profile = self.get_profile(region, min_connectivity, max_rows, direction)
+        normalized = profile.data / profile.data.max()
         colorscale = sample_colorscale(
             colorgradient,
-            profile.data.values.reshape(len(profile.data))
+            normalized.values.reshape(len(profile.data))
         )
         return zip(
             profile.data.index.values,
