@@ -28,7 +28,7 @@ from ...retrieval.requests import HttpRequest
 
 import pandas as pd
 import numpy as np
-from typing import Callable, Union, List
+from typing import Callable, Union, List, Tuple, Iterator
 
 try:
     from typing import Literal
@@ -208,7 +208,6 @@ class RegionalConnectivity(Feature, Compoundable):
         Parameters
         ----------
         region: str, Region
-        subject: str, default: None
         min_connectivity: float, default: 0
             Regions with connectivity less than this value are discarded.
         max_rows: int, default: None
@@ -320,6 +319,50 @@ class RegionalConnectivity(Feature, Compoundable):
             return fig
         else:
             return profile.data.plot(*args, backend=backend, **kwargs)
+
+    def get_profile_colorscale(
+        self,
+        region: Union[str, _region.Region],
+        min_connectivity: float = 0,
+        max_rows: int = None,
+        direction: Literal['column', 'row'] = 'column',
+        colorgradient: str = "jet"
+    ) -> Iterator[Tuple[_region.Region, Tuple[int, int, int]]]:
+        """
+        Extract the colorscale corresponding to the regional profile from the
+        matrix sorted by the values. See `get_profile` for further details.
+
+        Note:
+        -----
+        Requires `plotly`.
+
+        Parameters
+        ----------
+        region: str, Region
+        min_connectivity: float, default: 0
+            Regions with connectivity less than this value are discarded.
+        max_rows: int, default: None
+            Max number of regions with highest connectivity.
+        direction: str, default: 'column'
+            Choose the direction of profile extraction particularly for
+            non-symmetric matrices. ('column' or 'row')
+        colorgradient: str, default: 'jet'
+            The gradient used to extract colorscale.
+        Returns
+        -------
+        Iterator[Tuple[_region.Region, Tuple[int, int, int]]]
+            Color values are in RGB 255.
+        """
+        from plotly.express.colors import sample_colorscale
+        profile = self.get_profile(region, min_connectivity, max_rows, direction)
+        colorscale = sample_colorscale(
+            colorgradient,
+            profile.data.values.reshape(len(profile.data))
+        )
+        return zip(
+            profile.data.index.values,
+            [eval(c.removeprefix('rgb')) for c in colorscale]
+        )
 
     def __len__(self):
         return len(self._filename)
