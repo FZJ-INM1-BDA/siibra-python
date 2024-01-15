@@ -450,27 +450,29 @@ class SparseMap(parcellationmap.Map):
 
     def _assign_volume(
         self,
-        imgdata: np.ndarray,
-        imgaffine: np.ndarray,
+        queryvolume: "_volume.Volume",
         minsize_voxel: int,
         lower_threshold: float,
         split_components: bool = True
     ) -> List[parcellationmap.AssignImageResult]:
         """
-        Assign an image volume to this parcellation map.
+        Assign an image volume to this sparse map.
 
         Parameters:
         -----------
-        imgdata: np.ndarray
-            the image to be compared with maps
-        imgaffine: np.ndarray
-            affine matrix mapping voxels of the image to physical coordinates in the map space
+        queryvolume: Volume
+            the volume to be compared with maps
         minsize_voxel: int, default: 1
             Minimum voxel size of image components to be taken into account.
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
             this threshold will be excluded from the assignment computation.
+        split_components: bool, default: True
+            Whether to split the query volume into disjoint components.
         """
+        queryimg = queryvolume.fetch()
+        imgdata = np.asanyarray(queryimg.dataobj)
+        imgaffine = queryimg.affine
         assignments = []
 
         # resample query image into this image's voxel space, if required

@@ -69,6 +69,19 @@ def test_containedness(point, map: Map, query):
         assert len(assignments.query(query)) == 0
 
 
+def test_point_assignment_to_labelled():
+    mp = siibra.get_map('julich 3', 'mni152')
+    # certain point
+    point = siibra.Point((25.5, -26.0, 72.0), space='mni152')
+    assignments = mp.assign(point)
+    assert len(assignments) == 1 and assignments['region'][0].matches("Area 3b (PostCG) right")
+
+    # uncertain point
+    point_uncertain = siibra.Point((25.5, -26.0, 72.0), space='mni152', sigma_mm=3.)
+    assignments_uncertain = mp.assign(point_uncertain).sort_values(by=['input containedness'], ascending=False)
+    assignments_uncertain['region'][0].matches("Area 4a (PreCG) right")
+
+
 # TODO: when merging neuroglancer/precomputed is supported, add to the list
 maps_w_fragments = product(
     (
