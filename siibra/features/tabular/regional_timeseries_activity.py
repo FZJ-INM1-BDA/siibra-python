@@ -16,13 +16,14 @@
 from . import tabular
 from ..feature import Compoundable
 
+from ...core import region as _region
 from .. import anchor as _anchor
 from ...commons import QUIET
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
 
-from typing import Callable, List
+from typing import Callable, List, Union
 import pandas as pd
 import numpy as np
 
@@ -158,7 +159,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return result
 
     def plot(
-        self, regions: List[str] = None, *args,
+        self, regions: List[Union[str, "_region.Region"]] = None, *args,
         backend="matplotlib", **kwargs
     ):
         """
@@ -166,13 +167,15 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
         Parameters
         ----------
-        regions: str, Region
+        regions: List[str or Region]
         subject: str, default: None
             If None, returns the subject averaged table.
         args and kwargs:
             takes arguments and keyword arguments for the desired plotting
             backend.
         """
+        if isinstance(regions, (str, _region.Region)):
+            regions = [regions]
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
@@ -181,7 +184,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
     def plot_carpet(
-        self, regions: List[str] = None, *args,
+        self, regions: List[Union[str, "_region.Region"]] = None, *args,
         backend="plotly", **kwargs
     ):
         """
@@ -189,7 +192,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
         Parameters
         ----------
-        regions: str, Region
+        regions: List[str or Region]
         subject: str, default: None
             If None, returns the subject averaged table.
         args and kwargs:
@@ -197,6 +200,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         """
         if backend != "plotly":
             raise NotImplementedError("Currently, carpet plot is only implemented with `plotly`.")
+        if isinstance(regions, (str, _region.Region)):
+            regions = [regions]
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
