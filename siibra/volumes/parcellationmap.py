@@ -1055,14 +1055,14 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 shift[:3, -1] = xyz_vox[:3, 0] - r
                 # build niftiimage with the Gaussian blob,
                 # then recurse into this method with the image input
-                gaus_kernel = _volume.from_array(
+                gaussian_kernel = _volume.from_array(
                     data=kernel,
                     affine=np.dot(self.affine, shift),
                     space=self.space,
                     name=f"Gaussian kernel of {pt}"
                 )
                 for entry in self._assign(
-                    item=gaus_kernel,
+                    item=gaussian_kernel,
                     lower_threshold=lower_threshold,
                     split_components=False
                 ):
@@ -1095,22 +1095,25 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         # TODO: split_components is not known to `assign`
         # TODO: `minsize_voxel` is not used here. Consider the implementation of `assign` again.
-        queryimg = queryvolume.fetch()
         if kwargs:
             logger.info(f"The keywords {[k for k in kwargs]} are not passed on during volume assignment.")
-        assignments = []
+
+        assert queryvolume.space == self.space, ValueError("Assigned volume must be in the same space as the map.")
 
         if split_components:
             iter_components = lambda arr: connected_components(arr)
         else:
             iter_components = lambda arr: [(0, arr)]
 
+        queryimg = queryvolume.fetch()
+        queryimgarr = np.asanyarray(queryimg.dataobj)
+        assignments = []
+        all_indices = [
+            index
+            for regionindices in self._indices.values()
+            for index in regionindices
+        ]
         with QUIET and provider.SubvolumeProvider.UseCaching():
-            all_indices = [
-                index
-                for regionindices in self._indices.values()
-                for index in regionindices
-            ]
             for index in siibra_tqdm(
                 all_indices,
                 desc=f"Assigning {queryvolume} to {self}",
@@ -1120,17 +1123,18 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ):
                 region_map = self.fetch(index=index)
                 region_map_arr = np.asanyarray(region_map.dataobj)
-                # TODO: why resmapling was removed during refactoring? Needs to be addressed.
-                # imgdata_res = resample_array_to_array(
-                #     np.asanyarray(queryimg.dataobj),
-                #     queryimg.affine,
-                #     region_map_arr,
-                #     region_map.affine
-                # )
-                for compmode, voxelmask in iter_components(np.asanyarray(queryimg.dataobj)):
+                # the shape and affine are checked by `nilearn.image.resample_to_img()`
+                # and returns the original data if resampling is not necessary.
+                queryimgarr_res = resample_array_to_array(
+                    queryimgarr,
+                    queryimg.affine,
+                    region_map_arr,
+                    region_map.affine
+                )
+                for compmode, voxelmask in iter_components(queryimgarr_res):
                     scores = compare_arrays(
                         voxelmask,
-                        queryimg.affine,
+                        region_map.affine,  # after resampling, both should have the same affine
                         region_map_arr,
                         region_map.affine
                     )

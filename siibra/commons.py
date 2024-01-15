@@ -422,7 +422,6 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     It is recommended to install the indexed-gzip package,
     which will further speed this up.
     """
-
     a1, a2 = arr1.squeeze(), arr2.squeeze()
 
     def homog(XYZ):
