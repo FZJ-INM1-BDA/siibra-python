@@ -101,9 +101,10 @@ class Tabular(feature.Feature):
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
+            kwargs["rot"] = kwargs.get("rot", 60)
             ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+            ax.set_xticklabels(ax.get_xticklabels(), ha="right")
             plt.tight_layout()
             return ax
         elif backend == "plotly":

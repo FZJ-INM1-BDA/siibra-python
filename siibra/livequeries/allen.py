@@ -60,7 +60,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         "probe": BASE_URL
         + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
         "multiple_gene_probe": BASE_URL
-        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']",
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']&start_row={start_row}&num_rows={num_rows}",
         "specimen": BASE_URL
         + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
         "microarray": BASE_URL
@@ -187,16 +187,26 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             logger.info(f"Retrieving probe ids for gene {self.genes[0]['symbol']}")
         else:
             logger.info(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in self.genes)}")
-        url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g['symbol']}'" for g in self.genes]))
-        response = HttpRequest(url).get()
-        if "site unavailable" in response.decode().lower():
-            # When the Allen site is not available, they still send a status code 200.
-            raise RuntimeError(
-                "Allen institute site unavailable - please try again later."
-            )
-        root = ElementTree.fromstring(response)
-        num_probes = int(root.attrib["total_rows"])
-        probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+        start_row = 0
+        num_rows = 50
+        probe_ids = []
+        while True:
+            url = self._QUERY["multiple_gene_probe"].format(start_row=start_row, num_rows=num_rows, genes=','.join([f"'{g['symbol']}'" for g in self.genes]))
+            response = HttpRequest(url).get()
+            if "site unavailable" in response.decode().lower():
+                # When the Allen site is not available, they still send a status code 200.
+                raise RuntimeError(
+                    "Allen institute site unavailable - please try again later."
+                )
+            root = ElementTree.fromstring(response)
+            num_probes = int(root.attrib["num_rows"])
+            total_probes = int(root.attrib["total_rows"])
+            assert len(root) == 1
+            probe_ids.extend([int(root[0][i][0].text) for i in range(num_probes)])
+            if (start_row + num_rows) >= total_probes:
+                break
+            # retrieve another page
+            start_row += num_rows
 
         # get specimen information
         if AllenBrainAtlasQuery._specimen is None:
