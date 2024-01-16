@@ -22,7 +22,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://github.com/FZJ-INM1-BDA/siibra-python",
-    packages=find_packages(include=["siibra", "siibra.*"]),
+    packages=find_packages(include=["siibra", "cli", "siibra.*"]),
     include_package_data=True,
     package_data={
         'siibra': [
@@ -56,4 +56,16 @@ setup(
         "filelock",
         "ebrains-drive >= 0.6.0",
     ],
+    extras_require={
+        "cli": [
+            "click >= 8.0",
+            "click_plugins >= 1.0",
+            "simple-term-menu >= 1.4",
+        ],
+    },
+    entry_points={
+        "console_scripts": [
+            "siibra=cli.cli:cli",
+        ]
+    }
 )

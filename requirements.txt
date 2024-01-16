@@ -8,3 +8,6 @@ nilearn
 typing-extensions; python_version < "3.8"
 filelock
 ebrains-drive >= 0.6.0
+click [cli] >= 8.0
+click_plugins [cli] >= 1.0
+simple-term-menu [cli] >= 1.4
