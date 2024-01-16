@@ -110,7 +110,7 @@ class Tabular(feature.Feature):
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
-            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
+            error_y_label = f" &plusmn; {kwargs.get('error_y')}\n" if kwargs.get('error_y') else ''
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
                 "value": kwargs.pop("ylabel", None) or kwargs.pop(

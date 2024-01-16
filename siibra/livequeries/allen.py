@@ -184,9 +184,9 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         assert isinstance(self.genes, list)
         if len(self.genes) == 1:
-            logger.info(f"Retrieving probe ids for gene {self.genes[0]['symbol']}")
+            logger.debug(f"Retrieving probe ids for gene {self.genes[0]['symbol']}")
         else:
-            logger.info(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in self.genes)}")
+            logger.debug(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in self.genes)}")
         start_row = 0
         num_rows = 50
         probe_ids = []
