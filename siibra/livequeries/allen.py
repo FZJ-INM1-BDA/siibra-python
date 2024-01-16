@@ -68,7 +68,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         "gene": BASE_URL
         + "/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
         "factors": BASE_URL
-        + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]",
+        + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]&start_row={start_row}&num_rows={num_rows}",
     }
 
     # there is a 1:1 mapping between donors and specimen for the 6 adult human brains
@@ -215,15 +215,23 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             }
 
         if AllenBrainAtlasQuery.factors is None:
-            response = HttpRequest(self._QUERY["factors"]).get()
-            AllenBrainAtlasQuery.factors = {
-                item["id"]: {
-                    "race": item["race_only"],
-                    "gender": item["sex"],
-                    "age": int(item["age"]["days"] / 365),
-                }
-                for item in response["msg"]
-            }
+            AllenBrainAtlasQuery.factors = {}
+            while True:
+                factors_url = self._QUERY["factors"].format(start_row=start_row, num_rows=num_rows)
+                response = HttpRequest(factors_url).get()
+                AllenBrainAtlasQuery.factors.update({
+                    item["id"]: {
+                        "race": item["race_only"],
+                        "gender": item["sex"],
+                        "age": int(item["age"]["days"] / 365),
+                    }
+                    for item in response["msg"]
+                })
+                total_factors = int(response["total_rows"])
+                if (start_row + num_rows) >= total_factors:
+                    break
+                # retrieve another page
+                start_row += num_rows
 
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
