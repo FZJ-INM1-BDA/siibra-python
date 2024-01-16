@@ -136,7 +136,9 @@ class GeneExpressions(
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
                 assert arg not in kwargs
             passed_kwarg = {
-                    "grid": True, "legend": False, 'by': "gene", 'column': ['level'], 'showfliers': False, 'ax': None, 'ylabel': 'expression level', **kwargs
+                "grid": True, "legend": False, 'by': "gene",
+                'column': ['level'], 'showfliers': False, 'ax': None,
+                'ylabel': 'expression level', **kwargs
             }
             return self.data.plot(*args, **passed_kwarg, backend=backend)
         elif backend == "plotly":
