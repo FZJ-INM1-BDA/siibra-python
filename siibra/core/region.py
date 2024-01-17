@@ -715,13 +715,17 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                         maptype=maptype,
                         threshold=threshold_statistical,
                     )
-                    logger.warning(
-                        f"No bounding box for {self.name} defined in {spaceobj.name}, "
-                        f"will warp the bounding box from {other_space.name} instead."
-                    )
                     bbox = mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
                     if bbox is not None:
-                        return bbox.warp(spaceobj)
+                        try:
+                            bbox_warped = bbox.warp(spaceobj)
+                        except SpaceWarpingFailedError:
+                            continue
+                        logger.warning(
+                            f"No bounding box for {self.name} defined in {spaceobj.name}, "
+                            f"warped the bounding box from {other_space.name} instead."
+                        )
+                        return bbox_warped
                 except RuntimeError:
                     continue
         logger.error(f"Could not compute bounding box for {self.name}.")
