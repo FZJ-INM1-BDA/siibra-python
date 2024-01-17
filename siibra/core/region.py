@@ -637,18 +637,26 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             return self._ASSIGNMENT_CACHE[other, self].invert()
 
         if isinstance(other, location.Location):
-            for space in [other.space] + self.supported_spaces:
+            assignment_result = None
+            if self.mapped_in_space(other.space):
+                regionmap = self.get_regional_map(other.space)
+                assignment_result = regionmap.assign(other)
+            for space in self.supported_spaces:
                 try:
+                    other_warped = other.warp(space)
                     regionmap = self.get_regional_map(space)
-                    self._ASSIGNMENT_CACHE[self, other] = regionmap.assign(
-                        other.warp(space)
-                    )
+                    assignment_result = regionmap.assign(other_warped)
+                except SpaceWarpingFailedError:
+                    try:
+                        regionbbox_warped = self.get_boundingbox(space).warp(other.space)
+                    except SpaceWarpingFailedError:
+                        continue
+                    assignment_result = regionbbox_warped.assign(other)
                 except Exception as e:
                     logger.debug(e)
                     continue
                 break
-            if (self, other) not in self._ASSIGNMENT_CACHE:
-                self._ASSIGNMENT_CACHE[self, other] = None
+            self._ASSIGNMENT_CACHE[self, other] = assignment_result
         else:  # other is a Region
             assert isinstance(other, Region)
             if self == other:
