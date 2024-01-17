@@ -22,7 +22,3 @@ from ..commons import logger
 from typing import List, Union
 import numpy as np
 
-
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()

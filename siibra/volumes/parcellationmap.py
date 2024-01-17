@@ -33,7 +33,7 @@ from ..commons import (
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointset
-from ..retrieval import requests
+from ..retrieval import requests, cache
 
 import numpy as np
 from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
@@ -1153,6 +1153,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         return assignments
 
+
+cache.Warmup.register_warmup_fn()(Map.registry)
 
 def from_volume(
     name: str,
