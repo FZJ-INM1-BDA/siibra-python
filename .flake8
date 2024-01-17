@@ -9,3 +9,5 @@ per-file-ignores = __init__.py:F401,E402
 # n.b. PEP now recommends linebreak BEFORE operator. see https://peps.python.org/pep-0008/#should-a-line-break-before-or-after-a-binary-operator
 # E731: do not assign a lambda expression, use a def
 ignore = E501,W503,E731
+
+exclude = venv,examples,docs,config_schema,.ebrains
