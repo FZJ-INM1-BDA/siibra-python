@@ -156,7 +156,7 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: BrainStructure) -> AnatomicalAssignment:
+    def assign(self, concept: BrainStructure, restrict_space: bool = False) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
@@ -164,6 +164,12 @@ class AnatomicalAnchor:
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
+                if (
+                    restrict_space
+                    and isinstance(concept, Location)
+                    and not self.location.space.matches(concept.space)
+                ):
+                    return []
                 try:
                     assignments.append(self.location.assign(concept))
                 except SpaceWarpingFailedError as e:
@@ -177,8 +183,8 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: BrainStructure) -> bool:
-        return len(self.assign(concept)) > 0
+    def matches(self, concept: BrainStructure, restrict_space: bool = False) -> bool:
+        return len(self.assign(concept, restrict_space)) > 0
 
     def represented_parcellations(self) -> List[Parcellation]:
         """
