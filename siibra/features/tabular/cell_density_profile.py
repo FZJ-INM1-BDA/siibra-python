@@ -79,7 +79,7 @@ class CellDensityProfile(
             self,
             description=self.DESCRIPTION,
             modality="Segmented cell body density",
-            unit="detected cells / 0.1mm3",
+            unit="cells / 0.1mm3",
             anchor=anchor,
             datasets=datasets,
         )

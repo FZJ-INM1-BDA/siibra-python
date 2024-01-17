@@ -97,19 +97,24 @@ class Tabular(feature.Feature):
             kwargs["width"] = kwargs.get("width", 0.95)
             kwargs["ylabel"] = kwargs.get(
                 "ylabel",
-                f"{kwargs['y']}{yerr_label} {self.unit if hasattr(self, 'unit') else ''}"
+                f"{kwargs['y']}{yerr_label}" + f"\n{self.unit}" if hasattr(self, 'unit') else ""
             )
             kwargs["grid"] = kwargs.get("grid", True)
             kwargs["legend"] = kwargs.get("legend", False)
+            xticklabel_rotation = kwargs.get("xticklabel_rotation", 60)
             ax = self.data.plot(*args, backend=backend, **kwargs)
             ax.set_title(ax.get_title(), fontsize="medium")
-            ax.set_xticklabels(ax.get_xticklabels(), rotation=60, ha="right")
+            ax.set_xticklabels(
+                ax.get_xticklabels(),
+                rotation=xticklabel_rotation,
+                ha='center' if xticklabel_rotation % 90 == 0 else 'right'
+            )
             plt.tight_layout()
             return ax
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["error_y"] = kwargs.get("error_y", 'std' if 'std' in self.data.columns else None)
-            error_y_label = f" &plusmn; {kwargs.get('error_y')}" if kwargs.get('error_y') else ''
+            error_y_label = f" &plusmn; {kwargs.get('error_y')}<br>" if kwargs.get('error_y') else ''
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", ""),
                 "value": kwargs.pop("ylabel", None) or kwargs.pop(

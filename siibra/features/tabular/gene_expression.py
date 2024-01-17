@@ -135,10 +135,12 @@ class GeneExpressions(
         if backend == "matplotlib":
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
                 assert arg not in kwargs
-            passed_kwarg = {
-                "grid": True, "legend": False, 'by': "gene", 'column': ['level'], 'showfliers': False, 'ax': None, **kwargs
+            default_kwargs = {
+                "grid": True, "legend": False, 'by': "gene",
+                'column': ['level'], 'showfliers': False, 'ax': None,
+                'ylabel': 'expression level'
             }
-            return self.data.plot(*args, **passed_kwarg, backend=backend)
+            return self.data.plot(*args, **{**default_kwargs, **kwargs}, backend=backend)
         elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace('\n', "<br>")
             return self.data.plot(y='level', x='gene', backend=backend, **kwargs)
