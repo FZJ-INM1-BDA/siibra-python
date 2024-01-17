@@ -19,7 +19,7 @@ def register_dummy1():
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy1)
     dummy1.reset_mock()
-    
+
     dummy_child1.reset_mock()
     dummy_child2.reset_mock()
 
@@ -30,20 +30,23 @@ def register_dummy2():
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy2)
     dummy2.reset_mock()
-    
+
+
 @pytest.fixture
 def register_dummy_data1():
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.DATA)(dummy_data1)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy_data1)
     dummy_data1.reset_mock()
-    
+
+
 @pytest.fixture
 def register_dummy_data2():
     wrapped_fn = Warmup.register_warmup_fn(WarmupLevel.DATA)(dummy_data2)
     yield wrapped_fn
     Warmup.deregister_warmup_fn(dummy_data2)
     dummy_data2.reset_mock()
+
 
 @pytest.fixture
 def register_all(
@@ -60,10 +63,11 @@ def test_deregister_original(register_dummy1):
     Warmup.deregister_warmup_fn(dummy1)
     assert not Warmup.is_registered(dummy1)
 
-    
+
 def test_deregister_wrapped(register_dummy1):
     Warmup.deregister_warmup_fn(register_dummy1)
     assert not Warmup.is_registered(dummy1)
+
 
 def test_register_multiple():
     wrapped = Warmup.register_warmup_fn()(dummy1)
@@ -73,8 +77,9 @@ def test_register_multiple():
 
     with pytest.raises(WarmupRegException):
         Warmup.register_warmup_fn()(wrapped)
-    
+
     Warmup.deregister_warmup_fn(dummy1)
+
 
 def test_register_as_factory():
     wrapped = Warmup.register_warmup_fn(is_factory=True)(dummy1)
@@ -102,19 +107,20 @@ def test_register_warmup_called(register_all):
     dummy_data1.assert_not_called()
     dummy_data2.assert_not_called()
 
+
 def test_register_warmup_called_level(register_all):
     Warmup.warmup(WarmupLevel.INSTANCE)
-    
+
     dummy1.assert_called_once()
     dummy2.assert_called_once()
 
     dummy_data1.assert_not_called()
     dummy_data2.assert_not_called()
 
-    
+
 def test_register_warmup_called_level_high(register_all):
     Warmup.warmup(WarmupLevel.DATA)
-    
+
     dummy1.assert_called_once()
     dummy2.assert_called_once()
 

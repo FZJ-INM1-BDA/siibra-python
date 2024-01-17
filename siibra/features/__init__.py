@@ -54,6 +54,7 @@ def _warm_feature_cache_insntaces():
     for ftype in TYPES.values():
         _ = ftype._get_instances()
 
+
 @cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA, is_factory=True)
 def _warm_feature_cache_data():
     return_callables = []

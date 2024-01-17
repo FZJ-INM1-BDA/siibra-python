@@ -29,9 +29,11 @@ from typing import TypeVar, Type, Union, List, TYPE_CHECKING, Dict
 T = TypeVar("T", bound="AtlasConcept")
 _REGISTRIES: Dict[Type[T], InstanceTable[T]] = {}
 
+
 @cache.Warmup.register_warmup_fn(is_factory=True)
 def _atlas_concept_warmup():
     return [cls.registry for cls in _REGISTRIES]
+
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset

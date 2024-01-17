@@ -115,7 +115,7 @@ if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
-def warm_cache(level = WarmupLevel.INSTANCE):
+def warm_cache(level=WarmupLevel.INSTANCE):
     """
     Preload preconfigured siibra concepts.
 

@@ -1156,6 +1156,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
 cache.Warmup.register_warmup_fn()(Map.registry)
 
+
 def from_volume(
     name: str,
     volume: Union[_volume.Volume, List[_volume.Volume]],

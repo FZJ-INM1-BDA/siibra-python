@@ -143,4 +143,3 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
 
 
 cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA)(lambda: EbrainsFeatureQuery.loader.data)
-
