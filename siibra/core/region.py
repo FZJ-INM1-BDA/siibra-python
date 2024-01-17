@@ -41,6 +41,7 @@ from ebrains_drive import BucketApiClient
 import json
 from functools import wraps, reduce
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 
 REGEX_TYPE = type(re.compile("test"))
@@ -134,7 +135,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         )
         self._supported_spaces = None  # computed on 1st call of self.supported_spaces
         self._str_aliases = None
-        self._CACHED_REGION_SEARCHES = {}
 
     def get_related_regions(self) -> Iterable["Qualification"]:
         """
@@ -179,6 +179,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
     def species(self):
         # lazy request of the root parcellation's species
         if self._species_cached is None:
+            if self.parcellation is None:
+                return None
             self._species_cached = self.parcellation.species
         return self._species_cached
 
@@ -264,6 +266,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         """
         return region == self or region in self.descendants
 
+    @lru_cache(maxsize=3)
     def find(
         self,
         regionspec,
@@ -276,7 +279,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         Parameters
         ----------
-        regionspec: str, regex, int, Region
+        regionspec: str, regex, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
             - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
             - a regex applied to region names
@@ -287,6 +290,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             If True (requires `filter_children=True`), will return parent
             structures if all children are matched, even though the parent
             itself might not match the specification.
+
         Returns
         -------
         list[Region]
@@ -295,11 +299,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ---
         See example 01-003, find regions.
         """
-        key = (regionspec, filter_children, find_topmost)
-        MEM = self._CACHED_REGION_SEARCHES
-        if key in MEM:
-            return MEM[key]
-
         if isinstance(regionspec, str):
             # convert the specified string into a regex for matching
             regex_match = self._regex_re.match(regionspec)
@@ -361,7 +360,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         found_regions = sorted(set(candidates), key=lambda r: r.depth)
 
         # reverse is set to True, since SequenceMatcher().ratio(), higher == better
-        MEM[key] = (
+        return (
             sorted(
                 found_regions,
                 reverse=True,
@@ -369,8 +368,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             )
             if isinstance(regionspec, str) else found_regions
         )
-
-        return MEM[key]
 
     def matches(self, regionspec):
         """
