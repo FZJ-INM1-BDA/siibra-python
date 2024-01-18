@@ -21,8 +21,3 @@ from .volume import from_array, from_file, from_pointset, from_nifti, Volume
 from ..commons import logger
 from typing import List, Union
 import numpy as np
-
-
-def warm_cache():
-    """Preload preconfigured parcellation maps."""
-    _ = Map.registry()

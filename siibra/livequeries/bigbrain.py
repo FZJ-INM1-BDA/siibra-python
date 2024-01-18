@@ -77,6 +77,9 @@ class WagstylProfileLoader:
         return self._vertices.shape[0]
 
 
+cache.Warmup.register_warmup_fn()(lambda: WagstylProfileLoader._load())
+
+
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):
 
     def __init__(self):

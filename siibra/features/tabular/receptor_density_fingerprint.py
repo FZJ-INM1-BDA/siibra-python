@@ -170,10 +170,11 @@ class ReceptorDensityFingerprint(
                             self.data["mean"] + self.data["std"]
                         ]
                     ),
-                    "cat":
-                        len(self.data) * ["mean"] +\
-                        len(self.data) * ["mean - std"] +\
-                        len(self.data) * ["mean + std"]
+                    "cat": (
+                        len(self.data) * ["mean"]
+                        + len(self.data) * ["mean - std"]
+                        + len(self.data) * ["mean + std"]
+                    )
                 }
             )
             return line_polar(

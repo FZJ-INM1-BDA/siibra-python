@@ -23,6 +23,8 @@ from . import (
 
 from typing import Union
 from .feature import Feature
+from ..retrieval import cache
+from ..commons import siibra_tqdm
 
 get = Feature._match
 
@@ -46,12 +48,31 @@ def __getattr__(attr: str):
         raise AttributeError(f"No such attribute: {__name__}.{attr} " + hint)
 
 
-def warm_cache():
+@cache.Warmup.register_warmup_fn()
+def _warm_feature_cache_insntaces():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype._get_instances()
-    from ..livequeries.bigbrain import WagstylProfileLoader
-    WagstylProfileLoader._load()
+
+
+@cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA, is_factory=True)
+def _warm_feature_cache_data():
+    return_callables = []
+    for ftype in TYPES.values():
+        instances = ftype._get_instances()
+        tally = siibra_tqdm(desc=f"Warming data {ftype.__name__}", total=len(instances))
+        for f in instances:
+            def get_data():
+                # TODO
+                # the try catch is as a result of https://github.com/FZJ-INM1-BDA/siibra-python/issues/509
+                # sometimes f.data can fail
+                try:
+                    _ = f.data
+                except Exception:
+                    ...
+                tally.update(1)
+            return_callables.append(get_data)
+    return return_callables
 
 
 def render_ascii_tree(class_or_classname: Union[type, str]):
