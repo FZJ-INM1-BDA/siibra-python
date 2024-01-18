@@ -29,6 +29,7 @@ from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
 from skimage import feature as skimage_feature, filters
+from functools import lru_cache
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -115,6 +116,7 @@ class Volume(location.Location):
             for srctype, prov in self._providers.items()
         }
 
+    @lru_cache(2)
     def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
         """
         Obtain the bounding box in physical coordinates of this volume.

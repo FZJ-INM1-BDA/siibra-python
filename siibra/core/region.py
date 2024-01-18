@@ -650,7 +650,9 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
                     assignment_result = regionmap.assign(other_warped)
                 except SpaceWarpingFailedError:
                     try:
-                        regionbbox_warped = self.get_boundingbox(space).warp(other.space)
+                        regionbbox_warped = self.get_boundingbox(
+                            space, restrict_space=True
+                        ).warp(other.space)
                     except SpaceWarpingFailedError:
                         continue
                     assignment_result = regionbbox_warped.assign(other)
@@ -692,6 +694,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         space: _space.Space,
         maptype: MapType = MapType.LABELLED,
         threshold_statistical=None,
+        restrict_space=False,
         **fetch_kwargs
     ):
         """Compute the bounding box of this region in the given space.
@@ -707,6 +710,10 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         threshold_statistical: float, or None
             if not None, masks will be preferably constructed by thresholding
             statistical maps with the given value.
+        restrict_space: bool, default: False
+            If True, it will not try to fetch maps from other spaces and warp
+            its boundingbox to requested space.
+
         Returns
         -------
         BoundingBox
@@ -718,6 +725,8 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             )
             return mask.get_boundingbox(clip=True, background=0.0, **fetch_kwargs)
         except (RuntimeError, ValueError):
+            if restrict_space:
+                return None
             for other_space in self.parcellation.spaces - spaceobj:
                 try:
                     mask = self.get_regional_map(
