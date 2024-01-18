@@ -161,15 +161,16 @@ class AnatomicalAnchor:
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
+        if (
+            restrict_space
+            and self.location is not None
+            and isinstance(concept, Location)
+            and not self.location.space.matches(concept.space)
+        ):
+            return []
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
-                if (
-                    restrict_space
-                    and isinstance(concept, Location)
-                    and not self.location.space.matches(concept.space)
-                ):
-                    return []
                 try:
                     assignments.append(self.location.assign(concept))
                 except SpaceWarpingFailedError as e:
