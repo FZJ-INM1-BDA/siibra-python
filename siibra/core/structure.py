@@ -93,16 +93,18 @@ class BrainStructure(ABC):
                 self._ASSIGNMENT_CACHE[self, other] = inverse_assignment.invert()
             return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a location object, just check spatial relationships
+            qualification = None
             if self == other:
                 qualification = assignment.Qualification.EXACT
-            elif self.__contains__(other):
-                qualification = assignment.Qualification.CONTAINS
-            elif other.__contains__(self):
-                qualification = assignment.Qualification.CONTAINED
-            elif self.intersects(other):
-                qualification = assignment.Qualification.OVERLAPS
             else:
-                qualification = None
+                intersection = self.intersection(other)
+                if intersection is not None:
+                    if intersection == other:
+                        qualification = assignment.Qualification.CONTAINS
+                    elif intersection == self:
+                        qualification = assignment.Qualification.CONTAINED
+                    else:
+                        qualification = assignment.Qualification.OVERLAPS
             if qualification is None:
                 self._ASSIGNMENT_CACHE[self, other] = None
             else:

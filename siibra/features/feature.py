@@ -235,13 +235,13 @@ class Feature:
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: concept.AtlasConcept) -> bool:
+    def matches(self, concept: structure.BrainStructure, restrict_space: bool = False) -> bool:
         """
         Match the features anatomical anchor agains the given query concept.
         Record the most recently matched concept for inspection by the caller.
         """
         # TODO: storing the last matched concept. It is not ideal, might cause problems in multithreading
-        if self.anchor and self.anchor.matches(concept):
+        if self.anchor and self.anchor.matches(concept, restrict_space):
             self.anchor._last_matched_concept = concept
             return True
         self.anchor._last_matched_concept = None
@@ -467,6 +467,7 @@ class Feature:
         cls,
         concept: structure.BrainStructure,
         feature_type: Union[str, Type['Feature'], list],
+        restrict_space: bool = False,
         **kwargs
     ) -> List['Feature']:
         """
@@ -483,8 +484,12 @@ class Feature:
         ----------
         concept: AtlasConcept
             An anatomical concept, typically a brain region or parcellation.
-        modality: subclass of Feature
+        feature_type: subclass of Feature, str
             specififies the type of features ("modality")
+        restrict_space: bool: default: False
+            If true, will skip features anchored at spatial locations of
+            different spaces than the concept. Requires concept to be a
+            Location.
         """
         if isinstance(feature_type, list):
             # a list of feature types is given, collect match results on those
@@ -494,7 +499,7 @@ class Feature:
             )
             return list(dict.fromkeys(
                 sum((
-                    cls._match(concept, t, **kwargs) for t in feature_type
+                    cls._match(concept, t, restrict_space, **kwargs) for t in feature_type
                 ), [])
             ))
 
@@ -511,7 +516,7 @@ class Feature:
                 f"'{feature_type}' decoded as feature type/s: "
                 f"{[c.__name__ for c in ftype_candidates]}."
             )
-            return cls._match(concept, ftype_candidates, **kwargs)
+            return cls._match(concept, ftype_candidates, restrict_space, **kwargs)
 
         assert issubclass(feature_type, Feature)
 
@@ -537,7 +542,7 @@ class Feature:
                 total=len(instances),
                 disable=(not instances)
             )
-            if f.matches(concept)
+            if f.matches(concept, restrict_space)
         ]
 
         # Then run any registered live queries for the requested feature type
