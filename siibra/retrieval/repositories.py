@@ -43,7 +43,7 @@ class RepositoryConnector(ABC):
         self.base_url = base_url
 
     @abstractmethod
-    def search_files(folder: str, suffix: str, recursive: bool = False) -> List[str]:
+    def search_files(self, folder: str, suffix: str, recursive: bool = False) -> List[str]:
         pass
 
     @abstractmethod
@@ -127,6 +127,10 @@ class LocalFileRepository(RepositoryConnector):
             with open(self.url, 'rb') as f:
                 return self.func(f.read())
 
+    def get(self, filename, folder="", decode_func=None):
+        """Get a file right away."""
+        return self.get_loader(filename, folder, decode_func).data
+
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
@@ -152,6 +156,107 @@ class LocalFileRepository(RepositoryConnector):
 
     def __eq__(self, other):
         return self._folder == other._folder
+
+
+class GithubConnector(RepositoryConnector):
+
+    def __init__(
+        self,
+        owner: str,
+        repo: str,
+        reftag: str,
+        skip_branchtest=False,
+        archive_mode=False
+    ):
+        """_summary_
+
+        Parameters
+        ----------
+        owner : str
+        repo : str
+        reftag : str
+            Tag or branch
+        skip_branchtest : bool, default: False
+            Whether to test if the reftag resides in the repository.
+        archive_mode : bool, default: False
+            Archive the repo (for reftag only) to siibra local cache.
+        Raises
+        ------
+        RuntimeError
+            If branch test could not find the reftag in the repo's list of tags
+            and branches.
+        """
+        RepositoryConnector.__init__(
+            self,
+            base_url=f"https://api.github.com/repos/{owner}/{repo}"
+        )
+        assert reftag
+        if not skip_branchtest:
+            try:
+                tags = HttpRequest(f"{self.base_url}/tags", DECODERS[".json"], refresh=True).data
+                branches = HttpRequest(f"{self.base_url}/branches", DECODERS[".json"], refresh=True).data
+                matched_reftags = list(
+                    filter(lambda b: b["name"] == reftag, tags + branches)
+                )
+                if len(matched_reftags) == 1:
+                    self._want_commit_cached = matched_reftags[0]["commit"]
+                else:
+                    raise RuntimeError(f"Found {len(matched_reftags)} mathces to {reftag}")
+                self._tag_checked = True
+            except Exception:
+                logger.warning("Could not connect to GitHub repository.", exc_info=1)
+        self.reftag = reftag
+        self._raw_baseurl = f"https://raw.githubusercontent.com/{owner}/{repo}/{self.reftag}"
+        self.archive_mode = archive_mode
+        self._archive_conn = None
+        self._tree = None
+
+    def search_files(self, folder="", suffix="", recursive=False) -> List[str]:
+        if self._tree is None:
+            self._tree = HttpRequest(
+                f"{self.base_url}/git/trees/{self.reftag}?recursive={recursive}",
+                DECODERS[".json"],
+            ).data.get('tree')
+        return [
+            f["path"]
+            for f in self._tree
+            if f["type"] == "blob"
+            and f["path"].startswith(folder)
+            and f["path"].endswith(suffix)
+        ]
+
+    def _build_url(self, folder: str, filename: str):
+        if filename is None:
+            pathstr = "" if len(folder) == 0 else folder
+            return f"{self._raw_baseurl}/{pathstr}"
+        else:
+            pathstr = filename if folder == "" else f"{folder}/{filename}"
+            filepath = quote(pathstr, safe="")
+            return f"{self._raw_baseurl}/{filepath}"
+
+    def get_loader(self, filename, folder="", decode_func=None):
+        if not self.archive_mode:
+            return super().get_loader(filename, folder, decode_func)
+        else:
+            self._archive()
+            return self._archive_conn.get_loader(filename, folder, decode_func)
+
+    def _archive(self):
+        if self._archive_conn is None:
+            archive_directory = CACHE.build_filename(self.base_url + self.reftag)
+            if not os.path.isdir(archive_directory):
+                import tarfile
+                from io import BytesIO
+
+                resp = requests.get(f"{self.base_url}/tarball/{self.reftag}", stream=True)
+                resp.raise_for_status()
+
+                with tarfile.open(fileobj=BytesIO(resp.content), mode="r:gz") as tar:
+                    tar.extractall(CACHE.folder)
+                    foldername = tar.getnames()[0]
+                os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+            # create LocalFileRepository as an interface to the local files
+            self._archive_conn = LocalFileRepository(archive_directory)
 
 
 class GitlabConnector(RepositoryConnector):
