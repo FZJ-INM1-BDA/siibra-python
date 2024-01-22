@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 from siibra.volumes.providers.neuroglancer import NeuroglancerVolume
 from siibra.retrieval import requests
 
+
 @patch.object(requests, 'HttpRequest')
 def test_ngvol_info_uses_cached(MockedHttpReq):
     MockedHttpReq.return_value = MagicMock()
