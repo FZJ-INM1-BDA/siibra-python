@@ -234,7 +234,7 @@ class NeuroglancerVolume:
     @transform_nm.setter
     def transform_nm(self, val):
         self._transform_nm = val
-    
+
     @cached_property
     def io(self):
         accessor = HttpAccessor(self.url)
