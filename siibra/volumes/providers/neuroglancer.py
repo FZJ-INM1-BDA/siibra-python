@@ -19,6 +19,8 @@ from ...commons import logger, MapType, merge_meshes
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
+from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
+from neuroglancer_scripts.http_accessor import HttpAccessor
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 from io import BytesIO
 import nibabel as nib
@@ -26,6 +28,7 @@ import os
 import numpy as np
 from typing import Union, Dict, Tuple
 import json
+from functools import cached_property
 
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -231,6 +234,11 @@ class NeuroglancerVolume:
     @transform_nm.setter
     def transform_nm(self, val):
         self._transform_nm = val
+    
+    @cached_property
+    def io(self):
+        accessor = HttpAccessor(self.url)
+        return get_IO_for_existing_dataset(accessor)
 
     @property
     def map_type(self):
@@ -420,7 +428,7 @@ class NeuroglancerScale:
         y0 = gy * self.chunk_sizes[1]
         z0 = gz * self.chunk_sizes[2]
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
-        chunk_czyx = self.volume._io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
+        chunk_czyx = self.volume.io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
         if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
             logger.warning(
                 "Color channel data is not yet supported. Returning first channel only."
