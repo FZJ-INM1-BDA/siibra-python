@@ -19,14 +19,13 @@ from ...commons import logger, MapType, merge_meshes
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
-from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
-from neuroglancer_scripts.accessor import get_accessor_for_url
 from neuroglancer_scripts.mesh import read_precomputed_mesh, affine_transform_mesh
 from io import BytesIO
 import nibabel as nib
 import os
 import numpy as np
 from typing import Union, Dict, Tuple
+import json
 
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -210,7 +209,7 @@ class NeuroglancerVolume:
         assert isinstance(url, str)
         self.url = url
         self._scales_cached = None
-        self._io = None
+        self._info = None
         self._transform_nm = None
 
     @property
@@ -235,11 +234,11 @@ class NeuroglancerVolume:
 
     @property
     def map_type(self):
-        if self._io is None:
+        if self._info is None:
             self._bootstrap()
         return (
             MapType.LABELLED
-            if self._io.info.get("type") == "segmentation"
+            if self._info.get("type") == "segmentation"
             else MapType.STATISTICAL
         )
 
@@ -247,21 +246,20 @@ class NeuroglancerVolume:
     def map_type(self, val):
         if val is not None:
             logger.debug(
-                "NeuroglancerVolume can determine its own maptype from self._io.info.get('type')"
+                "NeuroglancerVolume can determine its own maptype from self._info.get('type')"
             )
 
     def _bootstrap(self):
-        accessor = get_accessor_for_url(self.url)
-        self._io = get_IO_for_existing_dataset(accessor)
+        self._info = requests.HttpRequest(f"{self.url}/info", func=lambda b: json.loads(b.decode())).get()
         self._scales_cached = sorted(
-            [NeuroglancerScale(self, i) for i in self._io.info["scales"]]
+            [NeuroglancerScale(self, i) for i in self._info["scales"]]
         )
 
     @property
     def dtype(self):
-        if self._io is None:
+        if self._info is None:
             self._bootstrap()
-        return np.dtype(self._io.info["data_type"])
+        return np.dtype(self._info["data_type"])
 
     @property
     def scales(self):
