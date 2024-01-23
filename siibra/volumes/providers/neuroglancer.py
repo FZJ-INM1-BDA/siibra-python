@@ -28,7 +28,6 @@ import os
 import numpy as np
 from typing import Union, Dict, Tuple
 import json
-from functools import cached_property
 
 
 class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/precomputed"):
@@ -214,6 +213,7 @@ class NeuroglancerVolume:
         self._scales_cached = None
         self._info = None
         self._transform_nm = None
+        self._io = None
 
     @property
     def transform_nm(self):
@@ -235,10 +235,11 @@ class NeuroglancerVolume:
     def transform_nm(self, val):
         self._transform_nm = val
 
-    @cached_property
     def io(self):
-        accessor = HttpAccessor(self.url)
-        return get_IO_for_existing_dataset(accessor)
+        if self._io is None:
+            accessor = HttpAccessor(self.url)
+            self._io = get_IO_for_existing_dataset(accessor)
+        return self._io
 
     @property
     def map_type(self):
