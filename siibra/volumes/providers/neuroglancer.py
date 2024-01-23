@@ -235,6 +235,7 @@ class NeuroglancerVolume:
     def transform_nm(self, val):
         self._transform_nm = val
 
+    @property
     def io(self):
         if self._io is None:
             accessor = HttpAccessor(self.url)
