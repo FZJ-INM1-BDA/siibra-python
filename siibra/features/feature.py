@@ -672,6 +672,10 @@ class Compoundable(ABC):
         assert hash(index), "`_element_index` of a compoundable must be hashable."
         return index
 
+    @classmethod
+    def _merge_anchors(cls, anchors: List[_anchor.AnatomicalAnchor]):
+        return sum(anchors)
+
 
 class CompoundFeature(Feature):
     """
@@ -716,7 +720,7 @@ class CompoundFeature(Feature):
             self,
             modality=modality,
             description="\n".join({f.description for f in elements}),
-            anchor=sum([f.anchor for f in elements]),
+            anchor=self._feature_type._merge_anchors([f.anchor for f in elements]),
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
         self._queryconcept = queryconcept

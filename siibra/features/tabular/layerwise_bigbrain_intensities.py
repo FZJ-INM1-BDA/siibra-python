@@ -19,6 +19,10 @@ from . import tabular
 import pandas as pd
 import numpy as np
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...features.anchor import AnatomicalAnchor
+
 
 class LayerwiseBigBrainIntensities(
     tabular.Tabular,
@@ -39,16 +43,10 @@ class LayerwiseBigBrainIntensities(
 
     def __init__(
         self,
-        regionname: str,
+        anchor: "AnatomicalAnchor",
         means: list,
         stds: list,
     ):
-
-        from ..anchor import AnatomicalAnchor
-        anchor = AnatomicalAnchor(
-            region=regionname,
-            species='Homo sapiens',
-        )
         data = pd.DataFrame(
             np.array([means, stds]).T,
             columns=['mean', 'std'],

@@ -94,12 +94,16 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
         assert isinstance(matched, (point.Point, pointset.PointSet))
         assert matched.labels is not None
         for i in matched.labels:
+            anchor = _anchor.AnatomicalAnchor(
+                location=point.Point(loader._vertices[i], space='bigbrain'),
+                region=str(concept),
+                species='Homo sapiens'
+            )
             prof = bigbrain_intensity_profile.BigBrainIntensityProfile(
-                regionname=str(concept),
+                anchor=anchor,
                 depths=loader.profile_labels,
                 values=loader._profiles[i],
-                boundaries=loader._boundary_depths[i],
-                location=point.Point(loader._vertices[i], space='bigbrain')
+                boundaries=loader._boundary_depths[i]
             )
             prof.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
                 query_structure=concept,
@@ -137,12 +141,16 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
             for b in boundary_depths
         ]).reshape((-1, 200))
 
+        anchor = _anchor.AnatomicalAnchor(
+            location=pointset.PointSet(loader._vertices[indices, :], space='bigbrain'),
+            region=str(concept),
+            species='Homo sapiens'
+        )
         result = layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities(
-            regionname=str(concept),
+            anchor=anchor,
             means=[matched_profiles[layer_labels == layer].mean() for layer in range(1, 7)],
             stds=[matched_profiles[layer_labels == layer].std() for layer in range(1, 7)],
         )
-        result.anchor._location_cached = pointset.PointSet(loader._vertices[indices, :], space='bigbrain')
         result.anchor._assignments[concept] = _anchor.AnatomicalAssignment(
             query_structure=concept,
             assigned_structure=concept,
