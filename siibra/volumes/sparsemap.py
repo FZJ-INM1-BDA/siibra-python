@@ -18,7 +18,7 @@ from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
-from ..retrieval import cache
+from ..retrieval.cache import CACHE
 from ..retrieval.requests import HttpRequest, FileLoader
 from ..exceptions import (
     InsufficientArgumentException, ExcessiveArgumentException
@@ -138,6 +138,9 @@ class SparseIndex:
         -------
         SparseIndex
         """
+        from gzip import decompress
+        spindtxt_decoder = lambda b: decompress(b).decode('utf-8').strip().splitlines()
+
         probsfile = filepath_or_url + SparseIndex._SUFFIXES["probs"]
         bboxfile = filepath_or_url + SparseIndex._SUFFIXES["bboxes"]
         voxelfile = filepath_or_url + SparseIndex._SUFFIXES["voxels"]
@@ -153,7 +156,7 @@ class SparseIndex:
         result.affine = voxels.affine
         result.shape = voxels.shape
 
-        lines_probs = request(probsfile).get()
+        lines_probs = request(probsfile, func=spindtxt_decoder).get()
         for line in siibra_tqdm(
             lines_probs,
             total=len(lines_probs),
@@ -166,7 +169,7 @@ class SparseIndex:
             D = dict(zip(mapindices, values))
             result.probs.append(D)
 
-        lines_bboxes = request(bboxfile).get()
+        lines_bboxes = request(bboxfile, func=spindtxt_decoder).get()
         for line in lines_bboxes:
             fields = line.strip().split(" ")
             result.bboxes.append({
@@ -178,8 +181,8 @@ class SparseIndex:
 
     def save(self, base_filename: str, folder: str = ""):
         """
-        Save SparseIndex (3x) files to under the folder base_filename_sparseindex
-        with base_filename. If sparseIndex is not cached, siibra will firt
+        Save SparseIndex (3x) files to under the folder `folder`
+        with base_filename. If SparseIndex is not cached, siibra will first
         create it first.
 
         Parameters
@@ -194,12 +197,12 @@ class SparseIndex:
         """
         from nibabel import Nifti1Image
         import gzip
-        savefolder = path.join(folder, f"{base_filename}_sparseindex")
-        fullpath = path.join(savefolder, base_filename)
+
+        fullpath = path.join(folder, base_filename)
         logger.info(f"Saving SparseIndex to '{base_filename}' with suffixes {SparseIndex._SUFFIXES}")
 
-        if not path.isdir(savefolder):
-            makedirs(savefolder)
+        if folder and not path.isdir(folder):
+            makedirs(folder)
 
         Nifti1Image(self.voxels, self.affine).to_filename(
             fullpath + SparseIndex._SUFFIXES["voxels"]
@@ -274,7 +277,7 @@ class SparseMap(parcellationmap.Map):
 
     @property
     def _cache_prefix(self):
-        return f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index"
+        return CACHE.build_filename(f"{self.parcellation.id}_{self.space.id}_{self.maptype}_{self.name}_index")
 
     @property
     def sparse_index(self):
@@ -307,7 +310,7 @@ class SparseMap(parcellationmap.Map):
                             logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
                             continue
                         spind.add_img(np.asanyarray(img.dataobj), img.affine)
-                spind.save(self._cache_prefix, folder=cache.CACHE.folder)
+                spind.save(self._cache_prefix, folder=CACHE.folder)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
         return self._sparse_index_cached
