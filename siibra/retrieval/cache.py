@@ -221,5 +221,5 @@ try:
     jobmemory = Memory(jobmemory_path, verbose=0)
     cache_user_fn = jobmemory.cache
 except ImportError:
-    from functools import cache
-    cache_user_fn = cache
+    from functools import lru_cache
+    cache_user_fn = lru_cache
