@@ -22,6 +22,7 @@ from functools import wraps
 from enum import Enum
 from typing import Callable, List, NamedTuple, Union
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE, siibra_tqdm
 from ..exceptions import WarmupRegException
@@ -211,3 +212,14 @@ class Warmup:
                 total=len(all_fns),
             ):
                 ...
+
+
+try:
+    from joblib import Memory
+    jobmemory_path = Path(CACHE.folder) / "joblib"
+    jobmemory_path.mkdir(parents=True, exist_ok=True)
+    jobmemory = Memory(jobmemory_path, verbose=0)
+    cache_user_fn = jobmemory.cache
+except ImportError:
+    from functools import lru_cache
+    cache_user_fn = lru_cache

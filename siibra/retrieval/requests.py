@@ -14,7 +14,7 @@
 # limitations under the License.
 """Request files with decoders, lazy loading, and caching."""
 
-from .cache import CACHE
+from .cache import CACHE, cache_user_fn
 from .exceptions import EbrainsAuthenticationError
 from ..commons import (
     logger,
@@ -37,7 +37,7 @@ from io import BytesIO
 import urllib.parse
 import pandas as pd
 import numpy as np
-from typing import List, Callable, Any, TYPE_CHECKING
+from typing import List, Callable, TYPE_CHECKING
 from enum import Enum
 from functools import wraps
 from time import sleep
@@ -574,27 +574,21 @@ class GitlabProxy(HttpRequest):
         self,
         flavour: GitlabProxyEnum,
         instance_id=None,
-        postprocess: Callable[["GitlabProxy", Any], Any] = (
-            lambda proxy, obj: obj
-            if hasattr(proxy, "instance_id") and proxy.instance_id
-            else {"results": obj}
-        ),
     ):
         if flavour not in GitlabProxyEnum:
             raise RuntimeError("Can only proxy enum members")
 
         self.flavour = flavour
         self.folder = self.folder_dict[flavour]
-        self.postprocess = postprocess
         self.instance_id = instance_id
-        self._cached_files = None
+        self.get = cache_user_fn(self.get)
 
     def get(self):
         if self.instance_id:
-            return self.postprocess(
-                self, self.flavour.get(f"{self.folder}/{self.instance_id}.json")
-            )
-        return self.postprocess(self, self.flavour.get(f"{self.folder}/_all.json"))
+            return self.flavour.get(f"{self.folder}/{self.instance_id}.json")
+        return {
+            "results": self.flavour.get(f"{self.folder}/_all.json")
+        }
 
 
 class MultiSourceRequestException(Exception):
