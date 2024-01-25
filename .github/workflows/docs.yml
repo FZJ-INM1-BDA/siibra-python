@@ -1,6 +1,10 @@
 name: '[Docs and examples] Create docs and run examples'
 on: [push, release]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   notebooks:
     name: "Build and run the notebooks for the docs"
