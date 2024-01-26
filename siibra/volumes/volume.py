@@ -358,7 +358,7 @@ class Volume(location.Location):
                         sleep(0.1)
                     logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
                 except Exception as e:
-                    logger.debug(e, exc_info=1)
+                    logger.info(e, exc_info=1)
                 finally:
                     break
             if result is not None:

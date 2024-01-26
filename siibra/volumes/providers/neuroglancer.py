@@ -63,10 +63,17 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             The name of a fragment volume to fetch, if any. For example,
             some volumes are split into left and right hemisphere fragments.
             See :func:`~siibra.volumes.Volume.fragments`
-        resolution_mm: float
-            Specify the resolution
+        resolution_mm: float, default: None (i.e, lowest)
+            Desired resolution in millimeters.
+            Tip
+            ---
+            Set to -1 to get the highest resolution. (might need to set max_bytes)
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
+        max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES
+            Maximum allowable size (in bytes) for downloading the image. siibra
+            will attempt to find the highest resolution image with a size less
+            than this value.
         """
 
         result = None
@@ -315,11 +322,15 @@ class NeuroglancerVolume:
             scale = suitable[-1]
         else:
             scale = self.scales[0]
-            logger.warning(
-                f"Requested resolution {resolution_mm} is not available. "
-                f"Falling back to the highest possible resolution of "
-                f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
-            )
+            xyz_res = ['{:.6f}'.format(r).rstrip('0') for r in scale.res_mm]
+            if all(r.startswith(str(resolution_mm)) for r in xyz_res):
+                logger.info(f"Closest resolution to requested is {', '.join(xyz_res)} mm.")
+            else:
+                logger.warning(
+                    f"Requested resolution {resolution_mm} is not available. "
+                    f"Falling back to the highest possible resolution of "
+                    f"{', '.join(xyz_res)} mm."
+                )
 
         scale_changed = False
         while scale._estimate_nbytes(bbox) > max_bytes:
@@ -328,10 +339,14 @@ class NeuroglancerVolume:
             if scale is None:
                 raise RuntimeError(
                     f"Fetching bounding box {bbox} is infeasible "
-                    f"relative to the limit of {max_bytes/1024**3}GiB."
+                    f"relative to the limit of {max_bytes / 1024**3}GiB."
                 )
         if scale_changed:
-            logger.warning(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
+            logger.warning(
+                f"Resolution was reduced to {scale.res_mm} to provide a "
+                f"feasible volume size of {max_bytes / 1024**3} GiB. Set `max_bytes` to"
+                f" fetch in the resolution requested."
+            )
         return scale
 
 
@@ -376,8 +391,8 @@ class NeuroglancerScale:
         result = self.volume.dtype.itemsize * bbox_.volume
         logger.debug(
             f"Approximate size for fetching resolution "
-            f"({', '.join(map('{:.2f}'.format, self.res_mm))}) mm "
-            f"is {result/1024**3:.2f} GiB."
+            f"({', '.join(map('{:.6f}'.format, self.res_mm))}) mm "
+            f"is {result / 1024**3:.5f} GiB."
         )
         return result
 
