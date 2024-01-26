@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger, MapType, merge_meshes
+from ...commons import logger, MapType, merge_meshes, SIIBRA_MAX_FETCH_SIZE_GIB
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
@@ -195,15 +195,8 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
 class NeuroglancerVolume:
 
-    # Number of bytes at which an image array is considered to large to fetch
-    MAX_GiB = 0.2
-
-    # Wether to keep fetched data in local cache
-    USE_CACHE = False
-
-    @property
-    def MAX_BYTES(self):
-        return self.MAX_GiB * 1024 ** 3
+    USE_CACHE = False  # Whether to keep fetched data in local cache
+    MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_GIB * 1024 ** 3  # Number of bytes at which an image array is considered to large to fetch
 
     def __init__(self, url: str):
         # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
@@ -287,19 +280,30 @@ class NeuroglancerVolume:
         # return the affine matrix of the scale 0 data
         return self.scales[0].affine
 
-    def fetch(self, resolution_mm: float = None, voi: _boundingbox.BoundingBox = None, **kwargs):
+    def fetch(
+        self,
+        resolution_mm: float = None,
+        voi: _boundingbox.BoundingBox = None,
+        max_bytes: float = MAX_BYTES,
+        **kwargs
+    ):
         # the caller has to make sure voi is defined in the correct reference space
-        scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
-        return scale.fetch(voi)
+        scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi, max_bytes=max_bytes)
+        return scale.fetch(voi=voi)
 
-    def get_shape(self, resolution_mm=None):
-        scale = self._select_scale(resolution_mm)
+    def get_shape(self, resolution_mm=None, max_bytes: float = MAX_BYTES):
+        scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)
         return scale.size
 
     def is_float(self):
         return self.dtype.kind == "f"
 
-    def _select_scale(self, resolution_mm: float, bbox: _boundingbox.BoundingBox = None):
+    def _select_scale(
+        self,
+        resolution_mm: float,
+        max_bytes: float = MAX_BYTES,
+        bbox: _boundingbox.BoundingBox = None
+    ) -> 'NeuroglancerScale':
         if resolution_mm is None:
             suitable = self.scales
         elif resolution_mm < 0:
@@ -318,13 +322,13 @@ class NeuroglancerVolume:
             )
 
         scale_changed = False
-        while scale._estimate_nbytes(bbox) > self.MAX_BYTES:
+        while scale._estimate_nbytes(bbox) > max_bytes:
             scale = scale.next()
             scale_changed = True
             if scale is None:
                 raise RuntimeError(
                     f"Fetching bounding box {bbox} is infeasible "
-                    f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
+                    f"relative to the limit of {max_bytes/1024**3}GiB."
                 )
         if scale_changed:
             logger.warning(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
