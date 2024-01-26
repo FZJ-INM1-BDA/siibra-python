@@ -35,3 +35,17 @@ def test_images_datasets_names():
     duration = start - end
     assert len(all_ds_names) == 9, "expected 9 distinct names"
     assert duration < 1, "Expected getting dataset names to be less than 1s"
+
+
+def test_color_channel_fetching():
+    dti_rgb_vol = [
+        f
+        for f in siibra.features.get(
+            siibra.get_template('mni152'),
+            siibra.features.fibres.DTIVolumeOfInterest
+        )
+        if 'rgb' in f.name
+    ][0]
+    _ = dti_rgb_vol.fetch(channel=0)
+    _ = dti_rgb_vol.fetch(channel=1)
+    _ = dti_rgb_vol.fetch(channel=2)

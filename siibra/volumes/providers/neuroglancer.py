@@ -415,7 +415,7 @@ class NeuroglancerScale:
             .ravel()
         )
 
-    def _read_chunk(self, gx, gy, gz):
+    def _read_chunk(self, gx, gy, gz, channel: int = None):
         if any(v < 0 for v in (gx, gy, gz)):
             raise RuntimeError('Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
@@ -431,12 +431,18 @@ class NeuroglancerScale:
         z0 = gz * self.chunk_sizes[2]
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume.io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
-        if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
-            logger.warning(
-                "Color channel data is not yet supported. Returning first channel only."
-            )
-            self.color_warning_issued = True
-        chunk_zyx = chunk_czyx[0]
+        if channel is None:
+            channel = 0
+            if chunk_czyx.shape[0] > 1 and not self.color_warning_issued:
+                logger.warning(
+                    f"The volume has {chunk_czyx.shape[0]} color channels. "
+                    "Returning the first channel now but you can specify one "
+                    "with 'channel' keyword."
+                )
+                self.color_warning_issued = True
+        elif channel + 1 > chunk_czyx.shape[0]:
+            raise ValueError(f"There are only {chunk_czyx.shape[0]} color channels.")
+        chunk_zyx = chunk_czyx[channel]
 
         if self.volume.USE_CACHE:
             np.save(cachefile, chunk_zyx)
@@ -470,7 +476,7 @@ class NeuroglancerScale:
                 y0 = (gy - gy0) * self.chunk_sizes[1]
                 for gz in range(gz0, gz1):
                     z0 = (gz - gz0) * self.chunk_sizes[2]
-                    chunk = self._read_chunk(gx, gy, gz)
+                    chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
                     z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
                     data_zyx[z0:z1, y0:y1, x0:x1] = chunk
 
