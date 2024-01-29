@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger, MapType, merge_meshes
+from ...commons import logger, MapType, merge_meshes, SIIBRA_MAX_FETCH_SIZE_GIB
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
@@ -63,10 +63,17 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             The name of a fragment volume to fetch, if any. For example,
             some volumes are split into left and right hemisphere fragments.
             See :func:`~siibra.volumes.Volume.fragments`
-        resolution_mm: float
-            Specify the resolution
+        resolution_mm: float, default: None (i.e, lowest)
+            Desired resolution in millimeters.
+            Tip
+            ---
+            Set to -1 to get the highest resolution. (might need to set max_bytes)
         voi: BoundingBox
             optional specification of a volume of interest to fetch.
+        max_bytes: float: Default: NeuroglancerVolume.MAX_BYTES
+            Maximum allowable size (in bytes) for downloading the image. siibra
+            will attempt to find the highest resolution image with a size less
+            than this value.
         """
 
         result = None
@@ -195,15 +202,8 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
 class NeuroglancerVolume:
 
-    # Number of bytes at which an image array is considered to large to fetch
-    MAX_GiB = 0.2
-
-    # Wether to keep fetched data in local cache
-    USE_CACHE = False
-
-    @property
-    def MAX_BYTES(self):
-        return self.MAX_GiB * 1024 ** 3
+    USE_CACHE = False  # Whether to keep fetched data in local cache
+    MAX_BYTES = SIIBRA_MAX_FETCH_SIZE_GIB * 1024 ** 3  # Number of bytes at which an image array is considered to large to fetch
 
     def __init__(self, url: str):
         # TODO do we still need VolumeProvider.__init__ ? given it's not a subclass of VolumeProvider?
@@ -287,19 +287,30 @@ class NeuroglancerVolume:
         # return the affine matrix of the scale 0 data
         return self.scales[0].affine
 
-    def fetch(self, resolution_mm: float = None, voi: _boundingbox.BoundingBox = None, **kwargs):
+    def fetch(
+        self,
+        resolution_mm: float = None,
+        voi: _boundingbox.BoundingBox = None,
+        max_bytes: float = MAX_BYTES,
+        **kwargs
+    ):
         # the caller has to make sure voi is defined in the correct reference space
-        scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi)
-        return scale.fetch(voi)
+        scale = self._select_scale(resolution_mm=resolution_mm, bbox=voi, max_bytes=max_bytes)
+        return scale.fetch(voi=voi)
 
-    def get_shape(self, resolution_mm=None):
-        scale = self._select_scale(resolution_mm)
+    def get_shape(self, resolution_mm=None, max_bytes: float = MAX_BYTES):
+        scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)
         return scale.size
 
     def is_float(self):
         return self.dtype.kind == "f"
 
-    def _select_scale(self, resolution_mm: float, bbox: _boundingbox.BoundingBox = None):
+    def _select_scale(
+        self,
+        resolution_mm: float,
+        max_bytes: float = MAX_BYTES,
+        bbox: _boundingbox.BoundingBox = None
+    ) -> 'NeuroglancerScale':
         if resolution_mm is None:
             suitable = self.scales
         elif resolution_mm < 0:
@@ -311,23 +322,31 @@ class NeuroglancerVolume:
             scale = suitable[-1]
         else:
             scale = self.scales[0]
-            logger.warning(
-                f"Requested resolution {resolution_mm} is not available. "
-                f"Falling back to the highest possible resolution of "
-                f"{', '.join(map('{:.2f}'.format, scale.res_mm))} mm."
-            )
+            xyz_res = ['{:.6f}'.format(r).rstrip('0') for r in scale.res_mm]
+            if all(r.startswith(str(resolution_mm)) for r in xyz_res):
+                logger.info(f"Closest resolution to requested is {', '.join(xyz_res)} mm.")
+            else:
+                logger.warning(
+                    f"Requested resolution {resolution_mm} is not available. "
+                    f"Falling back to the highest possible resolution of "
+                    f"{', '.join(xyz_res)} mm."
+                )
 
         scale_changed = False
-        while scale._estimate_nbytes(bbox) > self.MAX_BYTES:
+        while scale._estimate_nbytes(bbox) > max_bytes:
             scale = scale.next()
             scale_changed = True
             if scale is None:
                 raise RuntimeError(
                     f"Fetching bounding box {bbox} is infeasible "
-                    f"relative to the limit of {self.MAX_BYTES/1024**3}GiB."
+                    f"relative to the limit of {max_bytes / 1024**3}GiB."
                 )
         if scale_changed:
-            logger.warning(f"Resolution was reduced to {scale.res_mm} to provide a feasible volume size")
+            logger.warning(
+                f"Resolution was reduced to {scale.res_mm} to provide a "
+                f"feasible volume size of {max_bytes / 1024**3} GiB. Set `max_bytes` to"
+                f" fetch in the resolution requested."
+            )
         return scale
 
 
@@ -372,8 +391,8 @@ class NeuroglancerScale:
         result = self.volume.dtype.itemsize * bbox_.volume
         logger.debug(
             f"Approximate size for fetching resolution "
-            f"({', '.join(map('{:.2f}'.format, self.res_mm))}) mm "
-            f"is {result/1024**3:.2f} GiB."
+            f"({', '.join(map('{:.6f}'.format, self.res_mm))}) mm "
+            f"is {result / 1024**3:.5f} GiB."
         )
         return result
 
@@ -415,7 +434,7 @@ class NeuroglancerScale:
             .ravel()
         )
 
-    def _read_chunk(self, gx, gy, gz):
+    def _read_chunk(self, gx, gy, gz, channel: int = None):
         if any(v < 0 for v in (gx, gy, gz)):
             raise RuntimeError('Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
@@ -431,12 +450,18 @@ class NeuroglancerScale:
         z0 = gz * self.chunk_sizes[2]
         x1, y1, z1 = np.minimum(self.chunk_sizes + [x0, y0, z0], self.size)
         chunk_czyx = self.volume.io.read_chunk(self.key, (x0, x1, y0, y1, z0, z1))
-        if not chunk_czyx.shape[0] == 1 and not self.color_warning_issued:
-            logger.warning(
-                "Color channel data is not yet supported. Returning first channel only."
-            )
-            self.color_warning_issued = True
-        chunk_zyx = chunk_czyx[0]
+        if channel is None:
+            channel = 0
+            if chunk_czyx.shape[0] > 1 and not self.color_warning_issued:
+                logger.warning(
+                    f"The volume has {chunk_czyx.shape[0]} color channels. "
+                    "Returning the first channel now but you can specify one "
+                    "with 'channel' keyword."
+                )
+                self.color_warning_issued = True
+        elif channel + 1 > chunk_czyx.shape[0]:
+            raise ValueError(f"There are only {chunk_czyx.shape[0]} color channels.")
+        chunk_zyx = chunk_czyx[channel]
 
         if self.volume.USE_CACHE:
             np.save(cachefile, chunk_zyx)
@@ -470,7 +495,7 @@ class NeuroglancerScale:
                 y0 = (gy - gy0) * self.chunk_sizes[1]
                 for gz in range(gz0, gz1):
                     z0 = (gz - gz0) * self.chunk_sizes[2]
-                    chunk = self._read_chunk(gx, gy, gz)
+                    chunk = self._read_chunk(gx, gy, gz, kwargs.get("channel"))
                     z1, y1, x1 = np.array([z0, y0, x0]) + chunk.shape
                     data_zyx[z0:z1, y0:y1, x0:x1] = chunk
 
