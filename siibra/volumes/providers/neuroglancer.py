@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger, MapType, merge_meshes, SIIBRA_MAX_FETCH_SIZE_GIB
+from ...commons import logger, MapType, merge_meshes, SIIBRA_MAX_FETCH_SIZE_GIB, QUIET
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
@@ -86,10 +86,11 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         if len(self._fragments) > 1:
             if fragment is None:
-                raise RuntimeError(
-                    f"Merging of fragments not yet implemented in {self.__class__.__name__}. "
-                    f"Specify one of [{', '.join(self._fragments.keys())}] using fetch(fragment=<name>). "
+                logger.info(
+                    f"Merging fragments [{', '.join(self._fragments.keys())}]. "
+                    f"You can select one using `fragment` kwarg.)."
                 )
+                result = self._merge_fragments(resolution_mm=resolution_mm, voi=voi, **kwargs)
             else:
                 matched_names = [n for n in self._fragments if fragment.lower() in n.lower()]
                 if len(matched_names) != 1:
@@ -157,27 +158,54 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                     np.asanyarray(img.dataobj), threshold=background, space=None
                 ).transform(img.affine)  # use the affine of the image matching fetch_kwargs
             else:
-                shape = frag.shape[:3]
+                resolution_mm = fetch_kwargs.get("resolution_mm")
+                if resolution_mm is None:
+                    affine = frag.affine
+                    shape = frag.shape[:3]
+                else:
+                    scale = frag._select_scale(resolution_mm=resolution_mm)
+                    affine = scale.affine
+                    shape = scale.size[:3]
                 next_bbox = _boundingbox.BoundingBox(
                     (0, 0, 0), shape, space=None
-                ).transform(frag.affine)
+                ).transform(affine)
             bbox = next_bbox if bbox is None else bbox.union(next_bbox)
         return bbox
 
-    def _merge_fragments(self) -> nib.Nifti1Image:
+    def _merge_fragments(
+        self,
+        resolution_mm: float = None,
+        voi: _boundingbox.BoundingBox = None,
+        **kwargs
+    ) -> nib.Nifti1Image:
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        bbox = self.get_boundingbox(clip=False, background=0.0)
+        with QUIET:
+            bbox = self.get_boundingbox(
+                clip=False,
+                background=0,
+                resolution_mm=resolution_mm,
+                voi=voi
+            )
         num_conflicts = 0
         result = None
-
-        for loader in self._img_loaders.values():
-            img = loader()
+        for frag_vol in self._fragments.values():
+            frag_scale = frag_vol._select_scale(
+                resolution_mm=resolution_mm,
+                bbox=voi,
+                max_bytes=kwargs.pop("maxbytes", NeuroglancerVolume.MAX_BYTES)
+            )
+            img = frag_scale.fetch(voi=voi)
             if result is None:
                 # build the empty result image with its own affine and voxel space
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.asanyarray(bbox.transform(result_affine).shape, dtype="int")
+                voxdims = np.asanyarray(
+                    np.ceil(
+                        bbox.transform(np.linalg.inv(result_affine)).shape
+                    ),
+                    dtype="int"
+                )
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
@@ -195,7 +223,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
-            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+            logger.warning(
+                f"Merging fragments required to overwrite {num_conflicts} "
+                f"conflicting voxels ({num_conflicts / num_voxels * 100.:2.2f}%)."
+            )
 
         return result
 

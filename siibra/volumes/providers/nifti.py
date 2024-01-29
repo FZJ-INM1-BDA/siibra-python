@@ -112,7 +112,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
-
         for loader in self._img_loaders.values():
             img = loader()
             if result is None:
@@ -120,7 +119,12 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.asanyarray(bbox.transform(result_affine).shape, dtype="int")
+                voxdims = np.asanyarray(
+                    np.ceil(
+                        bbox.transform(np.linalg.inv(result_affine)).shape
+                    ),
+                    dtype="int"
+                )
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
@@ -138,7 +142,10 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
-            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+            logger.warning(
+                f"Merging fragments required to overwrite {num_conflicts} "
+                f"conflicting voxels ({num_conflicts / num_voxels * 100.:2.1f}%)."
+            )
 
         return result
 
