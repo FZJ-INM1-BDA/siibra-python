@@ -86,5 +86,5 @@ class EbrainsDataFeature(feature.Feature, category="other"):
         return self._dataset == o._dataset
 
     def _export(self, fh: ZipFile):
-        super()._export(fh)
+        super()._to_zip(fh)
         fh.writestr("doi.md", DOI_TMPL.format(doi=self.url))

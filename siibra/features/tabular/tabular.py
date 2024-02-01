@@ -60,7 +60,7 @@ class Tabular(feature.Feature):
         return self._data_cached.copy()
 
     def _export(self, fh: ZipFile):
-        super()._export(fh)
+        super()._to_zip(fh)
         fh.writestr("tabular.csv", self.data.to_csv())
 
     def plot(self, *args, backend="matplotlib", **kwargs):

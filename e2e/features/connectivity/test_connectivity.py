@@ -78,14 +78,14 @@ def test_copy_is_returned():
 def test_export():
     # for now, only test the first feature, given the ci resource concern
     feat: RegionalConnectivity = all_conn_instances[0]
-    feat.export("file.zip")
+    feat.to_zip("file.zip")
     with ZipFile("file.zip") as z:
         filenames = [info.filename for info in z.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == 1
     os.remove("file.zip")
 
     cf: CompoundFeature = compound_conns[0]
-    cf.export("file_compound.zip")
+    cf.to_zip("file_compound.zip")
     with ZipFile("file_compound.zip") as cz:
         filenames = [info.filename for info in cz.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == len(cf)

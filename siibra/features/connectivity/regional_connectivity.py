@@ -187,7 +187,7 @@ class RegionalConnectivity(Feature, Compoundable):
             )
 
     def _export(self, fh: ZipFile):
-        super()._export(fh)
+        super()._to_zip(fh)
         if self.feature is None:
             fh.writestr(f"sub/{self._filename}/matrix.csv", self.data.to_csv())
         else:

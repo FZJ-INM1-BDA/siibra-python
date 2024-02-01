@@ -36,7 +36,8 @@ from ..locations import location, point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from zipfile import ZipFile
+from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, BinaryIO
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nilearn import image

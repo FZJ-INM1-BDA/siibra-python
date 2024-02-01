@@ -266,7 +266,7 @@ class Feature:
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
-    def _export(self, fh: ZipFile):
+    def _to_zip(self, fh: ZipFile):
         """
         Internal implementation. Subclasses can override but call super()._export(fh).
         This allows all classes in the __mro__ to have the opportunity to append files
@@ -308,7 +308,7 @@ class Feature:
             )
         )
 
-    def export(self, filelike: Union[str, BinaryIO]):
+    def to_zip(self, filelike: Union[str, BinaryIO]):
         """
         Export as a zip archive.
 
@@ -319,7 +319,7 @@ class Feature:
             correct extension (.zip) is set.
         """
         fh = ZipFile(filelike, "w")
-        self._export(fh)
+        self._to_zip(fh)
         fh.close()
 
     @staticmethod
@@ -883,7 +883,7 @@ class CompoundFeature(Feature):
             raise ParseCompoundFeatureIdException
 
     def _export(self, fh: ZipFile):
-        super()._export(fh)
+        super()._to_zip(fh)
         for idx, element in siibra_tqdm(self._elements.items(), desc="Exporting elements", unit="element"):
             if '/' in str(idx):
                 logger.warning(f"'/' will be replaced with ' ' of the file for element with index {idx}")

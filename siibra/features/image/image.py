@@ -85,7 +85,7 @@ class Image(feature.Feature, _volume.Volume):
         self._name_cached = name
 
     def _export(self, fh: ZipFile):
-        super()._export(fh)
+        super()._to_zip(fh)
         # How, what do we download?
         # e.g. for marcel's volume, do we download at full resolution?
         # cannot implement until Volume has an export friendly method
