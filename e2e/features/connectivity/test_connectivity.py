@@ -75,7 +75,7 @@ def test_copy_is_returned():
     assert matrix_again.iloc[0, 0] == prev_val
 
 
-def test_export():
+def test_to_zip():
     # for now, only test the first feature, given the ci resource concern
     feat: RegionalConnectivity = all_conn_instances[0]
     feat.to_zip("file.zip")

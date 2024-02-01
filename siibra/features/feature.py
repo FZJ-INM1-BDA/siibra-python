@@ -268,7 +268,7 @@ class Feature:
 
     def _to_zip(self, fh: ZipFile):
         """
-        Internal implementation. Subclasses can override but call super()._export(fh).
+        Internal implementation. Subclasses can override but call super()._to_zip(fh).
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
@@ -882,7 +882,7 @@ class CompoundFeature(Feature):
         else:
             raise ParseCompoundFeatureIdException
 
-    def _export(self, fh: ZipFile):
+    def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)
         for idx, element in siibra_tqdm(self._elements.items(), desc="Exporting elements", unit="element"):
             if '/' in str(idx):

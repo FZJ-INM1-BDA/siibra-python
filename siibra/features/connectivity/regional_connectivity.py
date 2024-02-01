@@ -186,7 +186,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 f"Plotting connectivity matrices with {backend} is not supported."
             )
 
-    def _export(self, fh: ZipFile):
+    def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)
         if self.feature is None:
             fh.writestr(f"sub/{self._filename}/matrix.csv", self.data.to_csv())

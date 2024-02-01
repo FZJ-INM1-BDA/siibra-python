@@ -59,7 +59,7 @@ class Tabular(feature.Feature):
     def data(self):
         return self._data_cached.copy()
 
-    def _export(self, fh: ZipFile):
+    def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)
         fh.writestr("tabular.csv", self.data.to_csv())
 
