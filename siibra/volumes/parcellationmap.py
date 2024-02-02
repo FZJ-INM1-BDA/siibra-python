@@ -151,6 +151,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 self._indices[k].append(
                     MapIndex(volume=remap_volumes[vol, z], label=index.get('label'), fragment=index.get('fragment'))
                 )
+        assert len(self.volumes) > 0, exceptions.NoVolumeFound("No volumes are associated with this map.")
 
         # make sure the indices are unique - each map/label pair should appear at most once
         all_indices = sum(self._indices.values(), [])
@@ -232,6 +233,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
             logger.warning(f"Region {regionname} not defined in {self}")
+        if isinstance(region, _region.Region) and region.parcellation != self.parcellation:
+            logger.info(
+                f"Parcellation of the supplied region {region} does not match "
+                f"maps ({self.parcellation}). Used the region name for matching."
+            )
         return {
             idx: regionname
             for regionname in matches
@@ -319,90 +325,147 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
     def regions(self):
         return list(self._indices)
 
-    def fetch(
+    def get_volume(
         self,
         region_or_index: Union[str, "Region", MapIndex] = None,
-        *,
-        index: MapIndex = None,
-        region: Union[str, "Region"] = None,
+        create_new_volume: bool = False,
         **kwargs
     ):
         """
-        Fetches one particular volume of this parcellation map.
+        Obtain the volume matching the specification.
 
-        If there's only one volume, this is the default, otherwise further
-        specification is requested:
-        - the volume index,
-        - the MapIndex (which results in a regional map being returned)
-
-        You might also consider fetch_iter() to iterate the volumes, or
-        compress() to produce a single-volume parcellation map.
+        Tip
+        ---
+        Use `fetch()` to obtain image or mesh
 
         Parameters
         ----------
         region_or_index: str, Region, MapIndex
-            Lazy match the specification.
-        index: MapIndex
-            Explicit specification of the map index, typically resulting
-            in a regional map (mask or statistical map) to be returned.
-            Note that supplying 'region' will result in retrieving the map index of that region
-            automatically.
-        region: str, Region
-            Specification of a region name, resulting in a regional map
-            (mask or statistical map) to be returned.
-        **kwargs
-            - resolution_mm: resolution in millimeters
-            - format: the format of the volume, like "mesh" or "nii"
-            - voi: a BoundingBox of interest
+            Lazy match the specification to fetch a regional map (mask or statistical map).
+            - Explicit specification of the MapIndex.
+            - Region name (str) or Region object.
+            If create_new_volume is False, returns the full volume associated
+            with the specifications.
 
+        create_new_volume: bool. Default: False
+            If True, it will create a new volume according to requested
+            specifications. Otherwise, the full volume containing the
+            specification is returned (for example, whole map instead of
+            regional map).
 
             Note
             ----
-            Not all keyword arguments are supported for volume formats. Format
-            is restricted by available formats (check formats property).
+            This requires fetching the data to create a volume out of the specifications. Therefore, it is slower.
+
+        **kwargs
+            - format: the format of the volume, like "nii" or optionally "mesh" or "image" (see `map.formats`)
+            - voi: a BoundingBox of interest
+            - fragment: Optional name of a fragment volume to fetch (see `map.fragments`)
+            - resolution_mm: resolution in millimeters
+            - max_bytes: maximum allowable size (in bytes) for downloading the image.
+
+            Note
+            ----
+            Not all keyword arguments are supported for volume formats.
 
         Returns
         -------
-        An image or mesh
+        Volume
         """
         try:
-            length = len([arg for arg in [region_or_index, region, index] if arg is not None])
-            assert length == 1
-        except AssertionError:
-            if length > 1:
-                raise exceptions.ExcessiveArgumentException("One and only one of region_or_index, region, index can be defined for fetch")
-            # user can provide no arguments, which assumes one and only one volume present
-
-        if isinstance(region_or_index, MapIndex):
-            index = region_or_index
-
-        if isinstance(region_or_index, (str, _region.Region)):
-            region = region_or_index
-
-        mapindex = None
-        if region is not None:
-            assert isinstance(region, (str, _region.Region))
-            mapindex = self.get_index(region)
-        if index is not None:
-            assert isinstance(index, MapIndex)
-            mapindex = index
-        if mapindex is None:
+            index, forward_kwargs = self._decode_fetch_index(
+                region_or_index=region_or_index, **kwargs
+            )
+        except exceptions.InsufficientArgumentException:
             if len(self) == 1:
-                mapindex = MapIndex(volume=0, label=None)
+                return self.volumes[0]
             elif len(self) > 1:
-                logger.info(
-                    "Map provides multiple volumes and no specification is"
-                    " provided. Resampling all volumes to the space."
+                if create_new_volume:
+                    logger.info(
+                        "Map provides multiple volumes and no specification is"
+                        " provided. Resampling all volumes to the space."
+                    )
+                    labels = list(range(len(self.volumes)))
+                    return _volume.merge(self.volumes, labels, **kwargs)
+                else:
+                    raise ValueError(
+                        "Map provides multiple volumes and no specification is "
+                        "provided. To allow resampling all volumes to its space"
+                        " and merge them, set `create_new_volume=True`."
+                    )
+
+        if create_new_volume:
+            from ..volumes import from_nifti
+            return from_nifti(
+                self.volumes[index.volume].fetch(
+                    fragment=index.fragment, label=index.label, **forward_kwargs
+                ),
+                space=self.space,
+                name=f"{self.name} - {index}"
+            )
+        return self.volumes[index.volume]
+
+    def _decode_fetch_index(
+        self,
+        region_or_index: Union[str, "Region", MapIndex] = None,
+        **kwargs
+    ) -> Tuple[MapIndex, Dict]:
+        """
+        Helper function to determine MapIndex required to fetch or get a volume.
+
+        Parameters
+        ----------
+        see `Map.fetch()`
+
+        Returns
+        -------
+        Tuple(MapIndex, Dict)
+            Found MapIndex and MapIndex kwargs taken out of kwargs.
+
+        Raises
+        ------
+        IndexError
+            If MapIndex provided but volume or label is not found in the map.
+        InsufficientArgumentException
+            There is nothing to decode.
+        ValueError
+            `region_or_index` is of the wrong type.
+        ConflictingArgumentException
+            If specified `region_or_index` and `fragement` does not match.
+        """
+        # determine map index
+        if region_or_index is None:
+            # to preserve legacy 'index', 'region', 'label' kwargs
+            if 'index' in kwargs:
+                mapindex = kwargs.pop('index')
+                assert isinstance(mapindex, MapIndex)
+                if (mapindex.volume is None or mapindex.volume >= len(self.volumes)):
+                    raise IndexError(
+                        f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
+                    )
+                if mapindex.label not in self.labels:
+                    raise IndexError(f"{mapindex.label} is not in labels of {self}.")
+            elif 'region' in kwargs:
+                mapindex = self.get_index(kwargs.pop('region'))
+            elif "label" in kwargs:
+                return MapIndex(
+                    volume=kwargs.pop('volume', 0),
+                    label=kwargs.pop('label'),
+                    fragment=kwargs.pop('fragment', None)
                 )
-                labels = list(range(len(self.volumes)))
-                merged_volume = _volume.merge(self.volumes, labels, **kwargs)
-                return merged_volume.fetch()
             else:
-                raise exceptions.NoVolumeFound("Map provides no volumes.")
+                raise exceptions.InsufficientArgumentException
+        elif isinstance(region_or_index, MapIndex):
+            mapindex = region_or_index
+        elif isinstance(region_or_index, (str, _region.Region)):
+            mapindex = self.get_index(region_or_index)
+        else:
+            raise ValueError(
+                f"Invalid `region_or_index` of type {type(region_or_index)}. "
+                "Please supply a region name or MapIndex."
+            )
 
-        if "resolution_mm" in kwargs and kwargs.get("format") is None:
-            kwargs["format"] = 'neuroglancer/precomputed'
-
+        # Ensure fragment is not provided falsely
         kwargs_fragment = kwargs.pop("fragment", None)
         if kwargs_fragment is not None:
             if (mapindex.fragment is not None) and (kwargs_fragment != mapindex.fragment):
@@ -412,21 +475,60 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 )
             mapindex.fragment = kwargs_fragment
 
-        if mapindex.volume is None:
-            mapindex.volume = 0
-        if mapindex.volume >= len(self.volumes):
-            raise IndexError(
-                f"{self} provides {len(self)} mapped volumes, but #{mapindex.volume} was requested."
-            )
+        return mapindex, kwargs
+
+    def fetch(
+        self,
+        region_or_index: Union[str, "Region", MapIndex] = None,
+        **kwargs
+    ):
+        """
+        Fetches one particular volume of this parcellation map, or a regional
+        map if `region_or_index` supplied. If a volume has fragments and one
+        is not speciified (with `fragment` kwarg), the fragments will be merged
+        into one image/mesh.
+
+        Tips
+        ----
+        - You can iterate over regional maps with `fetch_iter()`
+        - `Map.compress()` produces a single-volume parcellation map from
+        fragmented or multi-volume maps.
+
+        Parameters
+        ----------
+        region_or_index: str, Region, MapIndex
+            Lazy match the specification to fetch a regional map (mask or statistical map).
+            - Explicit specification of the MapIndex.
+            - Region name (str) or Region object.
+
+        **kwargs
+            - format: the format of the volume, like "nii" or optionally "mesh" or "image" (see `map.formats`)
+            - voi: a BoundingBox of interest
+            - fragment: Optional name of a fragment volume to fetch (see `map.fragments`)
+            - resolution_mm: resolution in millimeters
+            - max_bytes: maximum allowable size (in bytes) for downloading the image.
+
+            Note
+            ----
+            Not all keyword arguments are supported for volume formats.
+
+        Returns
+        -------
+        Nifti1Image or a mesh (Dict['verts': ndarray, 'faces': ndarray])
+        """
+        index, forward_kwargs = self._decode_fetch_index(region_or_index=region_or_index, **kwargs)
+        volume = self.get_volume(index, create_new_volume=True, **forward_kwargs)
+
         try:
-            result = self.volumes[mapindex.volume or 0].fetch(
-                fragment=mapindex.fragment, label=mapindex.label, **kwargs
-            )
-        except requests.SiibraHttpRequestError as e:
-            print(str(e))
+            result = volume.fetch(fragment=index.fragment, label=index.label, **forward_kwargs)
+        except requests.SiibraHttpRequestError:
+            logger.info(exc_info=1)
 
         if result is None:
-            raise RuntimeError(f"Error fetching {mapindex} from {self} as {kwargs.get('format', f'{self.formats}')}.")
+            raise RuntimeError(
+                f"Error fetching {index} from {self} as "
+                f"{kwargs.get('format', f'{self.formats}')}."
+            )
 
         return result
 
