@@ -164,11 +164,7 @@ class Volume(location.Location):
 
     @property
     def formats(self) -> Set[str]:
-        result = set()
-        for fmt in self._providers:
-            result.add(fmt)
-            result.add('mesh' if fmt in self.MESH_FORMATS else 'image')
-        return result
+        return {fmt for fmt in self._providers}
 
     @property
     def provides_mesh(self):
@@ -318,10 +314,13 @@ class Volume(location.Location):
         -------
         An image (Nifti1Image) or mesh (Dict['verts': ndarray, 'faces': ndarray, 'labels': ndarray])
         """
-        # check for a cached object
         kwargs_serialized = json.dumps({k: hash(v) for k, v in kwargs.items()}, sort_keys=True)
 
-        # no cached object, fetch now
+        if "resolution_mm" in kwargs and format is None:
+            if 'neuroglancer/precomputed' not in self.formats:
+                raise ValueError("'resolution_mm' is only available for volumes with 'neuroglancer/precomputed' formats.")
+            format = 'neuroglancer/precomputed'
+
         if format is None:
             # preseve fetch order in SUPPORTED_FORMATS
             possible_formats = [f for f in self.SUPPORTED_FORMATS if f in self.formats]
@@ -338,11 +337,13 @@ class Volume(location.Location):
             )
 
         result = None
+        # try each possible format
         for fmt in possible_formats:
             fetch_hash = hash((hash(self), hash(fmt), hash(kwargs_serialized)))
+            # cached
             if fetch_hash in self._FETCH_CACHE:
-                return self._FETCH_CACHE[fetch_hash]
-            # try the each possible format. Repeat in case of too many requests.
+                break
+            # Repeat in case of too many requests only
             for try_count in range(6):
                 fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
                 try:
@@ -356,24 +357,26 @@ class Volume(location.Location):
                 except requests.SiibraHttpRequestError as e:
                     if e.status_code == 429:  # too many requests
                         sleep(0.1)
-                    logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                        logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                        continue
+                    else:
+                        break
                 except Exception as e:
                     logger.info(e, exc_info=1)
-                finally:
                     break
+            # udpate the cache if fetch is succesful
             if result is not None:
+                self._FETCH_CACHE[fetch_hash] = result
+                while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+                    # remove oldest entry
+                    self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
                 break
         else:
-            # do not poison the cache if none fetched
-            # TODO: profile if fetching None worth it
+            # unsuccesful: do not poison the cache if none fetched
             logger.error(f"Could not fetch any formats from {possible_formats}.")
             return None
 
-        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
-            # remove oldest entry
-            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
-        self._FETCH_CACHE[fetch_hash] = result
-        return result
+        return self._FETCH_CACHE[fetch_hash]
 
     def fetch_connected_components(self, **kwargs):
         """
