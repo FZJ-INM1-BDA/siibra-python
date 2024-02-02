@@ -20,16 +20,17 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array, siibra_tqdm
+from ..commons import resample_array_to_array, siibra_tqdm, create_readme
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
 import numpy as np
-from typing import List, Dict, Union, Set, TYPE_CHECKING
+from typing import List, Dict, Union, Set, TYPE_CHECKING, BinaryIO
 from time import sleep
 import json
 from skimage import feature as skimage_feature, filters
 from functools import lru_cache
+from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -525,6 +526,42 @@ class Volume(location.Location):
         points.sigma_mm = [sigma_mm for _ in points]
         return points
 
+    def _to_zip(self, zf: ZipFile, **fetch_kwargs):
+        zf.writestr(
+            f"{self.name} - README.md",
+            create_readme(self.name, self.datasets)
+        )
+
+        # format provided
+        fmt = fetch_kwargs.pop("format", None)
+        if self.provides_image and (fmt in self.IMAGE_FORMATS or fmt is None):
+            frags = [fetch_kwargs.get("fragment")] if fetch_kwargs.get("fragment") else self.fragments['image']
+            for frag in frags:
+                img = self.fetch(format=fmt or 'image', fragment=frag, **fetch_kwargs)
+                zf.writestr(f"{self.name}{f' - {frag}' if frag else ''}.nii", img.to_bytes())
+
+        if self.provides_mesh and (fmt in self.MESH_FORMATS or fmt is None):
+            from .providers.gifti import mesh_to_gifti
+
+            frags = [fetch_kwargs.get("fragment")] if fetch_kwargs.get("fragment") else self.fragments['mesh']
+            for frag in frags:
+                mesh = self.fetch(format=fmt or 'mesh', fragment=frag, **fetch_kwargs)
+                gii = mesh_to_gifti(mesh)
+                zf.writestr(f"{self.name}{f' - {frag}' if frag else ''}.gii", gii.to_bytes())
+
+    def to_zip(self, filelike: Union[str, BinaryIO], **fetch_kwargs):
+        """
+        Export as a zip archive.
+
+        Parameters
+        ----------
+        filelike: str or path
+            Filelike to write the zip file. User is responsible to ensure the
+            correct extension (.zip) is set.
+        """
+        with ZipFile(filelike, "w") as zf:
+            self._to_zip(zf, **fetch_kwargs)
+
 
 class Subvolume(Volume):
     """
@@ -562,6 +599,24 @@ def from_nifti(nifti: Nifti1Image, space: str, name: str) -> Volume:
     return Volume(
         space_spec={"@id": spaceobj.id},
         providers=[NiftiProvider((np.asanyarray(nifti.dataobj), nifti.affine))],
+        name=name
+    )
+
+
+def from_mesh(mesh: Dict[str, np.ndarray], space: str, name: str) -> Volume:
+    from ..core.concept import get_registry
+    from nibabel.gifti import gifti
+    from .providers.gifti import GiftiMesh
+    giimesh = gifti.GiftiImage(
+        darrays=[
+            gifti.GiftiDataArray(mesh['verts'], intent="NIFTI_INTENT_POINTSET"),
+            gifti.GiftiDataArray(mesh['faces'], intent="NIFTI_INTENT_TRIANGLE")
+        ]
+    )
+    spaceobj = get_registry("Space").get(space)
+    return Volume(
+        space_spec={"@id": spaceobj.id},
+        providers=[GiftiMesh({'gii-mesh': giimesh})],
         name=name
     )
 

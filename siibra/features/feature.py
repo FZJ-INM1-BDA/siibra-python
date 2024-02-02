@@ -16,7 +16,7 @@
 
 from . import anchor as _anchor
 
-from ..commons import logger, InstanceTable, siibra_tqdm, __version__
+from ..commons import logger, InstanceTable, siibra_tqdm, create_readme
 from ..core import concept, space, region, parcellation, structure
 from ..volumes import volume
 
@@ -45,40 +45,6 @@ class NotFoundException(Exception):
 
 class ParseCompoundFeatureIdException(Exception):
     pass
-
-
-_README_TMPL = """
-Downloaded from siibra toolsuite.
-siibra-python version: {version}
-
-All releated resources (e.g. doi, web resources) are categorized under publications.
-
-Name
-----
-{name}
-
-Description
------------
-{description}
-
-Modality
---------
-{modality}
-
-{publications}
-"""
-_README_PUBLICATIONS = """
-Publications
-------------
-{doi}
-
-{ebrains_page}
-
-{authors}
-
-{publication_desc}
-
-"""
 
 
 class Feature:
@@ -275,38 +241,10 @@ class Feature:
         """
         if isinstance(self, Compoundable) and "README.md" in fh.namelist():
             return
-        ebrains_page = "\n".join(
-            {ds.ebrains_page for ds in self.datasets if getattr(ds, "ebrains_page", None)}
-        )
-        doi = "\n".join({
-            u.get("url")
-            for ds in self.datasets if ds.urls
-            for u in ds.urls
-        })
-        authors = ", ".join({
-            cont.get('name')
-            for ds in self.datasets if ds.contributors
-            for cont in ds.contributors
-        })
-        publication_desc = "\n".join({ds.description for ds in self.datasets})
-        if (ebrains_page or doi) and authors:
-            publications = _README_PUBLICATIONS.format(
-                ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
-                doi="DOI\n" + doi if doi else "",
-                authors="Authors\n" + authors if authors else "",
-                publication_desc="Publication description\n" + publication_desc if publication_desc else ""
-            )
-        else:
-            publications = "Note: could not obtain any publication information. The data may not have been published yet."
+
         fh.writestr(
             "README.md",
-            _README_TMPL.format(
-                version=__version__,
-                name=self.name,
-                description=self.description,
-                modality=self.modality,
-                publications=publications
-            )
+            create_readme(self.name, self.datasets, self.description)
         )
 
     def to_zip(self, filelike: Union[str, BinaryIO]):
@@ -319,9 +257,8 @@ class Feature:
             Filelike to write the zip file. User is responsible to ensure the
             correct extension (.zip) is set.
         """
-        fh = ZipFile(filelike, "w")
-        self._to_zip(fh)
-        fh.close()
+        with ZipFile(filelike, "w") as zf:
+            self._to_zip(zf)
 
     @staticmethod
     def _serialize_query_context(feat: 'Feature', concept: concept.AtlasConcept) -> str:
@@ -885,7 +822,9 @@ class CompoundFeature(Feature):
 
     def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)
-        for idx, element in siibra_tqdm(self._elements.items(), desc="Exporting elements", unit="element"):
+        for idx, element in siibra_tqdm(
+            self._elements.items(), desc="Exporting elements", unit="element"
+        ):
             if '/' in str(idx):
                 logger.warning(f"'/' will be replaced with ' ' of the file for element with index {idx}")
             filename = '/'.join([

@@ -56,6 +56,63 @@ with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
 
 
+def create_readme(name: str, datasets: list, description: str = "") -> str:
+    ebrains_page = "\n".join(
+        {ds.ebrains_page for ds in datasets if getattr(ds, "ebrains_page", None)}
+    )
+    doi = "\n".join({
+        u.get("url")
+        for ds in datasets if ds.urls
+        for u in ds.urls
+    })
+    authors = ", ".join({
+        cont.get('name')
+        for ds in datasets if ds.contributors
+        for cont in ds.contributors
+    })
+    publication_desc = "\n".join({ds.description for ds in datasets})
+    if (ebrains_page or doi) and authors:
+        _README_PUBLICATIONS = """
+        Publications
+        ------------
+        {doi}
+
+        {ebrains_page}
+
+        {authors}
+
+        {publication_desc}
+
+        """
+        publications = _README_PUBLICATIONS.format(
+            ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
+            doi="DOI\n" + doi if doi else "",
+            authors="Authors\n" + authors if authors else "",
+            publication_desc="Publication description\n" + publication_desc if publication_desc else ""
+        )
+    else:
+        publications = "Note: could not obtain any publication information. The data may not have been published yet."
+
+    _README_TMPL = """
+    Downloaded from siibra toolsuite.
+    siibra-python version: {version}
+
+    All releated resources (e.g. doi, web resources) are categorized under publications.
+
+    Name
+    ----
+    {name}
+
+    {publications}
+    """
+    return _README_TMPL.format(
+        version=__version__,
+        name=name,
+        description=description,
+        publications=publications
+    )
+
+
 @dataclass
 class CompareMapsResult:
     intersection_over_union: float
