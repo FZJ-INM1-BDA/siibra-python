@@ -73,11 +73,17 @@ def encode_url(
     *,
     root_url=default_root_url,
     external_url: str = None,
+    location: "Point" = None,
     feature: "Feature" = None,
     ignore_warning=False,
     query_params={},
 ):
+    from siibra.locations import Point
     overlay_url = None
+    encoded_position = None
+    if location:
+        assert isinstance(location, Point), f"currently, location only supports Point"
+        encoded_position = ".".join([encode_number(int(p * 1e6)) for p in location])
     if external_url:
         assert any(
             [external_url.startswith(prefix) for prefix in supported_prefix]
@@ -109,19 +115,19 @@ def encode_url(
         return_url = return_url + f"/f:{sanitize_id(feature.id)}"
 
     if region is None:
-        return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
 
     return_url = f"{return_url}/rn:{get_hash(region.name)}"
 
     try:
         result_props = region.spatial_props(space, maptype="labelled")
         if len(result_props.components) == 0:
-            return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+            return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
     except Exception as e:
         print(f"Cannot get_spatial_props {str(e)}")
         if not ignore_warning:
             raise e
-        return return_url + nav_string.format(encoded_nav="0.0.0", **zoom_kwargs)
+        return return_url + nav_string.format(encoded_nav=encoded_position or "0.0.0", **zoom_kwargs)
 
     centroid = result_props.components[0].centroid
 
@@ -129,7 +135,7 @@ def encode_url(
         [encode_number(math.floor(val * 1e6)) for val in centroid]
     )
     return_url = return_url + nav_string.format(
-        encoded_nav=encoded_centroid, **zoom_kwargs
+        encoded_nav=encoded_position or encoded_centroid, **zoom_kwargs
     )
     return return_url
 
