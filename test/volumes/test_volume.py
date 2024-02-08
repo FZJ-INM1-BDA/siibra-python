@@ -43,7 +43,7 @@ class TestVolume(unittest.TestCase):
         self.assertIsNotNone(self.volume)
 
     def test_formats(self):
-        self.assertSetEqual(self.volume.formats, {'foo-bar', 'image'})
+        self.assertSetEqual(self.volume.formats, {'foo-bar'})
 
     @parameterized.expand([
         ({"@id": "foo"}, "foo", True, True),

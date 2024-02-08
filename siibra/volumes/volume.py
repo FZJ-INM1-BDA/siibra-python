@@ -364,7 +364,7 @@ class Volume(location.Location):
                 except Exception as e:
                     logger.info(e, exc_info=1)
                     break
-            # udpate the cache if fetch is succesful
+            # udpate the cache if fetch is successful
             if result is not None:
                 self._FETCH_CACHE[fetch_hash] = result
                 while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
@@ -372,7 +372,7 @@ class Volume(location.Location):
                     self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
                 break
         else:
-            # unsuccesful: do not poison the cache if none fetched
+            # unsuccessful: do not poison the cache if none fetched
             logger.error(f"Could not fetch any formats from {possible_formats}.")
             return None
 
