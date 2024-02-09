@@ -85,7 +85,8 @@ class Location(BrainStructure):
         return f"{self.__class__.__name__}{space_str}{coord_str}"
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}({[p.__repr__() for p in self]}), space='{self.space.id}'>"
+        spacespec = f"'{self.space.id}'" if self.space else None
+        return f"<{self.__class__.__name__}({[point.__repr__() for point in self]}), space={spacespec}>"
 
     def __hash__(self) -> int:
         return hash(self.__repr__())

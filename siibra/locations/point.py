@@ -296,4 +296,5 @@ class Point(location.Location):
         ).hexdigest()
 
     def __repr__(self):
-        return f"<Point({self.coordinate}, space={self.space.id}, sigma_mm={self.sigma})>"
+        spacespec = f"'{self.space.id}'" if self.space else None
+        return f"<Point({self.coordinate}, space={spacespec}, sigma_mm={self.sigma})>"
