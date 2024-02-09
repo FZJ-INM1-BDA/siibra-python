@@ -82,7 +82,7 @@ def encode_url(
     overlay_url = None
     encoded_position = None
     if location:
-        assert isinstance(location, Point), f"currently, location only supports Point"
+        assert isinstance(location, Point), "currently, location only supports Point"
         encoded_position = ".".join([encode_number(int(p * 1e6)) for p in location])
     if external_url:
         assert any(
