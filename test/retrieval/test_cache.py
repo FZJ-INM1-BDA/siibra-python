@@ -145,4 +145,4 @@ def test_write_lock():
     expected_baseline = sleep_time * 2
 
     time_perf = tend_s - tstart_s
-    assert time_perf > expected_baseline, f"Expect second call to block"
+    assert time_perf > expected_baseline, "Expect second call to block"

@@ -208,8 +208,8 @@ class Warmup:
                 return
             for f in return_val:
                 f()
-        
-        with Lock(f"{SIIBRA_CACHEDIR}/warmup.tmp"):
+
+        with Lock(CACHE.build_filename("lockfile", ".warmup")):
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
                 for _ in siibra_tqdm(
                     ex.map(
