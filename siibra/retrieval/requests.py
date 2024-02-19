@@ -43,6 +43,8 @@ from functools import wraps
 from time import sleep
 import sys
 from filelock import FileLock as Lock
+if TYPE_CHECKING:
+    from .repositories import GitlabConnector
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
