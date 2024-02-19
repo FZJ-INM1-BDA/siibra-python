@@ -36,8 +36,7 @@ class Configuration:
 
     CONFIG_REPOS = [
         (GithubConnector, "FZJ-INM1-BDA", "siibra-configurations"),
-        (GitlabConnector, "https://jugit.fz-juelich.de", 3484),
-        (GitlabConnector, "https://gitlab.ebrains.eu", 93)
+        (GitlabConnector, "https://gitlab.ebrains.eu", 892)
     ]
     CONFIG_CONNECTORS: List[RepositoryConnector] = [
         conn(
