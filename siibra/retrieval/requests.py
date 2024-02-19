@@ -42,15 +42,7 @@ from enum import Enum
 from functools import wraps
 from time import sleep
 import sys
-import platform
-
-if platform.system() == "Linux":
-    from filelock import FileLock as Lock
-else:
-    from filelock import SoftFileLock as Lock
-
-if TYPE_CHECKING:
-    from .repositories import GitlabConnector
+from filelock import FileLock as Lock
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
