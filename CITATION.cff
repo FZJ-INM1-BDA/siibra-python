@@ -19,7 +19,10 @@ version: v1.0a05
 
 date-released: 2024-01-23
 
-doi: https://zenodo.org/records/7885729
+identifiers:
+  - description: Zenodo collection for all releases
+    type: doi
+    value: 10.5281/zenodo.7885728
 
 contact:
   - given-names: Timo
