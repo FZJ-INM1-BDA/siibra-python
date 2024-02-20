@@ -26,7 +26,7 @@ from .cache import CACHE
 from ..commons import logger, siibra_tqdm
 
 from abc import ABC, abstractmethod
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 import pathlib
 import os
 from zipfile import ZipFile
@@ -44,6 +44,22 @@ class RepositoryConnector(ABC):
 
     @abstractmethod
     def search_files(self, folder: str, suffix: str, recursive: bool = False) -> List[str]:
+        """
+        Get the files within the repository.
+
+        Parameters
+        ----------
+        folder : str
+            folder or folders in the form 'path/to/file'
+        suffix : str
+        recursive : bool, default: False
+            If True, searches files in all subfolders
+
+        Returns
+        -------
+        List[str]
+            List of file names.
+        """
         pass
 
     @abstractmethod
@@ -168,7 +184,8 @@ class GithubConnector(RepositoryConnector):
         skip_branchtest=False,
         archive_mode=False
     ):
-        """_summary_
+        """
+        Connect to a GitHub repository with a specific ref (branch or tag).
 
         Parameters
         ----------
@@ -208,31 +225,27 @@ class GithubConnector(RepositoryConnector):
         self.reftag = reftag
         self._raw_baseurl = f"https://raw.githubusercontent.com/{owner}/{repo}/{self.reftag}"
         self.archive_mode = archive_mode
-        self._archive_conn = None
-        self._tree = None
+        self._archive_conn: LocalFileRepository = None
+        self._recursed_tree = None
 
     def search_files(self, folder="", suffix="", recursive=False) -> List[str]:
-        if self._tree is None:
-            self._tree = HttpRequest(
-                f"{self.base_url}/git/trees/{self.reftag}?recursive={recursive}",
-                DECODERS[".json"],
-            ).data.get('tree')
+        if self._recursed_tree is None:
+            self._recursed_tree = HttpRequest(
+                f"{self.base_url}/git/trees/{self.reftag}?recursive=1",
+                DECODERS[".json"]
+            ).data.get("tree", [])
+        folder_depth = len(folder.split('/')) if folder else 0
         return [
-            f["path"]
-            for f in self._tree
+            f["path"] for f in self._recursed_tree
             if f["type"] == "blob"
             and f["path"].startswith(folder)
             and f["path"].endswith(suffix)
+            and (recursive or len(f["path"].split('/')) == folder_depth + 1)
         ]
 
     def _build_url(self, folder: str, filename: str):
-        if filename is None:
-            pathstr = "" if len(folder) == 0 else folder
-            return f"{self._raw_baseurl}/{pathstr}"
-        else:
-            pathstr = filename if folder == "" else f"{folder}/{filename}"
-            filepath = quote(pathstr, safe="")
-            return f"{self._raw_baseurl}/{filepath}"
+        pathstr = pathlib.Path(folder, filename or "").as_posix()
+        return f'{self._raw_baseurl}/{quote(pathstr, safe="")}'
 
     def get_loader(self, filename, folder="", decode_func=None):
         if not self.archive_mode:
