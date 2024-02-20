@@ -1,9 +1,10 @@
-name: '[test] validate citation file'
+name: '[validation] validate citation file'
 
 on:
   push:
     paths:
     - 'CITATION.cff'
+    - 'siibra/VERSION'
 
 jobs:
   validate_citation:
@@ -21,3 +22,15 @@ jobs:
 
     - name: Validate CITATION.cff
       run: cffconvert --validate -i ./CITATION.cff
+
+  check_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Check version match
+      run: python ./.github/workflows/check_version.py
+          
