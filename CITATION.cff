@@ -19,10 +19,7 @@ version: v1.0a06
 
 date-released: 2024-02-20
 
-identifiers:
-  - description: Zenodo collection for all releases
-    type: doi
-    value: 10.5281/zenodo.7885728
+doi: 10.5281/zenodo.7885728
 
 contact:
   - given-names: Timo
