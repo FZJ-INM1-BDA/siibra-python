@@ -6,7 +6,7 @@ on:
     - 'CITATION.cff'
 
 jobs:
-  check_maps_precompmesh:
+  validate_citation:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
