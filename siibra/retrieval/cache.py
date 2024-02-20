@@ -23,6 +23,7 @@ from enum import Enum
 from typing import Callable, List, NamedTuple, Union
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from filelock import FileLock as Lock
 
 from ..commons import logger, SIIBRA_CACHEDIR, SKIP_CACHEINIT_MAINTENANCE, siibra_tqdm
 from ..exceptions import WarmupRegException
@@ -146,6 +147,7 @@ CACHE = Cache.instance()
 
 
 class WarmupLevel(int, Enum):
+    TEST = -1000
     INSTANCE = 1
     DATA = 5
 
@@ -202,16 +204,17 @@ class Warmup:
             for f in return_val:
                 f()
 
-        with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            for _ in siibra_tqdm(
-                ex.map(
-                    call_fn,
-                    all_fns
-                ),
-                desc="Warming cache",
-                total=len(all_fns),
-            ):
-                ...
+        with Lock(CACHE.build_filename("lockfile", ".warmup")):
+            with ThreadPoolExecutor(max_workers=max_workers) as ex:
+                for _ in siibra_tqdm(
+                    ex.map(
+                        call_fn,
+                        all_fns
+                    ),
+                    desc="Warming cache",
+                    total=len(all_fns),
+                ):
+                    ...
 
 
 try:
