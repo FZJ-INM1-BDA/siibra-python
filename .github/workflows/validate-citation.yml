@@ -1,0 +1,23 @@
+name: '[test] validate citation file'
+
+on:
+  push:
+    paths:
+    - 'CITATION.cff'
+
+jobs:
+  check_maps_precompmesh:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install cffconvert
+      run: |
+          pip install -U pip
+          pip install cffconvert
+
+    - name: Validate CITATION.cff
+      run: cffconvert --validate -i ./CITATION.cff
