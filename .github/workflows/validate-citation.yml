@@ -32,5 +32,7 @@ jobs:
       with:
         python-version: '3.10'
     - name: Check version match
-      run: python ./.github/workflows/check_version.py
-          
+      run: |
+        ccf_version=$(cffconvert -f zenodo | jq -r '.version')
+        version_version=$(cat siibra/VERSION)
+        if [[ "$ccf_version" == "$version_version" ]]; then exit 0; else exit 1; fi
