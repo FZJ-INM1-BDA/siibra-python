@@ -26,7 +26,7 @@ from .cache import CACHE
 from ..commons import logger, siibra_tqdm
 
 from abc import ABC, abstractmethod
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 import pathlib
 import os
 from zipfile import ZipFile
