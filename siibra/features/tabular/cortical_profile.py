@@ -19,7 +19,7 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, List
 from textwrap import wrap
 import numpy as np
 
@@ -161,6 +161,26 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         self._check_sanity()
         return pd.DataFrame(
             self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
+        )
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["CorticalProfile"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert all(np.array_equal(elements[0]._depths, f._depths) for f in elements)
+        assert len({f.unit for f in elements}) == 1
+        return CorticalProfile(
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            depths=elements[0]._depths,
+            values=np.stack([f._values for f in elements]).mean(0),
+            unit=elements[0].unit,
+            boundary_positions=None,
         )
 
     def plot(self, *args, backend="matplotlib", **kwargs):

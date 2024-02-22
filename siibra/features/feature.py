@@ -24,8 +24,9 @@ from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any,
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
-from abc import ABC
+from abc import ABC, abstractmethod
 from re import sub
+from textwrap import wrap
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -679,6 +680,24 @@ class Compoundable(ABC):
     def _merge_anchors(cls, anchors: List[_anchor.AnatomicalAnchor]):
         return sum(anchors)
 
+    @classmethod
+    @abstractmethod
+    def _merge_elements(
+        cls,
+        elements,
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor
+    ) -> Feature:
+        """
+        Compute the merge data and create a merged instance from a set of
+        elements of this class. This will be used by CompoundFeature to
+        create the aggegated data and plot it. For example, to compute an
+        average connectivity matrix from a set of subfeatures, we create a
+        RegionalConnectivty feature.
+        """
+        raise NotImplementedError
+
 
 class CompoundFeature(Feature):
     """
@@ -727,6 +746,7 @@ class CompoundFeature(Feature):
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
         self._queryconcept = queryconcept
+        self._merged_feature_cached = None
 
     def __getattr__(self, attr: str) -> Any:
         """Expose compounding attributes explicitly."""
@@ -745,9 +765,27 @@ class CompoundFeature(Feature):
         return super().__dir__() + list(self._compounding_attributes.keys())
 
     def plot(self, *args, **kwargs):
-        raise NotImplementedError(
-            "CompoundFeatures does not have a standardized plot. Try plotting the elements instead."
+        kwargs["title"] = "(Averaged by siibra)\n" + kwargs.get(
+            "title",
+            "\n".join(wrap(self.name, kwargs.pop("textwrap", 40)))
         )
+        return self._get_merged_feature().plot(*args, **kwargs)
+
+    def _get_merged_feature(self) -> Feature:
+        if self._merged_feature_cached is None:
+            logger.info(f"{self.__class__.__name__}.data averages the data of each element.")
+            assert issubclass(self.feature_type, Compoundable)
+            self._merged_feature_cached = self.feature_type._merge_elements(
+                elements=self.elements,
+                modality=self.modality,
+                description=self.description,
+                anchor=self.anchor
+            )
+        return self._merged_feature_cached
+
+    @property
+    def data(self):
+        return self._get_merged_feature.data
 
     @property
     def indexing_attributes(self) -> Tuple[str]:

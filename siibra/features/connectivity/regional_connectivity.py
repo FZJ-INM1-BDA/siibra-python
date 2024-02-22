@@ -19,7 +19,7 @@ from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET
+from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -132,6 +132,45 @@ class RegionalConnectivity(Feature, Compoundable):
             self._load_matrix()
         return self._matrix.copy()
 
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["RegionalConnectivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in elements}) == 1
+        merged = cls(
+            cohort=elements[0].cohort,
+            regions=elements[0].regions,
+            connector=elements[0]._connector,
+            decode_func=elements[0]._decode_func,
+            filename="",
+            subject="average",
+            feature="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "averaged (by siibra)"} if getattr(elements[0], "paradigm", None) else {}
+        )
+        if isinstance(elements[0]._connector, HttpRequest):
+            getter = lambda elm: elm._connector.get()
+        else:
+            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        all_arrays = [
+            getter(elm)
+            for elm in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} connectivity matrices"
+            )
+        ]
+        merged._matrix = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return merged
+
     def _plot_matrix(
         self, regions: List[str] = None,
         logscale: bool = False, *args, backend="nilearn", **kwargs
@@ -179,6 +218,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 **kwargs
             )
         elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             from plotly.express import imshow
             return imshow(matrix, *args, x=regions, y=regions, **kwargs)
         else:
