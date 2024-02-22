@@ -25,6 +25,7 @@ from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
 from abc import ABC
+from re import sub
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -194,7 +195,8 @@ class Feature:
     @property
     def name(self):
         """Returns a short human-readable name of this feature."""
-        return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
+        readable_class_name = sub("([a-z])([A-Z])", r"\g<1> \g<2>", self.__class__.__name__)
+        return sub("([b,B]ig [b,B]rain)", "BigBrain", readable_class_name)
 
     @classmethod
     def _get_instances(cls, **kwargs) -> List['Feature']:
@@ -770,14 +772,16 @@ class CompoundFeature(Feature):
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
-        groupby = ', '.join([
-            f"{v} {k}" for k, v in self._compounding_attributes.items()
-        ])
-        return (
-            f"{self.__class__.__name__} of {len(self)} "
-            f"{self.feature_type.__name__} features grouped by ({groupby})"
-            f" anchored at {self.anchor}"
+        readable_feature_type = sub(
+            "([b,B]ig [b,B]rain)", "BigBrain",
+            sub("([a-z])([A-Z])", r"\g<1> \g<2>", self.feature_type.__name__)
         )
+        groupby = ', '.join([
+            f"{k}: {v}"
+            for k, v in self._compounding_attributes.items()
+            if k != 'modality'
+        ])
+        return f"{len(self)} {readable_feature_type} features{f' {groupby}' if groupby else ''}"
 
     @property
     def id(self) -> str:

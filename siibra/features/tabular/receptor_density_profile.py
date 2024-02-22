@@ -74,7 +74,7 @@ class ReceptorDensityProfile(
 
     @property
     def name(self):
-        return super().name + f" for {self.receptor}"
+        return super().name + f": {self.receptor}"
 
     @property
     def neurotransmitter(self):

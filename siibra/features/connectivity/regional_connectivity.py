@@ -116,7 +116,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
     @property
     def name(self):
-        return f"{super().name} with cohort {self.cohort} - {self.feature or self.subject}"
+        return f"{self.feature or self.subject} - " + super().name + f" cohort: {self.cohort}"
 
     @property
     def data(self) -> pd.DataFrame:
