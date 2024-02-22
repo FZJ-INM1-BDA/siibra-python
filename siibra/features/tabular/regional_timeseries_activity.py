@@ -18,7 +18,7 @@ from ..feature import Compoundable
 
 from ...core import region as _region
 from .. import anchor as _anchor
-from ...commons import QUIET
+from ...commons import QUIET, siibra_tqdm
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
@@ -90,6 +90,42 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         if self._table is None:
             self._load_table()
         return self._table.copy()
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["RegionalTimeseriesActivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in elements}) == 1
+        merged = cls(
+            cohort=elements[0].cohort,
+            regions=elements[0].regions,
+            connector=elements[0]._connector,
+            decode_func=elements[0]._decode_func,
+            files=[],
+            subject="average",
+            feature="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "average"} if getattr(elements[0], "paradigm") else {}
+        )
+        all_arrays = [
+            instance._connector.get(fname, decode_func=instance._decode_func)
+            for instance in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} connectivity matrices"
+            )
+            for fname in instance._filename
+        ]
+        merged._matrix = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return merged
 
     def _load_table(self):
         """
