@@ -220,11 +220,17 @@ class Volume(location.Location):
         """
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
-        img = self.fetch(format='image', **kwargs)
-        arr = img.get_fdata()
+        orgimg = self.fetch(format='image', **kwargs)
+        tmp = self.space.get_template().fetch(resolution_mm=max(orgimg.header.get_zooms()))
+        arr = resample_array_to_array(
+            source_data=np.asanyarray(orgimg.dataobj),
+            source_affine=orgimg.affine,
+            target_data=np.asanyarray(tmp.dataobj),
+            target_affine=tmp.affine
+        )
         warped = points.warp(self.space)
         assert warped is not None
-        phys2vox = np.linalg.inv(img.affine)
+        phys2vox = np.linalg.inv(tmp.affine)
         voxels = warped.transform(phys2vox, space=None)
         XYZ = voxels.homogeneous.astype('int')[:, :3]
         X, Y, Z = np.split(
