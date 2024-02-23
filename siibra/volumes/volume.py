@@ -214,6 +214,42 @@ class Volume(location.Location):
             f"name='{self.name}', providers={self._providers})>"
         )
 
+    def evaluate_points(self, points: 'pointset.PointSet', outside_value=0, **kwargs):
+        """
+        Evaluate the image at the positions of the given points.
+        NOTE: this uses nearest neighbor interpolation, other interpolation schemes not yet implemented.
+        Any additional arguments are passed to the fetch() call
+        for retrieving the image data.
+        """
+        if not self.provides_image:
+            raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
+
+        # make sure the points are in the same physical space as this volume
+        warped = points.warp(self.space)
+        assert warped is not None
+
+        # get the voxel array of this volume
+        img = self.fetch(format='image', **kwargs)
+        arr = img.get_fdata()
+
+        # transform the points to the voxel space of the volume for extracting values
+        phys2vox = np.linalg.inv(img.affine)
+        voxels = warped.transform(phys2vox, space=None)
+        XYZ = voxels.coordinates.astype('int')
+
+        # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
+        inside = np.all((XYZ < arr.shape) & (XYZ > 0), axis=1)
+        XYZ[~inside, :] = 0
+
+        # read out the values
+        X, Y, Z = XYZ.T
+        values = arr[X, Y, Z]
+
+        # fix the outside voxel values, which might have an inconsistent value now 
+        values[~inside] = outside_value
+
+        return values
+
     def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
         """
         Reduce a pointset to the points which fall
@@ -222,21 +258,8 @@ class Volume(location.Location):
         Any additional arguments are passed to the fetch() call
         for retrieving the image data.
         """
-        if not self.provides_image:
-            raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
-        img = self.fetch(format='image', **kwargs)
-        arr = img.get_fdata()
-        warped = points.warp(self.space)
-        assert warped is not None
-        phys2vox = np.linalg.inv(img.affine)
-        voxels = warped.transform(phys2vox, space=None)
-        XYZ = voxels.homogeneous.astype('int')[:, :3]
-        X, Y, Z = np.split(
-            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-            3, axis=1
-        )
-        arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
-        inside = np.where(arr[X, Y, Z] != 0)[0]
+        values = self.evaluate_points(points, **kwargs)
+        inside = np.where(values != 0)[0]
         return pointset.PointSet(
             points.homogeneous[inside, :3],
             space=points.space,
@@ -422,7 +445,7 @@ class Volume(location.Location):
             space=None
         )
         result = voxels.transform(img.affine, space='mni152')
-        result.sigma_mm = sigma_mm
+        result.sigma_mm = [sigma_mm for _ in result]
         return result
 
     def find_peaks(self, mindist=5, sigma_mm=0, **kwargs):
