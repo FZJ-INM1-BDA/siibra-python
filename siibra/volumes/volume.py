@@ -245,7 +245,7 @@ class Volume(location.Location):
         X, Y, Z = XYZ.T
         values = arr[X, Y, Z]
 
-        # fix the outside voxel values, which might have an inconsistent value now 
+        # fix the outside voxel values, which might have an inconsistent value now
         values[~inside] = outside_value
 
         return values
@@ -261,7 +261,7 @@ class Volume(location.Location):
         values = self.evaluate_points(points, **kwargs)
         inside = np.where(values != 0)[0]
         return pointset.PointSet(
-            points.homogeneous[inside, :3],
+            points.coordinates[inside],
             space=points.space,
             labels=inside
         )
