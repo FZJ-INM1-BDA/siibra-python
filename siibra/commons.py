@@ -534,7 +534,7 @@ def connected_components(imgdata: np.ndarray):
     Provide an iterator over connected components in the array
     """
     from skimage import measure
-    components = measure.label(imgdata > 0, connectivity=2)
+    components = measure.label(imgdata, connectivity=2, background=0)
     component_labels = np.unique(components)
     return (
         (label, (components == label).astype('uint8'))
