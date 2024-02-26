@@ -48,7 +48,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         timestep: str,
         description: str = "",
         datasets: list = [],
-        subject: str = "average"
+        subject: str = "average",
+        id: str = None
     ):
         """
         """
@@ -58,7 +59,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             description=description,
             anchor=anchor,
             datasets=datasets,
-            data=None  # lazy loading below
+            data=None,  # lazy loading below
+            id=id
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:

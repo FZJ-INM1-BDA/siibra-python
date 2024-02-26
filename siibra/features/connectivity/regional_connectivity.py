@@ -57,7 +57,8 @@ class RegionalConnectivity(Feature, Compoundable):
         description: str = "",
         datasets: list = [],
         subject: str = "average",
-        feature: str = None
+        feature: str = None,
+        id: str = None
     ):
         """
         Construct a parcellation-averaged connectivity matrix.
@@ -91,6 +92,7 @@ class RegionalConnectivity(Feature, Compoundable):
             description=description,
             anchor=anchor,
             datasets=datasets,
+            id=id
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
