@@ -56,7 +56,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         values: Union[list, np.ndarray] = None,
         unit: str = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None
     ):
         """Initialize profile.
 
@@ -96,7 +97,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             description=description,
             anchor=anchor,
             data=None,  # lazy loader below
-            datasets=datasets
+            datasets=datasets,
+            id=id
         )
 
     def _check_sanity(self):
