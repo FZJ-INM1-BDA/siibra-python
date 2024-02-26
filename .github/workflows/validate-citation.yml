@@ -41,5 +41,7 @@ jobs:
     - name: Check version match
       run: |
         ccf_version=$(cffconvert -f zenodo | jq -r '.version')
+        echo "$ccf_version"
         version_version=$(cat siibra/VERSION)
-        if [[ "$ccf_version" == "$version_version" ]]; then exit 0; else exit 1; fi
+        echo "$version_version"
+        if [[ "$ccf_version" == "v$version_version" ]]; then exit 0; else exit 1; fi
