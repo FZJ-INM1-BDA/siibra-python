@@ -5,6 +5,9 @@ on:
     paths:
     - 'CITATION.cff'
     - 'siibra/VERSION'
+  release:
+    types:
+      - created
 
 jobs:
   validate_citation:
