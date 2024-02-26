@@ -539,10 +539,11 @@ class GitlabProxyEnum(Enum):
         if SIIBRA_USE_LOCAL_SNAPSPOT:
             logger.info(f"Using localsnapshot at {SIIBRA_USE_LOCAL_SNAPSPOT}")
             return [LocalFileRepository(SIIBRA_USE_LOCAL_SNAPSPOT)]
-        return [
-            GitlabConnector(server[0], server[1], "master", archive_mode=True)
-            for server in servers
-        ]
+        else:
+            return [
+                GitlabConnector(server[0], server[1], "master", archive_mode=True)
+                for server in servers
+            ]
 
     @try_all_connectors()
     def search_files(

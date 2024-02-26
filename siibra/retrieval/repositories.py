@@ -31,7 +31,6 @@ import pathlib
 import os
 from zipfile import ZipFile
 from typing import List
-import requests
 
 
 class RepositoryConnector(ABC):
@@ -143,10 +142,6 @@ class LocalFileRepository(RepositoryConnector):
             with open(self.url, 'rb') as f:
                 return self.func(f.read())
 
-    def get(self, filename, folder="", decode_func=None):
-        """Get a file right away."""
-        return self.get_loader(filename, folder, decode_func).data
-
     def get_loader(self, filename, folder="", decode_func=None):
         """Get a lazy loader for a file, for loading data
         only once loader.data is accessed."""
@@ -207,7 +202,7 @@ class GithubConnector(RepositoryConnector):
             self,
             base_url=f"https://api.github.com/repos/{owner}/{repo}"
         )
-        assert reftag
+        assert reftag, "Please supply a branch name or tag for `reftag` to create a `GithubConnector`."
         if not skip_branchtest:
             try:
                 tags = HttpRequest(f"{self.base_url}/tags", DECODERS[".json"], refresh=True).data
@@ -248,23 +243,22 @@ class GithubConnector(RepositoryConnector):
         return f'{self._raw_baseurl}/{quote(pathstr, safe="")}'
 
     def get_loader(self, filename, folder="", decode_func=None):
-        if not self.archive_mode:
-            return super().get_loader(filename, folder, decode_func)
-        else:
+        if self.archive_mode:
             self._archive()
             return self._archive_conn.get_loader(filename, folder, decode_func)
+        else:
+            return super().get_loader(filename, folder, decode_func)
 
     def _archive(self):
         if self._archive_conn is None:
             archive_directory = CACHE.build_filename(self.base_url + self.reftag)
             if not os.path.isdir(archive_directory):
                 import tarfile
-                from io import BytesIO
 
-                resp = requests.get(f"{self.base_url}/tarball/{self.reftag}", stream=True)
-                resp.raise_for_status()
-
-                with tarfile.open(fileobj=BytesIO(resp.content), mode="r:gz") as tar:
+                tarball_url = f"{self.base_url}/tarball/{self.reftag}"
+                req = HttpRequest(tarball_url, func=lambda b: b)
+                req.get()
+                with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
                     tar.extractall(CACHE.folder)
                     foldername = tar.getnames()[0]
                 os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
@@ -293,6 +287,7 @@ class GitlabConnector(RepositoryConnector):
         self._tag_checked = True if skip_branchtest else False
         self._want_commit_cached = None
         self.archive_mode = archive_mode
+        self._archive_conn: LocalFileRepository = None
 
     def __str__(self):
         return f"{self.__class__.__name__} {self.base_url} {self.reftag}"
@@ -351,33 +346,29 @@ class GitlabConnector(RepositoryConnector):
             if e["type"] == "blob" and e["name"].endswith(end)
         ]
 
-    def get(self, filename, folder="", decode_func=None):
-        if not self.archive_mode:
-            return super().get(filename, folder, decode_func)
+    def get_loader(self, filename, folder="", decode_func=None):
+        if self.archive_mode:
+            self._archive()
+            return self._archive_conn.get_loader(filename, folder, decode_func)
+        else:
+            return super().get_loader(filename, folder, decode_func)
 
-        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
-        archive_directory = CACHE.build_filename(self.base_url + ref) if self.archive_mode else None
+    def _archive(self):
+        if self._archive_conn is None:
+            ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+            archive_directory = CACHE.build_filename(self.base_url + ref)
+            if not os.path.isdir(archive_directory):
+                import tarfile
 
-        if not os.path.isdir(archive_directory):
-
-            url = self.base_url + f"/archive.tar.gz?sha={ref}"
-            resp = requests.get(url)
-            tar_filename = f"{archive_directory}.tar.gz"
-
-            resp.raise_for_status()
-            with open(tar_filename, "wb") as fp:
-                fp.write(resp.content)
-
-            import tarfile
-            tar = tarfile.open(tar_filename, "r:gz")
-            tar.extractall(archive_directory)
-            for _dir in os.listdir(archive_directory):
-                for file in os.listdir(f"{archive_directory}/{_dir}"):
-                    os.rename(f"{archive_directory}/{_dir}/{file}", f"{archive_directory}/{file}")
-                os.rmdir(f"{archive_directory}/{_dir}")
-
-        with open(f"{archive_directory}/{folder}/{filename}", "rb") as fp:
-            return self._decode_response(fp.read(), filename)
+                tarball_url = self.base_url + f"/archive.tar.gz?sha={ref}"
+                req = HttpRequest(tarball_url, func=lambda b: b)
+                req.get()
+                with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
+                    tar.extractall(CACHE.folder)
+                    foldername = tar.getnames()[0]
+                os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+            # create LocalFileRepository as an interface to the local files
+            self._archive_conn = LocalFileRepository(archive_directory)
 
     def __eq__(self, other):
         return all([
