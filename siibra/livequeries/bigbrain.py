@@ -88,10 +88,13 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
         features = []
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, (point.Point, pointset.PointSet))
+        if isinstance(matched, point.Point):
+            matched = pointset.from_points([matched])
+        assert isinstance(matched, pointset.PointSet)
         assert matched.labels is not None
         for i in matched.labels:
             anchor = _anchor.AnatomicalAnchor(
@@ -124,10 +127,13 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, (point.Point, pointset.PointSet))
+        if isinstance(matched, point.Point):
+            matched = pointset.from_points([matched])
+        assert isinstance(matched, pointset.PointSet)
         indices = matched.labels
         if indices is None:
             return []

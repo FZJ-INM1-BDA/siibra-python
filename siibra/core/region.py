@@ -866,15 +866,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         for space in self.supported_spaces:
             if space.provides_image:
-                logger.info(f"Intersect {other} with {self} in {space}")
                 try:
-                    warped = other.warp(space)
+                    volume = self.get_regional_map(space)
+                    if volume is not None:
+                        intersection = volume.intersection(other)
+                        logger.info(f"Warped {other} to {space} to find the intersection.")
+                        return intersection
                 except SpaceWarpingFailedError:
                     continue
-                assert warped is not None
-                volume = self.get_regional_map(space)
-                if volume is not None:
-                    return volume.intersection(warped).warp(other.space)
 
         return None
 

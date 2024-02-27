@@ -19,6 +19,7 @@ from . import location, point, boundingbox as _boundingbox
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
 
+from typing import List, Union, Tuple
 import numbers
 import json
 import numpy as np
@@ -34,11 +35,39 @@ except ImportError:
     )
 
 
+def from_points(points: List["point.Point"], newlabels: List[int] = None) -> "PointSet":
+    """
+    Create a PointSet from an iterable of Points.
+
+    Parameters
+    ----------
+    points : Iterable[point.Point]
+    newlabels: List[int], optional
+        Use these labels instead of the original labels of the points.
+
+    Returns
+    -------
+    PointSet
+    """
+    if len(points) == 0:
+        return PointSet([])
+    spaces = {p.space for p in points}
+    assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
+    coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
+    return PointSet(coords, next(iter(spaces)), sigmas, newlabels or labels)
+
+
 class PointSet(location.Location):
     """A set of 3D points in the same reference space,
     defined by a list of coordinates."""
 
-    def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
+    def __init__(
+        self,
+        coordinates: Union[List[Tuple], np.ndarray],
+        space=None,
+        sigma_mm: Union[int, float, List[Union[int, float]]] = 0,
+        labels: List[int] = None
+    ):
         """
         Construct a 3D point set in the given reference space.
 
@@ -52,19 +81,26 @@ class PointSet(location.Location):
             Optional standard deviation of point locations.
         labels: list of point labels (optional)
         """
+
+        if len(coordinates) != 0 and isinstance(coordinates[0], point.Point):
+            return from_points(coordinates)
+
         location.Location.__init__(self, space)
-        self.coordinates = coordinates
+
+        self._coordinates = coordinates
         if not isinstance(coordinates, np.ndarray):
-            self.coordinates = np.array(self.coordinates).reshape((-1, 3))
-        assert len(self.coordinates.shape) == 2
-        assert self.coordinates.shape[1] == 3
+            self._coordinates = np.array(self._coordinates).reshape((-1, 3))
+        assert len(self._coordinates.shape) == 2
+        assert self._coordinates.shape[1] == 3
+
         if isinstance(sigma_mm, numbers.Number):
             self.sigma_mm = [sigma_mm for _ in range(len(self))]
         else:
-            assert len(sigma_mm) == len(self)
+            assert len(sigma_mm) == len(self), "The number of coordinate must be equal to the number of sigmas."
             self.sigma_mm = sigma_mm
+
         if labels is not None:
-            assert len(labels) == len(self)
+            assert len(labels) == len(self._coordinates.shape[0])
         self.labels = labels
 
     def intersection(self, other: location.Location):
@@ -90,11 +126,16 @@ class PointSet(location.Location):
         return intersection[0] if len(intersection) == 1 else intersection
 
     @property
-    def sigma(self):
-        return [p.sigma for p in self]
+    def coordinates(self) -> np.ndarray:
+        return self._coordinates
 
     @property
-    def has_constant_sigma(self):
+    def sigma(self) -> List[Union[int, float]]:
+        """The list of sigmas corresponding to the points."""
+        return self.sigma_mm
+
+    @property
+    def has_constant_sigma(self) -> bool:
         return len(set(self.sigma)) == 1
 
     def warp(self, space, chunksize=1000):
@@ -160,12 +201,12 @@ class PointSet(location.Location):
                 f"Pointset has only {self.__len__()} points, "
                 f"but index of {index} was requested."
             )
-        else:
-            return point.Point(
-                self.coordinates[index, :],
-                space=self.space,
-                sigma_mm=self.sigma_mm[index]
-            )
+        return point.Point(
+            self.coordinates[index, :],
+            space=self.space,
+            sigma_mm=self.sigma_mm[index],
+            label=self.labels[index] if self.labels else None
+        )
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
@@ -173,7 +214,8 @@ class PointSet(location.Location):
             point.Point(
                 self.coordinates[i, :],
                 space=self.space,
-                sigma_mm=self.sigma_mm[i]
+                sigma_mm=self.sigma_mm[i],
+                label=self.labels[i]
             )
             for i in range(len(self))
         )

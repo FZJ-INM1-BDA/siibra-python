@@ -214,26 +214,53 @@ class Volume(location.Location):
             f"name='{self.name}', providers={self._providers})>"
         )
 
-    def evaluate_points(self, points: 'pointset.PointSet', outside_value=0, **kwargs):
+    def evaluate_points(
+        self, points: 'pointset.PointSet', outside_value=0, **fetch_kwargs
+    ) -> np.ndarray:
         """
         Evaluate the image at the positions of the given points.
-        NOTE: this uses nearest neighbor interpolation, other interpolation schemes not yet implemented.
-        Any additional arguments are passed to the fetch() call
-        for retrieving the image data.
+
+        Note
+        ----
+        Uses nearest neighbor interpolation. Other interpolation schemes are not
+        yet implemented.
+
+        Note
+        ----
+        If points are not on the same space as the map, they will be warped to
+        the space of the volume.
+
+        Parameters
+        ----------
+        points: PointSet
+        outside_value: int, float. Default: 0
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        values: numpy.ndarray
+            The values of the volume at the voxels points correspond to.
+
+        Raises
+        ------
+        SpaceWarpingFailedError
+            If warping of the points fails.
         """
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
 
         # make sure the points are in the same physical space as this volume
         if isinstance(points, point.Point):  # requires to be a PointSet from next step onwards
-            as_pointset = pointset.PointSet(points.coordinate, points.space, points.sigma)
+            as_pointset = pointset.from_points([points])
             warped = as_pointset.warp(self.space)
         else:
             warped = points.warp(self.space)
         assert warped is not None, SpaceWarpingFailedError
 
         # get the voxel array of this volume
-        img = self.fetch(format='image', **kwargs)
+        img = self.fetch(format='image', **fetch_kwargs)
         arr = img.get_fdata()
 
         # transform the points to the voxel space of the volume for extracting values
@@ -254,20 +281,38 @@ class Volume(location.Location):
 
         return values
 
-    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
+    def _points_inside(
+        self, points: Union['point.Point', 'pointset.PointSet'],
+        keep_labels: bool = True,
+        **fetch_kwargs
+    ) -> pointset.PointSet:
         """
-        Reduce a pointset to the points which fall
-        inside nonzero pixels of this volume.
-        The indices of the original points are stored as point labels in the result.
-        Any additional arguments are passed to the fetch() call
-        for retrieving the image data.
+        Reduce a pointset to the points which fall inside nonzero pixels of
+        this map.
+
+
+        Paramaters
+        ----------
+        points: PointSet
+        keep_labels: bool
+            If False, the returned PointSet will be labeled with their indices
+            in the original PointSet.
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        PointSet
+            A new PointSet containing only the points inside the volume.
+            Labels reflect the indices of the original points if `keep_labels`
+            is False.
         """
-        values = self.evaluate_points(points, **kwargs)
-        inside = np.where(values != 0)[0]
-        return pointset.PointSet(
-            points.coordinates[inside],
-            space=points.space,
-            labels=inside
+        values = self.evaluate_points(points, **fetch_kwargs)
+        inside = list(np.where(values != 0)[0])
+        return pointset.from_points(
+            [points[i] for i in inside],
+            newlabels=None if keep_labels else inside
         )
 
     def union(self, other: location.Location):
@@ -278,22 +323,24 @@ class Volume(location.Location):
                 f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
             )
 
-    def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
+    def intersection(self, other: structure.BrainStructure, **fetch_kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self._points_inside(other, **kwargs)
-            if len(result) == 0:
-                return None  # BrainStructure.intersects check for not None
-            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
+            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            if len(points_inside) == 0:
+                return None  # BrainStructure.intersects checks for not None
+            if isinstance(other, point.Point):
+                return points_inside[0]
+            return points_inside
         elif isinstance(other, boundingbox.BoundingBox):
-            return self.get_boundingbox(clip=True, background=0.0, **kwargs).intersection(other)
+            return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
-            format = kwargs.pop('format', 'image')
-            v1 = self.fetch(format=format, **kwargs)
-            v2 = other.fetch(format=format, **kwargs)
+            format = fetch_kwargs.pop('format', 'image')
+            v1 = self.fetch(format=format, **fetch_kwargs)
+            v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
             pointwise_min = np.minimum(arr1, arr2)
