@@ -54,7 +54,7 @@ def from_points(points: List["point.Point"], newlabels: List[int] = None) -> "Po
     spaces = {p.space for p in points}
     assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
     coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
-    if len(labels) == 1 and None in labels:
+    if all(lb is None for lb in set(labels)):
         labels = None
     return PointSet(
         coordinates=coords,
@@ -107,7 +107,7 @@ class PointSet(location.Location):
             self.sigma_mm = sigma_mm
 
         if labels is not None:
-            assert len(labels) == len(self._coordinates.shape[0])
+            assert len(labels) == self._coordinates.shape[0]
         self.labels = labels
 
     def intersection(self, other: location.Location):

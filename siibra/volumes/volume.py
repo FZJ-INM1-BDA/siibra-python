@@ -285,7 +285,7 @@ class Volume(location.Location):
         self, points: Union['point.Point', 'pointset.PointSet'],
         keep_labels: bool = True,
         **fetch_kwargs
-    ) -> pointset.PointSet:
+    ) -> 'pointset.PointSet':
         """
         Reduce a pointset to the points which fall inside nonzero pixels of
         this map.
@@ -310,6 +310,8 @@ class Volume(location.Location):
         """
         values = self.evaluate_points(points, **fetch_kwargs)
         inside = list(np.where(values != 0)[0])
+        if isinstance(points, point.Point) and len(inside) == 1:
+            return pointset.from_points([points], newlabels=[0])
         return pointset.from_points(
             [points[i] for i in inside],
             newlabels=None if keep_labels else inside
