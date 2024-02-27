@@ -54,7 +54,14 @@ def from_points(points: List["point.Point"], newlabels: List[int] = None) -> "Po
     spaces = {p.space for p in points}
     assert len(spaces) == 1, f"PointSet can only be constructed with points from the same space.\n{spaces}"
     coords, sigmas, labels = zip(*((p.coordinate, p.sigma, p.label) for p in points))
-    return PointSet(coords, next(iter(spaces)), sigmas, newlabels or labels)
+    if len(labels) == 1 and None in labels:
+        labels = None
+    return PointSet(
+        coordinates=coords,
+        space=next(iter(spaces)),
+        sigma_mm=sigmas,
+        labels=newlabels or labels
+    )
 
 
 class PointSet(location.Location):
@@ -215,7 +222,7 @@ class PointSet(location.Location):
                 self.coordinates[i, :],
                 space=self.space,
                 sigma_mm=self.sigma_mm[i],
-                label=self.labels[i]
+                label=self.labels[i] if self.labels else None
             )
             for i in range(len(self))
         )
