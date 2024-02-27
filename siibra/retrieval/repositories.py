@@ -250,18 +250,19 @@ class GithubConnector(RepositoryConnector):
             return super().get_loader(filename, folder, decode_func)
 
     def _archive(self):
-        if self._archive_conn is None:
-            archive_directory = CACHE.build_filename(self.base_url + self.reftag)
-            if not os.path.isdir(archive_directory):
-                import tarfile
+        assert self.archive_mode, "To archive the repo, `archive_mode` must be True."
+        archive_directory = CACHE.build_filename(self.base_url + self.reftag)
+        if not os.path.isdir(archive_directory):
+            import tarfile
 
-                tarball_url = f"{self.base_url}/tarball/{self.reftag}"
-                req = HttpRequest(tarball_url, func=lambda b: b)
-                req.get()
-                with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
-                    tar.extractall(CACHE.folder)
-                    foldername = tar.getnames()[0]
-                os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+            tarball_url = f"{self.base_url}/tarball/{self.reftag}"
+            req = HttpRequest(tarball_url, func=lambda b: b)
+            req.get()
+            with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
+                tar.extractall(CACHE.folder)
+                foldername = tar.getnames()[0]
+            os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+        if self._archive_conn is None:
             # create LocalFileRepository as an interface to the local files
             self._archive_conn = LocalFileRepository(archive_directory)
 
@@ -354,19 +355,20 @@ class GitlabConnector(RepositoryConnector):
             return super().get_loader(filename, folder, decode_func)
 
     def _archive(self):
-        if self._archive_conn is None:
-            ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
-            archive_directory = CACHE.build_filename(self.base_url + ref)
-            if not os.path.isdir(archive_directory):
-                import tarfile
+        assert self.archive_mode, "To archive the repo, `archive_mode` must be True."
+        ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
+        archive_directory = CACHE.build_filename(self.base_url + ref)
+        if not os.path.isdir(archive_directory):
+            import tarfile
 
-                tarball_url = self.base_url + f"/archive.tar.gz?sha={ref}"
-                req = HttpRequest(tarball_url, func=lambda b: b)
-                req.get()
-                with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
-                    tar.extractall(CACHE.folder)
-                    foldername = tar.getnames()[0]
-                os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+            tarball_url = self.base_url + f"/archive.tar.gz?sha={ref}"
+            req = HttpRequest(tarball_url, func=lambda b: b)
+            req.get()
+            with tarfile.open(name=req.cachefile, mode="r:gz") as tar:
+                tar.extractall(CACHE.folder)
+                foldername = tar.getnames()[0]
+            os.rename(os.path.join(CACHE.folder, foldername), archive_directory)
+        if self._archive_conn is None:
             # create LocalFileRepository as an interface to the local files
             self._archive_conn = LocalFileRepository(archive_directory)
 
