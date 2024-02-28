@@ -88,7 +88,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             if fragment is None:
                 logger.info(
                     f"Merging fragments [{', '.join(self._fragments.keys())}]. "
-                    f"You can select one using `fragment` kwarg.)."
+                    f"You can select one using `fragment` kwarg."
                 )
                 result = self._merge_fragments(resolution_mm=resolution_mm, voi=voi, **kwargs)
             else:
@@ -178,7 +178,11 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         voi: _boundingbox.BoundingBox = None,
         **kwargs
     ) -> nib.Nifti1Image:
+        from nilearn.image import resample_to_img
+
         # TODO this only performs nearest neighbor interpolation, optimized for float types.
+        interp = lambda tp: "nearest" if issubclass(tp, np.integer) else 'linear'
+
         with QUIET:
             bbox = self.get_boundingbox(
                 clip=False,
@@ -186,6 +190,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 resolution_mm=resolution_mm,
                 voi=voi
             )
+
         num_conflicts = 0
         result = None
         for frag_vol in self._fragments.values():
@@ -200,32 +205,24 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.asanyarray(
-                    np.ceil(
-                        bbox.transform(np.linalg.inv(result_affine)).shape
-                    ),
-                    dtype="int"
-                )
+                voxdims = np.asanyarray(np.ceil(
+                    bbox.transform(np.linalg.inv(result_affine)).shape  # transform to the voxel space
+                ), dtype="int")
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
-            arr = np.asanyarray(img.dataobj)
-            Xs, Ys, Zs = np.where(arr != 0)
-            Xt, Yt, Zt, _ = np.split(
-                (np.dot(
-                    np.linalg.inv(result_affine),
-                    np.dot(img.affine, np.c_[Xs, Ys, Zs, Zs * 0 + 1].T)
-                ) + .5).astype('int'),
-                4, axis=0
-            )
-            num_conflicts += np.count_nonzero(result_arr[Xt, Yt, Zt])
-            result_arr[Xt, Yt, Zt] = arr[Xs, Ys, Zs]
+            # resample to merge template and update it
+            resampled = resample_to_img(img, result, interpolation=interp(img.dataobj.dtype.type))
+            arr = np.asanyarray(resampled.dataobj)
+            nonzero_voxels = arr != 0
+            num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
+            result_arr[nonzero_voxels] = arr[nonzero_voxels]
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
             logger.warning(
                 f"Merging fragments required to overwrite {num_conflicts} "
-                f"conflicting voxels ({num_conflicts / num_voxels * 100.:2.2f}%)."
+                f"conflicting voxels ({num_conflicts / num_voxels * 100.:2.3f}%)."
             )
 
         return result
