@@ -12,6 +12,7 @@
 
 import os
 import sys
+from subprocess import run
 from sphinx_gallery.sorting import FileNameSortKey
 import sphinx_rtd_theme  # this import must be kept to make sphinx_rtd_theme function
 import sphinx_autopackagesummary  # this import must be kept to make autopackagesummary function
@@ -29,7 +30,7 @@ language = 'en'
 
 # -- General configuration ---------------------------------------------------
 
-source_suffix = [".rst"]
+source_suffix = ['.rst', '.md']
 
 # The master toctree document.
 root_doc = 'index'
@@ -69,10 +70,18 @@ extensions = [
     "sphinx.ext.graphviz",  # to allow drawing diagrams
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
     "sphinx_copybutton",  # adds a copy button for code fields
-    "sphinxcontrib.images"  # adds lightbox to images
+    "sphinxcontrib.images",  # adds lightbox to images
+    "sphinxcontrib.mermaid"
 ]
 
 run_stale_examples = True
+
+# create package and class diagrams
+run("pyreverse -k  -o dot -p siibra ../siibra --colorized --all-ancestors --output-directory ./_static", shell=False)
+run("dot -Grankdir=LR -Tsvg ./_static/packages_siibra.dot -o ./_static/packages_siibra.svg", shell=False)
+run("dot -Grankdir=LR -Tsvg ./_static/classes_siibra.dot -o ./_static/classes_siibra.svg", shell=False)
+
+# rtds github action settings
 rtds_action_github_token = os.environ.get("GITHUB_TOKEN")  # A GitHub personal access token is required
 if rtds_action_github_token:
     extensions.append("rtds_action")
