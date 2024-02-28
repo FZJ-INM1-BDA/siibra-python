@@ -19,3 +19,4 @@ sphinxcontrib.jquery
 graphviz
 sphinx-copybutton
 sphinxcontrib-images
+sphinxcontrib.mermaid
