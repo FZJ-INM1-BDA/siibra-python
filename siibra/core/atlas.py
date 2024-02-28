@@ -186,7 +186,7 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         ----------
         regionspec: str, regex, int, Region, MapIndex
             - a string with a possibly inexact name (matched both against the name and the identifier key)
-            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux, see at https://docs.python.org/3/library/re.html#flags)
             - a regex applied to region names
             - a Region object
         all_versions : Bool, default: False
