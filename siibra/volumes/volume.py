@@ -344,8 +344,8 @@ class Volume(location.Location):
             if fetch_hash in self._FETCH_CACHE:
                 break
             # Repeat in case of too many requests only
+            fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
-                fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
                 try:
                     if fmt == "gii-label":
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
@@ -363,6 +363,8 @@ class Volume(location.Location):
                         break
                 except Exception as e:
                     logger.info(e, exc_info=1)
+                    break
+                else:
                     break
             # udpate the cache if fetch is successful
             if result is not None:
