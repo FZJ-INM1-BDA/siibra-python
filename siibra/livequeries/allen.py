@@ -24,7 +24,7 @@ from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable, List
+from typing import Iterable
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -120,7 +120,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
+    def query(self, concept: structure.BrainStructure) -> Iterable[GeneExpressions]:
 
         mnispace = _space.Space.registry().get('mni152')
 
@@ -141,7 +141,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.
         anchor = _anchor.AnatomicalAnchor(
-            location=pointset.PointSet(coordinates=coordinates, space=mnispace),
+            location=pointset.from_points(coordinates),
             species=self.species
         )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"

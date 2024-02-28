@@ -88,10 +88,6 @@ class PointSet(location.Location):
             Optional standard deviation of point locations.
         labels: list of point labels (optional)
         """
-
-        if len(coordinates) != 0 and isinstance(coordinates[0], point.Point):
-            return from_points(coordinates)
-
         location.Location.__init__(self, space)
 
         self._coordinates = coordinates
