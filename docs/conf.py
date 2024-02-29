@@ -83,8 +83,12 @@ if rtds_action_github_token:
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
     nbsphinx_execute = 'never'
     run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
-else:
-    # create package and class diagrams
+
+# create package and class diagrams if they were not created with pyreverse and graphviz (see docs.yml)
+if any(
+    svg not in os.listdir(os.path.join(os.getcwd(), 'docs/_static'))
+    for svg in ["packages_siibra.svg", "classes_siibra.svg"]
+):
     from subprocess import run
     run("pyreverse -k  -o svg -p siibra ../siibra --colorized --all-ancestors --output-directory ./_static", shell=False)
 
