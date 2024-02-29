@@ -29,7 +29,7 @@ language = 'en'
 
 # -- General configuration ---------------------------------------------------
 
-source_suffix = [".rst"]
+source_suffix = ['.rst', '.md']
 
 # The master toctree document.
 root_doc = 'index'
@@ -69,7 +69,8 @@ extensions = [
     "sphinx.ext.graphviz",  # to allow drawing diagrams
     "sphinx.ext.inheritance_diagram",  # creates inheritance diagrams
     "sphinx_copybutton",  # adds a copy button for code fields
-    "sphinxcontrib.images"  # adds lightbox to images
+    "sphinxcontrib.images",  # adds lightbox to images
+    "sphinxcontrib.mermaid",   # embed Mermaid graphs including flowcharts, sequence diagrams, gantt diagrams, etc.
 ]
 
 run_stale_examples = True
@@ -82,6 +83,10 @@ if rtds_action_github_token:
     rtds_action_artifact_prefix = "sphinx-docs-built-in-github-"  # The "prefix" used in the `upload-artifact` step of the docs github action
     nbsphinx_execute = 'never'
     run_stale_examples = False  # it will be run at github actions (since /docs/example are in gitignore) and locally but not on readthedocs.
+else:
+    # create package and class diagrams
+    from subprocess import run
+    run("pyreverse -k  -o svg -p siibra ../siibra --colorized --all-ancestors --output-directory ./_static", shell=False)
 
 # napolean settings
 napoleon_google_docstring = False
