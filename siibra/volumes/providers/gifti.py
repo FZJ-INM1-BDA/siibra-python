@@ -142,9 +142,7 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
                 continue
             assert len(loader.data.darrays) == 1
             if label is not None:
-                labels.append(
-                    ((loader.data.darrays[0].data == label) * label).astype('uint8')
-                )
+                labels.append((loader.data.darrays[0].data == label).astype('uint8'))
             else:
                 labels.append(loader.data.darrays[0].data)
 

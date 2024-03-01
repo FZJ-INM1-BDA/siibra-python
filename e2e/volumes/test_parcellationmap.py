@@ -126,15 +126,17 @@ def test_fetching_merged_volume():
     _ = mp.fetch()
 
 
-fsaverage_jab3 = siibra.get_map('julich 3', 'fsaverage')
-fsaverage_jab3_regions = fsaverage_jab3.regions
-
-
-@pytest.mark.parametrize("region", fsaverage_jab3_regions)
-def test_fetching_single_label_from_giilabel(region: str):
-    mesh = fsaverage_jab3.fetch(region)
-    label = fsaverage_jab3.get_index(region).label
-    assert np.array_equal(
-        np.unique(mesh['labels']),
-        np.array([0, label])
-    ), f"Mesh label for {region} should only contain 0 and {label}"
+@pytest.mark.parametrize("siibramap", [
+    siibra.get_map('julich 3', 'fsaverage'),
+    siibra.get_map('julich 3', 'mni152'),
+])
+def test_fetching_mask(siibramap: Map):
+    for fmt in siibramap.formats:
+        for region in siibramap.regions:
+            mesh_or_img = siibramap.fetch(region, format=fmt)
+            arr = mesh_or_img['labels'] if isinstance(mesh_or_img, dict) else mesh_or_img.dataobj
+            unq_vals = np.unique(arr)
+            assert np.array_equal(unq_vals, [0, 1]), (
+                f"{siibramap}, {fmt}. Mask for {region} should only contain 0 "
+                f"and 1 but found: {unq_vals}"
+            )
