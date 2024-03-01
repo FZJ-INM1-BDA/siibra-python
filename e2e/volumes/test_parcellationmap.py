@@ -6,6 +6,7 @@ from siibra.volumes import Map
 from siibra.volumes.volume import Subvolume
 
 from itertools import product
+import numpy as np
 
 maps_to_compress = [
     siibra.get_map("2.9", "mni152"),  # contains fragments
@@ -123,3 +124,17 @@ def test_fetching_merged_volume():
     mp = siibra.get_map("julich 2.9", "bigbrain")
     assert len(mp) > 1
     _ = mp.fetch()
+
+
+fsaverage_jab3 = siibra.get_map('julich 3', 'fsaverage')
+fsaverage_jab3_regions = fsaverage_jab3.regions
+
+
+@pytest.mark.parametrize("region", fsaverage_jab3_regions)
+def test_fetching_single_label_from_giilabel(region: str):
+    mesh = fsaverage_jab3.fetch(region)
+    label = fsaverage_jab3.get_index(region).label
+    assert np.array_equal(
+        np.unique(mesh['labels']),
+        np.array([0, label])
+    ), f"Mesh label for {region} should only contain 0 and {label}"
