@@ -137,14 +137,21 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
     def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
         labels = []
-        for fragment_name, loader in self._loaders.items():
-            if fragment is not None and fragment.lower() not in fragment_name.lower():
-                continue
-            assert len(loader.data.darrays) == 1
+        if fragment is None:
+            matched_frags = list(self._loaders.keys())
+        else:
+            matched_frags = [frg for frg in self._loaders.keys() if fragment.lower() in frg.lower()]
+            if len(matched_frags) != 1:
+                raise ValueError(
+                    f"Requested fragment '{fragment}' could not be matched uniquely "
+                    f"to [{', '.join(self._loaders)}]"
+                )
+        for frag in matched_frags:
+            assert len(self._loaders[frag].data.darrays) == 1
             if label is not None:
-                labels.append((loader.data.darrays[0].data == label).astype('uint8'))
+                labels.append((self._loaders[frag].data.darrays[0].data == label).astype('uint8'))
             else:
-                labels.append(loader.data.darrays[0].data)
+                labels.append(self._loaders[frag].data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
 
