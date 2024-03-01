@@ -6,6 +6,7 @@ from siibra.volumes import Map
 from siibra.volumes.volume import Subvolume
 
 from itertools import product
+import numpy as np
 
 maps_to_compress = [
     siibra.get_map("2.9", "mni152"),  # contains fragments
@@ -123,3 +124,19 @@ def test_fetching_merged_volume():
     mp = siibra.get_map("julich 2.9", "bigbrain")
     assert len(mp) > 1
     _ = mp.fetch()
+
+
+@pytest.mark.parametrize("siibramap", [
+    siibra.get_map('julich 3', 'fsaverage'),
+    siibra.get_map('julich 3', 'mni152'),
+])
+def test_fetching_mask(siibramap: Map):
+    for fmt in siibramap.formats:
+        for region in siibramap.regions:
+            mesh_or_img = siibramap.fetch(region, format=fmt)
+            arr = mesh_or_img['labels'] if isinstance(mesh_or_img, dict) else mesh_or_img.dataobj
+            unq_vals = np.unique(arr)
+            assert np.array_equal(unq_vals, [0, 1]), (
+                f"{siibramap}, {fmt}. Mask for {region} should only contain 0 "
+                f"and 1 but found: {unq_vals}"
+            )

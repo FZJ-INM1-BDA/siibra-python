@@ -134,14 +134,17 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
 
-    def fetch(self, fragment: str = None, **kwargs):
+    def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""
         labels = []
         for fragment_name, loader in self._loaders.items():
             if fragment is not None and fragment.lower() not in fragment_name.lower():
                 continue
             assert len(loader.data.darrays) == 1
-            labels.append(loader.data.darrays[0].data)
+            if label is not None:
+                labels.append((loader.data.darrays[0].data == label).astype('uint8'))
+            else:
+                labels.append(loader.data.darrays[0].data)
 
         return {"labels": np.hstack(labels)}
 
