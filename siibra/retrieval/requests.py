@@ -30,7 +30,7 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image, GiftiImage, streamlines
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
 from skimage import io as skimage_io
 import gzip
 from io import BytesIO
@@ -59,6 +59,7 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
+    ".annot": lambda b: freesurfer.read_annot(BytesIO(b)),
 }
 
 
