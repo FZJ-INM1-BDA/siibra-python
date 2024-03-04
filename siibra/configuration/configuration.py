@@ -42,7 +42,7 @@ class Configuration:
         conn(
             server_or_owner,
             project_or_repo,
-            reftag="siibra-{}".format(__version__),
+            reftag="mouse_point_dist",
             skip_branchtest=True
         )
         for conn, server_or_owner, project_or_repo in CONFIG_REPOS
