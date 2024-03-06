@@ -30,3 +30,12 @@ def test_gene_exp():
 
     # Using higher threshold should result in less gene expresssion measures
     assert len(features_grandparent_struct[0].data) > len(features_leaf_struct[0].data)
+
+
+def test_query_w_genelist():
+    genes = ["GABRA1", "GABRA2", "GABRQ"]
+    p = siibra.parcellations['julich 3']
+    regions = [p.get_region(spec) for spec in ["ifg 44 left", "hoc1 left"]]
+    for region in regions:
+        fts = siibra.features.get(region, "GeneExpressions", gene=genes)
+        assert len(fts) > 0
