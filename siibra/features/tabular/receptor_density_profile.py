@@ -75,10 +75,6 @@ class ReceptorDensityProfile(
         return vocabularies.RECEPTOR_SYMBOLS[self.receptor]['receptor']['name']
 
     @property
-    def name(self):
-        return super().name + f": {self.receptor}"
-
-    @property
     def neurotransmitter(self):
         return "{} ({})".format(
             vocabularies.RECEPTOR_SYMBOLS[self.receptor]['neurotransmitter']['label'],

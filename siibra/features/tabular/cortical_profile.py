@@ -276,3 +276,11 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 f"'_values' not available for {self.__class__.__name__}."
             )
         return self._values_cached
+
+    @property
+    def name(self):
+        if hasattr(self, "receptor"):
+            return super().name + f": {self.receptor}"
+        if hasattr(self, "location"):
+            return super().name + f": {self.location.coordinate}"
+        return super().name
