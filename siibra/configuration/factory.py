@@ -264,7 +264,8 @@ class Factory:
             nifti.ZipContainedNiftiProvider,
             gifti.GiftiMesh,
             gifti.GiftiSurfaceLabeling,
-            freesurfer.ZippedFreesurferAnnot
+            freesurfer.ZippedFreesurferAnnot,
+            freesurfer.FreesurferAnnot,
         ]
 
         for srctype, provider_spec in spec.get("providers", {}).items():
