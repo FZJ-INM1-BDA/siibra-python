@@ -76,7 +76,10 @@ class PointSet(location.Location):
         if not isinstance(other, (point.Point, PointSet, _boundingbox.BoundingBox)):
             return other.intersection(self)
 
-        ids, points = zip(*[(i, p) for i, p in enumerate(self) if p.intersects(other)])
+        intersections = [(i, p) for i, p in enumerate(self) if p.intersects(other)]
+        if len(intersections) == 0:
+            return None
+        ids, points = zip(*intersections)
         labels = None if self.labels is None else [self.labels[i] for i in ids]
         sigma = [p.sigma for p in points]
         intersection = PointSet(
@@ -85,8 +88,6 @@ class PointSet(location.Location):
             sigma_mm=sigma,
             labels=labels
         )
-        if len(intersection) == 0:
-            return None
         return intersection[0] if len(intersection) == 1 else intersection
 
     @property
