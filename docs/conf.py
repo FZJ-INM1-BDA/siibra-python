@@ -123,6 +123,7 @@ autoapi_add_toctree_entry = False
 autoapi_options = [
     'members',
     'undoc-members',
+    'special-members',
     'show-inheritance-diagram',
     'show-module-summary',
     'imported-members'
