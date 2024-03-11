@@ -16,4 +16,4 @@
 from .plane3d import Plane3D
 from .contour import Contour
 from .cortical_profile_sampler import CorticalProfileSampler
-from .patch_sampler import get_oriented_y_patch, fetch_patch
+from .patch_sampler import fetch_patch

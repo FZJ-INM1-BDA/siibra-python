@@ -179,6 +179,58 @@ class Plane3D:
 
         return result
 
+    def project_points(self, points: pointset.PointSet):
+        """ projects the given points onto the plane. """
+        assert self.space == points.space
+        XYZ = points.coordinates
+        N = XYZ.shape[0]
+        dists = np.dot(self._n, XYZ.T) - self._d
+        return pointset.PointSet(
+            XYZ - np.tile(self._n, (N, 1)) * dists[:, np.newaxis],
+            space = self.space
+        )
+
+    def get_enclosing_patch(self, points: pointset.PointSet, margin=[0, 0]):
+        """
+        Computes the enclosing patch in the given plane
+        which contains the projections of the given points. 
+        The orientation of the patch follows the principal axis.
+        """
+        projections = self.project_points(points)
+        
+        # compute PCA of point projections to obtain two orthogonal 
+        # in-plane spanning vectors
+        XYZ = np.copy(projections.coordinates)
+        mu = XYZ.mean(0)
+        XYZ -= mu
+        cov = np.dot(XYZ.T, XYZ)
+        eigvals_ , eigvecs_ = np.linalg.eigh(cov)
+        eigvals = eigvals_[::-1]
+        eigvecs = eigvecs_[:, ::-1].T
+        v1, v2 = [-eigvecs[_] for _ in np.argsort(eigvals_)[:2]]
+        
+        # get extremal points along first spanning vector
+        order = np.argsort(np.dot(projections.coordinates, v1))
+        p0 = projections[order[ 0]].homogeneous[0, :3]
+        p1 = projections[order[-1]].homogeneous[0, :3]
+
+        # get extremal points along second spanning vector
+        order = np.argsort(np.dot(projections.coordinates, v2))
+        p2 = projections[order[ 0]].homogeneous[0, :3]
+        p3 = projections[order[-1]].homogeneous[0, :3]
+        
+        m0, m1 = margin
+        w = np.linalg.norm(p3 - p2)
+        return pointset.PointSet(
+            [
+                p1 + (w/2 + m1) * v2 + m0 * v1,
+                p0 + (w/2 + m1) * v2 - m0 * v1,
+                p0 - (w/2 + m1) * v2 - m0 * v1,
+                p1 - (w/2 + m1) * v2 + m0 * v1,
+            ],
+            space = self.space
+        )
+
     @classmethod
     def from_image(cls, image: volume.Volume):
         """ 

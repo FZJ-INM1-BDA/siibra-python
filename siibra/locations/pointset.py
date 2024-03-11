@@ -156,18 +156,17 @@ class PointSet(location.Location):
         )
 
     def __getitem__(self, index: int):
-        if (index >= self.__len__()) or (index < 0):
+        if (abs(index) >= self.__len__()):
             raise IndexError(
-                f"Pointset has only {self.__len__()} points, "
-                f"but index of {index} was requested."
+                f"Pointset with {self.__len__()} points "
+                f"cannot be accessed with index {index}."
             )
-        else:
-            return point.Point(
-                self.coordinates[index, :],
-                space=self.space,
-                sigma_mm=self.sigma_mm[index],
-                label=None if self.labels is None else self.labels[index]
-            )
+        return point.Point(
+            self.coordinates[index, :],
+            space=self.space,
+            sigma_mm=self.sigma_mm[index],
+            label=None if self.labels is None else self.labels[index]
+        )
 
     def __iter__(self):
         """Return an iterator over the coordinate locations."""
