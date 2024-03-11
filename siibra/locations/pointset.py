@@ -165,7 +165,8 @@ class PointSet(location.Location):
             return point.Point(
                 self.coordinates[index, :],
                 space=self.space,
-                sigma_mm=self.sigma_mm[index]
+                sigma_mm=self.sigma_mm[index],
+                label=None if self.labels is None else self.labels[index]
             )
 
     def __iter__(self):
@@ -174,7 +175,8 @@ class PointSet(location.Location):
             point.Point(
                 self.coordinates[i, :],
                 space=self.space,
-                sigma_mm=self.sigma_mm[i]
+                sigma_mm=self.sigma_mm[i],
+                label=None if self.labels is None else self.labels[i]
             )
             for i in range(len(self))
         )

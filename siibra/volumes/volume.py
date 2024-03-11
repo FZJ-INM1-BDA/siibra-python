@@ -210,14 +210,7 @@ class Volume(location.Location):
             f"name='{self.name}', providers={self._providers})>"
         )
 
-    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
-        """
-        Reduce a pointset to the points which fall
-        inside nonzero pixels of this volume.
-        The indices of the original points are stored as point labels in the result.
-        Any additional arguments are passed to the fetch() call
-        for retrieving the image data.
-        """
+    def evaluate_points(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs):
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
         img = self.fetch(format='image', **kwargs)
@@ -232,7 +225,19 @@ class Volume(location.Location):
             3, axis=1
         )
         arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
-        inside = np.where(arr[X, Y, Z] != 0)[0]
+        return arr[X, Y, Z]
+
+    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
+        """
+        Reduce a pointset to the points which fall
+        inside nonzero pixels of this volume.
+        The indices of the original points are stored as point labels in the result.
+        Any additional arguments are passed to the fetch() call
+        for retrieving the image data.
+        """
+        arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
+        values = self.evaluate_points(points, **kwargs)
+        inside = np.where(values != 0)[0]
         return pointset.PointSet(
             points.homogeneous[inside, :3],
             space=points.space,
