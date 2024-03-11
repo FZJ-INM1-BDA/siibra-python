@@ -25,7 +25,7 @@ import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Tuple
+from typing import Tuple, Union
 
 
 class Point(location.Location):
@@ -67,7 +67,13 @@ class Point(location.Location):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
-    def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0, label=None):
+    def __init__(
+        self,
+        coordinatespec,
+        space=None,
+        sigma_mm: float = 0.0,
+        label: Union[int, float, tuple] = None
+    ):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -93,6 +99,7 @@ class Point(location.Location):
         if isinstance(coordinatespec, Point):
             assert coordinatespec.sigma == sigma_mm
             assert coordinatespec.space == space
+        self.label = label
 
     @property
     def homogeneous(self):
@@ -134,7 +141,7 @@ class Point(location.Location):
             logger.debug(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
             return None
         return self.__class__(
-            coordinatespec=tuple(response["target_point"]), 
+            coordinatespec=tuple(response["target_point"]),
             space=spaceobj.id,
             label=self.label
         )
@@ -156,7 +163,7 @@ class Point(location.Location):
 
         assert self.space == other.space
         return Point(
-            [self.coordinate[i] - other.coordinate[i] for i in range(3)], 
+            [self.coordinate[i] - other.coordinate[i] for i in range(3)],
             self.space,
             label=self.label
         )
@@ -208,18 +215,18 @@ class Point(location.Location):
         if isinstance(other, Point):
             assert self.space == other.space
         return Point(
-            [self.coordinate[i] + other.coordinate[i] for i in range(3)], 
+            [self.coordinate[i] + other.coordinate[i] for i in range(3)],
             self.space,
-            sigma_mm = self.sigma + other.sigma,
-            label = (self.label, other.label)
+            sigma_mm=self.sigma + other.sigma,
+            label=(self.label, other.label)
         )
 
     def __truediv__(self, number: float):
         """Return a new point with divided
         coordinates in the same space."""
         return Point(
-            np.array(self.coordinate) / number, 
-            self.space, 
+            np.array(self.coordinate) / number,
+            self.space,
             sigma_mm=self.sigma / number,
             label=self.label
         )
@@ -228,8 +235,8 @@ class Point(location.Location):
         """Return a new point with multiplied
         coordinates in the same space."""
         return Point(
-            np.array(self.coordinate) * number, 
-            self.space, 
+            np.array(self.coordinate) * number,
+            self.space,
             sigma_mm=self.sigma * number,
             label=self.label
         )
@@ -254,7 +261,7 @@ class Point(location.Location):
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
         return self.__class__(
-            (x / h, y / h, z / h), 
+            (x / h, y / h, z / h),
             space,
             sigma_mm=self.sigma,
             label=self.label
