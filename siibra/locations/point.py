@@ -67,7 +67,7 @@ class Point(location.Location):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
-    def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
+    def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0, label: int = None):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -90,6 +90,7 @@ class Point(location.Location):
         if isinstance(coordinatespec, Point):
             assert coordinatespec.sigma == sigma_mm
             assert coordinatespec.space == space
+        self.label = label
 
     @property
     def homogeneous(self):

@@ -210,33 +210,109 @@ class Volume(location.Location):
             f"name='{self.name}', providers={self._providers})>"
         )
 
-    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
+    def evaluate_points(
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
+        outside_value: Union[int, float] = 0,
+        **fetch_kwargs
+    ) -> np.ndarray:
         """
-        Reduce a pointset to the points which fall
-        inside nonzero pixels of this volume.
-        The indices of the original points are stored as point labels in the result.
-        Any additional arguments are passed to the fetch() call
-        for retrieving the image data.
+        Evaluate the image at the positions of the given points.
+
+        Note
+        ----
+        Uses nearest neighbor interpolation. Other interpolation schemes are not
+        yet implemented.
+
+        Note
+        ----
+        If points are not on the same space as the map, they will be warped to
+        the space of the volume.
+
+        Parameters
+        ----------
+        points: PointSet
+        outside_value: int, float. Default: 0
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        values: numpy.ndarray
+            The values of the volume at the voxels points correspond to.
+
+        Raises
+        ------
+        SpaceWarpingFailedError
+            If warping of the points fails.
         """
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
-        img = self.fetch(format='image', **kwargs)
+
+        # make sure the points are in the same physical space as this volume
+        warped = (
+            pointset.from_points([points]) if isinstance(points, point.Point) else points
+        ).warp(self.space)
+        assert warped is not None, SpaceWarpingFailedError
+
+        # get the voxel array of this volume
+        img = self.fetch(format='image', **fetch_kwargs)
         arr = img.get_fdata()
-        warped = points.warp(self.space)
-        assert warped is not None
+
+        # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(img.affine)
         voxels = warped.transform(phys2vox, space=None)
-        XYZ = voxels.homogeneous.astype('int')[:, :3]
-        X, Y, Z = np.split(
-            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-            3, axis=1
-        )
-        arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
-        inside = np.where(arr[X, Y, Z] != 0)[0]
-        return pointset.PointSet(
-            points.homogeneous[inside, :3],
-            space=points.space,
-            labels=inside
+        XYZ = voxels.coordinates.astype('int')
+
+        # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
+        inside = np.all((XYZ < arr.shape) & (XYZ > 0), axis=1)
+        XYZ[~inside, :] = 0
+
+        # read out the values
+        X, Y, Z = XYZ.T
+        values = arr[X, Y, Z]
+
+        # fix the outside voxel values, which might have an inconsistent value now
+        values[~inside] = outside_value
+
+        return values
+
+    def _points_inside(
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
+        keep_labels: bool = True,
+        outside_value: Union[int, float] = 0,
+        **fetch_kwargs
+    ) -> 'pointset.PointSet':
+        """
+        Reduce a pointset to the points which fall inside nonzero pixels of
+        this map.
+
+
+        Paramaters
+        ----------
+        points: PointSet
+        keep_labels: bool
+            If False, the returned PointSet will be labeled with their indices
+            in the original PointSet.
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        PointSet
+            A new PointSet containing only the points inside the volume.
+            Labels reflect the indices of the original points if `keep_labels`
+            is False.
+        """
+        ptset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        values = self.evaluate_points(ptset, outside_value=outside_value, **fetch_kwargs)
+        inside = list(np.where(values != outside_value)[0])
+        return pointset.from_points(
+            [ptset[i] for i in inside],
+            newlabels=None if keep_labels else inside
         )
 
     def union(self, other: location.Location):
@@ -247,22 +323,24 @@ class Volume(location.Location):
                 f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
             )
 
-    def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
+    def intersection(self, other: structure.BrainStructure, **fetch_kwargs) -> structure.BrainStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self._points_inside(other, **kwargs)
-            if len(result) == 0:
-                return None  # BrainStructure.intersects check for not None
-            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
+            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            if len(points_inside) == 0:
+                return None  # BrainStructure.intersects checks for not None
+            if isinstance(other, point.Point):  # preserve the type
+                return points_inside[0]
+            return points_inside
         elif isinstance(other, boundingbox.BoundingBox):
-            return self.get_boundingbox(clip=True, background=0.0, **kwargs).intersection(other)
+            return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
-            format = kwargs.pop('format', 'image')
-            v1 = self.fetch(format=format, **kwargs)
-            v2 = other.fetch(format=format, **kwargs)
+            format = fetch_kwargs.pop('format', 'image')
+            v1 = self.fetch(format=format, **fetch_kwargs)
+            v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
             pointwise_min = np.minimum(arr1, arr2)
@@ -427,7 +505,7 @@ class Volume(location.Location):
             space=None
         )
         result = voxels.transform(img.affine, space='mni152')
-        result.sigma_mm = sigma_mm
+        result.sigma_mm = [sigma_mm for _ in result]
         return result
 
     def find_peaks(self, mindist=5, sigma_mm=0, **kwargs):
