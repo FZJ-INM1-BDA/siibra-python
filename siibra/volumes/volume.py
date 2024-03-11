@@ -215,7 +215,10 @@ class Volume(location.Location):
         )
 
     def evaluate_points(
-        self, points: 'pointset.PointSet', outside_value=0, **fetch_kwargs
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
+        outside_value: Union[int, float] = 0,
+        **fetch_kwargs
     ) -> np.ndarray:
         """
         Evaluate the image at the positions of the given points.
@@ -252,11 +255,9 @@ class Volume(location.Location):
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
 
         # make sure the points are in the same physical space as this volume
-        if isinstance(points, point.Point):  # requires to be a PointSet from next step onwards
-            as_pointset = pointset.from_points([points])
-            warped = as_pointset.warp(self.space)
-        else:
-            warped = points.warp(self.space)
+        warped = (
+            pointset.from_points([points]) if isinstance(points, point.Point) else points
+        ).warp(self.space)
         assert warped is not None, SpaceWarpingFailedError
 
         # get the voxel array of this volume
@@ -282,8 +283,10 @@ class Volume(location.Location):
         return values
 
     def _points_inside(
-        self, points: Union['point.Point', 'pointset.PointSet'],
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
         keep_labels: bool = True,
+        outside_value: Union[int, float] = 0,
         **fetch_kwargs
     ) -> 'pointset.PointSet':
         """
@@ -308,12 +311,11 @@ class Volume(location.Location):
             Labels reflect the indices of the original points if `keep_labels`
             is False.
         """
-        values = self.evaluate_points(points, **fetch_kwargs)
-        inside = list(np.where(values != 0)[0])
-        if isinstance(points, point.Point) and len(inside) == 1:
-            return pointset.from_points([points], newlabels=[0])
+        ptset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        values = self.evaluate_points(ptset, outside_value=outside_value, **fetch_kwargs)
+        inside = list(np.where(values != outside_value)[0])
         return pointset.from_points(
-            [points[i] for i in inside],
+            [ptset[i] for i in inside],
             newlabels=None if keep_labels else inside
         )
 
@@ -334,7 +336,7 @@ class Volume(location.Location):
             points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
             if len(points_inside) == 0:
                 return None  # BrainStructure.intersects checks for not None
-            if isinstance(other, point.Point):
+            if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
             return points_inside
         elif isinstance(other, boundingbox.BoundingBox):

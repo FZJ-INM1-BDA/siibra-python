@@ -243,7 +243,7 @@ class PointSet(location.Location):
     @property
     def boundingbox(self):
         """Return the bounding box of these points."""
-        XYZ = self.homogeneous[:, :3]
+        XYZ = self.coordinates
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
         return _boundingbox.BoundingBox(
@@ -255,7 +255,7 @@ class PointSet(location.Location):
 
     @property
     def centroid(self):
-        return point.Point(self.homogeneous[:, :3].mean(0), space=self.space)
+        return point.Point(self.coordinates.mean(0), space=self.space)
 
     @property
     def volume(self):
