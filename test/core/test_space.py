@@ -7,10 +7,16 @@ from parameterized import parameterized
 import inspect
 
 
-class DummyCls:
+class DummyDataset:
     def __init__(self, name) -> None:
         self.name = name
+
+
+class DummyCls:
+    def __init__(self, name, datasets=[DummyDataset('dataset')]) -> None:
+        self.name = name
         self.variant = name
+        self.datasets = datasets
 
 
 class TestSpaces(unittest.TestCase):
