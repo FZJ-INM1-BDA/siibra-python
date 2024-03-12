@@ -195,7 +195,7 @@ class Plane3D:
             XYZ - np.tile(self._n, (N, 1)) * dists[:, np.newaxis], space=self.space
         )
 
-    def get_enclosing_patch(self, points: pointset.PointSet, margin=[0, 0]):
+    def get_enclosing_patch(self, points: pointset.PointSet, margin=[1, 1]):
         """
         Computes the enclosing patch in the given plane
         which contains the projections of the given points.
