@@ -19,6 +19,7 @@ from ..volumes import volume
 
 import numpy as np
 
+
 class Plane3D:
     """ 
     A 3D plane in reference space.
@@ -114,7 +115,7 @@ class Plane3D:
         # We assume that there is exactly one forward and one inverse crossing
         # per selected face. Test this assumption.
         # NOTE This will fail if an edge is exactly in-plane
-        assert all(all((crossings == v).sum(1)==1) for v in [-1, 0, 1])
+        assert all(all((crossings == v).sum(1) == 1) for v in [-1, 0, 1])
 
         # Compute the actual intersection points for forward and backward crossing edges.
         fwd_columns = np.where(crossings ==  1)[1]
@@ -205,7 +206,6 @@ class Plane3D:
         XYZ -= mu
         cov = np.dot(XYZ.T, XYZ)
         eigvals_ , eigvecs_ = np.linalg.eigh(cov)
-        eigvals = eigvals_[::-1]
         eigvecs = eigvecs_[:, ::-1].T
         v1, v2 = [-eigvecs[_] for _ in np.argsort(eigvals_)[:2]]
         
@@ -221,7 +221,7 @@ class Plane3D:
         
         m0, m1 = margin
         w = np.linalg.norm(p3 - p2)
-        return pointset.PointSet(
+        result = pointset.PointSet(
             [
                 p1 + (w/2 + m1) * v2 + m0 * v1,
                 p0 + (w/2 + m1) * v2 - m0 * v1,
@@ -230,6 +230,8 @@ class Plane3D:
             ],
             space = self.space
         )
+        assert np.all(self.project_points(result).coordinates == result.coordinates)
+        return result
 
     @classmethod
     def from_image(cls, image: volume.Volume):

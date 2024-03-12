@@ -19,6 +19,7 @@ from ..core import parcellation
 
 import numpy as np
 
+
 class CorticalProfileSampler:
     """ Samples cortical profiles from the cortical layer maps. """
 
@@ -35,7 +36,7 @@ class CorticalProfileSampler:
         best_match = None
         for layername in self.layermap.regions:
             vertices = self.layermap.fetch(region=layername, format='mesh')["verts"]
-            dists = np.sqrt(((vertices - query_point.coordinate)**2).sum(1))
+            dists = np.sqrt(((vertices - q.coordinate)**2).sum(1))
             best = np.argmin(dists)
             if dists[best] < smallest_dist:
                 best_match = (layername, best)
@@ -46,9 +47,9 @@ class CorticalProfileSampler:
         print(f"Best match is vertex #{best_match[1]} in {best_match[0]}.")
 
         profile = [
-            (l, self.layermap.fetch(region=l, format='mesh')["verts"][best_vertex])
-            for l in self.layermap.regions 
-            if hemisphere in l
+            (_, self.layermap.fetch(region=_, format='mesh')["verts"][best_vertex])
+            for _ in self.layermap.regions 
+            if hemisphere in _
         ]
    
         return contour.Contour(
@@ -56,3 +57,4 @@ class CorticalProfileSampler:
             space=self.layermap.space,
             labels=[p[0] for p in profile]
         )
+
