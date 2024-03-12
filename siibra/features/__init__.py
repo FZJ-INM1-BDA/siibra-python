@@ -87,7 +87,7 @@ def render_ascii_tree(class_or_classname: Union[type, str]):
     from anytree.importer import DictImporter
     from anytree import RenderTree
     Cls = TYPES[class_or_classname] if isinstance(class_or_classname, str) else class_or_classname
-    assert isinstance(Cls, Feature)
+    assert issubclass(Cls, Feature)
 
     def create_treenode(feature_type):
         return {
