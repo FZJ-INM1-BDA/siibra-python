@@ -35,7 +35,7 @@ except ImportError:
     )
 
 
-def from_points(points: List["point.Point"], newlabels: List[int] = None) -> "PointSet":
+def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":
     """
     Create a PointSet from an iterable of Points.
 
@@ -73,7 +73,7 @@ class PointSet(location.Location):
         coordinates: Union[List[Tuple], np.ndarray],
         space=None,
         sigma_mm: Union[int, float, List[Union[int, float]]] = 0,
-        labels: List[int] = None
+        labels: List[Union[int, float, tuple]] = None
     ):
         """
         Construct a 3D point set in the given reference space.
@@ -200,16 +200,16 @@ class PointSet(location.Location):
         )
 
     def __getitem__(self, index: int):
-        if (index >= self.__len__()) or (index < 0):
+        if (abs(index) >= self.__len__()):
             raise IndexError(
-                f"Pointset has only {self.__len__()} points, "
-                f"but index of {index} was requested."
+                f"Pointset with {self.__len__()} points "
+                f"cannot be accessed with index {index}."
             )
         return point.Point(
             self.coordinates[index, :],
             space=self.space,
             sigma_mm=self.sigma_mm[index],
-            label=self.labels[index] if self.labels else None
+            label=None if self.labels is None else self.labels[index]
         )
 
     def __iter__(self):
@@ -219,7 +219,7 @@ class PointSet(location.Location):
                 self.coordinates[i, :],
                 space=self.space,
                 sigma_mm=self.sigma_mm[i],
-                label=self.labels[i] if self.labels else None
+                label=None if self.labels is None else self.labels[i]
             )
             for i in range(len(self))
         )
@@ -243,7 +243,9 @@ class PointSet(location.Location):
 
     @property
     def boundingbox(self):
-        """Return the bounding box of these points."""
+        """Return the bounding box of these points.
+        TODO revisit the numerical margin of 1e-6, should not be necessary.
+        """
         XYZ = self.coordinates
         sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
         sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))

@@ -258,7 +258,7 @@ class Volume(location.Location):
 
         # get the voxel array of this volume
         img = self.fetch(format='image', **fetch_kwargs)
-        arr = img.get_fdata()
+        arr = np.asanyarray(img.dataobj)
 
         # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(img.affine)
