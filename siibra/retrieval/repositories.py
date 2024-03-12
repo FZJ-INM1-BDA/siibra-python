@@ -320,7 +320,7 @@ class GitlabConnector(RepositoryConnector):
     def _build_url(self, folder="", filename=None, recursive=False, page=1):
         ref = self.reftag if self.want_commit is None else self.want_commit["short_id"]
         if filename is None:
-            pathstr = "" if len(folder) == 0 else f"&path={quote(folder,safe='')}"
+            pathstr = "" if len(folder) == 0 else f"&path={quote(folder, safe='')}"
             return f"{self.base_url}/tree?ref={ref}{pathstr}&per_page={self._per_page}&page={page}&recursive={recursive}"
         else:
             pathstr = filename if folder == "" else f"{folder}/{filename}"
@@ -464,7 +464,7 @@ class OwncloudConnector(RepositoryConnector):
         )
 
     def _build_url(self, folder, filename):
-        fpath = "" if folder == "" else f"path={quote(folder,safe='')}&"
+        fpath = "" if folder == "" else f"path={quote(folder, safe='')}&"
         fpath += f"files={quote(filename)}"
         url = f"{self.base_url}/download?{fpath}"
         return url

@@ -309,7 +309,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
                 for flag in flags or []:  # catch if flags is nullish
                     if flag not in self._accepted_flags:
-                        raise Exception(f"only accepted flag are in { self._accepted_flags }. {flag} is not within them")
+                        raise Exception(f"only accepted flag are in {self._accepted_flags}. {flag} is not within them")
                 search_regex = (f"(?{flags})" if flags else "") + expression
                 regionspec = re.compile(search_regex)
 

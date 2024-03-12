@@ -448,7 +448,7 @@ class Feature:
 
         live_instances = []
         for QueryType in cls._live_queries:
-            argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
+            argstr = f" ({', '.join('='.join(map(str, _)) for _ in kwargs.items())})" \
                 if len(kwargs) > 0 else ""
             logger.debug(
                 f"Running live query for {QueryType.feature_type.__name__} "

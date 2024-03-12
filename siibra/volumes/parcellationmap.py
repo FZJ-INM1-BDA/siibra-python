@@ -1202,7 +1202,7 @@ def from_volume(
         if unnamed_labels:
             logger.warning(
                 f"The following labels appear in the NIfTI volume {vol_idx}, but not in "
-                f"the specified regions: {', '.join(str(l) for l in unnamed_labels)}. "
+                f"the specified regions: {', '.join(str(lb) for lb in unnamed_labels)}. "
                 "They will be removed from the nifti volume."
             )
             for label in unnamed_labels:

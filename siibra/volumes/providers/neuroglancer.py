@@ -195,7 +195,7 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
-            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts/num_voxels*100.:2.1f}%).")
+            logger.warning(f"Merging fragments required to overwrite {num_conflicts} conflicting voxels ({num_conflicts / num_voxels * 100.:2.1f}%).")
 
         return result
 

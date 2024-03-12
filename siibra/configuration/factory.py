@@ -294,7 +294,7 @@ class Factory:
         assert "filename" in spec
         basename = path.splitext(path.basename(spec['filename']))[0]
         name = basename.replace('-', ' ').replace('_', ' ').replace('continuous', 'statistical')
-        identifier = f"{spec['@type'].replace('/','-')}_{basename}"
+        identifier = f"{spec['@type'].replace('/', '-')}_{basename}"
         volumes = cls.extract_volumes(spec, space_id=spec["space"].get("@id"), name_prefix=basename)
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):
