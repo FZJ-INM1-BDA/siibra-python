@@ -195,7 +195,7 @@ class Plane3D:
             XYZ - np.tile(self._n, (N, 1)) * dists[:, np.newaxis], space=self.space
         )
 
-    def get_enclosing_patch(self, points: pointset.PointSet, margin=[1, 1]):
+    def get_enclosing_patch(self, points: pointset.PointSet, margin=[0.5, 0.5]):
         """
         Computes the enclosing patch in the given plane
         which contains the projections of the given points.
@@ -234,8 +234,10 @@ class Plane3D:
             ],
             space=self.space,
         )
-        assert np.all(self.project_points(corners).coordinates == corners.coordinates)
-        return patch.Patch(corners)
+        err = (self.project_points(corners) - corners).coordinates.sum()
+        if err > 1e-5:
+            print(f"WARNING: patch coordinates were not exactly in-plane (error={err}).")
+        return patch.Patch(self.project_points(corners))
 
     @classmethod
     def from_image(cls, image: volume.Volume):
