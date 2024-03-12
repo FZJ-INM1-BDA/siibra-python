@@ -144,7 +144,7 @@ class BoundingBox(location.Location):
             result = pointset.PointSet(
                 points_inside,
                 space=other.space,
-                sigma_mm=[p.sigma_mm for p in points_inside]
+                sigma_mm=[p.sigma for p in points_inside]
             )
             if len(result) == 0:
                 return None
