@@ -234,7 +234,7 @@ class Plane3D:
             ],
             space=self.space,
         )
-        err = (self.project_points(corners) - corners).coordinates.sum()
+        err = (self.project_points(corners).coordinates - corners.coordinates).sum()
         if err > 1e-5:
             print(f"WARNING: patch coordinates were not exactly in-plane (error={err}).")
         return patch.Patch(self.project_points(corners))
