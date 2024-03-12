@@ -17,22 +17,23 @@ from ..locations import point, pointset, boundingbox
 
 import numpy as np
 
+
 class Contour(pointset.PointSet):
     """
     A PointSet that represents a contour line.
-    The only difference is that the point order is relevant, 
+    The only difference is that the point order is relevant,
     and consecutive points are thought as being connected by an edge.
-    
+
     In fact, PointSet assumes order as well, but no connections between points.
     """
-    
+
     def __init__(self, coordinates, space=None, sigma_mm=0, labels: list = None):
         pointset.PointSet.__init__(self, coordinates, space, sigma_mm, labels)
-    
+
     def crop(self, voi: boundingbox.BoundingBox):
         """
-        Crop the contour with a volume of interest. 
-        Since the contour might be split from the cropping, 
+        Crop the contour with a volume of interest.
+        Since the contour might be split from the cropping,
         returns a set of contour segments.
         """
         segments = []
@@ -45,9 +46,9 @@ class Contour(pointset.PointSet):
 
         if cropped is not None and not isinstance(cropped, point.Point):
             assert isinstance(cropped, pointset.PointSet)
-            # Identifiy contour splits are by discontinuouities ("jumps") 
+            # Identifiy contour splits are by discontinuouities ("jumps")
             # of their labels, which denote positions in the original contour
-            jumps = np.diff([self.labels.index(l) for l in cropped.labels])
+            jumps = np.diff([self.labels.index(lb) for lb in cropped.labels])
             splits = [0] + list(np.where(jumps > 1)[0] + 1) + [len(cropped)]
             for i, j in zip(splits[:-1], splits[1:]):
                 segments.append(
@@ -58,4 +59,3 @@ class Contour(pointset.PointSet):
         self.labels = old_labels
 
         return segments
-
