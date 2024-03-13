@@ -22,7 +22,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
@@ -530,12 +530,40 @@ def resample_array_to_array(
     return np.asanyarray(resampled_img.dataobj)
 
 
-def connected_components(imgdata: np.ndarray):
+def connected_components(
+    imgdata: np.ndarray,
+    background: int = 0,
+    connectivity: int = 2,
+    threshold: float = 0.0,
+) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
-    Provide an iterator over connected components in the array
+    Provide an iterator over connected components in the array. If the image
+    data is float (such as probability maps), it will convert to a mask and
+    then find the connected components.
+
+    Note
+    ----
+    `Uses skimage.measure.label()` to determine foreground compenents.
+
+    Parameters
+    ----------
+    imgdata : np.ndarray
+    background_value : int, Default: 0
+    connectivity : int, Default: 2
+    threshold: float, Default: 0.0
+        The threshold used to create mask from probability maps, i.e, anything
+        below set to 0 and rest to 1.
+
+    Yields
+    ------
+    Generator[Tuple[int, np.ndarray], None, None]
+        tuple of integer label of the component and component as an nd.array in
+        the shape of the original image.
     """
     from skimage import measure
-    components = measure.label(imgdata, connectivity=2, background=0)
+
+    mask = (imgdata > threshold).astype('uint8')
+    components = measure.label(mask, connectivity=connectivity, background=background)
     component_labels = np.unique(components)
     return (
         (label, (components == label).astype('uint8'))
