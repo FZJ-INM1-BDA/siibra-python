@@ -1,7 +1,7 @@
 import siibra
 
 
-def sparsemap_volume_assignment():
+def test_sparsemap_volume_assignment():
     julich_pmaps = siibra.get_map(
         parcellation="julich 2.9",
         space="mni152",
