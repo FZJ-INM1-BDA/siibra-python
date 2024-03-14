@@ -120,8 +120,8 @@ class SparseIndex:
         v = [self.probs[i][volume] for i in self.voxels[x, y, z]]
         return x, y, z, v
 
-    @staticmethod
-    def load(filepath_or_url: str) -> 'SparseIndex':
+    @classmethod
+    def load(cls, filepath_or_url: str) -> "SparseIndex":
         """
         Loads a precomputed SparseIndex to the memory.
 
@@ -149,7 +149,7 @@ class SparseIndex:
         else:
             request = HttpRequest
 
-        result = SparseIndex()
+        result = cls.__init__()
 
         voxels = request(voxelfile).get()
         result.voxels = np.asanyarray(voxels.dataobj)
@@ -224,6 +224,17 @@ class SparseIndex:
                 )
         logger.info(f"SparseIndex is saved to {fullpath}.")
 
+    @classmethod
+    def from_sparsemap(cls, sparsemap: "SparseMap") -> "SparseIndex":
+        with provider.SubvolumeProvider.UseCaching():
+            spind = cls.__init__()
+            for img in siibra_tqdm(
+                sparsemap.fetch_iter(), total=len(sparsemap), unit="maps",
+                desc="Fetching volumetric maps and computing SparseIndex"
+            ):
+                spind.add_img(np.asanyarray(img.dataobj), img.affine)
+        return spind
+
 
 class SparseMap(parcellationmap.Map):
     """
@@ -282,34 +293,19 @@ class SparseMap(parcellationmap.Map):
     @property
     def sparse_index(self):
         if self._sparse_index_cached is None:
-            # try loading from cache on disk
-            try:
+            try:  # try loading from cache on disk
                 spind = SparseIndex.load(self._cache_prefix)
             except Exception:
                 spind = None
-            if spind is None:  # try loading from precomputed source
-                logger.info("Loading precomputed SparseIndex...")
-                fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}"
+            if spind is None:  # try from precomputed source
                 try:
+                    logger.info("Downloading and loading precomputed SparseIndex...")
+                    fname = f"{self.name.replace(' ', '_').replace('statistical', 'continuous')}"
                     spind = SparseIndex.load(SparseIndex._DATAPROXY_BASEURL + fname)
                 except Exception:
-                    logger.info("Failed to fetch precomputed SparseIndex.")
-                    logger.debug("Error:", exc_info=1)
+                    logger.error("Failed to download precomputed SparseIndex.", exc_info=1)
             if spind is None:  # Download each map and compute the SparseIndex
-                with provider.SubvolumeProvider.UseCaching():
-                    spind = SparseIndex()
-                    for vol in siibra_tqdm(
-                        range(len(self)), total=len(self), unit="maps",
-                        desc="Fetching volumetric maps and computing SparseIndex"
-                    ):
-                        img = super().fetch(
-                            index=MapIndex(volume=vol, label=None)
-                        )
-                        if img is None:
-                            region = self.get_region(volume=vol)
-                            logger.error(f"Cannot retrieve volume #{vol} for {region.name}, it will not be included in the sparse map.")
-                            continue
-                        spind.add_img(np.asanyarray(img.dataobj), img.affine)
+                spind = SparseIndex.from_sparsemap(self)
                 spind.save(self._cache_prefix, folder=CACHE.folder)
             self._sparse_index_cached = spind
         assert self._sparse_index_cached.max() == len(self._sparse_index_cached.probs) - 1
