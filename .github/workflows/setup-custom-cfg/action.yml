@@ -12,8 +12,8 @@ runs:
     with:
       repository: 'fzj-inm1-bda/siibra-configurations'
       ref: ${{ inputs.siibra-cfg-ref }}
-      path: ${{ runner.temp }}/siibra-configurations
+      path: ${{ github.workspace }}/siibra-configurations
   - id: 'set-env'
     run: |
-      echo "SIIBRA_USE_CONFIGURATION=${{ runner.temp }}/siibra-configurations" >> $GITHUB_ENV
+      echo "SIIBRA_USE_CONFIGURATION=${{ github.workspace }}/siibra-configurations" >> $GITHUB_ENV
     shell: bash
