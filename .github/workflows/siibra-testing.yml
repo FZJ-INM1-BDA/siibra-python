@@ -6,6 +6,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -13,13 +16,35 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.10
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
     - run: pip install flake8
     - run: flake8 .
+  
+  use-custom-cfg:
+    runs-on: ubuntu-latest
+    outputs:
+      USE_REF: ${{ steps.use-ref.outputs.USE_REF }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: 'use-ref'
+      run: |
+        SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
+        echo "${{ github.event.head_commit.message }}" | while IFS= read -r line
+        do
+          if [[ "$line" == "${{ env.USE_CONFIG_COMMIT_KW }}"* ]]
+          then
+            echo "Found usecfg line in commit message: $line"
+            USE_REF=$(echo $line | sed "s/$SED_S_PATTERN *//")
+            echo "Use Ref: $USE_REF"
+            echo USE_REF=$USE_REF >> $GITHUB_OUTPUT
+          fi
+        done
+  
   unit-tests:
     runs-on: ubuntu-latest
+    needs: use-custom-cfg
     env:
       # unit tests should not need tokens
       
@@ -32,9 +57,13 @@ jobs:
         python-version: [ '3.12', '3.11', '3.10', '3.9', '3.8', '3.7' ]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - if: ${{ needs.use-custom-cfg.outputs.USE_REF != '' }}
+      uses: .github/workflows/setup-custom-cfg
+      with:
+        siibra-cfg-ref: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -55,6 +84,7 @@ jobs:
         pytest -rx
   
   e2e-tests:
+    needs: use-custom-cfg
     runs-on: ${{ matrix.os }}
     env:
       # KEYCLOAK_CLIENT_ID: ${{ secrets.KEYCLOAK_CLIENT_ID }}
@@ -67,19 +97,15 @@ jobs:
         python-version: [ '3.12', '3.11', '3.10', '3.9', '3.8', '3.7' ]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
+    - if: ${{ needs.use-custom-cfg.outputs.USE_REF != '' }}
+      uses: .github/workflows/setup-custom-cfg
+      with:
+        siibra-cfg-ref: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Cache SIIBRA_CACHEDIR
-      uses: actions/cache@v3
-      with:
-        path: ${{ runner.temp }}
-        key: ${{ runner.os }}
-        restore-keys: |
-          ${{ runner.os }}
           
     - name: Install dependencies
       shell: bash
@@ -111,9 +137,9 @@ jobs:
       matrix:
         python-version: [ '3.12', '3.11', '3.10', '3.9', '3.8', '3.7' ]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
