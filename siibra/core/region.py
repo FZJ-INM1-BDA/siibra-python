@@ -885,10 +885,10 @@ def _get_related_regions_str(pe_id: str) -> Tuple[Tuple[str, str, str, str], ...
     return_val = []
     region_relation_assessments = RegionRelationAssessments.translate_pes(pe_id, pe_id)
     for asgmt in region_relation_assessments:
-        assert isinstance(asgmt, RegionRelationAssessments), f"Expecting type to be of RegionRelationAssessments, but is {type(asgmt)=}"
+        assert isinstance(asgmt, RegionRelationAssessments), f"Expecting type to be of RegionRelationAssessments, but is {type(asgmt)}"
         assert isinstance(asgmt.assigned_structure, Region), f"Expecting assigned structure to be of type Region, but is {type(asgmt.assigned_structure)}"
         return_val.append(
-            ( asgmt.assigned_structure.parcellation.id, asgmt.assigned_structure.name, asgmt.qualification.name, asgmt.explanation)
+            (asgmt.assigned_structure.parcellation.id, asgmt.assigned_structure.name, asgmt.qualification.name, asgmt.explanation)
         )
     return tuple(return_val)
 
@@ -911,7 +911,7 @@ def get_related_regions(region: Region) -> Iterable["RegionRelationAssessments"]
     pe_id = get_peid_from_region(region)
     if not pe_id:
         return []
-    
+
     for parc_id, region_name, qual, explanation in _get_related_regions_str(pe_id):
         parc = _parcellation.Parcellation.get_instance(parc_id)
         found_region = parc.get_region(region_name)
@@ -1033,12 +1033,9 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
         ]
 
         for pe in pes:
-
             for region in all_regions:
-                
                 if region is src:
                     continue
-
                 region_peid = get_peid_from_region(region)
                 if region_peid and (region_peid in pe.get("id")):
                     yield cls(
@@ -1052,7 +1049,6 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
             for relation in relations:
                 yield from cls.parse_relationship_assessment(src, relation)
 
-
     @classmethod
     @_register_region_reference_type("openminds/ParcellationEntityVersion")
     def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
@@ -1065,7 +1061,7 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
             }
         ]
         yield from cls.translate_pes(src, pe_uuids)
-        
+
     @classmethod
     def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
         if not region._spec:
