@@ -26,12 +26,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       USE_REF: ${{ steps.use-ref.outputs.USE_REF }}
+    env:
+      # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+      COMMIT_MSG: ${{ github.event.head_commit.message }}
     steps:
     - uses: actions/checkout@v4
     - id: 'use-ref'
       run: |
         SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
-        echo "${{ github.event.head_commit.message }}" | while IFS= read -r line
+        echo "$COMMIT_MSG" | while IFS= read -r line
         do
           if [[ "$line" == "${{ env.USE_CONFIG_COMMIT_KW }}"* ]]
           then
@@ -59,7 +62,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - if: ${{ needs.use-custom-cfg.outputs.USE_REF != '' }}
-      uses: .github/workflows/setup-custom-cfg
+      uses: './.github/workflows/setup-custom-cfg'
       with:
         siibra-cfg-ref: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     - name: Set up Python ${{ matrix.python-version }}
@@ -99,7 +102,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - if: ${{ needs.use-custom-cfg.outputs.USE_REF != '' }}
-      uses: .github/workflows/setup-custom-cfg
+      uses: './.github/workflows/setup-custom-cfg'
       with:
         siibra-cfg-ref: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     - name: Set up Python ${{ matrix.python-version }}
