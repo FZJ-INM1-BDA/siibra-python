@@ -792,7 +792,7 @@ class CompoundFeature(Feature):
 
     @property
     def data(self):
-        return self._get_merged_feature.data
+        return self._get_merged_feature().data
 
     @property
     def indexing_attributes(self) -> Tuple[str]:
