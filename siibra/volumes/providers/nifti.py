@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger
+from ...commons import logger, resample_array_to_array
 from ...retrieval import requests
 from ...locations import pointset, boundingbox as _boundingbox
 
@@ -108,11 +108,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
-        from nilearn.image import resample_to_img
-
-        # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        interp = lambda tp: "nearest" if issubclass(tp, np.integer) else 'linear'
-
         bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
@@ -130,8 +125,12 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             # resample to merge template and update it
-            resampled = resample_to_img(img, result, interpolation=interp(img.dataobj.dtype.type))
-            arr = np.asanyarray(resampled.dataobj)
+            arr = resample_array_to_array(
+                source_data=np.asanyarray(img.dataobj),
+                source_affine=img.affine,
+                target_data=result_arr,
+                target_affine=result_affine
+            )
             nonzero_voxels = arr != 0
             num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
             result_arr[nonzero_voxels] = arr[nonzero_voxels]

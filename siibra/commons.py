@@ -519,11 +519,10 @@ def resample_array_to_array(
     """
     from nibabel import Nifti1Image
     from nilearn.image import resample_to_img
-    interp = "nearest" if issubclass(source_data.dtype.type, np.integer) else 'linear'
     resampled_img = resample_to_img(
         Nifti1Image(source_data, source_affine),
         Nifti1Image(target_data, target_affine),
-        interpolation=interp
+        interpolation="nearest" if np.array_equal(np.unique(source_data), [0, 1]) else "linear"
     )
     return np.asanyarray(resampled_img.dataobj)
 

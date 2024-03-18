@@ -15,7 +15,14 @@
 
 from . import provider as _provider
 
-from ...commons import logger, MapType, merge_meshes, SIIBRA_MAX_FETCH_SIZE_GIB, QUIET
+from ...commons import (
+    logger,
+    MapType,
+    merge_meshes,
+    SIIBRA_MAX_FETCH_SIZE_GIB,
+    QUIET,
+    resample_array_to_array
+)
 from ...retrieval import requests, cache
 from ...locations import boundingbox as _boundingbox
 
@@ -178,11 +185,6 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
         voi: _boundingbox.BoundingBox = None,
         **kwargs
     ) -> nib.Nifti1Image:
-        from nilearn.image import resample_to_img
-
-        # TODO this only performs nearest neighbor interpolation, optimized for float types.
-        interp = lambda tp: "nearest" if issubclass(tp, np.integer) else 'linear'
-
         with QUIET:
             bbox = self.get_boundingbox(
                 clip=False,
@@ -212,8 +214,12 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             # resample to merge template and update it
-            resampled = resample_to_img(img, result, interpolation=interp(img.dataobj.dtype.type))
-            arr = np.asanyarray(resampled.dataobj)
+            arr = resample_array_to_array(
+                source_data=np.asanyarray(img.dataobj),
+                source_affine=img.affine,
+                target_data=result_arr,
+                target_affine=result_affine
+            )
             nonzero_voxels = arr != 0
             num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
             result_arr[nonzero_voxels] = arr[nonzero_voxels]
