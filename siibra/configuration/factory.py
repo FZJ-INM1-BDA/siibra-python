@@ -27,7 +27,7 @@ from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
-from ..volumes.providers import provider, gifti, neuroglancer, nifti
+from ..volumes.providers import provider, gifti, neuroglancer, nifti, freesurfer
 
 from os import path
 import json
@@ -263,7 +263,9 @@ class Factory:
             nifti.NiftiProvider,
             nifti.ZipContainedNiftiProvider,
             gifti.GiftiMesh,
-            gifti.GiftiSurfaceLabeling
+            gifti.GiftiSurfaceLabeling,
+            freesurfer.ZippedFreesurferAnnot,
+            freesurfer.FreesurferAnnot,
         ]
 
         for srctype, provider_spec in spec.get("providers", {}).items():

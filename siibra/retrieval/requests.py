@@ -30,7 +30,7 @@ import json
 from zipfile import ZipFile
 import requests
 import os
-from nibabel import Nifti1Image, GiftiImage, streamlines
+from nibabel import Nifti1Image, GiftiImage, streamlines, freesurfer
 from skimage import io as skimage_io
 import gzip
 from io import BytesIO
@@ -48,6 +48,20 @@ if TYPE_CHECKING:
 
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
+
+def read_annot_bytesio(bytesio: BytesIO):
+    """
+    Helper function to read .annot files with `nibabel.freesurfer.read_annot()`
+    since it only takes file path and cannot handle BytesIO.
+    """
+    tempannot = CACHE.build_filename("tempannot") + '.annot'
+    with open(tempannot, "wb") as bf:
+        bf.write(bytesio.getbuffer())
+    result = freesurfer.read_annot(tempannot)
+    os.remove(tempannot)
+    return result
+
+
 DECODERS = {
     ".nii": lambda b: Nifti1Image.from_bytes(b),
     ".gii": lambda b: GiftiImage.from_bytes(b),
@@ -59,6 +73,7 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
+    ".annot": lambda b: read_annot_bytesio(BytesIO(b)),
 }
 
 

@@ -52,7 +52,9 @@ class Volume(location.Location):
         "neuroglancer/precompmesh",
         "neuroglancer/precompmesh/surface",
         "gii-mesh",
-        "gii-label"
+        "gii-label",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
@@ -425,7 +427,7 @@ class Volume(location.Location):
             fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
                 try:
-                    if fmt == "gii-label":
+                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
                         mesh = tpl.fetch(**kwargs)
                         labels = self._providers[fmt].fetch(**fwd_args)

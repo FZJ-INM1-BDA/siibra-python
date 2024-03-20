@@ -140,3 +140,12 @@ def test_fetching_mask(siibramap: Map):
                 f"{siibramap}, {fmt}. Mask for {region} should only contain 0 "
                 f"and 1 but found: {unq_vals}"
             )
+
+
+def test_freesrufer_annot_map_fetch():
+    mp = siibra.get_map(parcellation="visf", space="fsaverage")
+    mesh = mp.fetch(fragment='left', variant='pial')
+    assert np.array_equal(
+        np.unique(mesh['labels']),
+        np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
+    )
