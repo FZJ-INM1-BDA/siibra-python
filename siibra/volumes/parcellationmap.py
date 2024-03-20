@@ -37,7 +37,7 @@ from ..locations import location, point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, BinaryIO
+from typing import DefaultDict, Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, BinaryIO
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nilearn import image
@@ -47,6 +47,7 @@ from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from nibabel.nifti1 import Nifti1Image
 
 
 @dataclass
@@ -153,7 +154,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 self._indices[k].append(
                     MapIndex(volume=remap_volumes[vol, z], label=index.get('label'), fragment=index.get('fragment'))
                 )
-        assert len(self.volumes) > 0, exceptions.NoVolumeFound("No volumes are associated with this map.")
 
         # make sure the indices are unique - each map/label pair should appear at most once
         all_indices = sum(self._indices.values(), [])
@@ -334,7 +334,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         index: MapIndex = None,
         region: Union[str, "Region"] = None,
         **kwargs
-    ):
+    ) -> Union["Nifti1Image", DefaultDict[str, np.ndarray]]:
         """
         Fetches one particular volume of this parcellation map.
 
@@ -1156,32 +1156,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         return assignments
 
-    def _to_zip(self, zf: ZipFile, **fetch_kwargs):
-        zf.writestr(
-            "README.md",
-            create_readme(
-                name=self.name,
-                datasets=self.datasets,
-                description=self.description or self.parcellation.description
-            )
-        )
-        try:
-            cmap = pd.DataFrame(
-                [
-                    clr for i, clr in enumerate(self.get_colormap().colors.tolist())
-                    if i in self.labels
-                ],
-                index=pd.Index(self.regions, name="region name"),
-                columns=['r', 'g', 'b', 'alpha']
-            )
-            cmap.to_csv(zf.fp, sep=';', compression=dict(method='zip', archive_name="colormap.csv"))
-        except Exception:
-            # logger.info("Could get the colormap:", exc_info=1)
-            pass
-
-        for vol in self.volumes:
-            vol._to_zip(zf, **fetch_kwargs)
-
     def to_zip(self, filelike: Union[str, BinaryIO], **fetch_kwargs):
         """
         Export as a zip archive.
@@ -1193,7 +1167,17 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             correct extension (.zip) is set.
         """
         with ZipFile(filelike, "w") as zf:
-            self._to_zip(zf, **fetch_kwargs)
+            zf.writestr(
+                "README.md",
+                create_readme(
+                    name=f"{self.maptype} map of {self.parcellation} on {self.space}",
+                    datasets=self.datasets or [ds for vol in self.volumes for ds in vol.datasets] or self.parcellation.datasets,
+                    description=self.description or self.parcellation.description
+                )
+            )
+            for vol in siibra_tqdm(self.volumes, disable=len(self.volumes) == 1):
+                vol._to_zip(zf, **fetch_kwargs)
+            logger.debug(zf.namelist())
 
 
 def from_volume(

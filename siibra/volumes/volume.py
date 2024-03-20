@@ -22,6 +22,7 @@ from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
 from ..commons import resample_array_to_array, siibra_tqdm, create_readme
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
+from .providers.gifti import mesh_to_gifti
 
 from nibabel import Nifti1Image
 import numpy as np
@@ -73,7 +74,7 @@ class Volume(location.Location):
         self,
         space_spec: dict,
         providers: List['_provider.VolumeProvider'],
-        name: str = "",
+        name: str,
         variant: str = None,
         datasets: List['TypeDataset'] = [],
     ):
@@ -176,15 +177,15 @@ class Volume(location.Location):
         return any(f in self.IMAGE_FORMATS for f in self.formats)
 
     @property
-    def fragments(self) -> Dict[str, List[str]]:
+    def fragments(self) -> Dict[str, Set[str]]:
         result = {}
         for srctype, p in self._providers.items():
             t = 'mesh' if srctype in self.MESH_FORMATS else 'image'
             for fragment_name in p.fragments:
                 if t in result:
-                    result[t].append(fragment_name)
+                    result[t].add(fragment_name)
                 else:
-                    result[t] = [fragment_name]
+                    result[t] = {fragment_name}
         return result
 
     @property
@@ -527,31 +528,40 @@ class Volume(location.Location):
         return points
 
     def _to_zip(self, zf: ZipFile, **fetch_kwargs):
+        assert len(self.name) > 0
         zf.writestr(
             f"{self.name} - README.md",
             create_readme(self.name, self.datasets)
         )
 
-        # format provided
         fmt = fetch_kwargs.pop("format", None)
-        if self.provides_image and (fmt in self.IMAGE_FORMATS or fmt is None):
-            frags = [fetch_kwargs.get("fragment")] if fetch_kwargs.get("fragment") else self.fragments['image']
-            for frag in frags:
+        frag_kwarg = list(fetch_kwargs.pop("fragment")) if "fragment" in fetch_kwargs else None
+
+        frags_image = frag_kwarg or self.fragments.get('image', [None])
+        for frag in frags_image:
+            if self.provides_image and (fmt in self.IMAGE_FORMATS or fmt is None):
                 img = self.fetch(format=fmt or 'image', fragment=frag, **fetch_kwargs)
+                if img is None:
+                    continue
+                assert isinstance(img, Nifti1Image)
                 zf.writestr(f"{self.name}{f' - {frag}' if frag else ''}.nii", img.to_bytes())
 
-        if self.provides_mesh and (fmt in self.MESH_FORMATS or fmt is None):
-            from .providers.gifti import mesh_to_gifti
-
-            frags = [fetch_kwargs.get("fragment")] if fetch_kwargs.get("fragment") else self.fragments['mesh']
-            for frag in frags:
+        frags_mesh = frag_kwarg or self.fragments.get('mesh', [None])
+        for frag in frags_mesh:
+            if self.provides_mesh and (fmt in self.MESH_FORMATS or fmt is None):
                 mesh = self.fetch(format=fmt or 'mesh', fragment=frag, **fetch_kwargs)
+                if mesh is None:
+                    continue
                 gii = mesh_to_gifti(mesh)
                 zf.writestr(f"{self.name}{f' - {frag}' if frag else ''}.gii", gii.to_bytes())
 
     def to_zip(self, filelike: Union[str, BinaryIO], **fetch_kwargs):
         """
         Export as a zip archive.
+
+        Note
+        ----
+        Meshes will be exported as .gii and images as .nii
 
         Parameters
         ----------
@@ -561,6 +571,7 @@ class Volume(location.Location):
         """
         with ZipFile(filelike, "w") as zf:
             self._to_zip(zf, **fetch_kwargs)
+            logger.debug(zf.namelist())
 
 
 class Subvolume(Volume):
@@ -568,14 +579,15 @@ class Subvolume(Volume):
     Wrapper class for exposing a z level of a 4D volume to be used like a 3D volume.
     """
 
-    def __init__(self, parent_volume: Volume, z: int):
+    def __init__(self, parent_volume: Volume, z: int, name: str = ""):
         Volume.__init__(
             self,
             space_spec=parent_volume._space_spec,
             providers=[
                 _provider.SubvolumeProvider(p, z=z)
                 for p in parent_volume._providers.values()
-            ]
+            ],
+            name=name or f"{parent_volume.name} - {z}"
         )
 
 

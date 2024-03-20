@@ -233,16 +233,16 @@ class Feature:
                 break
         return prefix + md5(self.name.encode("utf-8")).hexdigest()
 
-    def _to_zip(self, fh: ZipFile):
+    def _to_zip(self, zf: ZipFile):
         """
         Internal implementation. Subclasses can override but call super()._to_zip(fh).
         This allows all classes in the __mro__ to have the opportunity to append files
         of interest.
         """
-        if isinstance(self, Compoundable) and "README.md" in fh.namelist():
+        if isinstance(self, Compoundable) and "README.md" in zf.namelist():
             return
 
-        fh.writestr(
+        zf.writestr(
             "README.md",
             create_readme(self.name, self.datasets, self.description)
         )

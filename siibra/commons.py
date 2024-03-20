@@ -56,6 +56,33 @@ with open(os.path.join(ROOT_DIR, "VERSION"), "r") as fp:
     __version__ = fp.read().strip()
 
 
+_README_PUBLICATIONS = """
+Publications
+------------
+{doi}
+
+{ebrains_page}
+
+{authors}
+
+{publication_desc}
+
+"""
+
+_README_TMPL = """
+    Downloaded from siibra toolsuite.
+    siibra-python version: {version}
+
+    All releated resources (e.g. doi, web resources) are categorized under publications.
+
+    Name
+    ----
+    {name}
+
+    {publications}
+    """
+
+
 def create_readme(name: str, datasets: list, description: str = "") -> str:
     ebrains_page = "\n".join(
         {ds.ebrains_page for ds in datasets if getattr(ds, "ebrains_page", None)}
@@ -72,18 +99,6 @@ def create_readme(name: str, datasets: list, description: str = "") -> str:
     })
     publication_desc = "\n".join({ds.description for ds in datasets})
     if (ebrains_page or doi) and authors:
-        _README_PUBLICATIONS = """
-        Publications
-        ------------
-        {doi}
-
-        {ebrains_page}
-
-        {authors}
-
-        {publication_desc}
-
-        """
         publications = _README_PUBLICATIONS.format(
             ebrains_page="EBRAINS page\n" + ebrains_page if ebrains_page else "",
             doi="DOI\n" + doi if doi else "",
@@ -93,18 +108,6 @@ def create_readme(name: str, datasets: list, description: str = "") -> str:
     else:
         publications = "Note: could not obtain any publication information. The data may not have been published yet."
 
-    _README_TMPL = """
-    Downloaded from siibra toolsuite.
-    siibra-python version: {version}
-
-    All releated resources (e.g. doi, web resources) are categorized under publications.
-
-    Name
-    ----
-    {name}
-
-    {publications}
-    """
     return _README_TMPL.format(
         version=__version__,
         name=name,

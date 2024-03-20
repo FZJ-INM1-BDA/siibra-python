@@ -2,7 +2,7 @@ import pytest
 import siibra
 
 from siibra import MapType
-from siibra.volumes import Map
+from siibra.volumes import Map, Volume
 
 from zipfile import ZipFile
 import os
@@ -19,13 +19,16 @@ volumes_to_extract = [
 ]
 
 
-@pytest.mark.parametrize("siibramap", volumes_to_extract)
-def test_volume_to_zip(siibramap: Map):
-    zpname = f"{siibramap.name}.zip"
-    siibramap.to_zip(zpname)
+@pytest.mark.parametrize("volume", volumes_to_extract)
+def test_volume_to_zip(volume: Volume):
+    zpname = f"{volume.name}.zip"
+    volume.to_zip(zpname)
     with ZipFile(zpname) as zf:
         filenames = [info.filename for info in zf.filelist]
-        assert "README.md" in filenames
+        assert any(
+            fname.endswith("- README.md") and fname.startswith(volume.name)
+            for fname in filenames
+        ), filenames
     os.remove(zpname)
 
 
@@ -42,5 +45,9 @@ def test_map_to_zip(siibramap: Map):
     siibramap.to_zip(zpname)
     with ZipFile(zpname) as zf:
         filenames = [info.filename for info in zf.filelist]
-        assert "README.md" in filenames
+        for v in siibramap.volumes:
+            assert any(
+                fname.endswith("- README.md") and fname.startswith(v.name)
+                for fname in filenames
+            ), filenames
     os.remove(zpname)
