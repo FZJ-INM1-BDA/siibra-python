@@ -41,7 +41,8 @@ class ReceptorDensityProfile(
         receptor: str,
         tsvfile: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None
     ):
         """Generate a receptor density profile from a URL to a .tsv file
         formatted according to the structure used by Palomero-Gallagher et al.
@@ -52,6 +53,7 @@ class ReceptorDensityProfile(
             modality="Receptor density",
             anchor=anchor,
             datasets=datasets,
+            id=id
         )
         self.receptor = receptor
         self._data_cached = None
@@ -71,10 +73,6 @@ class ReceptorDensityProfile(
     @property
     def receptor_fullname(self):
         return vocabularies.RECEPTOR_SYMBOLS[self.receptor]['receptor']['name']
-
-    @property
-    def name(self):
-        return super().name + f" for {self.receptor}"
 
     @property
     def neurotransmitter(self):

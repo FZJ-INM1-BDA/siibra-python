@@ -19,7 +19,7 @@ from ..feature import Compoundable
 from .. import anchor as _anchor
 
 import pandas as pd
-from typing import Union, Dict, Tuple
+from typing import Union, Dict, Tuple, List
 from textwrap import wrap
 import numpy as np
 
@@ -56,7 +56,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         values: Union[list, np.ndarray] = None,
         unit: str = None,
         boundary_positions: Dict[Tuple[int, int], float] = None,
-        datasets: list = []
+        datasets: list = [],
+        id: str = None
     ):
         """Initialize profile.
 
@@ -96,7 +97,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             description=description,
             anchor=anchor,
             data=None,  # lazy loader below
-            datasets=datasets
+            datasets=datasets,
+            id=id
         )
 
     def _check_sanity(self):
@@ -159,8 +161,31 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     def data(self):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
-        return pd.DataFrame(
-            self._values, index=self._depths, columns=[f"{self.modality} ({self.unit})"]
+        if self._values.shape[1] == 2:
+            columns = [f"{self.modality} mean ({self.unit})", "std"]
+        else:
+            columns = [f"{self.modality} ({self.unit})"]
+        return pd.DataFrame(self._values, index=self._depths, columns=columns)
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["CorticalProfile"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert all(np.array_equal(elements[0]._depths, f._depths) for f in elements)
+        assert len({f.unit for f in elements}) == 1
+        values_stacked = np.stack([f._values for f in elements])
+        return CorticalProfile(
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            depths=np.stack([f._depths for f in elements]).mean(0),
+            values=np.stack([values_stacked.mean(0), values_stacked.std(0)]).T,
+            unit=elements[0].unit,
+            boundary_positions=None,
         )
 
     def plot(self, *args, backend="matplotlib", **kwargs):
@@ -180,11 +205,14 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
         layercolor = kwargs.pop("layercolor", "gray")
 
+        ymax = max(0, self._values.max() if self._values.shape[1] == 1 else self._values[:, 0].max() + self._values[:, 1].max())
         if backend == "matplotlib":
+            if self._values.shape[1] == 2:
+                kwargs["yerr"] = kwargs.get("yerr", "std")
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["ylim"] = kwargs.get("ylim", (0, max(self._values)))
+            kwargs["ylim"] = kwargs.get("ylim", ymax),
             axs = self.data.plot(*args, **kwargs, backend=backend)
 
             if self.boundaries_mapped:
@@ -203,6 +231,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             axs.set_title(axs.get_title(), fontsize="medium")
             return axs
         elif backend == "plotly":
+            if self._values.shape[1] == 2:
+                kwargs["error_y"] = kwargs.get("error_y", "std")
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
@@ -219,7 +249,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                     )
             fig.update_layout(
                 showlegend=False,
-                yaxis_range=(0, max(self._values)),
+                yaxis_range=(0, ymax),
                 title=dict(
                     automargin=True, yref="container", xref="container",
                     pad=dict(t=40), xanchor="left", yanchor="top"
@@ -254,3 +284,11 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 f"'_values' not available for {self.__class__.__name__}."
             )
         return self._values_cached
+
+    @property
+    def name(self):
+        if hasattr(self, "receptor"):
+            return super().name + f": {self.receptor}"
+        if hasattr(self, "location"):
+            return super().name + f": {self.location.coordinate}"
+        return super().name
