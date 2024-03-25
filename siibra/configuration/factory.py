@@ -24,7 +24,7 @@ from ..features.tabular import (
 )
 from ..features.image import sections, volume_of_interest
 from ..core import atlas, parcellation, space, region
-from ..locations import point, pointset
+from ..locations import point, pointset, boundingbox
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
 from ..volumes.providers.provider import VolumeProvider
@@ -350,6 +350,16 @@ class Factory:
         return pointset.PointSet(coords, space=space_id)
 
     @classmethod
+    @build_type("siibra/location/boundingbox/v0.1")
+    def build_boundingbox(cls, spec):
+        bboxspec = spec.get("boundingbox", None)
+        if bboxspec is None:
+            return None
+        space_id = spec.get("space").get("@id")
+        coords = [tuple(c) for c in bboxspec.get("coordinates")]
+        return boundingbox.BoundingBox(coords[0], coords[1], space=space_id)
+
+    @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
     def build_receptor_density_fingerprint(cls, spec):
         return receptor_density_fingerprint.ReceptorDensityFingerprint(
@@ -399,6 +409,7 @@ class Factory:
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
             "datasets": cls.extract_datasets(spec),
+            "boundingbox": cls.build_boundingbox(spec)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
