@@ -212,7 +212,6 @@ html_theme_options = {
     'repository_url': "https://github.com/FZJ-INM1-BDA/siibra-python",
     'use_repository_button': True,
     "extra_footer": "<div>This software code is funded from the European Union’s Horizon 2020 Framework Programme for Research and Innovation under the Specific Grant Agreement No. 945539 (Human Brain Project SGA3).</div>",
-    # Toc options
     'collapse_navigation': True,
     'max_navbar_depth': 2,
 }
