@@ -141,7 +141,7 @@ class Volume(location.Location):
             If the volume provider does not have a bounding box calculator.
         """
         fmt = fetch_kwargs.get("format")
-        if fmt not in self._providers:
+        if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
                 f"Requested format {fmt} is not available as provider of "
                 "this volume. See `volume.formats` for possible options."
@@ -156,8 +156,8 @@ class Volume(location.Location):
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
-            except NotImplementedError as e:
-                print(str(e))
+            except NotImplementedError:
+                logger.info(exc_info=1)
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
