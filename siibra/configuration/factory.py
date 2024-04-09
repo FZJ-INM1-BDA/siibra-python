@@ -277,7 +277,7 @@ class Factory:
             bbox=cls.build_boundingbox(spec)
         )
         if result._boundingbox is not None:
-            assert result._boundingbox.space == result.space, "BoundingBox of a volume cannot be in a different space than the volume's space."
+            assert result._boundingbox._space_spec == result._space_spec, "BoundingBox of a volume cannot be in a different space than the volume's space."
 
         return result
 
@@ -358,9 +358,9 @@ class Factory:
         bboxspec = spec.get("boundingbox", None)
         if bboxspec is None:
             return None
-        space_id = bboxspec.get("space").get("@id")
+        space_spec = bboxspec.get("space")
         coords = [tuple(c) for c in bboxspec.get("coordinates")]
-        return boundingbox.BoundingBox(coords[0], coords[1], space=space_id)
+        return boundingbox.BoundingBox(coords[0], coords[1], space=space_spec)
 
     @classmethod
     @build_type("siibra/feature/fingerprint/receptor/v0.1")
