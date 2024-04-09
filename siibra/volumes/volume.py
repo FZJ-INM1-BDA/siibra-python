@@ -86,7 +86,7 @@ class Volume(location.Location):
             assert srctype not in self._providers
             self._providers[srctype] = provider
         if len(self._providers) == 0:
-            logger.debug(f"No provider for volume {self}")
+            logger.debug(f"No provider for volume {name}")
 
     def __hash__(self):
         return super().__hash__()
