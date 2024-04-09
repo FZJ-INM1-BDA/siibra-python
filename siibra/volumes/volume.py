@@ -156,8 +156,8 @@ class Volume(location.Location):
                     bbox._space_cached = self.space
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
-            except NotImplementedError:
-                logger.info(exc_info=1)
+            except NotImplementedError as e:
+                logger.info(e)
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")

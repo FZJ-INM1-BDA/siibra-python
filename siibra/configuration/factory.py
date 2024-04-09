@@ -102,7 +102,7 @@ class Factory:
         for i, vspec in enumerate(volume_specs):
             if space_id:
                 if 'space' in vspec:
-                    logger.warning(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
+                    assert vspec['space']["@id"] == space_id, "Space spec {vspec['space']} in volume field must be the same with space field in the configuration."
                 vspec['space'] = {"@id": space_id}
             if names and vspec.get('name') is None:  # only use provided name if the volume has no specific name
                 vspec['name'] = names[i]
