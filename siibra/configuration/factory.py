@@ -274,7 +274,10 @@ class Factory:
             name=spec.get("name", ""),
             variant=spec.get("variant"),
             datasets=cls.extract_datasets(spec),
+            bbox=cls.build_boundingbox(spec)
         )
+        if result._boundingbox is not None:
+            assert result._boundingbox.space == result.space, "BoundingBox of a volume cannot be in a different space than the volume's space."
 
         return result
 
@@ -355,7 +358,7 @@ class Factory:
         bboxspec = spec.get("boundingbox", None)
         if bboxspec is None:
             return None
-        space_id = spec.get("space").get("@id")
+        space_id = bboxspec.get("space").get("@id")
         coords = [tuple(c) for c in bboxspec.get("coordinates")]
         return boundingbox.BoundingBox(coords[0], coords[1], space=space_id)
 
@@ -408,8 +411,7 @@ class Factory:
             "region": spec.get('region', None),
             "space_spec": vol._space_spec,
             "providers": vol._providers.values(),
-            "datasets": cls.extract_datasets(spec),
-            "boundingbox": cls.build_boundingbox(spec)
+            "datasets": cls.extract_datasets(spec)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":

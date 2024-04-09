@@ -21,7 +21,6 @@ from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
 from ...volumes.providers import provider
-from ...locations import boundingbox
 
 from typing import List
 
@@ -63,8 +62,7 @@ class Image(feature.Feature, _volume.Volume):
         space_spec: dict,
         providers: List[provider.VolumeProvider],
         region: str = None,
-        datasets: List = [],
-        boundingbox: "boundingbox.BoundingBox" = None
+        datasets: List = []
     ):
         feature.Feature.__init__(
             self,
@@ -85,15 +83,6 @@ class Image(feature.Feature, _volume.Volume):
         self._anchor_cached = ImageAnchor(self, region=region)
         self._description_cached = None
         self._name_cached = name
-        self._boundingbox = boundingbox
-
-    def get_boundingbox(
-        self, clip: bool = True, background: float = 0.0, **fetch_kwargs
-    ) -> "boundingbox.BoundingBox":
-        if self._boundingbox is None:
-            return super().get_boundingbox(clip, background, **fetch_kwargs)
-        else:
-            return self._boundingbox
 
     def _to_zip(self, fh: ZipFile):
         super()._to_zip(fh)

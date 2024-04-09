@@ -75,12 +75,14 @@ class Volume(location.Location):
         name: str = "",
         variant: str = None,
         datasets: List['TypeDataset'] = [],
+        bbox: "boundingbox.BoundingBox" = None
     ):
         self._name = name
         self._space_spec = space_spec
         self.variant = variant
         self._providers: Dict[str, _provider.VolumeProvider] = {}
         self.datasets = datasets
+        self._boundingbox = bbox
         for provider in providers:
             srctype = provider.srctype
             assert srctype not in self._providers
@@ -140,6 +142,9 @@ class Volume(location.Location):
         RuntimeError
             If the volume provider does not have a bounding box calculator.
         """
+        if self._boundingbox is not None and len(fetch_kwargs) == 0:
+            return self._boundingbox
+
         fmt = fetch_kwargs.get("format")
         if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
