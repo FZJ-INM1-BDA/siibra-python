@@ -141,7 +141,7 @@ class Volume(location.Location):
             If the volume provider does not have a bounding box calculator.
         """
         fmt = fetch_kwargs.get("format")
-        if fmt in self._providers:
+        if fmt not in self._providers:
             raise ValueError(
                 f"Requested format {fmt} is not available as provider of "
                 "this volume. See `volume.formats` for possible options."
