@@ -454,6 +454,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for i in range(len(self))
         )
 
+    def get_volume(self, region: str):
+        index = self.get_index(region)
+        return _volume.Subvolume(self.volumes[index.volume], index.label)
+
     @property
     def provides_image(self):
         return any(v.provides_image for v in self.volumes)
