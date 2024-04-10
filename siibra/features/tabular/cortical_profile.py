@@ -161,7 +161,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
     def data(self):
         """Return a pandas Series representing the profile."""
         self._check_sanity()
-        if self._values.shape[1] == 2:
+        iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        if iscompound:
             columns = [f"{self.modality} mean ({self.unit})", "std"]
         else:
             columns = [f"{self.modality} ({self.unit})"]
@@ -205,9 +206,13 @@ class CorticalProfile(tabular.Tabular, Compoundable):
         kwargs["title"] = kwargs.get("title", "\n".join(wrap(self.name, wrapwidth)))
         layercolor = kwargs.pop("layercolor", "gray")
 
-        ymax = max(0, self._values.max() if self._values.shape[1] == 1 else self._values[:, 0].max() + self._values[:, 1].max())
+        iscompound = len(self._values.shape) > 1 and self._values.shape[1] == 2
+        ymax = max(
+            0,
+            sum(self._values.max(axis=0)) if iscompound else self._values.max()
+        )
         if backend == "matplotlib":
-            if self._values.shape[1] == 2:
+            if iscompound:
                 kwargs["yerr"] = kwargs.get("yerr", "std")
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
@@ -231,7 +236,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             axs.set_title(axs.get_title(), fontsize="medium")
             return axs
         elif backend == "plotly":
-            if self._values.shape[1] == 2:
+            if iscompound:
                 kwargs["error_y"] = kwargs.get("error_y", "std")
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
