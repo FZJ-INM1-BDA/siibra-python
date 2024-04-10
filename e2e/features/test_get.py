@@ -1,5 +1,6 @@
 import pytest
 import siibra
+from e2e.util import check_duplicate
 
 
 # We get all registered subclasses of Feature
@@ -9,6 +10,24 @@ import siibra
 def test_get_instances(Cls: siibra.features.Feature):
     instances = Cls._get_instances()
     assert isinstance(instances, list)
+
+
+@pytest.mark.parametrize(
+    "Cls", [Cls for Cls in siibra.features.Feature._SUBCLASSES[siibra.features.Feature]]
+)
+def test_id_unique(Cls: siibra.features.Feature):
+    instances = Cls._get_instances()
+    duplicates = check_duplicate([f.id for f in instances])
+    assert len(duplicates) == 0
+
+
+@pytest.mark.parametrize(
+    "Cls", [Cls for Cls in siibra.features.Feature._SUBCLASSES[siibra.features.Feature]]
+)
+def test_feature_unique(Cls: siibra.features.Feature):
+    instances = Cls._get_instances()
+    duplicates = check_duplicate([f for f in instances])
+    assert len(duplicates) == 0
 
 
 selected_ids = [
