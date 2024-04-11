@@ -20,9 +20,11 @@ from .. import feature
 from .. import anchor as _anchor
 
 from ...volumes import volume as _volume
-from ...volumes.providers import provider
 
-from typing import List
+from typing import List, TYPE_CHECKING
+if TYPE_CHECKING:
+    from ...locations.boundingbox import BoundingBox
+    from ...volumes.providers import provider
 
 
 class ImageAnchor(_anchor.AnatomicalAnchor):
@@ -60,9 +62,10 @@ class Image(feature.Feature, _volume.Volume):
         name: str,
         modality: str,
         space_spec: dict,
-        providers: List[provider.VolumeProvider],
+        providers: List["provider.VolumeProvider"],
         region: str = None,
-        datasets: List = []
+        datasets: List = [],
+        bbox: "BoundingBox" = None
     ):
         feature.Feature.__init__(
             self,
@@ -78,6 +81,7 @@ class Image(feature.Feature, _volume.Volume):
             providers=providers,
             name=name,
             datasets=datasets,
+            bbox=bbox
         )
 
         self._anchor_cached = ImageAnchor(self, region=region)

@@ -253,11 +253,9 @@ class Factory:
         return p
 
     @classmethod
-    @build_type("siibra/volume/v0.0.1")
-    def build_volume(cls, spec):
-        providers: List[volume.VolumeProvider] = []
-
-        for srctype, provider_spec in spec.get("providers", {}).items():
+    def build_volumeproviders(cls, provider_specs: Dict) -> List["VolumeProvider"]:
+        providers: List[VolumeProvider] = []
+        for srctype, provider_spec in provider_specs.items():
             for ProviderType in VolumeProvider._SUBCLASSES:
                 if srctype == ProviderType.srctype:
                     providers.append(ProviderType(provider_spec))
@@ -266,11 +264,15 @@ class Factory:
                 if srctype not in cls._warnings_issued:
                     logger.warning(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
-
         assert all([isinstance(p, VolumeProvider) for p in providers])
+        return providers
+
+    @classmethod
+    @build_type("siibra/volume/v0.0.1")
+    def build_volume(cls, spec):
         result = volume.Volume(
             space_spec=spec.get("space", {}),
-            providers=providers,
+            providers=cls.build_volumeproviders(spec.get("providers")),
             name=spec.get("name", ""),
             variant=spec.get("variant"),
             datasets=cls.extract_datasets(spec),
@@ -405,13 +407,13 @@ class Factory:
     @classmethod
     @build_type("siibra/feature/section/v0.1")
     def build_section(cls, spec):
-        vol = cls.build_volume(spec)
         kwargs = {
-            "name": spec.get('name', ""),
+            "name": spec.get("name"),
             "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
-            "providers": vol._providers.values(),
-            "datasets": cls.extract_datasets(spec)
+            "space_spec": spec.get("space"),
+            "providers": cls.build_volumeproviders(spec.get("providers")),
+            "datasets": cls.extract_datasets(spec),
+            "bbox": cls.build_boundingbox(spec)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
@@ -422,13 +424,13 @@ class Factory:
     @classmethod
     @build_type("siibra/feature/voi/v0.1")
     def build_volume_of_interest(cls, spec):
-        vol = cls.build_volume(spec)
         kwargs = {
-            "name": spec.get('name', ""),
+            "name": spec.get("name"),
             "region": spec.get('region', None),
-            "space_spec": vol._space_spec,
-            "providers": vol._providers.values(),
+            "space_spec": spec.get("space"),
+            "providers": cls.build_volumeproviders(spec.get("providers")),
             "datasets": cls.extract_datasets(spec),
+            "bbox": cls.build_boundingbox(spec)
         }
         modality = spec.get('modality', "")
         if modality == "cell body staining":
