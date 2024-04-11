@@ -217,8 +217,8 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
-            kwargs["ylim"] = kwargs.get("ylim", (0, ymax)),
             axs = self.data.plot(*args, **kwargs, backend=backend)
+            axs.set_ylim(kwargs.get("ylim", (0, ymax)))
 
             if self.boundaries_mapped:
                 bvals = list(self.boundary_positions.values())
