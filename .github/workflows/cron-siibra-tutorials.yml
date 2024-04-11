@@ -31,4 +31,4 @@ jobs:
           ref: 'main'
       
       - name: Test tutorial notebooks with nbmake
-        run: pytest --nbmake ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}/**/*ipynb
+        run: pytest --nbmake ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
