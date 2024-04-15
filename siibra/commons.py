@@ -18,6 +18,7 @@ import os
 import re
 from enum import Enum
 from nibabel import Nifti1Image
+from nilearn.image import resample_to_img
 import logging
 from tqdm import tqdm
 import numpy as np
@@ -507,24 +508,33 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     )
 
 
-def resample_array_to_array(
-    source_data: np.ndarray,
-    source_affine: np.ndarray,
-    target_data: np.ndarray,
-    target_affine: np.ndarray
-) -> np.ndarray:
+def resample_img_to_img(
+    source_img: Nifti1Image,
+    target_img: Nifti1Image,
+    interpolation: str = ""
+) -> Nifti1Image:
     """
-    Returns the source data resampled to match the target data
-    according to their affines.
+    Resamples to source image to match the target image according to target's
+    affine. (A wrapper of `nilearn.image.resample_to_img`.)
+
+    Parameters
+    ----------
+    source_img : Nifti1Image
+    target_img : Nifti1Image
+    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
+        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
+
+    Returns
+    -------
+    Nifti1Image
     """
-    from nibabel import Nifti1Image
-    from nilearn.image import resample_to_img
+    interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
     resampled_img = resample_to_img(
-        Nifti1Image(source_data, source_affine),
-        Nifti1Image(target_data, target_affine),
-        interpolation="nearest" if np.array_equal(np.unique(source_data), [0, 1]) else "linear"
+        source_img=source_img,
+        target_img=target_img,
+        interpolation=interpolation
     )
-    return np.asanyarray(resampled_img.dataobj)
+    return resampled_img
 
 
 def connected_components(imgdata: np.ndarray):

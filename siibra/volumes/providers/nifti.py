@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger, resample_array_to_array
+from ...commons import logger, resample_img_to_img
 from ...retrieval import requests
 from ...locations import pointset, boundingbox as _boundingbox
 
@@ -125,12 +125,8 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
             # resample to merge template and update it
-            arr = resample_array_to_array(
-                source_data=np.asanyarray(img.dataobj),
-                source_affine=img.affine,
-                target_data=result_arr,
-                target_affine=result_affine
-            )
+            resampled_img = resample_img_to_img(source_img=img, target_img=result)
+            arr = np.asanyarray(resampled_img.dataobj)
             nonzero_voxels = arr != 0
             num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
             result_arr[nonzero_voxels] = arr[nonzero_voxels]
