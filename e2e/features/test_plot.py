@@ -2,7 +2,6 @@ import pytest
 import siibra
 
 selected_ids = [
-    "lq0::EbrainsDataFeature::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS) left::https://nexus.humanbrainproject.org/v0/data/minds/core/dataset/v1.0.0/3ff328fa-f48f-474b-bd81-b5ee7ca230b6",
     "cf0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::nodsid::94768ccf7d23b640453fb56b4562c2d2",  # 2279 BigBrain Intensity Profile features
     "lq0::BigBrainIntensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::fe933acdb8dea6803c76251e004b9b1f",  # BigBrain Intensity Profile: (-3.0491600036621094, -64.58589935302734, 1.1756900548934937)
     "cf0::CellDensityProfile::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::r:Area hOc1 (V1, 17, CalcS)::f2cd6b97-e42d-41af-a01b-5caf2d692e28::599f219267d5bdc3c5c04ddf31f36748",  # 10 Cell Density Profile features

@@ -212,12 +212,10 @@ class CorticalProfile(tabular.Tabular, Compoundable):
             sum(self._values.max(axis=0)) if iscompound else self._values.max()
         )
         if backend == "matplotlib":
-            if iscompound:
-                kwargs["yerr"] = kwargs.get("yerr", "std")
             kwargs["xlabel"] = kwargs.get("xlabel", "Cortical depth")
             kwargs["ylabel"] = kwargs.get("ylabel", self.unit)
             kwargs["grid"] = kwargs.get("grid", True)
-            axs = self.data.plot(*args, **kwargs, backend=backend)
+            axs = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
             axs.set_ylim(kwargs.get("ylim", (0, ymax)))
 
             if self.boundaries_mapped:
@@ -234,16 +232,22 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                         axs.axvspan(d1, d2, color=layercolor, alpha=0.3)
 
             axs.set_title(axs.get_title(), fontsize="medium")
-            return axs
-        elif backend == "plotly":
+
             if iscompound:
-                kwargs["error_y"] = kwargs.get("error_y", "std")
+                axs.set_ylabel(f"average {kwargs['ylabel']} \u00b1 std")
+                av = self.data.values[:, 0]
+                std = self.data.values[:, 1]
+                axs.fill_between(self.data.index.values, av - std, av + std, alpha=0.35)
+
+            return axs
+
+        elif backend == "plotly":
             kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             kwargs["labels"] = {
                 "index": kwargs.pop("xlabel", None) or kwargs.pop("index", "Cortical depth"),
                 "value": kwargs.pop("ylabel", None) or kwargs.pop("value", self.unit)
             }
-            fig = self.data.plot(*args, **kwargs, backend=backend)
+            fig = self.data.iloc[:, 0].plot(*args, **kwargs, backend=backend)
             if self.boundaries_mapped:
                 bvals = list(self.boundary_positions.values())
                 for i, (d1, d2) in enumerate(list(zip(bvals[:-1], bvals[1:]))):
@@ -260,6 +264,23 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                     pad=dict(t=40), xanchor="left", yanchor="top"
                 )
             )
+            if iscompound:
+                from plotly.graph_objects import Scatter
+                x = self.data.index.values
+                av = self.data.values[:, 0]
+                std = self.data.values[:, 1]
+                fig.update_layout(yaxis_title=f"average {kwargs['labels']['value']} &plusmn; std")
+                fig.add_traces(
+                    Scatter(
+                        x=np.concatenate((x, x[::-1])),  # x, then x reversed
+                        y=np.concatenate((av + std, (av - std)[::-1])),  # upper, then lower reversed
+                        fill='toself',
+                        fillcolor='rgba(0,100,80,0.2)',
+                        line=dict(color='rgba(255,255,255,0)'),
+                        hoverinfo="skip",
+                        showlegend=False
+                    )
+                )
             return fig
         else:
             return self.data.plot(*args, **kwargs, backend=backend)
