@@ -77,7 +77,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def subject(self):
-        """Returns the subject identifiers for which the matrix represents."""
+        """Returns the subject identifiers for which the table represents."""
         return self._subject
 
     @property
@@ -102,29 +102,33 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         anchor: _anchor.AnatomicalAnchor,
     ):
         assert len({f.cohort for f in elements}) == 1
+        assert len({f.timestep for f in elements}) == 1
         merged = cls(
             cohort=elements[0].cohort,
             regions=elements[0].regions,
             connector=elements[0]._connector,
             decode_func=elements[0]._decode_func,
-            files=[],
+            filename="",
+            timestep=" ".join(str(val) for val in elements[0].timestep),
             subject="average",
-            feature="average",
             description=description,
             modality=modality,
             anchor=anchor,
             **{"paradigm": "average"} if getattr(elements[0], "paradigm") else {}
         )
+        if isinstance(elements[0]._connector, HttpRequest):
+            getter = lambda elm: elm._connector.get()
+        else:
+            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
         all_arrays = [
-            instance._connector.get(fname, decode_func=instance._decode_func)
-            for instance in siibra_tqdm(
+            getter(elm)
+            for elm in siibra_tqdm(
                 elements,
                 total=len(elements),
-                desc=f"Averaging {len(elements)} connectivity matrices"
+                desc=f"Averaging {len(elements)} activity tables"
             )
-            for fname in instance._filename
         ]
-        merged._matrix = elements[0]._arraylike_to_dataframe(
+        merged._table = elements[0]._arraylike_to_dataframe(
             np.stack(all_arrays).mean(0)
         )
         return merged
@@ -133,12 +137,17 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         """
         Extract the timeseries table.
         """
-        array = self._connector.get(self._filename, decode_func=self._decode_func)
+        if isinstance(self._connector, HttpRequest):
+            array = self._connector.data
+        else:
+            array = self._connector.get(self._filename, decode_func=self._decode_func)
+        self._table = self._arraylike_to_dataframe(array)
+
+    def _arraylike_to_dataframe(self, array: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
         if not isinstance(array, np.ndarray):
-            assert isinstance(array, pd.DataFrame)
             array = array.to_numpy()
         ncols = array.shape[1]
-        self._table = pd.DataFrame(
+        table = pd.DataFrame(
             array,
             index=pd.TimedeltaIndex(
                 np.arange(0, array.shape[0]) * self.timestep[0],
@@ -159,7 +168,9 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
                 label - min(columnmap.keys()): region
                 for label, region in columnmap.items()
             }
-            self._table = self._table.rename(columns=remapper)
+            table = table.rename(columns=remapper)
+
+        return table
 
     def __str__(self):
         return self.name

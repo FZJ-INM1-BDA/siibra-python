@@ -772,7 +772,7 @@ class CompoundFeature(Feature):
         return super().__dir__() + list(self._compounding_attributes.keys())
 
     def plot(self, *args, **kwargs):
-        kwargs["title"] = "(Averaged by siibra)\n" + kwargs.get(
+        kwargs["title"] = "(Derived data: averaged)\n" + kwargs.get(
             "title",
             "\n".join(wrap(self.name, kwargs.pop("textwrap", 40)))
         )
