@@ -15,7 +15,7 @@
 
 from . import provider as _provider
 
-from ...commons import logger
+from ...commons import logger, resample_img_to_img
 from ...retrieval import requests
 from ...locations import pointset, boundingbox as _boundingbox
 
@@ -108,7 +108,6 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
         return bbox
 
     def _merge_fragments(self) -> nib.Nifti1Image:
-        # TODO this only performs nearest neighbor interpolation, optimized for float types.
         bbox = self.get_boundingbox(clip=False, background=0.0)
         num_conflicts = 0
         result = None
@@ -119,26 +118,18 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
                 s0 = np.identity(4)
                 s0[:3, -1] = list(bbox.minpoint.transform(np.linalg.inv(img.affine)))
                 result_affine = np.dot(img.affine, s0)  # adjust global bounding box offset to get global affine
-                voxdims = np.asanyarray(
-                    np.ceil(
-                        bbox.transform(np.linalg.inv(result_affine)).shape
-                    ),
-                    dtype="int"
-                )
+                voxdims = np.asanyarray(np.ceil(
+                    bbox.transform(np.linalg.inv(result_affine)).shape
+                ), dtype="int")
                 result_arr = np.zeros(voxdims, dtype=img.dataobj.dtype)
                 result = nib.Nifti1Image(dataobj=result_arr, affine=result_affine)
 
-            arr = np.asanyarray(img.dataobj)
-            Xs, Ys, Zs = np.where(arr != 0)
-            Xt, Yt, Zt, _ = np.split(
-                (np.dot(
-                    np.linalg.inv(result_affine),
-                    np.dot(img.affine, np.c_[Xs, Ys, Zs, Zs * 0 + 1].T)
-                ) + .5).astype('int'),
-                4, axis=0
-            )
-            num_conflicts += np.count_nonzero(result_arr[Xt, Yt, Zt])
-            result_arr[Xt, Yt, Zt] = arr[Xs, Ys, Zs]
+            # resample to merge template and update it
+            resampled_img = resample_img_to_img(source_img=img, target_img=result)
+            arr = np.asanyarray(resampled_img.dataobj)
+            nonzero_voxels = arr != 0
+            num_conflicts += np.count_nonzero(result_arr[nonzero_voxels])
+            result_arr[nonzero_voxels] = arr[nonzero_voxels]
 
         if num_conflicts > 0:
             num_voxels = np.count_nonzero(result_arr)
