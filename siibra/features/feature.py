@@ -617,6 +617,7 @@ class Feature:
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
                 self.fid = fid
+                self.category = inst.category
 
             def __str__(self) -> str:
                 return self.inst.__str__()
