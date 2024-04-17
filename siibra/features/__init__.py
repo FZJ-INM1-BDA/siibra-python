@@ -53,7 +53,7 @@ def __getattr__(attr: str):
 
 
 @cache.Warmup.register_warmup_fn()
-def _warm_feature_cache_insntaces():
+def _warm_feature_cache_instances():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype._get_instances()
