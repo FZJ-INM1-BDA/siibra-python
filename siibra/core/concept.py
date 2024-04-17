@@ -125,12 +125,13 @@ class AtlasConcept:
         return '\n'.join(licenses)
 
     @property
-    def doi_or_url(self) -> str:
-        return '\n'.join([
+    def urls(self) -> List[str]:
+        """The list of URLs (including DOIs) associated with this atlas concept."""
+        return [
             url.get("url")
             for ds in self.datasets
             for url in ds.urls
-        ])
+        ]
 
     @property
     def authors(self):

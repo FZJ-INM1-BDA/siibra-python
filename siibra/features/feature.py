@@ -175,12 +175,13 @@ class Feature:
         return '\n'.join(licenses)
 
     @property
-    def doi_or_url(self) -> str:
-        return '\n'.join([
+    def urls(self) -> List[str]:
+        """The list of URLs (including DOIs) associated with this feature."""
+        return [
             url.get("url")
             for ds in self.datasets
             for url in ds.urls
-        ])
+        ]
 
     @property
     def authors(self):
@@ -447,7 +448,7 @@ class Feature:
 
         live_instances = []
         for QueryType in cls._live_queries:
-            argstr = f" ({', '.join('='.join(map(str,_)) for _ in kwargs.items())})" \
+            argstr = f" ({', '.join('='.join(map(str, _)) for _ in kwargs.items())})" \
                 if len(kwargs) > 0 else ""
             logger.debug(
                 f"Running live query for {QueryType.feature_type.__name__} "

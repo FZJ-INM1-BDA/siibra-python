@@ -278,7 +278,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         ----------
         regionspec: str, regex, int, Region
             - a string with a possibly inexact name (matched both against the name and the identifier key)
-            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux)
+            - a string in '/pattern/flags' format to use regex search (acceptable flags: aiLmsux, see at https://docs.python.org/3/library/re.html#flags)
             - a regex applied to region names
             - a Region object
         filter_children : bool, default: False
@@ -309,7 +309,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
                 for flag in flags or []:  # catch if flags is nullish
                     if flag not in self._accepted_flags:
-                        raise Exception(f"only accepted flag are in { self._accepted_flags }. {flag} is not within them")
+                        raise Exception(f"only accepted flag are in {self._accepted_flags}. {flag} is not within them")
                 search_regex = (f"(?{flags})" if flags else "") + expression
                 regionspec = re.compile(search_regex)
 
@@ -866,15 +866,14 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
 
         for space in self.supported_spaces:
             if space.provides_image:
-                logger.info(f"Intersect {other} with {self} in {space}")
                 try:
-                    warped = other.warp(space)
+                    volume = self.get_regional_map(space)
+                    if volume is not None:
+                        intersection = volume.intersection(other)
+                        logger.info(f"Warped {other} to {space} to find the intersection.")
+                        return intersection
                 except SpaceWarpingFailedError:
                     continue
-                assert warped is not None
-                volume = self.get_regional_map(space)
-                if volume is not None:
-                    return volume.intersection(warped).warp(other.space)
 
         return None
 

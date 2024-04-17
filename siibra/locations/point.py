@@ -25,7 +25,7 @@ import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Tuple
+from typing import Tuple, Union
 
 
 class Point(location.Location):
@@ -67,7 +67,13 @@ class Point(location.Location):
             f"Cannot decode the specification {spec} (type {type(spec)}) to create a point."
         )
 
-    def __init__(self, coordinatespec, space=None, sigma_mm: float = 0.0):
+    def __init__(
+        self,
+        coordinatespec,
+        space=None,
+        sigma_mm: float = 0.0,
+        label: Union[int, float, tuple] = None
+    ):
         """
         Construct a new 3D point set in the given reference space.
 
@@ -79,6 +85,8 @@ class Point(location.Location):
             The reference space (id, object, or name)
         sigma_mm : float, optional
             Location uncertainty of the point
+        label: optional
+            Any object attached as an attribute to the point
 
             Note
             ----
@@ -87,9 +95,11 @@ class Point(location.Location):
         location.Location.__init__(self, space)
         self.coordinate = Point.parse(coordinatespec)
         self.sigma = sigma_mm
+        self.label = label
         if isinstance(coordinatespec, Point):
             assert coordinatespec.sigma == sigma_mm
             assert coordinatespec.space == space
+        self.label = label
 
     @property
     def homogeneous(self):
@@ -106,7 +116,10 @@ class Point(location.Location):
             return self if other.intersection(self) else None
 
     def warp(self, space):
-        """Creates a new point by warping this point to another space"""
+        """
+        Creates a new point by warping this point to another space
+        TODO this needs to maintain the sigma parameter!
+        """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
         if spaceobj == self.space:
@@ -128,7 +141,9 @@ class Point(location.Location):
             logger.debug(f'Warping {str(self)} to {spaceobj.name} resulted in NaN')
             return None
         return self.__class__(
-            coordinatespec=tuple(response["target_point"]), space=spaceobj.id
+            coordinatespec=tuple(response["target_point"]),
+            space=spaceobj.id,
+            label=self.label
         )
 
     @property
@@ -140,13 +155,17 @@ class Point(location.Location):
         """Substract the coordinates of two points to get
         a new point representing the offset vector. Alternatively,
         subtract an integer from the all coordinates of this point
-        to create a new one."""
+        to create a new one.
+        TODO this needs to maintain sigma
+        """
         if isinstance(other, numbers.Number):
             return Point([c - other for c in self.coordinate], self.space)
 
         assert self.space == other.space
         return Point(
-            [self.coordinate[i] - other.coordinate[i] for i in range(3)], self.space
+            [self.coordinate[i] - other.coordinate[i] for i in range(3)],
+            self.space,
+            label=self.label
         )
 
     def __lt__(self, other):
@@ -196,22 +215,36 @@ class Point(location.Location):
         if isinstance(other, Point):
             assert self.space == other.space
         return Point(
-            [self.coordinate[i] + other.coordinate[i] for i in range(3)], self.space
+            [self.coordinate[i] + other.coordinate[i] for i in range(3)],
+            self.space,
+            sigma_mm=self.sigma + other.sigma,
+            label=(self.label, other.label)
         )
 
     def __truediv__(self, number: float):
         """Return a new point with divided
         coordinates in the same space."""
-        return Point(np.array(self.coordinate) / number, self.space, self.sigma / number)
+        return Point(
+            np.array(self.coordinate) / number,
+            self.space,
+            sigma_mm=self.sigma / number,
+            label=self.label
+        )
 
     def __mul__(self, number: float):
         """Return a new point with multiplied
         coordinates in the same space."""
-        return Point(np.array(self.coordinate) * number, self.space, self.sigma * number)
+        return Point(
+            np.array(self.coordinate) * number,
+            self.space,
+            sigma_mm=self.sigma * number,
+            label=self.label
+        )
 
     def transform(self, affine: np.ndarray, space=None):
         """Returns a new Point obtained by transforming the
         coordinate of this one with the given affine matrix.
+        TODO this needs to maintain sigma
 
         Parameters
         ----------
@@ -227,11 +260,17 @@ class Point(location.Location):
         x, y, z, h = np.dot(affine, self.homogeneous.T)
         if h != 1:
             logger.warning(f"Homogeneous coordinate is not one: {h}")
-        return self.__class__((x / h, y / h, z / h), space)
+        return self.__class__(
+            (x / h, y / h, z / h),
+            space,
+            sigma_mm=self.sigma,
+            label=self.label
+        )
 
     def get_enclosing_cube(self, width_mm):
         """
         Create a bounding box centered around this point with the given width.
+        TODO this should respect sigma (in addition or instead of the offset)
         """
         offset = width_mm / 2
         from .boundingbox import BoundingBox

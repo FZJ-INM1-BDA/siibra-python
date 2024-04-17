@@ -36,7 +36,7 @@ from nilearn import plotting
 # Find cell density profiles for V1. Cortical profile features are combined
 # together as elements to form :ref:`sphx_glr_examples_03_data_features_009_compound_features.py`.
 # Therefore, we can select the first and only item in the results.
-v1 = siibra.get_region("julich 3", "v1")
+v1 = siibra.get_region("julich 2.9", "v1")
 cf = siibra.features.get(v1, siibra.features.cellular.CellDensityProfile)[0]
 print(cf.name)
 
@@ -81,3 +81,18 @@ print(location)
 template = location.space.get_template().fetch()
 view = plotting.plot_anat(anat_img=template, cut_coords=tuple(location))
 view.add_markers([tuple(location)])
+
+# %%
+# Now let us look into BigBrain intenstiy profiles for V1 left and dispaly the
+# gray matter mesh coordinates on the region mask.
+v1left = siibra.get_region("julich 2.9", "v1 left")
+cf = siibra.features.get(v1left, "BigBrainIntensityProfile")[0]
+
+mask = v1left.get_regional_map("bigbrain").fetch()  # to highlight the region mask
+view2 = plotting.plot_roi(mask, bg_img=template)
+view2.add_markers(cf.anchor.location.coordinates, marker_size=5)
+
+# %%
+# Then, for comparison we can plot the profiles
+# %%
+cf[0].plot(backend="plotly")

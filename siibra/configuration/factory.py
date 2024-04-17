@@ -27,12 +27,12 @@ from ..core import atlas, parcellation, space, region
 from ..locations import point, pointset
 from ..retrieval import datasets, repositories
 from ..volumes import volume, sparsemap, parcellationmap
-from ..volumes.providers import provider, gifti, neuroglancer, nifti
+from ..volumes.providers.provider import VolumeProvider
 
 from os import path
 import json
 import numpy as np
-from typing import List, Type, Dict, Callable
+from typing import List, Dict, Callable
 import pandas as pd
 from io import BytesIO
 from functools import wraps
@@ -102,7 +102,7 @@ class Factory:
         for i, vspec in enumerate(volume_specs):
             if space_id:
                 if 'space' in vspec:
-                    logger.warning(f"Replacing space spec {vspec['space']} in volume spec with {space_id}")
+                    assert vspec['space']["@id"] == space_id, "Space spec {vspec['space']} in volume field must be the same with space field in the configuration."
                 vspec['space'] = {"@id": space_id}
             if names and vspec.get('name') is None:  # only use provided name if the volume has no specific name
                 vspec['name'] = names[i]
@@ -256,18 +256,9 @@ class Factory:
     @build_type("siibra/volume/v0.0.1")
     def build_volume(cls, spec):
         providers: List[volume.VolumeProvider] = []
-        provider_types: List[Type[volume.VolumeProvider]] = [
-            neuroglancer.NeuroglancerProvider,
-            neuroglancer.NeuroglancerMesh,
-            neuroglancer.NeuroglancerSurfaceMesh,
-            nifti.NiftiProvider,
-            nifti.ZipContainedNiftiProvider,
-            gifti.GiftiMesh,
-            gifti.GiftiSurfaceLabeling
-        ]
 
         for srctype, provider_spec in spec.get("providers", {}).items():
-            for ProviderType in provider_types:
+            for ProviderType in VolumeProvider._SUBCLASSES:
                 if srctype == ProviderType.srctype:
                     providers.append(ProviderType(provider_spec))
                     break
@@ -276,7 +267,7 @@ class Factory:
                     logger.warning(f"No provider defined for volume Source type {srctype}")
                     cls._warnings_issued.append(srctype)
 
-        assert all([isinstance(p, provider.VolumeProvider) for p in providers])
+        assert all([isinstance(p, VolumeProvider) for p in providers])
         result = volume.Volume(
             space_spec=spec.get("space", {}),
             providers=providers,
@@ -294,7 +285,7 @@ class Factory:
         assert "filename" in spec
         basename = path.splitext(path.basename(spec['filename']))[0]
         name = basename.replace('-', ' ').replace('_', ' ').replace('continuous', 'statistical')
-        identifier = f"{spec['@type'].replace('/','-')}_{basename}"
+        identifier = f"{spec['@type'].replace('/', '-')}_{basename}"
         volumes = cls.extract_volumes(spec, space_id=spec["space"].get("@id"), name_prefix=basename)
 
         if spec.get("sparsemap", {}).get("is_sparsemap"):

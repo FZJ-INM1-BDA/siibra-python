@@ -101,7 +101,7 @@ class Cache:
             targetsize -= st.st_size / 1024**3
 
         if index > 0:
-            logger.debug(f"Removing the {index+1} oldest files to keep cache size below {targetsize:.2f} GiB.")
+            logger.debug(f"Removing the {index + 1} oldest files to keep cache size below {targetsize:.2f} GiB.")
             for fn, st in sfiles[:index + 1]:
                 if os.path.isdir(fn):
                     import shutil

@@ -87,12 +87,14 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
 
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
-        features = []
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, (point.Point, pointset.PointSet))
-        assert matched.labels is not None
+        assert isinstance(matched, pointset.PointSet)
+        indices = matched.labels
+        assert indices is not None
+        features = []
         for i in matched.labels:
             anchor = _anchor.AnatomicalAnchor(
                 location=point.Point(loader._vertices[i], space='bigbrain'),
@@ -124,13 +126,13 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
-        matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
+        mesh_vertices = pointset.PointSet(loader._vertices, space='bigbrain')
+        matched = concept.intersection(mesh_vertices)  # returns a reduced PointSet with og indices as labels
         if matched is None:
             return []
-        assert isinstance(matched, (point.Point, pointset.PointSet))
+        assert isinstance(matched, pointset.PointSet)
         indices = matched.labels
-        if indices is None:
-            return []
+        assert indices is not None
         matched_profiles = loader._profiles[indices, :]
         boundary_depths = loader._boundary_depths[indices, :]
         # compute array of layer labels for all coefficients in profiles_left

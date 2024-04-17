@@ -834,7 +834,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         minsize_voxel=1,
         lower_threshold=0.0,
         **kwargs
-    ):
+    ) -> "pd.DataFrame":
         """Assign an input Location to brain regions.
 
         The input is assumed to be defined in the same coordinate space
@@ -857,7 +857,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
 
         Returns
         -------
-        assignments: pandas.DataFrame
+        pandas.DataFrame
             A table of associated regions and their scores per component found
             in the input image, or per coordinate provided. The scores are:
 
@@ -874,11 +874,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 masks as the ratio between the volume of their intersection and
                 the volume of the input image signal component (NaN for exact
                 coordinates)
-        components: Nifti1Image or None
-            If the input was an image, this is a labelled volume mapping the
-            detected components in the input image, where pixel values correspond
-            to the "component" column of the assignment table. If the input was
-            a Point or PointSet, returns None.
         """
 
         assignments = self._assign(item, minsize_voxel, lower_threshold, **kwargs)
@@ -1203,7 +1198,7 @@ def from_volume(
         if unnamed_labels:
             logger.warning(
                 f"The following labels appear in the NIfTI volume {vol_idx}, but not in "
-                f"the specified regions: {', '.join(str(l) for l in unnamed_labels)}. "
+                f"the specified regions: {', '.join(str(lb) for lb in unnamed_labels)}. "
                 "They will be removed from the nifti volume."
             )
             for label in unnamed_labels:
