@@ -66,7 +66,7 @@ def _warm_feature_cache_data():
         instances = ftype._get_instances()
         tally = siibra_tqdm(desc=f"Warming data {ftype.__name__}", total=len(instances))
         for f in instances:
-            def get_data(feat: Feature):
+            def get_data(feat: Feature, tally):
                 # TODO
                 # the try catch is as a result of https://github.com/FZJ-INM1-BDA/siibra-python/issues/509
                 # sometimes f.data can fail
@@ -76,7 +76,7 @@ def _warm_feature_cache_data():
                     logger.warn(f"Feature {feat.name} warmup failed: {str(e)}")
                 finally:
                     tally.update(1)
-            return_callables.append(partial(get_data, f))
+            return_callables.append(partial(get_data, f, tally))
     return return_callables
 
 

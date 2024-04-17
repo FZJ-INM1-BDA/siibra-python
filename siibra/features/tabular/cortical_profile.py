@@ -103,16 +103,16 @@ class CorticalProfile(tabular.Tabular, Compoundable):
 
     def _check_sanity(self):
         # check plausibility of the profile
-        assert isinstance(self._depths, (list, np.ndarray))
-        assert isinstance(self._values, (list, np.ndarray))
-        assert len(self._values) == len(self._depths)
-        assert all(0 <= d <= 1 for d in self._depths)
+        assert isinstance(self._depths, (list, np.ndarray)), "Some depths are not valid"
+        assert isinstance(self._values, (list, np.ndarray)), "Some values are not valid"
+        assert len(self._values) == len(self._depths), "There exist uneven number of depths and values"
+        assert all(0 <= d <= 1 for d in self._depths), "Some depths is not between 0 and 1"
         if self.boundaries_mapped:
-            assert all(0 <= d <= 1 for d in self.boundary_positions.values())
+            assert all(0 <= d <= 1 for d in self.boundary_positions.values()), "Some boundary positions are not between 0 and 1"
             assert all(
                 layerpair in self.BOUNDARIES
                 for layerpair in self.boundary_positions.keys()
-            )
+            ), "Some value in BOUNDARIES are not mapped in boundary_positions"
 
     @property
     def unit(self) -> str:
