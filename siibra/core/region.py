@@ -933,13 +933,23 @@ def _register_region_reference_type(ebrain_type: str):
 
 
 class RegionRelationAssessments(AnatomicalAssignment[Region]):
+    """A collection of methods on finding related regions and the quantification of the relationship."""
 
     anony_client = BucketApiClient()
 
     @staticmethod
     def get_uuid(long_id: Union[str, Dict]) -> str:
         """Returns the uuid portion of either a fully formed openminds id, or get the 'id'
-        property first, and extract the uuid portion of the id"""
+        property first, and extract the uuid portion of the id
+        
+        Args:
+            long_id (str|dict[str, str])
+        Returns:
+            str
+        Raises:
+            AssertionError
+            RuntimeError
+        """
         if isinstance(long_id, str):
             pass
         elif isinstance(long_id, dict):
@@ -953,6 +963,16 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @staticmethod
     def parse_id_arg(_id: Union[str, List[str]]) -> List[str]:
+        """Normalizes the ebrains id property. The ebrains id field can be either a str or list[str]. This method normalizes it to
+        always be list[str]
+        
+        Args:
+            _id (str|list[str])
+        Returns:
+            list[str]
+        Raises:
+            RuntimeError
+        """
         if isinstance(_id, list):
             assert all(isinstance(_i, str) for _i in _id), "all instances of pev should be str"
         elif isinstance(_id, str):
@@ -963,11 +983,26 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @classmethod
     def get_object(cls, obj: str):
+        """Gets given a object (path), loads the content and serializes to json. Relative to the bucket
+        'reference-atlas-data'
+        
+        Args:
+            obj (str)
+        Regurns:
+            dict
+        """
         bucket = cls.anony_client.buckets.get_bucket("reference-atlas-data")
         return json.loads(bucket.get_file(obj).get_content())
 
     @classmethod
     def get_snapshot_factory(cls, type_str: str):
+        """Factory method for given type.
+        
+        Args:
+            type_str (str)
+        Returns:
+            Callable[[str|list[str]], dict]
+        """
         def get_objects(_id: Union[str, List[str]]):
             _id = cls.parse_id_arg(_id)
             with ThreadPoolExecutor() as ex:
@@ -980,7 +1015,14 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @classmethod
     def parse_relationship_assessment(cls, src: "Region", assessment):
-
+        """Given a region, and the fetched assessment json, yield RegionRelationAssignment object
+        
+        Args:
+            src: Region
+            assessment: dict
+        Returns:
+            Iterable[RegionRelationAssessments]
+        """
         all_regions = [
             region
             for p in _parcellation.Parcellation.registry()
@@ -1016,6 +1058,14 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
     @classmethod
     @_register_region_reference_type("openminds/CustomAnatomicalEntity")
     def translate_cae(cls, src: "Region", _id: Union[str, List[str]]):
+        """Register how CustomAnatomicalEntity should be parsed
+        
+        Args:
+            src: Region
+            _id: str|list[str]
+        Returns:
+            Iterable[RegionRelationAssessments]
+        """
         caes = cls.get_snapshot_factory("CustomAnatomicalEntity")(_id)
         for cae in caes:
             for ass in cae.get("relationAssessment", []):
@@ -1024,6 +1074,14 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
     @classmethod
     @_register_region_reference_type("openminds/ParcellationEntity")
     def translate_pes(cls, src: "Region", _id: Union[str, List[str]]):
+        """Register how ParcellationEntity should be parsed
+        
+        Args:
+            src: Region
+            _id: str|list[str]
+        Returns:
+            Iterable[RegionRelationAssessments]
+        """
         pes = cls.get_snapshot_factory("ParcellationEntity")(_id)
 
         all_regions = [
@@ -1052,6 +1110,14 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
     @classmethod
     @_register_region_reference_type("openminds/ParcellationEntityVersion")
     def translate_pevs(cls, src: "Region", _id: Union[str, List[str]]):
+        """Register how ParcellationEntityVersion should be parsed
+        
+        Args:
+            src: Region
+            _id: str|list[str]
+        Returns:
+            Iterable[RegionRelationAssessments]
+        """
         pe_uuids = [
             uuid for uuid in
             {
@@ -1064,6 +1130,13 @@ class RegionRelationAssessments(AnatomicalAssignment[Region]):
 
     @classmethod
     def parse_from_region(cls, region: "Region") -> Iterable["RegionRelationAssessments"]:
+        """Main entry on how related regions should be retrieved. Given a region, retrieves all RegionRelationAssessments
+        
+        Args:
+            region: Region
+        Returns:
+            Iterable[RegionRelationAssessments]
+        """
         if not region._spec:
             return None
         for ebrain_type, ebrain_ref in region._spec.get("ebrains", {}).items():
