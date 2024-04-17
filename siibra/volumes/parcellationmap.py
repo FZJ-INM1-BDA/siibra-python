@@ -973,7 +973,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         assign a PointSet to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
@@ -1076,7 +1076,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         Assign an image volume to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
         queryvolume: Volume
             the volume to be compared with maps
@@ -1159,7 +1159,7 @@ def from_volume(
     """
     Add a custom labelled parcellation map to siibra from a labelled NIfTI file.
 
-    Parameters:
+    Parameters
     ------------
     name: str
         Human-readable name of the parcellation.

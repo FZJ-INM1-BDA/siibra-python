@@ -102,9 +102,11 @@ class InstanceTable(Generic[T], Iterable):
         self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
-        """Add a key/value pair to the registry.
+        """
+        Add a key/value pair to the registry.
 
-        Args:
+        Parameters
+        ----------
             key (string): Unique name or key of the object
             value (object): The registered object
         """
@@ -153,10 +155,13 @@ class InstanceTable(Generic[T], Iterable):
         the first in sorted order is returned. If the specification does not match,
         a RuntimeError is raised.
 
-        Args:
-            spec [int or str]: Index or string specification of an object
+        Parameters
+        ----------
+        spec: int, str
+            Index or string specification of an object
 
-        Returns:
+        Returns
+        -------
             Matched object
         """
         if spec is None:
@@ -658,11 +663,15 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     """
     Compute the mutual information between two 3D arrays, which need to have the same shape.
 
-    Parameters:
-    arr1 : First 3D array
-    arr2 : Second 3D array
-    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
-    normalized : Boolean, default:True
+    Parameters
+    ----------
+    arr1: np.ndarray
+        First 3D array
+    arr2: np.ndarray
+        Second 3D array
+    nbins: int
+        number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized: Boolean. Default: True
         if True, the normalized MI of arrays X and Y will be returned,
         leading to a range of values between 0 and 1. Normalization is
         achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X

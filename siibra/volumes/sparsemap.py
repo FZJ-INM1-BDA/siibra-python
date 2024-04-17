@@ -458,7 +458,7 @@ class SparseMap(parcellationmap.Map):
         """
         Assign an image volume to this sparse map.
 
-        Parameters:
+        Parameters
         -----------
         queryvolume: Volume
             the volume to be compared with maps
