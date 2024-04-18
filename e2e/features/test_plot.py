@@ -12,7 +12,6 @@ selected_ids = [
     "f16e449d-86e1-408b-9487-aa9d72e39901--a45c0c5f53325ac32b59833e7605b18a",  # 015 - Streamline Counts cohort: HCP
     "3f179784-194d-4795-9d8d-301b524ca00a--e27e3ad4f467fb5c445a504557f340a4--9c08356ec0454773885ded630e49b5d3",  # 0108_1 - Functional Connectivity cohort: 1000BRAINS, paradigm: Resting state (RestEmpCorrFC)
     "cf0::FunctionalConnectivity::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-290::f16e449d-86e1-408b-9487-aa9d72e39901::4da1dae86a1fd717e5a3618ab041fd3f",  # 200 Functional Connectivity features cohort: HCP, paradigm: Resting state (EmpCorrFC concatenated)
-    "b08a7dbc-7c75-4ce7-905b-690b2b1e8957--8ff1e1d8bcb26296027b475ec744b83c",  # Fiber structures of a human hippocampus based on joint DMRI, 3D-PLI, and TPFM acquisitions (T2 weighted MRI)
     "cf0::RegionalBOLD::p:minds/core/parcellationatlas/v1.0.0/94c1125b-b87e-45e4-901c-00daee7f2579-300::1f832869-0361-4064-8e60-c729590e1013::2a993ff2650c1a95e9c331e6a33c4325",  # 200 Regional BOLD features cohort: HCP, paradigm: rfMRI_REST1_RL_BOLD
     "1f832869-0361-4064-8e60-c729590e1013--dcb293fdce0c34447ab066e8725727c1",  # 000 - Regional BOLD cohort: HCP, paradigm: rfMRI_REST1_RL_BOLD
 ]
