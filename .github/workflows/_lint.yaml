@@ -1,0 +1,22 @@
+name: Lint
+on:
+  workflow_call:
+    inputs:
+      os:
+        required: true
+        type: string
+      python-version:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    runs-on: ${{ inputs.os }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: '${{ inputs.python-version }}'
+    - run: pip install flake8
+    - run: flake8 .
