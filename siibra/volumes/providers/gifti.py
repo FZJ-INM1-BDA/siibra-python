@@ -21,7 +21,38 @@ from ...commons import logger, merge_meshes
 from ...locations import boundingbox as _boundingbox
 
 import numpy as np
-from typing import Union, Dict
+from typing import Union, Dict, DefaultDict
+
+
+def mesh_to_gifti(mesh: DefaultDict[str, np.ndarray]):
+    """
+    Convert mesh in dictionary format fetched by siibra to Gifti.
+
+    Parameters
+    ----------
+    mesh : DefaultDict[str, np.ndarray]
+
+    Returns
+    -------
+    GiftiImage
+    """
+    from nibabel.gifti import gifti
+
+    assert all(k in mesh for k in ['verts', 'faces'])
+    darrays = [
+        gifti.GiftiDataArray(mesh['verts'], intent="NIFTI_INTENT_POINTSET", datatype='float32'),  # 1008
+        gifti.GiftiDataArray(mesh['faces'], intent="NIFTI_INTENT_TRIANGLE", datatype='int32')  # 1009
+    ]
+    labels = mesh.get('labels', None)
+    if labels is not None:
+        darrays += [
+            gifti.GiftiDataArray(
+                labels,
+                datatype='float32' if labels.dtype == np.dtype('float') else 'int32',
+                intent="NIFTI_INTENT_LABEL"  # 1002
+            )
+        ]
+    return gifti.GiftiImage(darrays=darrays)
 
 
 class GiftiMesh(_provider.VolumeProvider, srctype="gii-mesh"):
@@ -133,6 +164,10 @@ class GiftiSurfaceLabeling(_provider.VolumeProvider, srctype="gii-label"):
             self._loaders = {lbl: requests.HttpRequest(u) for lbl, u in url.items()}
         else:
             raise NotImplementedError(f"Urls for {self.__class__.__name__} are expected to be of type str or dict.")
+
+    @property
+    def fragments(self):
+        return [k for k in self._loaders if k is not None]
 
     def fetch(self, fragment: str = None, label: int = None, **kwargs):
         """Returns a 1D numpy array of label indices."""

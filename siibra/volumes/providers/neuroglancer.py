@@ -44,6 +44,10 @@ class NeuroglancerProvider(_provider.VolumeProvider, srctype="neuroglancer/preco
             raise ValueError(f"Invalid url specified for {self.__class__.__name__}: {url}")
 
     @property
+    def fragments(self):
+        return [k for k in self._fragments if k is not None]
+
+    @property
     def _url(self) -> Union[str, Dict[str, str]]:
         return self._init_url
 
@@ -539,6 +543,10 @@ class NeuroglancerMesh(_provider.VolumeProvider, srctype="neuroglancer/precompme
             self._meshes = {n: self._fragmentinfo(u) for n, u in resource.items()}
         else:
             raise ValueError(f"Resource specificaton not understood for {self.__class__.__name__}: {resource}")
+
+    @property
+    def fragments(self):
+        return [k for k in self._meshes if k is not None]
 
     @property
     def _url(self) -> Union[str, Dict[str, str]]:

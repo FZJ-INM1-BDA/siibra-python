@@ -14,7 +14,6 @@
 # limitations under the License.
 """Base type of features in volume format and related anatomical anchor."""
 
-from zipfile import ZipFile
 from .. import feature
 
 from .. import anchor as _anchor
@@ -22,7 +21,8 @@ from .. import anchor as _anchor
 from ...volumes import volume as _volume
 from ...volumes.providers import provider
 
-from typing import List
+from typing import List, Union, BinaryIO
+from zipfile import ZipFile
 
 
 class ImageAnchor(_anchor.AnatomicalAnchor):
@@ -84,12 +84,19 @@ class Image(feature.Feature, _volume.Volume):
         self._description_cached = None
         self._name_cached = name
 
-    def _to_zip(self, fh: ZipFile):
-        super()._to_zip(fh)
-        # How, what do we download?
-        # e.g. for marcel's volume, do we download at full resolution?
-        # cannot implement until Volume has an export friendly method
-        fh.writestr("volume.txt", "Volume cannot be downloaded yet.")
+    def to_zip(self, filelike: Union[str, BinaryIO], **fetch_kwargs):
+        """
+        Export as a zip archive.
+
+        Parameters
+        ----------
+        filelike: str or path
+            Filelike to write the zip file. User is responsible to ensure the
+            correct extension (.zip) is set.
+        """
+        with ZipFile(filelike, "w") as zf:
+            super(Image, self)._to_zip(zf)  # feature
+            super(feature.Feature, self)._to_zip(zf, **fetch_kwargs)  # volume
 
     @property
     def name(self):

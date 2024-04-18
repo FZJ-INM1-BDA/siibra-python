@@ -97,7 +97,13 @@ class SubvolumeProvider(VolumeProvider, srctype="subvolume"):
             vol = self.__class__._FETCHED_VOLUMES[data_key]
         else:
             vol = self.provider.fetch(**kwargs)
-        return vol.slicer[:, :, :, self.z]
+        if len(vol.shape) == 4:
+            return vol.slicer[:, :, :, self.z]
+        else:
+            return Nifti1Image(
+                (vol.get_fdata() == self.z).astype('uint8'),
+                vol.affine
+            )
 
     def __getattr__(self, attr):
         return self.provider.__getattribute__(attr)

@@ -29,22 +29,25 @@ from ..commons import (
     siibra_tqdm,
     Species,
     CompareMapsResult,
-    generate_uuid
+    generate_uuid,
+    create_readme
 )
 from ..core import concept, space, parcellation, region as _region
 from ..locations import location, point, pointset
 from ..retrieval import requests
 
 import numpy as np
-from typing import Union, Dict, List, TYPE_CHECKING, Iterable, Tuple
+from typing import DefaultDict, Union, Dict, List, TYPE_CHECKING, Iterable, Tuple, BinaryIO
 from scipy.ndimage import distance_transform_edt
 from collections import defaultdict
 from nilearn import image
 import pandas as pd
 from dataclasses import dataclass, asdict
+from zipfile import ZipFile
 
 if TYPE_CHECKING:
     from ..core.region import Region
+    from nibabel.nifti1 import Nifti1Image
 
 
 @dataclass
@@ -232,6 +235,11 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         matches = matched_region_names & self._indices.keys()
         if len(matches) == 0:
             logger.warning(f"Region {regionname} not defined in {self}")
+        if isinstance(region, _region.Region) and region.parcellation != self.parcellation:
+            logger.info(
+                f"Parcellation of the supplied region {region} does not match "
+                f"maps ({self.parcellation}). Used the region name for matching."
+            )
         return {
             idx: regionname
             for regionname in matches
@@ -326,7 +334,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         index: MapIndex = None,
         region: Union[str, "Region"] = None,
         **kwargs
-    ):
+    ) -> Union["Nifti1Image", DefaultDict[str, np.ndarray]]:
         """
         Fetches one particular volume of this parcellation map.
 
@@ -445,6 +453,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             for frag in fragments
             for i in range(len(self))
         )
+
+    def get_volume(self, region: str):
+        index = self.get_index(region)
+        return _volume.Subvolume(self.volumes[index.volume], index.label)
 
     @property
     def provides_image(self):
@@ -1147,6 +1159,29 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         )
 
         return assignments
+
+    def to_zip(self, filelike: Union[str, BinaryIO], **fetch_kwargs):
+        """
+        Export as a zip archive.
+
+        Parameters
+        ----------
+        filelike: str or path
+            Filelike to write the zip file. User is responsible to ensure the
+            correct extension (.zip) is set.
+        """
+        with ZipFile(filelike, "w") as zf:
+            zf.writestr(
+                "README.md",
+                create_readme(
+                    name=f"{self.maptype} map of {self.parcellation} on {self.space}",
+                    datasets=self.datasets or [ds for vol in self.volumes for ds in vol.datasets] or self.parcellation.datasets,
+                    description=self.description or self.parcellation.description
+                )
+            )
+            for vol in siibra_tqdm(self.volumes, disable=len(self.volumes) == 1):
+                vol._to_zip(zf, **fetch_kwargs)
+            logger.debug(zf.namelist())
 
 
 def from_volume(
