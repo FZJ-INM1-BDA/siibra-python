@@ -13,13 +13,13 @@ concurrency:
 jobs:
 
   lint:
-    uses: ./.github/workflows/_lint.yml
+    uses: ./.github/workflows/_lint.yaml
     with:
       os: ubuntu-latest
       python-version: '3.8'
 
   check-importable:
-    uses: ./.github/workflows/_importable.yml
+    uses: ./.github/workflows/_importable.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
@@ -30,7 +30,7 @@ jobs:
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/_unittest.yml
+    uses: ./.github/workflows/_unittest.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
@@ -41,7 +41,7 @@ jobs:
   
   unit-tests-fast:
     if: ${{ github.event_name != 'pull_request' }}
-    uses: ./.github/workflows/_unittest.yml
+    uses: ./.github/workflows/_unittest.yaml
     with:
       os: ubuntu-latest
       python-version: '3.8'
@@ -49,7 +49,7 @@ jobs:
 
   e2e-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/_e2e.yml
+    uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
@@ -60,7 +60,7 @@ jobs:
   
   e2e-tests-fast:
     if: ${{ github.event_name != 'pull_request' }}
-    uses: ./.github/workflows/_e2e.yml
+    uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: '3.8'
