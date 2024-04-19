@@ -64,19 +64,25 @@ def _warm_feature_cache_data():
     return_callables = []
     for ftype in TYPES.values():
         instances = ftype._get_instances()
+
+        # the instances *must* be cleared, or it will impede the garbage collection, and results in memleak
+        ftype._clean_instances()
         tally = siibra_tqdm(desc=f"Warming data {ftype.__name__}", total=len(instances))
         for f in instances:
-            def get_data(feat: Feature, tally):
+            def get_data(arg):
+                tally = arg.pop("tally")
+                feature = arg.pop("feature")
                 # TODO
                 # the try catch is as a result of https://github.com/FZJ-INM1-BDA/siibra-python/issues/509
                 # sometimes f.data can fail
                 try:
-                    _ = feat.data
+                    _ = feature.data
                 except Exception as e:
-                    logger.warn(f"Feature {feat.name} warmup failed: {str(e)}")
+                    logger.warn(f"Feature {feature.name} warmup failed: {str(e)}")
                 finally:
                     tally.update(1)
-            return_callables.append(partial(get_data, f, tally))
+            # append dictionary, so that popping the dictionary will mark the feature to be garbage collected
+            return_callables.append(partial(get_data, {"feature": f, "tally": tally}))
     return return_callables
 
 

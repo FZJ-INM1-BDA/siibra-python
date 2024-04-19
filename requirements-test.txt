@@ -5,3 +5,4 @@ pytest-cov
 coverage
 requests-mock
 matplotlib
+plotly
