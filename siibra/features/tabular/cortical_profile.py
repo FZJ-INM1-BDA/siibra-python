@@ -237,7 +237,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                 axs.set_ylabel(f"average {kwargs['ylabel']} \u00b1 std")
                 av = self.data.values[:, 0]
                 std = self.data.values[:, 1]
-                axs.fill_between(self.data.index.values, av - std, av + std, alpha=0.35)
+                axs.fill_between(self.data.index.values, av - std, av + std, alpha=0.5)
 
             return axs
 
@@ -275,7 +275,7 @@ class CorticalProfile(tabular.Tabular, Compoundable):
                         x=np.concatenate((x, x[::-1])),  # x, then x reversed
                         y=np.concatenate((av + std, (av - std)[::-1])),  # upper, then lower reversed
                         fill='toself',
-                        fillcolor='rgba(0,100,80,0.2)',
+                        fillcolor='rgba(0,100,80,0.5)',
                         line=dict(color='rgba(255,255,255,0)'),
                         hoverinfo="skip",
                         showlegend=False
