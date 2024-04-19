@@ -5,7 +5,6 @@ from siibra import MapType
 from siibra.volumes import Map
 from siibra.volumes.volume import Subvolume
 
-from itertools import product
 import numpy as np
 
 maps_to_compress = [
@@ -83,23 +82,21 @@ def test_point_assignment_to_labelled():
     assignments_uncertain['region'][0].matches("Area 4a (PreCG) right")
 
 
-# TODO: when merging neuroglancer/precomputed is supported, add to the list
-maps_w_fragments = product(
-    (
-        siibra.get_map("julich 2.9", "mni152", "labelled"),
-        siibra.get_map("julich 2.9", "colin", "labelled"),
-    ),
-    ("nii",),
+maps_w_fragments = (
+    (siibra.get_map("julich 2.9", "mni152", "labelled"), "nii"),
+    (siibra.get_map("julich 2.9", "colin27", "labelled"), "nii"),
+    (siibra.get_map("julich 2.9", "colin27", "labelled"), "neuroglancer/precomputed"),
 )
 
 
 @pytest.mark.parametrize("siibramap, format", maps_w_fragments)
 def test_merged_fragment_shape(siibramap: Map, format):
+    # NOTE: This test is very specific to Julich Brain 2.9. Not all fragments will have the same shape...
     vol_l = siibramap.fetch(fragment="left hemisphere", format=format)
     vol_r = siibramap.fetch(fragment="right hemisphere", format=format)
     vol_b = siibramap.fetch(format=format)  # auto-merged map
-    assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype
-    assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape
+    assert vol_l.dataobj.dtype == vol_r.dataobj.dtype == vol_b.dataobj.dtype, f"Map: {siibramap}"
+    assert vol_l.dataobj.shape == vol_r.dataobj.shape == vol_b.dataobj.shape, f"Map: {siibramap}"
 
 
 def test_region_1to1ness_in_parcellation():
