@@ -264,7 +264,7 @@ class BoundingBox(location.Location):
         return pointset.PointSet(
             all_corners, 
             space=self.space, 
-            sigma_mm=np.mean([self.minpoint.sigma_mm, self.maxpoint.sigma_mm]) 
+            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma]) 
         )
 
     def warp(self, space):
