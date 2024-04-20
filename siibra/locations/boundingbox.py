@@ -282,12 +282,20 @@ class BoundingBox(location.Location):
         """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
-        return self.__class__(
-            point1=self.minpoint.transform(affine, spaceobj),
-            point2=self.maxpoint.transform(affine, spaceobj),
-            space=space,
-            sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
-        )
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)]
+        result = pointset.PointSet(all_corners, space=None).transform(affine, spaceobj).boundingbox
+        result.sigma_mm = [self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
+        return result
 
     def shift(self, offset):
         return self.__class__(

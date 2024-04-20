@@ -65,7 +65,7 @@ class NiftiProvider(_provider.VolumeProvider, srctype="nii"):
     def fragments(self):
         return [k for k in self._img_loaders if k is not None]
 
-    def get_boundingbox(self, clip=True, background=0, **fetch_kwargs) -> "_boundingbox.BoundingBox":
+    def get_boundingbox(self, clip=True, background=0., **fetch_kwargs) -> "_boundingbox.BoundingBox":
         """
         Return the bounding box in physical coordinates of the union of
         fragments in this nifti volume.
