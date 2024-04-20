@@ -14,6 +14,7 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
+from re import I
 from . import point, pointset, location
 
 from ..commons import logger
@@ -245,6 +246,27 @@ class BoundingBox(location.Location):
             sigma_mm=[self.minpoint.sigma, self.maxpoint.sigma]
         )
 
+    @property
+    def corners(self):
+        """ Returns all 8 corners of the box as a pointset. TODO deal with sigma. """
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+        return pointset.PointSet(
+            all_corners, 
+            space=self.space, 
+            sigma_mm=np.mean([self.minpoint.sigma_mm, self.maxpoint.sigma_mm]) 
+        )
+
     def warp(self, space):
         """Returns a new bounding box obtained by warping the
         min- and maxpoint of this one into the new target space.
@@ -257,11 +279,7 @@ class BoundingBox(location.Location):
             return self
         else:
             try:
-                return self.__class__(
-                    point1=self.minpoint.warp(spaceobj),
-                    point2=self.maxpoint.warp(spaceobj),
-                    space=spaceobj,
-                )
+                return self.corners.warp(spaceobj).boundingbox
             except ValueError:
                 raise SpaceWarpingFailedError(f"Warping {str(self)} to {spaceobj.name} not successful.")
 
@@ -282,18 +300,7 @@ class BoundingBox(location.Location):
         """
         from ..core.space import Space
         spaceobj = Space.get_instance(space)
-        x0, y0, z0 = self.minpoint
-        x1, y1, z1 = self.maxpoint
-        all_corners = [
-            (x0, y0, z0),
-            (x1, y0, z0),
-            (x0, y1, z0),
-            (x1, y1, z0),
-            (x0, y0, z1),
-            (x1, y0, z1),
-            (x0, y1, z1),
-            (x1, y1, z1)]
-        result = pointset.PointSet(all_corners, space=None).transform(affine, spaceobj).boundingbox
+        result = self.corners.transform(affine, spaceobj).boundingbox
         result.sigma_mm = [self.minpoint.sigma, self.maxpoint.sigma]  # TODO: error propagation
         return result
 
