@@ -142,7 +142,7 @@ def test_fetching_mask(siibramap: Map):
             )
 
 
-def test_freesrufer_annot_map_fetch():
+def test_freesurfer_annot_map_fetch():
     mp = siibra.get_map(parcellation="visf", space="fsaverage")
     mesh = mp.fetch(fragment='left', variant='pial')
     assert np.array_equal(

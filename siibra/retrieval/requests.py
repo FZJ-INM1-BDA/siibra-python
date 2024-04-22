@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 USER_AGENT_HEADER = {"User-Agent": f"siibra-python/{__version__}"}
 
 
-def readas_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
+def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     """
     Helper method to provide BytesIO to methods that only takes file path and
     cannot handle BytesIO normally (e.g., `nibabel.freesurfer.read_annot()`).
@@ -68,11 +68,11 @@ def readas_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
     -------
     Return type of the provided function.
     """
-    tempannot = CACHE.build_filename("tempannot") + suffix
-    with open(tempannot, "wb") as bf:
+    tempfile = CACHE.build_filename(f"temp_{suffix}") + suffix
+    with open(tempfile, "wb") as bf:
         bf.write(bytesio.getbuffer())
-    result = function(tempannot)
-    os.remove(tempannot)
+    result = function(tempfile)
+    os.remove(tempfile)
     return result
 
 
@@ -87,7 +87,7 @@ DECODERS = {
     ".zip": lambda b: ZipFile(BytesIO(b)),
     ".png": lambda b: skimage_io.imread(BytesIO(b)),
     ".npy": lambda b: np.load(BytesIO(b)),
-    ".annot": lambda b: readas_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
+    ".annot": lambda b: read_as_bytesio(freesurfer.read_annot, '.annot', BytesIO(b)),
 }
 
 
