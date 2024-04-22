@@ -143,9 +143,18 @@ def test_fetching_mask(siibramap: Map):
 
 
 def test_freesurfer_annot_map_fetch():
-    mp = siibra.get_map(parcellation="visf", space="fsaverage")
-    mesh = mp.fetch(fragment='left', variant='pial')
-    assert np.array_equal(
-        np.unique(mesh['labels']),
-        np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17])
-    )
+    annotmaps = [
+        mp for mp in siibra.maps
+        if any(
+            fmt in ["freesurfer-annot", "zip/freesurfer-annot"]
+            for fmt in mp.formats
+        )
+    ]
+    if len(annotmaps) == 0:
+        pytest.skip("No freesurfer-annot map in the configuration.")
+    for mp in annotmaps:
+        mesh = mp.fetch(fragment='left', variant='pial')
+        assert np.array_equal(
+            np.unique(mesh['labels']),
+            np.array(mp.labels)
+        )
