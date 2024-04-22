@@ -121,15 +121,20 @@ class Cache:
         """ Iterate all element names in the cache directory. """
         return (os.path.join(self.folder, f) for f in os.listdir(self.folder))
 
-    def build_filename(self, str_rep: str, suffix=None):
-        """Generate a filename in the cache.
+    def build_filename(self, str_rep: str, suffix=None) -> str:
+        """
+        Generate a filename in the cache.
 
-        Args:
-            str_rep (str): Unique string representation of the item. Will be used to compute a hash.
-            suffix (str, optional): Optional file suffix, in order to allow filetype recognition by the name. Defaults to None.
+        Parameters
+        ----------
+        str_rep: str
+            Unique string representation of the item. Will be used to compute a hash.
+        suffix: str. Default: None
+            Optional file suffix, in order to allow filetype recognition by the name.
 
-        Returns:
-            filename
+        Returns
+        -------
+            str
         """
         hashfile = os.path.join(
             self.folder, str(hashlib.sha256(str_rep.encode("ascii")).hexdigest())

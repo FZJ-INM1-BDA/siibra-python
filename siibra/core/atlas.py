@@ -64,9 +64,20 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
             matchfunc=_parcellation.Parcellation.match,
         )
 
-    def get_parcellation(self, parcellation=None):
-        """Returns a valid parcellation object defined by the atlas.
-        If no specification is provided, the default is returned."""
+    def get_parcellation(self, parcellation=None) -> "_parcellation.Parcellation":
+        """
+        Returns a valid parcellation object defined by the atlas. If no
+        specification is provided, the default is returned.
+
+        Parameters
+        ----------
+        parcellation: str, Parcellation
+            specification of a parcellation or a parcellation object
+
+        Returns
+        -------
+            Parcellation
+        """
 
         if parcellation is None:
             parcellation_obj = self.parcellations[self._parcellation_ids[0]]
@@ -80,12 +91,19 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
 
         return self.parcellations[parcellation]
 
-    def get_space(self, space=None):
-        """Returns a valid reference space object defined by the atlas.
-        If no specification is provided, the default is returned.
+    def get_space(self, space=None) -> "_space.Space":
+        """
+        Returns a valid reference space object defined by the atlas. If no
+        specification is provided, the default is returned.
 
-        Parameters:
-            space: Space, or string specification of a space
+        Parameters
+        ----------
+        space: str, Space
+            specification of a space or a space object
+
+        Returns
+        -------
+            Space
         """
         if space is None:
             space_obj = self.spaces[self._space_ids[0]]
@@ -105,12 +123,13 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
         parcellation: _parcellation.Parcellation = None,
         maptype: MapType = MapType.LABELLED,
     ):
-        """Returns a parcellation map in the given space.
+        """
+        Returns a parcellation map in the given space.
 
         Parameters
         ----------
 
-        space : Space
+        space: Space
             The requested reference space. If None, the default is used.
         parcellation: Parcellation
             The requested parcellation. If None, the default is used.
@@ -160,13 +179,18 @@ class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
     def get_voi(self, space: _space.Space, point1: tuple, point2: tuple):
         """Get a volume of interest spanned by two points in the given reference space.
 
-        Args:
-            space (Space or str): The target reference space, or a string specification of the space
-            point1 (Tuple): A 3D coordinate given in this reference space
-            point2 (Tuple): Another 3D coordinate given in this reference space
+        Parameters
+        ----------
+        space: Space, str
+            The target reference space, or a string specification of the space
+        point1: Tuple
+            A 3D coordinate given in this reference space
+        point2: Tuple
+            Another 3D coordinate given in this reference space
 
-        Returns:
-            Bounding Box
+        Returns
+        -------
+            BoundingBox
         """
         return self.get_template(space).get_boundingbox(point1, point2)
 

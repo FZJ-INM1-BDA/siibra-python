@@ -21,7 +21,7 @@ from ..commons import (
     MapIndex,
     MapType,
     compare_arrays,
-    resample_array_to_array,
+    resample_img_to_img,
     connected_components,
     clear_name,
     create_key,
@@ -512,10 +512,10 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             raise RuntimeError("The map cannot be merged since there are no multiple volumes or fragments.")
 
         # initialize empty volume according to the template
-        template = self.space.get_template().fetch(**kwargs)
-        result_data = np.zeros_like(np.asanyarray(template.dataobj))
-        result_affine = template.affine
-        voxelwise_max = np.zeros_like(result_data)
+        template_img = self.space.get_template().fetch(**kwargs)
+        result_arr = np.zeros_like(np.asanyarray(template_img.dataobj))
+        result_affine = template_img.affine
+        voxelwise_max = np.zeros_like(result_arr)
         interpolation = 'nearest' if self.is_labelled else 'linear'
         next_labelindex = 1
         region_indices = defaultdict(list)
@@ -532,13 +532,13 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             ):
                 mapindex = MapIndex(volume=volidx, fragment=frag)
                 img = self.fetch(mapindex)
-                if np.linalg.norm(result_affine - img.affine) > 1e-14:
-                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
-                    img_data = resample_array_to_array(
-                        img.get_fdata(), img.affine, result_data, result_affine
-                    )
+                if np.allclose(img.affine, result_affine):
+                    img_data = np.asanyarray(img.dataobj)
                 else:
-                    img_data = img.get_fdata()
+                    logger.debug(f"Compression requires to resample volume {volidx} ({interpolation})")
+                    img_data = np.asanyarray(
+                        resample_img_to_img(img, template_img).dataobj
+                    )
 
                 if self.is_labelled:
                     labels = set(np.unique(img_data)) - {0}
@@ -557,7 +557,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                         update_voxels = (img_data > voxelwise_max)
                     else:
                         update_voxels = (img_data == label)
-                    result_data[update_voxels] = next_labelindex
+                    result_arr[update_voxels] = next_labelindex
                     voxelwise_max[update_voxels] = img_data[update_voxels]
                     next_labelindex += 1
 
@@ -568,7 +568,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             parcellation_spec=self._parcellation_spec,
             indices=region_indices,
             volumes=[_volume.from_array(
-                result_data, result_affine, self._space_spec, name=self.name + " compressed"
+                result_arr, result_affine, self._space_spec, name=self.name + " compressed"
             )]
         )
 
@@ -973,7 +973,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         assign a PointSet to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
         lower_threshold: float, default: 0
             Lower threshold on values in the statistical map. Values smaller than
@@ -1076,7 +1076,7 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
         """
         Assign an image volume to this parcellation map.
 
-        Parameters:
+        Parameters
         -----------
         queryvolume: Volume
             the volume to be compared with maps
@@ -1101,7 +1101,6 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
             iter_components = lambda arr: [(0, arr)]
 
         queryimg = queryvolume.fetch()
-        queryimgarr = np.asanyarray(queryimg.dataobj)
         assignments = []
         all_indices = [
             index
@@ -1120,11 +1119,8 @@ class Map(concept.AtlasConcept, configuration_folder="maps"):
                 region_map_arr = np.asanyarray(region_map.dataobj)
                 # the shape and affine are checked by `nilearn.image.resample_to_img()`
                 # and returns the original data if resampling is not necessary.
-                queryimgarr_res = resample_array_to_array(
-                    queryimgarr,
-                    queryimg.affine,
-                    region_map_arr,
-                    region_map.affine
+                queryimgarr_res = np.asanyarray(
+                    resample_img_to_img(queryimg, region_map).dataobj
                 )
                 for compmode, voxelmask in iter_components(queryimgarr_res):
                     scores = compare_arrays(
@@ -1159,7 +1155,7 @@ def from_volume(
     """
     Add a custom labelled parcellation map to siibra from a labelled NIfTI file.
 
-    Parameters:
+    Parameters
     ------------
     name: str
         Human-readable name of the parcellation.

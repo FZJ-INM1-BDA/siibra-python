@@ -1,0 +1,28 @@
+name: '[mirror] push to mirror'
+
+on:
+  push:
+    branches: ["master"]
+    tags: ["**"]
+
+env:
+  EBRAINS_GITLAB_REPO: ri/tech-hub/apps/siibra/siibra-python-mirror.git
+
+jobs:
+  # n.b. we use access token, rather than https://github.com/valtech-sd/git-sync
+  # because it does not seem possible to add project wide ssh key
+  # and using personal key is not very feasible
+  push_to_mirror:
+    if: ${{ vars.EBRAINS_GITLAB_HOST != '' }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: mirror to remote
+      run: |
+        git fetch --tags -f
+        git fetch origin master
+        if ! git ls-remote ebrains > /dev/null; then git remote add ebrains https://jugitpusher:${{ secrets.EBRAINS_GITLAB_PUSH_TOKEN }}@${{ vars.EBRAINS_GITLAB_HOST }}/${{ env.EBRAINS_GITLAB_REPO }}; fi
+        git push ebrains --tags -f
+        git push ebrains HEAD:master -f 

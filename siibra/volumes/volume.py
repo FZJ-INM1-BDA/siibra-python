@@ -20,7 +20,7 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array, siibra_tqdm
+from ..commons import resample_img_to_img, siibra_tqdm
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
@@ -86,7 +86,7 @@ class Volume(location.Location):
             assert srctype not in self._providers
             self._providers[srctype] = provider
         if len(self._providers) == 0:
-            logger.debug(f"No provider for volume {self}")
+            logger.debug(f"No provider for volume {name}")
 
     def __hash__(self):
         return super().__hash__()
@@ -141,7 +141,7 @@ class Volume(location.Location):
             If the volume provider does not have a bounding box calculator.
         """
         fmt = fetch_kwargs.get("format")
-        if fmt in self._providers:
+        if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
                 f"Requested format {fmt} is not available as provider of "
                 "this volume. See `volume.formats` for possible options."
@@ -157,7 +157,7 @@ class Volume(location.Location):
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
             except NotImplementedError as e:
-                print(str(e))
+                logger.info(e)
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
@@ -342,7 +342,7 @@ class Volume(location.Location):
             v1 = self.fetch(format=format, **fetch_kwargs)
             v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
-            arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
+            arr2 = np.asanyarray(resample_img_to_img(v2, v1).dataobj)
             pointwise_min = np.minimum(arr1, arr2)
             if np.any(pointwise_min):
                 return from_array(
@@ -676,7 +676,6 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
     template_img = space.get_template().fetch(**fetch_kwargs)
-    template_arr = np.asanyarray(template_img.dataobj)
     merged_array = np.zeros(template_img.shape, dtype='uint8')
 
     for i, vol in siibra_tqdm(
@@ -687,17 +686,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         disable=len(volumes) < 3
     ):
         img = vol.fetch(**fetch_kwargs)
-        arr_resampled = resample_array_to_array(
-            source_data=np.asanyarray(img.dataobj),
-            source_affine=img.affine,
-            target_data=template_arr,
-            target_affine=template_img.affine
+        resampled_arr = np.asanyarray(
+            resample_img_to_img(img, template_img).dataobj
         )
-        nonzero_voxels = arr_resampled > 0
+        nonzero_voxels = resampled_arr > 0
         if labels:
             merged_array[nonzero_voxels] = labels[i]
         else:
-            merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
+            merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
     return from_array(
         data=merged_array,

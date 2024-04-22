@@ -18,11 +18,12 @@ import os
 import re
 from enum import Enum
 from nibabel import Nifti1Image
+from nilearn.image import resample_to_img
 import logging
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
@@ -102,9 +103,11 @@ class InstanceTable(Generic[T], Iterable):
         self._dataframe_cached = None
 
     def add(self, key: str, value: T) -> None:
-        """Add a key/value pair to the registry.
+        """
+        Add a key/value pair to the registry.
 
-        Args:
+        Parameters
+        ----------
             key (string): Unique name or key of the object
             value (object): The registered object
         """
@@ -153,10 +156,13 @@ class InstanceTable(Generic[T], Iterable):
         the first in sorted order is returned. If the specification does not match,
         a RuntimeError is raised.
 
-        Args:
-            spec [int or str]: Index or string specification of an object
+        Parameters
+        ----------
+        spec: int, str
+            Index or string specification of an object
 
-        Returns:
+        Returns
+        -------
             Matched object
         """
         if spec is None:
@@ -508,34 +514,69 @@ def compare_arrays(arr1: np.ndarray, affine1: np.ndarray, arr2: np.ndarray, affi
     )
 
 
-def resample_array_to_array(
-    source_data: np.ndarray,
-    source_affine: np.ndarray,
-    target_data: np.ndarray,
-    target_affine: np.ndarray
-) -> np.ndarray:
+def resample_img_to_img(
+    source_img: Nifti1Image,
+    target_img: Nifti1Image,
+    interpolation: str = ""
+) -> Nifti1Image:
     """
-    Returns the source data resampled to match the target data
-    according to their affines.
+    Resamples to source image to match the target image according to target's
+    affine. (A wrapper of `nilearn.image.resample_to_img`.)
+
+    Parameters
+    ----------
+    source_img : Nifti1Image
+    target_img : Nifti1Image
+    interpolation : str, Default: "nearest" if the source image is a mask otherwise "linear".
+        Can be 'continuous', 'linear', or 'nearest'. Indicates the resample method.
+
+    Returns
+    -------
+    Nifti1Image
     """
-    from nibabel import Nifti1Image
-    from nilearn.image import resample_to_img
-    interp = "nearest" if issubclass(source_data.dtype.type, np.integer) \
-        else 'linear'
+    interpolation = "nearest" if np.array_equal(np.unique(source_img.dataobj), [0, 1]) else "linear"
     resampled_img = resample_to_img(
-        Nifti1Image(source_data, source_affine),
-        Nifti1Image(target_data, target_affine),
-        interpolation=interp
+        source_img=source_img,
+        target_img=target_img,
+        interpolation=interpolation
     )
-    return np.asanyarray(resampled_img.dataobj)
+    return resampled_img
 
 
-def connected_components(imgdata: np.ndarray):
+def connected_components(
+    imgdata: np.ndarray,
+    background: int = 0,
+    connectivity: int = 2,
+    threshold: float = 0.0,
+) -> Generator[Tuple[int, np.ndarray], None, None]:
     """
-    Provide an iterator over connected components in the array
+    Provide an iterator over connected components in the array. If the image
+    data is float (such as probability maps), it will convert to a mask and
+    then find the connected components.
+
+    Note
+    ----
+    `Uses skimage.measure.label()` to determine foreground compenents.
+
+    Parameters
+    ----------
+    imgdata : np.ndarray
+    background_value : int, Default: 0
+    connectivity : int, Default: 2
+    threshold: float, Default: 0.0
+        The threshold used to create mask from probability maps, i.e, anything
+        below set to 0 and rest to 1.
+
+    Yields
+    ------
+    Generator[Tuple[int, np.ndarray], None, None]
+        tuple of integer label of the component and component as an nd.array in
+        the shape of the original image.
     """
     from skimage import measure
-    components = measure.label(imgdata, connectivity=2, background=0)
+
+    mask = (imgdata > threshold).astype('uint8')
+    components = measure.label(mask, connectivity=connectivity, background=background)
     component_labels = np.unique(components)
     return (
         (label, (components == label).astype('uint8'))
@@ -630,11 +671,15 @@ def MI(arr1, arr2, nbins=100, normalized=True):
     """
     Compute the mutual information between two 3D arrays, which need to have the same shape.
 
-    Parameters:
-    arr1 : First 3D array
-    arr2 : Second 3D array
-    nbins : number of bins to use for computing the joint histogram (applies to intensity range)
-    normalized : Boolean, default:True
+    Parameters
+    ----------
+    arr1: np.ndarray
+        First 3D array
+    arr2: np.ndarray
+        Second 3D array
+    nbins: int
+        number of bins to use for computing the joint histogram (applies to intensity range)
+    normalized: Boolean. Default: True
         if True, the normalized MI of arrays X and Y will be returned,
         leading to a range of values between 0 and 1. Normalization is
         achieved by NMI = 2*MI(X,Y) / (H(X) + H(Y)), where  H(x) is the entropy of X
