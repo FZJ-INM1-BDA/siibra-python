@@ -137,3 +137,21 @@ def test_fetching_mask(siibramap: Map):
                 f"{siibramap}, {fmt}. Mask for {region} should only contain 0 "
                 f"and 1 but found: {unq_vals}"
             )
+
+
+def test_freesurfer_annot_map_fetch():
+    annotmaps = [
+        mp for mp in siibra.maps
+        if any(
+            fmt in ["freesurfer-annot", "zip/freesurfer-annot"]
+            for fmt in mp.formats
+        )
+    ]
+    if len(annotmaps) == 0:
+        pytest.skip("No freesurfer-annot map in the configuration.")
+    for mp in annotmaps:
+        mesh = mp.fetch(fragment='left', variant='pial')
+        assert np.array_equal(
+            np.unique(mesh['labels']),
+            np.array(mp.labels)
+        )
