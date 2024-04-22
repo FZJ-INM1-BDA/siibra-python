@@ -10,7 +10,33 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  USE_CONFIG_COMMIT_KW: "[ci:usecfg]"
+
 jobs:
+
+  use-custom-cfg:
+    runs-on: ubuntu-latest
+    outputs:
+      USE_REF: ${{ steps.use-ref.outputs.USE_REF }}
+    env:
+      # see https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+      COMMIT_MSG: ${{ github.event.head_commit.message }}
+    steps:
+    - uses: actions/checkout@v4
+    - id: 'use-ref'
+      run: |
+        SED_S_PATTERN=$(echo '${{ env.USE_CONFIG_COMMIT_KW }}' | sed 's/\[/\\[/' | sed 's/]/\\]/')
+        echo "$COMMIT_MSG" | while IFS= read -r line
+        do
+          if [[ "$line" == "${{ env.USE_CONFIG_COMMIT_KW }}"* ]]
+          then
+            echo "Found usecfg line in commit message: $line"
+            USE_REF=$(echo $line | sed "s/$SED_S_PATTERN *//")
+            echo "Use Ref: $USE_REF"
+            echo USE_REF=$USE_REF >> $GITHUB_OUTPUT
+          fi
+        done
 
   lint:
     uses: ./.github/workflows/_lint.yaml
@@ -19,10 +45,12 @@ jobs:
       python-version: '3.8'
 
   check-importable:
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_importable.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
@@ -30,10 +58,12 @@ jobs:
 
   unit-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_unittest.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
@@ -41,18 +71,22 @@ jobs:
   
   unit-tests-fast:
     if: ${{ github.event_name != 'pull_request' }}
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_unittest.yaml
     with:
       os: ubuntu-latest
       python-version: '3.8'
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
 
 
   e2e-tests-full:
     if: ${{ github.event_name == 'pull_request' }}
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: ${{ matrix.python-version }}
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
     strategy:
       fail-fast: false
       matrix:
@@ -60,8 +94,11 @@ jobs:
   
   e2e-tests-fast:
     if: ${{ github.event_name != 'pull_request' }}
+    needs: 'use-custom-cfg'
     uses: ./.github/workflows/_e2e.yaml
     with:
       os: ubuntu-latest
       python-version: '3.8'
+      use-cfg: ${{ needs.use-custom-cfg.outputs.USE_REF }}
+
 
