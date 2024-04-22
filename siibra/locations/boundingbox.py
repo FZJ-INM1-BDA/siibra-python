@@ -14,7 +14,6 @@
 # limitations under the License.
 """A box defined by two farthest corner coordinates on a specific space."""
 
-from re import I
 from . import point, pointset, location
 
 from ..commons import logger
@@ -76,6 +75,7 @@ class BoundingBox(location.Location):
             s1, s2 = sigma_mm
         else:
             raise ValueError(f"Cannot interpret sigma_mm parameter value {sigma_mm} for bounding box")
+        self.sigma_mm = [s1, s2]
         self.minpoint = point.Point([min(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s1)
         self.maxpoint = point.Point([max(xyz1[i], xyz2[i]) for i in range(3)], space, sigma_mm=s2)
         if minsize is not None:
@@ -248,7 +248,26 @@ class BoundingBox(location.Location):
 
     @property
     def corners(self):
-        """ Returns all 8 corners of the box as a pointset. TODO deal with sigma. """
+        """
+        Returns all 8 corners of the box as a pointset.
+
+        Note
+        ----
+        x0, y0, z0 = self.minpoint
+        x1, y1, z1 = self.maxpoint
+        all_corners = [
+            (x0, y0, z0),
+            (x1, y0, z0),
+            (x0, y1, z0),
+            (x1, y1, z0),
+            (x0, y0, z1),
+            (x1, y0, z1),
+            (x0, y1, z1),
+            (x1, y1, z1)
+        ]
+
+        TODO: deal with sigma. Currently, returns the mean of min and max point.
+        """
         x0, y0, z0 = self.minpoint
         x1, y1, z1 = self.maxpoint
         all_corners = [
@@ -262,9 +281,9 @@ class BoundingBox(location.Location):
             (x1, y1, z1)
         ]
         return pointset.PointSet(
-            all_corners, 
-            space=self.space, 
-            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma]) 
+            all_corners,
+            space=self.space,
+            sigma_mm=np.mean([self.minpoint.sigma, self.maxpoint.sigma])
         )
 
     def warp(self, space):
