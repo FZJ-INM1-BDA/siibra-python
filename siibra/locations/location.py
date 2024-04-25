@@ -21,6 +21,10 @@ from ..core.structure import BrainStructure
 import numpy as np
 from abc import abstractmethod
 
+from typing import TYPE_CHECKING, Union, Dict
+if TYPE_CHECKING:
+    from siibra.core.space import Space
+
 
 class Location(BrainStructure):
     """
@@ -42,15 +46,19 @@ class Location(BrainStructure):
     _MASK_MEMO = {}  # cache region masks for Location._assign_region()
     _ASSIGNMENT_CACHE = {}  # caches assignment results, see Region.assign()
 
-    def __init__(self, space):
-        self._space_spec = space
+    def __init__(self, spacespec: Union[str, Dict[str, str], "Space"]):
+        self._space_spec = spacespec
         self._space_cached = None
 
     @property
     def space(self):
         if self._space_cached is None:
             from ..core.space import Space
-            self._space_cached = Space.get_instance(self._space_spec)
+            if isinstance(self._space_spec, dict):
+                spec = self._space_spec.get("@id") or self._space_spec.get("name")
+                self._space_cached = Space.get_instance(spec)
+            else:
+                self._space_cached = Space.get_instance(self._space_spec)
         return self._space_cached
 
     @abstractmethod
