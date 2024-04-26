@@ -2,9 +2,11 @@ from dataclasses import dataclass
 
 from .base import Attribute
 
+
 @dataclass
 class MetaAttribute(Attribute):
-    type="attr/meta"
+    type = "attr/meta"
+
 
 @dataclass
 class ModalityAttribute(MetaAttribute):
@@ -16,6 +18,7 @@ class ModalityAttribute(MetaAttribute):
         if isinstance(modality, str):
             return modality.lower() in self.value.lower()
         return super().filter(*args, modality=modality, **kwargs)
+
 
 @dataclass
 class NameAttribute(MetaAttribute):
