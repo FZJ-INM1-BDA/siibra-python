@@ -1,4 +1,4 @@
-name: '[Docs and examples] Create docs and run examples'
+name: '[Docs] Build docs and upload artifacts'
 on:
   push:
     branches: [ 'main', 'doc_*' ] 
