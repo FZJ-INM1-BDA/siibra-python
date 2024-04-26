@@ -151,7 +151,7 @@ def test_freesurfer_annot_map_fetch():
         pytest.skip("No freesurfer-annot map in the configuration.")
     for mp in annotmaps:
         mesh = mp.fetch(fragment='left', variant='pial')
-        assert np.array_equal(
-            np.unique(mesh['labels']),
-            np.array(mp.labels)
-        )
+    assert np.array_equal(
+        np.unique(mesh['labels']),
+        np.array([0] + list(mp.labels))
+    )
