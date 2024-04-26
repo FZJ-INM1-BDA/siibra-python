@@ -61,7 +61,7 @@ class SpatialProp:
     space: _space.Space = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
+class Region(anytree.NodeMixin, concept.AtlasConcept, structure.AnatomicalStructure):
     """
     Representation of a region with name and more optional attributes
     """
@@ -612,7 +612,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: structure.BrainStructure) -> AnatomicalAssignment:
+    def assign(self, other: structure.AnatomicalStructure) -> AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 

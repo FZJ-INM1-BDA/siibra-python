@@ -465,7 +465,7 @@ class Feature:
     @classmethod
     def _match(
         cls,
-        concept: structure.BrainStructure,
+        concept: structure.AnatomicalStructure,
         feature_type: Union[str, Type['Feature'], list],
         **kwargs
     ) -> List['Feature']:
@@ -517,7 +517,7 @@ class Feature:
 
         # At this stage, no recursion is needed.
         # We expect a specific supported feature type is to be matched now.
-        if not isinstance(concept, structure.BrainStructure):
+        if not isinstance(concept, structure.AnatomicalStructure):
             raise ValueError(
                 f"{concept.__class__.__name__} cannot be used for feature queries as it is not a BrainStructure type."
             )

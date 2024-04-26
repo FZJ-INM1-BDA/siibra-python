@@ -28,19 +28,19 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Dict
 
 
-class BrainStructure(ABC):
+class AnatomicalStructure(ABC):
     """ Abstract base class for types who can act as a location filter. """
 
     # cache assignment results at class level
     _ASSIGNMENT_CACHE: Dict[
-        Tuple["BrainStructure", "BrainStructure"],
+        Tuple["AnatomicalStructure", "AnatomicalStructure"],
         "assignment.AnatomicalAssignment"
     ] = {}
 
-    def intersects(self, other: "BrainStructure") -> bool:
+    def intersects(self, other: "AnatomicalStructure") -> bool:
         return self.intersection(other) is not None
 
-    def __contains__(self, other: "BrainStructure") -> bool:
+    def __contains__(self, other: "AnatomicalStructure") -> bool:
         return self.intersection(other) == other
 
     def __hash__(self) -> int:
@@ -51,14 +51,14 @@ class BrainStructure(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def intersection(self, other: "BrainStructure") -> "BrainStructure":
+    def intersection(self, other: "AnatomicalStructure") -> "AnatomicalStructure":
         """
         Return the intersection of two locations,
         ie. the other location filtered by this location.
         """
         pass
 
-    def assign(self, other: "BrainStructure") -> assignment.AnatomicalAssignment:
+    def assign(self, other: "AnatomicalStructure") -> assignment.AnatomicalAssignment:
         """
         Compute assignment of a location to this filter.
 

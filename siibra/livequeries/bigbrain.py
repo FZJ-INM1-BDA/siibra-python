@@ -82,7 +82,7 @@ class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intens
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: structure.BrainStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
+    def query(self, concept: structure.AnatomicalStructure, **kwargs) -> List[bigbrain_intensity_profile.BigBrainIntensityProfile]:
         loader = WagstylProfileLoader()
         features = []
         matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))
@@ -111,7 +111,7 @@ class LayerwiseBigBrainIntensityQuery(query.LiveQuery, args=[], FeatureType=laye
     def __init__(self):
         query.LiveQuery.__init__(self)
 
-    def query(self, concept: structure.BrainStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
+    def query(self, concept: structure.AnatomicalStructure, **kwargs) -> List[layerwise_bigbrain_intensities.LayerwiseBigBrainIntensities]:
 
         loader = WagstylProfileLoader()
         matched = concept.intersection(pointset.PointSet(loader._vertices, space='bigbrain'))

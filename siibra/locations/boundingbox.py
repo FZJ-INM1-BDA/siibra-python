@@ -23,7 +23,7 @@ import hashlib
 import numpy as np
 from typing import TYPE_CHECKING, Union
 if TYPE_CHECKING:
-    from ..core.structure import BrainStructure
+    from ..core.structure import AnatomicalStructure
     from nibabel import Nifti1Image
     from ..core.space import Space
 
@@ -119,7 +119,7 @@ class BoundingBox(location.Location):
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
-    def intersection(self, other: 'BrainStructure', dims=[0, 1, 2]):
+    def intersection(self, other: 'AnatomicalStructure', dims=[0, 1, 2]):
         """Computes the intersection of this bounding box with another one.
 
         Parameters

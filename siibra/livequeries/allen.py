@@ -120,7 +120,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: structure.BrainStructure) -> List[GeneExpressions]:
+    def query(self, concept: structure.AnatomicalStructure) -> List[GeneExpressions]:
 
         mnispace = _space.Space.registry().get('mni152')
 

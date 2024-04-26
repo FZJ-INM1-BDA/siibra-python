@@ -250,7 +250,7 @@ class Volume(location.Location):
                 f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
             )
 
-    def intersection(self, other: structure.BrainStructure, **kwargs) -> structure.BrainStructure:
+    def intersection(self, other: structure.AnatomicalStructure, **kwargs) -> structure.AnatomicalStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
