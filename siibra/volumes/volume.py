@@ -325,24 +325,24 @@ class Volume(location.Location):
                 f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
             )
 
-    def intersection(self, other: structure.BrainStructure, **fetch_kwargs) -> structure.BrainStructure:
+    def intersection(self, other: structure.AnatomicalStructure, **kwargs) -> structure.AnatomicalStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            points_inside = self._points_inside(other, keep_labels=False, **kwargs)
             if len(points_inside) == 0:
                 return None  # BrainStructure.intersects checks for not None
             if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
             return points_inside
         elif isinstance(other, boundingbox.BoundingBox):
-            return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
+            return self.get_boundingbox(clip=True, background=0.0, **kwargs).intersection(other)
         elif isinstance(other, Volume):
-            format = fetch_kwargs.pop('format', 'image')
-            v1 = self.fetch(format=format, **fetch_kwargs)
-            v2 = other.fetch(format=format, **fetch_kwargs)
+            format = kwargs.pop('format', 'image')
+            v1 = self.fetch(format=format, **kwargs)
+            v2 = other.fetch(format=format, **kwargs)
             arr1 = np.asanyarray(v1.dataobj)
             arr2 = np.asanyarray(resample_img_to_img(v2, v1).dataobj)
             pointwise_min = np.minimum(arr1, arr2)

@@ -16,13 +16,13 @@
 
 from __future__ import annotations
 
-from ..core.structure import BrainStructure
+from ..core.structure import AnatomicalStructure
 
 import numpy as np
 from abc import abstractmethod
 
 
-class Location(BrainStructure):
+class Location(AnatomicalStructure):
     """
     Abstract base class for locations in a given reference space.
     """

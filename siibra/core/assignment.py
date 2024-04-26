@@ -18,7 +18,7 @@ from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Generic, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
-    from .structure import BrainStructure
+    from .structure import AnatomicalStructure
 
 T = TypeVar("T")
 
@@ -83,8 +83,8 @@ class Qualification(Enum):
 @dataclass
 class AnatomicalAssignment(Generic[T]):
     """Represents a qualified assignment between anatomical structures."""
-    query_structure: "BrainStructure"
-    assigned_structure: "BrainStructure"
+    query_structure: "AnatomicalStructure"
+    assigned_structure: "AnatomicalStructure"
     qualification: Qualification
     explanation: str = ""
 
