@@ -1,9 +1,7 @@
 name: '[Docs and examples] Create docs and run examples'
 on:
   push:
-    branches: [ 'main' ]
-  pull_request:
-    branches: [ 'main' ] 
+    branches: [ 'main', 'doc_*' ] 
   release:
     types: [ 'published' ]
 
