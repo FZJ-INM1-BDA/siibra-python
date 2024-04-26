@@ -24,7 +24,9 @@ from typing import Union, TYPE_CHECKING, List, Dict, Type, Tuple, BinaryIO, Any,
 from hashlib import md5
 from collections import defaultdict
 from zipfile import ZipFile
-from abc import ABC
+from abc import ABC, abstractmethod
+from re import sub
+from textwrap import wrap
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -96,7 +98,8 @@ class Feature:
         modality: str,
         description: str,
         anchor: _anchor.AnatomicalAnchor,
-        datasets: List['TypeDataset'] = []
+        datasets: List['TypeDataset'] = [],
+        id: str = None
     ):
         """
         Parameters
@@ -113,6 +116,7 @@ class Feature:
         self._description = description
         self._anchor_cached = anchor
         self.datasets = datasets
+        self._id = id
 
     @property
     def modality(self):
@@ -194,7 +198,8 @@ class Feature:
     @property
     def name(self):
         """Returns a short human-readable name of this feature."""
-        return f"{self.__class__.__name__} ({self.modality}) anchored at {self.anchor}"
+        readable_class_name = sub("([a-z])([A-Z])", r"\g<1> \g<2>", self.__class__.__name__)
+        return sub("([b,B]ig [b,B]rain)", "BigBrain", readable_class_name)
 
     @classmethod
     def _get_instances(cls, **kwargs) -> List['Feature']:
@@ -260,12 +265,17 @@ class Feature:
 
     @property
     def id(self):
+        if self._id:
+            return self._id
+
         prefix = ''
         for ds in self.datasets:
             if hasattr(ds, "id"):
                 prefix = ds.id + '--'
                 break
-        return prefix + md5(self.name.encode("utf-8")).hexdigest()
+        return prefix + md5(
+            f"{self.name} - {self.anchor}".encode("utf-8")
+        ).hexdigest()
 
     def _to_zip(self, fh: ZipFile):
         """
@@ -607,6 +617,7 @@ class Feature:
             def __init__(self, inst: Feature, fid: str):
                 self.inst = inst
                 self.fid = fid
+                self.category = inst.category
 
             def __str__(self) -> str:
                 return self.inst.__str__()
@@ -677,6 +688,24 @@ class Compoundable(ABC):
     def _merge_anchors(cls, anchors: List[_anchor.AnatomicalAnchor]):
         return sum(anchors)
 
+    @classmethod
+    @abstractmethod
+    def _merge_elements(
+        cls,
+        elements,
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor
+    ) -> Feature:
+        """
+        Compute the merge data and create a merged instance from a set of
+        elements of this class. This will be used by CompoundFeature to
+        create the aggegated data and plot it. For example, to compute an
+        average connectivity matrix from a set of subfeatures, we create a
+        RegionalConnectivty feature.
+        """
+        raise NotImplementedError
+
 
 class CompoundFeature(Feature):
     """
@@ -725,6 +754,7 @@ class CompoundFeature(Feature):
             datasets=list(dict.fromkeys([ds for f in elements for ds in f.datasets]))
         )
         self._queryconcept = queryconcept
+        self._merged_feature_cached = None
 
     def __getattr__(self, attr: str) -> Any:
         """Expose compounding attributes explicitly."""
@@ -743,9 +773,27 @@ class CompoundFeature(Feature):
         return super().__dir__() + list(self._compounding_attributes.keys())
 
     def plot(self, *args, **kwargs):
-        raise NotImplementedError(
-            "CompoundFeatures does not have a standardized plot. Try plotting the elements instead."
+        kwargs["title"] = "(Derived data: averaged)\n" + kwargs.get(
+            "title",
+            "\n".join(wrap(self.name, kwargs.pop("textwrap", 40)))
         )
+        return self._get_merged_feature().plot(*args, **kwargs)
+
+    def _get_merged_feature(self) -> Feature:
+        if self._merged_feature_cached is None:
+            logger.info(f"{self.__class__.__name__}.data averages the data of each element.")
+            assert issubclass(self.feature_type, Compoundable)
+            self._merged_feature_cached = self.feature_type._merge_elements(
+                elements=self.elements,
+                modality=self.modality,
+                description=self.description,
+                anchor=self.anchor
+            )
+        return self._merged_feature_cached
+
+    @property
+    def data(self):
+        return self._get_merged_feature().data
 
     @property
     def indexing_attributes(self) -> Tuple[str]:
@@ -770,14 +818,16 @@ class CompoundFeature(Feature):
     @property
     def name(self) -> str:
         """Returns a short human-readable name of this feature."""
-        groupby = ', '.join([
-            f"{v} {k}" for k, v in self._compounding_attributes.items()
-        ])
-        return (
-            f"{self.__class__.__name__} of {len(self)} "
-            f"{self.feature_type.__name__} features grouped by ({groupby})"
-            f" anchored at {self.anchor}"
+        readable_feature_type = sub(
+            "([b,B]ig [b,B]rain)", "BigBrain",
+            sub("([a-z])([A-Z])", r"\g<1> \g<2>", self.feature_type.__name__)
         )
+        groupby = ', '.join([
+            f"{k}: {v}"
+            for k, v in self._compounding_attributes.items()
+            if k != 'modality'
+        ])
+        return f"{len(self)} {readable_feature_type} features{f' {groupby}' if groupby else ''}"
 
     @property
     def id(self) -> str:
