@@ -66,7 +66,7 @@ class ParcellationVersion:
         return self.name < other.name
 
 
-class Parcellation(region.Region, configuration_folder="parcellations"):
+class Parcellation(region.Region, schema="siibra/parcellation/v0.0.1"):
 
     _CACHED_REGION_SEARCHES: Dict[str, List[region.Region]] = {}
 

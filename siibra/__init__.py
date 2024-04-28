@@ -38,7 +38,7 @@ from .retrieval.cache import Warmup, WarmupLevel
 from . import configuration
 from . import experimental
 from .configuration import factory
-from . import features, livequeries
+from . import livequeries, features_beta as features
 from siibra.locations import Point, PointSet
 
 import os as _os

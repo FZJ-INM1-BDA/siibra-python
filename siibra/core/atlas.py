@@ -23,7 +23,7 @@ from typing import List
 VERSION_BLACKLIST_WORDS = ["beta", "rc", "alpha"]
 
 
-class Atlas(concept.AtlasConcept, configuration_folder="atlases"):
+class Atlas(concept.AtlasConcept, schema="juelich/iav/atlas/v1.0.0"):
     """
     Main class for an atlas, providing access to feasible
     combinations of available parcellations and reference

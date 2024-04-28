@@ -61,7 +61,7 @@ class AssignImageResult(CompareMapsResult, MapAssignment):
     pass
 
 
-class Map(concept.AtlasConcept, configuration_folder="maps"):
+class Map(concept.AtlasConcept, schema="siibra/map/v0.0.1"):
 
     def __init__(
         self,
