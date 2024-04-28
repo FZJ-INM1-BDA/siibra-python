@@ -1,8 +1,17 @@
 from dataclasses import dataclass, field
 
+SCHEMAS = {}
+
 
 @dataclass
 class Attribute:
-    type: str = field(default="attr", init=False)
-    key: str = field(default=None, init=False)
-    value: str = field(default=None, init=False)
+    """ Base clase for attributes. """
+    schema: str = field(default="siibra/attr", init=False)
+
+    # derived classes set their schema as class parameter
+    def __init_subclass__(cls, schema: str):
+        cls.schema = schema
+        SCHEMAS[schema] = cls
+
+    def matches(self, *args, **kwargs):
+        return False

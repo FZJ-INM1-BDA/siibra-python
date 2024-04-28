@@ -35,7 +35,7 @@ from .retrieval.requests import (
 )
 from . import configuration
 from .configuration import factory
-from . import features, livequeries
+from . import livequeries, features_beta as features
 from siibra.locations import Point, PointSet
 
 import os as _os

@@ -153,7 +153,7 @@ class AtlasConcept:
 
     @classmethod
     def registry(cls: Type[T]) -> InstanceTable[T]:
-        if cls._configuration_folder is None:
+        if cls._schema is None:
             return None
         if _REGISTRIES[cls] is None:
             from ..configuration import Configuration
@@ -161,9 +161,8 @@ class AtlasConcept:
             # visit the configuration to provide a cleanup function
             # in case the user changes the configuration during runtime.
             Configuration.register_cleanup(cls.clear_registry)
-            assert cls._configuration_folder in conf.folders
-            objects = conf.build_objects(cls._configuration_folder)
-            logger.debug(f"Built {len(objects)} preconfigured {cls.__name__} objects.")
+            assert cls._schema in conf.known_schemas
+            objects = conf.build_objects(cls._schema)
             assert len(objects) > 0
             assert all([hasattr(o, 'key') for o in objects])
 
@@ -218,12 +217,12 @@ class AtlasConcept:
     def key(self):
         return create_key(self.name)
 
-    def __init_subclass__(cls, configuration_folder: str = None):
+    def __init_subclass__(cls, schema: str = None):
         """
         This method is called whenever AtlasConcept gets subclassed
         (see https://docs.python.org/3/reference/datamodel.html)
         """
-        cls._configuration_folder = configuration_folder
+        cls._schema = schema
         _REGISTRIES[cls] = None
         return super().__init_subclass__()
 

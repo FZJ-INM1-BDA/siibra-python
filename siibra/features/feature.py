@@ -215,7 +215,7 @@ class Feature:
         from ..configuration.configuration import Configuration
         conf = Configuration()
         Configuration.register_cleanup(cls._clean_instances)
-        assert cls._configuration_folder in conf.folders
+        assert cls._configuration_folder in conf.known_schemas
         cls._preconfigured_instances = [
             o for o in conf.build_objects(cls._configuration_folder)
             if isinstance(o, cls)

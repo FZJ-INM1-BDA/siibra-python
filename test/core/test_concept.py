@@ -33,7 +33,7 @@ class TestAtlasConcept(unittest.TestCase):
 
     def test_init(self):
         assert issubclass(DummyClsKwarg, AtlasConcept)
-        assert DummyClsKwarg._configuration_folder == CONF_FOLDER
+        assert DummyClsKwarg._schema == CONF_FOLDER
         instance = DummyClsKwarg(
             identifier=IDENTIFIER, name=NAME, species=Species.HOMO_SAPIENS
         )

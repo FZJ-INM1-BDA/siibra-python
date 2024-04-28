@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from ..volumes import volume
 
 
-class Space(AtlasConcept, configuration_folder="spaces"):
+class Space(AtlasConcept, schema="siibra/space/v0.0.1"):
 
     def __init__(
         self,
