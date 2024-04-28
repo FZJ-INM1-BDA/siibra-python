@@ -44,12 +44,16 @@ class DataFeature:
                 raise RuntimeError(f"Expecting a dictionary as feature attribute specification, not '{type(att)}'")
 
     def matches(self, *args, **kwargs):
-        """ Returns true if this feature or one of its attributes match any of the given arguments. 
+        """ Returns true if this feature or one of its attributes match any of the given arguments.
         TODO One might prefer if this matches agains **all** instead of **any** arguments, but *any* is simpler at this stage.
         """
         return any(a.matches(*args, **kwargs) for a in self.attributes)
 
     def get_data(self):
+        """ Return a list data obtained from DataAttributes. 
+        TODO this is just for beta development, later on we might rather 
+        have properly typed methods to load any available data frames and images. 
+        """
         return (
             attr.get_data()
             for attr in self.attributes
