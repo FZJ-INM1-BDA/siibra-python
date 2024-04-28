@@ -18,7 +18,6 @@ class DataAttribute(Attribute, schema="siibra/attr/data"):
         )
 
 
-
 @dataclass
 class TabularDataAttribute(DataAttribute, schema="siibra/attr/data/tabular"):
     format: str
@@ -35,8 +34,8 @@ class TabularDataAttribute(DataAttribute, schema="siibra/attr/data/tabular"):
             except IndexError:
                 logger.warn(f"Could not set index to #{self.index_column} of columns {df.columns}.")
         return df
-    
+
     def plot(self, *args, **kwargs):
-        plot_kwargs = self.plot_options
+        plot_kwargs = self.plot_options.copy()
         plot_kwargs.update(kwargs)
         return self.data.plot(*args, **plot_kwargs)

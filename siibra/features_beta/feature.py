@@ -8,6 +8,13 @@ from typing import List
 import uuid
 
 
+NAME_ATTRS = [
+    "siibra/attr/meta/modality",
+    "siibra/attr/meta/regionspec",
+    "siibra/attr/meta/species",
+]
+
+
 @dataclass
 class DataFeature:
     """ A multimodal data feature characterized by a set of attributes.
@@ -15,23 +22,10 @@ class DataFeature:
     schema = "siibra/feature/v0.2"
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     attributes: List["attributes.Attribute"] = field(default_factory=list)
-
-    @property
-    def name(self):
-        """ Construct name from attributes.
-        TODO this needs to be more flexible.
-        TODO We should allow optional specification of the name in the feature spec.
-        """
-        NAME_ATTRS = [
-            "siibra/attr/meta/modality",
-            "siibra/attr/meta/regionspec",
-            "siibra/attr/meta/species",
-        ]
-        parts = [a.name for a in self.attributes if a.schema in NAME_ATTRS]
-        return " | ".join(parts) if len(parts) > 0 else "Unnamed"
+    name: str = field(default=None)
 
     def __post_init__(self):
-        """ Construct nested FeatureAttribute objects from their specs. """
+        # Construct nested FeatureAttribute objects from their specs
         for i, att in enumerate(self.attributes):
             if isinstance(att, DataFeature):
                 continue
@@ -42,6 +36,9 @@ class DataFeature:
                     raise RuntimeError(f"Cannot parse attribute specification type '{att.get('@type')}'")
             else:
                 raise RuntimeError(f"Expecting a dictionary as feature attribute specification, not '{type(att)}'")
+        if self.name is None:
+            parts = [a.name for a in self.attributes if a.schema in NAME_ATTRS]
+            self.name = ", ".join(parts) if len(parts) > 0 else "Unnamed"
 
     def matches(self, *args, **kwargs):
         """ Returns true if this feature or one of its attributes match any of the given arguments.
@@ -50,16 +47,16 @@ class DataFeature:
         return any(a.matches(*args, **kwargs) for a in self.attributes)
 
     def get_data(self):
-        """ Return a list data obtained from DataAttributes. 
-        TODO this is just for beta development, later on we might rather 
-        have properly typed methods to load any available data frames and images. 
+        """ Return a list data obtained from DataAttributes.
+        TODO this is just for beta development, later on we might rather
+        have properly typed methods to load any available data frames and images.
         """
         return (
             attr.data
             for attr in self.attributes
             if isinstance(attr, attributes.DataAttribute)
         )
-    
+
     def plot(self, *args, **kwargs):
         """ Plots all data attributes.
         """
