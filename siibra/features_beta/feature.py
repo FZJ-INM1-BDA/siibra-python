@@ -55,10 +55,17 @@ class DataFeature:
         have properly typed methods to load any available data frames and images. 
         """
         return (
-            attr.get_data()
+            attr.data
             for attr in self.attributes
             if isinstance(attr, attributes.DataAttribute)
         )
+    
+    def plot(self, *args, **kwargs):
+        """ Plots all data attributes.
+        """
+        for attr in self.attributes:
+            if isinstance(attr, attributes.DataAttribute):
+                attr.plot(*args, **kwargs)
 
 
 def get(structure: AnatomicalStructure, modality: str, **kwargs):
