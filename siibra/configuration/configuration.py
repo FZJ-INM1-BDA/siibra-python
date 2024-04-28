@@ -111,7 +111,7 @@ class Configuration:
     @classmethod
     def use_configuration(cls, conn: Union[str, RepositoryConnector]):
         if isinstance(conn, str):
-            conn = RepositoryConnector.from_url(conn)
+            conn = RepositoryConnector._from_url(conn)
         if not isinstance(conn, RepositoryConnector):
             raise RuntimeError("Configuration needs to be an instance of RepositoryConnector or a valid str")
         logger.info(f"Using custom configuration from {str(conn)}")
