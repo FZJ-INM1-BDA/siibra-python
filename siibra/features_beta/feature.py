@@ -75,7 +75,7 @@ def get(structure: AnatomicalStructure, modality: str, **kwargs):
     cfg = Configuration()
     return list(
         filter(
-            lambda f: f.matches(modality=modality) and f.matches(region=structure), # Ideally enforce only keyword arguement
+            lambda f: f.matches(modality=modality) and f.matches(region=structure, **kwargs), # Ideally enforce only keyword arguement
             (DataFeature(**s) for _, s in cfg.specs.get("siibra/feature/v0.2"))
         )
     )
