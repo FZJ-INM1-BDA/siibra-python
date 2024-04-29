@@ -63,7 +63,7 @@ class VoiDataAttribute(DataAttribute):
 
     schema: str = "siibra/attr/data/voi"
     providers: dict[str, str] = field(default_factory=dict)
-    space: str = None
+    space_id: str = None
 
     @staticmethod
     @_m.cache
@@ -86,14 +86,14 @@ class VoiDataAttribute(DataAttribute):
     def boundingbox(self) -> "BoundingBox":
         minp, maxp, space_id = VoiDataAttribute._GetBoundingBox(self.providers)
         from ...locations import BoundingBox
-        return BoundingBox(minp, maxp, space_id or self.space)
+        return BoundingBox(minp, maxp, space_id or self.space_id)
 
     @property
     def data(self) -> "volume.Volume":
         from ...volumes import volume, providers
         
         return volume.Volume(
-            space_spec={"@id": self.space},
+            space_spec={"@id": self.space_id},
             providers={
                 provider: providers.VolumeProvider._SUBCLASSES[provider](url=self.providers[provider])
                 for provider in self.providers
