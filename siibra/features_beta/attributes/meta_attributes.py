@@ -1,10 +1,14 @@
 from dataclasses import dataclass
 from typing import Dict
+from joblib import Memory
 
 from .base import Attribute
 
-from ...core import region
+from ...core import region as _region, parcellation as _parcellation
+from ...retrieval import CACHE
 from ... import commons
+
+_m = Memory(CACHE.folder, verbose=False)
 
 
 def all_words_in_string(s1: str, s2: str):
@@ -13,12 +17,13 @@ def all_words_in_string(s1: str, s2: str):
 
 
 @dataclass
-class MetaAttribute(Attribute, schema="siibra/attr/meta"):
-    pass
+class MetaAttribute(Attribute):
+    schema="siibra/attr/meta"
 
 
 @dataclass
-class ModalityAttribute(MetaAttribute, schema="siibra/attr/meta/modality"):
+class ModalityAttribute(MetaAttribute):
+    schema="siibra/attr/meta/modality"
     name: str
 
     def matches(self, *args, modality=None, **kwargs):
@@ -28,7 +33,8 @@ class ModalityAttribute(MetaAttribute, schema="siibra/attr/meta/modality"):
 
 
 @dataclass
-class AuthorAttribute(MetaAttribute, schema="siibra/attr/meta/author"):
+class AuthorAttribute(MetaAttribute):
+    schema="siibra/attr/meta/author"
     name: str
     affiliation: str = ""
 
@@ -41,23 +47,38 @@ class AuthorAttribute(MetaAttribute, schema="siibra/attr/meta/author"):
 
 
 @dataclass
-class DoiAttribute(Attribute, schema="siibra/attr/meta/doi"):
+class DoiAttribute(Attribute):
+    schema="siibra/attr/meta/doi"
     url: str
 
 
 @dataclass
-class RegionSpecAttribute(Attribute, schema="siibra/attr/meta/regionspec"):
+class RegionSpecAttribute(Attribute):
+    schema="siibra/attr/meta/regionspec"
     name: str
 
-    def matches(self, *args, **kwargs):
-        for obj in args:
-            if isinstance(obj, region.Region) and obj.matches(self.name.lower()):
-                return True
+    @staticmethod
+    @_m.cache
+    def Matches(regionspec: str, parcellation: str, region: str) -> bool:
+        found_region = _parcellation.Parcellation.registry()[parcellation].get_region(region)
+        return found_region.matches(regionspec)
+
+
+    def matches(self, *args, region=None, parcellation=None, **kwargs):
+        if isinstance(region, _region.Region):
+            return RegionSpecAttribute.Matches(self.name, region.parcellation.name, region.name)
+        if isinstance(region, str):
+            assert parcellation, f"If region is supplied as a string, parcellation must be defined!"
+            assert isinstance(parcellation, (str, _parcellation.Parcellation)), f"parcellation must be of type str or Parcellation"
+            if isinstance(parcellation, _parcellation.Parcellation):
+                parcellation = parcellation.name
+            return RegionSpecAttribute.Matches(self.name, parcellation, region)
         return super().matches(*args, **kwargs)
 
 
 @dataclass
-class SpeciesSpecAttribute(Attribute, schema="siibra/attr/meta/speciesspec"):
+class SpeciesSpecAttribute(Attribute):
+    schema="siibra/attr/meta/speciesspec"
     name: str
 
     def matches(self, *args, species=None, **kwargs):
@@ -69,7 +90,8 @@ class SpeciesSpecAttribute(Attribute, schema="siibra/attr/meta/speciesspec"):
 
 
 @dataclass
-class EbrainsAttribute(Attribute, schema="siibra/attr/meta/ebrains"):
+class EbrainsAttribute(Attribute):
+    schema="siibra/attr/meta/ebrains"
     ids: Dict[str, str]
 
 

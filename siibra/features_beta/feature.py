@@ -26,16 +26,21 @@ class DataFeature:
 
     def __post_init__(self):
         # Construct nested FeatureAttribute objects from their specs
-        for i, att in enumerate(self.attributes):
+        parsed_attrs = []
+        for att in self.attributes:
             if isinstance(att, DataFeature):
                 continue
             elif isinstance(att, dict):
                 if att.get('@type') in attributes.SCHEMAS:
-                    self.attributes[i] = attributes.SCHEMAS[att.pop('@type')](**att)
+                    parsed_attrs.append(
+                        attributes.SCHEMAS[att.pop('@type')](**att)
+                    )
                 else:
                     raise RuntimeError(f"Cannot parse attribute specification type '{att.get('@type')}'")
             else:
                 raise RuntimeError(f"Expecting a dictionary as feature attribute specification, not '{type(att)}'")
+        self.attributes = parsed_attrs
+
         if self.name is None:
             parts = [a.name for a in self.attributes if a.schema in NAME_ATTRS]
             self.name = ", ".join(parts) if len(parts) > 0 else "Unnamed"
@@ -70,7 +75,7 @@ def get(structure: AnatomicalStructure, modality: str, **kwargs):
     cfg = Configuration()
     return list(
         filter(
-            lambda f: f.matches(modality=modality) and f.matches(structure),
+            lambda f: f.matches(modality=modality) and f.matches(region=structure), # Ideally enforce only keyword arguement
             (DataFeature(**s) for _, s in cfg.specs.get("siibra/feature/v0.2"))
         )
     )

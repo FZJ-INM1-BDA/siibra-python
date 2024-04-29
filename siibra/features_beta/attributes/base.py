@@ -9,9 +9,10 @@ class Attribute:
     schema: str = field(default="siibra/attr", init=False)
 
     # derived classes set their schema as class parameter
-    def __init_subclass__(cls, schema: str):
-        cls.schema = schema
-        SCHEMAS[schema] = cls
+    def __init_subclass__(cls):
+        assert cls.schema != Attribute.schema, f"Subclassed attributes must have unique schemas"
+        assert cls.schema not in SCHEMAS, f"{cls.schema} already registered."
+        SCHEMAS[cls.schema] = cls
 
     def matches(self, *args, **kwargs):
         return False
