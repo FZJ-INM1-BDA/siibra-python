@@ -1,7 +1,8 @@
 
 from siibra import get_region
 from siibra.locations import BoundingBox
-from siibra.features_beta import get
+from siibra.features_beta import get, modality
+from siibra.features_beta.attributes.meta_attributes import ModalityAttribute
 
 reg = get_region("julich brain 2.9", "hoc1")
 features = get(reg, "receptor profile")
@@ -15,3 +16,7 @@ bbox = BoundingBox(
 )
 features = get(None, "cell body staining", bbox=bbox)
 
+
+print(
+    modality.__dir__()
+)

@@ -26,6 +26,16 @@ class ModalityAttribute(MetaAttribute):
     schema="siibra/attr/meta/modality"
     name: str
 
+    @staticmethod
+    def _GetAll():
+        from ...configuration import Configuration
+        from ..feature import DataFeature
+        cfg = Configuration()
+        return {attr.name for _, s in cfg.specs.get("siibra/feature/v0.2")
+                for attr in DataFeature(**s).attributes
+                if isinstance(attr, ModalityAttribute)}
+
+
     def matches(self, *args, modality=None, **kwargs):
         if isinstance(modality, str) and all_words_in_string(modality, self.name):
             return True
