@@ -1,16 +1,16 @@
-from ..commons import create_key, QUIET
+from ..commons import QUIET, KeyAccessor
 
-MODALITY_DIC = {}
+_accessor: KeyAccessor = None
 
 def __dir__():
     with QUIET:
         from .attributes.meta_attributes import ModalityAttribute
         modalities = ModalityAttribute._GetAll()
-        global MODALITY_DIC
-        MODALITY_DIC = {create_key(mod): mod for mod in modalities}
-        return_val = list(MODALITY_DIC.keys())
-        return_val.sort()
-        return return_val
+        global _accessor
+        _accessor = KeyAccessor(names=list(modalities))
+        return _accessor.__dir__()
 
 def __getattr__(key: str):
-    return MODALITY_DIC[key]
+    if _accessor is None:
+        __dir__()
+    return _accessor.__getattr__(key)
