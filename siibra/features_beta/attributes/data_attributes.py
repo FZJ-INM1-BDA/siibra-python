@@ -1,14 +1,16 @@
 from dataclasses import dataclass, field
 from joblib import Memory
-from pandas import DataFrame
+import pandas as pd
 from typing import TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor
 
 from .base import Attribute
 from ...commons import logger
+from ...locations import BoundingBox, Location
 if TYPE_CHECKING:
     from ...volumes import volume
-    from ...locations import BoundingBox
-from ...retrieval import requests, CACHE
+    from .meta_attributes import PolylineDataAttribute
+from ...retrieval import CACHE
 
 _m = Memory(CACHE.folder, verbose=False)
 
@@ -26,36 +28,72 @@ class DataAttribute(Attribute):
         )
 
 
+BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR = 1.931
+
 @dataclass
 class TabularDataAttribute(DataAttribute):
 
     schema: str = "siibra/attr/data/tabular"
     format: str = None
     url: str = None
-    index_column: int = None
     plot_options: dict = field(default_factory=dict)
+    parse_options: dict = field(default_factory=dict)
     
-
     @staticmethod
     @_m.cache
-    def _GetData(url: str, index_column: int):
-        df = requests.HttpRequest(url).get()
-        assert isinstance(df, DataFrame), f"Expected tabular data to be dataframe, but is {type(df)} instead"
-        if isinstance(index_column, int):
-            try:
-                df.set_index(df.columns[index_column], inplace=True)
-            except IndexError:
-                logger.warn(f"Could not set index to #{index_column} of columns {df.columns}.")
-        return df
-
+    def _GetData(url: str, parse_options: dict):
+        return pd.read_csv(url, **parse_options)
+        
     @property
-    def data(self) -> DataFrame:
-        return TabularDataAttribute._GetData(self.url, self.index_column)
+    def data(self) -> pd.DataFrame:
+        return TabularDataAttribute._GetData(self.url, self.parse_options)
 
     def plot(self, *args, **kwargs):
         plot_kwargs = self.plot_options.copy()
         plot_kwargs.update(kwargs)
         return self.data.plot(*args, **plot_kwargs)
+
+
+
+@dataclass
+class LayerBoundaryDataAttribute(DataAttribute):
+    schema: str = "siibra/attr/data/layerboundary"
+    url: str = None
+    
+    @staticmethod
+    @_m.cache
+    def _GetPolylineAttributes(url: str):
+        import requests
+        import numpy as np
+
+        from .meta_attributes import PolylineDataAttribute
+
+        LAYERS = ("0", "I", "II", "III", "IV", "V", "VI", "WM")
+
+        all_betweeners = ("0" if start == "0" else f"{start}_{end}" for start,end in zip(LAYERS[:-1], LAYERS[1:]))
+        
+        def return_segments(url):
+            resp = requests.get(url)
+            resp.raise_for_status()
+            return resp.json().get("segments")
+
+        def poly_srt(poly: np.ndarray):
+            return poly[poly[:, 0].argsort(), :]
+
+        with ThreadPoolExecutor() as ex:
+            segments = ex.map(
+                return_segments,
+                (f"{url}{p}.json" for p in all_betweeners)
+            )
+        
+        return [PolylineDataAttribute(closed=False,
+                                      coordinates=poly_srt(np.array(s)).tolist()
+                                      ) for s in segments]
+        
+
+    @property
+    def layers(self) -> list['PolylineDataAttribute']:
+        return LayerBoundaryDataAttribute._GetPolylineAttributes(self.url)
 
 
 @dataclass
@@ -103,7 +141,7 @@ class VoiDataAttribute(DataAttribute):
     def plot(self, *args, **kwargs):
         raise NotImplementedError
     
-    def matches(self, *args, bbox: "BoundingBox"=None, **kwargs):
-        if bbox and bbox.intersects(self.boundingbox):
+    def matches(self, first_arg=None, *args, **kwargs):
+        if isinstance(first_arg, Location) and first_arg.intersects(self.boundingbox):
             return True
-        return super().matches(*args, **kwargs)
+        return super().matches(first_arg, *args, **kwargs)

@@ -1,10 +1,11 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict
 from joblib import Memory
 
 from .base import Attribute
 
 from ...core import region as _region, parcellation as _parcellation
+from ...locations import Location, Point
 from ...retrieval import CACHE
 from ... import commons
 
@@ -57,13 +58,13 @@ class AuthorAttribute(MetaAttribute):
 
 
 @dataclass
-class DoiAttribute(Attribute):
+class DoiAttribute(MetaAttribute):
     schema="siibra/attr/meta/doi"
     url: str
 
 
 @dataclass
-class RegionSpecAttribute(Attribute):
+class RegionSpecAttribute(MetaAttribute):
     schema="siibra/attr/meta/regionspec"
     name: str
 
@@ -74,7 +75,9 @@ class RegionSpecAttribute(Attribute):
         return found_region.matches(regionspec)
 
 
-    def matches(self, *args, region=None, parcellation=None, **kwargs):
+    def matches(self, first_arg=None, *args, region=None, parcellation=None, **kwargs):
+        if isinstance(first_arg, _region.Region):
+            region = first_arg
         if isinstance(region, _region.Region):
             return RegionSpecAttribute.Matches(self.name, region.parcellation.name, region.name)
         if isinstance(region, str):
@@ -83,11 +86,33 @@ class RegionSpecAttribute(Attribute):
             if isinstance(parcellation, _parcellation.Parcellation):
                 parcellation = parcellation.name
             return RegionSpecAttribute.Matches(self.name, parcellation, region)
-        return super().matches(*args, **kwargs)
+        return super().matches(first_arg, *args, **kwargs)
+    
+@dataclass
+class PointAttribute(MetaAttribute):
+    schema="siibra/attr/meta/point"
+    space_id: str
+    coordinate: list[float] = field(default_factory=list)
+
+    def matches(self, first_arg=None, *args, location: Location=None, **kwargs):
+        
+        if isinstance(first_arg, Location):
+            location = first_arg
+        if location and location.intersects(Point(self.coordinate, space=self.space_id)):
+            return True
+        return super().matches(first_arg, *args, **kwargs)
 
 
 @dataclass
-class SpeciesSpecAttribute(Attribute):
+class PolylineDataAttribute(MetaAttribute):
+    schema: str = 'siibra/attr/meta/polyline'
+    closed: bool = False
+    space_id: str = None
+    coordinates: list[list[float]] = field(default_factory=list)
+
+
+@dataclass
+class SpeciesSpecAttribute(MetaAttribute):
     schema="siibra/attr/meta/speciesspec"
     name: str
 
@@ -100,7 +125,7 @@ class SpeciesSpecAttribute(Attribute):
 
 
 @dataclass
-class EbrainsAttribute(Attribute):
+class EbrainsAttribute(MetaAttribute):
     schema="siibra/attr/meta/ebrains"
     ids: Dict[str, str]
 
