@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Callable
 import uuid
 import numpy as np
+import pandas as pd
 from functools import wraps
 from itertools import count
 
@@ -90,15 +91,16 @@ class DataFeature:
             yield fn(self)
         except NotImplementedError as e:
             return
-        
+    
+    def get_modalities(self):
+        return [attr.name for attr in self.attributes if isinstance(attr, attributes.ModalityAttribute)]
 
     def plot(self, *args, **kwargs):
         """ Plots all data attributes.
         """
         for attr in self.attributes:
             if isinstance(attr, attributes.DataAttribute):
-                attr.plot(*args, **kwargs)
-
+                yield attr.plot(*args, **kwargs)
 
     @property
     def data_modalities(self):
@@ -128,7 +130,10 @@ def get_layer_mask(feature: DataFeature, *, dry_run=False):
     cells = [attr for attr in feature.attributes
              if (
                  isinstance(attr, attributes.TabularDataAttribute)
-                 and attr.extra.get("x-siibra/celldensityprofile") == "segments"
+                 and (
+                     attr.extra.get("x-siibra/celldensity") or 
+                     attr.extra.get("x-siibra/celldensityprofile")
+                     ) == "segments"
                  )]
     
     layer_boundaries = [attr for attr in feature.attributes if isinstance(attr, attributes.LayerBoundaryDataAttribute)]
@@ -191,12 +196,18 @@ def get_density_image(feature: DataFeature, *, dry_run=False):
     cells = [attr for attr in feature.attributes
              if (
                  isinstance(attr, attributes.TabularDataAttribute)
-                 and attr.extra.get("x-siibra/celldensityprofile") == "segments"
+                 and (
+                    attr.extra.get("x-siibra/celldensity")
+                    or attr.extra.get("x-siibra/celldensityprofile")
+                    ) == "segments"
                  )]
     layers = [attr for attr in feature.attributes
              if (
                  isinstance(attr, attributes.TabularDataAttribute)
-                 and attr.extra.get("x-siibra/celldensityprofile") == "layerinfo"
+                 and (
+                    attr.extra.get("x-siibra/celldensity")
+                    or attr.extra.get("x-siibra/celldensityprofile")
+                    ) == "layerinfo"
                  )]
     assert len(cells) == 1, f"Expected one and only one segment attribute, but got {len(cells)}"
     assert len(layers) == 1, f"Expected one and only one layerinfo attribute, but got {len(layers)}"
@@ -222,3 +233,54 @@ def get_density_image(feature: DataFeature, *, dry_run=False):
     
     counts /= np.cbrt(attributes.data_attributes.BIGBRAIN_VOLUMETRIC_SHRINKAGE_FACTOR) ** 2
     return resize(counts, layer_mask.shape, order=2)
+
+@register_data_filter(keywords=["layer statistics"])
+def get_layer_statistics(feature: DataFeature, *, dry_run=False):
+    LAYER_NAMES = ("0", "I", "II", "III", "IV", "V", "VI", "WM")
+    cell_attrs = [attr for attr in feature.attributes
+                  if (isinstance(attr, attributes.data_attributes.TabularDataAttribute)
+                      and attr.extra.get("x-siibra/celldensity") == "segments")]
+    layer_attrs = [attr for attr in feature.attributes
+                  if (isinstance(attr, attributes.data_attributes.TabularDataAttribute)
+                      and attr.extra.get("x-siibra/celldensity") == "layerinfo")]
+    
+    def get_section_patch(attr: attributes.data_attributes.TabularDataAttribute):
+        return attr.extra.get("x-siibra/celldensity/section"), attr.extra.get("x-siibra/celldensity/patch")
+
+    paired_attrs: dict[tuple[str, str], tuple[attributes.data_attributes.TabularDataAttribute, ...]] = {}
+    
+    for cell_attr in cell_attrs:
+        key = get_section_patch(cell_attr)
+        assert key not in paired_attrs, f"key {key} already in paired attrs"
+        paired_attrs[key] = (cell_attr, )
+
+    for layer_attr in layer_attrs:
+        key = get_section_patch(layer_attr)
+        assert key in paired_attrs, f"expectin {key=} to be in paired attrs, but is not yet"
+        cell_attr, = paired_attrs[key]
+        paired_attrs[key] = (cell_attr, layer_attr)
+    
+
+    if dry_run:
+        return
+    
+    density_dict = {}
+    for index, (cell, layer) in enumerate(paired_attrs.values()):
+        counts = cell.data.layer.value_counts()
+        areas = layer.data["Area(micron**2)"]
+        indices = np.intersect1d(areas.index, counts.index)
+        density_dict[index] = counts[indices] / areas * 100 ** 2 * 5
+
+    df = pd.DataFrame(density_dict)
+    df = pd.DataFrame(
+        np.array([
+            df.mean(axis=1).tolist(),
+            df.std(axis=1).tolist()
+        ]).T,
+        columns=["mean", "std"],
+        index=[LAYER_NAMES[int(idx)] for idx in df.index],
+    )
+    df.index.name = "layer"
+    return df
+
+

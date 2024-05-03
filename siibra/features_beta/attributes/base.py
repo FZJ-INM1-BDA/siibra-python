@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Any
+from ...commons import logger
 
 SCHEMAS = {}
 
@@ -26,6 +27,7 @@ class Attribute:
             return []
         Cls = SCHEMAS.get(att_type)
         if Cls is None:
+            logger.warn(f"Cannot parse type {att_type}")
             return []
 
         return_attr: 'Attribute' = Cls(**{
