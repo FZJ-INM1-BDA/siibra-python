@@ -5,7 +5,7 @@ from joblib import Memory
 from .base import Attribute
 
 from ...core import region as _region, parcellation as _parcellation
-from ...locations import Location, Point
+from ...locations import Location, Point, PointSet
 from ...retrieval import CACHE
 from ... import commons
 
@@ -99,6 +99,22 @@ class PointAttribute(MetaAttribute):
         if isinstance(first_arg, Location):
             location = first_arg
         if location and location.intersects(Point(self.coordinate, space=self.space_id)):
+            return True
+        return super().matches(first_arg, *args, **kwargs)
+
+@dataclass
+class PointSetAttribute(MetaAttribute):
+    schema="siibra/attr/meta/pointset"
+    space_id: str
+    coordinates: list[list[float]] = field(default_factory=list)
+
+    def matches(self, first_arg=None, *args, location: Location=None, **kwargs):
+        
+        if isinstance(first_arg, Location):
+            location = first_arg
+        if location and location.intersects(
+            PointSet(self.coordinates, space=self.space_id)
+        ):
             return True
         return super().matches(first_arg, *args, **kwargs)
 
