@@ -77,7 +77,7 @@ class Configuration:
 
         # Retrieve configuration specs from the default configuration.
         # If this fails we stop.
-        for connector in self.CONFIGURATIONS:
+        for connector in self.CONFIG_CONNECTORS:
             try:
                 self._load_specs(connector)
                 break  # controlled successful stop of the loop, needed to use "else:" below
@@ -93,7 +93,7 @@ class Configuration:
 
         # Add  configuration specs from optional extension configurations.
         # If this fails, we continue.
-        for connector in self.CONFIGURATION_EXTENSIONS:
+        for connector in self.CONFIG_EXTENSIONS:
             try:
                 self._load_specs(connector)
                 break
