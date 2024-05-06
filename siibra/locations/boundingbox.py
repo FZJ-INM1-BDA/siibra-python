@@ -124,7 +124,7 @@ class BoundingBox(location.Location):
 
         Parameters
         ----------
-        other: BrainStructure
+        other: AnatomicalStructure
         dims: List[int], default: all three
             Dimensions where the intersection should be computed
             (applies only to bounding boxes). Along dimensions not listed,

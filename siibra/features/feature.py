@@ -241,7 +241,7 @@ class Feature:
         """ Removes all instantiated object instances"""
         cls._preconfigured_instances = None
 
-    def matches(self, concept: structure.BrainStructure, restrict_space: bool = False) -> bool:
+    def matches(self, concept: structure.AnatomicalStructure, restrict_space: bool = False) -> bool:
         """
         Match the features anatomical anchor agains the given query concept.
         Record the most recently matched concept for inspection by the caller.
@@ -255,12 +255,12 @@ class Feature:
 
     @property
     def last_match_result(self):
-        "The result of the last anchor comparison to a BrainStructure."
+        "The result of the last anchor comparison to a AnatomicalStructure."
         return None if self.anchor is None else self.anchor.last_match_result
 
     @property
     def last_match_description(self):
-        "The description of the last anchor comparison to a BrainStructure."
+        "The description of the last anchor comparison to a AnatomicalStructure."
         return "" if self.anchor is None else self.anchor.last_match_description
 
     @property
@@ -535,7 +535,7 @@ class Feature:
         # We expect a specific supported feature type is to be matched now.
         if not isinstance(concept, structure.AnatomicalStructure):
             raise ValueError(
-                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a BrainStructure type."
+                f"{concept.__class__.__name__} cannot be used for feature queries as it is not a AnatomicalStructure type."
             )
 
         # Collect any preconfigured instances of the requested feature type

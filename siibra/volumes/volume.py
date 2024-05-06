@@ -333,7 +333,7 @@ class Volume(location.Location):
         if isinstance(other, (pointset.PointSet, point.Point)):
             points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
             if len(points_inside) == 0:
-                return None  # BrainStructure.intersects checks for not None
+                return None  # AnatomicalStructure.intersects checks for not None
             if isinstance(other, point.Point):  # preserve the type
                 return points_inside[0]
             return points_inside
@@ -355,7 +355,7 @@ class Volume(location.Location):
                 )
             else:
                 return None
-        else:  # other BrainStructures should have intersection with locations implemented.
+        else:  # other AnatomicalStructures should have intersection with locations implemented.
             try:
                 return other.intersection(self)
             except NoMapAvailableError:

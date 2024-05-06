@@ -8,5 +8,5 @@ def test_intersection_ptset_outside_bbox():
     bbox = siibra.get_region('julich 3', 'hoc1 right').get_boundingbox('mni152')
     assert pts.intersection(bbox) is None
 
-    siibra.core.structure.BrainStructure._ASSIGNMENT_CACHE = dict()
+    siibra.core.structure.AnatomicalStructure._ASSIGNMENT_CACHE = dict()
     assert bbox.intersection(pts) is None
