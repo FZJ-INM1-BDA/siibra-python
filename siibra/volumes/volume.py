@@ -20,7 +20,7 @@ from .. import logger
 from ..retrieval import requests
 from ..core import space as _space, structure
 from ..locations import location, point, pointset, boundingbox
-from ..commons import resample_array_to_array, siibra_tqdm
+from ..commons import resample_img_to_img, siibra_tqdm
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 from nibabel import Nifti1Image
@@ -28,8 +28,8 @@ import numpy as np
 from typing import List, Dict, Union, Set, TYPE_CHECKING
 from time import sleep
 import json
-from skimage import feature as skimage_feature
-from skimage.filters import gaussian
+from skimage import feature as skimage_feature, filters
+from functools import lru_cache
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -52,7 +52,9 @@ class Volume(location.Location):
         "neuroglancer/precompmesh",
         "neuroglancer/precompmesh/surface",
         "gii-mesh",
-        "gii-label"
+        "gii-label",
+        "freesurfer-annot",
+        "zip/freesurfer-annot",
     ]
 
     SUPPORTED_FORMATS = IMAGE_FORMATS + MESH_FORMATS
@@ -86,7 +88,7 @@ class Volume(location.Location):
             assert srctype not in self._providers
             self._providers[srctype] = provider
         if len(self._providers) == 0:
-            logger.debug(f"No provider for volume {self}")
+            logger.debug(f"No provider for volume {name}")
 
     def __hash__(self):
         return super().__hash__()
@@ -116,6 +118,7 @@ class Volume(location.Location):
             for srctype, prov in self._providers.items()
         }
 
+    @lru_cache(2)
     def get_boundingbox(self, clip: bool = True, background: float = 0.0, **fetch_kwargs) -> "boundingbox.BoundingBox":
         """
         Obtain the bounding box in physical coordinates of this volume.
@@ -140,7 +143,7 @@ class Volume(location.Location):
             If the volume provider does not have a bounding box calculator.
         """
         fmt = fetch_kwargs.get("format")
-        if fmt in self._providers:
+        if (fmt is not None) and (fmt not in self.formats):
             raise ValueError(
                 f"Requested format {fmt} is not available as provider of "
                 "this volume. See `volume.formats` for possible options."
@@ -156,18 +159,14 @@ class Volume(location.Location):
                     bbox.minpoint._space_cached = self.space
                     bbox.maxpoint._space_cached = self.space
             except NotImplementedError as e:
-                print(str(e))
+                logger.info(e)
                 continue
             return bbox
         raise RuntimeError(f"No bounding box specified by any volume provider of {str(self)}")
 
     @property
     def formats(self) -> Set[str]:
-        result = set()
-        for fmt in self._providers:
-            result.add(fmt)
-            result.add('mesh' if fmt in self.MESH_FORMATS else 'image')
-        return result
+        return {fmt for fmt in self._providers}
 
     @property
     def provides_mesh(self):
@@ -213,33 +212,109 @@ class Volume(location.Location):
             f"name='{self.name}', providers={self._providers})>"
         )
 
-    def _points_inside(self, points: Union['point.Point', 'pointset.PointSet'], **kwargs) -> 'pointset.PointSet':
+    def evaluate_points(
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
+        outside_value: Union[int, float] = 0,
+        **fetch_kwargs
+    ) -> np.ndarray:
         """
-        Reduce a pointset to the points which fall
-        inside nonzero pixels of this volume.
-        The indices of the original points are stored as point labels in the result.
-        Any additional arguments are passed to the fetch() call
-        for retrieving the image data.
+        Evaluate the image at the positions of the given points.
+
+        Note
+        ----
+        Uses nearest neighbor interpolation. Other interpolation schemes are not
+        yet implemented.
+
+        Note
+        ----
+        If points are not on the same space as the map, they will be warped to
+        the space of the volume.
+
+        Parameters
+        ----------
+        points: PointSet
+        outside_value: int, float. Default: 0
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        values: numpy.ndarray
+            The values of the volume at the voxels points correspond to.
+
+        Raises
+        ------
+        SpaceWarpingFailedError
+            If warping of the points fails.
         """
         if not self.provides_image:
             raise NotImplementedError("Filtering of points by pure mesh volumes not yet implemented.")
-        img = self.fetch(format='image', **kwargs)
-        arr = img.get_fdata()
-        warped = points.warp(self.space)
-        assert warped is not None
+
+        # make sure the points are in the same physical space as this volume
+        warped = (
+            pointset.from_points([points]) if isinstance(points, point.Point) else points
+        ).warp(self.space)
+        assert warped is not None, SpaceWarpingFailedError
+
+        # get the voxel array of this volume
+        img = self.fetch(format='image', **fetch_kwargs)
+        arr = np.asanyarray(img.dataobj)
+
+        # transform the points to the voxel space of the volume for extracting values
         phys2vox = np.linalg.inv(img.affine)
         voxels = warped.transform(phys2vox, space=None)
-        XYZ = voxels.homogeneous.astype('int')[:, :3]
-        X, Y, Z = np.split(
-            XYZ[np.all((XYZ < arr.shape) & (XYZ > 0), axis=1), :],
-            3, axis=1
-        )
-        arr[0, 0, 0] = 0  # ensure the lower left voxel is not foreground
-        inside = np.where(arr[X, Y, Z] != 0)[0]
-        return pointset.PointSet(
-            points.homogeneous[inside, :3],
-            space=points.space,
-            labels=inside
+        XYZ = voxels.coordinates.astype('int')
+
+        # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
+        inside = np.all((XYZ < arr.shape) & (XYZ > 0), axis=1)
+        XYZ[~inside, :] = 0
+
+        # read out the values
+        X, Y, Z = XYZ.T
+        values = arr[X, Y, Z]
+
+        # fix the outside voxel values, which might have an inconsistent value now
+        values[~inside] = outside_value
+
+        return values
+
+    def _points_inside(
+        self,
+        points: Union['point.Point', 'pointset.PointSet'],
+        keep_labels: bool = True,
+        outside_value: Union[int, float] = 0,
+        **fetch_kwargs
+    ) -> 'pointset.PointSet':
+        """
+        Reduce a pointset to the points which fall inside nonzero pixels of
+        this map.
+
+
+        Paramaters
+        ----------
+        points: PointSet
+        keep_labels: bool
+            If False, the returned PointSet will be labeled with their indices
+            in the original PointSet.
+        fetch_kwargs: dict
+            Any additional arguments are passed to the `fetch()` call for
+            retrieving the image data.
+
+        Returns
+        -------
+        PointSet
+            A new PointSet containing only the points inside the volume.
+            Labels reflect the indices of the original points if `keep_labels`
+            is False.
+        """
+        ptset = pointset.from_points([points]) if isinstance(points, point.Point) else points
+        values = self.evaluate_points(ptset, outside_value=outside_value, **fetch_kwargs)
+        inside = list(np.where(values != outside_value)[0])
+        return pointset.from_points(
+            [ptset[i] for i in inside],
+            newlabels=None if keep_labels else inside
         )
 
     def union(self, other: location.Location):
@@ -250,24 +325,26 @@ class Volume(location.Location):
                 f"There are no union method for {(self.__class__.__name__, other.__class__.__name__)}"
             )
 
-    def intersection(self, other: structure.AnatomicalStructure, **kwargs) -> structure.AnatomicalStructure:
+    def intersection(self, other: structure.AnatomicalStructure, **fetch_kwargs) -> structure.AnatomicalStructure:
         """
         Compute the intersection of a location with this volume. This will
         fetch actual image data. Any additional arguments are passed to fetch.
         """
         if isinstance(other, (pointset.PointSet, point.Point)):
-            result = self._points_inside(other, **kwargs)
-            if len(result) == 0:
-                return None  # BrainStructure.intersects check for not None
-            return result[0] if len(result) == 1 else result  # if PointSet has single point return as a Point
+            points_inside = self._points_inside(other, keep_labels=False, **fetch_kwargs)
+            if len(points_inside) == 0:
+                return None  # BrainStructure.intersects checks for not None
+            if isinstance(other, point.Point):  # preserve the type
+                return points_inside[0]
+            return points_inside
         elif isinstance(other, boundingbox.BoundingBox):
-            return self.get_boundingbox(clip=True, background=0.0, **kwargs).intersection(other)
+            return self.get_boundingbox(clip=True, background=0.0, **fetch_kwargs).intersection(other)
         elif isinstance(other, Volume):
-            format = kwargs.pop('format', 'image')
-            v1 = self.fetch(format=format, **kwargs)
-            v2 = other.fetch(format=format, **kwargs)
+            format = fetch_kwargs.pop('format', 'image')
+            v1 = self.fetch(format=format, **fetch_kwargs)
+            v2 = other.fetch(format=format, **fetch_kwargs)
             arr1 = np.asanyarray(v1.dataobj)
-            arr2 = resample_array_to_array(np.asanyarray(v2.dataobj), v2.affine, arr1, v1.affine)
+            arr2 = np.asanyarray(resample_img_to_img(v2, v1).dataobj)
             pointwise_min = np.minimum(arr1, arr2)
             if np.any(pointwise_min):
                 return from_array(
@@ -317,10 +394,13 @@ class Volume(location.Location):
         -------
         An image (Nifti1Image) or mesh (Dict['verts': ndarray, 'faces': ndarray, 'labels': ndarray])
         """
-        # check for a cached object
         kwargs_serialized = json.dumps({k: hash(v) for k, v in kwargs.items()}, sort_keys=True)
 
-        # no cached object, fetch now
+        if "resolution_mm" in kwargs and format is None:
+            if 'neuroglancer/precomputed' not in self.formats:
+                raise ValueError("'resolution_mm' is only available for volumes with 'neuroglancer/precomputed' formats.")
+            format = 'neuroglancer/precomputed'
+
         if format is None:
             # preseve fetch order in SUPPORTED_FORMATS
             possible_formats = [f for f in self.SUPPORTED_FORMATS if f in self.formats]
@@ -337,15 +417,17 @@ class Volume(location.Location):
             )
 
         result = None
+        # try each possible format
         for fmt in possible_formats:
             fetch_hash = hash((hash(self), hash(fmt), hash(kwargs_serialized)))
+            # cached
             if fetch_hash in self._FETCH_CACHE:
-                return self._FETCH_CACHE[fetch_hash]
-            # try the each possible format. Repeat in case of too many requests.
+                break
+            # Repeat in case of too many requests only
+            fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
             for try_count in range(6):
-                fwd_args = {k: v for k, v in kwargs.items() if k != "format"}
                 try:
-                    if fmt == "gii-label":
+                    if fmt in ["gii-label", "freesurfer-annot", "zip/freesurfer-annot"]:
                         tpl = self.space.get_template(variant=kwargs.get('variant'))
                         mesh = tpl.fetch(**kwargs)
                         labels = self._providers[fmt].fetch(**fwd_args)
@@ -355,24 +437,28 @@ class Volume(location.Location):
                 except requests.SiibraHttpRequestError as e:
                     if e.status_code == 429:  # too many requests
                         sleep(0.1)
-                    logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                        logger.error(f"Cannot access {self._providers[fmt]}", exc_info=(try_count == 5))
+                        continue
+                    else:
+                        break
                 except Exception as e:
-                    logger.debug(e, exc_info=1)
-                finally:
+                    logger.info(e, exc_info=1)
                     break
+                else:
+                    break
+            # udpate the cache if fetch is successful
             if result is not None:
+                self._FETCH_CACHE[fetch_hash] = result
+                while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
+                    # remove oldest entry
+                    self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
                 break
         else:
-            # do not poison the cache if none fetched
-            # TODO: profile if fetching None worth it
+            # unsuccessful: do not poison the cache if none fetched
             logger.error(f"Could not fetch any formats from {possible_formats}.")
             return None
 
-        while len(self._FETCH_CACHE) >= self._FETCH_CACHE_MAX_ENTRIES:
-            # remove oldest entry
-            self._FETCH_CACHE.pop(next(iter(self._FETCH_CACHE)))
-        self._FETCH_CACHE[fetch_hash] = result
-        return result
+        return self._FETCH_CACHE[fetch_hash]
 
     def fetch_connected_components(self, **kwargs):
         """
@@ -421,7 +507,7 @@ class Volume(location.Location):
             space=None
         )
         result = voxels.transform(img.affine, space='mni152')
-        result.sigma_mm = sigma_mm
+        result.sigma_mm = [sigma_mm for _ in result]
         return result
 
     def find_peaks(self, mindist=5, sigma_mm=0, **kwargs):
@@ -504,23 +590,23 @@ def from_array(
 
 def from_pointset(
     points: pointset.PointSet,
-    labels: List[int] = [],
+    label: int = None,
     target: Volume = None,
-    min_num_points=10,
     normalize=True,
     **kwargs
 ) -> Volume:
     """
     Get the kernel density estimate as a volume from the points using their
     average uncertainty on target volume.
+
     Parameters
     ----------
     points: pointset.PointSet
+    label: int, default: None
+        If None, finds the KDE for all points. Otherwise, selects the points
+        labelled with this integer value.
     target: Volume, default: None
-        If no volumes supplied, the template of the space points are defined on
-        will be used.
-    labels: List[int], default: []
-    min_num_points: int, default 10
+        If None, the template of the space points are defined on will be used.
     normalize: bool, default: True
 
     Raises
@@ -532,53 +618,36 @@ def from_pointset(
         target = points.space.get_template()
     targetimg = target.fetch(**kwargs)
     voxels = points.transform(np.linalg.inv(targetimg.affine), space=None)
-    cimg = np.zeros_like(targetimg.get_fdata())
 
-    if len(labels) == 0:
-        if points.labels is None:
-            labels = [1]
-            logger.info("Found no point labels. Labelling all with 1.")
-            points.labels = np.ones(len(points), dtype=int)
-        else:
-            labels = points.labels
-    found_enough_points = False
-    for label in labels:
-        selection = [_ == label for _ in points.labels]
-        if selection.count(True) == 0:
-            logger.warning(f"No points with label {label} in the set: {set(points.labels)}")
-            continue
-        X, Y, Z = np.split(
-            np.array(voxels.as_list()).astype('int')[selection, :],
-            3,
-            axis=1
-        )
-        if len(X) < min_num_points:
-            logger.warning(f"Not enough points (<{min_num_points}) with label {label}, skipping.")
-            continue
-        found_enough_points = True
-        cimg[X, Y, Z] = label
-
-    if not found_enough_points:
-        raise RuntimeError(f"Not enough poinsts with labels {labels} found in {points}.")
-
-    if isinstance(points.sigma_mm, (int, float)):
-        bandwidth = points.sigma_mm
-    elif isinstance(points.sigma_mm, list):
-        logger.debug(
-            "Computing kernel density estimate from pointset using their average uncertainty."
-        )
-        bandwidth = np.sum(points.sigma_mm) / len(points)
+    if (label is None) or (points.labels is None):
+        selection = [True for _ in points]
     else:
-        logger.warn("Poinset has no uncertainty, using bandwith=1mm for kernel density estimate.")
-        bandwidth = 1
-    data = gaussian(cimg, bandwidth)
+        assert label in points.labels, f"No points with the label {label} in the set: {set(points.labels)}"
+        selection = points.labels == label
+
+    voxelcount_img = np.zeros_like(targetimg.get_fdata())
+    unique_coords, counts = np.unique(
+        np.array(voxels.as_list(), dtype='int')[selection, :],
+        axis=0,
+        return_counts=True
+    )
+    voxelcount_img[tuple(unique_coords.T)] = counts
+
+    # TODO: consider how to handle pointsets with varied sigma_mm
+    sigmas = np.array(points.sigma_mm)[selection]
+    bandwidth = np.mean(sigmas)
+    if len(np.unique(sigmas)) > 1:
+        logger.warning(f"KDE of pointset uses average bandwith {bandwidth} instead of the points' individual sigmas.")
+
+    filtered_arr = filters.gaussian(voxelcount_img, bandwidth)
     if normalize:
-        data /= data.sum()
+        filtered_arr /= filtered_arr.sum()
+
     return from_array(
-        data=data,
+        data=filtered_arr,
         affine=targetimg.affine,
         space=target.space,
-        name=f'KDE map of {points} with labels={labels}'
+        name=f'KDE map of {points}{f"labelled {label}" if label else ""}'
     )
 
 
@@ -609,7 +678,6 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
     assert all(v.space == space for v in volumes), "Cannot merge volumes from different spaces."
 
     template_img = space.get_template().fetch(**fetch_kwargs)
-    template_arr = np.asanyarray(template_img.dataobj)
     merged_array = np.zeros(template_img.shape, dtype='uint8')
 
     for i, vol in siibra_tqdm(
@@ -620,17 +688,14 @@ def merge(volumes: List[Volume], labels: List[int] = [], **fetch_kwargs) -> Volu
         disable=len(volumes) < 3
     ):
         img = vol.fetch(**fetch_kwargs)
-        arr_resampled = resample_array_to_array(
-            source_data=np.asanyarray(img.dataobj),
-            source_affine=img.affine,
-            target_data=template_arr,
-            target_affine=template_img.affine
+        resampled_arr = np.asanyarray(
+            resample_img_to_img(img, template_img).dataobj
         )
-        nonzero_voxels = arr_resampled > 0
+        nonzero_voxels = resampled_arr > 0
         if labels:
             merged_array[nonzero_voxels] = labels[i]
         else:
-            merged_array[nonzero_voxels] = arr_resampled[nonzero_voxels]
+            merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
     return from_array(
         data=merged_array,

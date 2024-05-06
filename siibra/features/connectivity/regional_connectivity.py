@@ -19,7 +19,7 @@ from ..tabular.tabular import Tabular
 
 from .. import anchor as _anchor
 
-from ...commons import logger, QUIET
+from ...commons import logger, QUIET, siibra_tqdm
 from ...core import region as _region
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
@@ -28,7 +28,7 @@ from ...retrieval.requests import HttpRequest
 
 import pandas as pd
 import numpy as np
-from typing import Callable, Union, List
+from typing import Callable, Union, List, Tuple, Iterator
 
 try:
     from typing import Literal
@@ -57,7 +57,8 @@ class RegionalConnectivity(Feature, Compoundable):
         description: str = "",
         datasets: list = [],
         subject: str = "average",
-        feature: str = None
+        feature: str = None,
+        id: str = None
     ):
         """
         Construct a parcellation-averaged connectivity matrix.
@@ -91,6 +92,7 @@ class RegionalConnectivity(Feature, Compoundable):
             description=description,
             anchor=anchor,
             datasets=datasets,
+            id=id
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
@@ -116,7 +118,7 @@ class RegionalConnectivity(Feature, Compoundable):
 
     @property
     def name(self):
-        return f"{super().name} with cohort {self.cohort} - {self.feature or self.subject}"
+        return f"{self.feature or self.subject} - " + super().name + f" cohort: {self.cohort}"
 
     @property
     def data(self) -> pd.DataFrame:
@@ -131,6 +133,45 @@ class RegionalConnectivity(Feature, Compoundable):
         if self._matrix is None:
             self._load_matrix()
         return self._matrix.copy()
+
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["RegionalConnectivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in elements}) == 1
+        merged = cls(
+            cohort=elements[0].cohort,
+            regions=elements[0].regions,
+            connector=elements[0]._connector,
+            decode_func=elements[0]._decode_func,
+            filename="",
+            subject="average",
+            feature="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "averaged (by siibra)"} if getattr(elements[0], "paradigm", None) else {}
+        )
+        if isinstance(elements[0]._connector, HttpRequest):
+            getter = lambda elm: elm._connector.get()
+        else:
+            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        all_arrays = [
+            getter(elm)
+            for elm in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} connectivity matrices"
+            )
+        ]
+        merged._matrix = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return merged
 
     def _plot_matrix(
         self, regions: List[str] = None,
@@ -179,6 +220,7 @@ class RegionalConnectivity(Feature, Compoundable):
                 **kwargs
             )
         elif backend == "plotly":
+            kwargs["title"] = kwargs["title"].replace("\n", "<br>")
             from plotly.express import imshow
             return imshow(matrix, *args, x=regions, y=regions, **kwargs)
         else:
@@ -186,8 +228,8 @@ class RegionalConnectivity(Feature, Compoundable):
                 f"Plotting connectivity matrices with {backend} is not supported."
             )
 
-    def _export(self, fh: ZipFile):
-        super()._export(fh)
+    def _to_zip(self, fh: ZipFile):
+        super()._to_zip(fh)
         if self.feature is None:
             fh.writestr(f"sub/{self._filename}/matrix.csv", self.data.to_csv())
         else:
@@ -208,7 +250,6 @@ class RegionalConnectivity(Feature, Compoundable):
         Parameters
         ----------
         region: str, Region
-        subject: str, default: None
         min_connectivity: float, default: 0
             Regions with connectivity less than this value are discarded.
         max_rows: int, default: None
@@ -297,6 +338,7 @@ class RegionalConnectivity(Feature, Compoundable):
         kwargs["kind"] = kwargs.get("kind", "barh")
         if backend == "matplotlib":
             kwargs["logx"] = kwargs.get("logx", logscale)
+            return profile.data.plot(*args, backend=backend, **kwargs)
         elif backend == "plotly":
             kwargs.update({
                 "color": kwargs.get("color", profile.data.columns[0]),
@@ -319,6 +361,51 @@ class RegionalConnectivity(Feature, Compoundable):
             return fig
         else:
             return profile.data.plot(*args, backend=backend, **kwargs)
+
+    def get_profile_colorscale(
+        self,
+        region: Union[str, _region.Region],
+        min_connectivity: float = 0,
+        max_rows: int = None,
+        direction: Literal['column', 'row'] = 'column',
+        colorgradient: str = "jet"
+    ) -> Iterator[Tuple[_region.Region, Tuple[int, int, int]]]:
+        """
+        Extract the colorscale corresponding to the regional profile from the
+        matrix sorted by the values. See `get_profile` for further details.
+
+        Note:
+        -----
+        Requires `plotly`.
+
+        Parameters
+        ----------
+        region: str, Region
+        min_connectivity: float, default: 0
+            Regions with connectivity less than this value are discarded.
+        max_rows: int, default: None
+            Max number of regions with highest connectivity.
+        direction: str, default: 'column'
+            Choose the direction of profile extraction particularly for
+            non-symmetric matrices. ('column' or 'row')
+        colorgradient: str, default: 'jet'
+            The gradient used to extract colorscale.
+        Returns
+        -------
+        Iterator[Tuple[_region.Region, Tuple[int, int, int]]]
+            Color values are in RGB 255.
+        """
+        from plotly.express.colors import sample_colorscale
+        profile = self.get_profile(region, min_connectivity, max_rows, direction)
+        normalized = profile.data / profile.data.max()
+        colorscale = sample_colorscale(
+            colorgradient,
+            normalized.values.reshape(len(profile.data))
+        )
+        return zip(
+            profile.data.index.values,
+            [eval(c.removeprefix('rgb')) for c in colorscale]
+        )
 
     def __len__(self):
         return len(self._filename)

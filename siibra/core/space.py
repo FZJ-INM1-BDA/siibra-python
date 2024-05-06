@@ -115,7 +115,10 @@ class Space(AtlasConcept, schema="siibra/space/v0.0.1"):
                 f"'{candidates[0].variant}' is chosen, but you might specify another with the 'variant' parameter."
             )
 
-        return candidates[0]
+        template = candidates[0]
+        if len(template.datasets) == 0:
+            template.datasets = self.datasets
+        return template
 
     @property
     def provides_mesh(self):

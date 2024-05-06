@@ -1,12 +1,20 @@
-name: '[Docs and examples] Create docs and run examples'
-on: [push, release]
+name: '[Docs] Build docs and upload artifacts'
+on:
+  push:
+    branches: [ 'main', 'doc_*' ] 
+  release:
+    types: [ 'published' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   notebooks:
     name: "Build and run the notebooks for the docs"
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4

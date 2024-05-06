@@ -1,0 +1,47 @@
+name: '[validation] validate citation file'
+
+on:
+  push:
+    paths:
+    - 'CITATION.cff'
+    - 'siibra/VERSION'
+  release:
+    types:
+      - created
+
+jobs:
+  validate_citation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install cffconvert
+      run: |
+          pip install -U pip
+          pip install cffconvert
+
+    - name: Validate CITATION.cff
+      run: cffconvert --validate -i ./CITATION.cff
+
+  check_version:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    - name: Install cffconvert
+      run: |
+          pip install -U pip
+          pip install cffconvert
+    - name: Check version match
+      run: |
+        ccf_version=$(cffconvert -f zenodo | jq -r '.version')
+        echo "$ccf_version"
+        version_version=$(cat siibra/VERSION)
+        echo "$version_version"
+        if [[ "$ccf_version" == "v$version_version" ]]; then exit 0; else exit 1; fi

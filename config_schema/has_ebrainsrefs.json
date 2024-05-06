@@ -27,6 +27,9 @@
                 },
                 "openminds/BrainAtlasVersion": {
                     "$ref": "#/definitions/ebrainsdef"
+                },
+                "openminds/AtlasAnnotation": {
+                    "$ref": "#/definitions/ebrainsdef"
                 }
             },
             "additionalProperties": false

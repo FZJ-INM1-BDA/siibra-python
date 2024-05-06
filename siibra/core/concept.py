@@ -21,12 +21,19 @@ from ..commons import (
     Species,
     TypePublication
 )
+from ..retrieval import cache
 
 import re
-from typing import TypeVar, Type, Union, List, TYPE_CHECKING
+from typing import TypeVar, Type, Union, List, TYPE_CHECKING, Dict
 
 T = TypeVar("T", bound="AtlasConcept")
-_REGISTRIES = {}
+_REGISTRIES: Dict[Type[T], InstanceTable[T]] = {}
+
+
+@cache.Warmup.register_warmup_fn(is_factory=True)
+def _atlas_concept_warmup():
+    return [cls.registry for cls in _REGISTRIES]
+
 
 if TYPE_CHECKING:
     from ..retrieval.datasets import EbrainsDataset
@@ -118,12 +125,13 @@ class AtlasConcept:
         return '\n'.join(licenses)
 
     @property
-    def doi_or_url(self) -> str:
-        return '\n'.join([
+    def urls(self) -> List[str]:
+        """The list of URLs (including DOIs) associated with this atlas concept."""
+        return [
             url.get("url")
             for ds in self.datasets
             for url in ds.urls
-        ])
+        ]
 
     @property
     def authors(self):

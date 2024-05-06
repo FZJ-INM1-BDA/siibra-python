@@ -33,7 +33,10 @@ from .retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
     CACHE as cache
 )
+from .retrieval.cache import Warmup, WarmupLevel
+
 from . import configuration
+from . import experimental
 from .configuration import factory
 from . import livequeries, features_beta as features
 from siibra.locations import Point, PointSet
@@ -113,7 +116,7 @@ if "SIIBRA_CACHE_SIZE_GIB" in _os.environ:
     set_cache_size(float(_os.environ.get("SIIBRA_CACHE_SIZE_GIB")))
 
 
-def warm_cache():
+def warm_cache(level=WarmupLevel.INSTANCE):
     """
     Preload preconfigured siibra concepts.
 
@@ -122,12 +125,7 @@ def warm_cache():
     features. By preloading the instances, siibra commits all preconfigurations
     to the memory at once instead of commiting them when required.
     """
-    _ = _atlas.Atlas.registry()
-    _ = _space.Space.registry()
-    _ = _parcellation.Parcellation.registry()
-    _ = _parcellationmap.Map.registry()
-    features.warm_cache()
-    livequeries.warm_cache()
+    Warmup.warmup(level)
 
 
 def __dir__():
@@ -152,6 +150,5 @@ def __dir__():
         "vocabularies",
         "__version__",
         "cache",
-        "warm_cache",
-        "create_map_from_volume"
+        "warm_cache"
     ]

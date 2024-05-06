@@ -14,7 +14,7 @@
 # limitations under the License.
 """Handles the relation between study targets and BrainStructures."""
 
-from ..commons import Species
+from ..commons import Species, logger
 
 from ..core.structure import AnatomicalStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
@@ -22,10 +22,11 @@ from ..locations.location import Location
 from ..core.parcellation import Parcellation
 from ..core.region import Region
 from ..core.space import Space
+from ..exceptions import SpaceWarpingFailedError
 
 from ..vocabularies import REGION_ALIASES
 
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Iterable
 
 
 class AnatomicalAnchor:
@@ -45,7 +46,7 @@ class AnatomicalAnchor:
 
         if isinstance(species, (str, Species)):
             self.species = {Species.decode(species)}
-        elif isinstance(species, list):
+        elif isinstance(species, Iterable):
             assert all(isinstance(_, Species) for _ in species)
             self.species = set(species)
         else:
@@ -155,15 +156,25 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: AnatomicalStructure) -> AnatomicalAssignment:
+    def assign(self, concept: AnatomicalStructure, restrict_space: bool = False) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
         """
+        if (
+            restrict_space
+            and self.location is not None
+            and isinstance(concept, Location)
+            and not self.location.space.matches(concept.space)
+        ):
+            return []
         if concept not in self._assignments:
             assignments: List[AnatomicalAssignment] = []
             if self.location is not None:
-                assignments.append(self.location.assign(concept))
+                try:
+                    assignments.append(self.location.assign(concept))
+                except SpaceWarpingFailedError as e:
+                    logger.debug(e)
             for region in self.regions:
                 assignments.append(region.assign(concept))
             self._assignments[concept] = sorted(a for a in assignments if a is not None)
@@ -173,8 +184,8 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: AnatomicalStructure) -> bool:
-        return len(self.assign(concept)) > 0
+    def matches(self, concept: AnatomicalStructure, restrict_space: bool = False) -> bool:
+        return len(self.assign(concept, restrict_space)) > 0
 
     def represented_parcellations(self) -> List[Parcellation]:
         """

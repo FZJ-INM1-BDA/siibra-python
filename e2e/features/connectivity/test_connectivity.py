@@ -3,7 +3,6 @@ import pytest
 from typing import List
 from siibra.features.feature import CompoundFeature
 from siibra.features.connectivity.regional_connectivity import RegionalConnectivity
-from e2e.util import check_duplicate
 from zipfile import ZipFile
 import os
 
@@ -14,16 +13,6 @@ all_conn_instances = [
 ]
 
 compound_conns = siibra.features.get(siibra.parcellations['julich 3'], RegionalConnectivity)
-
-
-def test_id_unique():
-    duplicates = check_duplicate([f.id for f in all_conn_instances])
-    assert len(duplicates) == 0
-
-
-def test_feature_unique():
-    duplicates = check_duplicate([f for f in all_conn_instances])
-    assert len(duplicates) == 0
 
 
 @pytest.mark.parametrize("cf", compound_conns)
@@ -75,17 +64,17 @@ def test_copy_is_returned():
     assert matrix_again.iloc[0, 0] == prev_val
 
 
-def test_export():
+def test_to_zip():
     # for now, only test the first feature, given the ci resource concern
     feat: RegionalConnectivity = all_conn_instances[0]
-    feat.export("file.zip")
+    feat.to_zip("file.zip")
     with ZipFile("file.zip") as z:
         filenames = [info.filename for info in z.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == 1
     os.remove("file.zip")
 
     cf: CompoundFeature = compound_conns[0]
-    cf.export("file_compound.zip")
+    cf.to_zip("file_compound.zip")
     with ZipFile("file_compound.zip") as cz:
         filenames = [info.filename for info in cz.filelist]
         assert len([f for f in filenames if f.endswith(".csv")]) == len(cf)

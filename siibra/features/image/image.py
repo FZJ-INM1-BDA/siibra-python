@@ -63,13 +63,15 @@ class Image(feature.Feature, _volume.Volume):
         providers: List[provider.VolumeProvider],
         region: str = None,
         datasets: List = [],
+        id: str = None
     ):
         feature.Feature.__init__(
             self,
             modality=modality,
             description=None,  # lazy implementation below!
             anchor=None,  # lazy implementation below!
-            datasets=datasets
+            datasets=datasets,
+            id=id
         )
 
         _volume.Volume.__init__(
@@ -84,8 +86,8 @@ class Image(feature.Feature, _volume.Volume):
         self._description_cached = None
         self._name_cached = name
 
-    def _export(self, fh: ZipFile):
-        super()._export(fh)
+    def _to_zip(self, fh: ZipFile):
+        super()._to_zip(fh)
         # How, what do we download?
         # e.g. for marcel's volume, do we download at full resolution?
         # cannot implement until Volume has an export friendly method

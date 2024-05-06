@@ -140,10 +140,11 @@ class BoundingBox(location.Location):
             warped = other.warp(self.space)
             return other if self.minpoint <= warped <= self.maxpoint else None
         if isinstance(other, pointset.PointSet):
+            points_inside = [p for p in other if self.intersects(p)]
             result = pointset.PointSet(
-                [p for p in other if self.intersects(p)],
+                points_inside,
                 space=other.space,
-                sigma_mm=other.sigma
+                sigma_mm=[p.sigma for p in points_inside]
             )
             if len(result) == 0:
                 return None

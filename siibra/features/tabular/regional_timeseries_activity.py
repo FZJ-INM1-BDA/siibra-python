@@ -16,13 +16,14 @@
 from . import tabular
 from ..feature import Compoundable
 
+from ...core import region as _region
 from .. import anchor as _anchor
-from ...commons import QUIET
+from ...commons import QUIET, siibra_tqdm
 from ...locations import pointset
 from ...retrieval.repositories import RepositoryConnector
 from ...retrieval.requests import HttpRequest
 
-from typing import Callable, List
+from typing import Callable, List, Union
 import pandas as pd
 import numpy as np
 
@@ -47,7 +48,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         timestep: str,
         description: str = "",
         datasets: list = [],
-        subject: str = "average"
+        subject: str = "average",
+        id: str = None
     ):
         """
         """
@@ -57,7 +59,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             description=description,
             anchor=anchor,
             datasets=datasets,
-            data=None  # lazy loading below
+            data=None,  # lazy loading below
+            id=id
         )
         self.cohort = cohort.upper()
         if isinstance(connector, str) and connector:
@@ -74,12 +77,12 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
     @property
     def subject(self):
-        """Returns the subject identifiers for which the matrix represents."""
+        """Returns the subject identifiers for which the table represents."""
         return self._subject
 
     @property
     def name(self):
-        return f"{super().name} with cohort {self.cohort} - subject {self.subject}"
+        return f"{self.subject} - " + super().name + f" cohort: {self.cohort}"
 
     @property
     def data(self) -> pd.DataFrame:
@@ -90,16 +93,61 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
             self._load_table()
         return self._table.copy()
 
+    @classmethod
+    def _merge_elements(
+        cls,
+        elements: List["RegionalTimeseriesActivity"],
+        description: str,
+        modality: str,
+        anchor: _anchor.AnatomicalAnchor,
+    ):
+        assert len({f.cohort for f in elements}) == 1
+        assert len({f.timestep for f in elements}) == 1
+        merged = cls(
+            cohort=elements[0].cohort,
+            regions=elements[0].regions,
+            connector=elements[0]._connector,
+            decode_func=elements[0]._decode_func,
+            filename="",
+            timestep=" ".join(str(val) for val in elements[0].timestep),
+            subject="average",
+            description=description,
+            modality=modality,
+            anchor=anchor,
+            **{"paradigm": "average"} if getattr(elements[0], "paradigm") else {}
+        )
+        if isinstance(elements[0]._connector, HttpRequest):
+            getter = lambda elm: elm._connector.get()
+        else:
+            getter = lambda elm: elm._connector.get(elm._filename, decode_func=elm._decode_func)
+        all_arrays = [
+            getter(elm)
+            for elm in siibra_tqdm(
+                elements,
+                total=len(elements),
+                desc=f"Averaging {len(elements)} activity tables"
+            )
+        ]
+        merged._table = elements[0]._arraylike_to_dataframe(
+            np.stack(all_arrays).mean(0)
+        )
+        return merged
+
     def _load_table(self):
         """
         Extract the timeseries table.
         """
-        array = self._connector.get(self._filename, decode_func=self._decode_func)
+        if isinstance(self._connector, HttpRequest):
+            array = self._connector.data
+        else:
+            array = self._connector.get(self._filename, decode_func=self._decode_func)
+        self._table = self._arraylike_to_dataframe(array)
+
+    def _arraylike_to_dataframe(self, array: Union[np.ndarray, pd.DataFrame]) -> pd.DataFrame:
         if not isinstance(array, np.ndarray):
-            assert isinstance(array, pd.DataFrame)
             array = array.to_numpy()
         ncols = array.shape[1]
-        self._table = pd.DataFrame(
+        table = pd.DataFrame(
             array,
             index=pd.TimedeltaIndex(
                 np.arange(0, array.shape[0]) * self.timestep[0],
@@ -120,7 +168,9 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
                 label - min(columnmap.keys()): region
                 for label, region in columnmap.items()
             }
-            self._table = self._table.rename(columns=remapper)
+            table = table.rename(columns=remapper)
+
+        return table
 
     def __str__(self):
         return self.name
@@ -158,7 +208,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return result
 
     def plot(
-        self, regions: List[str] = None, *args,
+        self, regions: List[Union[str, "_region.Region"]] = None, *args,
         backend="matplotlib", **kwargs
     ):
         """
@@ -166,13 +216,15 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
         Parameters
         ----------
-        regions: str, Region
+        regions: List[str or Region]
         subject: str, default: None
             If None, returns the subject averaged table.
         args and kwargs:
             takes arguments and keyword arguments for the desired plotting
             backend.
         """
+        if isinstance(regions, (str, _region.Region)):
+            regions = [regions]
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
@@ -181,7 +233,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         return table.mean().plot(kind="bar", *args, backend=backend, **kwargs)
 
     def plot_carpet(
-        self, regions: List[str] = None, *args,
+        self, regions: List[Union[str, "_region.Region"]] = None, *args,
         backend="plotly", **kwargs
     ):
         """
@@ -189,7 +241,7 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
 
         Parameters
         ----------
-        regions: str, Region
+        regions: List[str or Region]
         subject: str, default: None
             If None, returns the subject averaged table.
         args and kwargs:
@@ -197,6 +249,8 @@ class RegionalTimeseriesActivity(tabular.Tabular, Compoundable):
         """
         if backend != "plotly":
             raise NotImplementedError("Currently, carpet plot is only implemented with `plotly`.")
+        if isinstance(regions, (str, _region.Region)):
+            regions = [regions]
         if regions is None:
             regions = self.regions
         indices = [self.regions.index(r) for r in regions]
@@ -235,4 +289,4 @@ class RegionalBOLD(
 
     @property
     def name(self):
-        return f"{super().name}, paradigm {self.paradigm}"
+        return super().name + f", paradigm: {self.paradigm}"

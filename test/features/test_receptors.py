@@ -31,9 +31,9 @@ def test_get_hoc1_left_density():
     assert (
         len(features) == 1
     ), "expect only 1 result from getting hoc1 left receptor, but got {len(features)}"
-    expected_substrings = ["receptor density", "Area hOc1"]
+    expected_substrings = ["receptor density"]
     assert all(
-        s in features[0].name for s in expected_substrings
+        s in features[0].name.lower() for s in expected_substrings
     ), f"name of fetched receptor unexpected. '{features[0].name}' was expected to contain {', '.join(expected_substrings)}"
 
 

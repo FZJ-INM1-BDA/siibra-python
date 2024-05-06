@@ -24,7 +24,7 @@ from ..locations import point, pointset
 from ..retrieval import HttpRequest
 from ..vocabularies import GENE_NAMES
 
-from typing import Iterable, List
+from typing import Iterable
 from xml.etree import ElementTree
 import numpy as np
 import json
@@ -60,7 +60,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         "probe": BASE_URL
         + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
         "multiple_gene_probe": BASE_URL
-        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']",
+        + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$in{genes}],rma::options[only$eq'probes.id']&start_row={start_row}&num_rows={num_rows}",
         "specimen": BASE_URL
         + "/Specimen/query.json?criteria=[name$eq'{specimen_id}']&include=alignment3d",
         "microarray": BASE_URL
@@ -68,7 +68,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         "gene": BASE_URL
         + "/Gene/query.json?criteria=products[abbreviation$eq'HumanMA']&num_rows=all",
         "factors": BASE_URL
-        + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]",
+        + "/query.json?criteria=model::Donor,rma::criteria,products[id$eq2],rma::include,age,rma::options[only$eq%27donors.id,dono  rs.name,donors.race_only,donors.sex%27]&start_row={start_row}&num_rows={num_rows}",
     }
 
     # there is a 1:1 mapping between donors and specimen for the 6 adult human brains
@@ -120,7 +120,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
 
         self.genes = parse_gene(gene)
 
-    def query(self, concept: structure.AnatomicalStructure) -> List[GeneExpressions]:
+    def query(self, concept: structure.AnatomicalStructure) -> Iterable[GeneExpressions]:
 
         mnispace = _space.Space.registry().get('mni152')
 
@@ -141,7 +141,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
         # It will be attached to the returned feature, with the set of matched
         # MNI coordinates as anchor's location.
         anchor = _anchor.AnatomicalAnchor(
-            location=pointset.PointSet(coordinates=coordinates, space=mnispace),
+            location=pointset.from_points(coordinates),
             species=self.species
         )
         explanation = f"MNI coordinates of tissue samples were filtered using {concept}"
@@ -182,21 +182,7 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             print(GeneExpressions.ALLEN_ATLAS_NOTIFICATION)
             self.__class__._notification_shown = True
 
-        assert isinstance(self.genes, list)
-        if len(self.genes) == 1:
-            logger.info(f"Retrieving probe ids for gene {self.genes[0]['symbol']}")
-        else:
-            logger.info(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in self.genes)}")
-        url = self._QUERY["multiple_gene_probe"].format(genes=','.join([f"'{g['symbol']}'" for g in self.genes]))
-        response = HttpRequest(url).get()
-        if "site unavailable" in response.decode().lower():
-            # When the Allen site is not available, they still send a status code 200.
-            raise RuntimeError(
-                "Allen institute site unavailable - please try again later."
-            )
-        root = ElementTree.fromstring(response)
-        num_probes = int(root.attrib["total_rows"])
-        probe_ids = [int(root[0][i][0].text) for i in range(num_probes)]
+        probe_ids = self._retrieve_probe_ids(self.genes)
 
         # get specimen information
         if AllenBrainAtlasQuery._specimen is None:
@@ -205,21 +191,67 @@ class AllenBrainAtlasQuery(LiveQuery, args=['gene'], FeatureType=GeneExpressions
             }
 
         if AllenBrainAtlasQuery.factors is None:
-            response = HttpRequest(self._QUERY["factors"]).get()
-            AllenBrainAtlasQuery.factors = {
-                item["id"]: {
-                    "race": item["race_only"],
-                    "gender": item["sex"],
-                    "age": int(item["age"]["days"] / 365),
-                }
-                for item in response["msg"]
-            }
+            self._retrieve_factors()
 
         # get expression levels and z_scores for the gene
         if len(probe_ids) > 0:
             for donor_id in self._DONOR_IDS:
                 for item in self._retrieve_microarray(donor_id, probe_ids):
                     yield item
+
+    @staticmethod
+    def _retrieve_probe_ids(genes: list):
+        assert isinstance(genes, list)
+        if len(genes) == 1:
+            logger.debug(f"Retrieving probe ids for gene {genes[0]['symbol']}")
+        else:
+            logger.debug(f"Retrieving probe ids for genes {', '.join(g['symbol'] for g in genes)}")
+        start_row = 0
+        num_rows = 50
+        probe_ids = []
+        while True:
+            url = AllenBrainAtlasQuery._QUERY["multiple_gene_probe"].format(
+                start_row=start_row, num_rows=num_rows, genes=','.join([f"'{g['symbol']}'" for g in genes])
+            )
+            response = HttpRequest(url).get()
+            if "site unavailable" in response.decode().lower():
+                # When the Allen site is not available, they still send a status code 200.
+                raise RuntimeError(
+                    "Allen institute site unavailable - please try again later."
+                )
+            root = ElementTree.fromstring(response)
+            num_probes = int(root.attrib["num_rows"])
+            total_probes = int(root.attrib["total_rows"])
+            assert len(root) == 1
+            probe_ids.extend([int(root[0][i][0].text) for i in range(num_probes)])
+            if (start_row + num_rows) >= total_probes:
+                break
+            # retrieve another page
+            start_row += num_rows
+        return probe_ids
+
+    @staticmethod
+    def _retrieve_factors():
+        start_row = 0
+        num_rows = 50
+        if AllenBrainAtlasQuery.factors is None or len(AllenBrainAtlasQuery.factors) == 0:
+            AllenBrainAtlasQuery.factors = {}
+            while True:
+                factors_url = AllenBrainAtlasQuery._QUERY["factors"].format(start_row=start_row, num_rows=num_rows)
+                response = HttpRequest(factors_url).get()
+                AllenBrainAtlasQuery.factors.update({
+                    item["id"]: {
+                        "race": item["race_only"],
+                        "gender": item["sex"],
+                        "age": int(item["age"]["days"] / 365),
+                    }
+                    for item in response["msg"]
+                })
+                total_factors = int(response["total_rows"])
+                if (start_row + num_rows) >= total_factors:
+                    break
+                # retrieve another page
+                start_row += num_rows
 
     @staticmethod
     def _retrieve_specimen(specimen_id: str):

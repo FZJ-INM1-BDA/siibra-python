@@ -15,11 +15,11 @@
 # limitations under the License.
 """
 Abstract base class for any kind of brain structure.
-A brain structure is more general than a brain region.
-It refers to any object defining a spatial extent in one or more reference spaces,
-and can thus be used to compute intersections with other structures in space.
-For example, a brain region is a structure which is at the same time an atlas Concept.
-A bounding box in MNI space is a structure, but not an atlas concept.
+A brain structure is more general than a brain region. It refers to any object
+defining a spatial extent in one or more reference spaces, and can thus be
+used to compute intersections with other structures in space. For example,
+a brain region is a structure which is at the same time an AtlasConcept. A
+bounding box in MNI space is a structure, but not an AtlasConcept.
 """
 
 from . import assignment, region as _region
@@ -29,7 +29,7 @@ from typing import Tuple, Dict
 
 
 class AnatomicalStructure(ABC):
-    """ Abstract base class for types who can act as a location filter. """
+    """Abstract base class for types who can act as a location filter."""
 
     # cache assignment results at class level
     _ASSIGNMENT_CACHE: Dict[
@@ -38,6 +38,9 @@ class AnatomicalStructure(ABC):
     ] = {}
 
     def intersects(self, other: "AnatomicalStructure") -> bool:
+        """
+        Whether or not two AnatomicalStructures have any intersection.
+        """
         return self.intersection(other) is not None
 
     def __contains__(self, other: "AnatomicalStructure") -> bool:
@@ -53,19 +56,14 @@ class AnatomicalStructure(ABC):
     @abstractmethod
     def intersection(self, other: "AnatomicalStructure") -> "AnatomicalStructure":
         """
-        Return the intersection of two locations,
-        ie. the other location filtered by this location.
+        Return the intersection of two AnatomicalStructures,
+        ie. the other AnatomicalStructure filtered by this AnatomicalStructure.
         """
         pass
 
     def assign(self, other: "AnatomicalStructure") -> assignment.AnatomicalAssignment:
         """
-        Compute assignment of a location to this filter.
-
-        Two cases:
-        1) self is location, other is location -> look at spatial intersection/relationship, do it here
-        2) self is location, other is region -> get region map, then call again. do it here
-        If self is region -> Region overwrite this method, adressed there
+        Compute assignment of a AnatomicalStructure to this filter.
 
         Parameters
         ----------
@@ -76,6 +74,11 @@ class AnatomicalStructure(ABC):
         assignment.AnatomicalAssignment or None
             None if there is no AssignmentQualification found.
         """
+        # Two cases:
+        # 1) self is location, other is location -> look at spatial intersection/relationship, do it here
+        # 2) self is location, other is region -> get region map, then call again. do it here
+        # If self is region -> Region overwrite this method, adressed there
+
         assert not isinstance(self, _region.Region)  # method is overwritten by Region!
         if (self, other) in self._ASSIGNMENT_CACHE:
             return self._ASSIGNMENT_CACHE[self, other]
@@ -90,16 +93,18 @@ class AnatomicalStructure(ABC):
                 self._ASSIGNMENT_CACHE[self, other] = inverse_assignment.invert()
             return self._ASSIGNMENT_CACHE[self, other]
         else:  # other is a location object, just check spatial relationships
+            qualification = None
             if self == other:
                 qualification = assignment.Qualification.EXACT
-            elif self.__contains__(other):
-                qualification = assignment.Qualification.CONTAINS
-            elif other.__contains__(self):
-                qualification = assignment.Qualification.CONTAINED
-            elif self.intersects(other):
-                qualification = assignment.Qualification.OVERLAPS
             else:
-                qualification = None
+                intersection = self.intersection(other)
+                if intersection is not None:
+                    if intersection == other:
+                        qualification = assignment.Qualification.CONTAINS
+                    elif intersection == self:
+                        qualification = assignment.Qualification.CONTAINED
+                    else:
+                        qualification = assignment.Qualification.OVERLAPS
             if qualification is None:
                 self._ASSIGNMENT_CACHE[self, other] = None
             else:

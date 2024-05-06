@@ -76,4 +76,4 @@ assignments.query('`input containedness` >= 0.5').dropna(axis=1)
 # position.
 for index, assignment in assignments[assignments['input containedness'] >= 0.5].iterrows():
     pmap = julich_pmaps.fetch(region=assignment['region'])
-    plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment['region'])
+    plotting.plot_stat_map(pmap, cut_coords=tuple(point), title=assignment['region'], cmap='magma')

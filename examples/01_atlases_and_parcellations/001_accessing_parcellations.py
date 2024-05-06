@@ -43,7 +43,7 @@ print(julich_brain.id)
 
 # %%
 # Also, you can display the doi/url of the related dataset/publication using
-print(julich_brain.doi_or_url)
+print(julich_brain.urls)
 
 # %%
 # Typically however, we are only interested in the parcellations supported by
