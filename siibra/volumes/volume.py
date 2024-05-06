@@ -355,7 +355,7 @@ class Volume(location.Location):
                 )
             else:
                 return None
-        else:  # other BrainStructures should have intersection with locations implemented.
+        else:  # other AnatomicalStructures should have intersection with locations implemented.
             try:
                 return other.intersection(self)
             except NoMapAvailableError:
