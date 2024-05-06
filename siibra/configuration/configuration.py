@@ -75,7 +75,8 @@ class Configuration:
         # lists of configuration specs by configuration schema
         self.specs = defaultdict(list)
 
-        # retrieve json spec loaders from the default configuration
+        # Retrieve configuration specs from the default configuration.
+        # If this fails we stop.
         for connector in self.CONFIG_CONNECTORS:
             try:
                 self._load_specs(connector)
@@ -90,7 +91,8 @@ class Configuration:
         else:
             raise RuntimeError("Cannot load any default configuration.")
 
-        # add additional spec loaders from extension configurations
+        # Add  configuration specs from optional extension configurations.
+        # If this fails, we continue.
         for connector in self.CONFIG_EXTENSIONS:
             try:
                 self._load_specs(connector)
