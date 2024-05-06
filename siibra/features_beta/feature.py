@@ -2,6 +2,7 @@ from . import attributes
 
 from ..core.structure import AnatomicalStructure
 from ..configuration import Configuration
+from ..configuration.factory import build_type
 from ..commons import KeyAccessor
 
 from dataclasses import dataclass, field
@@ -136,6 +137,13 @@ def get(structure: AnatomicalStructure, modality: str, **kwargs):
             (DataFeature(**s) for _, s in cfg.specs.get("siibra/feature/v0.2")),
         )
     )
+
+
+@build_type("siibra/feature/v0.2")
+def build_feature(cls, spec):
+    spec.pop('filename', None)
+    spec.pop("@type", None)
+    return DataFeature(**spec)
 
 
 @register_data_filter(keywords=["layer mask"])
