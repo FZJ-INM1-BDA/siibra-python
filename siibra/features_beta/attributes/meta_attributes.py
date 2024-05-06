@@ -69,6 +69,12 @@ class DoiAttribute(MetaAttribute):
 
 
 @dataclass
+class IDAttribute(MetaAttribute):
+    schema = "siibra/attr/meta/id"
+    uuid: str = None
+
+
+@dataclass
 class RegionSpecAttribute(MetaAttribute):
     schema = "siibra/attr/meta/regionspec"
     name: str = None
