@@ -117,8 +117,7 @@ def find_suitiable_decoder(url: str) -> Callable:
     suitable_decoders = [
         dec for sfx, dec in DECODERS.items() if urlpath.endswith(sfx)
     ]
-    if len(suitable_decoders) > 0:
-        assert len(suitable_decoders) == 1
+    if len(suitable_decoders) == 1:
         return suitable_decoders[0]
     else:
         return None
@@ -268,6 +267,24 @@ class HttpRequest:
     def data(self):
         # for backward compatibility with old LazyHttpRequest class
         return self.get()
+
+
+class FileLoader(HttpRequest):
+    """
+    Just a loads a local file, but mimics the behaviour
+    of cached http requests used in other connectors.
+    """
+    def __init__(self, filepath, func=None):
+        HttpRequest.__init__(
+            self, filepath, refresh=False,
+            func=func or find_suitiable_decoder(filepath)
+        )
+        self.cachefile = filepath
+
+    def _retrieve(self, **kwargs):
+        if kwargs:
+            logger.info(f"Keywords {list(kwargs.keys())} are supplied but won't be used.")
+        assert os.path.isfile(self.cachefile)
 
 
 class ZipfileRequest(HttpRequest):
