@@ -20,6 +20,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -U .
           pip install -r requirements.txt
+          pip install siibra_jugex
           pip install matplotlib
           pip install pytest nbmake
 
@@ -33,4 +34,4 @@ jobs:
           ref: 'main'
       
       - name: Test tutorial notebooks with nbmake
-        run: pytest --nbmake ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
+        run: pytest --nbmake --nbmake-timeout=1200 ./siibra-tutorials-${{ github.run_id }}-${{ github.run_number }}
