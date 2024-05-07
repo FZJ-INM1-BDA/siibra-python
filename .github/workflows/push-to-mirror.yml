@@ -2,7 +2,7 @@ name: '[mirror] push to mirror'
 
 on:
   push:
-    branches: ["master"]
+    branches: ["main"]
     tags: ["**"]
 
 env:
@@ -22,7 +22,7 @@ jobs:
     - name: mirror to remote
       run: |
         git fetch --tags -f
-        git fetch origin master
+        git fetch origin main
         if ! git ls-remote ebrains > /dev/null; then git remote add ebrains https://jugitpusher:${{ secrets.EBRAINS_GITLAB_PUSH_TOKEN }}@${{ vars.EBRAINS_GITLAB_HOST }}/${{ env.EBRAINS_GITLAB_REPO }}; fi
         git push ebrains --tags -f
-        git push ebrains HEAD:master -f 
+        git push ebrains HEAD:main -f 
