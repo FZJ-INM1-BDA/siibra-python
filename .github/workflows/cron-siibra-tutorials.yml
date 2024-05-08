@@ -1,6 +1,7 @@
 name: '[cron] test siibra-tutorials'
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 6 1,11,21 * *' # every 1st, 11th, and 21th of every month at 6:30
 
