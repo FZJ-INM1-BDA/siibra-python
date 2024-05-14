@@ -8,7 +8,8 @@ results = [
     (siibra.features.get(siibra.get_template("big brain"), "CellbodyStainedSection"), 145),
     (siibra.features.get(siibra.get_template("big brain"), "CellBodyStainedVolumeOfInterest"), 2),
     (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=True), 4),
-    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=False), 12),
+    (siibra.features.get(siibra.get_template("mni152"), "image", restrict_space=False), 13),
+    (siibra.features.get(siibra.get_region('julich 3', 'hoc1 left'), "CellbodyStainedSection"), 47),
     (siibra.features.get(siibra.get_region('julich 2.9', 'hoc1 left'), "CellbodyStainedSection"), 41)
 ]
 features = [f for fts, _ in results for f in fts]
