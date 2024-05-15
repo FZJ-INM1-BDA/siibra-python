@@ -18,6 +18,8 @@ from .location import Location
 from .point import Point
 from .pointset import PointSet, from_points
 from .boundingbox import BoundingBox
+from .polyline import Polyline
+from .layerboundary import LayerBoundary
 
 
 def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':

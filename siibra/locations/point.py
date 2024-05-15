@@ -14,7 +14,8 @@
 # limitations under the License.
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from . import location, boundingbox, pointset
+from . import location
+from .base import Location
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
@@ -25,9 +26,16 @@ import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Tuple, Union
+from typing import Tuple, Union, List
+from dataclasses import dataclass, field
 
+@dataclass
+class Pt(Location):
+    schema = "siibra/attr/loc/point"
+    coord: List[float] = field(default_factory=list)
+    sigma: float = 0
 
+# deprecated
 class Point(location.Location):
     """A single 3D point in reference space."""
 
@@ -108,6 +116,7 @@ class Point(location.Location):
         return np.atleast_2d(self.coordinate + (1,))
 
     def intersection(self, other: location.Location) -> "Point":
+        from . import pointset
         if isinstance(other, Point):
             return self if self == other else None
         elif isinstance(other, pointset.PointSet):
@@ -185,6 +194,7 @@ class Point(location.Location):
         return super().__hash__()
 
     def __eq__(self, other: 'Point'):
+        from . import pointset
         if isinstance(other, pointset.PointSet):
             return other == self  # implemented at pointset
         if not isinstance(other, Point):
@@ -302,8 +312,9 @@ class Point(location.Location):
 
     @property
     def boundingbox(self):
+        from .boundingbox import BoundingBox
         w = max(self.sigma or 0, 1e-6)  # at least a micrometer
-        return boundingbox.BoundingBox(
+        return BoundingBox(
             self - w, self + w, self.space, self.sigma
         )
 

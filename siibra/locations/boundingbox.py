@@ -16,9 +16,11 @@
 
 from . import point, pointset, location
 
+from ..concepts.attribute import Attribute
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
+from dataclasses import dataclass
 import hashlib
 import numpy as np
 from typing import TYPE_CHECKING, Union
@@ -26,6 +28,14 @@ if TYPE_CHECKING:
     from ..core.structure import AnatomicalStructure
     from nibabel import Nifti1Image
     from ..core.space import Space
+
+
+@dataclass
+class BBox(Attribute):
+    schema = "siibra/attr/loc/bbox"
+    minpoint: point.Pt = None
+    maxpoint: point.Pt = None
+    space_id: str = None
 
 
 class BoundingBox(location.Location):
