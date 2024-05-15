@@ -31,9 +31,8 @@ from .core import (
 from .volumes import parcellationmap as _parcellationmap
 from .retrieval.requests import (
     EbrainsRequest as _EbrainsRequest,
-    CACHE as cache
 )
-from .retrieval.cache import Warmup, WarmupLevel
+from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import configuration
 from . import experimental

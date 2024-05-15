@@ -17,7 +17,7 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..retrieval.cache import cache_user_fn
+from ..cache import fn_call_cache
 from ..locations import location, point, pointset
 from ..volumes import parcellationmap, volume
 from ..commons import (
@@ -885,7 +885,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.AnatomicalStruct
         return None
 
 
-@cache_user_fn
+@fn_call_cache
 def _get_related_regions_str(pe_id: str) -> Tuple[Tuple[str, str, str, str], ...]:
     logger.info("LONG CALC...", pe_id)
     return_val = []

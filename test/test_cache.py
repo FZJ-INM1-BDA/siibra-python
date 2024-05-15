@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock
 from multiprocessing import Pool
 
-from siibra.retrieval.cache import WarmupLevel, Warmup, WarmupRegException
+from siibra.cache import WarmupLevel, Warmup, WarmupRegException
 
 dummy_child1 = MagicMock()
 dummy_child2 = MagicMock()

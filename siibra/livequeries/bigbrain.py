@@ -21,7 +21,8 @@ from ..features import anchor as _anchor
 from ..commons import logger
 from ..locations import point, pointset
 from ..core import structure
-from ..retrieval import requests, cache
+from ..retrieval import requests
+from ..cache import CACHE, Warmup
 from ..retrieval.datasets import GenericDataset
 
 import numpy as np
@@ -89,7 +90,7 @@ class WagstylProfileLoader:
 
         # find profiles with valid thickness
         profile_l_url = f"{cls.REPO}/{cls.PROFILES_FILE_LEFT}"
-        if not path.exists(cache.CACHE.build_filename(profile_l_url)):
+        if not path.exists(CACHE.build_filename(profile_l_url)):
             logger.info(
                 "First request to BigBrain profiles. Preprocessing the data "
                 "now. This may take a little."
@@ -109,7 +110,7 @@ class WagstylProfileLoader:
         return self._vertices.shape[0]
 
 
-cache.Warmup.register_warmup_fn()(lambda: WagstylProfileLoader._load())
+Warmup.register_warmup_fn()(lambda: WagstylProfileLoader._load())
 
 
 class BigBrainProfileQuery(query.LiveQuery, args=[], FeatureType=bigbrain_intensity_profile.BigBrainIntensityProfile):

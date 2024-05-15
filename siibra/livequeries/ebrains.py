@@ -14,12 +14,13 @@
 # limitations under the License.
 """Query data features published as Ebrains datasets with AtlasConcepts"""
 
-from ..features.dataset import ebrains as _ebrains
 from . import query
+from ..features.dataset import ebrains as _ebrains
 
 from ..commons import logger, siibra_tqdm
 from ..features import anchor as _anchor
-from ..retrieval import requests, datasets, cache
+from ..retrieval import requests, datasets
+from ..cache import WarmupLevel, Warmup
 from ..core import parcellation, region
 
 from collections import defaultdict
@@ -142,4 +143,4 @@ class EbrainsFeatureQuery(query.LiveQuery, args=[], FeatureType=_ebrains.Ebrains
             yield curr
 
 
-cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA)(lambda: EbrainsFeatureQuery.loader.data)
+Warmup.register_warmup_fn(WarmupLevel.DATA)(lambda: EbrainsFeatureQuery.loader.data)

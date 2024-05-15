@@ -18,7 +18,7 @@ from . import parcellationmap, volume as _volume
 from .providers import provider
 from ..commons import MapIndex, logger, connected_components, siibra_tqdm
 from ..locations import boundingbox
-from ..retrieval import cache
+from ..cache import CACHE
 from ..retrieval.repositories import ZipfileConnector, GitlabConnector
 
 from os import path, rename, makedirs
@@ -116,9 +116,9 @@ class SparseIndex:
         filenames.
         """
         from nibabel import Nifti1Image
-        probsfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{cache_prefix}", suffix="voxels.nii.gz")
+        probsfile = CACHE.build_filename(f"{cache_prefix}", suffix="probs.txt.gz")
+        bboxfile = CACHE.build_filename(f"{cache_prefix}", suffix="bboxes.txt.gz")
+        voxelfile = CACHE.build_filename(f"{cache_prefix}", suffix="voxels.nii.gz")
         Nifti1Image(self.voxels, self.affine).to_filename(voxelfile)
         with gzip.open(probsfile, 'wt') as f:
             for D in self.probs:
@@ -150,9 +150,9 @@ class SparseIndex:
         """
         from nibabel import load
 
-        probsfile = cache.CACHE.build_filename(f"{cache_name}", suffix="probs.txt.gz")
-        bboxfile = cache.CACHE.build_filename(f"{cache_name}", suffix="bboxes.txt.gz")
-        voxelfile = cache.CACHE.build_filename(f"{cache_name}", suffix="voxels.nii.gz")
+        probsfile = CACHE.build_filename(f"{cache_name}", suffix="probs.txt.gz")
+        bboxfile = CACHE.build_filename(f"{cache_name}", suffix="bboxes.txt.gz")
+        voxelfile = CACHE.build_filename(f"{cache_name}", suffix="voxels.nii.gz")
         if not all(path.isfile(f) for f in [probsfile, bboxfile, voxelfile]):
             return None
 
@@ -316,7 +316,7 @@ class SparseMap(parcellationmap.Map):
             with ZipFile(f"{destination}/{filename}.zip", 'w') as zipf:
                 for suffix in suffices:
                     zipf.write(
-                        filename=cache.CACHE.build_filename(self._cache_prefix, suffix),
+                        filename=CACHE.build_filename(self._cache_prefix, suffix),
                         arcname=path.basename(f"{filename}{suffix}"),
                         compress_type=ZIP_DEFLATED
                     )
@@ -346,10 +346,10 @@ class SparseMap(parcellationmap.Map):
             for suffix in suffices:
                 file = [f for f in zconn.search_files(suffix=suffix)]
                 assert len(file) == 1, f"Could not find a unique '{suffix}' file in {zipfname}."
-                zp.extract(file[0], cache.CACHE.folder)
+                zp.extract(file[0], CACHE.folder)
                 rename(
-                    path.join(cache.CACHE.folder, file[0]),
-                    cache.CACHE.build_filename(self._cache_prefix, suffix=suffix)
+                    path.join(CACHE.folder, file[0]),
+                    CACHE.build_filename(self._cache_prefix, suffix=suffix)
                 )
         zconn.clear_cache()
 

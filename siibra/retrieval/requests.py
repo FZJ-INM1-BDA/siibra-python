@@ -14,8 +14,8 @@
 # limitations under the License.
 """Request files with decoders, lazy loading, and caching."""
 
-from .cache import CACHE, cache_user_fn
 from .exceptions import EbrainsAuthenticationError
+from ..cache import fn_call_cache, CACHE
 from ..commons import (
     logger,
     HBP_AUTH_TOKEN,
@@ -605,7 +605,7 @@ class GitlabProxy(HttpRequest):
         self.flavour = flavour
         self.folder = self.folder_dict[flavour]
         self.instance_id = instance_id
-        self.get = cache_user_fn(self.get)
+        self.get = fn_call_cache(self.get)
 
     def get(self):
         if self.instance_id:
