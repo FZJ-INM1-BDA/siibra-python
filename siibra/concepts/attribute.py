@@ -22,7 +22,8 @@ class Attribute:
 
     @staticmethod
     def from_dict(json_dict: dict[str, Any]) -> List["Attribute"]:
-        """Generating a list of attributes from a dictionary"""
+        """Generating a list of attributes from a dictionary.
+        TODO consider moving this to siibra.factory.factory and have a single build_object call"""
         
         att_type: str = json_dict.pop("@type")
         if att_type.startswith("x-"):

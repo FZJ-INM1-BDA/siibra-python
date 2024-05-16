@@ -5,4 +5,8 @@ from .attribute_collection import AttributeCollection
 @dataclass
 class QueryParam(AttributeCollection):
     schema: str = "siibra/attrCln/queryParam"
-    pass
+
+    def split_attrs(self):
+        for attr in self.attributes:
+            yield QueryParam(attributes=[attr])
+

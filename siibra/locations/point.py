@@ -31,8 +31,8 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Pt(Location):
-    schema = "siibra/attr/loc/point"
-    coord: List[float] = field(default_factory=list)
+    schema = "siibra/attr/loc/point/v0.1"
+    coordinate: List[float] = field(default_factory=list)
     sigma: float = 0
 
 # deprecated

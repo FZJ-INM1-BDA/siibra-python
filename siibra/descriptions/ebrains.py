@@ -6,5 +6,5 @@ from .base import Description
 
 @dataclass
 class EbrainsRef(Description):
-    schema = "siibra/attr/desc/ebrains"
+    schema = "siibra/attr/desc/ebrains/v0.1"
     ids: Dict[str, str] = None

@@ -9,7 +9,7 @@ from ..cache import fn_call_cache
 
 @dataclass
 class LayerBoundary(Location):
-    schema: str = "siibra/attr/loc/layerboundary"
+    schema: str = "siibra/attr/loc/layerboundary/v0.1"
     url: str = None
 
     @staticmethod

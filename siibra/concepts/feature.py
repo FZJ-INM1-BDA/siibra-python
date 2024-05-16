@@ -4,5 +4,4 @@ from .attribute_collection import AttributeCollection
 
 @dataclass
 class Feature(AttributeCollection):
-    schema: str = "siibra/attrCln/feature"
-    pass
+    schema: str = "siibra/feature/v0.2"

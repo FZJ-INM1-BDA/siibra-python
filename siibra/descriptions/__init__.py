@@ -5,3 +5,5 @@ from .modality import Modality
 from .regionspec import RegionSpec
 from .species import SpeciesSpec
 from .url import Url
+from .name import Name
+from .gene import Gene

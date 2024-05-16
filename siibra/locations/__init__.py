@@ -15,9 +15,9 @@
 """Handles spatial concepts and spatial operation like warping between spaces."""
 
 from .location import Location
-from .point import Point
-from .pointset import PointSet, from_points
-from .boundingbox import BoundingBox
+from .point import Point, Pt
+from .pointset import PointSet, from_points, PointCloud
+from .boundingbox import BoundingBox, BBox
 from .polyline import Polyline
 from .layerboundary import LayerBoundary
 

@@ -15,14 +15,17 @@
 """A set of coordinates on a reference space."""
 
 from . import location, point, boundingbox as _boundingbox
+from .base import Location
 
 from ..retrieval.requests import HttpRequest
 from ..commons import logger
+
 
 from typing import List, Union, Tuple
 import numbers
 import json
 import numpy as np
+from dataclasses import dataclass, field
 try:
     from sklearn.cluster import HDBSCAN
     _HAS_HDBSCAN = True
@@ -33,6 +36,12 @@ except ImportError:
         f"HDBSCAN is not available with your version {sklearn.__version__} of sckit-learn."
         "`PointSet.find_clusters()` will not be avaiable."
     )
+
+@dataclass
+class PointCloud(Location):
+    schema = "siibra/attr/loc/pointcloud/v0.1"
+    coordinates: List[List[float]] = field(default_factory=list)
+    sigma: float = 0
 
 
 def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":

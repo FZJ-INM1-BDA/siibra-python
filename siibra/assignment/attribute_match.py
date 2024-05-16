@@ -52,7 +52,7 @@ from ..dataitems.image import Image
 
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):
-    return mod1.name.lower() == mod2.name.lower()
+    return mod1.value.lower() == mod2.value.lower()
 
 @register_attr_comparison(RegionSpec, RegionSpec)
 def compare_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):

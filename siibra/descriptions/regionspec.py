@@ -5,7 +5,7 @@ from .base import Description
 
 @dataclass
 class RegionSpec(Description):
-    schema = "siibra/attr/desc/regionspec"
+    schema = "siibra/attr/desc/regionspec/v0.1"
     value: str = None
 
     # @staticmethod

@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Literal
 
 from .base import Data
 from ..commons import logger
@@ -7,8 +8,9 @@ from ..cache import fn_call_cache
 @dataclass
 class Image(Data):
 
-    schema: str = "siibra/attr/data/image"
-    providers: dict[str, str] = field(default_factory=dict)
+    schema: str = "siibra/attr/data/image/v0.1"
+    format: Literal['nii', 'neuroglancer/precomputed'] = None
+    fetcher: str = None
     space_id: str = None
 
     @staticmethod

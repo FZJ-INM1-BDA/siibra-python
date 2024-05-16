@@ -8,7 +8,7 @@ from ..cache import fn_call_cache
 @dataclass
 class Tabular(Data):
 
-    schema: str = "siibra/attr/data/tabular"
+    schema: str = "siibra/attr/data/tabular/v0.1"
     format: str = None
     url: str = None
     plot_options: dict = field(default_factory=dict)

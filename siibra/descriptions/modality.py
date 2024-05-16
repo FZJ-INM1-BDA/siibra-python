@@ -5,8 +5,8 @@ from .base import Description
 
 @dataclass
 class Modality(Description):
-    schema = "siibra/attr/desc/modality"
-    name: str = None
+    schema = "siibra/attr/desc/modality/v0.1"
+    value: str = None
 
     # @staticmethod
     # def _GetAll():
