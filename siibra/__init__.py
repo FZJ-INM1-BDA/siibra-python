@@ -34,6 +34,8 @@ from .retrieval.requests import (
 )
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
+from . import factory as factory_new
+from . import retrieval_new
 from . import configuration
 from . import experimental
 from .configuration import factory

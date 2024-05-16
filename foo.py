@@ -1,24 +1,28 @@
 from typing import Type
 
-
-import siibra.factory
+import siibra
 from siibra.concepts.attribute_collection import AttributeCollection
 from siibra.concepts.feature import Feature
 from siibra.assignment.assignment import get, match
 from siibra.descriptions import Modality, RegionSpec
 from siibra.concepts.query_parameter import QueryParam
+import siibra.descriptions
 
 region_spec = RegionSpec(value="Area hOc1 (V1, 17, CalcS)")
 modality = Modality(value="Neurotransmitter receptor density fingerprint")
 
+# query by regionspec... works?
 query1 = QueryParam(attributes=[region_spec])
 features1 = list(get(query1, Feature))
 print(len(features1))
 
+# query by modality works
 query2 = QueryParam(attributes=[modality])
 features2 = list(get(query2, Feature))
 print(len(features2))
 
+# but combining them does not work
+# since the check goes by any check
 query3 = QueryParam(attributes=[
     region_spec,
     modality,
@@ -26,6 +30,8 @@ query3 = QueryParam(attributes=[
 features3 = list(get(query3, Feature))
 print(len(features3))
 
+
+# I suspect we will have to introduce helper methods like below to achieve `and` check
 def feature_get(qp: QueryParam, col_type: Type[AttributeCollection]):
     for feat in get(qp, col_type):
         if all(
@@ -38,6 +44,12 @@ features4 = list(feature_get(query3, Feature))
 print(len(features4))
 
 
+# testing modality autocomplete
+# works at runtime (not statically)
+print(
+    "testing modality dir",
+    siibra.descriptions.modality.vocab.__dir__()
+)
 
 # # testing querying via bounding box
 # bbox = BoundingBox(
@@ -49,12 +61,6 @@ print(len(features4))
 # assert len(features) > 0
 
 
-# # testing modality autocomplete
-# # works at runtime (not statically)
-# print(
-#     "testing modality dir",
-#     modality.__dir__()
-# )
 
 # # segmented cell body density
 # reg = get_region("julich brain 2.9", "hoc1 left")
