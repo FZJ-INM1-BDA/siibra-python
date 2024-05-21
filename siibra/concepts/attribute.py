@@ -9,7 +9,7 @@ SCHEMAS = {}
 class Attribute:
     """Base clase for attributes."""
 
-    schema: str = field(default="siibra/attr", init=False)
+    schema: str = field(default="siibra/attr", init=False, repr=False)
 
     # TODO performance implications? may have to set hash=False
     extra: dict[str, Any] = field(default_factory=dict, repr=False)

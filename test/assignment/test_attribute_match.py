@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 from dataclasses import replace
-from typing import Tuple
+from typing import Tuple, Union, Type
 from itertools import chain, product
 import numpy as np
 import nibabel as nib
@@ -10,43 +10,9 @@ import nibabel as nib
 
 from siibra.locations import PointCloud, Pt, BBox
 from siibra.exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from siibra.assignment.attribute_match import compare_bbox_to_bbox, intersect_ptcld_image, match
+from siibra.assignment.attribute_match import compare_bbox_to_bbox, intersect_ptcld_image, compare_pt_to_bbox, match
 import siibra.assignment.attribute_match
 
-@pytest.fixture
-def pts_foo():
-    yield ( Pt(space_id="foo", coordinate=[-1, -1, -1]),
-            Pt(space_id="foo", coordinate=[0, 0, 0]),
-            Pt(space_id="foo", coordinate=[1, 1, 1]),
-            Pt(space_id="foo", coordinate=[2, 2, 2]), )
-
-@pytest.fixture
-def pts_bar():
-    yield ( Pt(space_id="bar", coordinate=[-1, -1, -1]),
-            Pt(space_id="bar", coordinate=[0, 0, 0]),
-            Pt(space_id="bar", coordinate=[1, 1, 1]),
-            Pt(space_id="bar", coordinate=[2, 2, 2]), )
-
-@pytest.fixture
-def bboxs_foo(pts_foo: Tuple[Pt, ...]):
-    yield [BBox(space_id="foo",
-                minpoint=minpoint.coordinate,
-                maxpoint=maxpoint.coordinate)
-                for minpoint, maxpoint in chain(
-                    zip(pts_foo[:-1], pts_foo[1:]),
-                    ((pts_foo[0], pts_foo[-1]),)
-                )]
-
-
-@pytest.fixture
-def bboxs_bar(pts_bar: Tuple[Pt, ...]):
-    yield [BBox(space_id="bar",
-                minpoint=minpoint.coordinate,
-                maxpoint=maxpoint.coordinate)
-                for minpoint, maxpoint in chain(
-                    zip(pts_bar[:-1], pts_bar[1:]),
-                    ((pts_bar[0], pts_bar[-1]), )
-                )]
 
 def bbox_x_flat(dim: int):
     point0 = Pt(space_id="foo", coordinate=[0, 0 ,0])
@@ -104,6 +70,28 @@ def test_compare_bbox_to_bbox_false(bbox1: BBox, bbox2: BBox):
     if bbox1 == bbox2:
         return
     assert not compare_bbox_to_bbox(bbox1, bbox2)
+
+
+bbox_foo_5_10 = BBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10, 10])
+
+@pytest.mark.parametrize("bbox, pt, expected, ExCls", [
+    [bbox_foo_5_10, Pt(coordinate=(0, 0, 0), space_id="foo"), False, None ],
+    [bbox_foo_5_10, Pt(coordinate=(7, 0, 7), space_id="foo"), False, None ],
+    [bbox_foo_5_10, Pt(coordinate=(7, 15, 7), space_id="foo"), False, None ],
+    [bbox_foo_5_10, Pt(coordinate=(7, 7, 7), space_id="bar"), None, InvalidAttrCompException ],
+    [bbox_foo_5_10, Pt(coordinate=(7, 7, 7), space_id="foo"), True, None ],
+    [bbox_foo_5_10, Pt(coordinate=(5, 5, 5), space_id="foo"), True, None ],
+    [bbox_foo_5_10, Pt(coordinate=(10, 10, 10), space_id="foo"), True, None ],
+    [bbox_foo_5_10, Pt(coordinate=(10, 5, 10), space_id="foo"), True, None ],
+    [bbox_foo_5_10, Pt(coordinate=(10, 7, 10), space_id="foo"), True, None ],
+    
+])
+def test_compare_pt_to_bbox(bbox: BBox, pt: Pt, expected: bool, ExCls: Type[Exception]):
+    if ExCls:
+        with pytest.raises(ExCls):
+            compare_pt_to_bbox(pt, bbox)
+        return
+    assert expected == compare_pt_to_bbox(pt, bbox)
 
 
 def test_insersect_ptcld_img():

@@ -58,7 +58,7 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
         except UnregisteredAttrCompException as e:
             continue
         except InvalidAttrCompException as e:
-            logger.warning(f"match exception {e}")
+            logger.debug(f"match exception {e}")
             return False
     if attr_compared_flag:
         return False

@@ -68,6 +68,16 @@ def compare_bbox_to_bbox(bbox1: BBox, bbox2: BBox):
         raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two")
     return BBox.intersect_box(bbox1, bbox2) is not None
 
+@register_attr_comparison(Pt, BBox)
+def compare_pt_to_bbox(pt: Pt, bbox: BBox):
+    if bbox.space_id != pt.space_id:
+        raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two")
+    minpoint = np.array(bbox.minpoint)
+    maxpoint = np.array(bbox.maxpoint)
+    pt = np.array(pt.coordinate)
+
+    return np.all(minpoint <= pt) and np.all(pt <= maxpoint) 
+
 
 # TODO implement
 # 
