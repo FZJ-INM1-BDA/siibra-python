@@ -16,10 +16,10 @@ b = AttributeCollection(
 )
 
 @patch("siibra.assignment.assignment.attribute_match")
-def test_match_compared_all(mock_match: Mock):
+def test_match_compared_all_false(mock_match: Mock):
     mock_match.return_value = False
-    with pytest.raises(siibra.assignment.assignment.UnregisteredAttrCompException):
-        siibra.assignment.assignment.match(a, b)
+    
+    assert siibra.assignment.assignment.match(a, b) == False
     
     mock_match.assert_any_call(a_0, b_0)
     mock_match.assert_any_call(a_0, b_1)
@@ -52,7 +52,18 @@ def test_match_compared_unreg(mock_match: Mock):
     mock_match.assert_any_call(a_1, b_0)
     mock_match.assert_any_call(a_1, b_1)
     assert mock_match.call_count == 4
+
+@patch("siibra.assignment.assignment.attribute_match")
+def test_match_compared_some_false(mock_match: Mock):
+    mock_match.side_effect = [False, False, True, False, False, False]
     
+    assert siibra.assignment.assignment.match(a, b) == True
+    
+    mock_match.assert_any_call(a_0, b_0)
+    mock_match.assert_any_call(a_0, b_1)
+    mock_match.assert_any_call(a_1, b_0)
+    assert mock_match.call_count == 3
+
 @patch("siibra.assignment.assignment.attribute_match")
 def test_match_compared_invalid(mock_match: Mock):
     InvalidAttrCompException = siibra.assignment.assignment.InvalidAttrCompException

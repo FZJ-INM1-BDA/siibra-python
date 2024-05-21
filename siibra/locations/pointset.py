@@ -309,7 +309,7 @@ class PointSet(location.Location):
             max_cluster_size=int(N * max_fraction),
         )
         if self.labels is not None:
-            logger.warn("Existing labels of PointSet will be overwritten with cluster labels.")
+            logger.warning("Existing labels of PointSet will be overwritten with cluster labels.")
         self.labels = clustering.fit_predict(points)
         return self.labels
 

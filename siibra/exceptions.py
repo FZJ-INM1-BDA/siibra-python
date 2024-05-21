@@ -44,9 +44,22 @@ class WarmupRegException(Exception):
 
 class AttrCompException(Exception): pass
 
-class InvalidAttrCompException(AttrCompException): pass
+class InvalidAttrCompException(AttrCompException):
+    """
+    Raised if try to signal the two Attributes do *not* match.
 
-class UnregisteredAttrCompException(AttrCompException): pass
+    (aka, does not match.)
+    """
+    pass
+
+
+class UnregisteredAttrCompException(AttrCompException):
+    """
+    Raised if the Attributes have not been registered to match.
+    
+    (aka, we do not know how to match)
+    """
+    pass
 
 class NotFoundException(Exception): pass
 

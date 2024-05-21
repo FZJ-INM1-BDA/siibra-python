@@ -3,57 +3,50 @@ from typing import Literal, Union
 import requests
 import nibabel as nib
 from pathlib import Path
+from itertools import product
+import numpy as np
 
 from .base import Data
 from ..commons import logger
 from ..cache import CACHE, fn_call_cache
+
 
 @dataclass
 class Image(Data):
 
     schema: str = "siibra/attr/data/image/v0.1"
     format: Literal['nii', 'neuroglancer/precomputed'] = None
-    fetcher: str = None
+    url: str = None
     key: str = None
     space_id: str = None
 
     @staticmethod
     @fn_call_cache
-    def _GetBoundingBox(providers: dict[str, str], clip: bool = False):
-        # deprecated
-        from ..volumes.providers import VolumeProvider
+    def _GetBBox(image: "Image"):
+        from ..locations import BBox
+        if image.format == "neuroglancer/precomputed":
+            resp = requests.get(f"{image.url}/info")
+            resp.raise_for_status()
+            info_json = resp.json()
+            
+            resp = requests.get(f"{image.url}/transform.json")
+            resp.raise_for_status()
+            transform_json = resp.json()
 
-        for provider in providers:
-            try:
-                volume_provider = VolumeProvider._SUBCLASSES[provider](
-                    url=providers[provider]
-                )
-                bbox = volume_provider.get_boundingbox(clip)
-                return (
-                    [p for p in bbox.minpoint],
-                    [p for p in bbox.maxpoint],
-                    bbox.space and bbox.space.id,
-                )
-            except Exception as e:
-                logger.warn(
-                    f"Failed to get boundingbox for {provider} with url {providers[provider]}: {str(e)}"
-                )
-        raise RuntimeError
+            scale, *_ = info_json.get("scales")
+            size = scale.get("size")
+            resolution = scale.get("resolution")
+            dimension = [s * r for s, r in zip(size, resolution)]
+            xs, ys, zs = zip([0, 0, 0], dimension)
+            corners = list(product(xs, ys, zs))
+            hom = np.c_[corners, np.ones(len(corners))]
+            new_coord = np.dot(np.array(transform_json), hom.T)[:3, :].T / 1e6
+            
+            min = np.min(new_coord, axis=0)
+            max = np.max(new_coord, axis=0)
+            return BBox(minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id)
+        raise NotImplementedError
 
-    @property
-    def boundingbox(self):
-        # deprecated
-        minp, maxp, space_id = Image._GetBoundingBox(self.providers)
-        from ..locations import BoundingBox
-
-        return BoundingBox(minp, maxp, space_id or self.space_id)
-
-    @property
-    def data(self):
-        assert self.format == "nii", f"Can only get data of nii."
-        return Image.NiiUrl(self.fetcher)
-
-    
     @staticmethod
     def NiiUrl(url: str) -> Union[nib.Nifti1Image, nib.Nifti2Image]:
         filename = CACHE.build_filename(url, suffix=".nii.gz")
@@ -64,6 +57,15 @@ class Image(Data):
                 fp.write(resp.content)
         nii = nib.load(filename)
         return nii
+
+    @property
+    def boundingbox(self):
+        return Image._GetBBox(self)
+
+    @property
+    def data(self):
+        assert self.format == "nii", f"Can only get data of nii."
+        return Image.NiiUrl(self.url)
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError

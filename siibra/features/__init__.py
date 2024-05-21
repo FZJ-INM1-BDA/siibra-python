@@ -78,7 +78,7 @@ def _warm_feature_cache_data():
                 try:
                     _ = feature.data
                 except Exception as e:
-                    logger.warn(f"Feature {feature.name} warmup failed: {str(e)}")
+                    logger.warning(f"Feature {feature.name} warmup failed: {str(e)}")
                 finally:
                     tally.update(1)
             # append dictionary, so that popping the dictionary will mark the feature to be garbage collected

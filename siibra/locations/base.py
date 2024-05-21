@@ -6,3 +6,15 @@ from ..concepts.attribute import Attribute
 class Location(Attribute):
     schema = "siibra/attr/loc"
     space_id: str = None
+
+# static methods
+
+# between two locations
+
+# union
+# intersection
+
+# instance method
+
+# warp(target_space_id)
+# transform(affine)

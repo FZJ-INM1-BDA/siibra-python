@@ -65,10 +65,10 @@ class Configuration:
                     logger.debug(f"Skipped unknown specification in '{fname}'")
             except TypeError as e:
                 print(str(e))
-                logger.warn(f"Skipped invalid specification in '{fname}'")
+                logger.warning(f"Skipped invalid specification in '{fname}'")
             except JSONDecodeError as e:
                 print(str(e))
-                logger.warn(f"Skipped invalid json file '{fname}'")
+                logger.warning(f"Skipped invalid json file '{fname}'")
 
     def __init__(self):
 

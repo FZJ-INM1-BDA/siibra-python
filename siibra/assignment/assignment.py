@@ -36,15 +36,30 @@ def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
             continue
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
+    """Given AttributeCollection col_a, col_b, compare the product of their respective
+    attributes, until:
     
+    - If any of the permutation of the attribute matches, returns True.
+    - If InvalidAttrCompException is raised, return False.
+    - All product of attributes are exhausted.
+
+    If all product of attributes are exhausted:
+
+    - If any of the comparison called successfully (without raising), return False
+    - If none of the comparison called successfully (without raising), raise UnregisteredAttrCompException
+    """
+    attr_compared_flag = False
     for attra, attrb in product(col_a.attributes, col_b.attributes):
         try:
-            if attribute_match(attra, attrb):
+            match_result = attribute_match(attra, attrb)
+            attr_compared_flag = True
+            if match_result:
                 return True
         except UnregisteredAttrCompException as e:
             continue
         except InvalidAttrCompException as e:
-            logger.warn(f"match exception {e}")
+            logger.warning(f"match exception {e}")
             return False
-        
+    if attr_compared_flag:
+        return False
     raise UnregisteredAttrCompException

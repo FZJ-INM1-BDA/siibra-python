@@ -264,7 +264,7 @@ def query_allen_gene_api(input: AttributeCollection):
         return
     
     if len(images) > 1:
-        logger.warn(f"{modality_of_interest.value} was queried, but input contains multiple images. First one was selected.")
+        logger.warning(f"{modality_of_interest.value} was queried, but input contains multiple images. First one was selected.")
     
     image = images[0]
 
