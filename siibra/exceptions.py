@@ -35,13 +35,22 @@ class NoMapAvailableError(RuntimeError):
     pass
 
 
-class SpaceWarpingFailedError(RuntimeError):
-    pass
-
-
 class NoVolumeFound(RuntimeError):
     pass
 
 
 class WarmupRegException(Exception):
     pass
+
+class AttrCompException(Exception): pass
+
+class InvalidAttrCompException(AttrCompException): pass
+
+class UnregisteredAttrCompException(AttrCompException): pass
+
+class NotFoundException(Exception): pass
+
+class ExternalApiException(RuntimeError): pass
+
+class SpaceWarpingFailedError(ExternalApiException): pass
+

@@ -1,13 +1,17 @@
 from typing import Type, Callable, Dict, Tuple
 from functools import wraps
+import numpy as np
+from dataclasses import replace
 
 from ..commons import logger
 from ..concepts.attribute import Attribute
-
-# class AttributeMatch:
-
-#     def match(self, attra: Attribute, attrb: Attribute) -> bool:
-#         raise NotImplementedError
+from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
+from ..descriptions.modality import Modality
+from ..descriptions.regionspec import RegionSpec
+from ..locations.boundingbox import BBox
+from ..locations.point import Pt
+from ..locations.pointset import PointCloud
+from ..dataitems.image import Image
 
 
 def match(attra: Attribute, attrb: Attribute) -> bool:
@@ -16,7 +20,8 @@ def match(attra: Attribute, attrb: Attribute) -> bool:
     key = typea_attr, typeb_attr
     if key not in COMPARE_ATTR_DICT:
         logger.debug(f"{typea_attr} and {typeb_attr} comparison has not been registered")
-        return False
+        raise UnregisteredAttrCompException
+
     fn, switch_arg = COMPARE_ATTR_DICT[key]
     args = [attrb, attra] if switch_arg else [attra, attrb]
     return fn(*args)
@@ -44,10 +49,6 @@ def register_attr_comparison(attra_type: Type[Attribute], attrb_type: Type[Attri
         return inner
     return outer
 
-from ..descriptions.modality import Modality
-from ..descriptions.regionspec import RegionSpec
-from ..locations.boundingbox import BBox
-from ..dataitems.image import Image
 
 
 @register_attr_comparison(Modality, Modality)
@@ -60,7 +61,62 @@ def compare_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
         return True
     # TODO implement fuzzy match
 
-@register_attr_comparison(BBox, Image)
-def compare_bbox_to_image(bbox: BBox, image: Image):
-    raise NotImplementedError
 
+@register_attr_comparison(BBox, BBox)
+def compare_bbox_to_bbox(bbox1: BBox, bbox2: BBox):
+    if bbox2.space_id != bbox1.space_id:
+        raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two")
+    return BBox.intersect_box(bbox1, bbox2) is not None
+
+
+# TODO implement
+# 
+# @register_attr_comparison(BBox, Image)
+# def compare_bbox_to_image(bbox: BBox, image: Image):
+#     if image.space_id != bbox.space_id:
+#         raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two.")
+#     raise NotImplementedError
+
+
+@register_attr_comparison(Pt, Image)
+def compare_pt_to_image(pt: Pt, image: Image):
+    ptcloud = PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
+    return compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
+
+
+@register_attr_comparison(PointCloud, Image)
+def compare_ptcloud_to_image(ptcloud: PointCloud, image: Image):
+    intersection = intersect_ptcld_image(ptcloud=ptcloud, image=image)
+    return len(intersection.coordinates) > 0
+    
+
+def intersect_ptcld_image(ptcloud: PointCloud, image: Image) -> PointCloud:
+    if image.space_id != ptcloud.space_id:
+        raise InvalidAttrCompException(f"ptcloud and image are in different space. Cannot compare the two.")
+    
+    value_outside = 0
+
+    img = image.data
+    arr = np.asanyarray(img.dataobj)
+
+    # transform the points to the voxel space of the volume for extracting values
+    phys2vox = np.linalg.inv(img.affine)
+    voxels = PointCloud.transform(ptcloud, phys2vox)
+    XYZ = np.array(voxels.coordinates).astype("int")
+
+    # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
+    # TODO in previous version, zero'th voxel is excluded on all sides (i.e. (XYZ > 0) was tested)
+    # is there a reason why the zero-th voxel is excluded?
+    inside = np.all((XYZ < arr.shape) & (XYZ >= 0), axis=1)
+    XYZ[~inside, :] = 0
+
+    # read out the values
+    X, Y, Z = XYZ.T
+    values = arr[X, Y, Z]
+
+    # fix the outside voxel values, which might have an inconsistent value now
+    values[~inside] = value_outside
+
+    inside = list(np.where(values != value_outside)[0])
+    
+    return replace(ptcloud, coordinates=[ptcloud.coordinates[i] for i in inside])

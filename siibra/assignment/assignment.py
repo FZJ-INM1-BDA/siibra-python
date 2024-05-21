@@ -1,12 +1,15 @@
 from typing import Type, Callable, Dict, Iterable, List, TypeVar
 from functools import wraps
 from collections import defaultdict
+from itertools import product
 
 from .attribute_match import match as attribute_match
 
+from ..commons import logger
 from ..concepts.attribute_collection import AttributeCollection
 from ..concepts.feature import Feature
 from ..descriptions import Modality
+from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
@@ -27,11 +30,21 @@ V = TypeVar("V")
 
 def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
     for fn in collection_gen[req_type]:
-        yield from fn(input)
+        try:
+            yield from fn(input)
+        except UnregisteredAttrCompException:
+            continue
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
-    return any(
-        attribute_match(attra, attrb)
-        for attra in col_a.attributes
-        for attrb in col_b.attributes
-    )
+    
+    for attra, attrb in product(col_a.attributes, col_b.attributes):
+        try:
+            if attribute_match(attra, attrb):
+                return True
+        except UnregisteredAttrCompException as e:
+            continue
+        except InvalidAttrCompException as e:
+            logger.warn(f"match exception {e}")
+            return False
+        
+    raise UnregisteredAttrCompException

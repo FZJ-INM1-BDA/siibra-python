@@ -5,6 +5,8 @@ import pandas as pd
 from .base import Data
 from ..cache import fn_call_cache
 
+X_DATA = "x-siibra/data/dataframe"
+
 @dataclass
 class Tabular(Data):
 
@@ -21,6 +23,8 @@ class Tabular(Data):
 
     @property
     def data(self) -> pd.DataFrame:
+        if X_DATA in self.extra:
+            return self.extra[X_DATA]
         return Tabular._GetData(self.url, self.parse_options)
 
     def plot(self, *args, **kwargs):

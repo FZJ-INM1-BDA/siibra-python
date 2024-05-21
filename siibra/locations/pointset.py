@@ -43,6 +43,17 @@ class PointCloud(Location):
     coordinates: List[List[float]] = field(default_factory=list)
     sigma: float = 0
 
+    @property
+    def homogeneous(self):
+        return np.c_[self.coordinates, np.ones(len(self.coordinates))]
+
+    @staticmethod
+    def transform(ptcloud: "PointCloud", affine: np.ndarray):
+        new_coord: np.ndarray = np.dot(affine, ptcloud.homogeneous.T)[:3, :].T
+        return PointCloud(coordinates=new_coord.tolist(),
+                          space_id=ptcloud.space_id,
+                          sigma=ptcloud.sigma)
+
 
 def from_points(points: List["point.Point"], newlabels: List[Union[int, float, tuple]] = None) -> "PointSet":
     """

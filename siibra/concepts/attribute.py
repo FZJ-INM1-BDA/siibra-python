@@ -10,7 +10,9 @@ class Attribute:
     """Base clase for attributes."""
 
     schema: str = field(default="siibra/attr", init=False)
-    extra: dict[str, Any] = field(default_factory=dict)
+
+    # TODO performance implications? may have to set hash=False
+    extra: dict[str, Any] = field(default_factory=dict, repr=False)
 
     # derived classes set their schema as class parameter
     def __init_subclass__(cls):

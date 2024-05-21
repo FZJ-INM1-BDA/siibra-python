@@ -27,13 +27,24 @@ import json
 import numbers
 import hashlib
 from typing import Tuple, Union, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 @dataclass
 class Pt(Location):
     schema = "siibra/attr/loc/point/v0.1"
     coordinate: List[float] = field(default_factory=list)
     sigma: float = 0
+
+    @property
+    def homogeneous(self):
+        return np.atleast_2d(self.coordinate + (1,))
+    
+    @staticmethod
+    def transform(pt: "Pt", affine: np.ndarray):
+        x, y, z, h = np.dot(affine, pt.homogeneous.T)
+        if h != 1:
+            logger.warning(f"Homogeneous coordinate is not one: {h}")
+        return replace(pt, coordinate=[x / h, y / h, z / h])
 
 # deprecated
 class Point(location.Location):

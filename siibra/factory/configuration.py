@@ -1,5 +1,5 @@
 from .factory import build_object, build_feature
-from ..descriptions.modality import register_modalities, Modality
+from ..descriptions import register_modalities, Modality
 from ..concepts.feature import Feature
 from ..concepts.attribute_collection import AttributeCollection
 from ..configuration.configuration import Configuration

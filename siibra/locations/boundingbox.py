@@ -20,10 +20,11 @@ from ..concepts.attribute import Attribute
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
-from dataclasses import dataclass
+from itertools import product
+from dataclasses import dataclass, replace, field
 import hashlib
 import numpy as np
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, List
 if TYPE_CHECKING:
     from ..core.structure import AnatomicalStructure
     from nibabel import Nifti1Image
@@ -32,10 +33,46 @@ if TYPE_CHECKING:
 
 @dataclass
 class BBox(Attribute):
-    schema = "siibra/attr/loc/bbox"
-    minpoint: point.Pt = None
-    maxpoint: point.Pt = None
+    schema = "siibra/attr/loc/boundingbox/v0.1"
+    minpoint: List[float] = field(default_factory=list)
+    maxpoint: List[float] = field(default_factory=list)
     space_id: str = None
+
+    @staticmethod
+    def intersect_box(bbox: "BBox", other: "BBox") -> "BBox":
+        assert bbox.space_id == other.space_id, f"Expecting {bbox.space_id=} == {other.space_id=}"
+        minpoints = [bbox.minpoint, other.minpoint]
+        maxpoints = [bbox.maxpoint, other.maxpoint]
+        allpoints = minpoints + maxpoints
+
+        result_min_coord = []
+        result_max_coord = []
+        for dim in range(3):
+            _, A, B, _ = sorted(allpoints, key=lambda p: p[dim])
+            if A in maxpoints or B in minpoints:
+                return None
+            result_min_coord.append(A[dim])
+            result_max_coord.append(B[dim])
+
+        return replace(bbox,
+                       minpoint=result_min_coord,
+                       maxpoint=result_max_coord)
+
+    @staticmethod
+    def transform(bbox: "BBox", affine: np.ndarray):
+        xs, ys, zs = zip(
+            bbox.minpoint,
+            bbox.maxpoint
+        )
+        corners = [point.Pt(coordinate=[x, y, z], space_id=bbox.space_id)
+                   for x, y, z in product(xs, ys, zs)]
+        
+        new_corners = [point.Pt.transform(cornerpt, affine) for cornerpt in corners]
+        new_coorner_coord = np.array([cnr.coordinate for cnr in new_corners])
+
+        new_maxpt = np.max(new_coorner_coord, axis=0).tolist()
+        new_minpt = np.min(new_coorner_coord, axis=0).tolist()
+        return replace(bbox, maxpoint=new_maxpt, minpoint=new_minpt)
 
 
 class BoundingBox(location.Location):
