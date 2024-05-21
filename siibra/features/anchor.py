@@ -156,7 +156,7 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: AnatomicalStructure) -> AnatomicalAssignment:
+    def assign(self, concept: AnatomicalStructure, restrict_space: bool = False) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
