@@ -1,53 +1,28 @@
-from typing import Type, Callable, Dict, Tuple
-from functools import wraps
+from typing import Type, Callable, Dict, Tuple, TypeVar, Generic
 import numpy as np
 from dataclasses import replace
 
-from ..commons import logger
+from ..commons import logger, Comparison
 from ..concepts.attribute import Attribute
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from ..descriptions.modality import Modality
 from ..descriptions.regionspec import RegionSpec
-from ..locations.boundingbox import BBox
-from ..locations.point import Pt
-from ..locations.pointset import PointCloud
+from .. import locations
+from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 from ..dataitems.image import Image
 
 
-def match(attra: Attribute, attrb: Attribute) -> bool:
-    typea_attr = type(attra)
-    typeb_attr = type(attrb)
-    key = typea_attr, typeb_attr
-    if key not in COMPARE_ATTR_DICT:
-        logger.debug(f"{typea_attr} and {typeb_attr} comparison has not been registered")
-        raise UnregisteredAttrCompException
+_attr_match: Comparison[Attribute, bool] = Comparison()
 
-    fn, switch_arg = COMPARE_ATTR_DICT[key]
+register_attr_comparison = _attr_match.register
+def match(attra: Attribute, attrb: Attribute):
+    val = _attr_match.get(attra, attrb)
+    if val is None:
+        logger.debug(f"{type(attra)} and {type(attrb)} comparison has not been registered")
+        raise UnregisteredAttrCompException
+    fn, switch_arg = val
     args = [attrb, attra] if switch_arg else [attra, attrb]
     return fn(*args)
-
-
-# TODO document me
-COMPARE_ATTR_DICT: Dict[Tuple[Type[Attribute], ...], Tuple[Callable, bool]] = {}
-
-def register_attr_comparison(attra_type: Type[Attribute], attrb_type: Type[Attribute]):
-    
-    def outer(fn):
-        forward_key = attra_type, attrb_type
-        backward_key = attrb_type, attra_type
-
-        assert forward_key not in COMPARE_ATTR_DICT, f"{forward_key} already exist"
-        assert backward_key not in COMPARE_ATTR_DICT, f"{backward_key} already exist"
-
-        @wraps(fn)
-        def inner(*args, **kwargs):
-            return fn(*args, **kwargs)
-        
-        COMPARE_ATTR_DICT[forward_key] = inner, False
-        COMPARE_ATTR_DICT[backward_key] = inner, True
-
-        return inner
-    return outer
 
 
 
@@ -62,21 +37,14 @@ def compare_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
     # TODO implement fuzzy match
 
 
-@register_attr_comparison(BBox, BBox)
-def compare_bbox_to_bbox(bbox1: BBox, bbox2: BBox):
-    if bbox2.space_id != bbox1.space_id:
-        raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two")
-    return BBox.intersect_box(bbox1, bbox2) is not None
-
+@register_attr_comparison(Pt, Pt)
+@register_attr_comparison(Pt, PointCloud)
 @register_attr_comparison(Pt, BBox)
-def compare_pt_to_bbox(pt: Pt, bbox: BBox):
-    if bbox.space_id != pt.space_id:
-        raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two")
-    minpoint = np.array(bbox.minpoint)
-    maxpoint = np.array(bbox.maxpoint)
-    pt = np.array(pt.coordinate)
-
-    return np.all(minpoint <= pt) and np.all(pt <= maxpoint) 
+@register_attr_comparison(PointCloud, PointCloud)
+@register_attr_comparison(PointCloud, BBox)
+@register_attr_comparison(BBox, BBox)
+def compare_loc_to_loc(loca: DataClsLocation, locb: DataClsLocation):
+    return intersect(loca, locb) is not None
 
 
 # TODO implement

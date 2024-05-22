@@ -7,6 +7,9 @@ from .polyline import Polyline
 from .base import Location
 from ..cache import fn_call_cache
 
+X_PRECALCULATED_BOUNDARY_KEY = "x-siibra/layerboundary"
+LAYERS = ("0", "I", "II", "III", "IV", "V", "VI", "WM")
+
 @dataclass
 class LayerBoundary(Location):
     schema: str = "siibra/attr/loc/layerboundary/v0.1"
@@ -17,8 +20,6 @@ class LayerBoundary(Location):
     def _GetPolylineAttributes(url: str, space_id: str):
         import requests
         import numpy as np
-
-        LAYERS = ("0", "I", "II", "III", "IV", "V", "VI", "WM")
 
         all_betweeners = (
             "0" if start == "0" else f"{start}_{end}"
@@ -50,4 +51,6 @@ class LayerBoundary(Location):
 
     @property
     def layers(self) -> List[Polyline]:
+        if X_PRECALCULATED_BOUNDARY_KEY in self.extra:
+            return self.extra[X_PRECALCULATED_BOUNDARY_KEY]
         return LayerBoundary._GetPolylineAttributes(self.url, self.space_id)

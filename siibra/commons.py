@@ -23,7 +23,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple, Type, Callable
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
@@ -897,3 +897,31 @@ def y_rotation_matrix(alpha: float):
         [-math.sin(alpha), 0, math.cos(alpha), 0],
         [0, 0, 0, 1]
     ])
+
+V = TypeVar("V")
+
+class Comparison(Generic[T, V]):
+
+    def __init__(self):
+        self._store_dict: Dict[Tuple[Type[T], Type[T]], Tuple[Callable[[T, T], V], bool]] = {}
+    
+    def register(self, a: Type[T], b: Type[T]):
+        def outer(fn: Callable[[T, T], V]):
+            forward_key = a, b
+            backward_key = b, a
+
+            assert forward_key not in self._store_dict, f"{forward_key} already exist"
+            assert backward_key not in self._store_dict, f"{backward_key} already exist"
+            
+            self._store_dict[forward_key] = fn, False
+            self._store_dict[backward_key] = fn, True
+
+            return fn
+        return outer
+    
+    def get(self, a: T, b: T):
+        typea = type(a)
+        typeb = type(b)
+        key = typea, typeb
+        return self._store_dict.get(key)
+

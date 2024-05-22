@@ -16,6 +16,7 @@ T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 collection_gen: Dict[Type[AttributeCollection], List[T]] = defaultdict(list)
 
 def register_collection_generator(type_of_col: Type[AttributeCollection]):
+    """Register function to be called to yield a specific type of AttributeCollection."""
     def outer(fn: T):
         collection_gen[type_of_col].append(fn)
         @wraps(fn)
