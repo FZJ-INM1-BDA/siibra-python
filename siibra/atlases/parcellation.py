@@ -1,12 +1,11 @@
 from dataclasses import dataclass
-from typing import Tuple
 
 from ..atlases import region
 
 
 @dataclass(init=False)
 class Parcellation(region.Region):
-    schema: str = "siibra/attrCln/atlasEl/parcellation"
+    schema: str = "siibra/atlases/parcellation/v0.1"
     parent = None
 
     def __post_init__(self):

@@ -5,9 +5,10 @@ from .attribute import Attribute
 
 T = TypeVar('T')
 
+
 @dataclass
 class AttributeCollection:
-    schema: str = "siibra/attrCln"
+    schema: str = "siibra/attribute_collection "
     attributes: Tuple[Attribute] = field(default_factory=list, repr=False)
 
     def get(self, attr_type: Type[Attribute]):

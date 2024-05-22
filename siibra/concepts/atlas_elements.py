@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Dict
 
 from .attribute_collection import AttributeCollection
 from ..descriptions import Name, SpeciesSpec, Publication, ID as _ID
@@ -10,7 +9,7 @@ MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
 
 @dataclass
 class AtlasElement(AttributeCollection):
-    schema: str = "siibra/attrCln/atlasEl"
+    schema: str = "siibra/atlas_element/v0.1"
 
     def __post_init__(self):
         assert all(

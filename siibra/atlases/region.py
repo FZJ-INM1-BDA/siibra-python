@@ -11,7 +11,7 @@ class Region(
     anytree.NodeMixin,
     atlas_elements.AtlasElement
 ):
-    schema: str = "siibra/attrCln/atlasEl/region"
+    schema: str = "siibra/atlases/region/v0.1"
     parent: "Region" = None
     children: Tuple["Region"] = None
 
