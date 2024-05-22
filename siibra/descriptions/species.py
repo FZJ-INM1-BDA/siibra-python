@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-from ..concepts import attribute
 from .base import Description
 
 

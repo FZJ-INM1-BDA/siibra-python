@@ -1,8 +1,8 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 
 from .base import Description
 from ..vocabularies import GENE_NAMES
+
 
 @dataclass
 class Gene(Description):

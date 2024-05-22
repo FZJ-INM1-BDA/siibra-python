@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from ..concepts import attribute
 from .base import Description
+
 
 @dataclass
 class RegionSpec(Description):
@@ -34,4 +34,3 @@ class RegionSpec(Description):
     #             parcellation = parcellation.name
     #         return RegionSpecAttribute.Matches(self.name, parcellation, region)
     #     return super().matches(first_arg, *args, **kwargs)
-

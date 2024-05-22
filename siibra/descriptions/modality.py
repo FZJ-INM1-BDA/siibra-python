@@ -5,6 +5,7 @@ from typing import List, Callable, Iterable, Dict
 from .base import Description
 from ..commons import create_key
 
+
 @dataclass
 class Modality(Description):
     schema = "siibra/attr/desc/modality/v0.1"

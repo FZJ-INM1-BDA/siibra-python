@@ -13,27 +13,31 @@ T = Callable[[Dict], AttributeCollection]
 
 build_registry: Dict[str, T] = {}
 
+
 def register_build_type(type_str: str):
     def outer(fn: T):
-        
+
         @wraps(fn)
         def inner(*args, **kwargs):
             kwargs.pop("@type", None)
             return fn(*args, **kwargs)
-        
+
         assert type_str not in build_registry, f"{type_str} already registered!"
         build_registry[type_str] = inner
 
         return inner
     return outer
 
+
 @register_build_type(Feature.schema)
 def build_feature(dict_obj):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = [attr
-                  for attribute_obj in attribute_objs
-                  for attr in Attribute.from_dict(attribute_obj)]
+    attributes = tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
     return Feature(attributes=attributes, **dict_obj)
 
 def build_object(dict_obj: Dict):
