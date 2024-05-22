@@ -7,3 +7,4 @@ from .base import Description
 class Name(Description):
     schema = "siibra/attr/desc/name/v0.1"
     value: str = None
+    shortform: str = None
