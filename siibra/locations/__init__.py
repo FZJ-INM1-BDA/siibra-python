@@ -21,6 +21,9 @@ from .boundingbox import BoundingBox, BBox
 from .polyline import Polyline
 from .layerboundary import LayerBoundary
 
+from .ops import intersect
+from .base import Location as DataClsLocation
+
 
 def reassign_union(loc0: 'Location', loc1: 'Location') -> 'Location':
     """

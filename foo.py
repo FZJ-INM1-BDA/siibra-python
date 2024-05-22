@@ -121,24 +121,11 @@ for modality, spec in product(modalities, spatial_attr):
     features = list(feature_get(query))
     print(f"found {len(features)=}")
 
+mod = siibra.descriptions.modality.vocab.MODIFIED_SILVER_STAINING
+bbox = bbhoc1_bbox
 
-
-
-# # segmented cell body density
-# reg = get_region("julich brain 2.9", "hoc1 left")
-# features = get(reg, modality.SEGMENTED_CELL_BODY_DENSITY)
-# feat = features[0]
-# data, = list(feat.get_data(feat.data_modalities.DENSITY_IMAGE)) # autocomplete works at runtime
-
-# assert data is not None
-
-# # cell body density
-# reg = get_region("julich brain 2.9", "hoc1")
-# features = get(reg, modality.CELL_BODY_DENSITY)
-# assert len(features) > 1
-# filtered_features = [feature for feature in features if any(mod == modality.CELL_BODY_DENSITY for mod in feature.get_modalities())]
-# feat, = filtered_features
-
-# data = [datum for datum in feat.get_data("layer statistics")]
-# assert all(datum is not None for datum in data)
+features = list(feature_get(QueryParam(attributes=[mod, bbox])))
+assert len(features) > 0
+for f in features:
+    assert len(f.attributes) > 0
 

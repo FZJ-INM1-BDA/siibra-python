@@ -47,6 +47,11 @@ class PointCloud(Location):
     def homogeneous(self):
         return np.c_[self.coordinates, np.ones(len(self.coordinates))]
 
+    def to_pts(self):
+        return [point.Pt(space_id=self.space_id, coordinate=coord)
+                for coord in self.coordinates]
+        
+
     @staticmethod
     def transform(ptcloud: "PointCloud", affine: np.ndarray):
         new_coord: np.ndarray = np.dot(affine, ptcloud.homogeneous.T)[:3, :].T

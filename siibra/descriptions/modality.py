@@ -63,6 +63,7 @@ class _Vocab:
         return list(self.mapping.keys())
     
     def __getattr__(self, key: str):
+        self._refresh_modalities()
         if key in self.mapping:
             return self.mapping[key]
         raise AttributeError(f"{key} not found")

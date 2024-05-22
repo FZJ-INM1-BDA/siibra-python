@@ -14,5 +14,4 @@
 # limitations under the License.
 """Feature queries requiring live query or on-the-fly calculations."""
 
-from .bigbrain import LayerwiseBigBrainIntensityQuery, BigBrainProfileQuery
 from .ebrains import EbrainsFeatureQuery

@@ -39,26 +39,6 @@ class BBox(Attribute):
     space_id: str = None
 
     @staticmethod
-    def intersect_box(bbox: "BBox", other: "BBox") -> "BBox":
-        assert bbox.space_id == other.space_id, f"Expecting {bbox.space_id=} == {other.space_id=}"
-        minpoints = [bbox.minpoint, other.minpoint]
-        maxpoints = [bbox.maxpoint, other.maxpoint]
-        allpoints = minpoints + maxpoints
-
-        result_min_coord = []
-        result_max_coord = []
-        for dim in range(3):
-            _, A, B, _ = sorted(allpoints, key=lambda p: p[dim])
-            if A in maxpoints or B in minpoints:
-                return None
-            result_min_coord.append(A[dim])
-            result_max_coord.append(B[dim])
-
-        return replace(bbox,
-                       minpoint=result_min_coord,
-                       maxpoint=result_max_coord)
-
-    @staticmethod
     def transform(bbox: "BBox", affine: np.ndarray):
         xs, ys, zs = zip(
             bbox.minpoint,
