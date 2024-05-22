@@ -8,3 +8,4 @@ from .url import Url
 from .doi import Doi
 from .name import Name
 from .gene import Gene
+from .license import License
