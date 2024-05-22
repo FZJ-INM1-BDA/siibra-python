@@ -8,6 +8,7 @@ from .. import dataitems
 from ..concepts.attribute import Attribute
 from ..concepts.attribute_collection import AttributeCollection
 from ..concepts.feature import Feature
+from ..atlases import region, parcellation
 
 T = Callable[[Dict], AttributeCollection]
 
@@ -39,6 +40,38 @@ def build_feature(dict_obj):
         for att in Attribute.from_dict(attribute_obj)
     )
     return Feature(attributes=attributes, **dict_obj)
+
+
+@register_build_type(region.Region.schema)
+def build_region(dict_obj):
+    dict_obj.pop("@type", None)
+    attribute_objs = dict_obj.pop("attributes", [])
+    attributes = tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
+    return region.Region(
+        attributes=attributes,
+        children=map(build_region, dict_obj.get("children", ())),
+    )
+
+
+@register_build_type(parcellation.Parcellation.schema)
+def build_parcellation(dict_obj):
+    dict_obj.pop("@type", None)
+    attribute_objs = dict_obj.pop("attributes", [])
+    attributes = tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
+    return parcellation.Parcellation(
+        attributes=attributes,
+        children=tuple(map(build_region, dict_obj.get("regions", ()))),
+        parent=None
+    )
+
 
 def build_object(dict_obj: Dict):
     schema = dict_obj.get("@type", None)
