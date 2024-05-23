@@ -12,10 +12,10 @@ class AtlasElement(AttributeCollection):
     schema: str = "siibra/atlas_element/v0.1"
 
     def __post_init__(self):
+        attr_types = set(map(type, self.attributes))
         assert all(
-            any(isinstance(att, musthave) for att in self.attributes)
-            for musthave in MUSTHAVE_ATTRIBUTES
-        ), F"An AtlasElement must have {MUSTHAVE_ATTRIBUTES} attributes."
+            musthave in attr_types for musthave in MUSTHAVE_ATTRIBUTES
+        ), f"An AtlasElement must have {[attr_type.__name__ for attr_type in MUSTHAVE_ATTRIBUTES]} attributes."
 
     @property
     def name(self):
@@ -25,7 +25,9 @@ class AtlasElement(AttributeCollection):
 
     @property
     def ID(self):
-        return [id.value for id in self.get(_ID)]
+        ids = [id.value for id in self.get(_ID)]
+        assert len(ids) == 1
+        return ids[0]
 
     @property
     def species(self):

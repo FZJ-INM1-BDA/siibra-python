@@ -9,6 +9,8 @@ from ..concepts.attribute import Attribute
 from ..concepts.attribute_collection import AttributeCollection
 from ..concepts.feature import Feature
 from ..atlases import region, parcellation
+from ..descriptions import Name, SpeciesSpec, ID
+from ..commons import create_key
 
 T = Callable[[Dict], AttributeCollection]
 
@@ -31,7 +33,7 @@ def register_build_type(type_str: str):
 
 
 @register_build_type(Feature.schema)
-def build_feature(dict_obj):
+def build_feature(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
     attributes = tuple(
@@ -43,7 +45,24 @@ def build_feature(dict_obj):
 
 
 @register_build_type(region.Region.schema)
-def build_region(dict_obj):
+def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None):
+    """_summary_
+
+    Parameters
+    ----------
+    dict_obj : dict
+        see Region.schema
+    parc_id : ID, optional
+        Either dict_obj has an ID attribute in attributes field or a
+        parcellation ID is required.
+    species : SpeciesSpec, optional
+        Either dict_obj has an SpeciesSpec attribute in attributes field or a
+        parcellation SpeciesSpec is required.
+
+    Returns
+    -------
+    region.Region
+    """
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
     attributes = tuple(
@@ -51,14 +70,22 @@ def build_region(dict_obj):
         for attribute_obj in attribute_objs
         for att in Attribute.from_dict(attribute_obj)
     )
+    if ID not in filter(lambda a: isinstance(a, ID), attributes):
+        name = next(iter(filter(lambda a: isinstance(a, Name), attributes))).value
+        attributes += (ID(value=f"{parc_id.value}_{create_key(name)}"),)
+    if SpeciesSpec not in filter(lambda a: isinstance(a, ID), attributes):
+        attributes += (species,)
     return region.Region(
         attributes=attributes,
-        children=map(build_region, dict_obj.get("children", ())),
+        children=tuple(map(
+            lambda r: build_region(r, parc_id, species),
+            dict_obj.get("children", [])
+        ))
     )
 
 
 @register_build_type(parcellation.Parcellation.schema)
-def build_parcellation(dict_obj):
+def build_parcellation(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
     attributes = tuple(
@@ -66,10 +93,16 @@ def build_parcellation(dict_obj):
         for attribute_obj in attribute_objs
         for att in Attribute.from_dict(attribute_obj)
     )
+    parc_id = next(iter(filter(lambda a: isinstance(a, ID), attributes)))
+    assert parc_id, "A parcellation must have an ID attribute."
+    species = next(iter(filter(lambda a: isinstance(a, SpeciesSpec), attributes)))
+    assert parc_id, "A parcellation must have a SpeciesSpec attribute."
     return parcellation.Parcellation(
         attributes=attributes,
-        children=tuple(map(build_region, dict_obj.get("regions", ()))),
-        parent=None
+        children=tuple(map(
+            lambda r: build_region(r, parc_id, species),
+            dict_obj.get("regions", [])
+        ))
     )
 
 

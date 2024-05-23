@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Tuple
+from typing import List
 
 import anytree
 
@@ -8,12 +8,15 @@ from ..concepts import atlas_elements
 
 @dataclass
 class Region(
-    anytree.NodeMixin,
-    atlas_elements.AtlasElement
+    atlas_elements.AtlasElement,
+    anytree.NodeMixin
 ):
     schema: str = "siibra/atlases/region/v0.1"
-    parent: "Region" = None
-    children: Tuple["Region"] = None
+
+    def __init__(self, attributes, children):
+        super().__init__(self, attributes=attributes)
+        anytree.NodeMixin.__init__(self)
+        self.children = children
 
     @property
     def parcellation(self):
