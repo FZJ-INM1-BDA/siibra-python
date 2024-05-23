@@ -399,36 +399,6 @@ class MapType(Enum):
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
 SIIBRA_DEFAULT_MAP_THRESHOLD = 0.0
 
-REMOVE_FROM_NAME = [
-    "hemisphere",
-    " -",
-    "-brain",
-    "both",
-    "Both",
-]
-
-REPLACE_IN_NAME = {
-    "ctx-lh-": "left ",
-    "ctx-rh-": "right ",
-}
-
-
-def clear_name(name):
-    """ clean up a region name to the for matching"""
-    result = name
-    for word in REMOVE_FROM_NAME:
-        result = result.replace(word, "")
-    for search, repl in REPLACE_IN_NAME.items():
-        result = result.replace(search, repl)
-    return " ".join(w for w in result.split(" ") if len(w))
-
-
-def snake2camel(s: str):
-    """Converts a string in snake_case into CamelCase.
-    For example: JULICH_BRAIN -> JulichBrain"""
-    return "".join([w[0].upper() + w[1:].lower() for w in s.split("_")])
-
-
 # getting nonzero pixels of pmaps is one of the most time consuming tasks when computing metrics,
 # so we cache the nonzero coordinates of array objects at runtime.
 NZCACHE = {}
@@ -897,31 +867,3 @@ def y_rotation_matrix(alpha: float):
         [-math.sin(alpha), 0, math.cos(alpha), 0],
         [0, 0, 0, 1]
     ])
-
-V = TypeVar("V")
-
-class Comparison(Generic[T, V]):
-
-    def __init__(self):
-        self._store_dict: Dict[Tuple[Type[T], Type[T]], Tuple[Callable[[T, T], V], bool]] = {}
-    
-    def register(self, a: Type[T], b: Type[T]):
-        def outer(fn: Callable[[T, T], V]):
-            forward_key = a, b
-            backward_key = b, a
-
-            assert forward_key not in self._store_dict, f"{forward_key} already exist"
-            assert backward_key not in self._store_dict, f"{backward_key} already exist"
-            
-            self._store_dict[forward_key] = fn, False
-            self._store_dict[backward_key] = fn, True
-
-            return fn
-        return outer
-    
-    def get(self, a: T, b: T):
-        typea = type(a)
-        typeb = type(b)
-        key = typea, typeb
-        return self._store_dict.get(key)
-

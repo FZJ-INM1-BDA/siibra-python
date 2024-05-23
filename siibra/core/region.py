@@ -25,11 +25,11 @@ from ..commons import (
     MapType,
     affine_scaling,
     create_key,
-    clear_name,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
 )
+from ..commons_new.string import clear_name, splitstr
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 import numpy as np
@@ -393,8 +393,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.AnatomicalStruct
             If the regionspec matches to the Region.
         """
         if regionspec not in self._CACHED_MATCHES:
-            def splitstr(s):
-                return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
             if regionspec is None:
                 self._CACHED_MATCHES[regionspec] = False

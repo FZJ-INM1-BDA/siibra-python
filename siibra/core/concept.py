@@ -15,12 +15,12 @@
 """Parent class to siibra main concepts."""
 from ..commons import (
     create_key,
-    clear_name,
     logger,
     InstanceTable,
     Species,
     TypePublication
 )
+from ..commons_new.string import clear_name
 from ..cache import Warmup
 
 import re

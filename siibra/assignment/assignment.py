@@ -8,8 +8,8 @@ from .attribute_match import match as attribute_match
 from ..commons import logger
 from ..concepts import AttributeCollection
 from ..concepts.attribute import TruthyAttr
-from ..concepts.feature import Feature
-from ..descriptions import Modality
+from ..concepts import Feature, QueryParam
+from ..descriptions import Modality, ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
@@ -39,6 +39,14 @@ def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
             yield from fn(input)
         except UnregisteredAttrCompException:
             continue
+
+
+def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
+    id_attr = ID(value=input)
+    name_attr = Name(value=input)
+    query = QueryParam(attributes=[id_attr, name_attr])
+    yield from get(query, req_type)
+
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
     """Given AttributeCollection col_a, col_b, compare the product of their respective

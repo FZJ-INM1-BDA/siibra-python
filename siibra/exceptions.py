@@ -27,7 +27,10 @@ class ConflictingArgumentException(ValueError):
     pass
 
 
-class NonUniqueIndexError(RuntimeError):
+class NonUniqueError(RuntimeError):
+    pass
+
+class NonUniqueIndexError(NonUniqueError):
     pass
 
 
@@ -66,4 +69,3 @@ class NotFoundException(Exception): pass
 class ExternalApiException(RuntimeError): pass
 
 class SpaceWarpingFailedError(ExternalApiException): pass
-

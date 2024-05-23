@@ -2,12 +2,13 @@ from typing import Type, Callable, Dict, Tuple, TypeVar, Generic
 import numpy as np
 from dataclasses import replace
 
-from ..commons import logger, Comparison
+from ..commons import logger
+from ..commons_new.comparison import Comparison
+from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ..descriptions.modality import Modality
-from ..descriptions.regionspec import RegionSpec
+from ..descriptions import Modality, RegionSpec, Name
 from .. import locations
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 from ..dataitems.image import Image
@@ -17,6 +18,28 @@ _attr_match: Comparison[Attribute, bool] = Comparison()
 
 register_attr_comparison = _attr_match.register
 def match(attra: Attribute, attrb: Attribute):
+    """Attempt to match one attribute with another attribute.
+
+    n.b. the comparison is symmetrical. That is, match(a, b) is the same as match(b, a)
+    
+    Parameters
+    ----------
+    attra: Attribute
+    attrb: Attribute
+    
+    Returns
+    -------
+    bool
+        If the attra matches with attrb
+    
+    Raises
+    ------
+    UnregisteredAttrCompException
+        If the comparison of type(attra) and type(attrb) has not been registered
+    InvalidAttrCompException
+        If the comparison of type(attra) and type(attrb) has been registered, but the their
+        value could not directly be compared (e.g. locations in different spaces)
+    """
     if isinstance(attra, TruthyAttr) or isinstance(attrb, TruthyAttr):
         return True
     val = _attr_match.get(attra, attrb)
@@ -27,7 +50,9 @@ def match(attra: Attribute, attrb: Attribute):
     args = [attrb, attra] if switch_arg else [attra, attrb]
     return fn(*args)
 
-
+@register_attr_comparison(Name, Name)
+def compare_name(name1: Name, name2: Name):
+    return fuzzy_match(name1.value, name2.value) or fuzzy_match(name2.value, name1.value)
 
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):

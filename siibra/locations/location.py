@@ -14,15 +14,12 @@
 # limitations under the License.
 """Concepts that have primarily spatial meaning."""
 
-from __future__ import annotations
-
-from ..core.structure import AnatomicalStructure
 
 import numpy as np
 from abc import abstractmethod
 
 
-class Location(AnatomicalStructure):
+class Location:
     """
     Abstract base class for locations in a given reference space.
     """
