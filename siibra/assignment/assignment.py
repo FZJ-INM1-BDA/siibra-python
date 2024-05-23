@@ -27,7 +27,7 @@ def register_collection_generator(type_of_col: Type[AttributeCollection]):
     return outer
 
 
-V = TypeVar("V")
+V = TypeVar("V", bound=AttributeCollection)
 
 def iterate(reg_type: Type[V]) -> Iterable[V]:
     collection = AttributeCollection(attributes=[TruthyAttr()])
@@ -46,6 +46,24 @@ def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
     name_attr = Name(value=input)
     query = QueryParam(attributes=[id_attr, name_attr])
     yield from get(query, req_type)
+
+
+def filter_collections(filter: AttributeCollection, raw_list: Iterable[V]) -> Iterable[V]:
+    """Given an Iterable of V, raw_list, and a query AttributeCollection, filter, yield instances of V
+    which matches with the filter AttributeCollection
+    
+    Parameter
+    ---------
+    filter: AttributeCollection
+    raw_list: Iterable[T]
+    
+    Returns
+    -------
+    Iterable[T]
+    """
+    for item in raw_list:
+        if match(filter, item):
+            yield item
 
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:

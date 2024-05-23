@@ -8,3 +8,6 @@ for parc in iterate(Parcellation):
 print("getting a single parcellation")
 parcellation = siibra.get_parcellation("2.9")
 print(parcellation.name)
+
+for region in parcellation.find("hoc1"):
+    print(region.name)

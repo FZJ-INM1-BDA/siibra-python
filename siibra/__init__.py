@@ -23,24 +23,15 @@ from .commons import (
     __version__
 )
 
-from .core import (
-    atlas as _atlas,
-    parcellation as _parcellation,
-    space as _space
-)
-from .volumes import parcellationmap as _parcellationmap
-from .retrieval.requests import (
-    EbrainsRequest as _EbrainsRequest,
-)
+from .commons_new.iterable import assert_ooo
+
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory as factory_new
 from . import retrieval_new
-from . import configuration
-from . import experimental
-from .configuration import factory
-from . import livequeries, features_beta as features
-from siibra.locations import Point, PointSet
+from .atlases import Space, Parcellation
+from .assignment import string_search
+from .exceptions import NotFoundException
 
 import os as _os
 logger.info(f"Version: {__version__}")
@@ -49,56 +40,25 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
-# forward access to some functions
-set_ebrains_token = _EbrainsRequest.set_token
-fetch_ebrains_token = _EbrainsRequest.fetch_token
-find_regions = _parcellation.Parcellation.find_regions
-from_json = factory.Factory.from_json
-
-
-def __getattr__(attr: str):
-    # lazy loading of some classes for package-level functions.
-    if attr == 'atlases':
-        return _atlas.Atlas.registry()
-    elif attr == 'spaces':
-        return _space.Space.registry()
-    elif attr == 'parcellations':
-        return _parcellation.Parcellation.registry()
-    elif attr == 'maps':
-        return _parcellationmap.Map.registry()
-    elif attr == 'use_configuration':
-        return configuration.Configuration.use_configuration
-    elif attr == 'extend_configuration':
-        return configuration.Configuration.extend_configuration
-    else:
-        raise AttributeError(f"No such attribute: {__name__}.{attr}")
-
 
 # convenient access to reference space templates
-def get_template(space_spec: str, **kwargs):
-    return (
-        _space.Space
-        .get_instance(space_spec)
-        .get_template(**kwargs)
-    )
+def get_space(space_spec: str):
+    searched_spaces = string_search(space_spec, Space)
+    return assert_ooo(searched_spaces)
+    
 
+def get_parcellation(parc_spec: str):
+    searched_parcs = string_search(parc_spec, Parcellation)
+    return assert_ooo(searched_parcs)
 
 # convenient access to parcellation maps
 def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
-    return (
-        _parcellation.Parcellation
-        .get_instance(parcellation)
-        .get_map(space=space, maptype=maptype, **kwargs)
-    )
+    raise NotImplementedError
 
 
 # convenient access to regions of a parcellation
 def get_region(parcellation: str, region: str):
-    return (
-        _parcellation.Parcellation
-        .get_instance(parcellation)
-        .get_region(region)
-    )
+    raise NotImplementedError
 
 
 def set_feasible_download_size(maxsize_gbyte):
@@ -127,29 +87,3 @@ def warm_cache(level=WarmupLevel.INSTANCE):
     to the memory at once instead of commiting them when required.
     """
     Warmup.warmup(level)
-
-
-def __dir__():
-    return [
-        "atlases",
-        "spaces",
-        "parcellations",
-        "features",
-        "use_configuration",
-        "extend_configuration",
-        "get_region",
-        "find_regions",
-        "get_map",
-        "get_template",
-        "MapType",
-        "Point",
-        "PointSet",
-        "QUIET",
-        "VERBOSE",
-        "fetch_ebrains_token",
-        "set_ebrains_token",
-        "vocabularies",
-        "__version__",
-        "cache",
-        "warm_cache"
-    ]
