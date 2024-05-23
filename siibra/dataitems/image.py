@@ -10,6 +10,18 @@ from .base import Data
 from ..commons import logger
 from ..cache import CACHE, fn_call_cache
 
+IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
+IMAGE_FRAGMENT = "x-siibra/volume-fragment"
+
+MESH_FORMATS = (
+    "neuroglancer/precompmesh",
+    "gii-mesh",
+)
+
+VOLUME_FORMATS = {
+    "nii",
+    "neuroglancer/precomputed",
+}
 
 @dataclass
 class Image(Data):
@@ -17,7 +29,6 @@ class Image(Data):
     schema: str = "siibra/attr/data/image/v0.1"
     format: Literal['nii', 'neuroglancer/precomputed'] = None
     url: str = None
-    key: str = None
     space_id: str = None
 
     @staticmethod

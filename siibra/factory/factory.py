@@ -8,9 +8,9 @@ from .. import dataitems
 from ..concepts.attribute import Attribute
 from ..concepts.attribute_collection import AttributeCollection
 from ..concepts.feature import Feature
-from ..atlases import region, parcellation
 from ..descriptions import Name, SpeciesSpec, ID
 from ..commons import create_key
+from ..atlases import region, parcellation, Space
 
 T = Callable[[Dict], AttributeCollection]
 
@@ -105,6 +105,17 @@ def build_parcellation(dict_obj: dict):
         ))
     )
 
+@register_build_type(Space.schema)
+def build_space(dict_obj):
+    dict_obj.pop("@type", None)
+    attribute_objs = dict_obj.pop("attributes", [])
+    attributes = tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
+    return Space(attributes=attributes)
+    
 
 def build_object(dict_obj: Dict):
     schema = dict_obj.get("@type", None)

@@ -72,7 +72,6 @@ assert siibra.descriptions.modality.vocab.GENE_EXPRESSIONS == siibra.description
 mni152_julichbrain_29_hoc1_lh_pmap = Image(format="nii", space_id="minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
                                     url="https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210616-julichbrain-v2.9.0-complete-mpm/PMs/Area-hOc1/4.2/Area-hOc1_l_N10_nlin2ICBM152asym2009c_4.2_publicP_026bcbe494dc4bfe702f2b1cc927a7c1.nii.gz")
 
-region = Region(attributes=[mni152_julichbrain_29_hoc1_lh_pmap])
 gene_maoa = Gene(value="MAOA")
 gene_tac1 = Gene(value="TAC1")
 query = QueryParam(attributes=[mni152_julichbrain_29_hoc1_lh_pmap,

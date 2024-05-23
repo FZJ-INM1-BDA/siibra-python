@@ -6,7 +6,8 @@ from itertools import product
 from .attribute_match import match as attribute_match
 
 from ..commons import logger
-from ..concepts.attribute_collection import AttributeCollection
+from ..concepts import AttributeCollection
+from ..concepts.attribute import TruthyAttr
 from ..concepts.feature import Feature
 from ..descriptions import Modality
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -28,6 +29,9 @@ def register_collection_generator(type_of_col: Type[AttributeCollection]):
 
 V = TypeVar("V")
 
+def iterate(reg_type: Type[V]) -> Iterable[V]:
+    collection = AttributeCollection(attributes=[TruthyAttr()])
+    yield from get(collection, reg_type)
 
 def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
     for fn in collection_gen[req_type]:

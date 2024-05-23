@@ -3,7 +3,8 @@ import numpy as np
 from dataclasses import replace
 
 from ..commons import logger, Comparison
-from ..concepts.attribute import Attribute
+from ..concepts import Attribute
+from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from ..descriptions.modality import Modality
 from ..descriptions.regionspec import RegionSpec
@@ -16,6 +17,8 @@ _attr_match: Comparison[Attribute, bool] = Comparison()
 
 register_attr_comparison = _attr_match.register
 def match(attra: Attribute, attrb: Attribute):
+    if isinstance(attra, TruthyAttr) or isinstance(attrb, TruthyAttr):
+        return True
     val = _attr_match.get(attra, attrb)
     if val is None:
         logger.debug(f"{type(attra)} and {type(attrb)} comparison has not been registered")

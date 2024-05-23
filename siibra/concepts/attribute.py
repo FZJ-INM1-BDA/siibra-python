@@ -42,3 +42,11 @@ class Attribute:
             if key.startswith("x-"):
                 return_attr.extra[key] = json_dict[key]
         return [return_attr]
+
+
+@dataclass
+class TruthyAttr(Attribute):
+    """This is an interal Attribute, to signal always match truthy.
+    This allows all instances to be iterated with ease."""
+
+    schema: str = "siibra/internal"
