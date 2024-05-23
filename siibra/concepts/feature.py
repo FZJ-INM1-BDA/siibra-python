@@ -5,4 +5,4 @@ from .attribute_collection import AttributeCollection
 
 @dataclass
 class Feature(AttributeCollection):
-    schema: str = "siibra/feature/v0.2"
+    schema: str = "siibra/concepts/feature/v0.2"

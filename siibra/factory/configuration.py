@@ -25,7 +25,7 @@ def _iter_preconf_features():
 
     # below should produce the same result
     # all_features = [build_object(s) for _, s in cfg.specs.get("siibra/feature/v0.2")]
-    return [build_feature(s) for _, s in cfg.specs.get("siibra/feature/v0.2")]
+    return [build_feature(s) for _, s in cfg.specs.get("siibra/concepts/feature/v0.2")]
 
 @register_collection_generator(Feature)
 def iter_preconf_features(filter_param: AttributeCollection):
