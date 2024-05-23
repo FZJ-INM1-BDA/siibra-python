@@ -70,6 +70,14 @@ class Configuration:
                 print(str(e))
                 logger.warning(f"Skipped invalid json file '{fname}'")
 
+    # singleton pattern
+    _instance = None
+    def __new__(cls):
+        if cls._instance == None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
+
     def __init__(self):
 
         # lists of configuration specs by configuration schema
