@@ -7,7 +7,7 @@ from itertools import product
 import numpy as np
 
 from .base import Data
-from ..commons import logger
+from ..locations import base
 from ..cache import CACHE, fn_call_cache
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
@@ -23,11 +23,12 @@ VOLUME_FORMATS = {
     "neuroglancer/precomputed",
 }
 
+
 @dataclass
-class Image(Data):
+class Image(Data, base.Location):
 
     schema: str = "siibra/attr/data/image/v0.1"
-    format: Literal['nii', 'neuroglancer/precomputed'] = None
+    format: Literal["nii", "neuroglancer/precomputed"] = None
     url: str = None
     space_id: str = None
 
@@ -35,11 +36,12 @@ class Image(Data):
     @fn_call_cache
     def _GetBBox(image: "Image"):
         from ..locations import BBox
+
         if image.format == "neuroglancer/precomputed":
             resp = requests.get(f"{image.url}/info")
             resp.raise_for_status()
             info_json = resp.json()
-            
+
             resp = requests.get(f"{image.url}/transform.json")
             resp.raise_for_status()
             transform_json = resp.json()
@@ -52,10 +54,12 @@ class Image(Data):
             corners = list(product(xs, ys, zs))
             hom = np.c_[corners, np.ones(len(corners))]
             new_coord = np.dot(np.array(transform_json), hom.T)[:3, :].T / 1e6
-            
+
             min = np.min(new_coord, axis=0)
             max = np.max(new_coord, axis=0)
-            return BBox(minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id)
+            return BBox(
+                minpoint=min.tolist(), maxpoint=max.tolist(), space_id=image.space_id
+            )
         raise NotImplementedError
 
     @staticmethod
