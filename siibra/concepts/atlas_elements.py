@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from .attribute_collection import AttributeCollection
-from ..descriptions import Name, SpeciesSpec, Publication, ID as _ID
+from ..descriptions import Name, SpeciesSpec, Url, Doi, ID as _ID
 
 
 MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
@@ -36,5 +36,7 @@ class AtlasElement(AttributeCollection):
         return species[0]
 
     @property
-    def publications(self) -> "Publication":
-        return tuple(self.get(Publication))
+    def publications(self):
+        # TODO why do we need publications property?
+        # To show user how to reference/link the atlas element?
+        return tuple(self.get(Url)) + tuple(self.get(Doi))
