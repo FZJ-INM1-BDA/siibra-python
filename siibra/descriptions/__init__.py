@@ -10,3 +10,4 @@ from .name import Name
 from .gene import Gene
 from .publication import Publication
 from .license import License
+from .color import RGBColor
