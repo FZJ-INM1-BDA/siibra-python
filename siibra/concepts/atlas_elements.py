@@ -37,4 +37,4 @@ class AtlasElement(AttributeCollection):
 
     @property
     def publications(self) -> "Publication":
-        return self.get(Publication)
+        return tuple(self.get(Publication))
