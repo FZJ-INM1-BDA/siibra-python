@@ -11,3 +11,4 @@ from .gene import Gene
 from .publication import Publication
 from .license import License
 from .color import RGBColor
+from .version import Version
