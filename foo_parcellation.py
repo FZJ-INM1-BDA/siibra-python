@@ -4,6 +4,9 @@ from siibra.atlases import Parcellation
 
 for parc in iterate(Parcellation):
     print(parc, parc.name)
+    for pub in parc.publications:
+        print(f"[{pub.text}]({pub.value})")
+
 
 print("getting a single parcellation")
 parcellation = siibra.get_parcellation("2.9")

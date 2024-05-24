@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from .attribute_collection import AttributeCollection
 from ..descriptions import Name, SpeciesSpec, Url, Doi, ID as _ID
 
-
 MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
 
 
@@ -37,4 +36,11 @@ class AtlasElement(AttributeCollection):
 
     @property
     def publications(self):
-        return self.get(Url) + self.get(Doi)
+
+        from ..retrieval_new.doi_fetcher import get_citation
+
+        citations = [
+            Url(value=doi.value, text=get_citation(doi)) for doi in self.get(Doi)
+        ]
+
+        return [*self.get(Url), *citations]
