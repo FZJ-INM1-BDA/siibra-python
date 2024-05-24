@@ -1,5 +1,6 @@
 import re
 
+
 def splitstr(s: str):
     return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
@@ -7,13 +8,13 @@ def splitstr(s: str):
 def fuzzy_match(input: str, dest: str):
     """Fuzzy string search.
 
-    n.b. the comparison is assymetrical, that is, match(a, b) may be not the same as match(b, a)
-    
+    n.b. the comparison is asymetrical, that is, match(a, b) may be not the same as match(b, a)
+
     Parameters
     ----------
     input: str
     dest: str
-    
+
     Returns
     -------
     bool
@@ -21,15 +22,10 @@ def fuzzy_match(input: str, dest: str):
     """
     if input.lower().strip() == dest.lower().strip():
         return True
-    
+
     W = splitstr(dest.lower())
     Q = splitstr(input.lower())
-    return all(
-        any(
-            q == w or 'v' + q == w
-            for w in W
-        ) for q in Q
-    )
+    return all(any(q == w or "v" + q == w for w in W) for q in Q)
 
 
 def snake2camel(s: str):
@@ -53,7 +49,7 @@ REPLACE_IN_NAME = {
 
 
 def clear_name(name: str):
-    """ clean up a region name to the for matching"""
+    """clean up a region name to the for matching"""
     result = name
     for word in REMOVE_FROM_NAME:
         result = result.replace(word, "")

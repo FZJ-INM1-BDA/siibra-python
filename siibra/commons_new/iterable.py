@@ -3,9 +3,10 @@ from ..exceptions import NonUniqueError
 
 T = TypeVar("T")
 
+
 def get_ooo(input: Iterable[T], filter_fn: Callable[[T], bool]) -> T:
     """Get One and Only One from an iterable
-    
+
     Parameters
     ----------
     input: Iterable[T]
@@ -26,9 +27,10 @@ def get_ooo(input: Iterable[T], filter_fn: Callable[[T], bool]) -> T:
         raise NonUniqueError from e
     return result[0]
 
+
 def assert_ooo(input: Iterable[T]) -> T:
     """Assert One and Only One from an iterable, and return the only element.
-    
+
     Parameters
     ----------
     input: Iterable[T]
@@ -41,6 +43,6 @@ def assert_ooo(input: Iterable[T]) -> T:
     ------
     NonUniqueError
     """
-    l = list(input)
-    assert len(l) == 1, f"Expected one item, but got {len(input)}"
-    return l[0]
+    listed_input = list(input)
+    assert len(listed_input) == 1, f"Expected one item, but got {len(input)}"
+    return listed_input[0]

@@ -1,4 +1,3 @@
-from typing import Type, Callable, Dict, Tuple, TypeVar, Generic
 import numpy as np
 from dataclasses import replace
 
@@ -9,7 +8,6 @@ from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 from ..descriptions import Modality, RegionSpec, Name
-from .. import locations
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 from ..dataitems.image import Image
 
@@ -17,21 +15,23 @@ from ..dataitems.image import Image
 _attr_match: Comparison[Attribute, bool] = Comparison()
 
 register_attr_comparison = _attr_match.register
+
+
 def match(attra: Attribute, attrb: Attribute):
     """Attempt to match one attribute with another attribute.
 
     n.b. the comparison is symmetrical. That is, match(a, b) is the same as match(b, a)
-    
+
     Parameters
     ----------
     attra: Attribute
     attrb: Attribute
-    
+
     Returns
     -------
     bool
         If the attra matches with attrb
-    
+
     Raises
     ------
     UnregisteredAttrCompException
@@ -44,15 +44,21 @@ def match(attra: Attribute, attrb: Attribute):
         return True
     val = _attr_match.get(attra, attrb)
     if val is None:
-        logger.debug(f"{type(attra)} and {type(attrb)} comparison has not been registered")
+        logger.debug(
+            f"{type(attra)} and {type(attrb)} comparison has not been registered"
+        )
         raise UnregisteredAttrCompException
     fn, switch_arg = val
     args = [attrb, attra] if switch_arg else [attra, attrb]
     return fn(*args)
 
+
 @register_attr_comparison(Name, Name)
 def compare_name(name1: Name, name2: Name):
-    return fuzzy_match(name1.value, name2.value) or fuzzy_match(name2.value, name1.value)
+    return fuzzy_match(name1.value, name2.value) or fuzzy_match(
+        name2.value, name1.value
+    )
+
 
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):
@@ -96,7 +102,9 @@ def compare_ptcloud_to_image(ptcloud: PointCloud, image: Image):
 
 def intersect_ptcld_image(ptcloud: PointCloud, image: Image) -> PointCloud:
     if image.space_id != ptcloud.space_id:
-        raise InvalidAttrCompException("ptcloud and image are in different space. Cannot compare the two.")
+        raise InvalidAttrCompException(
+            "ptcloud and image are in different space. Cannot compare the two."
+        )
 
     value_outside = 0
 

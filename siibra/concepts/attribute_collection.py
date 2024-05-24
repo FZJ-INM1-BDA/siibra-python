@@ -3,7 +3,7 @@ from typing import Tuple, Type, TypeVar, Iterable
 
 from .attribute import Attribute
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @dataclass
@@ -15,4 +15,3 @@ class AttributeCollection:
         for attr in self.attributes:
             if isinstance(attr, attr_type):
                 yield attr
-

@@ -8,30 +8,37 @@ from .attribute_match import match as attribute_match
 from ..commons import logger
 from ..concepts import AttributeCollection
 from ..concepts.attribute import TruthyAttr
-from ..concepts import Feature, QueryParam
-from ..descriptions import Modality, ID, Name
+from ..concepts import QueryParam
+from ..descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
 T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
 collection_gen: Dict[Type[AttributeCollection], List[T]] = defaultdict(list)
 
+
 def register_collection_generator(type_of_col: Type[AttributeCollection]):
     """Register function to be called to yield a specific type of AttributeCollection."""
+
     def outer(fn: T):
         collection_gen[type_of_col].append(fn)
+
         @wraps(fn)
         def inner(*args, **kwargs):
             return fn(*args, **kwargs)
+
         return inner
+
     return outer
 
 
 V = TypeVar("V", bound=AttributeCollection)
 
+
 def iterate(reg_type: Type[V]) -> Iterable[V]:
     collection = AttributeCollection(attributes=[TruthyAttr()])
     yield from get(collection, reg_type)
+
 
 def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
     for fn in collection_gen[req_type]:
@@ -48,15 +55,17 @@ def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
     yield from get(query, req_type)
 
 
-def filter_collections(filter: AttributeCollection, raw_list: Iterable[V]) -> Iterable[V]:
+def filter_collections(
+    filter: AttributeCollection, raw_list: Iterable[V]
+) -> Iterable[V]:
     """Given an Iterable of V, raw_list, and a query AttributeCollection, filter, yield instances of V
     which matches with the filter AttributeCollection
-    
+
     Parameter
     ---------
     filter: AttributeCollection
     raw_list: Iterable[T]
-    
+
     Returns
     -------
     Iterable[T]
@@ -69,7 +78,7 @@ def filter_collections(filter: AttributeCollection, raw_list: Iterable[V]) -> It
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
     """Given AttributeCollection col_a, col_b, compare the product of their respective
     attributes, until:
-    
+
     - If any of the permutation of the attribute matches, returns True.
     - If InvalidAttrCompException is raised, return False.
     - All product of attributes are exhausted.
@@ -86,7 +95,7 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
             attr_compared_flag = True
             if match_result:
                 return True
-        except UnregisteredAttrCompException as e:
+        except UnregisteredAttrCompException:
             continue
         except InvalidAttrCompException as e:
             logger.debug(f"match exception {e}")

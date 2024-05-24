@@ -11,7 +11,7 @@ from ...cache import fn_call_cache
 from ...assignment import register_collection_generator
 from ...assignment.attribute_match import intersect_ptcld_image
 from ...concepts import Feature, AttributeCollection
-from ...descriptions import Gene, RegionSpec, Modality, register_modalities
+from ...descriptions import Gene, Modality, register_modalities
 from ...locations import PointCloud
 from ...dataitems import Image, Tabular
 from ...dataitems.tabular import X_DATA
@@ -31,16 +31,21 @@ DESCRIPTION = """
 Gene expressions extracted from microarray data in the Allen Atlas.
 """
 
-MNI152_SPACE_ID = "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2"
+MNI152_SPACE_ID = (
+    "minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2"
+)
+
 
 @register_modalities()
 def add_allen_modality():
     yield modality_of_interest
 
+
 BASE_URL = "http://api.brain-map.org/api/v2/data"
 
+
 class _AllenGeneQuery:
-    
+
     _QUERY = {
         "probe": BASE_URL
         + "/query.xml?criteria=model::Probe,rma::criteria,[probe_type$eq'DNA'],products[abbreviation$eq'HumanMA'],gene[acronym$eq'{gene}'],rma::options[only$eq'probes.id']",
@@ -78,19 +83,18 @@ class _AllenGeneQuery:
             response = requests.get(url)
             try:
                 response.raise_for_status()
-            except requests.RequestException as e:
-                logger.debug(f"http exception retrying after 5 seconds")
+            except requests.RequestException:
+                logger.debug("http exception retrying after 5 seconds")
                 continue
-            
+
             # When the Allen site is not available, they still send a status code 200.
             if "site unavailable" in response.text.lower():
-                logger.debug(f"site unavailable. retrying after 5 seconds")
+                logger.debug("site unavailable. retrying after 5 seconds")
                 # retry after 5 seconds
                 sleep(5)
                 continue
 
             return response
-
 
     @staticmethod
     @fn_call_cache
@@ -105,7 +109,9 @@ class _AllenGeneQuery:
         probe_ids = []
         while True:
             url = _AllenGeneQuery._QUERY["multiple_gene_probe"].format(
-                start_row=start_row, num_rows=num_rows, genes=','.join([f"'{g}'" for g in genes])
+                start_row=start_row,
+                num_rows=num_rows,
+                genes=",".join([f"'{g}'" for g in genes]),
             )
 
             response = _AllenGeneQuery._call_allen_api(url)
@@ -149,28 +155,32 @@ class _AllenGeneQuery:
 
     @staticmethod
     @fn_call_cache
-    def _retrieve_factors(start_row=0, num_rows = 50, total_rows: int=None):
+    def _retrieve_factors(start_row=0, num_rows=50, total_rows: int = None):
         return_obj = {}
         while True:
-            factors_url = _AllenGeneQuery._QUERY["factors"].format(start_row=start_row, num_rows=num_rows)
+            factors_url = _AllenGeneQuery._QUERY["factors"].format(
+                start_row=start_row, num_rows=num_rows
+            )
 
             resp = _AllenGeneQuery._call_allen_api(factors_url)
             response = resp.json()
             for item in response["msg"]:
-                return_obj.update({
-                    str(item["id"]): {
-                        "race": item["race_only"],
-                        "gender": item["sex"],
-                        "age": int(item["age"]["days"] / 365),
+                return_obj.update(
+                    {
+                        str(item["id"]): {
+                            "race": item["race_only"],
+                            "gender": item["sex"],
+                            "age": int(item["age"]["days"] / 365),
+                        }
                     }
-                })
+                )
             total_factors = total_rows or int(response["total_rows"])
             if (start_row + num_rows) >= total_factors:
                 break
             # retrieve another page
             start_row += num_rows
         return return_obj
-    
+
     @staticmethod
     def _retrieve_microarray(donor_id: str, probe_ids: str):
         """
@@ -180,7 +190,7 @@ class _AllenGeneQuery:
         """
 
         if len(probe_ids) == 0:
-            raise RuntimeError(f"needs at least one probe_ids")
+            raise RuntimeError("needs at least one probe_ids")
 
         # query the microarray data for this donor
         url = _AllenGeneQuery._QUERY["microarray"].format(
@@ -205,21 +215,23 @@ class _AllenGeneQuery:
                 yield {
                     "expression_level": float(probe["expression_level"][i]),
                     "z_score": float(probe["z-score"][i]),
-                    "gene": probe['gene-symbol'],
-
+                    "gene": probe["gene-symbol"],
                     "sample_index": i,
                     "probe_id": probe["id"],
                     "donor_id": donor_id,
                     "donor_name": donor_name,
-                    _AllenGeneQuery._SAMPLE_MRI: sample["sample"]["mri"]
+                    _AllenGeneQuery._SAMPLE_MRI: sample["sample"]["mri"],
                 }
+
 
 @fn_call_cache
 def _retrieve_measurements(gene_names: List[str]):
-    
+
     probe_ids = _AllenGeneQuery._retrieve_probe_ids(gene_names)
-    specimen = { spcid: _AllenGeneQuery._retrieve_specimen(spcid)
-                for spcid in _AllenGeneQuery._SPECIMEN_IDS }
+    specimen = {
+        spcid: _AllenGeneQuery._retrieve_specimen(spcid)
+        for spcid in _AllenGeneQuery._SPECIMEN_IDS
+    }
     factors = _AllenGeneQuery._retrieve_factors()
 
     measurement = []
@@ -229,10 +241,12 @@ def _retrieve_measurements(gene_names: List[str]):
             # coordinate conversion to ICBM152 standard space
             sample_mri = item.pop(_AllenGeneQuery._SAMPLE_MRI)
             donor_name = item.get("donor_name")
-            icbm_coord = (np.matmul(
-                specimen[donor_name]["donor2icbm"],
-                sample_mri + [1],
-            )).round(2)
+            icbm_coord = (
+                np.matmul(
+                    specimen[donor_name]["donor2icbm"],
+                    sample_mri + [1],
+                )
+            ).round(2)
 
             other_info = {
                 "race": factors[donor_id]["race"],
@@ -240,53 +254,60 @@ def _retrieve_measurements(gene_names: List[str]):
                 "age": factors[donor_id]["age"],
             }
 
-            measurement.append({
-                **item,
-                **other_info,
-                "mni_xyz": icbm_coord[:3].tolist()
-            })
+            measurement.append(
+                {**item, **other_info, "mni_xyz": icbm_coord[:3].tolist()}
+            )
     return measurement
 
 
 @register_collection_generator(Feature)
 def query_allen_gene_api(input: AttributeCollection):
-    if not modality_of_interest in input.get(Modality):
+    if modality_of_interest not in input.get(Modality):
         return
 
     genes = list(input.get(Gene))
     if len(genes) == 0:
-        logger.error(f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array.")
+        logger.error(
+            f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array."
+        )
         return
-    
+
     images = list(input.get(Image))
     if len(images) == 0:
-        logger.error(f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array.")
+        logger.error(
+            f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."
+        )
         return
-    
+
     if len(images) > 1:
-        logger.warning(f"{modality_of_interest.value} was queried, but input contains multiple images. First one was selected.")
-    
+        logger.warning(
+            f"{modality_of_interest.value} was queried, but input contains multiple images. First one was selected."
+        )
+
     image = images[0]
 
     print(ALLEN_ATLAS_NOTIFICATION)
-    
-    feature = Feature()
-    feature.attributes.append(
-        replace(modality_of_interest)
-    )
+
+    attributes = [replace(modality_of_interest)]
 
     retrieved_measurements = _retrieve_measurements([g.value for g in genes])
-    ptcld = PointCloud(space_id=MNI152_SPACE_ID,
-                       coordinates=[measure['mni_xyz']
-                                    for measure in retrieved_measurements])
-    
+    ptcld = PointCloud(
+        space_id=MNI152_SPACE_ID,
+        coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
+    )
+
     intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
     inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
-    dataframe = pd.DataFrame.from_dict([measurement
-                                        for measurement in retrieved_measurements
-                                        if tuple(measurement["mni_xyz"]) in inside_coord_set])
-    tabular_data_attr = Tabular(extra={ X_DATA: dataframe })
-    feature.attributes.append(tabular_data_attr)
+    dataframe = pd.DataFrame.from_dict(
+        [
+            measurement
+            for measurement in retrieved_measurements
+            if tuple(measurement["mni_xyz"]) in inside_coord_set
+        ]
+    )
+    tabular_data_attr = Tabular(extra={X_DATA: dataframe})
+    attributes.append(tabular_data_attr)
+    feature = Feature(attributes=attributes)
 
     yield from [feature]

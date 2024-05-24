@@ -20,7 +20,7 @@ from .commons import (
     MapType,
     MapIndex,
     set_log_level,
-    __version__
+    __version__,
 )
 
 from .commons_new.iterable import assert_ooo
@@ -34,6 +34,7 @@ from .assignment import string_search
 from .exceptions import NotFoundException
 
 import os as _os
+
 logger.info(f"Version: {__version__}")
 logger.warning("This is a development release. Use at your own risk.")
 logger.info(
@@ -45,14 +46,17 @@ logger.info(
 def get_space(space_spec: str):
     searched_spaces = string_search(space_spec, Space)
     return assert_ooo(searched_spaces)
-    
+
 
 def get_parcellation(parc_spec: str):
     searched_parcs = string_search(parc_spec, Parcellation)
     return assert_ooo(searched_parcs)
 
+
 # convenient access to parcellation maps
-def get_map(parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs):
+def get_map(
+    parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs
+):
     raise NotImplementedError
 
 
@@ -63,6 +67,7 @@ def get_region(parcellation: str, region: str):
 
 def set_feasible_download_size(maxsize_gbyte):
     from .volumes import volume
+
     volume.gbyte_feasible = maxsize_gbyte
     logger.info(f"Set feasible download size to {maxsize_gbyte} GiB.")
 
