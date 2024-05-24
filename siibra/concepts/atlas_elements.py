@@ -19,24 +19,22 @@ class AtlasElement(AttributeCollection):
 
     @property
     def name(self):
-        names = [s.value for s in self.get(Name)]
+        names = [s.value for s in self.getiter(Name)]
         assert len(names) == 1
         return names[0]
 
     @property
     def ID(self):
-        ids = [id.value for id in self.get(_ID)]
+        ids = [id.value for id in self.getiter(_ID)]
         assert len(ids) == 1
         return ids[0]
 
     @property
     def species(self):
-        species = [s.value for s in self.get(SpeciesSpec)]
+        species = [s.value for s in self.getiter(SpeciesSpec)]
         assert len(species) == 1
         return species[0]
 
     @property
     def publications(self):
-        # TODO why do we need publications property?
-        # To show user how to reference/link the atlas element?
-        return tuple(self.get(Url)) + tuple(self.get(Doi))
+        return self.get(Url) + self.get(Doi)

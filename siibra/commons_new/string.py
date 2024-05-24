@@ -1,4 +1,5 @@
 import re
+from typing import Union, Callable
 
 
 def splitstr(s: str):
@@ -56,3 +57,30 @@ def clear_name(name: str):
     for search, repl in REPLACE_IN_NAME.items():
         result = result.replace(search, repl)
     return " ".join(w for w in result.split(" ") if len(w))
+
+
+REGEX_STR = re.compile(r"^\/(?P<expression>.+)\/(?P<flags>[a-zA-Z]*)$")
+ACCEPTED_FLAGS = "aiLmsux"
+
+SPEC_TYPE = Union[str, re.Pattern]
+
+
+def get_spec(spec: SPEC_TYPE) -> Callable[[str], bool]:
+    if isinstance(spec, re.Pattern):
+        return spec.search
+    if isinstance(spec, str):
+        regex_match = REGEX_STR.match(spec)
+        if regex_match:
+            flags = regex_match.group("flags")
+            expression = regex_match.group("expression")
+
+            for flag in flags or []:  # catch if flags is nullish
+                if flag not in ACCEPTED_FLAGS:
+                    raise Exception(
+                        f"only accepted flag are in {ACCEPTED_FLAGS}. {flag} is not within them"
+                    )
+            search_regex_str = (f"(?{flags})" if flags else "") + expression
+            search_regex = re.compile(search_regex_str)
+            return search_regex.search
+        return lambda input_str: fuzzy_match(spec, input_str)
+    raise RuntimeError("get_spec only accept str or re.Pattern as input")

@@ -9,5 +9,8 @@ print("getting a single parcellation")
 parcellation = siibra.get_parcellation("2.9")
 print(parcellation.name)
 
-for region in parcellation.find("hoc1"):
-    print(region.name)
+hoc1_left = parcellation.find("hoc1 left")
+hoc1 = parcellation.find("hoc1")
+
+assert len(hoc1_left) == 1
+assert len(hoc1) == 3

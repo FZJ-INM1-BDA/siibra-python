@@ -265,14 +265,14 @@ def query_allen_gene_api(input: AttributeCollection):
     if modality_of_interest not in input.get(Modality):
         return
 
-    genes = list(input.get(Gene))
+    genes = input.get(Gene)
     if len(genes) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array."
         )
         return
 
-    images = list(input.get(Image))
+    images = input.get(Image)
     if len(images) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."

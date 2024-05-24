@@ -61,8 +61,8 @@ def get_map(
 
 
 # convenient access to regions of a parcellation
-def get_region(parcellation: str, region: str):
-    raise NotImplementedError
+def get_region(parcellation_spec: str, regionspec: str):
+    return get_parcellation(parcellation_spec).get_region(regionspec)
 
 
 def set_feasible_download_size(maxsize_gbyte):

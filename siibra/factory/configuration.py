@@ -1,4 +1,4 @@
-from .factory import build_object, build_feature, build_space, build_parcellation
+from .factory import build_feature, build_space, build_parcellation
 from ..atlases import Space, Parcellation
 from ..descriptions import register_modalities, Modality
 from ..concepts.feature import Feature
@@ -56,4 +56,4 @@ def iter_preconf_features(filter_param: AttributeCollection):
 @register_modalities()
 def iter_modalities():
     for feature in _iter_preconf_features():
-        yield from feature.get(Modality)
+        yield from feature.getiter(Modality)
