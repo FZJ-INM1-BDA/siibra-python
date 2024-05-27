@@ -18,5 +18,8 @@ class Parcellation(region.Region):
         n.b. collapsing the region tree means, recursively, if all children of a node is selected in get_region,
         the parnet is selected instead."""
         regions = self.find(regionspec)
+        exact_match = [region for region in regions if region.name == regionspec]
+        if len(exact_match) == 1:
+            return exact_match[0]
         collapsed_regions: List[region.Region] = collapse_nodes(regions)
         return assert_ooo(collapsed_regions)

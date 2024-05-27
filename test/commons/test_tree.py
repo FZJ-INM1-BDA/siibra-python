@@ -25,7 +25,7 @@ collapse_node_args = [
     ([child11, child12, parent1], [parent1]),
     ([child11, child12, parent1, child21], [parent1, child21]),
     ([child11, child21], [child11, child21]),
-    ([child11, child12, child21, child22], [grand]),
+    ([child11, child12, child21, child22], [grand]),  # failed old, passes new
 ]
 
 

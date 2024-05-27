@@ -7,7 +7,7 @@ from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ..descriptions import Modality, RegionSpec, Name
+from ..descriptions import Modality, RegionSpec, Name, ID
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 from ..dataitems.image import Image
 
@@ -50,7 +50,14 @@ def match(attra: Attribute, attrb: Attribute):
         raise UnregisteredAttrCompException
     fn, switch_arg = val
     args = [attrb, attra] if switch_arg else [attra, attrb]
-    return fn(*args)
+    result = fn(*args)
+    logger.debug(f"Comparing {attra} with {attrb}, result in {result}")
+    return result
+
+
+@register_attr_comparison(ID, ID)
+def compare_id(id0: ID, id1: ID):
+    return id0.value == id1.value
 
 
 @register_attr_comparison(Name, Name)
