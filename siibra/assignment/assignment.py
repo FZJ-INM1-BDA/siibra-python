@@ -40,12 +40,16 @@ def iterate(reg_type: Type[V]) -> Iterable[V]:
     yield from get(collection, reg_type)
 
 
-def get(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
+def getiter(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
     for fn in collection_gen[req_type]:
         try:
             yield from fn(input)
         except UnregisteredAttrCompException:
             continue
+
+
+def get(input: AttributeCollection, req_type: Type[V]) -> List[V]:
+    return [item for item in getiter(input, req_type)]
 
 
 def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
@@ -71,8 +75,11 @@ def filter_collections(
     Iterable[T]
     """
     for item in raw_list:
-        if match(filter, item):
-            yield item
+        try:
+            if match(filter, item):
+                yield item
+        except UnregisteredAttrCompException:
+            continue
 
 
 def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:

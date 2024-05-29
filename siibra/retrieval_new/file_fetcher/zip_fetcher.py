@@ -15,8 +15,7 @@ class ZipRepository(ArchivalRepository):
         super().__init__(*args, **kwargs)
 
         self.path = path
-        self.reader = PartialReader(path)
-        self.reader.open()
+        self.reader: PartialReader = None
 
     @property
     def unpacked_dir(self):
@@ -24,10 +23,17 @@ class ZipRepository(ArchivalRepository):
         dirpath = Path(dirname)
         return dirpath
 
+    def open(self):
+        if self.reader is None:
+            self.reader = PartialReader(self.path)
+            self.reader.open()
+
     def close(self):
-        self.reader.close()
+        if self.reader:
+            self.reader.close()
 
     def ls(self):
+        self.open()
         if self._warmed_up:
             assert self.unpacked_dir.is_dir()
             yield from [
@@ -42,6 +48,7 @@ class ZipRepository(ArchivalRepository):
             yield info.filename
 
     def warmup(self, *args, **kwargs):
+        self.open()
         if self._warmed_up:
             return
         self.reader.warmup()
@@ -55,6 +62,7 @@ class ZipRepository(ArchivalRepository):
         self._warmed_up = True
 
     def get(self, filepath: str) -> bytes:
+        self.open()
         if self._warmed_up:
             wanted_filepath = self.unpacked_dir / filepath
             if wanted_filepath.is_file():
@@ -63,5 +71,12 @@ class ZipRepository(ArchivalRepository):
         fh = ZipFile(self.reader, "r")
         return fh.read(filepath)
 
-    def search_files(self, prefix: str) -> Iterable[str]:
-        yield from [filename for filename in self.ls() if filename.startswith(prefix)]
+    def search_files(self, prefix: str = None) -> Iterable[str]:
+        self.open()
+        for filename in self.ls():
+            if prefix is None:
+                yield filename
+                continue
+            if filename.startswith(prefix):
+                yield filename
+                continue

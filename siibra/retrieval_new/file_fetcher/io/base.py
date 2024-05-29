@@ -8,6 +8,23 @@ BLOCK_SIZE = 512
 
 
 class PartialReader(io.IOBase, ABC):
+    """
+    Read a specific file/URL with random access.
+
+    Note
+    ----
+    At initiation, the class will determine which class to initialize:
+
+    - if path does not start with https://, returns an instance of PartialFileReader,
+      which is a proxy to FileIO
+    - if path starts with https://
+        - if server does not support range request, downloads the file immediately, and
+          return PartialFileReader pointing to the newly downloaded file
+        - if the server support range requests, returns an instance of PartialHttpReader
+
+    As the download of the unsuitable file happens at initialization time, usage of this
+    class should be as lazily as possible.
+    """
 
     def __new__(cls, path: str):
         from .file import PartialFileReader
@@ -47,7 +64,7 @@ class PartialReader(io.IOBase, ABC):
                     instance = PartialFileReader.__new__(cls, http_warm_path)
                     PartialFileReader.__init__(instance, http_warm_path)
                     return instance
-            
+
             # Server supports range request, return partial http request
             instance = io.IOBase.__new__(PartialHttpReader)
             instance.url = path
@@ -59,19 +76,19 @@ class PartialReader(io.IOBase, ABC):
         instance = io.IOBase.__new__(PartialFileReader)
         instance.filepath = path
         return instance
-    
+
     _size = None
 
     def __init__(self) -> None:
         super().__init__()
         self.marker = 0
-    
+
     @property
     def size(self):
         if self._size is None:
             self._size = self.get_size()
         return self._size
-    
+
     def seekable(self) -> bool:
         return True
 

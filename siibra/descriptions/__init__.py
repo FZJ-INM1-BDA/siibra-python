@@ -13,3 +13,4 @@ from .color import RGBColor
 from .version import Version
 from .cohort import Cohort
 from .paradigm import Paradigm
+from .description import TextDescription

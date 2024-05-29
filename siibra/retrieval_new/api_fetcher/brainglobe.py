@@ -47,34 +47,20 @@ def _get_repo():
     global repo
     if repo is None:
         print(DESC_INFO)
-        repo = GitHttpRepository(url=url)
+        repo = GitHttpRepository(url=url, branch="master")
     return repo
 
 
-vocab = KeyAccessor()
-_populated = False
 _registered_atlas = set()
 
 
-@vocab.register_dir_callback
-def _populate():
-    global _populated
-    if _populated:
-        return
-    _populated = True
-
+def ls():
     repo = _get_repo()
-    files = [
+    return [
         obj.filename.replace(".tar.gz", "")
         for obj in repo.ls()
         if obj.filename.endswith(".tar.gz")
     ]
-    for filename in files:
-        vocab.register(filename)
-
-
-def ls():
-    return list(vocab.__dir__())
 
 
 def populate_regions(
@@ -124,7 +110,6 @@ def use(atlas_name: str):
         logger.info(f"{atlas_name} is already loaded.")
         return
 
-    assert atlas_name in vocab, f"{atlas_name} not found"
     repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
 
     metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))

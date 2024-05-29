@@ -18,13 +18,16 @@ modality = Modality(value="Neurotransmitter receptor density fingerprint")
 
 # query by regionspec... works?
 query1 = QueryParam(attributes=[region_spec])
+
 features1 = list(get(query1, Feature))
 print(len(features1))
+
 
 # query by modality works
 query2 = QueryParam(attributes=[modality])
 features2 = list(get(query2, Feature))
 print(len(features2))
+
 
 # but combining them does not work
 # since the check goes by any check
@@ -128,3 +131,11 @@ assert len(features) > 0
 for f in features:
     assert len(f.attributes) > 0
 
+features = list(get(
+    QueryParam(attributes=[
+        Modality(value='FunctionalConnectivity')
+    ]),
+    Feature
+))
+
+f = features[0]

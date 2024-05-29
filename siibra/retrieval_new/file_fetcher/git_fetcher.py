@@ -25,10 +25,15 @@ class Commit:
 
 class GitHttpRepository(ArchivalRepository):
 
-    def __init__(self, url) -> None:
+    def __init__(self, url: str, branch: str) -> None:
         self.sess = requests.Session()
         self.base_url = url
         self.ref_map: Dict[str, str] = {}
+        self.head = None
+        self.branch = branch
+
+    def _populate_ref_map(self):
+
         resp = requests.get(f"{self.base_url}/info/refs")
         resp.raise_for_status()
         for line in resp.text.split("\n"):
@@ -36,7 +41,14 @@ class GitHttpRepository(ArchivalRepository):
                 digest, ref = line.split()
                 self.ref_map[ref] = digest
         assert len(self.ref_map) > 0
-        self.head = self.ref_map["refs/heads/master"]
+        assert (
+            f"refs/heads/{self.branch}" in self.ref_map
+        ), f"branch {self.branch} is not found."
+        self.head = self.ref_map[f"refs/heads/{self.branch}"]
+
+    @property
+    def unpacked_dir(self):
+        return None
 
     def decode_tree(self, b: bytes):
 
@@ -71,6 +83,9 @@ class GitHttpRepository(ArchivalRepository):
         return result
 
     def ls(self):
+        if self.head is None:
+            self._populate_ref_map()
+        assert self.head, "Error: head is not set"
         commit_obj = self.get_object(self.head)
         commit = self.decode_commit(commit_obj)
 
@@ -79,10 +94,10 @@ class GitHttpRepository(ArchivalRepository):
         return decoded_tree
 
     def search_files(self, prefix: str) -> Iterable[str]:
-        return super().search_files(prefix)
+        raise NotImplementedError
 
     def warmup(self, *args, **kwargs):
-        return
+        pass
 
     def get(self, filepath: str):
-        return super().get(filepath)
+        raise NotImplementedError
