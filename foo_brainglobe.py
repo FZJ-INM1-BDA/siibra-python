@@ -1,8 +1,8 @@
 from siibra.retrieval_new.api_fetcher import brainglobe
 import siibra
 
-for filename in brainglobe.ls():
-    print(filename)
+for atlas in brainglobe.ls():
+    print(atlas)
 
 space, parc = brainglobe.use(brainglobe.vocab.ALLEN_MOUSE_100UM_V1_2)
 

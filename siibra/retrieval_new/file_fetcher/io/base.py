@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import io
 import requests
 
 from ....commons import logger
@@ -6,7 +7,7 @@ from ....commons import logger
 BLOCK_SIZE = 512
 
 
-class PartialReader(ABC):
+class PartialReader(io.IOBase, ABC):
 
     def __new__(cls, path: str):
         from .file import PartialFileReader
@@ -15,35 +16,77 @@ class PartialReader(ABC):
         if path is None:
             return super().__new__(cls)
 
-        if str(path).startswith("http"):
+        # path starts with https://, assume to be a URL
+        if str(path).startswith("https://"):
+            http_warm_path = PartialHttpReader.WarmFilename(path)
+
+            # If the url is already cached on disk, use file reader
+            if PartialHttpReader.IsWarm(path):
+                instance = PartialFileReader.__new__(cls, http_warm_path)
+                PartialFileReader.__init__(instance, http_warm_path)
+                return instance
+
+            # Check server supports range request
             resp = requests.get(
-                path, headers={"Range": f"bytes=0-{BLOCK_SIZE}"}, stream=True
+                path, headers={"Range": f"bytes=0-{BLOCK_SIZE-1}"}, stream=True
             )
             resp.raise_for_status()
             total_size = 0
             for data in resp.iter_content(BLOCK_SIZE):
                 total_size += len(data)
+
+                # If received size > expected size, server does not support range request
+                # call Warmup, and return file reader
                 if total_size > BLOCK_SIZE:
                     resp.close()
                     logger.warning(
                         f"{path} does not support range requests. Downloading all file first."
                     )
-                    filename = PartialHttpReader.Warmup(path)
+                    PartialHttpReader.Warmup(path)
 
-                    instance = PartialFileReader.__new__(cls, filename)
-                    PartialFileReader.__init__(instance, filename)
+                    instance = PartialFileReader.__new__(cls, http_warm_path)
+                    PartialFileReader.__init__(instance, http_warm_path)
                     return instance
-            instance = object.__new__(PartialHttpReader)
+            
+            # Server supports range request, return partial http request
+            instance = io.IOBase.__new__(PartialHttpReader)
             instance.url = path
+            size = instance.get_size()
+            instance._size = size
             return instance
 
-        instance = object.__new__(PartialFileReader)
+        # if path does not start with https://, use file reader
+        instance = io.IOBase.__new__(PartialFileReader)
         instance.filepath = path
         return instance
+    
+    _size = None
 
     def __init__(self) -> None:
         super().__init__()
         self.marker = 0
+    
+    @property
+    def size(self):
+        if self._size is None:
+            self._size = self.get_size()
+        return self._size
+    
+    def seekable(self) -> bool:
+        return True
+
+    def seek(self, offset: int, whence=0):
+        if whence == 0:
+            self.marker = offset
+            return self.marker
+        elif whence == 1:
+            self.marker += offset
+            return self.marker
+        elif whence == 2:
+            self.marker = self.size + offset
+            return self.marker
+        else:
+            raise RuntimeError(f"{whence=} must be 0, 1, 2")
 
     def read(self, size=-1):
         start_marker = self.marker
@@ -60,6 +103,22 @@ class PartialReader(ABC):
 
     @abstractmethod
     def probe(self, offset: int, count: int) -> bytes:
+        """
+        Implementation of reading partial buffer.
+
+        Note
+        ----
+        count can be set to -1, to indicate from offset to the end of buffer.
+
+        Parameters
+        ----------
+        offset: int
+        count: int
+
+        Returns
+        -------
+        bytes
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -68,6 +127,10 @@ class PartialReader(ABC):
 
     @abstractmethod
     def close(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_size(self) -> int:
         raise NotImplementedError
 
     def __enter__(self):

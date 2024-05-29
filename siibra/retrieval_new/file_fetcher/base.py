@@ -9,7 +9,7 @@ class Repository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, filepath: str):
+    def get(self, filepath: str) -> bytes:
         raise NotImplementedError
 
 
@@ -19,9 +19,6 @@ class ArchivalRepository(Repository, ABC):
     `warmup` method, which is meant to remove the obstacle (e.g. download all files, extract the archive)
     """
 
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
     @abstractmethod
     def warmup(self, *args, **kwargs):
         pass
@@ -29,7 +26,7 @@ class ArchivalRepository(Repository, ABC):
     @abstractmethod
     def search_files(self, prefix: str) -> Iterable[str]:
         return super().search_files(prefix)
-    
+
     @abstractmethod
     def get(self, filepath: str):
         return super().get(filepath)

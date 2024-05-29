@@ -125,7 +125,7 @@ def use(atlas_name: str):
         return
 
     assert atlas_name in vocab, f"{atlas_name} not found"
-    repo = TarRepository(fileurl.format(filename=atlas_name))
+    repo = TarRepository(fileurl.format(filename=atlas_name), gzip=True)
 
     metadata: Metadata = json.loads(repo.get(f"{atlas_name}/metadata.json"))
     structures: List[Structure] = json.loads(repo.get(f"{atlas_name}/structures.json"))
@@ -141,8 +141,6 @@ def use(atlas_name: str):
         children=[],
     )
     populate_regions(structures, parcellation, [speciesspec])
-
-    _registered_atlas.add(atlas_name)
 
     @register_collection_generator(Parcellation)
     def bg_parcellations(filter_param: AttributeCollection):
@@ -163,6 +161,7 @@ def use(atlas_name: str):
         if collection_match(filter_param, space):
             yield space
 
+    _registered_atlas.add(atlas_name)
     logger.info(f"{atlas_name} added to siibra.")
 
     return space, parcellation

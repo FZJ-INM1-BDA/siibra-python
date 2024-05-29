@@ -20,9 +20,6 @@ class PartialHttpReader(PartialReader):
         self.url = url
         self.sess = requests.Session()
 
-        # content = self.probe(0, 50)
-        # assert len(content) == 50, f"{len(content)=}"
-
     def open(self):
         self.sess = requests.Session()
 
@@ -32,17 +29,29 @@ class PartialHttpReader(PartialReader):
             self.sess = None
 
     def probe(self, offset: int, count: int) -> bytes:
-        headers = {
-            "Range": f"bytes={offset}-{offset+count-1}"
-        }
+        end = str(offset + count - 1)
+        if count == -1:
+            end = ""
+        headers = {"Range": f"bytes={offset}-{end}"}
         resp = self.sess.get(self.url, headers=headers)
         resp.raise_for_status()
 
         return bytes(resp.content)
 
     @staticmethod
+    def WarmFilename(url: str):
+        return CACHE.build_filename(url, suffix=".bin")
+
+    @staticmethod
+    def IsWarm(url: str):
+        filename = PartialHttpReader.WarmFilename(url)
+        return Path(filename).is_file()
+
+    @staticmethod
     def Warmup(url: str):
-        filename = CACHE.build_filename(url, suffix=".bin")
+        if PartialHttpReader.IsWarm(url):
+            return
+        filename = PartialHttpReader.WarmFilename(url)
 
         with Lock(filename + ".lock"):
             if Path(filename).is_file():
@@ -76,7 +85,20 @@ class PartialHttpReader(PartialReader):
                     progress_bar.close()
             logger.info(f"Download {url} completed. Cleaning up ...")
             os.rename(tmp_filename, filename)
-        return filename
 
     def warmup(self):
-        return PartialFileReader.warmup(self.url)
+        return PartialHttpReader.warmup(self.url)
+
+    def get_size(self) -> int:
+        headers = self.get_headers()
+        content_length = headers.get("content-length")
+        if content_length is None:
+            raise NotImplementedError(
+                f"{self.url} does not support content-length header."
+            )
+        return int(content_length)
+
+    def get_headers(self):
+        resp = requests.get(self.url, stream=True)
+        resp.close()
+        return resp.headers

@@ -1,4 +1,5 @@
 from io import FileIO
+import os
 
 from .base import PartialReader
 
@@ -27,3 +28,13 @@ class PartialFileReader(PartialReader):
 
     def warmup(self):
         return None
+
+    def get_size(self):
+        close_at_end = False
+        if self.fp is None:
+            self.open()
+            close_at_end = True
+        size = os.path.getsize(self.fp)
+        if close_at_end:
+            self.close()
+        return size
