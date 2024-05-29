@@ -35,8 +35,6 @@ class _Vocab:
         self.mapping: Dict[str, Modality] = {}
 
     def _refresh_modalities(self):
-        if self._modalities_fetched_flag:
-            return
 
         self._modalities_fetched_flag = True
         for gen in modalities_generator:
@@ -47,11 +45,14 @@ class _Vocab:
                 self.mapping[key] = item
 
     def __dir__(self):
-        self._refresh_modalities()
+        if not self._modalities_fetched_flag:
+            self._refresh_modalities()
+
         return list(self.mapping.keys())
 
     def __getattr__(self, key: str):
-        self._refresh_modalities()
+        if not self._modalities_fetched_flag:
+            self._refresh_modalities()
         if key in self.mapping:
             return self.mapping[key]
         raise AttributeError(f"{key} not found")

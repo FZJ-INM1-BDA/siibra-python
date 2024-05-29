@@ -7,7 +7,7 @@ from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ..descriptions import Modality, RegionSpec, Name, ID
+from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
 from ..dataitems.image import Image
 
@@ -67,6 +67,8 @@ def compare_name(name1: Name, name2: Name):
     )
 
 
+@register_attr_comparison(Cohort, Cohort)
+@register_attr_comparison(Paradigm, Paradigm)
 @register_attr_comparison(Modality, Modality)
 def compare_modality(mod1: Modality, mod2: Modality):
     return mod1.value.lower() == mod2.value.lower()
