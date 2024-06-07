@@ -26,3 +26,9 @@ class Feature(AttributeCollection):
                 if attr.extra.get(X_CNMTX_INDEX_VALUE) == connectivity_index
             ]
         return self.attributes
+
+    @property
+    def aggregate_by(self):
+        from ..descriptions import AggregateBy
+
+        return self._find(AggregateBy)

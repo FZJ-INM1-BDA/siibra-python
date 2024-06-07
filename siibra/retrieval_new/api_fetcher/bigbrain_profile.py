@@ -30,7 +30,7 @@ def add_modified_silver_staining():
 
 @register_collection_generator(Feature)
 def query_bigbrain_profile(input: AttributeCollection):
-    if modality_of_interest not in input.get(Modality):
+    if modality_of_interest not in input._find(Modality):
         return []
     valid, boundary_depths, profile, vertices = _get_all()
     ptcld = PointCloud(

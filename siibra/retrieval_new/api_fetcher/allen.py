@@ -262,17 +262,17 @@ def _retrieve_measurements(gene_names: List[str]):
 
 @register_collection_generator(Feature)
 def query_allen_gene_api(input: AttributeCollection):
-    if modality_of_interest not in input.get(Modality):
+    if modality_of_interest not in input._find(Modality):
         return
 
-    genes = input.get(Gene)
+    genes = input._find(Gene)
     if len(genes) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but no gene was provided. Returning empty array."
         )
         return
 
-    images = input.get(Image)
+    images = input._find(Image)
     if len(images) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."

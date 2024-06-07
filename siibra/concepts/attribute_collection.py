@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 from typing import Tuple, Type, TypeVar, Iterable
 
 from .attribute import Attribute
+from ..descriptions import Name, ID
+from ..commons_new.iterable import assert_ooo
 
 T = TypeVar("T")
 
@@ -11,10 +13,21 @@ class AttributeCollection:
     schema: str = "siibra/attribute_collection"
     attributes: Tuple[Attribute] = field(default_factory=list, repr=False)
 
-    def get(self, attr_type: Type[T]):
-        return list(self.getiter(attr_type))
+    def _get(self, attr_type: Type[T]):
+        return assert_ooo(self._find(attr_type))
 
-    def getiter(self, attr_type: Type[T]) -> Iterable[T]:
+    def _find(self, attr_type: Type[T]):
+        return list(self._finditer(attr_type))
+
+    def _finditer(self, attr_type: Type[T]) -> Iterable[T]:
         for attr in self.attributes:
             if isinstance(attr, attr_type):
                 yield attr
+
+    @property
+    def name(self):
+        return self._get(Name).value
+
+    @property
+    def id(self):
+        return self._get(ID).value

@@ -1,4 +1,3 @@
-from .author import Author
 from .ebrains import EbrainsRef
 from .id import ID
 from .modality import Modality, register_modalities
@@ -14,3 +13,4 @@ from .version import Version
 from .cohort import Cohort
 from .paradigm import Paradigm
 from .description import TextDescription
+from .aggregateby import AggregateBy

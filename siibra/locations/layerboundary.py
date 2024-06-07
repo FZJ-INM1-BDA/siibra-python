@@ -10,10 +10,11 @@ from ..cache import fn_call_cache
 X_PRECALCULATED_BOUNDARY_KEY = "x-siibra/layerboundary"
 LAYERS = ("0", "I", "II", "III", "IV", "V", "VI", "WM")
 
+
 @dataclass
 class LayerBoundary(Location):
     schema: str = "siibra/attr/loc/layerboundary/v0.1"
-    url: str = None
+    base_url: str = None
 
     @staticmethod
     @fn_call_cache
@@ -42,8 +43,10 @@ class LayerBoundary(Location):
         return [
             Polyline(
                 closed=False,
-                points=[Pt(coord=coord, space_id=space_id)
-                        for coord in poly_srt(np.array(s)).tolist()],
+                points=[
+                    Pt(coord=coord, space_id=space_id)
+                    for coord in poly_srt(np.array(s)).tolist()
+                ],
                 space_id=space_id,
             )
             for s in segments
@@ -53,4 +56,4 @@ class LayerBoundary(Location):
     def layers(self) -> List[Polyline]:
         if X_PRECALCULATED_BOUNDARY_KEY in self.extra:
             return self.extra[X_PRECALCULATED_BOUNDARY_KEY]
-        return LayerBoundary._GetPolylineAttributes(self.url, self.space_id)
+        return LayerBoundary._GetPolylineAttributes(self.base_url, self.space_id)

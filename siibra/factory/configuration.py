@@ -1,4 +1,6 @@
 import json
+from collections import defaultdict
+from typing import Dict, List
 
 from .factory import build_feature, build_space, build_parcellation
 from ..atlases import Space, Parcellation
@@ -18,15 +20,10 @@ class Configuration:
 
     _instance = None
 
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
-
     def __init__(self):
         if SIIBRA_USE_CONFIGURATION:
             logger.warning(
-                "config.SIIBRA_USE_CONFIGURATION defined, use configuration"
+                "config.SIIBRA_USE_CONFIGURATION defined, use configuration "
                 f"at {SIIBRA_USE_CONFIGURATION}"
             )
             self.default_repos = [
@@ -102,7 +99,6 @@ def _iter_preconf_features():
     cfg = Configuration()
 
     # below should produce the same result
-    # all_features = [build_object(s) for _, s in cfg.specs.get("siibra/feature/v0.2")]
     return [build_feature(obj) for obj in cfg.iter_type("siibra/concepts/feature/v0.2")]
 
 
@@ -119,4 +115,44 @@ def iter_preconf_features(filter_param: AttributeCollection):
 @register_modalities()
 def iter_modalities():
     for feature in _iter_preconf_features():
-        yield from feature.getiter(Modality)
+        yield from feature._finditer(Modality)
+
+
+@register_modalities()
+def register_cell_body_density():
+    yield Modality(value="Cell body density")
+
+
+@register_collection_generator(Feature)
+def iter_cell_body_density(filter_param: AttributeCollection):
+    if Modality(value="Cell body density") not in filter_param.attributes:
+        return
+
+    from ..concepts import QueryParam
+    from ..descriptions import RegionSpec, ID, Name
+
+    name_to_regionspec: Dict[str, RegionSpec] = {}
+    returned_features: Dict[str, List[Feature]] = defaultdict(list)
+
+    for feature in iter_preconf_features(
+        QueryParam(attributes=[Modality(value="Segmented cell body density")])
+    ):
+        try:
+            regionspec = feature._get(RegionSpec)
+            returned_features[regionspec.value].append(feature)
+            name_to_regionspec[regionspec.value] = regionspec
+        except Exception as e:
+            logger.warn(f"Processing {feature} resulted in exception {str(e)}")
+
+    for regionname, features in returned_features.items():
+        yield Feature(
+            attributes=[
+                *[
+                    attr
+                    for feature in features
+                    for attr in feature.attributes
+                    if not isinstance(attr, (RegionSpec, Name, ID))
+                ],
+                name_to_regionspec[regionname],
+            ]
+        )

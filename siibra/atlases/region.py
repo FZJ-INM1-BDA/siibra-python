@@ -19,10 +19,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
     def __eq__(self, other: "Region") -> bool:
         # Otherwise, == comparisonn result in max stack
-        return self.ID == other.ID
+        return self.id == other.id
 
     def __hash__(self):
-        return hash(self.ID)
+        return hash(self.id)
 
     @property
     def parcellation(self):
@@ -37,6 +37,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             )
         )
 
+    def __iter__(self):
+        return anytree.PreOrderIter(self)
+
     def render_tree(self):
         """Prints the tree representation of the region"""
         print(self.tree2str())
@@ -47,5 +50,5 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return [
             child
             for child in children
-            if any(match_fn(name.value) for name in child.getiter(Name))
+            if any(match_fn(name.value) for name in child._finditer(Name))
         ]

@@ -1,8 +1,8 @@
 import siibra
-from siibra.assignment import iterate
+from siibra.assignment import iter_attr_col
 from siibra.atlases import Space
 
-for space in iterate(Space):
+for space in iter_attr_col(Space):
     print(space, space.name)
     for pub in space.publications:
         print(f"- [{pub.text}]({pub.value})")

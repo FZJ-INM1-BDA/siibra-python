@@ -3,7 +3,7 @@ from typing import Union, Callable
 
 
 def splitstr(s: str):
-    return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
+    return [w for w in re.split(r"[^a-zA-Z0-9.]", s) if len(w) > 0]
 
 
 def fuzzy_match(input: str, dest: str):
@@ -26,7 +26,14 @@ def fuzzy_match(input: str, dest: str):
 
     W = splitstr(dest.lower())
     Q = splitstr(input.lower())
-    return all(any(q == w or "v" + q == w for w in W) for q in Q)
+    return all(
+        any(
+            q == w or "v" + q == w
+            # or q in w # required to match "julich" to "Julich-Brain"
+            for w in W
+        )
+        for q in Q
+    )
 
 
 def snake2camel(s: str):
@@ -83,4 +90,17 @@ def get_spec(spec: SPEC_TYPE) -> Callable[[str], bool]:
             search_regex = re.compile(search_regex_str)
             return search_regex.search
         return lambda input_str: fuzzy_match(spec, input_str)
+    print(spec, type(spec))
     raise RuntimeError("get_spec only accept str or re.Pattern as input")
+
+
+def create_key(name: str):
+    """
+    Creates an uppercase identifier string that includes only alphanumeric
+    characters and underscore from a natural language name.
+    """
+    return re.sub(
+        r" +",
+        "_",
+        "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
+    )

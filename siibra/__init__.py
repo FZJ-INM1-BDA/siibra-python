@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import partial
+from typing import Union
+
 from .commons import (
     logger,
     QUIET,
@@ -24,14 +27,25 @@ from .commons import (
 )
 
 from .commons_new.iterable import assert_ooo
+from .commons_new.instance_table import JitInstanceTable
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory as factory_new
 from . import retrieval_new
 from .atlases import Space, Parcellation
-from .assignment import string_search
-from .exceptions import NotFoundException
+from .descriptions import Modality
+from .descriptions.modality import vocab as modality_types
+from .locations import DataClsLocation
+from .concepts import AtlasElement, QueryParam, Feature
+from .assignment import (
+    string_search,
+    attr_col_as_dict,
+    iter_attr_col,
+    get,
+    collection_match,
+    QueryCursor,
+)
 
 import os as _os
 
@@ -41,15 +55,18 @@ logger.info(
     "Please file bugs and issues at https://github.com/FZJ-INM1-BDA/siibra-python."
 )
 
+spaces = JitInstanceTable(getitem=partial(attr_col_as_dict, Space))
+parcellations = JitInstanceTable(getitem=partial(attr_col_as_dict, Parcellation))
+
 
 # convenient access to reference space templates
 def get_space(space_spec: str):
-    searched_spaces = string_search(space_spec, Space)
+    searched_spaces = list(string_search(space_spec, Space))
     return assert_ooo(searched_spaces)
 
 
 def get_parcellation(parc_spec: str):
-    searched_parcs = string_search(parc_spec, Parcellation)
+    searched_parcs = list(string_search(parc_spec, Parcellation))
     return assert_ooo(searched_parcs)
 
 
@@ -60,9 +77,24 @@ def get_map(
     raise NotImplementedError
 
 
+def find_features(
+    concept: Union[AtlasElement, DataClsLocation], modality: Union[Modality, str]
+):
+    cursor = QueryCursor(concept=concept, modality=modality)
+    return cursor.exec()
+
+
 # convenient access to regions of a parcellation
 def get_region(parcellation_spec: str, regionspec: str):
     return get_parcellation(parcellation_spec).get_region(regionspec)
+
+
+def find_regions(regionspec: str):
+    return [
+        region
+        for parc in iter_attr_col(Parcellation)
+        for region in parc.find(regionspec)
+    ]
 
 
 def set_feasible_download_size(maxsize_gbyte):

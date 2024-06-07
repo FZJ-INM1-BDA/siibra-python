@@ -1,9 +1,8 @@
 from dataclasses import dataclass
-from functools import wraps
 from typing import List, Callable, Iterable, Dict
 
 from .base import Description
-from ..commons import create_key
+from ..commons_new.instance_table import JitInstanceTable
 
 
 @dataclass
@@ -13,49 +12,29 @@ class Modality(Description):
 
 
 modalities_generator: List[Callable[[], Iterable[Modality]]] = []
+_cached_modality = (
+    {}
+)  # TODO ugly way to deal with JitInstanceTable calling __getattr__ during autocomplete
+
+
+def get_modalities() -> Dict[str, Modality]:
+    _l = len(modalities_generator)
+    if _l in _cached_modality:
+        return _cached_modality[_l]
+    result = {mod.value: mod for mod_fn in modalities_generator for mod in mod_fn()}
+    _cached_modality[_l] = result
+    return result
+
+
+vocab = JitInstanceTable(getitem=get_modalities)
 
 
 def register_modalities():
     def outer(fn):
+
+        if fn in modalities_generator:
+            raise RuntimeError("fn already registered")
         modalities_generator.append(fn)
-
-        @wraps(fn)
-        def inner(*args, **kwargs):
-            yield from fn(*args, **kwargs)
-
-        return inner
+        return fn
 
     return outer
-
-
-class _Vocab:
-
-    def __init__(self):
-        self._modalities_fetched_flag = False
-        self.mapping: Dict[str, Modality] = {}
-
-    def _refresh_modalities(self):
-
-        self._modalities_fetched_flag = True
-        for gen in modalities_generator:
-            for item in gen():
-                key = create_key(item.value)
-                if key in self.mapping:
-                    continue
-                self.mapping[key] = item
-
-    def __dir__(self):
-        if not self._modalities_fetched_flag:
-            self._refresh_modalities()
-
-        return list(self.mapping.keys())
-
-    def __getattr__(self, key: str):
-        if not self._modalities_fetched_flag:
-            self._refresh_modalities()
-        if key in self.mapping:
-            return self.mapping[key]
-        raise AttributeError(f"{key} not found")
-
-
-vocab = _Vocab()

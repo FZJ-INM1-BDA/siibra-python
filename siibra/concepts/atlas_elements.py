@@ -1,7 +1,15 @@
 from dataclasses import dataclass
 
 from .attribute_collection import AttributeCollection
-from ..descriptions import Name, SpeciesSpec, Url, Doi, ID as _ID
+from ..descriptions import (
+    Name,
+    SpeciesSpec,
+    Url,
+    Doi,
+    ID as _ID,
+    TextDescription,
+    Modality,
+)
 
 MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
 
@@ -17,20 +25,8 @@ class AtlasElement(AttributeCollection):
         ), f"An AtlasElement must have {[attr_type.__name__ for attr_type in MUSTHAVE_ATTRIBUTES]} attributes."
 
     @property
-    def name(self):
-        names = [s.value for s in self.getiter(Name)]
-        assert len(names) == 1
-        return names[0]
-
-    @property
-    def ID(self):
-        ids = [id.value for id in self.getiter(_ID)]
-        assert len(ids) == 1
-        return ids[0]
-
-    @property
     def species(self):
-        species = [s.value for s in self.getiter(SpeciesSpec)]
+        species = [s.value for s in self._finditer(SpeciesSpec)]
         assert len(species) == 1
         return species[0]
 
@@ -40,7 +36,15 @@ class AtlasElement(AttributeCollection):
         from ..retrieval_new.doi_fetcher import get_citation
 
         citations = [
-            Url(value=doi.value, text=get_citation(doi)) for doi in self.get(Doi)
+            Url(value=doi.value, text=get_citation(doi)) for doi in self._find(Doi)
         ]
 
-        return [*self.get(Url), *citations]
+        return [*self._find(Url), *citations]
+
+    @property
+    def description(self):
+        return self._get(TextDescription).value
+
+    @property
+    def modalities(self):
+        return [mod.value for mod in self._find(Modality)]

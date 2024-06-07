@@ -3,7 +3,7 @@ from dataclasses import replace
 
 from ..commons import logger
 from ..commons_new.comparison import Comparison
-from ..commons_new.string import fuzzy_match
+from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
@@ -76,7 +76,18 @@ def compare_modality(mod1: Modality, mod2: Modality):
 
 @register_attr_comparison(RegionSpec, RegionSpec)
 def compare_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
-    return regspec1.value.lower().strip() == regspec2.value.lower().strip()
+    if (
+        regspec1.parcellation_id is not None
+        and regspec2.parcellation_id is not None
+        and regspec1.parcellation_id != regspec2.parcellation_id
+    ):
+        return False
+
+    cleaned_name1 = clear_name(regspec1.value)
+    cleaned_name2 = clear_name(regspec2.value)
+    return fuzzy_match(cleaned_name1, cleaned_name2) or fuzzy_match(
+        cleaned_name2, cleaned_name1
+    )
 
 
 @register_attr_comparison(Pt, Pt)

@@ -10,7 +10,7 @@ class Space(AtlasElement):
 
     @property
     def images(self):
-        return self.get(Image)
+        return self._find(Image)
 
     @property
     def meshes(self):

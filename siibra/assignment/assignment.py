@@ -6,6 +6,7 @@ from itertools import product
 from .attribute_match import match as attribute_match
 
 from ..commons import logger
+from ..commons_new.iterable import NonUniqueError
 from ..concepts import AttributeCollection
 from ..concepts.attribute import TruthyAttr
 from ..concepts import QueryParam
@@ -35,9 +36,21 @@ def register_collection_generator(type_of_col: Type[AttributeCollection]):
 V = TypeVar("V", bound=AttributeCollection)
 
 
-def iterate(reg_type: Type[V]) -> Iterable[V]:
+def iter_attr_col(reg_type: Type[V]) -> Iterable[V]:
     collection = AttributeCollection(attributes=[TruthyAttr()])
     yield from get(collection, reg_type)
+
+
+def attr_col_as_dict(reg_type: Type[V]) -> Dict[str, V]:
+    return_dict: Dict[str, V] = {}
+    for item in iter_attr_col(reg_type):
+        try:
+            name = item._get(Name)
+            return_dict[name.value] = item
+        except NonUniqueError:
+            logger.warning(f"{item} has non unique name")
+            continue
+    return return_dict
 
 
 def getiter(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
