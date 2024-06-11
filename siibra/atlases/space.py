@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from ..concepts import AtlasElement
-from ..dataitems import Image, MESH_FORMATS, VOLUME_FORMATS, IMAGE_VARIANT_KEY
+from ..dataitems import image
 
 
 @dataclass
@@ -10,15 +10,19 @@ class Space(AtlasElement):
 
     @property
     def images(self):
-        return self._find(Image)
+        return self._find(image.Image)
+
+    @property
+    def variants(self):
+        return {tmp.variant for tmp in self.images if isinstance(tmp, image.Image)}
 
     @property
     def meshes(self):
-        return [image for image in self.images if image.format in MESH_FORMATS]
+        return [tmp for tmp in self.images if tmp.provides_mesh]
 
     @property
     def volumes(self):
-        return [image for image in self.images if image.format in VOLUME_FORMATS]
+        return [tmp for tmp in self.images if tmp.provides_volume]
 
     @property
     def provides_mesh(self):
@@ -29,9 +33,10 @@ class Space(AtlasElement):
         return len(self.volumes) > 0
 
     def get_template(self, variant: str = None):
-        for img in self.images:
-            if variant and IMAGE_VARIANT_KEY in img.extra:
-                if variant.lower() in img.extra[IMAGE_VARIANT_KEY].lower():
-                    yield img
-                continue
-            yield img
+        if variant:
+            for img in self.images:
+                if variant.lower() in img.variant.lower():
+                    return img
+
+        else:
+            pass

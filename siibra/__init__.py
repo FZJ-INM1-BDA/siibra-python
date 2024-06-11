@@ -34,7 +34,7 @@ from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory as factory_new
 from . import retrieval_new
-from .atlases import Space, Parcellation, Region
+from .atlases import Space, Parcellation, Region, parcellationmap
 from .descriptions import Modality, RegionSpec, Gene
 from .descriptions.modality import vocab as modality_types
 from .locations import DataClsLocation
@@ -58,6 +58,7 @@ logger.info(
 
 spaces = JitInstanceTable(getitem=partial(attr_col_as_dict, Space))
 parcellations = JitInstanceTable(getitem=partial(attr_col_as_dict, Parcellation))
+maps = JitInstanceTable(getitem=partial(attr_col_as_dict, parcellationmap.Map))
 
 
 # convenient access to reference space templates

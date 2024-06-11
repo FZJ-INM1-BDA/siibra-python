@@ -7,7 +7,7 @@ from ..concepts.feature import Feature
 from ..descriptions import Name, SpeciesSpec, ID, RegionSpec
 from ..commons import create_key
 from ..commons_new.iterable import assert_ooo
-from ..atlases import region, parcellation, Space
+from ..atlases import region, parcellation, space, parcellationmap
 
 T = Callable[[Dict], AttributeCollection]
 
@@ -130,7 +130,7 @@ def build_parcellation(dict_obj: dict):
     )
 
 
-@register_build_type(Space.schema)
+@register_build_type(space.Space.schema)
 def build_space(dict_obj):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
@@ -139,7 +139,20 @@ def build_space(dict_obj):
         for attribute_obj in attribute_objs
         for att in Attribute.from_dict(attribute_obj)
     )
-    return Space(attributes=attributes)
+    return space.Space(attributes=attributes)
+
+
+@register_build_type(parcellationmap.Map.schema)
+def build_map(dict_obj):
+    dict_obj.pop("@type", None)
+    MapType = parcellationmap.SparseMap if dict_obj.pop("sparsemap", False) else parcellationmap.Map
+    attribute_objs = dict_obj.pop("attributes", [])
+    attributes = tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
+    return MapType(attributes=attributes, **dict_obj)
 
 
 def build_object(dict_obj: Dict):

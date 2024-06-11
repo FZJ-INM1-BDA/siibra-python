@@ -1,22 +1,27 @@
 from dataclasses import dataclass, replace
-from typing import Literal, Union
-import requests
-import nibabel as nib
-from pathlib import Path
+from typing import Literal, TYPE_CHECKING
 from itertools import product
+import requests
+
 import numpy as np
+import nibabel as nib
+
+from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 from .base import Data
 from ..exceptions import InvalidAttrCompException
-from ..locations import base, Pt, PointCloud
+from ..locations import base, point, pointset
 from ..locations.ops.intersection import _loc_intersection
-from ..cache import CACHE, fn_call_cache
+from ..cache import fn_call_cache
+from ..retrieval_new import image_fetcher
+
+if TYPE_CHECKING:
+    from ..locations import BBox
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
 IMAGE_FRAGMENT = "x-siibra/volume-fragment"
 
 MESH_FORMATS = (
-    "neuroglancer/precompmesh",
     "gii-mesh",
 )
 
@@ -26,13 +31,49 @@ VOLUME_FORMATS = {
 }
 
 
+def fetch_voi(nifti: nib.Nifti1Image, voi: "BBox"):
+    bb_vox = voi.transform(np.linalg.inv(nifti.affine))
+    (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
+    shift = np.identity(4)
+    shift[:3, -1] = bb_vox.minpoint
+    result = nib.Nifti1Image(
+        dataobj=nifti.dataobj[x0:x1, y0:y1, z0:z1],
+        affine=np.dot(nifti.affine, shift),
+    )
+    return result
+
+
+def fetch_label_mask(nifti: nib.Nifti1Image, label: int):
+    # TODO: Consider adding assertion but this should be clear to the user anyway
+    result = nib.Nifti1Image(
+        (nifti.get_fdata() == label).astype('uint8'),
+        nifti.affine
+    )
+    return result
+
+
+def resample(
+    nifti: nib.Nifti1Image,
+    resolution_mm: float = None,
+    affine=None
+):
+    # TODO
+    # Instead of resmapling nifti to desired resolution_mm in `fetch` as
+    # discussed previously, consider an explicit method.
+    pass
+
+
 @dataclass
 class Image(Data, base.Location):
-
     schema: str = "siibra/attr/data/image/v0.1"
     format: Literal["nii", "neuroglancer/precomputed"] = None
     url: str = None
-    space_id: str = None
+
+    def __post_init__(self):
+        if self.format not in image_fetcher.ImageFetcher.SUBCLASSES:
+            return
+        fetcher_type = image_fetcher.ImageFetcher.SUBCLASSES[self.format]
+        self._fetcher = fetcher_type(url=self.url)
 
     @staticmethod
     @fn_call_cache
@@ -64,44 +105,77 @@ class Image(Data, base.Location):
             )
         raise NotImplementedError
 
-    @staticmethod
-    def NiiUrl(url: str) -> Union[nib.Nifti1Image, nib.Nifti2Image]:
-        filename = CACHE.build_filename(url, suffix=".nii.gz")
-        if not Path(filename).exists():
-            with open(filename, "wb") as fp:
-                resp = requests.get(url)
-                resp.raise_for_status()
-                fp.write(resp.content)
-        nii = nib.load(filename)
-        return nii
+    @property
+    def provides_mesh(self):
+        return self.format in MESH_FORMATS
+
+    @property
+    def provides_volume(self):
+        return self.format in VOLUME_FORMATS
 
     @property
     def boundingbox(self):
         return Image._GetBBox(self)
 
-    @property
-    def data(self):
-        assert self.format == "nii", "Can only get data of nii."
-        return Image.NiiUrl(self.url)
+    def fetch(
+        self,
+        bbox: "BBox" = None,
+        resolution_mm: float = None,
+        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+        color_channel: int = None
+    ):
+        if color_channel is not None:
+            assert self.format == "neuroglancer/precomputed"
+
+        img = self._fetcher.fetch()
+
+        if bbox is not None:
+            # TODO
+            # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
+            img = fetch_voi(img, bbox)
+
+        if self.extra["x-label"] is not None:
+            img = fetch_label_mask(img, self.extra["x-label"])
+
+        if resolution_mm is not None:
+            if self.format == "neuroglancer/precomputed":
+                pass
+            else:
+                print(
+                    f"Warning: Multi-resolution for '{self.format}' is not supported."
+                    "siibra will resample using nilearn to desired resolution"
+                )
+                img = resample(img, resolution_mm)
+
+        return img
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError
 
 
-@_loc_intersection.register(Pt, Image)
-def compare_pt_to_image(pt: Pt, image: Image):
-    ptcloud = PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
+def from_nifti(nifti: nib.Nifti1Image, space_id: str) -> "Image":
+    """Builds an `Image` `Attribute` from a Nifti image."""
+    return Image(
+        fromat="nii",
+        url=None,
+        space_id=space_id,
+    )
+
+
+@_loc_intersection.register(point.Pt, Image)
+def compare_pt_to_image(pt: point.Pt, image: Image):
+    ptcloud = pointset.PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
     intersection = compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
     if intersection:
         return pt
 
 
-@_loc_intersection.register(PointCloud, Image)
-def compare_ptcloud_to_image(ptcloud: PointCloud, image: Image):
+@_loc_intersection.register(pointset.PointCloud, Image)
+def compare_ptcloud_to_image(ptcloud: pointset.PointCloud, image: Image):
     return intersect_ptcld_image(ptcloud=ptcloud, image=image)
 
 
-def intersect_ptcld_image(ptcloud: PointCloud, image: Image) -> PointCloud:
+def intersect_ptcld_image(ptcloud: pointset.PointCloud, image: Image) -> pointset.PointCloud:
     if image.space_id != ptcloud.space_id:
         raise InvalidAttrCompException(
             "ptcloud and image are in different space. Cannot compare the two."
@@ -114,7 +188,7 @@ def intersect_ptcld_image(ptcloud: PointCloud, image: Image) -> PointCloud:
 
     # transform the points to the voxel space of the volume for extracting values
     phys2vox = np.linalg.inv(img.affine)
-    voxels = PointCloud.transform(ptcloud, phys2vox)
+    voxels = pointset.PointCloud.transform(ptcloud, phys2vox)
     XYZ = np.array(voxels.coordinates).astype("int")
 
     # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail

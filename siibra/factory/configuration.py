@@ -3,8 +3,8 @@ from collections import defaultdict
 from typing import Dict, List
 from functools import cache
 
-from .factory import build_feature, build_space, build_parcellation
-from ..atlases import Space, Parcellation, Region
+from .factory import build_feature, build_space, build_parcellation, build_map
+from ..atlases import Space, Parcellation, Region, parcellationmap
 from ..descriptions import register_modalities, Modality, RegionSpec
 from ..concepts.feature import Feature
 from ..concepts.attribute_collection import AttributeCollection
@@ -178,3 +178,21 @@ def iter_cell_body_density(filter_param: AttributeCollection):
                 name_to_regionspec[regionname],
             ]
         )
+
+
+@cache
+def _iter_preconf_maps():
+    # TODO replace/migrate old configuration here
+    cfg = Configuration()
+
+    return [build_map(obj) for obj in cfg.iter_jsons("maps")]
+
+
+@register_collection_generator(parcellationmap.Map)
+def iter_preconf_parcellationmaps(filter_param: AttributeCollection):
+    for mp in _iter_preconf_maps():
+        try:
+            if match(filter_param, mp):
+                yield mp
+        except UnregisteredAttrCompException:
+            continue
