@@ -12,7 +12,7 @@ class Attribute:
     schema: str = field(default="siibra/attr", init=False, repr=False)
 
     # TODO performance implications? may have to set hash=False
-    extra: dict[str, Any] = field(default_factory=dict, repr=False)
+    extra: dict[str, Any] = field(default_factory=dict, repr=False, hash=False)
 
     # derived classes set their schema as class parameter
     def __init_subclass__(cls):
@@ -25,8 +25,9 @@ class Attribute:
     @staticmethod
     def from_dict(json_dict: dict[str, Any]) -> List["Attribute"]:
         """Generating a list of attributes from a dictionary.
-        TODO consider moving this to siibra.factory.factory and have a single build_object call"""
-        
+        TODO consider moving this to siibra.factory.factory and have a single build_object call
+        """
+
         att_type: str = json_dict.pop("@type")
         if att_type.startswith("x-"):
             return []

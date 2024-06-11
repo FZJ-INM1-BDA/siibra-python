@@ -40,7 +40,7 @@ except ImportError:
 @dataclass
 class PointCloud(Location):
     schema = "siibra/attr/loc/pointcloud/v0.1"
-    coordinates: List[List[float]] = field(default_factory=list)
+    coordinates: List[List[float]] = field(default_factory=list, repr=False)
     sigma: float = 0
 
     @property

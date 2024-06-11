@@ -26,6 +26,7 @@ from .commons import (
     __version__,
 )
 
+from .exceptions import NotFoundException
 from .commons_new.iterable import assert_ooo
 from .commons_new.instance_table import JitInstanceTable
 
@@ -33,8 +34,8 @@ from .cache import Warmup, WarmupLevel, CACHE as cache
 
 from . import factory as factory_new
 from . import retrieval_new
-from .atlases import Space, Parcellation
-from .descriptions import Modality
+from .atlases import Space, Parcellation, Region
+from .descriptions import Modality, RegionSpec, Gene
 from .descriptions.modality import vocab as modality_types
 from .locations import DataClsLocation
 from .concepts import AtlasElement, QueryParam, Feature
@@ -65,9 +66,17 @@ def get_space(space_spec: str):
     return assert_ooo(searched_spaces)
 
 
+def find_spaces(space_spec: str):
+    return list(string_search(space_spec, Space))
+
+
 def get_parcellation(parc_spec: str):
     searched_parcs = list(string_search(parc_spec, Parcellation))
     return assert_ooo(searched_parcs)
+
+
+def find_parcellations(parc_spec: str):
+    return list(string_search(parc_spec, Parcellation))
 
 
 # convenient access to parcellation maps
@@ -78,22 +87,55 @@ def get_map(
 
 
 def find_features(
-    concept: Union[AtlasElement, DataClsLocation], modality: Union[Modality, str]
+    concept: Union[AtlasElement, DataClsLocation],
+    modality: Union[Modality, str],
+    **kwargs,
 ):
-    cursor = QueryCursor(concept=concept, modality=modality)
-    return cursor.exec()
+    additional_attributes = QueryParam()
+    if "genes" in kwargs:
+        assert isinstance(kwargs["genes"], list)
+        additional_attributes = QueryParam(
+            attributes=[Gene(value=gene) for gene in kwargs["genes"]]
+        )
+    cursor = QueryCursor(
+        concept=concept, modality=modality, additional_attributes=additional_attributes
+    )
+    return list(cursor.exec_explain())
 
 
 # convenient access to regions of a parcellation
 def get_region(parcellation_spec: str, regionspec: str):
-    return get_parcellation(parcellation_spec).get_region(regionspec)
+    found_regions = find_regions(parcellation_spec, regionspec)
+    if len(found_regions) == 0:
+        raise NotFoundException(
+            f"{parcellation_spec=!r} and {regionspec=!r} found no regions"
+        )
+    if len(found_regions) > 1:
+        logger.warning(
+            f"Found {len(found_regions)}:\n"
+            + "\n".join(f" - {str(r)}" for r in found_regions)
+            + "\nSelecting the first one"
+        )
+    return found_regions[0]
 
 
-def find_regions(regionspec: str):
+def find_regions(parcellation_spec: str, regionspec: str):
+    if parcellation_spec:
+        parcellation_ids = [p.id for p in find_parcellations(parcellation_spec)]
+    else:
+        parcellation_ids = [None]
+
     return [
-        region
-        for parc in iter_attr_col(Parcellation)
-        for region in parc.find(regionspec)
+        reg
+        for parcellation_id in parcellation_ids
+        for reg in get(
+            QueryParam(
+                attributes=[
+                    RegionSpec(parcellation_id=parcellation_id, value=regionspec)
+                ]
+            ),
+            Region,
+        )
     ]
 
 

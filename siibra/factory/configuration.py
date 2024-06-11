@@ -1,10 +1,11 @@
 import json
 from collections import defaultdict
 from typing import Dict, List
+from functools import cache
 
 from .factory import build_feature, build_space, build_parcellation
-from ..atlases import Space, Parcellation
-from ..descriptions import register_modalities, Modality
+from ..atlases import Space, Parcellation, Region
+from ..descriptions import register_modalities, Modality, RegionSpec
 from ..concepts.feature import Feature
 from ..concepts.attribute_collection import AttributeCollection
 from ..assignment.assignment import register_collection_generator, match
@@ -79,9 +80,11 @@ def iter_preconf_spaces(filter_param: AttributeCollection):
             continue
 
 
+@cache
 def _iter_preconf_parcellations():
     # TODO replace/migrate old configuration here
     cfg = Configuration()
+
     return [build_parcellation(obj) for obj in cfg.iter_jsons("parcellations")]
 
 
@@ -110,6 +113,25 @@ def iter_preconf_features(filter_param: AttributeCollection):
                 yield feature
         except UnregisteredAttrCompException:
             continue
+
+
+@register_collection_generator(Region)
+def iter_region(filter_param: AttributeCollection):
+    from ..assignment import iter_attr_col
+
+    regspecs = filter_param._find(RegionSpec)
+    if len(regspecs) != 1:
+        logger.debug(f"Expected one and only one regionspec, but got {len(regspecs)}")
+        return
+
+    regspec = regspecs[0]
+
+    yield from [
+        region
+        for parc in iter_attr_col(Parcellation)
+        if regspec.parcellation_id is None or regspec.parcellation_id == parc.id
+        for region in parc.find(regspec.value)
+    ]
 
 
 @register_modalities()

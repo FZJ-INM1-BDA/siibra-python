@@ -4,6 +4,7 @@ from collections import defaultdict
 from itertools import product
 
 from .attribute_match import match as attribute_match
+from .attribute_qualification import qualify as attribute_qualify
 
 from ..commons import logger
 from ..commons_new.iterable import NonUniqueError
@@ -122,4 +123,22 @@ def match(col_a: AttributeCollection, col_b: AttributeCollection) -> bool:
             return False
     if attr_compared_flag:
         return False
+    raise UnregisteredAttrCompException
+
+
+def qualify(col_a: AttributeCollection, col_b: AttributeCollection):
+    attr_compared_flag = False
+    for attra, attrb in product(col_a.attributes, col_b.attributes):
+        try:
+            match_result = attribute_qualify(attra, attrb)
+            attr_compared_flag = True
+            if match_result:
+                yield attra, attrb, match_result
+        except UnregisteredAttrCompException:
+            continue
+        except InvalidAttrCompException as e:
+            logger.debug(f"match exception {e}")
+            return
+    if attr_compared_flag:
+        return
     raise UnregisteredAttrCompException

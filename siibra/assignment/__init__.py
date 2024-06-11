@@ -9,3 +9,4 @@ from .assignment import (
 )
 from .attribute_match import match as attr_match, register_attr_comparison
 from .query_cursor import QueryCursor
+from .qualification import Qualification

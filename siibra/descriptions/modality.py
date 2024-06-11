@@ -10,6 +10,9 @@ class Modality(Description):
     schema = "siibra/attr/desc/modality/v0.1"
     value: str = None
 
+    def __hash__(self) -> int:
+        return hash(self.value)
+
 
 modalities_generator: List[Callable[[], Iterable[Modality]]] = []
 _cached_modality = (

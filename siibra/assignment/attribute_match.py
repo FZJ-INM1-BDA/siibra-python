@@ -1,15 +1,11 @@
-import numpy as np
-from dataclasses import replace
-
 from ..commons import logger
 from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
-from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
-from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort
+from ..exceptions import UnregisteredAttrCompException
+from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
 from ..locations import Pt, PointCloud, BBox, intersect, DataClsLocation
-from ..dataitems.image import Image
 
 
 _attr_match: Comparison[Attribute, bool] = Comparison()
@@ -67,6 +63,12 @@ def compare_name(name1: Name, name2: Name):
     )
 
 
+@register_attr_comparison(AggregateBy, AggregateBy)
+def compare_aggregate_by(aggbya: AggregateBy, aggbyb: AggregateBy):
+    return (aggbya.key == aggbyb.key
+            and aggbya.value == aggbyb.value)
+
+
 @register_attr_comparison(Cohort, Cohort)
 @register_attr_comparison(Paradigm, Paradigm)
 @register_attr_comparison(Modality, Modality)
@@ -106,49 +108,3 @@ def compare_loc_to_loc(loca: DataClsLocation, locb: DataClsLocation):
 #     if image.space_id != bbox.space_id:
 #         raise InvalidAttrCompException(f"bbox and image are in different space. Cannot compare the two.")
 #     raise NotImplementedError
-
-
-@register_attr_comparison(Pt, Image)
-def compare_pt_to_image(pt: Pt, image: Image):
-    ptcloud = PointCloud(space_id=pt.space_id, coordinates=[pt.coordinate])
-    return compare_ptcloud_to_image(ptcloud=ptcloud, image=image)
-
-
-@register_attr_comparison(PointCloud, Image)
-def compare_ptcloud_to_image(ptcloud: PointCloud, image: Image):
-    intersection = intersect_ptcld_image(ptcloud=ptcloud, image=image)
-    return len(intersection.coordinates) > 0
-
-
-def intersect_ptcld_image(ptcloud: PointCloud, image: Image) -> PointCloud:
-    if image.space_id != ptcloud.space_id:
-        raise InvalidAttrCompException(
-            "ptcloud and image are in different space. Cannot compare the two."
-        )
-
-    value_outside = 0
-
-    img = image.data
-    arr = np.asanyarray(img.dataobj)
-
-    # transform the points to the voxel space of the volume for extracting values
-    phys2vox = np.linalg.inv(img.affine)
-    voxels = PointCloud.transform(ptcloud, phys2vox)
-    XYZ = np.array(voxels.coordinates).astype("int")
-
-    # temporarily set all outside voxels to (0,0,0) so that the index access doesn't fail
-    # TODO in previous version, zero'th voxel is excluded on all sides (i.e. (XYZ > 0) was tested)
-    # is there a reason why the zero-th voxel is excluded?
-    inside = np.all((XYZ < arr.shape) & (XYZ >= 0), axis=1)
-    XYZ[~inside, :] = 0
-
-    # read out the values
-    X, Y, Z = XYZ.T
-    values = arr[X, Y, Z]
-
-    # fix the outside voxel values, which might have an inconsistent value now
-    values[~inside] = value_outside
-
-    inside = list(np.where(values != value_outside)[0])
-
-    return replace(ptcloud, coordinates=[ptcloud.coordinates[i] for i in inside])

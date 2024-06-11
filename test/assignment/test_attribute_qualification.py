@@ -1,5 +1,6 @@
 import pytest
 
+
 from dataclasses import replace
 from typing import Type
 from itertools import chain, product
@@ -7,9 +8,7 @@ from itertools import chain, product
 
 from siibra.locations import Pt, BBox
 from siibra.exceptions import InvalidAttrCompException
-from siibra.assignment.attribute_match import (
-    compare_loc_to_loc,
-)
+from siibra.assignment.attribute_qualification import qualify, Qualification
 
 
 def bbox_x_flat(dim: int):
@@ -43,7 +42,7 @@ def bbox_x_flat(dim: int):
 flatxbbox, flatybbox, flatzbbox = [bbox_x_flat(dim) for dim in range(3)]
 
 
-def test_compare_loc_to_loc_raise():
+def test_qualify_raise():
     bboxfoo = BBox(space_id="foo", minpoint=[0, 0, 0], maxpoint=[1, 1, 1])
     bboxbar = BBox(
         space_id="bar",
@@ -51,7 +50,7 @@ def test_compare_loc_to_loc_raise():
         maxpoint=[1, 1, 1],
     )
     with pytest.raises(InvalidAttrCompException):
-        compare_loc_to_loc(bboxfoo, bboxbar)
+        qualify(bboxfoo, bboxbar)
 
 
 @pytest.mark.parametrize(
@@ -63,8 +62,8 @@ def test_compare_loc_to_loc_raise():
         product(flatybbox, flatzbbox),
     ),
 )
-def test_compare_loc_to_loc_true(bbox1: BBox, bbox2: BBox):
-    assert compare_loc_to_loc(bbox1, bbox2)
+def test_qualify_bbox_overlaps(bbox1: BBox, bbox2: BBox):
+    assert qualify(bbox1, bbox2) == Qualification.OVERLAPS
 
 
 @pytest.mark.parametrize(
@@ -75,37 +74,68 @@ def test_compare_loc_to_loc_true(bbox1: BBox, bbox2: BBox):
         product(flatzbbox, flatzbbox),
     ),
 )
-def test_compare_loc_to_loc_false(bbox1: BBox, bbox2: BBox):
+def test_qualify_no_overlap(bbox1: BBox, bbox2: BBox):
     if bbox1 == bbox2:
         return
-    assert not compare_loc_to_loc(bbox1, bbox2)
+    assert qualify(bbox1, bbox2) is None
 
 
 bbox_foo_5_10 = BBox(space_id="foo", minpoint=[5, 5, 5], maxpoint=[10, 10, 10])
 
 
 @pytest.mark.parametrize(
-    "bbox, pt, expected, ExCls",
+    "arg1, arg2, expected, ExCls",
     [
-        [bbox_foo_5_10, Pt(coordinate=(0, 0, 0), space_id="foo"), False, None],
-        [bbox_foo_5_10, Pt(coordinate=(7, 0, 7), space_id="foo"), False, None],
-        [bbox_foo_5_10, Pt(coordinate=(7, 15, 7), space_id="foo"), False, None],
+        [bbox_foo_5_10, Pt(coordinate=(0, 0, 0), space_id="foo"), None, None],
+        [bbox_foo_5_10, Pt(coordinate=(7, 0, 7), space_id="foo"), None, None],
+        [bbox_foo_5_10, Pt(coordinate=(7, 15, 7), space_id="foo"), None, None],
         [
             bbox_foo_5_10,
             Pt(coordinate=(7, 7, 7), space_id="bar"),
             None,
             InvalidAttrCompException,
         ],
-        [bbox_foo_5_10, Pt(coordinate=(7, 7, 7), space_id="foo"), True, None],
-        [bbox_foo_5_10, Pt(coordinate=(5, 5, 5), space_id="foo"), True, None],
-        [bbox_foo_5_10, Pt(coordinate=(10, 10, 10), space_id="foo"), True, None],
-        [bbox_foo_5_10, Pt(coordinate=(10, 5, 10), space_id="foo"), True, None],
-        [bbox_foo_5_10, Pt(coordinate=(10, 7, 10), space_id="foo"), True, None],
+        [
+            Pt(coordinate=(7, 7, 7), space_id="foo"),
+            bbox_foo_5_10,
+            Qualification.CONTAINED,
+            None,
+        ],
+        [
+            bbox_foo_5_10,
+            Pt(coordinate=(7, 7, 7), space_id="foo"),
+            Qualification.CONTAINS,
+            None,
+        ],
+        [
+            bbox_foo_5_10,
+            Pt(coordinate=(5, 5, 5), space_id="foo"),
+            Qualification.CONTAINS,
+            None,
+        ],
+        [
+            bbox_foo_5_10,
+            Pt(coordinate=(10, 10, 10), space_id="foo"),
+            Qualification.CONTAINS,
+            None,
+        ],
+        [
+            bbox_foo_5_10,
+            Pt(coordinate=(10, 5, 10), space_id="foo"),
+            Qualification.CONTAINS,
+            None,
+        ],
+        [
+            bbox_foo_5_10,
+            Pt(coordinate=(10, 7, 10), space_id="foo"),
+            Qualification.CONTAINS,
+            None,
+        ],
     ],
 )
-def test_compare_loc_to_loc(bbox: BBox, pt: Pt, expected: bool, ExCls: Type[Exception]):
+def test_compare_loc_to_loc(arg1, arg2, expected: bool, ExCls: Type[Exception]):
     if ExCls:
         with pytest.raises(ExCls):
-            compare_loc_to_loc(pt, bbox)
+            qualify(arg1, arg2)
         return
-    assert expected == compare_loc_to_loc(pt, bbox)
+    assert expected == qualify(arg1, arg2)

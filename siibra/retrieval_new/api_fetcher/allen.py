@@ -9,11 +9,11 @@ from time import sleep
 from ...commons import logger
 from ...cache import fn_call_cache
 from ...assignment import register_collection_generator
-from ...assignment.attribute_match import intersect_ptcld_image
 from ...concepts import Feature, AttributeCollection
 from ...descriptions import Gene, Modality, register_modalities
 from ...locations import PointCloud
 from ...dataitems import Image, Tabular
+from ...dataitems.image import intersect_ptcld_image
 from ...dataitems.tabular import X_DATA
 from ...exceptions import ExternalApiException
 
@@ -295,7 +295,6 @@ def query_allen_gene_api(input: AttributeCollection):
         space_id=MNI152_SPACE_ID,
         coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
     )
-
     intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
     inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
@@ -308,6 +307,8 @@ def query_allen_gene_api(input: AttributeCollection):
     )
     tabular_data_attr = Tabular(extra={X_DATA: dataframe})
     attributes.append(tabular_data_attr)
-    feature = Feature(attributes=attributes)
 
-    yield from [feature]
+    ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))
+    attributes.append(ptcld)
+
+    yield Feature(attributes=attributes)

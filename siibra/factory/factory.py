@@ -1,7 +1,6 @@
 from typing import Dict, Callable, List
 from functools import wraps
 
-
 from ..concepts.attribute import Attribute
 from ..concepts.attribute_collection import AttributeCollection
 from ..concepts.feature import Feature
@@ -116,6 +115,9 @@ def build_parcellation(dict_obj: dict):
     species: SpeciesSpec = assert_ooo(
         filter(lambda a: isinstance(a, SpeciesSpec), attributes)
     )
+    name_attribute: Name = assert_ooo([attr for attr in attributes if isinstance(attr, ID)])
+
+    attributes += (RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),)
 
     return parcellation.Parcellation(
         attributes=attributes,

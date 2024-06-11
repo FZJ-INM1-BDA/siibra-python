@@ -11,6 +11,7 @@ from ...commons_new.comparison import Comparison
 
 _loc_intersection = Comparison[Location, Union[Location, None]]()
 
+
 @_loc_intersection.register(Pt, Pt)
 def pt_pt(pta: Pt, ptb: Pt):
     if pta.space_id != ptb.space_id:
@@ -18,12 +19,14 @@ def pt_pt(pta: Pt, ptb: Pt):
     if pta.coordinate == ptb.coordinate:
         return replace(pta)
 
+
 @_loc_intersection.register(Pt, PointCloud)
 def pt_ptcld(pt: Pt, ptcld: PointCloud):
     if pt.space_id != ptcld.space_id:
         raise InvalidAttrCompException
     if pt.coordinate in ptcld.coordinates:
         return replace(pt)
+
 
 @_loc_intersection.register(Pt, BBox)
 def pt_bbox(pt: Pt, bbox: BBox):
@@ -35,6 +38,7 @@ def pt_bbox(pt: Pt, bbox: BBox):
     if np.all(minpoint <= pts) and np.all(pts <= maxpoint):
         return replace(pt)
 
+
 @_loc_intersection.register(PointCloud, PointCloud)
 def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     if ptclda.space_id != ptcldb.space_id:
@@ -45,7 +49,7 @@ def ptcld_ptcld(ptclda: PointCloud, ptcldb: PointCloud):
     if len(pts) == 1:
         return pts[0]
     return replace(ptclda, coordinates=[pt.coordinate for pt in pts])
-    
+
 
 @_loc_intersection.register(PointCloud, BBox)
 def ptcld_bbox(ptcld: PointCloud, bbox: BBox):
@@ -76,9 +80,8 @@ def bbox_bbox(bboxa: BBox, bboxb: BBox):
         result_min_coord.append(A[dim])
         result_max_coord.append(B[dim])
 
-    return replace(bboxa,
-                    minpoint=result_min_coord,
-                    maxpoint=result_max_coord)
+    return replace(bboxa, minpoint=result_min_coord, maxpoint=result_max_coord)
+
 
 def intersect(loca: Location, locb: Location):
     value = _loc_intersection.get(loca, locb)
