@@ -2,7 +2,7 @@ from typing import Union
 from itertools import product
 
 from .qualification import Qualification
-from ..dataitems import Image
+from ..dataitems import image
 from ..commons import logger
 from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match, clear_name
@@ -216,15 +216,16 @@ def qualify_bbox_bbox(bboxa: BBox, bboxb: BBox):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(PointCloud, Image)
-def qualify_ptcld_image(ptcld: PointCloud, image: Image):
-    intersected = intersect(ptcld, image)
-    if isinstance(intersected, PointCloud):
-        if len(intersected.coordinates) == len(ptcld.coordinates):
-            return Qualification.CONTAINED
-        return Qualification.OVERLAPS
-    if isinstance(intersected, Pt):
-        return Qualification.OVERLAPS
+# TODO: solve circular import issue
+# @register_attr_qualifier(PointCloud, image.Image)
+# def qualify_ptcld_image(ptcld: PointCloud, image: image.Image):
+#     intersected = intersect(ptcld, image)
+#     if isinstance(intersected, PointCloud):
+#         if len(intersected.coordinates) == len(ptcld.coordinates):
+#             return Qualification.CONTAINED
+#         return Qualification.OVERLAPS
+#     if isinstance(intersected, Pt):
+#         return Qualification.OVERLAPS
 
 
 # TODO implement

@@ -12,8 +12,7 @@ from ...assignment import register_collection_generator
 from ...concepts import Feature, AttributeCollection
 from ...descriptions import Gene, Modality, register_modalities
 from ...locations import PointCloud
-from ...dataitems import Image, Tabular
-from ...dataitems.image import intersect_ptcld_image
+from ...dataitems import image as _image, tabular
 from ...dataitems.tabular import X_DATA
 from ...exceptions import ExternalApiException
 
@@ -272,7 +271,7 @@ def query_allen_gene_api(input: AttributeCollection):
         )
         return
 
-    images = input._find(Image)
+    images = input._find(_image.Image)
     if len(images) == 0:
         logger.error(
             f"{modality_of_interest.value} was queried, but input contains no image. Returning empty array."
@@ -295,7 +294,7 @@ def query_allen_gene_api(input: AttributeCollection):
         space_id=MNI152_SPACE_ID,
         coordinates=[measure["mni_xyz"] for measure in retrieved_measurements],
     )
-    intersection = intersect_ptcld_image(ptcloud=ptcld, image=image)
+    intersection = _image.intersect_ptcld_image(ptcloud=ptcld, image=image)
     inside_coord_set = set(tuple(coord) for coord in intersection.coordinates)
 
     dataframe = pd.DataFrame.from_dict(
@@ -305,7 +304,7 @@ def query_allen_gene_api(input: AttributeCollection):
             if tuple(measurement["mni_xyz"]) in inside_coord_set
         ]
     )
-    tabular_data_attr = Tabular(extra={X_DATA: dataframe})
+    tabular_data_attr = tabular.Tabular(extra={X_DATA: dataframe})
     attributes.append(tabular_data_attr)
 
     ptcld = PointCloud(space_id=MNI152_SPACE_ID, coordinates=list(inside_coord_set))
