@@ -26,7 +26,7 @@ class Space(AtlasElement):
 
     @property
     def provides_volume(self):
-        return len(self.meshes) > 0
+        return len(self.volumes) > 0
 
     def get_template(self, variant: str = None):
         for img in self.images:
