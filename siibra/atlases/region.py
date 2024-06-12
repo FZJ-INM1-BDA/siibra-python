@@ -18,11 +18,14 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         self.children = children
 
     def __eq__(self, other: "Region") -> bool:
-        # Otherwise, == comparisonn result in max stack
+        # Otherwise, == comparison result in max stack
         return self.id == other.id
 
     def __hash__(self):
         return hash(self.id)
+
+    def __repr__(self) -> str:
+        return f"Region<{self.name!r} in {self.parcellation.name!r}>"
 
     @property
     def parcellation(self):

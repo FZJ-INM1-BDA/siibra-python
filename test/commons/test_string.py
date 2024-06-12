@@ -17,6 +17,8 @@ def test_splitstr(input, expected):
 
 
 fuzzy_match_args = [
+    ("julich 3.0.3", "Julich-Brain v3.0.3", True),
+    ("julich 9", "Julich-Brain Cytoarchitectonic Atlas (v2.9)", False),
     ("v2.9", "Julich-Brain Cytoarchitectonic Atlas (v2.9)", True),
     ("2.9", "Julich-Brain Cytoarchitectonic Atlas (v2.9)", True),
     ("julich 2.9", "Julich-Brain Cytoarchitectonic Atlas (v2.9)", True),

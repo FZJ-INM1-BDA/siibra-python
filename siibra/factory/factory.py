@@ -115,7 +115,7 @@ def build_parcellation(dict_obj: dict):
     species: SpeciesSpec = assert_ooo(
         filter(lambda a: isinstance(a, SpeciesSpec), attributes)
     )
-    name_attribute: Name = assert_ooo([attr for attr in attributes if isinstance(attr, ID)])
+    name_attribute: Name = assert_ooo([attr for attr in attributes if isinstance(attr, Name)])
 
     attributes += (RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),)
 

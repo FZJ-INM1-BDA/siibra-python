@@ -100,7 +100,6 @@ class QueryCursor:
     def exec_explain(self, fully=False):
         for feat in get(self.first_pass_param, Feature):
             try:
-                print("got feat, trying to qualify")
                 qualificationiter = collection_qualify(self.query_param, feat)
 
                 if fully:
@@ -115,11 +114,9 @@ class QueryCursor:
                 yield feat, QueryCursor.explain(*qualification), [qualification]
                 continue
 
-            except UnregisteredAttrCompException as e:
-                print("exc???", e)
+            except UnregisteredAttrCompException:
                 continue
             except StopIteration:
-                print("couodn't do it")
                 continue
 
     @staticmethod
