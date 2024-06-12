@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from typing import Tuple, TYPE_CHECKING, Set, List
+from dataclasses import dataclass, asdict
+from typing import Tuple, TYPE_CHECKING, Set
 
-from ..concepts import atlas_elements
-from ..dataitems import image as _image
+from ..assignment import iter_attr_col
+from ..concepts import AtlasElement
 from ..retrieval_new.image_fetcher import FetchKwargs
 from ..descriptions import RGBColor
 from ..commons_new.iterable import assert_ooo
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class Map(atlas_elements.AtlasElement):
+class Map(AtlasElement):
     schema: str = "siibra/atlases/parcellation_map/v0.1"
     parcellation_id: str = None
     space_id: str = None
@@ -28,17 +28,19 @@ class Map(atlas_elements.AtlasElement):
             spec is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
         super().__post_init__()
-        self._images = self._find(_image.Image)
+        from ..dataitems import Image
+
+        self._images = self._find(Image)
 
     @property
     def parcellation(self) -> "Parcellation":
-        # TODO
-        # get the parcellation object
-        return self.parcellation_id
+        return assert_ooo([parc
+                           for parc in iter_attr_col(Parcellation)
+                           if parc.id == self.parcellation_id])
 
     @property
     def regions(self) -> Tuple[str]:
-        return (im.extra["x-regionname"] for im in self._images),
+        return ((im.extra["x-regionname"] for im in self._images),)
 
     def _get_image_keys(self, regionname: str) -> Set[str]:
         try:
@@ -54,14 +56,23 @@ class Map(atlas_elements.AtlasElement):
             )  # TODO: create a raise type
         return {index.get("key") for index in self._indices[matched_region]}
 
-    def get_image(self, regionname: str = None, frmt: str = None) -> "_image.Image":
-        format_filter = lambda im: frmt == im.format
-        region_filter = lambda im: fuzzy_match(regionname, im.extra["x-regionname"])
-        if regionname is None:
-            filter_func = lambda im: format_filter(im) if frmt is not None else True
-        else:
-            filter_func = lambda im: format_filter(im) and region_filter(im) if frmt is not None else region_filter(im)
-        images = list(filter(filter_func, self._images))
+    def get_image(self, regionname: str = None, frmt: str = None):
+        from ..dataitems import Image
+
+        def filter_fn(im: Image):
+            if regionname is None:
+                if frmt is None:
+                    return True
+                return frmt == im.format
+
+            if fuzzy_match(regionname, im.extra["x-regionname"]):
+                if frmt:
+                    return frmt == im.format
+                return True
+
+            return False
+
+        images = [im for im in self._images if filter_fn(im)]
         return assert_ooo(images)
 
     def fetch(
@@ -72,7 +83,7 @@ class Map(atlas_elements.AtlasElement):
         resolution_mm: float = None,
         max_bytes: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
-        label: int = None
+        label: int = None,
     ):
         image = self.get_image(regionname=regionname, frmt=frmt)
         fetch_kwargs = FetchKwargs(
@@ -80,15 +91,15 @@ class Map(atlas_elements.AtlasElement):
             resolution_mm=resolution_mm,
             color_channel=color_channel,
             max_download_GB=max_bytes,
-            label=label
+            label=label,
         )
-        return image.fetch(**fetch_kwargs.as_dict())
+        return image.fetch(**asdict(fetch_kwargs))
 
     def get_colormap(self):
         # TODO
         # should return a matplotlib colormap
-        # also, the rgb value shoul be stored in the map
-        clrs = {r: assert_ooo(self.get(RGBColor)) for r in self.regions}
+        # also, the rgb value should be stored in the map
+        clrs = {r: assert_ooo(self._get(RGBColor)) for r in self.regions}
         return clrs
 
 
