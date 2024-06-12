@@ -2,11 +2,10 @@ import json
 from typing import TypedDict, List, Dict
 
 from ...retrieval_new.file_fetcher import GitHttpRepository, TarRepository
-from ...commons import logger, KeyAccessor
 from ...concepts import Attribute, AttributeCollection
 from ...atlases import Parcellation, Region, Space
 from ...descriptions import Name, RGBColor, Url, SpeciesSpec, ID
-from ...assignment import register_collection_generator, collection_match
+from ...commons import logger
 
 url = "https://gin.g-node.org/BrainGlobe/atlases.git"
 fileurl = "https://gin.g-node.org/BrainGlobe/atlases/raw/master/{filename}.tar.gz"
@@ -106,6 +105,8 @@ def populate_regions(
 
 
 def use(atlas_name: str):
+    from ...assignment import register_collection_generator, collection_match
+
     if atlas_name in _registered_atlas:
         logger.info(f"{atlas_name} is already loaded.")
         return

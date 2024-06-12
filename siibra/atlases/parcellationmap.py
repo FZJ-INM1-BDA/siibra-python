@@ -8,6 +8,7 @@ from ..descriptions import RGBColor
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.string import fuzzy_match
 from ..atlases import Parcellation
+from ..dataitems import Image
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -28,7 +29,6 @@ class Map(AtlasElement):
             spec is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
         super().__post_init__()
-        from ..dataitems import Image
 
         self._images = self._find(Image)
 

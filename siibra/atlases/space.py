@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from ..concepts import AtlasElement
+from ..dataitems import Image
 
 
 @dataclass
@@ -9,13 +10,11 @@ class Space(AtlasElement):
 
     @property
     def images(self):
-        from ..dataitems import Image
         return self._find(Image)
 
     @property
     def variants(self):
-        from ..dataitems import Image
-        return {tmp.variant for tmp in self.images if isinstance(tmp, Image)}
+        return {tmp.variant for tmp in self.images}
 
     @property
     def meshes(self):
