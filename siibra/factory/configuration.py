@@ -44,6 +44,9 @@ class Configuration:
         repo = self.default_repos[0]
 
         for file in repo.search_files(prefix):
+            if not file.endswith(".json"):
+                logger.debug(f"{file} does not end with .json, skipped")
+                continue
             yield json.loads(repo.get(file))
 
     def iter_type(self, _type: str):
