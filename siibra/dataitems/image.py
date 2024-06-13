@@ -154,8 +154,8 @@ class Image(Data, base.Location):
             # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
             img = fetch_voi(img, bbox)
 
-        if self.extra["x-label"] is not None:
-            img = fetch_label_mask(img, self.extra["x-label"])
+        if "label" in self.subimage_options:
+            img = fetch_label_mask(img, self.subimage_options["label"])
 
         if resolution_mm is not None:
             if self.format == "neuroglancer/precomputed":

@@ -7,7 +7,7 @@ from ..retrieval_new.image_fetcher import FetchKwargs
 from ..commons_new.iterable import assert_ooo, get_ooo
 from ..commons_new.string import fuzzy_match
 from ..atlases import Parcellation
-from ..dataitems import Image, VOLUME_FORMATS
+from ..dataitems import Image, IMAGE_FORMATS
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -67,26 +67,25 @@ class Map(AtlasElement):
 
     def get_image(self, regionname: str = None, frmt: str = None):
 
+        if frmt is None:
+            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
+
         def filter_format(attr: Image):
             return True if frmt is None else attr.format == frmt
 
         if regionname is None:
+            # BUG
             images = [
                 im
                 for im in self._images
                 if filter_format(im.format)
             ]
-
         else:
             candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
             selected_region = assert_ooo(candidates)
-            images = [
-                im
-                for im in self.index_mapping[selected_region]._find(Image)
-                if filter_format(im.format)
-            ]
+            images = self.index_mapping[selected_region]._find(Image)
 
-        return get_ooo(images)
+        return get_ooo(images, filter_format)
 
     def fetch(
         self,
@@ -111,7 +110,7 @@ class Map(AtlasElement):
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
         # TODO: should return a matplotlib colormap
         if frmt is None:
-            frmt = [f for f in VOLUME_FORMATS if f in self.image_formats][0]
+            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
         else:
             assert frmt in self.image_formats
 
