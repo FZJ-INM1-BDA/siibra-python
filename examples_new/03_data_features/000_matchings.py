@@ -122,4 +122,3 @@ features = siibra.find_features(v1l, siibra.modality_types.GENE_EXPRESSIONS, gen
 assert len(features) == 1
 feature, explanation, *_ = features[0]
 print(explanation)
-

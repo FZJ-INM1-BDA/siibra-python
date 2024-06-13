@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Dict, Union
 import pandas as pd
 from io import BytesIO
 
@@ -23,6 +23,10 @@ class Tabular(Data):
         return pd.read_csv(self.url, **self.parse_options)
 
     def plot(self, *args, **kwargs):
+        if "scatter" in self.plot_options:
+            scatter_kwargs: Dict[str, Union[str, int, float]] = self.plot_options.get("scatter").copy()
+            scatter_kwargs.update(kwargs)
+            return self.get_data().plot.scatter(*args, **scatter_kwargs)
         plot_kwargs = self.plot_options.copy()
         plot_kwargs.update(kwargs)
         return self.get_data().plot(*args, **plot_kwargs)

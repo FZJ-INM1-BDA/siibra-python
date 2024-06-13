@@ -97,11 +97,11 @@ def qualify_modality(mod1: Modality, mod2: Modality):
 @register_attr_qualifier(RegionSpec, RegionSpec)
 @fn_call_cache
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
-    from .assignment import get
+    from .assignment import find
     from ..atlases import Region
 
-    region1s = get(QueryParam(attributes=[regspec1]), Region)
-    region2s = get(QueryParam(attributes=[regspec2]), Region)
+    region1s = find(QueryParam(attributes=[regspec1]), Region)
+    region2s = find(QueryParam(attributes=[regspec2]), Region)
 
     for region1, region2 in product(region1s, region2s):
         if region1 in region2.ancestors:

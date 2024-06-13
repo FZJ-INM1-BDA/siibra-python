@@ -39,7 +39,7 @@ V = TypeVar("V", bound=AttributeCollection)
 
 def iter_attr_col(reg_type: Type[V]) -> Iterable[V]:
     collection = AttributeCollection(attributes=[TruthyAttr()])
-    yield from get(collection, reg_type)
+    yield from find(collection, reg_type)
 
 
 def attr_col_as_dict(reg_type: Type[V]) -> Dict[str, V]:
@@ -54,7 +54,7 @@ def attr_col_as_dict(reg_type: Type[V]) -> Dict[str, V]:
     return return_dict
 
 
-def getiter(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
+def finditer(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
     for fn in collection_gen[req_type]:
         try:
             yield from fn(input)
@@ -62,15 +62,15 @@ def getiter(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
             continue
 
 
-def get(input: AttributeCollection, req_type: Type[V]) -> List[V]:
-    return [item for item in getiter(input, req_type)]
+def find(input: AttributeCollection, req_type: Type[V]) -> List[V]:
+    return [item for item in finditer(input, req_type)]
 
 
 def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
     id_attr = ID(value=input)
     name_attr = Name(value=input)
     query = QueryParam(attributes=[id_attr, name_attr])
-    yield from get(query, req_type)
+    yield from find(query, req_type)
 
 
 def filter_collections(

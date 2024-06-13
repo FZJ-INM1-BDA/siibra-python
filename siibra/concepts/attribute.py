@@ -5,6 +5,10 @@ from ..commons import logger
 SCHEMAS = {}
 
 
+def key_is_extra(key: str):
+    return key.startswith("x-") or key.startswith("aggregate-by/")
+
+
 @dataclass
 class Attribute:
     """Base clase for attributes."""
@@ -37,12 +41,23 @@ class Attribute:
             return []
 
         return_attr: "Attribute" = Cls(
-            **{key: json_dict[key] for key in json_dict if not key.startswith("x-")}
+            **{key: json_dict[key] for key in json_dict if not key_is_extra(key)}
         )
         for key in json_dict:
-            if key.startswith("x-"):
+            if key_is_extra(key):
                 return_attr.extra[key] = json_dict[key]
         return [return_attr]
+
+    @property
+    def aggregate_by(self):
+        from ..descriptions import AggregateBy
+
+        # TODO use str.removeprefix when py3.9 is the lowest python version supported
+        return [
+            AggregateBy(key=key.replace("aggregate-by/", ""), value=self.extra[key])
+            for key in self.extra
+            if key.startswith("aggregate-by/")
+        ]
 
 
 @dataclass

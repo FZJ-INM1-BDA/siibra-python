@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Union, Tuple
 import pandas as pd
 
-from .assignment import get, match as collection_match, qualify as collection_qualify
+from .assignment import find, match as collection_match, qualify as collection_qualify
 from .qualification import Qualification
 from ..atlases import Region
 from ..commons import logger
@@ -93,12 +93,12 @@ class QueryCursor:
     def exec(self):
         return [
             feat
-            for feat in get(self.first_pass_param, Feature)
+            for feat in find(self.first_pass_param, Feature)
             if collection_match(self.query_param, feat)
         ]
 
     def exec_explain(self, fully=False):
-        for feat in get(self.first_pass_param, Feature):
+        for feat in find(self.first_pass_param, Feature):
             try:
                 qualificationiter = collection_qualify(self.query_param, feat)
 
@@ -129,6 +129,7 @@ class QueryCursor:
     def __len__(self):
         return len(self.exec())
 
+    @property
     def aggregate_by(self):
         return pd.DataFrame(
             [

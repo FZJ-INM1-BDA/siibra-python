@@ -41,7 +41,7 @@ from .assignment import (
     string_search,
     attr_col_as_dict,
     iter_attr_col,
-    get,
+    find,
     collection_match,
     QueryCursor,
 )
@@ -128,7 +128,7 @@ def find_regions(parcellation_spec: str, regionspec: str):
     return [
         reg
         for parcellation_id in parcellation_ids
-        for reg in get(
+        for reg in find(
             QueryParam(
                 attributes=[
                     RegionSpec(parcellation_id=parcellation_id, value=regionspec)
