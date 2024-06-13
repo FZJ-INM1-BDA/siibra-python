@@ -11,6 +11,7 @@ from ..concepts.attribute import TruthyAttr
 from ..exceptions import UnregisteredAttrCompException
 from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
 from ..locations import Pt, PointCloud, BBox, intersect
+from ..cache import fn_call_cache
 
 
 _attr_qual: Comparison[Attribute, Union[Qualification, None]] = Comparison()
@@ -94,6 +95,7 @@ def qualify_modality(mod1: Modality, mod2: Modality):
 
 
 @register_attr_qualifier(RegionSpec, RegionSpec)
+@fn_call_cache
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
     from .assignment import get
     from ..atlases import Region

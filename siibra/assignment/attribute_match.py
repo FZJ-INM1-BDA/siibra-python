@@ -1,6 +1,6 @@
 from ..commons import logger
 from ..commons_new.comparison import Comparison
-from ..commons_new.string import fuzzy_match, clear_name
+from ..commons_new.string import fuzzy_match
 from ..concepts import Attribute
 from ..concepts.attribute import TruthyAttr
 from ..exceptions import UnregisteredAttrCompException
@@ -78,18 +78,8 @@ def compare_modality(mod1: Modality, mod2: Modality):
 
 @register_attr_comparison(RegionSpec, RegionSpec)
 def compare_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
-    if (
-        regspec1.parcellation_id is not None
-        and regspec2.parcellation_id is not None
-        and regspec1.parcellation_id != regspec2.parcellation_id
-    ):
-        return False
-
-    cleaned_name1 = clear_name(regspec1.value)
-    cleaned_name2 = clear_name(regspec2.value)
-    return fuzzy_match(cleaned_name1, cleaned_name2) or fuzzy_match(
-        cleaned_name2, cleaned_name1
-    )
+    from .attribute_qualification import qualify_regionspec
+    return qualify_regionspec(regspec1, regspec2) is not None
 
 
 @register_attr_comparison(Pt, Pt)

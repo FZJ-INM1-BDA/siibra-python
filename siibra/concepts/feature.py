@@ -32,3 +32,14 @@ class Feature(AttributeCollection):
         from ..descriptions import AggregateBy
 
         return self._find(AggregateBy)
+
+    @property
+    def data(self):
+        from ..dataitems import Tabular
+
+        return [d.get_data() for d in self._find(Tabular)]
+
+    def plot(self, *args, **kwargs):
+        from ..dataitems import Tabular
+
+        return [d.plot(*args, **kwargs) for d in self._find(Tabular)]
