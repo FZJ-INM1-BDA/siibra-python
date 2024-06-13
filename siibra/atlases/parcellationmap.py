@@ -1,19 +1,19 @@
 from dataclasses import dataclass, asdict
-from typing import Tuple, TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, List, DefaultDict, Set
 
 from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
 from ..retrieval_new.image_fetcher import FetchKwargs
-from ..descriptions import RGBColor
-from ..commons_new.iterable import assert_ooo
+from ..commons_new.iterable import assert_ooo, get_ooo
 from ..commons_new.string import fuzzy_match
 from ..atlases import Parcellation
-from ..dataitems import Image
+from ..dataitems import Image, VOLUME_FORMATS
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..locations import BBox
+    from ..concepts.attribute_collection import AttributeCollection
 
 
 @dataclass
@@ -22,58 +22,71 @@ class Map(AtlasElement):
     parcellation_id: str = None
     space_id: str = None
     maptype: str = None
+    index_mapping: DefaultDict[str, "AttributeCollection"] = None
 
     def __post_init__(self):
-        essential_specs = {"parcellation_id", "space_id", "maptype"}
+        essential_specs = {"parcellation_id", "space_id", "maptype", "index_mapping"}
         assert all(
             spec is not None for spec in essential_specs
         ), f"Cannot create a parcellation `Map` without {essential_specs}"
         super().__post_init__()
 
-        self._images = self._find(Image)
+    @property
+    def provides_mesh(self):
+        return any(im.provides_mesh for im in self._images)
+
+    @property
+    def provides_volume(self):
+        return any(im.provides_volume for im in self._images)
 
     @property
     def parcellation(self) -> "Parcellation":
-        return assert_ooo([parc
-                           for parc in iter_attr_col(Parcellation)
-                           if parc.id == self.parcellation_id])
+        return assert_ooo(
+            [
+                parc
+                for parc in iter_attr_col(Parcellation)
+                if parc.id == self.parcellation_id
+            ]
+        )
 
     @property
-    def regions(self) -> Tuple[str]:
-        return ((im.extra["x-regionname"] for im in self._images),)
+    def regions(self) -> List[str]:
+        return list(self.index_mapping.keys())
 
-    def _get_image_keys(self, regionname: str) -> Set[str]:
-        try:
-            matched_regions = {
-                r.name
-                for r in (self.parcellation.find(regionname))
-                if r.name in self.regions
-            }
-            matched_region = assert_ooo(matched_regions)
-        except AssertionError:
-            raise RuntimeError(
-                f"'{regionname}' matches several regions in this map: {matched_regions}"
-            )  # TODO: create a raise type
-        return {index.get("key") for index in self._indices[matched_region]}
+    @property
+    def _images(self) -> List["Image"]:
+        return [
+            im
+            for attrcols in self.index_mapping.values()
+            for im in attrcols._find(Image)
+        ]
+
+    @property
+    def image_formats(self) -> Set[str]:
+        return {im.format for im in self._images}
 
     def get_image(self, regionname: str = None, frmt: str = None):
-        from ..dataitems import Image
 
-        def filter_fn(im: Image):
-            if regionname is None:
-                if frmt is None:
-                    return True
-                return frmt == im.format
+        def filter_format(attr: Image):
+            return True if frmt is None else attr.format == frmt
 
-            if fuzzy_match(regionname, im.extra["x-regionname"]):
-                if frmt:
-                    return frmt == im.format
-                return True
+        if regionname is None:
+            images = [
+                im
+                for im in self._images
+                if filter_format(im.format)
+            ]
 
-            return False
+        else:
+            candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
+            selected_region = assert_ooo(candidates)
+            images = [
+                im
+                for im in self.index_mapping[selected_region]._find(Image)
+                if filter_format(im.format)
+            ]
 
-        images = [im for im in self._images if filter_fn(im)]
-        return assert_ooo(images)
+        return get_ooo(images)
 
     def fetch(
         self,
@@ -95,14 +108,25 @@ class Map(AtlasElement):
         )
         return image.fetch(**asdict(fetch_kwargs))
 
-    def get_colormap(self):
-        # TODO
-        # should return a matplotlib colormap
-        # also, the rgb value should be stored in the map
-        clrs = {r: assert_ooo(self._get(RGBColor)) for r in self.regions}
-        return clrs
+    def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
+        # TODO: should return a matplotlib colormap
+        if frmt is None:
+            frmt = [f for f in VOLUME_FORMATS if f in self.image_formats][0]
+        else:
+            assert frmt in self.image_formats
+
+        if regions is None:
+            regions = self.regions
+        return {
+            im.subimage_options["label"]: im.color
+            for region in regions
+            for im in self.index_mapping[region]._find(Image)
+            if im.format == frmt
+        }
 
 
 @dataclass
 class SparseMap(Map):
-    pass
+
+    def __post_init__(self):
+        super().__post_init__()

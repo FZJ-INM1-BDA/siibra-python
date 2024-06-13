@@ -14,6 +14,14 @@ T = Callable[[Dict], AttributeCollection]
 build_registry: Dict[str, T] = {}
 
 
+def extract_attributes(attribute_objs):
+    return tuple(
+        att
+        for attribute_obj in attribute_objs
+        for att in Attribute.from_dict(attribute_obj)
+    )
+
+
 def register_build_type(type_str: str):
     def outer(fn: T):
 
@@ -34,11 +42,7 @@ def register_build_type(type_str: str):
 def build_feature(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = tuple(
-        att
-        for attribute_obj in attribute_objs
-        for att in Attribute.from_dict(attribute_obj)
-    )
+    attributes = extract_attributes(attribute_objs)
     return Feature(attributes=attributes, **dict_obj)
 
 
@@ -63,11 +67,7 @@ def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None
     """
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = tuple(
-        att
-        for attribute_obj in attribute_objs
-        for att in Attribute.from_dict(attribute_obj)
-    )
+    attributes = extract_attributes(attribute_objs)
 
     name_attributes: List[Name] = list(
         filter(lambda a: isinstance(a, Name), attributes)
@@ -105,11 +105,7 @@ def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None
 def build_parcellation(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = tuple(
-        att
-        for attribute_obj in attribute_objs
-        for att in Attribute.from_dict(attribute_obj)
-    )
+    attributes = extract_attributes(attribute_objs)
 
     id_attribute: ID = assert_ooo(filter(lambda a: isinstance(a, ID), attributes))
     species: SpeciesSpec = assert_ooo(
@@ -134,29 +130,30 @@ def build_parcellation(dict_obj: dict):
 def build_space(dict_obj):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = tuple(
-        att
-        for attribute_obj in attribute_objs
-        for att in Attribute.from_dict(attribute_obj)
-    )
+    attributes = extract_attributes(attribute_objs)
     return space.Space(attributes=attributes)
 
 
 @register_build_type(parcellationmap.Map.schema)
 def build_map(dict_obj):
     dict_obj.pop("@type", None)
-    MapType = parcellationmap.SparseMap if dict_obj.pop("sparsemap", False) else parcellationmap.Map
+    if dict_obj.pop("sparsemap", False):
+        MapType = parcellationmap.SparseMap
+    else:
+        MapType = parcellationmap.Map
+
+    index_mapping = {}
+    for regionname, region_attrs in dict_obj.pop("index_mapping", None).items():
+        index_mapping[regionname] = AttributeCollection(attributes=extract_attributes(region_attrs))
+
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = tuple(
-        att
-        for attribute_obj in attribute_objs
-        for att in Attribute.from_dict(attribute_obj)
-    )
-    return MapType(attributes=attributes, **dict_obj)
+    attributes = extract_attributes(attribute_objs)
+
+    return MapType(attributes=attributes, index_mapping=index_mapping, **dict_obj)
 
 
 def build_object(dict_obj: Dict):
-    schema = dict_obj.get("@type", None)
+    schema = dict_obj.get("@type", None)  # TODO: consider popping instead
     assert (
         schema
     ), f"build_obj require the '@type' property of the object to be populated! {dict_obj=}"

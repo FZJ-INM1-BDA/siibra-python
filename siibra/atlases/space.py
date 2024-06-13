@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from ..concepts import AtlasElement
-from ..dataitems import Image
 
 
 @dataclass
@@ -10,11 +9,13 @@ class Space(AtlasElement):
 
     @property
     def images(self):
+        from ..dataitems import Image
+
         return self._find(Image)
 
     @property
     def variants(self):
-        return {tmp.variant for tmp in self.images}
+        return {tmp.extra.get("variant", "") for tmp in self.images}
 
     @property
     def meshes(self):
@@ -35,8 +36,7 @@ class Space(AtlasElement):
     def get_template(self, variant: str = None):
         if variant:
             for img in self.images:
-                if variant.lower() in img.variant.lower():
+                if variant.lower() in img.extra.get("variant", "").lower():
                     return img
-
         else:
             pass

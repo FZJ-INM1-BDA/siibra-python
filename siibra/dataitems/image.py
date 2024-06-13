@@ -1,7 +1,8 @@
 from dataclasses import dataclass, replace
-from typing import Literal, TYPE_CHECKING
+from typing import TYPE_CHECKING, DefaultDict, Any
 from itertools import product
 import requests
+import re
 
 import numpy as np
 import nibabel as nib
@@ -20,15 +21,19 @@ if TYPE_CHECKING:
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
 IMAGE_FRAGMENT = "x-siibra/volume-fragment"
-
-MESH_FORMATS = (
-    "gii-mesh",
-)
-
-VOLUME_FORMATS = {
+HEX_COLOR_REGEX = r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
+VOLUME_FORMATS = [
     "nii",
     "neuroglancer/precomputed",
-}
+]
+MESH_FORMATS = [
+    "neuroglancer/precompmesh",
+    "gii-mesh",
+    "gii-label",
+    "fsaverage-annot",
+]
+IMAGE_FORMATS = VOLUME_FORMATS + MESH_FORMATS
 
 
 def fetch_voi(nifti: nib.Nifti1Image, voi: "BBox"):
@@ -63,17 +68,32 @@ def resample(
     pass
 
 
+def is_hex_color(color: str):
+    regexp = re.compile(HEX_COLOR_REGEX)
+    return True if regexp.search(color) else False
+
+
+def check_color(color: str):
+    if color in SUPPORTED_COLORMAPS or is_hex_color(color):
+        return True
+    return False
+
+
 @dataclass
 class Image(Data, base.Location):
     schema: str = "siibra/attr/data/image/v0.1"
-    format: Literal["nii", "neuroglancer/precomputed"] = None
+    format: str = None  # see `image.IMAGE_FORMATS`
     url: str = None
+    color: str = None
+    subimage_options: DefaultDict[str, Any] = None
 
     def __post_init__(self):
         if self.format not in image_fetcher.ImageFetcher.SUBCLASSES:
             return
         fetcher_type = image_fetcher.ImageFetcher.SUBCLASSES[self.format]
         self._fetcher = fetcher_type(url=self.url)
+        if self.color and not check_color(self.color):
+            print(f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})")
 
     @staticmethod
     @fn_call_cache

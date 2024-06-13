@@ -20,8 +20,6 @@ from .commons import (
     logger,
     QUIET,
     VERBOSE,
-    MapType,
-    MapIndex,
     set_log_level,
     __version__,
 )
@@ -61,8 +59,8 @@ parcellations = JitInstanceTable(getitem=partial(attr_col_as_dict, Parcellation)
 maps = JitInstanceTable(getitem=partial(attr_col_as_dict, parcellationmap.Map))
 
 
-# convenient access to reference space templates
 def get_space(space_spec: str):
+    """Convenient access to reference space templates."""
     searched_spaces = list(string_search(space_spec, Space))
     return assert_ooo(searched_spaces)
 
@@ -72,6 +70,7 @@ def find_spaces(space_spec: str):
 
 
 def get_parcellation(parc_spec: str):
+    """Convenient access to parcellations."""
     searched_parcs = list(string_search(parc_spec, Parcellation))
     return assert_ooo(searched_parcs)
 
@@ -80,11 +79,11 @@ def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, Parcellation))
 
 
-# convenient access to parcellation maps
-def get_map(
-    parcellation: str, space: str, maptype: MapType = MapType.LABELLED, **kwargs
-):
-    raise NotImplementedError
+def get_map(parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""):
+    """Convenient access to parcellation maps."""
+    map_spec = f"{parcellation} {space} {maptype} {extra_spec}"
+    searched_maps = list(string_search(map_spec, parcellationmap.Map))
+    return assert_ooo(searched_maps)
 
 
 def find_features(
