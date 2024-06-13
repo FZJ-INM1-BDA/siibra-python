@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from ..concepts import AtlasElement
-
+from ..dataitems import IMAGE_FORMATS
+from ..commons_new.iterable import get_ooo
 
 @dataclass
 class Space(AtlasElement):
@@ -14,8 +15,12 @@ class Space(AtlasElement):
         return self._find(Image)
 
     @property
+    def image_formats(self):
+        return {img.format for img in self.images}
+
+    @property
     def variants(self):
-        return {tmp.extra.get("variant", "") for tmp in self.images}
+        return {tmp.extra.get("x-siibra/volume-variant") for tmp in self.images} - {None}
 
     @property
     def meshes(self):
@@ -33,10 +38,23 @@ class Space(AtlasElement):
     def provides_volume(self):
         return len(self.volumes) > 0
 
-    def get_template(self, variant: str = None):
-        if variant:
-            for img in self.images:
-                if variant.lower() in img.extra.get("variant", "").lower():
-                    return img
+    def get_template(self, variant: str = None, frmt: str = None, fetch_kwargs=None):
+        if frmt is None:
+            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
         else:
-            pass
+            assert frmt in self.image_formats, f"Requested format '{frmt}' is not available for this space: {self.image_formats=}."
+
+        if variant:
+            if self.variants:
+                images = [
+                    img
+                    for img in self.images
+                    if variant.lower() in img.extra.get("x-siibra/volume-variant", "").lower()
+                ]
+            else:
+                import pdb
+                pdb.set_trace()
+                raise ValueError("This space has no variants.")
+        else:
+            images = self.images
+        return get_ooo([img for img in images], lambda img: img.format == frmt)

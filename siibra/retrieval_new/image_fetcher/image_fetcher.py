@@ -33,7 +33,6 @@ class FetchKwargs:
     bbox: "BBox" = None,
     resolution_mm: float = None,
     max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-    label: int = None,
     color_channel: int = None
 
 

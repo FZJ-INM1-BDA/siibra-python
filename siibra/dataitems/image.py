@@ -1,5 +1,5 @@
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, DefaultDict, Any
+from typing import TYPE_CHECKING, DefaultDict, Literal, Union
 from itertools import product
 import requests
 import re
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
 IMAGE_FRAGMENT = "x-siibra/volume-fragment"
-HEX_COLOR_REGEX = r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$'
+HEX_COLOR_REGEXP = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
 SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
 VOLUME_FORMATS = [
     "nii",
@@ -69,8 +69,7 @@ def resample(
 
 
 def is_hex_color(color: str):
-    regexp = re.compile(HEX_COLOR_REGEX)
-    return True if regexp.search(color) else False
+    return True if HEX_COLOR_REGEXP.search(color) else False
 
 
 def check_color(color: str):
@@ -85,7 +84,10 @@ class Image(Data, base.Location):
     format: str = None  # see `image.IMAGE_FORMATS`
     url: str = None
     color: str = None
-    subimage_options: DefaultDict[str, Any] = None
+    subimage_options: DefaultDict[
+        Literal["label", "z"],
+        Union[int, str]
+    ] = None
 
     def __post_init__(self):
         if self.format not in image_fetcher.ImageFetcher.SUBCLASSES:
@@ -154,7 +156,7 @@ class Image(Data, base.Location):
             # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
             img = fetch_voi(img, bbox)
 
-        if "label" in self.subimage_options:
+        if self.subimage_options and "label" in self.subimage_options:
             img = fetch_label_mask(img, self.subimage_options["label"])
 
         if resolution_mm is not None:
