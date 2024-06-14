@@ -1,7 +1,6 @@
 import json
 from collections import defaultdict
 from typing import Dict, List
-from functools import cache
 
 from .factory import build_feature, build_space, build_parcellation, build_map
 from ..atlases import Space, Parcellation, Region, parcellationmap
@@ -13,6 +12,7 @@ from ..retrieval_new.file_fetcher import (
     GithubRepository,
     LocalDirectoryRepository,
 )
+from ..cache import fn_call_cache
 from ..commons import SIIBRA_USE_CONFIGURATION, logger
 from ..exceptions import UnregisteredAttrCompException
 
@@ -83,7 +83,7 @@ def iter_preconf_spaces(filter_param: AttributeCollection):
             continue
 
 
-@cache
+@fn_call_cache
 def _iter_preconf_parcellations():
     # TODO replace/migrate old configuration here
     cfg = Configuration()
@@ -183,7 +183,7 @@ def iter_cell_body_density(filter_param: AttributeCollection):
         )
 
 
-@cache
+@fn_call_cache
 def _iter_preconf_maps():
     # TODO replace/migrate old configuration here
     cfg = Configuration()
@@ -193,8 +193,14 @@ def _iter_preconf_maps():
 
 @register_collection_generator(parcellationmap.Map)
 def iter_preconf_parcellationmaps(filter_param: AttributeCollection):
+    from ..descriptions import RegionSpec
+
     for mp in _iter_preconf_maps():
         try:
+            found_regions = [region for regspec in filter_param._find(RegionSpec) for region in regspec.decode()]
+            if any((found_region.name in mp.index_mapping for found_region in found_regions)):
+                yield mp
+
             if match(filter_param, mp):
                 yield mp
         except UnregisteredAttrCompException:

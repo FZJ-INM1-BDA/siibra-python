@@ -149,7 +149,11 @@ class Image(Data, base.Location):
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
 
-        img = self._fetcher.fetch()
+        archived_data = super().get_data()
+        if archived_data:
+            img = nib.nifti1.Nifti1Image.from_bytes(archived_data)
+        else:
+            img = self._fetcher.fetch()
 
         if bbox is not None:
             # TODO
@@ -205,7 +209,7 @@ def intersect_ptcld_image(ptcloud: pointset.PointCloud, image: Image) -> pointse
 
     value_outside = 0
 
-    img = image.data
+    img = image.fetch()
     arr = np.asanyarray(img.dataobj)
 
     # transform the points to the voxel space of the volume for extracting values

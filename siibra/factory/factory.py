@@ -1,4 +1,4 @@
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, TypeVar
 from functools import wraps
 
 from ..concepts.attribute import Attribute
@@ -9,12 +9,13 @@ from ..commons import create_key
 from ..commons_new.iterable import assert_ooo
 from ..atlases import region, parcellation, space, parcellationmap
 
-T = Callable[[Dict], AttributeCollection]
 
-build_registry: Dict[str, T] = {}
+V = TypeVar("V")
+
+build_registry: Dict[str, Callable[[Dict], V]] = {}
 
 
-def extract_attributes(attribute_objs):
+def parse_attributes(attribute_objs: List):
     return tuple(
         att
         for attribute_obj in attribute_objs
@@ -23,7 +24,7 @@ def extract_attributes(attribute_objs):
 
 
 def register_build_type(type_str: str):
-    def outer(fn: T):
+    def outer(fn: Callable[[Dict], V]):
 
         @wraps(fn)
         def inner(*args, **kwargs):
@@ -42,7 +43,7 @@ def register_build_type(type_str: str):
 def build_feature(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = extract_attributes(attribute_objs)
+    attributes = parse_attributes(attribute_objs)
     return Feature(attributes=attributes, **dict_obj)
 
 
@@ -67,7 +68,7 @@ def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None
     """
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = extract_attributes(attribute_objs)
+    attributes = parse_attributes(attribute_objs)
 
     name_attributes: List[Name] = list(
         filter(lambda a: isinstance(a, Name), attributes)
@@ -105,15 +106,19 @@ def build_region(dict_obj: dict, parc_id: ID = None, species: SpeciesSpec = None
 def build_parcellation(dict_obj: dict):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = extract_attributes(attribute_objs)
+    attributes = parse_attributes(attribute_objs)
 
     id_attribute: ID = assert_ooo(filter(lambda a: isinstance(a, ID), attributes))
     species: SpeciesSpec = assert_ooo(
         filter(lambda a: isinstance(a, SpeciesSpec), attributes)
     )
-    name_attribute: Name = assert_ooo([attr for attr in attributes if isinstance(attr, Name)])
+    name_attribute: Name = assert_ooo(
+        [attr for attr in attributes if isinstance(attr, Name)]
+    )
 
-    attributes += (RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),)
+    attributes += (
+        RegionSpec(parcellation_id=id_attribute.value, value=name_attribute.value),
+    )
 
     return parcellation.Parcellation(
         attributes=attributes,
@@ -130,7 +135,7 @@ def build_parcellation(dict_obj: dict):
 def build_space(dict_obj):
     dict_obj.pop("@type", None)
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = extract_attributes(attribute_objs)
+    attributes = parse_attributes(attribute_objs)
     return space.Space(attributes=attributes)
 
 
@@ -144,10 +149,12 @@ def build_map(dict_obj):
 
     index_mapping = {}
     for regionname, region_attrs in dict_obj.pop("index_mapping", None).items():
-        index_mapping[regionname] = AttributeCollection(attributes=extract_attributes(region_attrs))
+        index_mapping[regionname] = AttributeCollection(
+            attributes=parse_attributes(region_attrs)
+        )
 
     attribute_objs = dict_obj.pop("attributes", [])
-    attributes = extract_attributes(attribute_objs)
+    attributes = parse_attributes(attribute_objs)
 
     return MapType(attributes=attributes, index_mapping=index_mapping, **dict_obj)
 

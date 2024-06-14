@@ -14,15 +14,17 @@ from ..concepts import QueryParam
 from ..descriptions import ID, Name
 from ..exceptions import InvalidAttrCompException, UnregisteredAttrCompException
 
+V = TypeVar("V")
+
 T = Callable[[AttributeCollection], Iterable[AttributeCollection]]
 
-collection_gen: Dict[Type[AttributeCollection], List[T]] = defaultdict(list)
+collection_gen: Dict[Type[AttributeCollection], List[V]] = defaultdict(list)
 
 
-def register_collection_generator(type_of_col: Type[AttributeCollection]):
+def register_collection_generator(type_of_col: Type[V]):
     """Register function to be called to yield a specific type of AttributeCollection."""
 
-    def outer(fn: T):
+    def outer(fn: Callable[[AttributeCollection], Iterable[V]]):
         collection_gen[type_of_col].append(fn)
 
         @wraps(fn)
@@ -32,9 +34,6 @@ def register_collection_generator(type_of_col: Type[AttributeCollection]):
         return inner
 
     return outer
-
-
-V = TypeVar("V", bound=AttributeCollection)
 
 
 def iter_attr_col(reg_type: Type[V]) -> Iterable[V]:

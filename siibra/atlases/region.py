@@ -1,11 +1,15 @@
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Union, TYPE_CHECKING
 
 import anytree
 
 from ..concepts import atlas_elements
 from ..descriptions import Name
 from ..commons_new.string import get_spec, SPEC_TYPE
+from ..commons_new.iterable import assert_ooo
+
+if TYPE_CHECKING:
+    from .space import Space
 
 
 @dataclass
@@ -55,3 +59,33 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             for child in children
             if any(match_fn(name.value) for name in child._finditer(Name))
         ]
+
+    def finditer_regional_maps(
+        self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"
+    ):
+        from .space import Space
+        from ..assignment import iter_attr_col, string_search
+        from .parcellationmap import Map, VALID_MAPTYPES
+
+        assert maptype in VALID_MAPTYPES, f"maptypes can be in {VALID_MAPTYPES}, but you provided {maptype}"
+
+        if isinstance(space, str):
+            space = assert_ooo(string_search(space, Space))
+
+        assert space is None or isinstance(
+            space, Space
+        ), f"space must be str, Space or None. You provided {space}"
+
+        regions_of_interest = [self, *self.children]
+
+        for mp in iter_attr_col(Map):
+            if maptype != mp.maptype:
+                continue
+            if space and space.id != mp.space_id:
+                continue
+            if self.parcellation.id != mp.parcellation_id:
+                continue
+            yield mp.filter_regions(regions_of_interest)
+
+    def find_regional_maps(self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"):
+        return list(self.finditer_regional_maps(space, maptype))

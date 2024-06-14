@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
-from typing import Tuple, Type, TypeVar, Iterable
+from dataclasses import dataclass, field, replace
+from typing import Tuple, Type, TypeVar, Iterable, Callable
 
 from .attribute import Attribute
 from ..descriptions import Name, ID
@@ -31,3 +31,7 @@ class AttributeCollection:
     @property
     def id(self):
         return self._get(ID).value
+    
+    def filter(self, filter_fn: Callable[[Attribute], bool]):
+        return replace(self, attributes=(attr for attr in self.attributes if filter_fn(attr)))
+

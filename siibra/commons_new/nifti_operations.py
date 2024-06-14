@@ -1,11 +1,8 @@
-from typing import List, TYPE_CHECKING
-
+from typing import List
 import numpy as np
 from nilearn.image import resample_to_img
 from tqdm import tqdm
-
-if TYPE_CHECKING:
-    from nibabel import Nifti1Image
+from nibabel import Nifti1Image
 
 
 def resample_img_to_img(
@@ -36,25 +33,18 @@ def resample_img_to_img(
 
 
 def resample_to_template_and_merge(
-    niftis: List["Nifti1Image"],
-    template_img: "Nifti1Image",
-    labels: List[int] = []
+    niftis: List["Nifti1Image"], template_img: "Nifti1Image", labels: List[int] = []
 ) -> "Nifti1Image":
     assert len(niftis) > 1, "Need to supply at least two volumes to merge."
     if labels:
         assert len(niftis) == len(labels), "Need to supply as many labels as niftis."
-
-    space = niftis[0].space
-    assert all(
-        v.space == space for v in niftis
-    ), "Cannot merge niftis from different spaces."
 
     merged_array = np.zeros(template_img.shape, dtype="uint8")
 
     for i, img in tqdm(
         enumerate(niftis),
         unit=" volume",
-        desc=f"Resampling niftis to {space.name} and merging",
+        desc="Resampling niftis and merging",
         total=len(niftis),
         disable=len(niftis) < 3,
     ):
@@ -68,6 +58,4 @@ def resample_to_template_and_merge(
     return Nifti1Image(
         dataobj=merged_array,
         affine=template_img.affine,
-        space=space,
-        name=f"Resampled and merged niftis: {','.join([v.name for v in niftis])}",
     )

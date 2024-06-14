@@ -56,21 +56,14 @@ class QueryCursor:
     @property
     def indirect_query_params(self):
         if isinstance(self.direct_query_param, Region):
-            if (
-                self.direct_query_param.name
-                != "Area hOc1 (V1, 17, CalcS) - left hemisphere"
-            ):
-                return QueryParam()
             from ..dataitems import Image
 
+            all_maps = self.direct_query_param.find_regional_maps()
             return QueryParam(
-                attributes=[
-                    Image(
-                        format="nii",
-                        space_id="minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
-                        url="https://data-proxy.ebrains.eu/api/v1/buckets/reference-atlas-data/temp/JulichBrainAtlas_3.1/probabilistic-maps_PMs_206-areas/Area-hOc1/Area-hOc1_rh_MNI152.nii.gz",
-                    )
-                ]
+                attributes=(attr
+                            for map in all_maps
+                            for mapped_image_collection in map.index_mapping.values()
+                            for attr in mapped_image_collection._finditer(Image))
             )
 
         return QueryParam()
