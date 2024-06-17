@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Dict, Union
 import pandas as pd
 from io import BytesIO
+from nilearn import plotting
 
 from .base import Data
 
@@ -25,6 +26,10 @@ class Tabular(Data):
         return pd.read_csv(self.url, **self.parse_options)
 
     def plot(self, *args, **kwargs):
+        if "matrix" in self.plot_options:
+            matrix_kwargs: Dict = self.plot_options.get("matrix").copy()
+            matrix_kwargs.update(kwargs)
+            return plotting.plot_matrix(self.get_data(), *args, **matrix_kwargs)
         if "scatter" in self.plot_options:
             scatter_kwargs: Dict[str, Union[str, int, float]] = self.plot_options.get("scatter").copy()
             scatter_kwargs.update(kwargs)
