@@ -7,4 +7,4 @@ class NiftiFetcher(ImageFetcher, srcformat="nii"):
         super().__init__(url)
 
     def fetch(self, archive_options=None):
-        return cache_and_load_img(self.url, archive_options)
+        return cache_and_load_img(self.url, archive_options=archive_options)

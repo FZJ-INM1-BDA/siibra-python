@@ -46,10 +46,9 @@ class FetchKwargs(TypedDict):
     """
     Key word arguments used for fetching images and meshes across siibra.
     """
-
-    bbox: "BBox" = (None,)
-    resolution_mm: float = (None,)
-    max_download_GB: float = (SIIBRA_MAX_FETCH_SIZE_GIB,)
+    bbox: "BBox" = None
+    resolution_mm: float = None
+    max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB
     color_channel: int = None
 
 

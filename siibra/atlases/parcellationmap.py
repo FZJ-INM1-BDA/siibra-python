@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict, field, replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, List, Dict, Set
 
 from ..assignment import iter_attr_col
@@ -137,7 +137,6 @@ class Map(AtlasElement):
             return images[0].fetch(**fetch_kwargs)
         elif len(images) > 1:
             template_nii = self.space.get_template().fetch(**fetch_kwargs)
-            # TODO: fix relabelling
             # labels = [im.subimage_options["label"] for im in self._region_images]
             # if set(labels) == {1}:
             #     labels = list(range(1, len(labels) + 1))
@@ -146,6 +145,8 @@ class Map(AtlasElement):
                 template_nii,
                 labels=[]
             )
+        else:
+            raise RuntimeError("No images found.")
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
         from matplotlib.colors import ListedColormap

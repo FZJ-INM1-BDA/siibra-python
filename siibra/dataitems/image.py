@@ -149,11 +149,7 @@ class Image(Data, base.Location):
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
 
-        archived_data = super().get_data()
-        if archived_data:
-            img = nib.nifti1.Nifti1Image.from_bytes(archived_data)
-        else:
-            img = self._fetcher.fetch()
+        img = self._fetcher.fetch(archive_options=self.archive_options)
 
         if bbox is not None:
             # TODO
