@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
 IMAGE_FRAGMENT = "x-siibra/volume-fragment"
-HEX_COLOR_REGEXP = re.compile(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$')
+HEX_COLOR_REGEXP = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
 SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
 VOLUME_FORMATS = [
     "nii",
@@ -50,18 +50,11 @@ def fetch_voi(nifti: nib.Nifti1Image, voi: "BBox"):
 
 def fetch_label_mask(nifti: nib.Nifti1Image, label: int):
     # TODO: Consider adding assertion but this should be clear to the user anyway
-    result = nib.Nifti1Image(
-        (nifti.get_fdata() == label).astype('uint8'),
-        nifti.affine
-    )
+    result = nib.Nifti1Image((nifti.get_fdata() == label).astype("uint8"), nifti.affine)
     return result
 
 
-def resample(
-    nifti: nib.Nifti1Image,
-    resolution_mm: float = None,
-    affine=None
-):
+def resample(nifti: nib.Nifti1Image, resolution_mm: float = None, affine=None):
     # TODO
     # Instead of resmapling nifti to desired resolution_mm in `fetch` as
     # discussed previously, consider an explicit method.
@@ -84,10 +77,7 @@ class Image(Data, base.Location):
     format: str = None  # see `image.IMAGE_FORMATS`
     url: str = None
     color: str = None
-    subimage_options: DefaultDict[
-        Literal["label", "z"],
-        Union[int, str]
-    ] = None
+    subimage_options: DefaultDict[Literal["label", "z"], Union[int, str]] = None
 
     def __post_init__(self):
         if self.format not in image_fetcher.ImageFetcher.SUBCLASSES:
@@ -95,7 +85,9 @@ class Image(Data, base.Location):
         fetcher_type = image_fetcher.ImageFetcher.SUBCLASSES[self.format]
         self._fetcher = fetcher_type(url=self.url)
         if self.color and not check_color(self.color):
-            print(f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})")
+            print(
+                f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})"
+            )
 
     @staticmethod
     @fn_call_cache
@@ -144,10 +136,13 @@ class Image(Data, base.Location):
         bbox: "BBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None
+        color_channel: int = None,
     ):
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
+
+        fetcher_fn = image_fetcher.image_fetcher.get_image_fetcher(self.format)
+        nii_or_gii = fetcher_fn(self, {"bbox": bbox})
 
         img = self._fetcher.fetch(archive_options=self.archive_options)
 
@@ -197,7 +192,9 @@ def compare_ptcloud_to_image(ptcloud: pointset.PointCloud, image: Image):
     return intersect_ptcld_image(ptcloud=ptcloud, image=image)
 
 
-def intersect_ptcld_image(ptcloud: pointset.PointCloud, image: Image) -> pointset.PointCloud:
+def intersect_ptcld_image(
+    ptcloud: pointset.PointCloud, image: Image
+) -> pointset.PointCloud:
     if image.space_id != ptcloud.space_id:
         raise InvalidAttrCompException(
             "ptcloud and image are in different space. Cannot compare the two."
