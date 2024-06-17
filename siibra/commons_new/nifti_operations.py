@@ -44,7 +44,7 @@ def resample_to_template_and_merge(
     for i, img in tqdm(
         enumerate(niftis),
         unit=" volume",
-        desc="Resampling niftis and merging",
+        desc="Resampling niftis to the template and merging",
         total=len(niftis),
         disable=len(niftis) < 3,
     ):
@@ -55,7 +55,4 @@ def resample_to_template_and_merge(
         else:
             merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
-    return Nifti1Image(
-        dataobj=merged_array,
-        affine=template_img.affine,
-    )
+    return Nifti1Image(dataobj=merged_array, affine=template_img.affine)

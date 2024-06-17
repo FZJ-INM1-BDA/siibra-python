@@ -1,8 +1,12 @@
 from dataclasses import dataclass
-
+from typing import TYPE_CHECKING
 from ..concepts import AtlasElement
 from ..dataitems import IMAGE_FORMATS
 from ..commons_new.iterable import get_ooo
+
+if TYPE_CHECKING:
+    from ..dataitems import Image
+
 
 @dataclass
 class Space(AtlasElement):
@@ -20,7 +24,9 @@ class Space(AtlasElement):
 
     @property
     def variants(self):
-        return {tmp.extra.get("x-siibra/volume-variant") for tmp in self.images} - {None}
+        return {tmp.extra.get("x-siibra/volume-variant") for tmp in self.images} - {
+            None
+        }
 
     @property
     def meshes(self):
@@ -38,21 +44,27 @@ class Space(AtlasElement):
     def provides_volume(self):
         return len(self.volumes) > 0
 
-    def get_template(self, variant: str = None, frmt: str = None, fetch_kwargs=None):
+    def get_template(
+        self, variant: str = None, frmt: str = None, fetch_kwargs=None
+    ) -> "Image":
         if frmt is None:
             frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
         else:
-            assert frmt in self.image_formats, f"Requested format '{frmt}' is not available for this space: {self.image_formats=}."
+            assert (
+                frmt in self.image_formats
+            ), f"Requested format '{frmt}' is not available for this space: {self.image_formats=}."
 
         if variant:
             if self.variants:
                 images = [
                     img
                     for img in self.images
-                    if variant.lower() in img.extra.get("x-siibra/volume-variant", "").lower()
+                    if variant.lower()
+                    in img.extra.get("x-siibra/volume-variant", "").lower()
                 ]
             else:
                 import pdb
+
                 pdb.set_trace()
                 raise ValueError("This space has no variants.")
         else:

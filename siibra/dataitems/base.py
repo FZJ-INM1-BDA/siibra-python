@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import TypedDict, Union
+
 from ..concepts.attribute import Attribute
 
 
@@ -31,6 +32,6 @@ class Data(Attribute):
             from ..retrieval_new.file_fetcher import ZipRepository
 
             filename = self.archive_options["file"]
-            assert filename, "data attribute file field not populated!"
+            assert filename, "Data attribute 'file' field not populated!"
             repo = ZipRepository(self.url)
             return repo.get(filename)

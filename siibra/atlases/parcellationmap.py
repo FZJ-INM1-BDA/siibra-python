@@ -124,6 +124,7 @@ class Map(AtlasElement):
                 frmt in self.image_formats
             ), f"Requested format '{frmt}' is not available for this map: {self.image_formats=}."
 
+        # TODO: reconsider `FetchKwargs`
         fetch_kwargs = FetchKwargs(
             bbox=bbox,
             resolution_mm=resolution_mm,
@@ -133,14 +134,18 @@ class Map(AtlasElement):
 
         images = self._find_images(regionname=regionname, frmt=frmt)
         if len(images) == 1:
-            return images[0].fetch(**asdict(fetch_kwargs))
+            return images[0].fetch(**fetch_kwargs)
         elif len(images) > 1:
-            template = self.space.get_template(fetch_kwargs=fetch_kwargs)
+            template_nii = self.space.get_template().fetch(**fetch_kwargs)
             # TODO: fix relabelling
             # labels = [im.subimage_options["label"] for im in self._region_images]
             # if set(labels) == {1}:
             #     labels = list(range(1, len(labels) + 1))
-            return resample_to_template_and_merge([img.fetch(**asdict(fetch_kwargs)) for img in images], template.fetch(**asdict(fetch_kwargs)), labels=[])
+            return resample_to_template_and_merge(
+                [img.fetch(**fetch_kwargs) for img in images],
+                template_nii,
+                labels=[]
+            )
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
         from matplotlib.colors import ListedColormap

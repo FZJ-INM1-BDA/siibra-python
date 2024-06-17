@@ -7,3 +7,4 @@ from .image import (
     IMAGE_FRAGMENT,
 )
 from .tabular import Tabular
+from .base import Archive
