@@ -13,7 +13,7 @@ from ..concepts.feature import Feature
 from ..concepts.atlas_elements import AtlasElement
 from ..descriptions import Modality
 from ..descriptions.modality import vocab as modality_types
-from ..exceptions import UnregisteredAttrCompException
+from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..locations import DataClsLocation
 
 
@@ -106,7 +106,8 @@ class QueryCursor:
                 qualification = next(qualificationiter)
                 yield feat, QueryCursor.explain(*qualification), [qualification]
                 continue
-
+            except InvalidAttrCompException:
+                continue
             except UnregisteredAttrCompException:
                 continue
             except StopIteration:

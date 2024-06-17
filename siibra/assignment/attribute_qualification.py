@@ -8,7 +8,7 @@ from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match, clear_name
 from ..concepts import Attribute, QueryParam
 from ..concepts.attribute import TruthyAttr
-from ..exceptions import UnregisteredAttrCompException
+from ..exceptions import UnregisteredAttrCompException, InvalidAttrCompException
 from ..descriptions import Modality, RegionSpec, Name, ID, Paradigm, Cohort, AggregateBy
 from ..locations import Pt, PointCloud, BBox, intersect
 from ..cache import fn_call_cache
@@ -99,6 +99,16 @@ def qualify_modality(mod1: Modality, mod2: Modality):
 def qualify_regionspec(regspec1: RegionSpec, regspec2: RegionSpec):
     from .assignment import find
     from ..atlases import Region
+
+    # if both parcellation_ids are present, short curcuit if parc id do not match
+    if (
+        regspec1.parcellation_id is not None
+        and regspec2.parcellation_id is not None
+        and regspec1.parcellation_id != regspec2.parcellation_id
+    ):
+        raise InvalidAttrCompException(
+            f"{regspec1.parcellation_id=!r} != {regspec2.parcellation_id=!r}"
+        )
 
     region1s = find(QueryParam(attributes=[regspec1]), Region)
     region2s = find(QueryParam(attributes=[regspec2]), Region)
