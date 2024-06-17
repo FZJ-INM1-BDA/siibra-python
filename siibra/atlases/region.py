@@ -10,6 +10,7 @@ from ..commons_new.iterable import assert_ooo
 
 if TYPE_CHECKING:
     from .space import Space
+    from ..locations import PointCloud
 
 
 @dataclass
@@ -59,6 +60,9 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             for child in children
             if any(match_fn(name.value) for name in child._finditer(Name))
         ]
+
+    def get_centroids(self, space: Union[str, "Space", None] = None) -> "PointCloud":
+        raise NotImplementedError
 
     def finditer_regional_maps(
         self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"

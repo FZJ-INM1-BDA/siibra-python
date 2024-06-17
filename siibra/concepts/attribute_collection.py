@@ -31,7 +31,8 @@ class AttributeCollection:
     @property
     def id(self):
         return self._get(ID).value
-    
-    def filter(self, filter_fn: Callable[[Attribute], bool]):
-        return replace(self, attributes=(attr for attr in self.attributes if filter_fn(attr)))
 
+    def filter(self, filter_fn: Callable[[Attribute], bool]):
+        return replace(
+            self, attributes=tuple(attr for attr in self.attributes if filter_fn(attr))
+        )

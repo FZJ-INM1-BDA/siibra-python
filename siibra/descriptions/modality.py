@@ -3,6 +3,7 @@ from typing import List, Callable, Iterable, Dict
 
 from .base import Description
 from ..commons_new.instance_table import JitInstanceTable
+from ..commons import logger
 
 
 @dataclass
@@ -24,7 +25,14 @@ def get_modalities() -> Dict[str, Modality]:
     _l = len(modalities_generator)
     if _l in _cached_modality:
         return _cached_modality[_l]
-    result = {mod.value: mod for mod_fn in modalities_generator for mod in mod_fn()}
+    result = {}
+    for mod_fn in modalities_generator:
+        try:
+            for mod in mod_fn():
+                result[mod.value] = mod
+        except Exception as e:
+            logger.warning(f"Generating modality exception: {str(e)}")
+
     _cached_modality[_l] = result
     return result
 
