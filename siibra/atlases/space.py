@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Set
 from ..concepts import AtlasElement
 from ..dataitems import IMAGE_FORMATS, IMAGE_VARIANT_KEY
 from ..commons_new.iterable import get_ooo
@@ -19,8 +19,13 @@ class Space(AtlasElement):
         return self._find(Image)
 
     @property
-    def image_formats(self):
-        return {img.format for img in self.images}
+    def image_formats(self) -> Set[str]:
+        formats = {im.format for im in self._region_images}
+        if self.provides_mesh:
+            formats = formats.union({"mesh"})
+        if self.provides_volume:
+            formats = formats.union({"volume"})
+        return formats
 
     @property
     def variants(self):

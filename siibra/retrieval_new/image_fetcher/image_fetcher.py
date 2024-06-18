@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, TypedDict, Callable, Dict, Union
+from typing import TYPE_CHECKING, TypedDict, Callable, Dict, Union, Literal
 from functools import wraps
 
 from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
@@ -21,11 +21,15 @@ class FetchKwargs(TypedDict):
     color_channel: int = None
 
 
-_REGISTRY: Dict[str, Callable[["Image", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]] = {}
+_REGISTRY: Dict[
+    str, Callable[["Image", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]
+] = {}
+VOLUME_FORMATS = []
+MESH_FORMATS = []
 
 
 # TODO: consider predecorating with fn_call_cache
-def register_image_fetcher(format: str):
+def register_image_fetcher(format: str, image_type: Literal["volume", "mesh"]):
 
     def outer(fn: Callable[["Image", FetchKwargs], Union["Nifti1Image", "GiftiImage"]]):
 
@@ -35,6 +39,13 @@ def register_image_fetcher(format: str):
             return fn(image, fetchkwargs)
 
         _REGISTRY[format] = inner
+        if image_type == "mesh":
+            MESH_FORMATS.append(format)
+        elif image_type == "volume":
+            VOLUME_FORMATS.append(format)
+        else:
+            raise ValueError(f"'{image_type}' is not a valid image type.")
+
         return inner
 
     return outer

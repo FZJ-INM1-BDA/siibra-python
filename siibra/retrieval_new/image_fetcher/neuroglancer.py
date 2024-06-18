@@ -7,7 +7,7 @@ if TYPE_CHECKING:
 
 
 class NeuroglancerFetcher:
-    @register_image_fetcher("neuroglancer/precomputed")
+    @register_image_fetcher("neuroglancer/precomputed", "volume")
     def fetch(self) -> "Nifti1Image":
         pass
 
@@ -17,6 +17,6 @@ class NeuroglancerMeshFetcher:
     def __init__(self):
         pass
 
-    @register_image_fetcher("neuroglancer/precompmesh")
+    @register_image_fetcher("neuroglancer/precompmesh", "mesh")
     def fetch(self) -> "GiftiImage":
         pass

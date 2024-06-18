@@ -71,7 +71,12 @@ class Map(AtlasElement):
 
     @property
     def image_formats(self) -> Set[str]:
-        return {im.format for im in self._region_images}
+        formats = {im.format for im in self._region_images}
+        if self.provides_mesh:
+            formats = formats.union({"mesh"})
+        if self.provides_volume:
+            formats = formats.union({"volume"})
+        return formats
 
     def filter_regions(self, regions: List[Region] = None, format: str = None):
         regionnames = [r.name for r in regions] if regions else None
@@ -89,12 +94,11 @@ class Map(AtlasElement):
         return replace(self, index_mapping=filtered_images)
 
     def _find_images(self, regionname: str = None, frmt: str = None) -> List["Image"]:
-
-        def filter_format(attr: Image):
-            return True if frmt is None else attr.format == frmt
+        def filter_fn(im: "Image"):
+            return im.filter_format(frmt)
 
         if regionname is None:
-            return list(filter(filter_format, self._find(Image)))
+            return list(filter(filter_fn, self._find(Image)))
 
         if regionname in self.regions:
             selected_region = regionname
@@ -103,7 +107,10 @@ class Map(AtlasElement):
             selected_region = assert_ooo(candidates)
 
         return list(
-            filter(filter_format, self.index_mapping[selected_region]._find(Image))
+            filter(
+                filter_fn,
+                self.index_mapping[selected_region]._find(Image),
+            )
         )
 
     def fetch(
@@ -116,12 +123,13 @@ class Map(AtlasElement):
         color_channel: int = None,
     ):
         if frmt is None:
-            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
+            frmt = [
+                f for f in IMAGE_FORMATS if f in self.image_formats - {"mesh", "volume"}
+            ][0]
         else:
             assert (
                 frmt in self.image_formats
             ), f"Requested format '{frmt}' is not available for this map: {self.image_formats=}."
-
         # TODO: reconsider `FetchKwargs`
         fetch_kwargs = FetchKwargs(
             bbox=bbox,
@@ -136,12 +144,12 @@ class Map(AtlasElement):
         elif len(images) > 1:
             # TODO: must handle meshes
             # TODO: get header for affine and shape instead of the whole template
-            template_nii = self.space.get_template().fetch(**fetch_kwargs)
+            template = self.space.get_template().fetch(**fetch_kwargs)
             # labels = [im.subimage_options["label"] for im in self._region_images]
             # if set(labels) == {1}:
             #     labels = list(range(1, len(labels) + 1))
             return resample_to_template_and_merge(
-                [img.fetch(**fetch_kwargs) for img in images], template_nii, labels=[]
+                [img.fetch(**fetch_kwargs) for img in images], template, labels=[]
             )
         else:
             raise RuntimeError("No images found.")
@@ -151,7 +159,7 @@ class Map(AtlasElement):
         import numpy as np
 
         def convert_hex_to_tuple(clr: str):
-            return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
+            return tuple(int(clr[p: p + 2], 16) for p in [1, 3, 5])
 
         if frmt is None:
             frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]

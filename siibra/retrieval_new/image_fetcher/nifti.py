@@ -36,7 +36,7 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
 
 class NiftiFetcher:
 
-    @register_image_fetcher("nii")
+    @register_image_fetcher("nii", "volume")
     def fetch(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
         _bytes = image.get_data()
         if _bytes.startswith(b'\x1f\x8b'):

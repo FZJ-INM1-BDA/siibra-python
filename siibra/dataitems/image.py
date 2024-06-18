@@ -14,7 +14,12 @@ from ..exceptions import InvalidAttrCompException
 from ..locations import base, point, pointset
 from ..locations.ops.intersection import _loc_intersection
 from ..cache import fn_call_cache
-from ..retrieval_new.image_fetcher import image_fetcher, FetchKwargs
+from ..retrieval_new.image_fetcher.image_fetcher import (
+    get_image_fetcher,
+    FetchKwargs,
+    MESH_FORMATS,
+    VOLUME_FORMATS,
+)
 
 if TYPE_CHECKING:
     from ..locations import BBox
@@ -23,16 +28,6 @@ IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
 IMAGE_FRAGMENT_KEY = "x-siibra/volume-fragment"
 HEX_COLOR_REGEXP = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
 SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
-VOLUME_FORMATS = [
-    "nii",
-    "neuroglancer/precomputed",
-]
-MESH_FORMATS = [
-    "neuroglancer/precompmesh",
-    "gii-mesh",
-    "gii-label",
-    "fsaverage-annot",
-]
 IMAGE_FORMATS = VOLUME_FORMATS + MESH_FORMATS
 
 
@@ -54,14 +49,16 @@ def extract_label_mask(nifti: nib.Nifti1Image, label: int):
 @dataclass
 class Image(Data, base.Location):
     schema: str = "siibra/attr/data/image/v0.1"
-    format: str = None  # see `image.IMAGE_FORMATS`
+    format: str = None  # see `IMAGE_FORMATS`
     url: str = None
     color: str = None
     subimage_options: DefaultDict[Literal["label", "z"], Union[int, str]] = None
 
     def __post_init__(self):
         if self.color and not check_color(self.color):
-            print(f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})")
+            print(
+                f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})"
+            )
 
     @staticmethod
     @fn_call_cache
@@ -105,6 +102,15 @@ class Image(Data, base.Location):
     def boundingbox(self):
         return Image._GetBBox(self)
 
+    def filter_format(self, format: str):
+        if format is None:
+            return True
+        if format == "mesh":
+            return self.format in MESH_FORMATS
+        if format == "volume":
+            return self.format in VOLUME_FORMATS
+        return self.format == format
+
     def fetch(
         self,
         bbox: "BBox" = None,
@@ -121,7 +127,7 @@ class Image(Data, base.Location):
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
 
-        fetcher_fn = image_fetcher.get_image_fetcher(self.format)
+        fetcher_fn = get_image_fetcher(self.format)
         nii_or_gii = fetcher_fn(self, fetch_kwargs)
 
         if self.subimage_options and "label" in self.subimage_options:
@@ -137,7 +143,8 @@ def from_nifti(nifti: nib.Nifti1Image, space_id: str) -> "Image":
     """Builds an `Image` `Attribute` from a Nifti image."""
     from hashlib import md5
     from ..cache import CACHE
-    filename = CACHE.build_filename(hash(md5(nifti.to_bytes())), suffix='.nii')
+
+    filename = CACHE.build_filename(hash(md5(nifti.to_bytes())), suffix=".nii")
     nib.save(nifti, filename)
     return Image(
         fromat="nii",

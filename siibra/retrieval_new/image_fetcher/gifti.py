@@ -23,8 +23,8 @@ class GiftiLabelFetcher:
     def __init__(self):
         pass
 
-    @register_image_fetcher("gii-mesh")
-    @register_image_fetcher("gii-label")
+    @register_image_fetcher("gii-mesh", "mesh")
+    @register_image_fetcher("gii-label", "mesh")
     def fetch(image: "Image", fetchkwargs: FetchKwargs) -> "GiftiImage":
         _bytes = image.get_data()
         if _bytes.startswith(b'\x1f\x8b'):
