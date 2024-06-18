@@ -135,9 +135,13 @@ class Image(Data, base.Location):
 
 def from_nifti(nifti: nib.Nifti1Image, space_id: str) -> "Image":
     """Builds an `Image` `Attribute` from a Nifti image."""
+    from hashlib import md5
+    from ..cache import CACHE
+    filename = CACHE.build_filename(hash(md5(nifti.to_bytes())), suffix='.nii')
+    nib.save(nifti, filename)
     return Image(
         fromat="nii",
-        url=None,
+        url=filename,
         space_id=space_id,
     )
 
