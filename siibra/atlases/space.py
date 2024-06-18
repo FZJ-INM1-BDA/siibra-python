@@ -20,7 +20,7 @@ class Space(AtlasElement):
 
     @property
     def image_formats(self) -> Set[str]:
-        formats = {im.format for im in self._region_images}
+        formats = {im.format for im in self.images}
         if self.provides_mesh:
             formats = formats.union({"mesh"})
         if self.provides_volume:
