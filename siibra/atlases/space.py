@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from ..concepts import AtlasElement
-from ..dataitems import IMAGE_FORMATS
+from ..dataitems import IMAGE_FORMATS, IMAGE_VARIANT_KEY
 from ..commons_new.iterable import get_ooo
 
 if TYPE_CHECKING:
@@ -24,9 +24,7 @@ class Space(AtlasElement):
 
     @property
     def variants(self):
-        return {tmp.extra.get("x-siibra/volume-variant") for tmp in self.images} - {
-            None
-        }
+        return {tmp.extra.get(IMAGE_VARIANT_KEY) for tmp in self.images} - {None}
 
     @property
     def meshes(self):
@@ -44,9 +42,7 @@ class Space(AtlasElement):
     def provides_volume(self):
         return len(self.volumes) > 0
 
-    def get_template(
-        self, variant: str = None, frmt: str = None, fetch_kwargs=None
-    ) -> "Image":
+    def get_template(self, frmt: str = None, variant: str = None) -> "Image":
         if frmt is None:
             frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
         else:
@@ -55,18 +51,13 @@ class Space(AtlasElement):
             ), f"Requested format '{frmt}' is not available for this space: {self.image_formats=}."
 
         if variant:
-            if self.variants:
-                images = [
-                    img
-                    for img in self.images
-                    if variant.lower()
-                    in img.extra.get("x-siibra/volume-variant", "").lower()
-                ]
-            else:
-                import pdb
-
-                pdb.set_trace()
+            if not self.variants:
                 raise ValueError("This space has no variants.")
-        else:
-            images = self.images
-        return get_ooo([img for img in images], lambda img: img.format == frmt)
+
+            return get_ooo(
+                self.images,
+                lambda img: (img.format == frmt)
+                and (variant.lower() in img.extra.get(IMAGE_VARIANT_KEY, "").lower()),
+            )
+
+        return get_ooo(self.images, lambda img: img.format == frmt)

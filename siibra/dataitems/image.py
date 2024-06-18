@@ -14,13 +14,13 @@ from ..exceptions import InvalidAttrCompException
 from ..locations import base, point, pointset
 from ..locations.ops.intersection import _loc_intersection
 from ..cache import fn_call_cache
-from ..retrieval_new import image_fetcher
+from ..retrieval_new.image_fetcher import image_fetcher, FetchKwargs
 
 if TYPE_CHECKING:
     from ..locations import BBox
 
 IMAGE_VARIANT_KEY = "x-siibra/volume-variant"
-IMAGE_FRAGMENT = "x-siibra/volume-fragment"
+IMAGE_FRAGMENT_KEY = "x-siibra/volume-fragment"
 HEX_COLOR_REGEXP = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
 SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
 VOLUME_FORMATS = [
@@ -36,39 +36,19 @@ MESH_FORMATS = [
 IMAGE_FORMATS = VOLUME_FORMATS + MESH_FORMATS
 
 
-def fetch_voi(nifti: nib.Nifti1Image, voi: "BBox"):
-    bb_vox = voi.transform(np.linalg.inv(nifti.affine))
-    (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
-    shift = np.identity(4)
-    shift[:3, -1] = bb_vox.minpoint
-    result = nib.Nifti1Image(
-        dataobj=nifti.dataobj[x0:x1, y0:y1, z0:z1],
-        affine=np.dot(nifti.affine, shift),
-    )
-    return result
-
-
-def fetch_label_mask(nifti: nib.Nifti1Image, label: int):
-    # TODO: Consider adding assertion but this should be clear to the user anyway
-    result = nib.Nifti1Image((nifti.get_fdata() == label).astype("uint8"), nifti.affine)
-    return result
-
-
-def resample(nifti: nib.Nifti1Image, resolution_mm: float = None, affine=None):
-    # TODO
-    # Instead of resmapling nifti to desired resolution_mm in `fetch` as
-    # discussed previously, consider an explicit method.
-    pass
-
-
-def is_hex_color(color: str):
+def is_hex_color(color: str) -> bool:
     return True if HEX_COLOR_REGEXP.search(color) else False
 
 
-def check_color(color: str):
+def check_color(color: str) -> bool:
     if color in SUPPORTED_COLORMAPS or is_hex_color(color):
         return True
     return False
+
+
+def extract_label_mask(nifti: nib.Nifti1Image, label: int):
+    # TODO: Consider adding assertion but this should be clear to the user anyway
+    return nib.Nifti1Image((nifti.get_fdata() == label).astype("uint8"), nifti.affine)
 
 
 @dataclass
@@ -80,14 +60,8 @@ class Image(Data, base.Location):
     subimage_options: DefaultDict[Literal["label", "z"], Union[int, str]] = None
 
     def __post_init__(self):
-        if self.format not in image_fetcher.ImageFetcher.SUBCLASSES:
-            return
-        fetcher_type = image_fetcher.ImageFetcher.SUBCLASSES[self.format]
-        self._fetcher = fetcher_type(url=self.url)
         if self.color and not check_color(self.color):
-            print(
-                f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})"
-            )
+            print(f"'{self.color}' is not a hex color or as supported colormap ({SUPPORTED_COLORMAPS=})")
 
     @staticmethod
     @fn_call_cache
@@ -138,33 +112,22 @@ class Image(Data, base.Location):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
+        fetch_kwargs = FetchKwargs(
+            bbox=bbox,
+            resolution_mm=resolution_mm,
+            color_channel=color_channel,
+            max_download_GB=max_download_GB,
+        )
         if color_channel is not None:
             assert self.format == "neuroglancer/precomputed"
 
-        fetcher_fn = image_fetcher.image_fetcher.get_image_fetcher(self.format)
-        nii_or_gii = fetcher_fn(self, {"bbox": bbox})
-
-        img = self._fetcher.fetch(archive_options=self.archive_options)
-
-        if bbox is not None:
-            # TODO
-            # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
-            img = fetch_voi(img, bbox)
+        fetcher_fn = image_fetcher.get_image_fetcher(self.format)
+        nii_or_gii = fetcher_fn(self, fetch_kwargs)
 
         if self.subimage_options and "label" in self.subimage_options:
-            img = fetch_label_mask(img, self.subimage_options["label"])
+            nii_or_gii = extract_label_mask(nii_or_gii, self.subimage_options["label"])
 
-        if resolution_mm is not None:
-            if self.format == "neuroglancer/precomputed":
-                pass
-            else:
-                print(
-                    f"Warning: Multi-resolution for '{self.format}' is not supported."
-                    "siibra will resample using nilearn to desired resolution"
-                )
-                img = resample(img, resolution_mm)
-
-        return img
+        return nii_or_gii
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError

@@ -1,19 +1,22 @@
-from .image_fetcher import ImageFetcher, cache_and_load_img
+from typing import TYPE_CHECKING
+
+from .image_fetcher import register_image_fetcher
+
+if TYPE_CHECKING:
+    from nibabel import Nifti1Image, GiftiImage
 
 
-class NeuroglancerFetcher(ImageFetcher, srcformat="neuroglancer/precomputed"):
-
-    def __init__(self, url):
-        super().__init__(url)
-
-    def fetch(self):
-        return cache_and_load_img(self.url)
+class NeuroglancerFetcher:
+    @register_image_fetcher("neuroglancer/precomputed")
+    def fetch(self) -> "Nifti1Image":
+        pass
 
 
-class NeuroglancerMeshFetcher(ImageFetcher, srcformat="neuroglancer/precompmesh"):
+class NeuroglancerMeshFetcher:
 
-    def __init__(self, url):
-        super().__init__(url)
+    def __init__(self):
+        pass
 
-    def fetch(self):
-        return cache_and_load_img(self.url)
+    @register_image_fetcher("neuroglancer/precompmesh")
+    def fetch(self) -> "GiftiImage":
+        pass

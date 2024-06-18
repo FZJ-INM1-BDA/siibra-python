@@ -94,7 +94,7 @@ class Map(AtlasElement):
             return True if frmt is None else attr.format == frmt
 
         if regionname is None:
-            return [img for img in self._find(Image) if filter_format(img)]
+            return list(filter(filter_format, self._find(Image)))
 
         if regionname in self.regions:
             selected_region = regionname
@@ -102,11 +102,9 @@ class Map(AtlasElement):
             candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
             selected_region = assert_ooo(candidates)
 
-        return [
-            img
-            for img in self.index_mapping[selected_region]._find(Image)
-            if filter_format(img)
-        ]
+        return list(
+            filter(filter_format, self.index_mapping[selected_region]._find(Image))
+        )
 
     def fetch(
         self,
@@ -136,14 +134,14 @@ class Map(AtlasElement):
         if len(images) == 1:
             return images[0].fetch(**fetch_kwargs)
         elif len(images) > 1:
+            # TODO: must handle meshes
+            # TODO: get header for affine and shape instead of the whole template
             template_nii = self.space.get_template().fetch(**fetch_kwargs)
             # labels = [im.subimage_options["label"] for im in self._region_images]
             # if set(labels) == {1}:
             #     labels = list(range(1, len(labels) + 1))
             return resample_to_template_and_merge(
-                [img.fetch(**fetch_kwargs) for img in images],
-                template_nii,
-                labels=[]
+                [img.fetch(**fetch_kwargs) for img in images], template_nii, labels=[]
             )
         else:
             raise RuntimeError("No images found.")
@@ -153,7 +151,7 @@ class Map(AtlasElement):
         import numpy as np
 
         def convert_hex_to_tuple(clr: str):
-            return tuple(int(clr[p: p + 2], 16) for p in [1, 3, 5])
+            return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
 
         if frmt is None:
             frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
