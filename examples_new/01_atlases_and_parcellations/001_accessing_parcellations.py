@@ -39,7 +39,7 @@ julich_brain = siibra.parcellations.get('julich')
 # modelled in the MINDS and openMINDS standards. `siibra` stores their
 # identifiers. Note that this holds for spaces and other concepts as well, as
 # will be seen in the next examples.
-print(julich_brain.id)
+print(julich_brain.ID)
 
 # %%
 # Also, you can display the doi/url of the related dataset/publication using
@@ -56,7 +56,7 @@ print(julich_brain.publications)
 # Parcellation maps and brain  regions are covered in the next examples. For now let's
 # just look at a few metadata fields:
 print("Name:    ", julich_brain.name)
-print("Id:      ", julich_brain.id)
+print("Id:      ", julich_brain.ID)
 print("Modality:", julich_brain.modalities)
 print()
 for p in julich_brain.publications:

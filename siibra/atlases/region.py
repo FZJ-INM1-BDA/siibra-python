@@ -26,10 +26,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
 
     def __eq__(self, other: "Region") -> bool:
         # Otherwise, == comparison result in max stack
-        return self.id == other.id
+        return self.ID == other.ID
 
     def __hash__(self):
-        return hash(self.id)
+        return hash(self.ID)
 
     def __repr__(self) -> str:
         return f"Region<{self.name!r} in {self.parcellation.name!r}>"
@@ -82,16 +82,16 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             space, Space
         ), f"space must be str, Space or None. You provided {space}"
 
-        regions_of_interest = [self, *self.children]
+        regions_of_interest = [self, *self.descendants]
 
         for mp in iter_attr_col(Map):
             if maptype != mp.maptype:
                 continue
-            if space and space.id != mp.space_id:
+            if space and space.ID != mp.space_id:
                 continue
-            if self.parcellation.id != mp.parcellation_id:
+            if self.parcellation.ID != mp.parcellation_id:
                 continue
-            yield mp.filter_regions(regions_of_interest)
+            yield mp.get_filtered_map(regions_of_interest)
 
     def find_regional_maps(self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"):
         return list(self._finditer_regional_maps(space, maptype))

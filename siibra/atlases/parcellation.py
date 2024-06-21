@@ -7,14 +7,15 @@ from ..commons_new.tree import collapse_nodes
 from ..commons_new.iterable import assert_ooo
 from ..descriptions import Version
 
+
 @dataclass(init=False)
 class Parcellation(region.Region):
     schema: str = "siibra/atlases/parcellation/v0.1"
 
     def __eq__(self, other: "Parcellation") -> bool:
-        return self.id == other.id
+        return self.ID == other.ID
 
-    def get_region(self, regionspec: SPEC_TYPE):
+    def get_region(self, regionspec: SPEC_TYPE) -> region.Region:
         """
         Returns a single collapsed region, based on regionspec
 

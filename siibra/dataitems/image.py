@@ -102,7 +102,7 @@ class Image(Data, base.Location):
     def boundingbox(self):
         return Image._GetBBox(self)
 
-    def filter_format(self, format: str):
+    def of_format(self, format: str):
         if format is None:
             return True
         if format == "mesh":

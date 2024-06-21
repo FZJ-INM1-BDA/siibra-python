@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, List, Dict, Set, Tuple
+from typing import TYPE_CHECKING, List, Dict, Set, Tuple, Union
 
 import numpy as np
 
@@ -7,10 +7,10 @@ from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
 from ..retrieval_new.image_fetcher import FetchKwargs
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.string import fuzzy_match
-from ..commons_new.nifti_operations import resample_to_template_and_merge
+from ..commons_new.maps import resample_to_template_and_merge
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, IMAGE_FORMATS
+from ..descriptions import Name, ID as _ID, SpeciesSpec
 from ..cache import fn_call_cache
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB, siibra_tqdm
@@ -53,17 +53,17 @@ class Map(AtlasElement):
             [
                 parc
                 for parc in iter_attr_col(Parcellation)
-                if parc.id == self.parcellation_id
+                if parc.ID == self.parcellation_id
             ]
         )
 
     @property
     def space(self) -> "Space":
-        return assert_ooo([sp for sp in iter_attr_col(Space) if sp.id == self.space_id])
+        return assert_ooo([sp for sp in iter_attr_col(Space) if sp.ID == self.space_id])
 
     @property
-    def regions(self) -> Set[str]:
-        return set(self._index_mapping.keys())
+    def regions(self) -> List[str]:
+        return list(self._index_mapping.keys())
 
     @property
     def _region_images(self) -> List["Image"]:
@@ -82,59 +82,74 @@ class Map(AtlasElement):
             formats = formats.union({"volume"})
         return formats
 
-    def filter_regions(self, regions: List[Region] = None, format: str = None):
+    def get_filtered_map(self, regions: List[Region] = None) -> "Map":
+        """
+        Get the submap of this Map making up the regions provided.
+
+        Regions that are parents of mapped chilren are provided, the children
+        making up said regions (in this map) will be returned.
+        """
         regionnames = [r.name for r in regions] if regions else None
+
         filtered_images = {
-            regionname: (
-                attr_col.filter(
-                    lambda attr: not isinstance(attr, Image) or attr.format == format
-                )
-                if format is not None
-                else replace(attr_col)
-            )
+            regionname: attr_col
             for regionname, attr_col in self._index_mapping.items()
             if regionnames is None or regionname in regionnames
         }
-        # TODO: Returning a new copy of this map with just indexmapping changed
-        # is risky as attributes such as name and id will remain the same
-        # because potentially we might use id and name for hashing or caching
-        # purposes
-        return replace(self, index_mapping=filtered_images)
-
-    def _get_region(self, regionname: str):
-        if regionname in self.regions:
-            return regionname
-        else:
-            candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
-            if len(candidates) == 0:
-                raise TypeError
-            return assert_ooo(candidates)
+        attributes = [
+            Name(value=f"{regionnames} filtered from {self.name}"),
+            _ID(value=None),
+            self._get(SpeciesSpec),
+        ]
+        return replace(self, attributes=attributes, _index_mapping=filtered_images)
 
     def _find_images(self, regionname: str = None, frmt: str = None) -> List["Image"]:
         def filter_fn(im: "Image"):
-            return im.filter_format(frmt)
+            return im.of_format(frmt)
 
         if regionname is None:
             return list(filter(filter_fn, self._find(Image)))
 
-        selected_region = self._get_region(regionname)
+        try:
+            candidate = self.parcellation.get_region(regionname).name
+            if candidate in self.regions:
+                return list(filter(filter_fn, self._index_mapping[candidate]._find(Image)))
+        except AssertionError:
+            pass
 
-        return list(
-            filter(
-                filter_fn,
-                self._index_mapping[selected_region]._find(Image),
-            )
+        # check if a parent region is requested
+        candidates = {
+            region.name
+            for matched_region in self.parcellation.get_region(regionname)
+            for region in matched_region.descendants
+            if region.name in self.regions
+        }
+        if candidates:
+            return [
+                img
+                for r in candidates
+                for img in filter(
+                    filter_fn,
+                    self._index_mapping[r]._find(Image),
+                )
+            ]
+        raise ValueError(
+            f"Could not find any leaf or parent regions matching '{regionname}' in this map."
         )
 
     def fetch(
         self,
-        regionname: str = None,
+        region: Union[str, Region] = None,
         frmt: str = None,
         bbox: "BBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
+        if isinstance(region, Region):
+            regionspec = region.name
+        else:
+            regionspec = region
         if frmt is None:
             frmt = [
                 f for f in IMAGE_FORMATS if f in self.image_formats - {"mesh", "volume"}
@@ -143,7 +158,8 @@ class Map(AtlasElement):
             assert (
                 frmt in self.image_formats
             ), f"Requested format '{frmt}' is not available for this map: {self.image_formats=}."
-        # TODO: reconsider `FetchKwargs`
+        images = self._find_images(regionname=regionspec, frmt=frmt)
+
         fetch_kwargs = FetchKwargs(
             bbox=bbox,
             resolution_mm=resolution_mm,
@@ -151,25 +167,21 @@ class Map(AtlasElement):
             max_download_GB=max_download_GB,
         )
 
-        images = self._find_images(regionname=regionname, frmt=frmt)
         if len(images) == 1:
             return images[0].fetch(**fetch_kwargs)
-        elif len(images) > 1:
-            # TODO: must handle meshes
-            # TODO: get header for affine and shape instead of the whole template
-            template = self.space.get_template().fetch(**fetch_kwargs)
-            # labels = [im.subimage_options["label"] for im in self._region_images]
-            # if set(labels) == {1}:
-            #     labels = list(range(1, len(labels) + 1))
+
+        if len(images) > 1:
+            labels = [im.subimage_options["label"] for im in images]
+            if set(labels) == {1}:
+                labels = list(range(1, len(labels) + 1))
             return resample_to_template_and_merge(
-                [img.fetch(**fetch_kwargs) for img in images], template, labels=[]
+                [img.fetch(**fetch_kwargs) for img in images], labels=labels
             )
-        else:
-            raise RuntimeError("No images found.")
+
+        raise RuntimeError("No images found.")
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
         from matplotlib.colors import ListedColormap
-        import numpy as np
 
         def convert_hex_to_tuple(clr: str):
             return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
@@ -309,19 +321,24 @@ class SparseMap(Map):
 
     def fetch(
         self,
-        regionname: str = None,
+        region: Union[str, Region] = None,
         frmt: str = None,
         bbox: "BBox" = None,
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
-        selected_region = self._get_region(regionname)
+        if isinstance(region, Region):
+            regionspec = region.name
+        else:
+            regionspec = region
+        matched = self.parcellation.get_region(regionspec).name
+        assert matched in self.regions, f"Statistical map of region '{matched}' is not available."
 
         if self.use_sparse_index:
-            nii = self._sparse_index._exract_from_sparseindex(selected_region)
+            nii = self._sparse_index._exract_from_sparseindex(matched)
 
-        nii = super().fetch(regionname=selected_region, frmt=frmt)
+        nii = super().fetch(regionname=matched, frmt=frmt)
 
         if bbox:
             from ..retrieval_new.image_fetcher.nifti import extract_voi

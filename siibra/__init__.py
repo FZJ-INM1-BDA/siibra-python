@@ -27,6 +27,7 @@ from .commons import (
 from .exceptions import NotFoundException
 from .commons_new.iterable import assert_ooo
 from .commons_new.instance_table import JitInstanceTable
+from .commons_new.tree import collapse_nodes
 
 from .cache import Warmup, WarmupLevel, CACHE as cache
 
@@ -115,15 +116,15 @@ def get_region(parcellation_spec: str, regionspec: str):
         logger.warning(
             f"Found {len(found_regions)}:\n"
             + "\n".join(f" - {str(r)}" for r in found_regions)
-            + "\nSelecting the first one from the newest parcellation versions."
+            + "\nSelecting the top most one from the newest versions."
         )
     newest_versions = [r for r in found_regions if r.parcellation.is_newest_version]
-    return newest_versions[0]
+    return collapse_nodes(newest_versions)[0]
 
 
 def find_regions(parcellation_spec: str, regionspec: str):
     if parcellation_spec:
-        parcellation_ids = [p.id for p in find_parcellations(parcellation_spec)]
+        parcellation_ids = [p.ID for p in find_parcellations(parcellation_spec)]
     else:
         parcellation_ids = [None]
 

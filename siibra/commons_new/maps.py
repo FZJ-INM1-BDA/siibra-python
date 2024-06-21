@@ -1,6 +1,6 @@
 from typing import List
 import numpy as np
-from nilearn.image import resample_to_img
+from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
 from nibabel import Nifti1Image
 
@@ -33,13 +33,25 @@ def resample_img_to_img(
 
 
 def resample_to_template_and_merge(
-    niftis: List["Nifti1Image"], template_img: "Nifti1Image", labels: List[int] = []
+    niftis: List["Nifti1Image"],
+    template_img: "Nifti1Image" = None,
+    labels: List[int] = [],
 ) -> "Nifti1Image":
+    # TODO: must handle meshes
+    # TODO: get header for affine and shape instead of the whole template
     assert len(niftis) > 1, "Need to supply at least two volumes to merge."
     if labels:
         assert len(niftis) == len(labels), "Need to supply as many labels as niftis."
 
-    merged_array = np.zeros(template_img.shape, dtype="uint8")
+    if template_img is None:
+        shapes = set(nii.shape for nii in niftis)
+        assert len(shapes) == 1
+        shape = next(iter(shapes))
+        merged_array = np.zeros(shape, dtype="uint8")
+        affine = niftis[0].affine
+    else:
+        merged_array = np.zeros(template_img.shape, dtype="uint8")
+        affine = template_img.affine
 
     for i, img in tqdm(
         enumerate(niftis),
@@ -48,11 +60,17 @@ def resample_to_template_and_merge(
         total=len(niftis),
         disable=len(niftis) < 3,
     ):
-        resampled_arr = np.asanyarray(resample_img_to_img(img, template_img).dataobj)
+        if template_img is not None:
+            resampled_arr = np.asanyarray(
+                resample_img_to_img(img, template_img).dataobj
+            )
+        else:
+            resampled = resample_img(img, affine, shape)
+            resampled_arr = np.asanyarray(resampled.dataobj)
         nonzero_voxels = resampled_arr > 0
         if labels:
             merged_array[nonzero_voxels] = labels[i]
         else:
             merged_array[nonzero_voxels] = resampled_arr[nonzero_voxels]
 
-    return Nifti1Image(dataobj=merged_array, affine=template_img.affine)
+    return Nifti1Image(dataobj=merged_array, affine=affine)

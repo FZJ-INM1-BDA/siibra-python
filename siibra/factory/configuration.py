@@ -132,7 +132,7 @@ def iter_region(filter_param: AttributeCollection):
     yield from [
         region
         for parc in iter_attr_col(Parcellation)
-        if regspec.parcellation_id is None or regspec.parcellation_id == parc.id
+        if regspec.parcellation_id is None or regspec.parcellation_id == parc.ID
         for region in parc.find(regspec.value)
     ]
 
