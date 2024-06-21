@@ -34,21 +34,19 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
     raise NotImplementedError
 
 
-class NiftiFetcher:
+@register_image_fetcher("nii", "volume")
+def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
+    _bytes = image.get_data()
+    if _bytes.startswith(b'\x1f\x8b'):
+        _bytes = gzip.decompress(_bytes)
+    nii = Nifti1Image.from_bytes(_bytes)
 
-    @register_image_fetcher("nii", "volume")
-    def fetch(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
-        _bytes = image.get_data()
-        if _bytes.startswith(b'\x1f\x8b'):
-            _bytes = gzip.decompress(_bytes)
-        nii = Nifti1Image.from_bytes(_bytes)
+    if fetchkwargs["bbox"] is not None:
+        # TODO
+        # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
+        nii = extract_voi(nii, fetchkwargs["bbox"])
 
-        if fetchkwargs["bbox"] is not None:
-            # TODO
-            # neuroglancer/precomputed fetches the bbox from the NeuroglancerScale
-            nii = extract_voi(nii, fetchkwargs["bbox"])
+    if fetchkwargs["resolution_mm"] is not None:
+        nii = resample(nii, fetchkwargs["resolution_mm"])
 
-        if fetchkwargs["resolution_mm"] is not None:
-            nii = resample(nii, fetchkwargs["resolution_mm"])
-
-        return nii
+    return nii
