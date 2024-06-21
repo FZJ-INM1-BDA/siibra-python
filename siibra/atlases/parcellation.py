@@ -5,7 +5,7 @@ from ..atlases import region
 from ..commons_new.string import SPEC_TYPE
 from ..commons_new.tree import collapse_nodes
 from ..commons_new.iterable import assert_ooo
-
+from ..descriptions import Version
 
 @dataclass(init=False)
 class Parcellation(region.Region):
@@ -26,3 +26,14 @@ class Parcellation(region.Region):
             return exact_match[0]
         collapsed_regions: List[region.Region] = collapse_nodes(regions)
         return assert_ooo(collapsed_regions)
+
+    @property
+    def version(self):
+        try:
+            return self._get(Version).value
+        except Exception:
+            return None
+
+    @property
+    def is_newest_version(self):
+        return (self.version is None) or (self._get(Version).next_id is None)

@@ -11,6 +11,7 @@ from ..commons_new.iterable import assert_ooo
 if TYPE_CHECKING:
     from .space import Space
     from ..locations import PointCloud
+    from . import Parcellation
 
 
 @dataclass
@@ -33,7 +34,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         return f"Region<{self.name!r} in {self.parcellation.name!r}>"
 
     @property
-    def parcellation(self):
+    def parcellation(self) -> "Parcellation":
         return self.root
 
     def tree2str(self):

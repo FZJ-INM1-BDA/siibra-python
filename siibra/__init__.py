@@ -72,7 +72,8 @@ def find_spaces(space_spec: str):
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
     searched_parcs = list(string_search(parc_spec, Parcellation))
-    return assert_ooo(searched_parcs)
+    newest_versions = [p for p in searched_parcs if p.is_newest_version]
+    return assert_ooo(newest_versions)
 
 
 def find_parcellations(parc_spec: str):
@@ -114,9 +115,10 @@ def get_region(parcellation_spec: str, regionspec: str):
         logger.warning(
             f"Found {len(found_regions)}:\n"
             + "\n".join(f" - {str(r)}" for r in found_regions)
-            + "\nSelecting the first one"
+            + "\nSelecting the first one from the newest parcellation versions."
         )
-    return found_regions[0]
+    newest_versions = [r for r in found_regions if r.parcellation.is_newest_version]
+    return newest_versions[0]
 
 
 def find_regions(parcellation_spec: str, regionspec: str):
