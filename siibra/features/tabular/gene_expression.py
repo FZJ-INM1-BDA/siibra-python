@@ -239,7 +239,7 @@ class GeneExpressions(
         """
         wrapwidth = kwargs.pop("textwrap") if "textwrap" in kwargs else 40
         kwargs["title"] = kwargs.pop("title", None) \
-            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec}", wrapwidth))
+            or "\n".join(wrap(f"{self.modality} measured in {self.anchor._regionspec or self.anchor.location}", wrapwidth))
         kwargs["kind"] = "box"
         if backend == "matplotlib":
             for arg in ['yerr', 'y', 'ylabel', 'xlabel', 'width']:
