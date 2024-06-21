@@ -393,6 +393,7 @@ class Feature:
 
     @staticmethod
     def _encode_concept(concept: concept.AtlasConcept):
+        from ..locations import Location
         encoded_c = []
         if isinstance(concept, space.Space):
             encoded_c.append(f"s:{concept.id}")
@@ -403,6 +404,8 @@ class Feature:
             encoded_c.append(f"r:{concept.name}")
         elif isinstance(concept, volume.Volume):
             encoded_c.append(f"v:{concept.name}")
+        elif isinstance(concept, Location):
+            encoded_c.append(f"loc:{Location}")
 
         if len(encoded_c) == 0:
             raise EncodeLiveQueryIdException("no concept is encoded")
