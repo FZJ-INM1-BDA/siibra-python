@@ -156,7 +156,7 @@ def build_map(dict_obj):
     attribute_objs = dict_obj.pop("attributes", [])
     attributes = parse_attributes(attribute_objs)
 
-    return MapType(attributes=attributes, index_mapping=index_mapping, **dict_obj)
+    return MapType(attributes=attributes, _index_mapping=index_mapping, **dict_obj)
 
 
 def build_object(dict_obj: Dict):

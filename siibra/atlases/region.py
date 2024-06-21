@@ -9,6 +9,7 @@ from ..commons_new.string import get_spec, SPEC_TYPE
 from ..commons_new.iterable import assert_ooo
 
 if TYPE_CHECKING:
+    from nibabel import Nifti1Image
     from .space import Space
     from ..locations import PointCloud
     from . import Parcellation
@@ -65,7 +66,7 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     def get_centroids(self, space: Union[str, "Space", None] = None) -> "PointCloud":
         raise NotImplementedError
 
-    def finditer_regional_maps(
+    def _finditer_regional_maps(
         self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"
     ):
         from .space import Space
@@ -93,4 +94,13 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
             yield mp.filter_regions(regions_of_interest)
 
     def find_regional_maps(self, space: Union[str, "Space", None] = None, maptype: str = "LABELLED"):
-        return list(self.finditer_regional_maps(space, maptype))
+        return list(self._finditer_regional_maps(space, maptype))
+
+    def fetch_regional_map(
+        self,
+        space: Union[str, "Space", None] = None,
+        maptype: str = "LABELLED",
+        threshold: float = 0.0,
+        via_space: Union[str, "Space", None] = None
+    ) -> "Nifti1Image":
+        pass

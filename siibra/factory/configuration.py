@@ -198,7 +198,7 @@ def iter_preconf_parcellationmaps(filter_param: AttributeCollection):
     for mp in _iter_preconf_maps():
         try:
             found_regions = [region for regspec in filter_param._find(RegionSpec) for region in regspec.decode()]
-            if any((found_region.name in mp.index_mapping for found_region in found_regions)):
+            if any((found_region.name in mp._index_mapping for found_region in found_regions)):
                 yield mp
 
             if match(filter_param, mp):

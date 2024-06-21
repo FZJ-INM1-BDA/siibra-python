@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, List, Dict, Set
+from typing import TYPE_CHECKING, List, Dict, Set, Tuple
+
+import numpy as np
 
 from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
@@ -9,12 +11,14 @@ from ..commons_new.string import fuzzy_match
 from ..commons_new.nifti_operations import resample_to_template_and_merge
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, IMAGE_FORMATS
+from ..cache import fn_call_cache
 
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
+from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB, siibra_tqdm
 
 if TYPE_CHECKING:
     from ..locations import BBox
     from ..concepts.attribute_collection import AttributeCollection
+    from nibabel import Nifti1Image
 
 
 VALID_MAPTYPES = ("STATISTICAL", "LABELLED")
@@ -26,7 +30,7 @@ class Map(AtlasElement):
     parcellation_id: str = None
     space_id: str = None
     maptype: str = None
-    index_mapping: Dict[str, "AttributeCollection"] = field(default_factory=dict)
+    _index_mapping: Dict[str, "AttributeCollection"] = field(default_factory=dict)
 
     def __post_init__(self):
         essential_specs = {"parcellation_id", "space_id", "maptype", "index_mapping"}
@@ -59,13 +63,13 @@ class Map(AtlasElement):
 
     @property
     def regions(self) -> Set[str]:
-        return set(self.index_mapping.keys())
+        return set(self._index_mapping.keys())
 
     @property
     def _region_images(self) -> List["Image"]:
         return [
             im
-            for attrcols in self.index_mapping.values()
+            for attrcols in self._index_mapping.values()
             for im in attrcols._find(Image)
         ]
 
@@ -88,10 +92,23 @@ class Map(AtlasElement):
                 if format is not None
                 else replace(attr_col)
             )
-            for regionname, attr_col in self.index_mapping.items()
+            for regionname, attr_col in self._index_mapping.items()
             if regionnames is None or regionname in regionnames
         }
+        # TODO: Returning a new copy of this map with just indexmapping changed
+        # is risky as attributes such as name and id will remain the same
+        # because potentially we might use id and name for hashing or caching
+        # purposes
         return replace(self, index_mapping=filtered_images)
+
+    def _get_region(self, regionname: str):
+        if regionname in self.regions:
+            return regionname
+        else:
+            candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
+            if len(candidates) == 0:
+                raise TypeError
+            return assert_ooo(candidates)
 
     def _find_images(self, regionname: str = None, frmt: str = None) -> List["Image"]:
         def filter_fn(im: "Image"):
@@ -100,16 +117,12 @@ class Map(AtlasElement):
         if regionname is None:
             return list(filter(filter_fn, self._find(Image)))
 
-        if regionname in self.regions:
-            selected_region = regionname
-        else:
-            candidates = [r for r in self.regions if fuzzy_match(regionname, r)]
-            selected_region = assert_ooo(candidates)
+        selected_region = self._get_region(regionname)
 
         return list(
             filter(
                 filter_fn,
-                self.index_mapping[selected_region]._find(Image),
+                self._index_mapping[selected_region]._find(Image),
             )
         )
 
@@ -119,7 +132,7 @@ class Map(AtlasElement):
         frmt: str = None,
         bbox: "BBox" = None,
         resolution_mm: float = None,
-        max_bytes: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
     ):
         if frmt is None:
@@ -135,7 +148,7 @@ class Map(AtlasElement):
             bbox=bbox,
             resolution_mm=resolution_mm,
             color_channel=color_channel,
-            max_download_GB=max_bytes,
+            max_download_GB=max_download_GB,
         )
 
         images = self._find_images(regionname=regionname, frmt=frmt)
@@ -159,7 +172,7 @@ class Map(AtlasElement):
         import numpy as np
 
         def convert_hex_to_tuple(clr: str):
-            return tuple(int(clr[p: p + 2], 16) for p in [1, 3, 5])
+            return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
 
         if frmt is None:
             frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
@@ -186,7 +199,138 @@ class Map(AtlasElement):
 
 
 @dataclass
+class SparseIndex:
+    probs: List[float] = field(default_factory=list)
+    bboxes: Dict = field(default_factory=dict)
+    voxels: np.ndarray = field(default_factory=np.ndarray)
+    affine: np.ndarray = field(default_factory=np.ndarray)
+    shape: Tuple[int] = field(default_factory=tuple)
+
+    def get_coords(self, regionname: str):
+        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
+        coord_ids = [i for i, l in enumerate(self.probs) if regionname in l]
+        x0, y0, z0 = self.bboxes[regionname]["minpoint"]
+        x1, y1, z1 = self.bboxes[regionname]["maxpoint"]
+        return (
+            np.array(
+                np.where(
+                    np.isin(
+                        self.voxels[x0 : x1 + 1, y0 : y1 + 1, z0 : z1 + 1],
+                        coord_ids,
+                    )
+                )
+            ).T
+            + (x0, y0, z0)
+        ).T
+
+    def get_mapped_voxels(self, regionname: str):
+        # returns the x, y, and z coordinates of nonzero voxels for the map
+        # with the given index, together with their corresponding values v.
+        x, y, z = [v.squeeze() for v in np.split(self.get_coords(regionname), 3)]
+        v = [self.probs[i][regionname] for i in self.voxels[x, y, z]]
+        return x, y, z, v
+
+    def _exract_from_sparseindex(self, regionname: str):
+        from nibabel import Nifti1Image
+
+        x, y, z, v = self.get_mapped_voxels(regionname)
+        result = np.zeros(self.shape, dtype=np.float32)
+        result[x, y, z] = v
+        return Nifti1Image(dataobj=result, affine=self.affine)
+
+
+def add_img(spind: dict, nii: "Nifti1Image", regionname: str):
+    imgdata = np.asanyarray(nii.dataobj)
+    X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
+    for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
+        coord_id = spind["voxels"][x, y, z]
+        if coord_id >= 0:
+            # Coordinate already seen. Just add observed value.
+            assert regionname not in spind["probs"][coord_id]
+            assert len(spind["probs"]) > coord_id
+            spind["probs"][coord_id][regionname] = prob
+        else:
+            # New coordinate. Append entry with observed value.
+            coord_id = len(spind["probs"])
+            spind["voxels"][x, y, z] = coord_id
+            spind["probs"].append({regionname: prob})
+
+    spind["bboxes"][regionname] = {
+        "minpoint": (X.min(), Y.min(), Z.min()),
+        "maxpoint": (X.max(), Y.max(), Z.max()),
+    }
+    return spind
+
+
+@fn_call_cache
+def build_sparse_index(parcmap: Map) -> SparseIndex:
+    added_image_count = 0
+    spind = {"voxels": {}, "probs": [], "bboxes": {}}
+    mapaffine: np.ndarray = None
+    mapshape: Tuple[int] = None
+    for region, attrcol in siibra_tqdm(
+        parcmap._index_mapping.items(),
+        unit="map",
+        desc=f"Building sparse index from {len(parcmap._index_mapping)} volumetric maps",
+    ):
+        image = attrcol._get(Image)
+        nii = image.fetch()
+        if added_image_count == 0:
+            mapaffine = nii.affine
+            mapshape = nii.shape
+            spind["voxels"] = np.zeros(nii.shape, dtype=np.int32) - 1
+        else:
+            if (nii.shape != mapshape) or ((mapaffine - nii.affine).sum() != 0):
+                raise RuntimeError(
+                    "Building sparse maps from volumes with different voxel "
+                    "spaces is not yet supported in siibra."
+                )
+        spind = add_img(spind, nii, region)
+        added_image_count += 1
+    return SparseIndex(
+        probs=spind["probs"],
+        bboxes=spind["bboxes"],
+        voxels=spind["voxels"],
+        affine=mapaffine,
+        shape=mapshape,
+    )
+
+
+@dataclass
 class SparseMap(Map):
+    use_sparse_index: bool = False
 
     def __post_init__(self):
         super().__post_init__()
+
+    @property
+    def _sparse_index(self) -> SparseIndex:
+        return build_sparse_index(self)
+
+    def fetch(
+        self,
+        regionname: str = None,
+        frmt: str = None,
+        bbox: "BBox" = None,
+        resolution_mm: float = None,
+        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
+        color_channel: int = None,
+    ):
+        selected_region = self._get_region(regionname)
+
+        if self.use_sparse_index:
+            nii = self._sparse_index._exract_from_sparseindex(selected_region)
+
+        nii = super().fetch(regionname=selected_region, frmt=frmt)
+
+        if bbox:
+            from ..retrieval_new.image_fetcher.nifti import extract_voi
+
+            nii = extract_voi(nii, bbox)
+
+        if resolution_mm:
+            from ..retrieval_new.image_fetcher.nifti import resample
+
+            nii = resample(nii, resolution_mm)
+
+        return nii

@@ -62,7 +62,7 @@ class QueryCursor:
             return QueryParam(
                 attributes=(attr
                             for map in all_maps
-                            for mapped_image_collection in map.index_mapping.values()
+                            for mapped_image_collection in map._index_mapping.values()
                             for attr in mapped_image_collection._finditer(Image))
             )
 
