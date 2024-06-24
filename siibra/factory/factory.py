@@ -7,7 +7,7 @@ from ..concepts.feature import Feature
 from ..descriptions import Name, SpeciesSpec, ID, RegionSpec
 from ..commons import create_key
 from ..commons_new.iterable import assert_ooo
-from ..atlases import region, parcellation, space, parcellationmap
+from ..atlases import region, parcellation, space, parcellationmap, sparsemap
 
 
 V = TypeVar("V")
@@ -143,7 +143,7 @@ def build_space(dict_obj):
 def build_map(dict_obj):
     dict_obj.pop("@type", None)
     if dict_obj.pop("sparsemap", False):
-        MapType = parcellationmap.SparseMap
+        MapType = sparsemap.SparseMap
     else:
         MapType = parcellationmap.Map
 

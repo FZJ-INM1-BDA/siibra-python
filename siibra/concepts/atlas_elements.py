@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from .attribute_collection import AttributeCollection
 from ..descriptions import (
     Name,
@@ -10,7 +8,6 @@ from ..descriptions import (
 MUSTHAVE_ATTRIBUTES = {Name, _ID, SpeciesSpec}
 
 
-@dataclass
 class AtlasElement(AttributeCollection):
     schema: str = "siibra/atlas_element/v0.1"
 
@@ -19,6 +16,17 @@ class AtlasElement(AttributeCollection):
         assert all(
             musthave in attr_types for musthave in MUSTHAVE_ATTRIBUTES
         ), f"An AtlasElement must have {[attr_type.__name__ for attr_type in MUSTHAVE_ATTRIBUTES]} attributes."
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.ID == other.ID
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def __hash__(self):
+        return hash(self.ID)
 
     @property
     def name(self):

@@ -229,7 +229,6 @@ def build_sparse_index(parcmap: Map) -> SparseIndex:
     )
 
 
-@dataclass
 class SparseMap(Map):
     use_sparse_index: bool = False
 
@@ -237,9 +236,6 @@ class SparseMap(Map):
     @cache
     def _sparse_index(self) -> SparseIndex:
         return build_sparse_index(self)
-
-    def __hash__(self):
-        return hash(self.ID)
 
     def fetch(
         self,

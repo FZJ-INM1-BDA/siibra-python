@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, replace
+from dataclasses import field, replace
 from typing import TYPE_CHECKING, List, Dict, Set, Union
 
 import numpy as np
@@ -22,7 +22,6 @@ if TYPE_CHECKING:
 VALID_MAPTYPES = ("STATISTICAL", "LABELLED")
 
 
-@dataclass
 class Map(AtlasElement):
     schema: str = "siibra/atlases/parcellation_map/v0.1"
     parcellation_id: str = None
@@ -171,6 +170,11 @@ class Map(AtlasElement):
             return images[0].fetch(**fetch_kwargs)
 
         if len(images) > 1:
+            if images[0].subimage_options is None:
+                return resample_to_template_and_merge(
+                    [img.fetch(**fetch_kwargs) for img in images], labels=[]
+                )
+
             labels = [im.subimage_options["label"] for im in images]
             if set(labels) == {1}:
                 labels = list(range(1, len(labels) + 1))

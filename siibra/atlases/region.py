@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Iterable, Union, TYPE_CHECKING
 
 import anytree
@@ -15,7 +14,6 @@ if TYPE_CHECKING:
     from . import Parcellation
 
 
-@dataclass
 class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
     schema: str = "siibra/atlases/region/v0.1"
 
@@ -24,15 +22,10 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         anytree.NodeMixin.__init__(self)
         self.children = children
 
-    def __eq__(self, other: "Region") -> bool:
-        # Otherwise, == comparison result in max stack
-        return self.ID == other.ID
-
-    def __hash__(self):
-        return hash(self.ID)
-
     def __repr__(self) -> str:
-        return f"Region<{self.name!r} in {self.parcellation.name!r}>"
+        if self == self.root:
+            return atlas_elements.AtlasElement.__repr__(self)
+        return f"{self.__class__.__name__}({self.name!r} in {self.parcellation.name!r})"
 
     @property
     def parcellation(self) -> "Parcellation":

@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import List
 
 from ..atlases import region
@@ -8,7 +7,6 @@ from ..commons_new.iterable import assert_ooo
 from ..descriptions import Version
 
 
-@dataclass(init=False)
 class Parcellation(region.Region):
     schema: str = "siibra/atlases/parcellation/v0.1"
 

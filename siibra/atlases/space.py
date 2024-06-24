@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Set
 from ..concepts import AtlasElement
 from ..dataitems import IMAGE_FORMATS, IMAGE_VARIANT_KEY
@@ -8,7 +7,6 @@ if TYPE_CHECKING:
     from ..dataitems import Image
 
 
-@dataclass
 class Space(AtlasElement):
     schema: str = "siibra/atlases/space/v0.1"
 
