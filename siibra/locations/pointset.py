@@ -243,15 +243,15 @@ class PointSet(location.Location):
 
     @property
     def boundingbox(self):
-        """Return the bounding box of these points.
-        TODO revisit the numerical margin of 1e-6, should not be necessary.
         """
-        XYZ = self.coordinates
-        sigma_min = max(self.sigma[i] for i in XYZ.argmin(0))
-        sigma_max = max(self.sigma[i] for i in XYZ.argmax(0))
+        Return the bounding box of these points.
+        """
+        coords = self.coordinates
+        sigma_min = max(self.sigma[i] for i in coords.argmin(0))
+        sigma_max = max(self.sigma[i] for i in coords.argmax(0))
         return _boundingbox.BoundingBox(
-            point1=XYZ.min(0) - max(sigma_min, 1e-6),
-            point2=XYZ.max(0) + max(sigma_max, 1e-6),
+            point1=coords.min(0),
+            point2=coords.max(0),
             space=self.space,
             sigma_mm=[sigma_min, sigma_max]
         )
