@@ -32,7 +32,7 @@ def resample_img_to_img(
     return resampled_img
 
 
-def resample_to_template_and_merge(
+def resample_and_merge(
     niftis: List["Nifti1Image"],
     template_img: "Nifti1Image" = None,
     labels: List[int] = [],
@@ -55,8 +55,8 @@ def resample_to_template_and_merge(
 
     for i, img in tqdm(
         enumerate(niftis),
-        unit=" volume",
-        desc="Resampling niftis to the template and merging",
+        unit="nifti",
+        desc="Merging (and resmapling if necessary)",
         total=len(niftis),
         disable=len(niftis) < 3,
     ):

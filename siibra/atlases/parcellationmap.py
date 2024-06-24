@@ -7,7 +7,7 @@ from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
 from ..retrieval_new.image_fetcher import FetchKwargs
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import resample_to_template_and_merge
+from ..commons_new.maps import resample_and_merge
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, IMAGE_FORMATS
 from ..descriptions import Name, ID as _ID, SpeciesSpec
@@ -166,19 +166,19 @@ class Map(AtlasElement):
             max_download_GB=max_download_GB,
         )
 
+        if region is None:
+            return resample_and_merge(
+                [img.fetch(**fetch_kwargs) for img in images], labels=[]
+            )
+
         if len(images) == 1:
             return images[0].fetch(**fetch_kwargs)
 
         if len(images) > 1:
-            if images[0].subimage_options is None:
-                return resample_to_template_and_merge(
-                    [img.fetch(**fetch_kwargs) for img in images], labels=[]
-                )
-
             labels = [im.subimage_options["label"] for im in images]
             if set(labels) == {1}:
                 labels = list(range(1, len(labels) + 1))
-            return resample_to_template_and_merge(
+            return resample_and_merge(
                 [img.fetch(**fetch_kwargs) for img in images], labels=labels
             )
 
