@@ -70,6 +70,10 @@ def find_spaces(space_spec: str):
     return list(string_search(space_spec, Space))
 
 
+def get_template(space_spec: str, frmt: str = None, variant: str = None):
+    return get_space(space_spec).get_template(frmt=frmt, variant=variant)
+
+
 def get_parcellation(parc_spec: str):
     """Convenient access to parcellations."""
     searched_parcs = list(string_search(parc_spec, Parcellation))
@@ -79,6 +83,12 @@ def get_parcellation(parc_spec: str):
 
 def find_parcellations(parc_spec: str):
     return list(string_search(parc_spec, Parcellation))
+
+
+def find_maps(parcellation: str = "", space: str = "", maptype: str = "labelled", extra_spec: str = ""):
+    """Convenient access to parcellation maps."""
+    map_spec = " ".join([parcellation, space, maptype, extra_spec])
+    return list(string_search(map_spec, parcellationmap.Map))
 
 
 def get_map(parcellation: str, space: str, maptype: str = "labelled", extra_spec: str = ""):
