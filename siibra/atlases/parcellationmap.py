@@ -113,7 +113,9 @@ class Map(AtlasElement):
         try:
             candidate = self.parcellation.get_region(regionname).name
             if candidate in self.regions:
-                return list(filter(filter_fn, self._index_mapping[candidate]._find(Image)))
+                return list(
+                    filter(filter_fn, self._index_mapping[candidate]._find(Image))
+                )
         except AssertionError:
             pass
 
@@ -181,6 +183,7 @@ class Map(AtlasElement):
         raise RuntimeError("No images found.")
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
+        # TODO: profile and speed up
         from matplotlib.colors import ListedColormap
 
         def convert_hex_to_tuple(clr: str):
@@ -312,9 +315,6 @@ def build_sparse_index(parcmap: Map) -> SparseIndex:
 class SparseMap(Map):
     use_sparse_index: bool = False
 
-    def __post_init__(self):
-        super().__post_init__()
-
     @property
     def _sparse_index(self) -> SparseIndex:
         return build_sparse_index(self)
@@ -332,13 +332,16 @@ class SparseMap(Map):
             regionspec = region.name
         else:
             regionspec = region
-        matched = self.parcellation.get_region(regionspec).name
-        assert matched in self.regions, f"Statistical map of region '{matched}' is not available."
+        matched = self.parcellation.get_region(regionspec)
+        assert matched.name in self.regions, (
+            f"Statistical map of region '{matched}' is not available. "
+            f"Try fetching its descendants: {matched.descendants}"
+        )
 
         if self.use_sparse_index:
-            nii = self._sparse_index._exract_from_sparseindex(matched)
+            nii = self._sparse_index._exract_from_sparseindex(matched.name)
 
-        nii = super().fetch(regionname=matched, frmt=frmt)
+        nii = super().fetch(region=matched.name, frmt=frmt)
 
         if bbox:
             from ..retrieval_new.image_fetcher.nifti import extract_voi
