@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, List, Dict, Set, Tuple, Union
+from typing import TYPE_CHECKING, List, Dict, Set, Union
 
 import numpy as np
 
@@ -11,14 +11,12 @@ from ..commons_new.maps import resample_to_template_and_merge
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, IMAGE_FORMATS
 from ..descriptions import Name, ID as _ID, SpeciesSpec
-from ..cache import fn_call_cache
 
-from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB, siibra_tqdm
+from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ..locations import BBox
     from ..concepts.attribute_collection import AttributeCollection
-    from nibabel import Nifti1Image
 
 
 VALID_MAPTYPES = ("STATISTICAL", "LABELLED")
@@ -211,146 +209,3 @@ class Map(AtlasElement):
             ]
         ) / [255, 255, 255, 1]
         return ListedColormap(pallette)
-
-
-@dataclass
-class SparseIndex:
-    probs: List[float] = field(default_factory=list)
-    bboxes: Dict = field(default_factory=dict)
-    voxels: np.ndarray = field(default_factory=np.ndarray)
-    affine: np.ndarray = field(default_factory=np.ndarray)
-    shape: Tuple[int] = field(default_factory=tuple)
-
-    def get_coords(self, regionname: str):
-        # Nx3 array with x/y/z coordinates of the N nonzero values of the given mapindex
-        coord_ids = [i for i, l in enumerate(self.probs) if regionname in l]
-        x0, y0, z0 = self.bboxes[regionname]["minpoint"]
-        x1, y1, z1 = self.bboxes[regionname]["maxpoint"]
-        return (
-            np.array(
-                np.where(
-                    np.isin(
-                        self.voxels[x0 : x1 + 1, y0 : y1 + 1, z0 : z1 + 1],
-                        coord_ids,
-                    )
-                )
-            ).T
-            + (x0, y0, z0)
-        ).T
-
-    def get_mapped_voxels(self, regionname: str):
-        # returns the x, y, and z coordinates of nonzero voxels for the map
-        # with the given index, together with their corresponding values v.
-        x, y, z = [v.squeeze() for v in np.split(self.get_coords(regionname), 3)]
-        v = [self.probs[i][regionname] for i in self.voxels[x, y, z]]
-        return x, y, z, v
-
-    def _exract_from_sparseindex(self, regionname: str):
-        from nibabel import Nifti1Image
-
-        x, y, z, v = self.get_mapped_voxels(regionname)
-        result = np.zeros(self.shape, dtype=np.float32)
-        result[x, y, z] = v
-        return Nifti1Image(dataobj=result, affine=self.affine)
-
-
-def add_img(spind: dict, nii: "Nifti1Image", regionname: str):
-    imgdata = np.asanyarray(nii.dataobj)
-    X, Y, Z = [v.astype("int32") for v in np.where(imgdata > 0)]
-    for x, y, z, prob in zip(X, Y, Z, imgdata[X, Y, Z]):
-        coord_id = spind["voxels"][x, y, z]
-        if coord_id >= 0:
-            # Coordinate already seen. Just add observed value.
-            assert regionname not in spind["probs"][coord_id]
-            assert len(spind["probs"]) > coord_id
-            spind["probs"][coord_id][regionname] = prob
-        else:
-            # New coordinate. Append entry with observed value.
-            coord_id = len(spind["probs"])
-            spind["voxels"][x, y, z] = coord_id
-            spind["probs"].append({regionname: prob})
-
-    spind["bboxes"][regionname] = {
-        "minpoint": (X.min(), Y.min(), Z.min()),
-        "maxpoint": (X.max(), Y.max(), Z.max()),
-    }
-    return spind
-
-
-@fn_call_cache
-def build_sparse_index(parcmap: Map) -> SparseIndex:
-    added_image_count = 0
-    spind = {"voxels": {}, "probs": [], "bboxes": {}}
-    mapaffine: np.ndarray = None
-    mapshape: Tuple[int] = None
-    for region, attrcol in siibra_tqdm(
-        parcmap._index_mapping.items(),
-        unit="map",
-        desc=f"Building sparse index from {len(parcmap._index_mapping)} volumetric maps",
-    ):
-        image = attrcol._get(Image)
-        nii = image.fetch()
-        if added_image_count == 0:
-            mapaffine = nii.affine
-            mapshape = nii.shape
-            spind["voxels"] = np.zeros(nii.shape, dtype=np.int32) - 1
-        else:
-            if (nii.shape != mapshape) or ((mapaffine - nii.affine).sum() != 0):
-                raise RuntimeError(
-                    "Building sparse maps from volumes with different voxel "
-                    "spaces is not yet supported in siibra."
-                )
-        spind = add_img(spind, nii, region)
-        added_image_count += 1
-    return SparseIndex(
-        probs=spind["probs"],
-        bboxes=spind["bboxes"],
-        voxels=spind["voxels"],
-        affine=mapaffine,
-        shape=mapshape,
-    )
-
-
-@dataclass
-class SparseMap(Map):
-    use_sparse_index: bool = False
-
-    @property
-    def _sparse_index(self) -> SparseIndex:
-        return build_sparse_index(self)
-
-    def fetch(
-        self,
-        region: Union[str, Region] = None,
-        frmt: str = None,
-        bbox: "BBox" = None,
-        resolution_mm: float = None,
-        max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
-        color_channel: int = None,
-    ):
-        if isinstance(region, Region):
-            regionspec = region.name
-        else:
-            regionspec = region
-        matched = self.parcellation.get_region(regionspec)
-        assert matched.name in self.regions, (
-            f"Statistical map of region '{matched}' is not available. "
-            f"Try fetching its descendants: {matched.descendants}"
-        )
-
-        if self.use_sparse_index:
-            nii = self._sparse_index._exract_from_sparseindex(matched.name)
-
-        nii = super().fetch(region=matched.name, frmt=frmt)
-
-        if bbox:
-            from ..retrieval_new.image_fetcher.nifti import extract_voi
-
-            nii = extract_voi(nii, bbox)
-
-        if resolution_mm:
-            from ..retrieval_new.image_fetcher.nifti import resample
-
-            nii = resample(nii, resolution_mm)
-
-        return nii

@@ -27,10 +27,6 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
     # TODO
     # Instead of resmapling nifti to desired resolution_mm in `fetch` as
     # discussed previously, consider an explicit method.
-    print(
-        "Warning: Multi-resolution for 'nii' is not supported."
-        "siibra will resample using nilearn to desired resolution"
-    )
     raise NotImplementedError
 
 
