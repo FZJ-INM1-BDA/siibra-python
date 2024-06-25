@@ -11,7 +11,6 @@ X_DATA = "x-siibra/data/dataframe"
 
 @dataclass
 class Tabular(Data):
-
     schema: str = "siibra/attr/data/tabular/v0.1"
     format: Literal["csv"] = None
     plot_options: dict = field(default_factory=dict)

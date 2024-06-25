@@ -1,4 +1,4 @@
-from dataclasses import field, replace
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, List, Dict, Set, Union
 
 import numpy as np
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 VALID_MAPTYPES = ("STATISTICAL", "LABELLED")
 
 
+@dataclass(repr=False, eq=False)
 class Map(AtlasElement):
     schema: str = "siibra/atlases/parcellation_map/v0.1"
     parcellation_id: str = None

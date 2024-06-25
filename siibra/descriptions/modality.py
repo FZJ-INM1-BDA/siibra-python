@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import List, Callable, Iterable, Dict
 
 from .base import Description
@@ -6,16 +5,15 @@ from ..commons_new.instance_table import JitInstanceTable
 from ..commons import logger
 
 
-@dataclass
 class Modality(Description):
     schema = "siibra/attr/desc/modality/v0.1"
-    value: str = None
 
     def __hash__(self) -> int:
         return hash(self.value)
 
 
 modalities_generator: List[Callable[[], Iterable[Modality]]] = []
+
 _cached_modality = (
     {}
 )  # TODO ugly way to deal with JitInstanceTable calling __getattr__ during autocomplete

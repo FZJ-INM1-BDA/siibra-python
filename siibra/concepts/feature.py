@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import List
 import pandas as pd
 
@@ -13,7 +12,6 @@ def attr_of_general_interest(attr: Attribute):
     return MATRIX_INDEX_ENTITY_KEY in attr.extra
 
 
-@dataclass
 class Feature(AttributeCollection):
     schema: str = "siibra/concepts/feature/v0.2"
 

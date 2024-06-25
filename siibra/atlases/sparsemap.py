@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from nibabel import Nifti1Image
 
 
-@dataclass
+@dataclass(repr=False)
 class SparseIndex:
     probs: List[float] = field(default_factory=list)
     bboxes: Dict = field(default_factory=dict)
@@ -229,6 +229,7 @@ def build_sparse_index(parcmap: Map) -> SparseIndex:
     )
 
 
+@dataclass(repr=False, eq=False)
 class SparseMap(Map):
     use_sparse_index: bool = False
 
