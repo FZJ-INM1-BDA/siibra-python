@@ -1,13 +1,11 @@
-from typing import Type
 from itertools import product
 
 import siibra
 from siibra.concepts.attribute_collection import AttributeCollection
 from siibra.concepts.feature import Feature
-from siibra.assignment.assignment import get, match
+from siibra.assignment.assignment import find, match, finditer
 from siibra.descriptions import Modality, RegionSpec, Gene
 from siibra.concepts.query_parameter import QueryParam
-from siibra.atlases import Region
 import siibra.descriptions
 from siibra.dataitems import Image
 from siibra.exceptions import UnregisteredAttrCompException
@@ -19,34 +17,41 @@ modality = Modality(value="Neurotransmitter receptor density fingerprint")
 # query by regionspec... works?
 query1 = QueryParam(attributes=[region_spec])
 
-features1 = list(get(query1, Feature))
+features1 = find(query1, Feature)
 print(len(features1))
 
 
 # query by modality works
 query2 = QueryParam(attributes=[modality])
-features2 = list(get(query2, Feature))
+features2 = find(query2, Feature)
 print(len(features2))
 
 
 # but combining them does not work
 # since the check goes by any check
-query3 = QueryParam(attributes=[
-    region_spec,
-    modality,
-])
-features3 = list(get(query3, Feature))
+query3 = QueryParam(
+    attributes=[
+        region_spec,
+        modality,
+    ]
+)
+features3 = find(query3, Feature)
 print(len(features3))
 
 
 # I suspect we will have to introduce helper methods like below to achieve `and` check
 def feature_get(qp: QueryParam):
     col_type = Feature
+
     def _filter(_qp: QueryParam, feat: AttributeCollection) -> bool:
         new_qps = list(_qp.split_attrs())
-        new_qps = sorted(new_qps,
-                         key=lambda b: len([attr for attr in b.attributes if isinstance(attr, Modality)]),
-                         reverse=True)
+        new_qps = sorted(
+            new_qps,
+            key=lambda b: len(
+                [attr for attr in b.attributes if isinstance(attr, Modality)]
+            ),
+            reverse=True,
+        )
         for new_qp in new_qps:
             try:
                 if not match(new_qp, feat):
@@ -54,10 +59,11 @@ def feature_get(qp: QueryParam):
             except UnregisteredAttrCompException:
                 continue
         return True
-    
-    for feat in get(qp, col_type):
+
+    for feat in finditer(qp, col_type):
         if _filter(qp, feat):
             yield feat
+
 
 features4 = list(feature_get(query3))
 print(len(features4))
@@ -65,22 +71,29 @@ print(len(features4))
 
 # testing modality autocomplete
 # works at runtime (not statically)
-print(
-    "testing modality dir",
-    siibra.descriptions.modality.vocab.__dir__()
+print("testing modality dir", siibra.descriptions.modality.vocab.__dir__())
+
+assert (
+    siibra.descriptions.modality.vocab.GENE_EXPRESSIONS
+    == siibra.descriptions.modality.Modality(value="Gene Expressions")
 )
 
-assert siibra.descriptions.modality.vocab.GENE_EXPRESSIONS == siibra.descriptions.modality.Modality(value="Gene Expressions")
-
-mni152_julichbrain_29_hoc1_lh_pmap = Image(format="nii", space_id="minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
-                                    url="https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210616-julichbrain-v2.9.0-complete-mpm/PMs/Area-hOc1/4.2/Area-hOc1_l_N10_nlin2ICBM152asym2009c_4.2_publicP_026bcbe494dc4bfe702f2b1cc927a7c1.nii.gz")
+mni152_julichbrain_29_hoc1_lh_pmap = Image(
+    format="nii",
+    space_id="minds/core/referencespace/v1.0.0/dafcffc5-4826-4bf1-8ff6-46b8a31ff8e2",
+    url="https://neuroglancer.humanbrainproject.eu/precomputed/data-repo-ng-bot/20210616-julichbrain-v2.9.0-complete-mpm/PMs/Area-hOc1/4.2/Area-hOc1_l_N10_nlin2ICBM152asym2009c_4.2_publicP_026bcbe494dc4bfe702f2b1cc927a7c1.nii.gz",
+)
 
 gene_maoa = Gene(value="MAOA")
 gene_tac1 = Gene(value="TAC1")
-query = QueryParam(attributes=[mni152_julichbrain_29_hoc1_lh_pmap,
-                               gene_maoa,
-                               gene_tac1,
-                               siibra.descriptions.modality.vocab.GENE_EXPRESSIONS ])
+query = QueryParam(
+    attributes=[
+        mni152_julichbrain_29_hoc1_lh_pmap,
+        gene_maoa,
+        gene_tac1,
+        siibra.descriptions.modality.vocab.GENE_EXPRESSIONS,
+    ]
+)
 
 gene_expression = list(feature_get(query))
 print(gene_expression)
@@ -88,11 +101,17 @@ print(gene_expression)
 
 # # testing querying via bounding box
 cell_body_staining = siibra.descriptions.modality.vocab.CELL_BODY_STAINING
-bbox = BBox(minpoint=[-11, -11, -11],
-            maxpoint=[11, 11, 11],
-            space_id="minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588")
-query = QueryParam(attributes=[cell_body_staining,
-                               bbox,])
+bbox = BBox(
+    minpoint=[-11, -11, -11],
+    maxpoint=[11, 11, 11],
+    space_id="minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
+)
+query = QueryParam(
+    attributes=[
+        cell_body_staining,
+        bbox,
+    ]
+)
 cell_body_staining_features = list(feature_get(query))
 assert len(cell_body_staining_features) > 0
 print(f"found {len(cell_body_staining_features)} cell body staining features")
@@ -107,8 +126,11 @@ modalities = (
 )
 
 hoc1_region_spec = RegionSpec(value="Area hOc1 (V1, 17, CalcS)")
-bb_hoc1_lh_labelled_map = Image(format="neuroglancer/precomputed", space_id="minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
-                                url="https://neuroglancer.humanbrainproject.eu/precomputed/BigBrainRelease.2015/2022_map_release/hOc1_left")
+bb_hoc1_lh_labelled_map = Image(
+    format="neuroglancer/precomputed",
+    space_id="minds/core/referencespace/v1.0.0/a1655b99-82f1-420f-a3c2-fe80fd4c8588",
+    url="https://neuroglancer.humanbrainproject.eu/precomputed/BigBrainRelease.2015/2022_map_release/hOc1_left",
+)
 bbhoc1_bbox = bb_hoc1_lh_labelled_map.boundingbox
 spatial_attr = (
     hoc1_region_spec,
@@ -131,11 +153,9 @@ assert len(features) > 0
 for f in features:
     assert len(f.attributes) > 0
 
-features = list(get(
-    QueryParam(attributes=[
-        Modality(value='FunctionalConnectivity')
-    ]),
-    Feature
-))
+features = find(
+    QueryParam(attributes=[Modality(value="FunctionalConnectivity")]), Feature
+)
+
 
 f = features[0]
