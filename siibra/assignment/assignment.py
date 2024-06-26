@@ -62,7 +62,7 @@ def finditer(input: AttributeCollection, req_type: Type[V]) -> Iterable[V]:
 
 
 def find(input: AttributeCollection, req_type: Type[V]) -> List[V]:
-    return [item for item in finditer(input, req_type)]
+    return list(finditer(input, req_type))
 
 
 def string_search(input: str, req_type: Type[V]) -> Iterable[V]:
