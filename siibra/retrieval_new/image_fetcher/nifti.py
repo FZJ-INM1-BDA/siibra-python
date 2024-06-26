@@ -33,6 +33,7 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
 @register_image_fetcher("nii", "volume")
 def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
     _bytes = image.get_data()
+    # TODO: try open gzip
     if _bytes.startswith(b'\x1f\x8b'):
         _bytes = gzip.decompress(_bytes)
     nii = Nifti1Image.from_bytes(_bytes)
