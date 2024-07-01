@@ -15,9 +15,9 @@ license: Apache-2.0
 
 repository-code: https://github.com/FZJ-INM1-BDA/siibra-python
 
-version: v1.0a12
+version: v1.0a13
 
-date-released: 2024-06-27
+date-released: 2024-07-01
 
 doi: 10.5281/zenodo.7885728
 
