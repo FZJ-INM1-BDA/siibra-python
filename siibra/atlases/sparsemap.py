@@ -263,12 +263,12 @@ class SparseMap(Map):
         nii = super().fetch(region=matched.name, frmt=frmt)
 
         if bbox:
-            from ..retrieval_new.image_fetcher.nifti import extract_voi
+            from ..retrieval_new.volume_fetcher.image.nifti import extract_voi
 
             nii = extract_voi(nii, bbox)
 
         if resolution_mm:
-            from ..retrieval_new.image_fetcher.nifti import resample
+            from ..retrieval_new.volume_fetcher.image.nifti import resample
 
             nii = resample(nii, resolution_mm)
 

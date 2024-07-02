@@ -53,7 +53,7 @@ print(julich_mpm)
 # As already seen for reference templates, to access the actual image data,
 # we call the fetch() method. Per default, this gives us a Nifti1Image object
 # if image data is available for the volume.
-assert julich_mpm.provides_volume
+assert julich_mpm.provides_image
 mapimg = julich_mpm.fetch()
 print(type(mapimg))
 

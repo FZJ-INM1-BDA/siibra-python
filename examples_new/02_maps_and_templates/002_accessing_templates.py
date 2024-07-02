@@ -70,7 +70,7 @@ plotting.view_img(icbm_img, bg_img=None, cmap='gray', colorbar=False)
 # %%
 # As described above however, the template has multiple volume providers, representing different
 # resources and formats. The Volume object has a list of accepted format specifiers:
-icbm.image_formats
+icbm.formats
 
 # %%
 # Although the particular source format is usually not of interest to us,

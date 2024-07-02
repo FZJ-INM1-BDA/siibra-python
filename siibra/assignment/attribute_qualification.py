@@ -2,7 +2,7 @@ from typing import Union
 from itertools import product
 
 from .qualification import Qualification
-from ..dataitems import image
+from ..dataitems import Image
 from ..commons import logger
 from ..commons_new.comparison import Comparison
 from ..commons_new.string import fuzzy_match, clear_name
@@ -210,12 +210,12 @@ def qualify_bbox_bbox(bboxa: BBox, bboxb: BBox):
         )
 
     minpt_is_a, maxpt_is_a = (
-        bboxa.minpoint == intersected.minpoint,
-        bboxa.maxpoint == intersected.maxpoint,
+        bboxa._minpoint == intersected._minpoint,
+        bboxa._maxpoint == intersected._maxpoint,
     )
     minpt_is_b, maxpt_is_b = (
-        bboxb.minpoint == intersected.minpoint,
-        bboxb.maxpoint == intersected.maxpoint,
+        bboxb._minpoint == intersected._minpoint,
+        bboxb._maxpoint == intersected._maxpoint,
     )
     if all((minpt_is_a, maxpt_is_a, minpt_is_b, maxpt_is_b)):
         return Qualification.EXACT
@@ -228,8 +228,8 @@ def qualify_bbox_bbox(bboxa: BBox, bboxb: BBox):
     return Qualification.OVERLAPS
 
 
-@register_attr_qualifier(PointCloud, image.Image)
-def qualify_ptcld_image(ptcld: PointCloud, image: image.Image):
+@register_attr_qualifier(PointCloud, Image)
+def qualify_ptcld_image(ptcld: PointCloud, image: Image):
     intersected = intersect(ptcld, image)
     if isinstance(intersected, PointCloud):
         if len(intersected.coordinates) == len(ptcld.coordinates):

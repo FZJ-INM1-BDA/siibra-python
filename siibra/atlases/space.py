@@ -1,66 +1,84 @@
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Set, Union
 from ..concepts import AtlasElement
-from ..dataitems import IMAGE_FORMATS, IMAGE_VARIANT_KEY
+from ..retrieval_new.volume_fetcher import (
+    FetchKwargs,
+    IMAGE_FORMATS,
+    MESH_FORMATS,
+    VARIANT_KEY,
+    FRAGMENT_KEY,
+)
 from ..commons_new.iterable import get_ooo
 
 if TYPE_CHECKING:
-    from ..dataitems import Image
+    from ..dataitems import Image, Mesh
 
 
 class Space(AtlasElement):
     schema: str = "siibra/atlases/space/v0.1"
 
     @property
-    def images(self):
-        from ..dataitems import Image
-
-        return self._find(Image)
-
-    @property
-    def image_formats(self) -> Set[str]:
-        formats = {im.format for im in self.images}
-        if self.provides_mesh:
-            formats = formats.union({"mesh"})
-        if self.provides_volume:
-            formats = formats.union({"volume"})
-        return formats
+    def formats(self) -> Set[str]:
+        formats_ = {vol.format for vol in self.volumes}
+        if any(f in IMAGE_FORMATS for f in formats_):
+            formats_ = formats_.union({"image"})
+        if any(f in MESH_FORMATS for f in formats_):
+            formats_ = formats_.union({"mesh"})
+        return formats_
 
     @property
     def variants(self):
-        return {tmp.extra.get(IMAGE_VARIANT_KEY) for tmp in self.images} - {None}
+        return {vol.extra.get(VARIANT_KEY) for vol in self.volumes} - {None}
 
     @property
-    def meshes(self):
-        return [tmp for tmp in self.images if tmp.provides_mesh]
+    def fragments(self):
+        return {vol.extra.get(FRAGMENT_KEY) for vol in self.volumes} - {None}
 
     @property
     def volumes(self):
-        return [tmp for tmp in self.images if tmp.provides_volume]
+        from ..dataitems import Image, Mesh
+
+        return [attr for attr in self.attributes if isinstance(attr, (Mesh, Image))]
 
     @property
     def provides_mesh(self):
-        return len(self.meshes) > 0
+        return "mesh" in self.formats
 
     @property
-    def provides_volume(self):
-        return len(self.volumes) > 0
+    def provides_image(self):
+        return "image" in self.formats
 
-    def get_template(self, frmt: str = None, variant: str = None) -> "Image":
+    def get_template(
+        self, frmt: str = None, variant: str = None, fragment: str = None
+    ) -> Union["Image", "Mesh"]:
         if frmt is None:
-            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
+            frmt = [f for f in IMAGE_FORMATS + MESH_FORMATS if f in self.formats][0]
         else:
             assert (
-                frmt in self.image_formats
-            ), f"Requested format '{frmt}' is not available for this space: {self.image_formats=}."
+                frmt in self.formats
+            ), f"Requested format '{frmt}' is not available for this space: {self.formats=}."
 
         if variant:
             if not self.variants:
                 raise ValueError("This space has no variants.")
 
             return get_ooo(
-                self.images,
-                lambda img: (img.format == frmt)
-                and (variant.lower() in img.extra.get(IMAGE_VARIANT_KEY, "").lower()),
+                self.volumes,
+                lambda vol: (vol.format == frmt)
+                and (variant.lower() in vol.extra.get(VARIANT_KEY, "").lower())
+                and (fragment.lower() in vol.extra.get(FRAGMENT_KEY, "").lower()),
             )
 
-        return get_ooo(self.images, lambda img: img.format == frmt)
+        return get_ooo(self.volumes, lambda vol: vol.format == frmt)
+
+
+def fetch_template(
+    frmt: str = None,
+    variant: str = None,
+    fragment: str = None,
+    **fetch_kwargs: FetchKwargs,
+):
+    # TODO: This can take one to interoprable formats so that siibra can automatically merge
+    # fragments. Not sure `get_template` should do that. Maybe we rename get_template to find_templates
+    # which returns either a list of Volumes or an attribute collection which we can fetch from.
+    # needs discussion. Ideally, we should remove the need for FRAGMENT_KEY and VARIANT_KEY as well.
+    raise NotImplementedError

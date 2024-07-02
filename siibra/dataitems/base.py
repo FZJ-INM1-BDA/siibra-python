@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import TypedDict
 import requests
-from io import BytesIO
+# from io import BytesIO
 
 from ..concepts.attribute import Attribute
 from ..cache import fn_call_cache
@@ -44,11 +44,11 @@ class Data(Attribute):
     def get_data(self) -> bytes:
         """
         If the data is provided in an archived format, it is decoded using the
-        Data.get_data method. This is so that the subclasses do not need to implement their own
+        otherwise bytes are returned without additional steps. This is so that
+        the subclasses do not need to implement their own.
 
         Usage
         -----
-        For subclasses, call super().get_data() -> Union[bytes, None]. Catch the scenarios where
-        None is returned (which implies the data is not in an archive)
+        For subclasses, call super().get_data() -> bytes
         """
         return get_bytesio_from_url(self.url, self.archive_options)

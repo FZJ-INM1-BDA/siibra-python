@@ -5,11 +5,11 @@ import numpy as np
 
 from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
-from ..retrieval_new.image_fetcher import FetchKwargs
+from ..retrieval_new.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
 from ..commons_new.maps import resample_and_merge
 from ..atlases import Parcellation, Space, Region
-from ..dataitems import Image, IMAGE_FORMATS
+from ..dataitems import Image, Mesh
 from ..descriptions import Name, ID as _ID, SpeciesSpec
 
 from ..commons import SIIBRA_MAX_FETCH_SIZE_GIB
@@ -38,14 +38,6 @@ class Map(AtlasElement):
         super().__post_init__()
 
     @property
-    def provides_mesh(self):
-        return any(im.provides_mesh for im in self._region_images)
-
-    @property
-    def provides_volume(self):
-        return any(im.provides_volume for im in self._region_images)
-
-    @property
     def parcellation(self) -> "Parcellation":
         return assert_ooo(
             [
@@ -64,21 +56,36 @@ class Map(AtlasElement):
         return list(self._index_mapping.keys())
 
     @property
-    def _region_images(self) -> List["Image"]:
+    def _region_volumes(self) -> List[Union["Image", "Mesh"]]:
         return [
-            im
+            attr
             for attrcols in self._index_mapping.values()
-            for im in attrcols._find(Image)
+            for attr in attrcols.attributes
+            if isinstance(attr, (Image, Mesh))
         ]
 
     @property
-    def image_formats(self) -> Set[str]:
-        formats = {im.format for im in self._region_images}
-        if self.provides_mesh:
-            formats = formats.union({"mesh"})
-        if self.provides_volume:
-            formats = formats.union({"volume"})
-        return formats
+    def volumes(self):
+        return [
+            attr for attr in self.attributes if isinstance(attr, (Mesh, Image))
+        ] + self._region_volumes
+
+    @property
+    def formats(self) -> Set[str]:
+        formats_ = {vol.format for vol in self._region_volumes}
+        if any(f in IMAGE_FORMATS for f in formats_):
+            formats_ = formats_.union({"image"})
+        if any(f in MESH_FORMATS for f in formats_):
+            formats_ = formats_.union({"mesh"})
+        return formats_
+
+    @property
+    def provides_mesh(self):
+        return "mesh" in self.formats
+
+    @property
+    def provides_image(self):
+        return "image" in self.formats
 
     def get_filtered_map(self, regions: List[Region] = None) -> "Map":
         """
@@ -101,19 +108,28 @@ class Map(AtlasElement):
         ]
         return replace(self, attributes=attributes, _index_mapping=filtered_images)
 
-    def _find_images(self, regionname: str = None, frmt: str = None) -> List["Image"]:
-        def filter_fn(im: "Image"):
-            return im.of_format(frmt)
+    def _find_volumes(
+        self, regionname: str = None, frmt: str = None
+    ) -> List[Union["Image", "Mesh"]]:
+        def filter_fn(vol: Union["Image", "Mesh"]):
+            return True if frmt is None else vol.format == frmt
 
         if regionname is None:
-            return list(filter(filter_fn, self._find(Image)))
+            return [
+                attr
+                for attr in self.attributes
+                if isinstance(attr, (Mesh, Image)) and filter_fn(attr)
+            ]
 
         try:
             candidate = self.parcellation.get_region(regionname).name
             if candidate in self.regions:
-                return list(
-                    filter(filter_fn, self._index_mapping[candidate]._find(Image))
-                )
+                return [
+                    attr
+                    for attr in self._index_mapping[candidate]
+                    if isinstance(attr, (Mesh, Image)) and filter_fn(attr)
+                ]
+
         except AssertionError:
             pass
 
@@ -126,11 +142,11 @@ class Map(AtlasElement):
         }
         if candidates:
             return [
-                img
-                for r in candidates
-                for img in filter(
+                vol
+                for c in candidates
+                for vol in filter(
                     filter_fn,
-                    self._index_mapping[r]._find(Image),
+                    self._index_mapping[c]._find(Image),
                 )
             ]
         raise ValueError(
@@ -145,20 +161,23 @@ class Map(AtlasElement):
         resolution_mm: float = None,
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
+        allow_relabeling: bool = False,
     ):
         if isinstance(region, Region):
             regionspec = region.name
         else:
             regionspec = region
+
         if frmt is None:
-            frmt = [
-                f for f in IMAGE_FORMATS if f in self.image_formats - {"mesh", "volume"}
-            ][0]
+            frmt = [f for f in IMAGE_FORMATS + MESH_FORMATS if f in self.formats][0]
         else:
             assert (
-                frmt in self.image_formats
-            ), f"Requested format '{frmt}' is not available for this map: {self.image_formats=}."
-        images = self._find_images(regionname=regionspec, frmt=frmt)
+                frmt in self.formats
+            ), f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+
+        volumes = self._find_volumes(regionname=regionspec, frmt=frmt)
+        if len(volumes) == 0:
+            raise RuntimeError("No images or meshes found matching parameters.")
 
         fetch_kwargs = FetchKwargs(
             bbox=bbox,
@@ -167,23 +186,17 @@ class Map(AtlasElement):
             max_download_GB=max_download_GB,
         )
 
-        if region is None:
-            return resample_and_merge(
-                [img.fetch(**fetch_kwargs) for img in images], labels=[]
-            )
+        if len(volumes) == 1:
+            return volumes[0].fetch(**fetch_kwargs)
 
-        if len(images) == 1:
-            return images[0].fetch(**fetch_kwargs)
-
-        if len(images) > 1:
-            labels = [im.subimage_options["label"] for im in images]
+        labels = []
+        if allow_relabeling:
+            labels = [vol.volume_selection_options["label"] for vol in volumes]
             if set(labels) == {1}:
                 labels = list(range(1, len(labels) + 1))
-            return resample_and_merge(
-                [img.fetch(**fetch_kwargs) for img in images], labels=labels
-            )
-
-        raise RuntimeError("No images found.")
+        return resample_and_merge(
+            [vol.fetch(**fetch_kwargs) for vol in volumes], labels=labels
+        )
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
         # TODO: profile and speed up
@@ -193,19 +206,19 @@ class Map(AtlasElement):
             return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
 
         if frmt is None:
-            frmt = [f for f in IMAGE_FORMATS if f in self.image_formats][0]
+            frmt = [f for f in IMAGE_FORMATS + MESH_FORMATS if f in self.formats][0]
         else:
             assert (
-                frmt in self.image_formats
-            ), f"Requested format '{frmt}' is not available for this map: {self.image_formats=}."
+                frmt in self.formats
+            ), f"Requested format '{frmt}' is not available for this map: {self.formats=}."
 
         if regions is None:
             regions = self.regions
 
         colors = {
-            im.subimage_options["label"]: convert_hex_to_tuple(im.color)
+            im.volume_selection_options["label"]: convert_hex_to_tuple(im.color)
             for region in regions
-            for im in self._find_images(region, frmt=frmt)
+            for im in self._find_volumes(region, frmt=frmt)
         }
         pallette = np.array(
             [

@@ -4,11 +4,11 @@ import gzip
 from nibabel import Nifti1Image
 import numpy as np
 
-from .image_fetcher import register_image_fetcher, FetchKwargs
+from ..volume_fetcher import register_volume_fetcher, FetchKwargs
 
 if TYPE_CHECKING:
-    from ...dataitems import Image
-    from ...locations import BBox
+    from ....dataitems import Image
+    from ....locations import BBox
 
 
 def extract_voi(nifti: Nifti1Image, voi: "BBox"):
@@ -30,13 +30,13 @@ def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
     raise NotImplementedError
 
 
-@register_image_fetcher("nii", "volume")
+@register_volume_fetcher("nii", "image")
 def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
     _bytes = image.get_data()
-    # TODO: try open gzip
-    if _bytes.startswith(b'\x1f\x8b'):
-        _bytes = gzip.decompress(_bytes)
-    nii = Nifti1Image.from_bytes(_bytes)
+    try:
+        nii = Nifti1Image.from_bytes(gzip.decompress(_bytes))
+    except gzip.BadGzipFile:
+        nii = Nifti1Image.from_bytes(_bytes)
 
     if fetchkwargs["bbox"] is not None:
         # TODO

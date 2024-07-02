@@ -32,8 +32,8 @@ def pt_ptcld(pt: Pt, ptcld: PointCloud):
 def pt_bbox(pt: Pt, bbox: BBox):
     if pt.space_id != bbox.space_id:
         raise InvalidAttrCompException
-    minpoint = np.array(bbox.minpoint)
-    maxpoint = np.array(bbox.maxpoint)
+    minpoint = np.array(bbox._minpoint)
+    maxpoint = np.array(bbox._maxpoint)
     pts = np.array(pt.coordinate)
     if np.all(minpoint <= pts) and np.all(pts <= maxpoint):
         return replace(pt)
@@ -67,8 +67,8 @@ def ptcld_bbox(ptcld: PointCloud, bbox: BBox):
 def bbox_bbox(bboxa: BBox, bboxb: BBox):
     if bboxa.space_id != bboxb.space_id:
         raise InvalidAttrCompException
-    minpoints = [bboxa.minpoint, bboxb.minpoint]
-    maxpoints = [bboxa.maxpoint, bboxb.maxpoint]
+    minpoints = [bboxa._minpoint, bboxb._minpoint]
+    maxpoints = [bboxa._maxpoint, bboxb._maxpoint]
     allpoints = minpoints + maxpoints
 
     result_min_coord = []

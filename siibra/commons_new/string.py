@@ -104,3 +104,17 @@ def create_key(name: str):
         "_",
         "".join([e if e.isalnum() else " " for e in name]).upper().strip(),
     )
+
+
+HEX_COLOR_REGEXP = re.compile(r"^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$")
+SUPPORTED_COLORMAPS = {"magma", "jet", "rgb"}
+
+
+def is_hex_color(color: str) -> bool:
+    return True if HEX_COLOR_REGEXP.search(color) else False
+
+
+def check_color(color: str) -> bool:
+    if color in SUPPORTED_COLORMAPS or is_hex_color(color):
+        return True
+    return False

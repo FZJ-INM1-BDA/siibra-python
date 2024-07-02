@@ -11,7 +11,7 @@ from ...descriptions import register_modalities, Modality, Gene
 from ...assignment import register_collection_generator
 from ...locations import PointCloud
 from ...dataitems import Image, Tabular
-from ...dataitems.image import intersect_ptcld_image
+from ...dataitems.volume.image import intersect_ptcld_image
 from ...dataitems.tabular import X_DATA
 
 modality_of_interest = Modality(value="Gene Expressions")
