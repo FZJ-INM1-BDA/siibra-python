@@ -12,11 +12,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Handles the relation between study targets and BrainStructures."""
+"""Handles the relation between study targets and AnatomicalStructures."""
 
 from ..commons import Species, logger
 
-from ..core.structure import BrainStructure
+from ..core.structure import AnatomicalStructure
 from ..core.assignment import AnatomicalAssignment, Qualification
 from ..locations.location import Location
 from ..core.parcellation import Parcellation
@@ -56,7 +56,7 @@ class AnatomicalAnchor:
             else:
                 self.species = {sp}
         self._location_cached = location
-        self._assignments: Dict[BrainStructure, List[AnatomicalAssignment]] = {}
+        self._assignments: Dict[AnatomicalStructure, List[AnatomicalAssignment]] = {}
         self._last_matched_concept = None
         if isinstance(region, dict):
             self._regions_cached = region
@@ -156,7 +156,7 @@ class AnatomicalAnchor:
         else:
             return region + separator + location
 
-    def assign(self, concept: BrainStructure, restrict_space: bool = False) -> AnatomicalAssignment:
+    def assign(self, concept: AnatomicalStructure, restrict_space: bool = False) -> AnatomicalAssignment:
         """
         Match this anchor to a query concept. Assignments are cached at runtime,
         so repeated assignment with the same concept will be cheap.
@@ -184,8 +184,8 @@ class AnatomicalAnchor:
             else None
         return self._assignments[concept]
 
-    def matches(self, concept: BrainStructure, restrict_space: bool = False) -> bool:
-        return len(self.assign(concept, restrict_space)) > 0
+    def matches(self, concept: AnatomicalStructure) -> bool:
+        return len(self.assign(concept)) > 0
 
     def represented_parcellations(self) -> List[Parcellation]:
         """

@@ -27,7 +27,7 @@ from . import (
 from ..commons import logger
 
 from .feature import Feature
-from ..retrieval import cache
+from ..cache import WarmupLevel, Warmup
 from ..commons import siibra_tqdm
 
 get = Feature._match
@@ -52,14 +52,14 @@ def __getattr__(attr: str):
         raise AttributeError(f"No such attribute: {__name__}.{attr} " + hint)
 
 
-@cache.Warmup.register_warmup_fn()
+@Warmup.register_warmup_fn()
 def _warm_feature_cache_instances():
     """Preload preconfigured multimodal data features."""
     for ftype in TYPES.values():
         _ = ftype._get_instances()
 
 
-@cache.Warmup.register_warmup_fn(cache.WarmupLevel.DATA, is_factory=True)
+@Warmup.register_warmup_fn(WarmupLevel.DATA, is_factory=True)
 def _warm_feature_cache_data():
     return_callables = []
     for ftype in TYPES.values():
@@ -78,7 +78,7 @@ def _warm_feature_cache_data():
                 try:
                     _ = feature.data
                 except Exception as e:
-                    logger.warn(f"Feature {feature.name} warmup failed: {str(e)}")
+                    logger.warning(f"Feature {feature.name} warmup failed: {str(e)}")
                 finally:
                     tally.update(1)
             # append dictionary, so that popping the dictionary will mark the feature to be garbage collected

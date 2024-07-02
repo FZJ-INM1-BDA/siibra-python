@@ -21,7 +21,7 @@ from .requests import (
     find_suitiable_decoder,
     DECODERS
 )
-from .cache import CACHE
+from ..cache import CACHE
 
 from ..commons import logger, siibra_tqdm
 

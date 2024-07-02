@@ -23,7 +23,7 @@ import logging
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple
+from typing import Generic, Iterable, Iterator, List, TypeVar, Union, Dict, Generator, Tuple, Type, Callable
 from skimage.filters import gaussian
 from dataclasses import dataclass
 from hashlib import md5
@@ -314,6 +314,37 @@ def create_key(name: str):
     )
 
 
+class KeyAccessor:
+    def __init__(self, names: list[str] = None) -> None:
+        self.key_map: dict[str, str] = {}
+        self.reverse_map: dict[str, str] = {}
+        for name in names or []:
+            self.register(name)
+
+    def register(self, name: str):
+
+        key = create_key(name)
+        if key in self.key_map:
+            raise KeyError(f"{key} already in map")
+
+        self.key_map[key] = name
+        self.reverse_map[name] = key
+
+    def deregister(self, name: str):
+        if name not in self.reverse_map:
+            raise KeyError(f"name {name} not registered")
+        key = self.reverse_map.pop(name)
+        self.key_map.pop(key)
+
+    def __dir__(self) -> Iterable[str]:
+        return self.key_map.keys()
+
+    def __getattr__(self, key: str):
+        if key not in self.key_map:
+            raise KeyError(f"key {key} not in map")
+        return self.key_map[key]
+
+
 class MapIndex:
     """
     Identifies a unique region in a ParcellationMap, combining its labelindex (the "color") and mapindex (the number of the 3Dd map, in case multiple are provided).
@@ -367,36 +398,6 @@ class MapType(Enum):
 
 SIIBRA_DEFAULT_MAPTYPE = MapType.LABELLED
 SIIBRA_DEFAULT_MAP_THRESHOLD = 0.0
-
-REMOVE_FROM_NAME = [
-    "hemisphere",
-    " -",
-    "-brain",
-    "both",
-    "Both",
-]
-
-REPLACE_IN_NAME = {
-    "ctx-lh-": "left ",
-    "ctx-rh-": "right ",
-}
-
-
-def clear_name(name):
-    """ clean up a region name to the for matching"""
-    result = name
-    for word in REMOVE_FROM_NAME:
-        result = result.replace(word, "")
-    for search, repl in REPLACE_IN_NAME.items():
-        result = result.replace(search, repl)
-    return " ".join(w for w in result.split(" ") if len(w))
-
-
-def snake2camel(s: str):
-    """Converts a string in snake_case into CamelCase.
-    For example: JULICH_BRAIN -> JulichBrain"""
-    return "".join([w[0].upper() + w[1:].lower() for w in s.split("_")])
-
 
 # getting nonzero pixels of pmaps is one of the most time consuming tasks when computing metrics,
 # so we cache the nonzero coordinates of array objects at runtime.

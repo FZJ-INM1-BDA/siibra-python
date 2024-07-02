@@ -14,7 +14,8 @@
 # limitations under the License.
 """Singular coordinate defined on a space, possibly with an uncertainty."""
 
-from . import location, boundingbox, pointset
+from . import location
+from .base import Location
 
 from ..commons import logger
 from ..retrieval.requests import HttpRequest
@@ -25,9 +26,64 @@ import numpy as np
 import json
 import numbers
 import hashlib
-from typing import Tuple, Union
+from typing import Tuple, Union, List
+from dataclasses import dataclass, field, replace
 
 
+@dataclass
+class Pt(Location):
+    schema = "siibra/attr/loc/point/v0.1"
+    coordinate: List[float] = field(default_factory=list)
+    sigma: float = 0.
+
+    @property
+    def homogeneous(self):
+        return np.atleast_2d(self.coordinate + (1,))
+
+    @staticmethod
+    def transform(pt: "Pt", affine: np.ndarray):
+        x, y, z, h = np.dot(affine, pt.homogeneous.T)
+        if h != 1:
+            logger.warning(f"Homogeneous coordinate is not one: {h}")
+        return replace(pt, coordinate=[x / h, y / h, z / h])
+
+    def __add__(self, other):
+        """Add the coordinates of two points to get
+        a new point representing."""
+        if isinstance(other, numbers.Number):
+            return Pt(
+                coordinate=[c + other for c in self.coordinate],
+                space_id=self.space.ID if self.space else None
+            )
+        if isinstance(other, Pt):
+            assert self.space == other.space
+        return Pt(
+            coordinate=[self.coordinate[i] + other.coordinate[i] for i in range(3)],
+            space_id=self.space.ID,
+            sigma=self.sigma + other.sigma,
+        )
+
+    def __sub__(self, other):
+        if isinstance(other, numbers.Number):
+            return Pt(
+                coordinate=[c - other for c in self.coordinate],
+                space_id=self.space.ID if self.space else None
+            )
+        if isinstance(other, Pt):
+            assert self.space == other.space
+        return Pt(
+            coordinate=[self.coordinate[i] - other.coordinate[i] for i in range(3)],
+            space_id=self.space.ID if self.space else None,
+            sigma=self.sigma - other.sigma,
+        )
+    
+    def __iter__(self):
+        """Return an iterator over the location,
+        so the Point can be easily cast to list or tuple."""
+        return iter(self.coordinate)
+
+
+# deprecated
 class Point(location.Location):
     """A single 3D point in reference space."""
 
@@ -108,6 +164,7 @@ class Point(location.Location):
         return np.atleast_2d(self.coordinate + (1,))
 
     def intersection(self, other: location.Location) -> "Point":
+        from . import pointset
         if isinstance(other, Point):
             return self if self == other else None
         elif isinstance(other, pointset.PointSet):
@@ -185,6 +242,7 @@ class Point(location.Location):
         return super().__hash__()
 
     def __eq__(self, other: 'Point'):
+        from . import pointset
         if isinstance(other, pointset.PointSet):
             return other == self  # implemented at pointset
         if not isinstance(other, Point):
@@ -302,8 +360,9 @@ class Point(location.Location):
 
     @property
     def boundingbox(self):
+        from .boundingbox import BoundingBox
         w = max(self.sigma or 0, 1e-6)  # at least a micrometer
-        return boundingbox.BoundingBox(
+        return BoundingBox(
             self - w, self + w, self.space, self.sigma
         )
 

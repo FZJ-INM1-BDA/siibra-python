@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Union, Dict, List
+from typing import TYPE_CHECKING, Union, Dict, List, Type
 from nibabel import Nifti1Image
 import json
 if TYPE_CHECKING:
@@ -28,11 +28,13 @@ VolumeData = Union[Nifti1Image, Dict]
 
 class VolumeProvider(ABC):
 
-    _SUBCLASSES = []
+    srctype: str = None
+    _SUBCLASSES: dict[str, Type[VolumeProvider]] = {}
 
     def __init_subclass__(cls, srctype: str) -> None:
+        assert srctype not in VolumeProvider._SUBCLASSES, f"{srctype} already registered."
         cls.srctype = srctype
-        VolumeProvider._SUBCLASSES.append(cls)
+        VolumeProvider._SUBCLASSES[srctype] = cls
         return super().__init_subclass__()
 
     @abstractmethod

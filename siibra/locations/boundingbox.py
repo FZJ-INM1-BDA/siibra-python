@@ -16,16 +16,67 @@
 
 from . import point, pointset, location
 
+from ..concepts.attribute import Attribute
 from ..commons import logger
 from ..exceptions import SpaceWarpingFailedError
 
+from itertools import product
+from dataclasses import dataclass, replace, field
 import hashlib
 import numpy as np
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union, List
 if TYPE_CHECKING:
-    from ..core.structure import BrainStructure
+    from ..core.structure import AnatomicalStructure
     from nibabel import Nifti1Image
     from ..core.space import Space
+
+
+@dataclass
+class BBox(Attribute):
+    schema = "siibra/attr/loc/boundingbox/v0.1"
+    minpoint: List[float] = field(default_factory=list)
+    maxpoint: List[float] = field(default_factory=list)
+    space_id: str = None,
+
+    def __post_init__(self):
+        # TODO: correctly parse sigma vals
+        self._minpoint = point.Pt(coordinate=self.minpoint, space_id=self.space_id)
+        self._maxpoint = point.Pt(coordinate=self.maxpoint, space_id=self.space_id)
+
+    @staticmethod
+    def transform(bbox: "BBox", affine: np.ndarray):
+        xs, ys, zs = zip(
+            bbox._minpoint,
+            bbox._maxpoint
+        )
+        corners = [
+            point.Pt(coordinate=[x, y, z], space_id=bbox.space_id)
+            for x, y, z in product(xs, ys, zs)
+        ]
+
+        new_corners = [point.Pt.transform(cornerpt, affine) for cornerpt in corners]
+        new_coorner_coord = np.array([cnr.coordinate for cnr in new_corners])
+
+        new_maxpt = np.max(new_coorner_coord, axis=0).tolist()
+        new_minpt = np.min(new_coorner_coord, axis=0).tolist()
+        return replace(bbox, maxpoint=new_maxpt, minpoint=new_minpt)
+
+    @property
+    def volume(self) -> float:
+        """The volume of the boundingbox in mm^3"""
+        return np.prod(self.shape)
+
+    @property
+    def center(self) -> 'point.Pt':
+        return self._minpoint + (self._maxpoint - self._minpoint) / 2
+
+    @property
+    def shape(self):
+        """The distances of the diagonal points in each axis. (Accounts for sigma)."""
+        return tuple(
+            (self._maxpoint + self._maxpoint.sigma)
+            - (self._minpoint - self._minpoint.sigma)
+        )
 
 
 class BoundingBox(location.Location):
@@ -119,12 +170,12 @@ class BoundingBox(location.Location):
                 f"to ({','.join(f'{v:.2f}' for v in self.maxpoint)})mm in {self.space.name} space"
             )
 
-    def intersection(self, other: 'BrainStructure', dims=[0, 1, 2]):
+    def intersection(self, other: 'AnatomicalStructure', dims=[0, 1, 2]):
         """Computes the intersection of this bounding box with another one.
 
         Parameters
         ----------
-        other: BrainStructure
+        other: AnatomicalStructure
         dims: List[int], default: all three
             Dimensions where the intersection should be computed
             (applies only to bounding boxes). Along dimensions not listed,

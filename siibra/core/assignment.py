@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Qualification between two BrainStructures"""
+"""Qualification between two AnatomicalStructures"""
 
 from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Generic, TypeVar, TYPE_CHECKING
 if TYPE_CHECKING:
-    from .structure import BrainStructure
+    from .structure import AnatomicalStructure
 
 T = TypeVar("T")
 
@@ -83,8 +83,8 @@ class Qualification(Enum):
 @dataclass
 class AnatomicalAssignment(Generic[T]):
     """Represents a qualified assignment between anatomical structures."""
-    query_structure: "BrainStructure"
-    assigned_structure: "BrainStructure"
+    query_structure: "AnatomicalStructure"
+    assigned_structure: "AnatomicalStructure"
     qualification: Qualification
     explanation: str = ""
 
