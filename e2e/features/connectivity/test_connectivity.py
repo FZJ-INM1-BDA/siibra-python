@@ -12,7 +12,7 @@ all_conn_instances = [
     for f in Cls._get_instances()
 ]
 
-compound_conns = siibra.features.get(siibra.parcellations['julich 3'], RegionalConnectivity)
+compound_conns = siibra.features.get(siibra.parcellations['julich 3.0.3'], RegionalConnectivity)
 
 
 @pytest.mark.parametrize("cf", compound_conns)
@@ -27,7 +27,7 @@ def test_connectivity_get_data(cf: CompoundFeature):
 
 
 jba_29 = siibra.parcellations["julich 2.9"]
-jba_3 = siibra.parcellations["julich 3"]
+jba_3 = siibra.parcellations["julich 3.0.3"]
 
 args = [
     (jba_29, "StreamlineCounts"),
