@@ -28,9 +28,8 @@ class Mesh(Volume):
 
     @property
     def boundingbox(self) -> "BBox":
-        if self._bbox is not None:
-            return self._bbox
-        return get_bbox_getter(self)
+        bbox_getter = get_bbox_getter(self.format)
+        return bbox_getter(self)
 
     def fetch(
         self,
