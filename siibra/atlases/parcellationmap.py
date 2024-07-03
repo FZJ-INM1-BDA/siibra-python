@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, List, Dict, Set, Union
+from typing import TYPE_CHECKING, List, Dict, Set, Union, Literal
 
 import numpy as np
 
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from ..concepts.attribute_collection import AttributeCollection
 
 
-VALID_MAPTYPES = ("STATISTICAL", "LABELLED")
+VALID_MAPTYPES = ("statistical", "labelled")
 
 
 @dataclass(repr=False, eq=False)
@@ -27,7 +27,7 @@ class Map(AtlasElement):
     schema: str = "siibra/atlases/parcellation_map/v0.1"
     parcellation_id: str = None
     space_id: str = None
-    maptype: str = None
+    maptype: Literal["labelled", "statistical"] = None
     _index_mapping: Dict[str, "AttributeCollection"] = field(default_factory=dict)
 
     def __post_init__(self):
