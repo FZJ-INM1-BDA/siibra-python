@@ -14,7 +14,7 @@ from ...volume_fetcher.volume_fetcher import register_volume_fetcher, FetchKwarg
 from ....cache import fn_call_cache
 from ....locations import BBox
 
-from ....commons import logger
+from ....commons import logger, SIIBRA_MAX_FETCH_SIZE_GIB
 
 if TYPE_CHECKING:
     from ....dataitems import Image
@@ -40,7 +40,7 @@ def get_dtype(url: str):
     return np.dtype(info["data_type"])
 
 
-@dataclass(init=False, unsafe_hash=True)
+@dataclass(init=False, unsafe_hash=True, eq=False)
 class Scale:
     url: str  # TODO: consider what is better: pass the url or pass a NG class that holds the url
     chunk_sizes: np.ndarray
@@ -59,16 +59,26 @@ class Scale:
         self.size = scaleinfo["size"]
         self.voxel_offset = np.array(scaleinfo["voxel_offset"])
 
+    def __eq__(self, other):
+        assert isinstance(other, Scale)
+        return (self.url == other.url) and np.array_equal(
+            self.resolution_mm, other.resolution_mm
+        )
+
     def __lt__(self, other):
         """Sort scales by resolution."""
         if not isinstance(other, Scale):
             raise ValueError(f"Cannot compare a Neuroglancer Scale with {type(other)}")
-        return all(self.resolution_nanometer[i] < other.resolution_nanometer[i] for i in range(3))
+        return all(
+            self.resolution_nanometer[i] < other.resolution_nanometer[i]
+            for i in range(3)
+        )
 
     def read_chunk(self, gx, gy, gz, channel: int = None):
         if any(g < 0 for g in (gx, gy, gz)):
             raise RuntimeError(
-                "Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data."
+                "Negative tile index observed - you have likely requested fetch() "
+                "with a bbox specification ranging outside the actual data."
             )
 
         x0 = gx * self.chunk_sizes[0]
@@ -103,13 +113,13 @@ class Scale:
         if bbox is None:
             bbox_ = BBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
         else:
-            bbox_ = bbox.transform(np.linalg.inv(self.affine))
+            bbox_ = BBox.transform(bbox, np.linalg.inv(self.affine))
         result = get_dtype(self.url).itemsize * bbox_.volume
-        # logger.debug(
-        #     f"Approximate size for fetching resolution "
-        #     f"({', '.join(map('{:.6f}'.format, self.res_mm))}) mm "
-        #     f"is {result / 1024**3:.5f} GiB."
-        # )
+        logger.debug(
+            f"Approximate size for fetching resolution "
+            f"({', '.join(map('{:.6f}'.format, self.resolution_mm))}) mm "
+            f"is {result / 1024**3:.5f} GiB."
+        )
         return result
 
     def _point_to_integral_chunk_idx(self, xyz, integral_func: Callable):
@@ -170,88 +180,68 @@ class Scale:
         )
 
 
-@fn_call_cache
 def get_scales(url: str) -> List["Scale"]:
     info = get_info(url)
     return sorted([Scale(scaleinfo, url=url) for scaleinfo in info["scales"]])
 
 
-# def get_shape(self):
-# scale = self._select_scale(resolution_mm=resolution_mm, max_bytes=max_bytes)
-#         return scale.size
-#     # return the shape of the scale 0 array
-#     return self.scales[0].size
-
-
-# def affine(self):
-#     # return the affine matrix of the scale 0 data
-#     return self.scales[0].affine
-
-
-# class NeuroglancerPrecomputed:
-
-#     def __init__(self, url: str, info: Dict):
-#         self.url = url
-
-#     @property
-#     def transform_nm(self):
-#         return get_transform_nm(self.url)
-
-#     @property
-#     def dtype(self):
-#         return get_dtype(self.url)
+def get_affine(url: str):
+    """The affine matrix of the first resolution scale."""
+    return get_scales(url)[0].affine
 
 
 def select_scale(
     scales: List[Scale],
-    resolution_mm: float,
+    resolution_mm: float = None,
     bbox=None,
-    max_bytes: float = 0.2 * 1024**2,
+    max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
 ) -> Scale:
-    if resolution_mm is None:
-        suitable = scales
-    elif resolution_mm < 0:
-        suitable = [scales[0]]
-    else:
-        suitable = sorted(s for s in scales if s.validate_resolution(resolution_mm))
+    max_bytes = max_download_GB * 1024**3
 
-    if len(suitable) > 0:
-        scale = suitable[-1]
-    else:
-        scale = scales[0]
-        xyz_res = ["{:.6f}".format(r).rstrip("0") for r in scale.resolution_mm]
-        if all(r.startswith(str(resolution_mm)) for r in xyz_res):
-            logger.info(f"Closest resolution to requested is {', '.join(xyz_res)} mm.")
-        else:
-            logger.warning(
-                f"Requested resolution {resolution_mm} is not available. "
-                f"Falling back to the highest possible resolution of "
-                f"{', '.join(xyz_res)} mm."
-            )
+    if resolution_mm is None:  # no requirements, return lowest available resolution
+        selected_scale = sorted(scales)[-1]
+        assert selected_scale._estimate_nbytes(bbox) <= max_bytes
+        return selected_scale
 
-    for scale in scales:
-        if scale._estimate_nbytes(bbox) > max_bytes:
+    reverse = (
+        True if resolution_mm > max([s.resolution_mm.max() for s in scales]) else False
+    )
+    scales_ = sorted(scales, reverse=reverse)
+
+    if resolution_mm == -1:  # highest possible is requested
+        suitable_scales = [scales_[0]]
+    else:  # closest to resolution_mm
+        suitable_scales = [s for s in scales_ if s.validate_resolution(resolution_mm)]
+
+    for scale in scales_:
+        estimated_nbytes = scale._estimate_nbytes(bbox)
+        print(f"{scale.resolution_mm=}: {estimated_nbytes/1024**3}")
+        if estimated_nbytes <= max_bytes:
+            print(f"selected: {scale.resolution_mm=}")
+            selected_scale = scale
+            if selected_scale not in suitable_scales:
+                logger.warning(
+                    f"Resolution was reduced to {selected_scale.resolution_mm} to provide a feasible volume size of "
+                    f"{max_download_GB} GiB. Set a higher `max_download_GB` to fetch in the requested resolution."
+                )
             break
     else:
         raise RuntimeError(
-            f"Fetching bounding box {bbox} is infeasible "
-            f"relative to the limit of {max_bytes / 1024**3}GiB."
+            f"Cannot fetch {f'bounding box {bbox} ' if bbox else ''}since the lowest download size "
+            f"{scale._estimate_nbytes(bbox) / 1024**3}GiB > {max_download_GB=}GiB."
         )
 
-    # if scale_changed:
-    #     logger.warning(
-    #         f"Resolution was reduced to {scale.resolution_mm} to provide a "
-    #         f"feasible volume size of {max_bytes / 1024**3} GiB. Set `max_bytes` to"
-    #         f" fetch in the resolution requested."
-    #     )
-    return scale
+    return selected_scale
 
 
 @register_volume_fetcher("neuroglancer/precomputed", "image")
 def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1Image":
     scales = get_scales(image.url)
     scale = select_scale(
-        scales, resolution_mm=fetchkwargs["resolution_mm"], bbox=fetchkwargs["bbox"]
+        scales,
+        resolution_mm=fetchkwargs["resolution_mm"],
+        bbox=fetchkwargs["bbox"],
+        max_download_GB=fetchkwargs["max_download_GB"],
     )
     return scale.fetch(bbox=fetchkwargs["bbox"])
 
