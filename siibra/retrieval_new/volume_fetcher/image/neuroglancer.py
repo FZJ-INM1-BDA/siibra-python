@@ -215,9 +215,7 @@ def select_scale(
 
     for scale in scales_:
         estimated_nbytes = scale._estimate_nbytes(bbox)
-        print(f"{scale.resolution_mm=}: {estimated_nbytes/1024**3}")
         if estimated_nbytes <= max_bytes:
-            print(f"selected: {scale.resolution_mm=}")
             selected_scale = scale
             if selected_scale not in suitable_scales:
                 logger.warning(
