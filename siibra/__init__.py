@@ -70,8 +70,8 @@ def find_spaces(space_spec: str):
     return list(string_search(space_spec, Space))
 
 
-def get_template(space_spec: str, frmt: str = None, variant: str = None):
-    return get_space(space_spec).get_template(frmt=frmt, variant=variant)
+def fetch_template(space_spec: str, frmt: str = None, variant: str = "", fragment: str = ""):
+    return get_space(space_spec).fetch_template(frmt=frmt, variant=variant)
 
 
 def get_parcellation(parc_spec: str):

@@ -7,7 +7,7 @@ from ..assignment import iter_attr_col
 from ..concepts import AtlasElement
 from ..retrieval_new.volume_fetcher import FetchKwargs, IMAGE_FORMATS, MESH_FORMATS
 from ..commons_new.iterable import assert_ooo
-from ..commons_new.maps import resample_and_merge
+from ..commons_new.maps import merge_volumes
 from ..atlases import Parcellation, Space, Region
 from ..dataitems import Image, Mesh
 from ..descriptions import Name, ID as _ID, SpeciesSpec
@@ -72,20 +72,15 @@ class Map(AtlasElement):
 
     @property
     def formats(self) -> Set[str]:
-        formats_ = {vol.format for vol in self._region_volumes}
-        if any(f in IMAGE_FORMATS for f in formats_):
-            formats_ = formats_.union({"image"})
-        if any(f in MESH_FORMATS for f in formats_):
-            formats_ = formats_.union({"mesh"})
-        return formats_
+        return {vol.format for vol in self._region_volumes}
 
     @property
     def provides_mesh(self):
-        return "mesh" in self.formats
+        return any(f in self.formats for f in MESH_FORMATS)
 
     @property
     def provides_image(self):
-        return "image" in self.formats
+        return any(f in self.formats for f in IMAGE_FORMATS)
 
     def get_filtered_map(self, regions: List[Region] = None) -> "Map":
         """
@@ -126,7 +121,7 @@ class Map(AtlasElement):
             if candidate in self.regions:
                 return [
                     attr
-                    for attr in self._region_attributes[candidate]
+                    for attr in self._region_attributes[candidate].attributes
                     if isinstance(attr, (Mesh, Image)) and filter_fn(attr)
                 ]
 
@@ -162,18 +157,25 @@ class Map(AtlasElement):
         max_download_GB: float = SIIBRA_MAX_FETCH_SIZE_GIB,
         color_channel: int = None,
         allow_relabeling: bool = False,
+        variant: str = None,
     ):
         if isinstance(region, Region):
             regionspec = region.name
         else:
             regionspec = region
 
-        if frmt is None:
-            frmt = [f for f in IMAGE_FORMATS + MESH_FORMATS if f in self.formats][0]
-        else:
-            assert (
-                frmt in self.formats
-            ), f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+        if frmt not in self.formats:
+            frmt_lookup = {
+                None: IMAGE_FORMATS + MESH_FORMATS,
+                "mesh": MESH_FORMATS,
+                "image": IMAGE_FORMATS,
+            }
+            try:
+                frmt = [f for f in frmt_lookup[frmt] if f in self.formats][0]
+            except KeyError:
+                raise RuntimeError(
+                    f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+                )
 
         volumes = self._find_volumes(regionname=regionspec, frmt=frmt)
         if len(volumes) == 0:
@@ -194,8 +196,16 @@ class Map(AtlasElement):
             labels = [vol.volume_selection_options["label"] for vol in volumes]
             if set(labels) == {1}:
                 labels = list(range(1, len(labels) + 1))
-        return resample_and_merge(
-            [vol.fetch(**fetch_kwargs) for vol in volumes], labels=labels
+        if variant:
+            tmp = self.space.fetch_template(frmt="mesh", variant=variant)
+            return merge_volumes(
+                [vol.fetch(**fetch_kwargs) for vol in volumes],
+                labels=labels,
+                template_vol=tmp,
+            )
+        return merge_volumes(
+            [vol.fetch(**fetch_kwargs) for vol in volumes],
+            labels=labels,
         )
 
     def get_colormap(self, frmt: str = None, regions: List[str] = None) -> List[str]:
@@ -205,12 +215,18 @@ class Map(AtlasElement):
         def convert_hex_to_tuple(clr: str):
             return tuple(int(clr[p : p + 2], 16) for p in [1, 3, 5])
 
-        if frmt is None:
-            frmt = [f for f in IMAGE_FORMATS + MESH_FORMATS if f in self.formats][0]
-        else:
-            assert (
-                frmt in self.formats
-            ), f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+        if frmt not in self.formats:
+            frmt_lookup = {
+                None: IMAGE_FORMATS + MESH_FORMATS,
+                "mesh": MESH_FORMATS,
+                "image": IMAGE_FORMATS,
+            }
+            try:
+                frmt = [f for f in frmt_lookup[frmt] if f in self.formats][0]
+            except KeyError:
+                raise RuntimeError(
+                    f"Requested format '{frmt}' is not available for this map: {self.formats=}."
+                )
 
         if regions is None:
             regions = self.regions

@@ -1,8 +1,9 @@
-from typing import List, Literal
+from typing import List, Literal, Union, Dict
 import numpy as np
 from nilearn.image import resample_to_img, resample_img
 from tqdm import tqdm
-from nibabel import Nifti1Image
+from nibabel.nifti1 import Nifti1Image
+from nibabel.gifti import GiftiImage, GiftiDataArray
 
 from ..locations import Pt
 
@@ -44,7 +45,93 @@ def affine_scaling(affine):
     return np.prod(unit_lengths)
 
 
-def resample_and_merge(
+def merge_volumes(
+    volumes: List[Union["Nifti1Image", "GiftiImage"]],
+    template_vol: Union["Nifti1Image", "GiftiImage"] = None,
+    labels: List[int] = [],
+):
+    vol_types = {type(vol) for vol in volumes}
+    assert len(vol_types) == 1
+
+    if Nifti1Image in vol_types:
+        return _resample_and_merge_niftis(volumes, template_vol, labels)
+
+    if GiftiImage in vol_types:
+        return _merge_giftis(volumes, template_vol, labels)
+
+
+def gii_to_arrs(gii: GiftiImage) -> Dict[str, np.ndarray]:
+    mesh = dict()
+    for arr in gii.darrays:
+        if arr.intent == 1008:
+            mesh.update({"verts": arr.data})
+        if arr.intent == 1009:
+            mesh.update({"faces": arr.data})
+        if arr.intent == 2005:
+            mesh.update({"labels": arr.data})
+    return mesh
+
+
+def arrs_to_gii(mesh: Dict[str, np.ndarray]) -> "GiftiImage":
+    darrays = []
+    for key, arr in mesh.items():
+        if key == "verts":
+            darrays.append(GiftiDataArray(arr, intent=1008))
+        if key == "faces":
+            darrays.append(GiftiDataArray(arr, intent=1009))
+        if key == "labels":
+            darrays.append(GiftiDataArray(arr, intent=2005)).astype("int32")
+    return GiftiImage(darrays=darrays)
+
+
+def _merge_giilabels(giftis: List["GiftiImage"]) -> "GiftiImage":
+    labels = [gii_to_arrs(gii)["labels"] for gii in giftis]
+    return GiftiImage(
+        darrays=GiftiDataArray(np.hstack(labels).astype("int32"), intent=2005)
+    )
+
+
+def _merge_giftis(
+    giftis: List["GiftiImage"],
+    template_vol: "GiftiImage" = None,
+    labels: List[int] = [],
+) -> "GiftiImage":
+    meshes = [gii_to_arrs(gii) for gii in giftis]
+    assert len(meshes) > 0
+    if len(meshes) == 1:
+        return meshes[0]
+
+    try:
+        assert all("verts" in m for m in meshes)
+        assert all("faces" in m for m in meshes)
+    except AssertionError:
+        assert all("labels" in m for m in meshes)
+        merged_labelled_gii = _merge_giilabels(giftis)
+        if template_vol is None:
+            return merged_labelled_gii
+        merged_gii = template_vol
+        merged_gii.darrays.append(merged_labelled_gii.darrays)
+        return merged_gii
+
+    has_labels = all("labels" in m for m in meshes)
+    if has_labels:
+        assert len(labels) == 0
+
+    nverts = [0] + [m["verts"].shape[0] for m in meshes[:-1]]
+    verts = np.concatenate([m["verts"] for m in meshes])
+    faces = np.concatenate([m["faces"] + N for m, N in zip(meshes, nverts)])
+    if has_labels:
+        labels = np.array([_ for m in meshes for _ in m["labels"]])
+        return arrs_to_gii({"verts": verts, "faces": faces, "labels": labels})
+    elif len(labels) != 0:
+        assert len(labels) == len(meshes)
+        labels = np.array([labels[i] for i, m in enumerate(meshes) for v in m["verts"]])
+        return arrs_to_gii({"verts": verts, "faces": faces, "labels": labels})
+    else:
+        return arrs_to_gii({"verts": verts, "faces": faces})
+
+
+def _resample_and_merge_niftis(
     niftis: List["Nifti1Image"],
     template_img: "Nifti1Image" = None,
     labels: List[int] = [],
@@ -123,7 +210,7 @@ def spatial_props(
                 space_id=space_id,
                 background=background,
             ),
-            "volume": nonzero.shape[0] * scale
+            "volume": nonzero.shape[0] * scale,
         }
     return spatialprops
 
