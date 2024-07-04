@@ -27,15 +27,14 @@ class ConflictingArgumentException(ValueError):
     pass
 
 
-class NonUniqueIndexError(RuntimeError):
+class NonUniqueError(RuntimeError):
+    pass
+
+class NonUniqueIndexError(NonUniqueError):
     pass
 
 
 class NoMapAvailableError(RuntimeError):
-    pass
-
-
-class SpaceWarpingFailedError(RuntimeError):
     pass
 
 
@@ -45,3 +44,28 @@ class NoVolumeFound(RuntimeError):
 
 class WarmupRegException(Exception):
     pass
+
+class AttrCompException(Exception): pass
+
+class InvalidAttrCompException(AttrCompException):
+    """
+    Raised if try to signal the two Attributes do *not* match.
+
+    (aka, does not match.)
+    """
+    pass
+
+
+class UnregisteredAttrCompException(AttrCompException):
+    """
+    Raised if the Attributes have not been registered to match.
+    
+    (aka, we do not know how to match)
+    """
+    pass
+
+class NotFoundException(Exception): pass
+
+class ExternalApiException(RuntimeError): pass
+
+class SpaceWarpingFailedError(ExternalApiException): pass

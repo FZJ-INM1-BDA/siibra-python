@@ -17,7 +17,7 @@
 from . import concept, structure, space as _space, parcellation as _parcellation
 from .assignment import Qualification, AnatomicalAssignment
 
-from ..retrieval.cache import cache_user_fn
+from ..cache import fn_call_cache
 from ..locations import location, point, pointset
 from ..volumes import parcellationmap, volume
 from ..commons import (
@@ -25,11 +25,11 @@ from ..commons import (
     MapType,
     affine_scaling,
     create_key,
-    clear_name,
     InstanceTable,
     SIIBRA_DEFAULT_MAPTYPE,
     SIIBRA_DEFAULT_MAP_THRESHOLD
 )
+from ..commons_new.string import clear_name, splitstr
 from ..exceptions import NoMapAvailableError, SpaceWarpingFailedError
 
 import numpy as np
@@ -62,7 +62,7 @@ class SpatialProp:
     space: _space.Space = None
 
 
-class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
+class Region(anytree.NodeMixin, concept.AtlasConcept, structure.AnatomicalStructure):
     """
     Representation of a region with name and more optional attributes
     """
@@ -393,8 +393,6 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             If the regionspec matches to the Region.
         """
         if regionspec not in self._CACHED_MATCHES:
-            def splitstr(s):
-                return [w for w in re.split(r"[^a-zA-Z0-9.\-]", s) if len(w) > 0]
 
             if regionspec is None:
                 self._CACHED_MATCHES[regionspec] = False
@@ -616,7 +614,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
             except NoMapAvailableError:
                 return False
 
-    def assign(self, other: structure.BrainStructure) -> AnatomicalAssignment:
+    def assign(self, other: structure.AnatomicalStructure) -> AnatomicalAssignment:
         """
         Compute assignment of a location to this region.
 
@@ -885,7 +883,7 @@ class Region(anytree.NodeMixin, concept.AtlasConcept, structure.BrainStructure):
         return None
 
 
-@cache_user_fn
+@fn_call_cache
 def _get_related_regions_str(pe_id: str) -> Tuple[Tuple[str, str, str, str], ...]:
     logger.info("LONG CALC...", pe_id)
     return_val = []

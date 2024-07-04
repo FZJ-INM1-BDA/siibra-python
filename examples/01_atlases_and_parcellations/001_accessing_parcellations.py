@@ -39,7 +39,7 @@ julich_brain = siibra.parcellations.get('julich')
 # modelled in the MINDS and openMINDS standards. `siibra` stores their
 # identifiers. Note that this holds for spaces and other concepts as well, as
 # will be seen in the next examples.
-print(julich_brain.id)
+print(julich_brain.ID)
 
 # %%
 # Also, you can display the doi/url of the related dataset/publication using

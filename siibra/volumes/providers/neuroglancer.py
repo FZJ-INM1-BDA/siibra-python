@@ -23,7 +23,8 @@ from ...commons import (
     QUIET,
     resample_img_to_img
 )
-from ...retrieval import requests, cache
+from ...retrieval import requests
+from ...cache import CACHE
 from ...locations import boundingbox as _boundingbox
 
 from neuroglancer_scripts.precomputed_io import get_IO_for_existing_dataset
@@ -468,7 +469,7 @@ class NeuroglancerScale:
         if any(v < 0 for v in (gx, gy, gz)):
             raise RuntimeError('Negative tile index observed - you have likely requested fetch() with a voi specification ranging outside the actual data.')
         if self.volume.USE_CACHE:
-            cachefile = cache.CACHE.build_filename(
+            cachefile = CACHE.build_filename(
                 "{}_{}_{}_{}_{}".format(self.volume.url, self.key, gx, gy, gz),
                 suffix=".npy",
             )
