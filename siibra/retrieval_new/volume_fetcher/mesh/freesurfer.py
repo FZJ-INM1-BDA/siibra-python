@@ -6,6 +6,7 @@ from nibabel import freesurfer, gifti
 
 from ..volume_fetcher import FetchKwargs, register_volume_fetcher
 from ....cache import CACHE
+from ....commons_new.maps import arrs_to_gii
 
 if TYPE_CHECKING:
     from ....dataitems import Mesh
@@ -40,5 +41,11 @@ def read_as_bytesio(function: Callable, suffix: str, bytesio: BytesIO):
 
 @register_volume_fetcher("freesurfer-annot", "mesh")
 def fetch_freesurfer_annot(mesh: "Mesh", fetchkwargs: FetchKwargs) -> gifti.GiftiImage:
+    if fetchkwargs["bbox"] is not None:
+        raise NotImplementedError
+    if fetchkwargs["resolution_mm"] is not None:
+        raise NotImplementedError
+    if fetchkwargs["color_channel"] is not None:
+        raise NotImplementedError
     labels, *_ = freesurfer.read_annot(read_as_bytesio(mesh.get_data()))
-    raise NotImplementedError
+    return arrs_to_gii(labels)
