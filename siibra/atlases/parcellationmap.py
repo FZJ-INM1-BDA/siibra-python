@@ -28,7 +28,7 @@ class Map(AtlasElement):
     parcellation_id: str = None
     space_id: str = None
     maptype: Literal["labelled", "statistical"] = None
-    _index_mapping: Dict[str, "AttributeCollection"] = field(default_factory=dict)
+    _region_attributes: Dict[str, "AttributeCollection"] = field(default_factory=dict)
 
     def __post_init__(self):
         essential_specs = {"parcellation_id", "space_id", "maptype", "index_mapping"}
@@ -53,13 +53,13 @@ class Map(AtlasElement):
 
     @property
     def regions(self) -> List[str]:
-        return list(self._index_mapping.keys())
+        return list(self._region_attributes.keys())
 
     @property
     def _region_volumes(self) -> List[Union["Image", "Mesh"]]:
         return [
             attr
-            for attrcols in self._index_mapping.values()
+            for attrcols in self._region_attributes.values()
             for attr in attrcols.attributes
             if isinstance(attr, (Image, Mesh))
         ]
@@ -98,7 +98,7 @@ class Map(AtlasElement):
 
         filtered_images = {
             regionname: attr_col
-            for regionname, attr_col in self._index_mapping.items()
+            for regionname, attr_col in self._region_attributes.items()
             if regionnames is None or regionname in regionnames
         }
         attributes = [
@@ -126,7 +126,7 @@ class Map(AtlasElement):
             if candidate in self.regions:
                 return [
                     attr
-                    for attr in self._index_mapping[candidate]
+                    for attr in self._region_attributes[candidate]
                     if isinstance(attr, (Mesh, Image)) and filter_fn(attr)
                 ]
 
@@ -146,7 +146,7 @@ class Map(AtlasElement):
                 for c in candidates
                 for vol in filter(
                     filter_fn,
-                    self._index_mapping[c]._find(Image),
+                    self._region_attributes[c]._find(Image),
                 )
             ]
         raise ValueError(

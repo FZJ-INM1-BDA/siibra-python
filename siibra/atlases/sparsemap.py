@@ -202,9 +202,9 @@ def build_sparse_index(parcmap: Map) -> SparseIndex:
     mapaffine: np.ndarray = None
     mapshape: Tuple[int] = None
     for region, attrcol in siibra_tqdm(
-        parcmap._index_mapping.items(),
+        parcmap._region_attributes.items(),
         unit="map",
-        desc=f"Building sparse index from {len(parcmap._index_mapping)} volumetric maps",
+        desc=f"Building sparse index from {len(parcmap._region_attributes)} volumetric maps",
     ):
         image = attrcol._get(Image)
         nii = image.fetch()
