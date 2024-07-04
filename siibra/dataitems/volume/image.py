@@ -17,11 +17,6 @@ from ...retrieval_new.volume_fetcher.volume_fetcher import (
 )
 
 
-def extract_label_mask(nifti: nib.Nifti1Image, label: int):
-    # TODO: Consider adding assertion but this should be clear to the user anyway
-    return nib.Nifti1Image((nifti.get_fdata() == label).astype("uint8"), nifti.affine)
-
-
 @dataclass
 class Image(Volume):
     schema: str = "siibra/attr/data/image/v0.1"
@@ -52,12 +47,7 @@ class Image(Volume):
             assert self.format == "neuroglancer/precomputed"
 
         fetcher_fn = get_volume_fetcher(self.format)
-        nii = fetcher_fn(self, fetch_kwargs)
-
-        if self.volume_selection_options and "label" in self.volume_selection_options:
-            nii = extract_label_mask(nii, self.volume_selection_options["label"])
-
-        return nii
+        return fetcher_fn(self, fetch_kwargs)
 
     def plot(self, *args, **kwargs):
         raise NotImplementedError

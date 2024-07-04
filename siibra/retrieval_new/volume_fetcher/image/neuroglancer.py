@@ -20,6 +20,10 @@ if TYPE_CHECKING:
     from ....dataitems import Image
 
 
+def extract_label_mask(arr: np.ndarray, label: int):
+    return np.asanyarray(arr == label, dtype='uint8')
+
+
 @fn_call_cache
 def get_info(url: str) -> Dict:
     return requests.get(f"{url}/info").json()
@@ -129,7 +133,7 @@ class Scale:
             .ravel()
         )
 
-    def fetch(self, bbox=None, channel: int = None):
+    def fetch(self, bbox=None, channel: int = None, label: int = None):
         # define the bounding box in this scale's voxel space
         if bbox is None:
             bbox_ = BBox(minpoint=(0, 0, 0), maxpoint=self.size, space_id=None)
@@ -174,8 +178,12 @@ class Scale:
         # build the nifti image
         trans = np.identity(4)[[2, 1, 0, 3], :]  # zyx -> xyz
         shift = np.c_[np.identity(4)[:, :3], np.r_[offset, 1]]
+
+        arr = data_zyx[z0 : z0 + zd, y0 : y0 + yd, x0 : x0 + xd]
+        if label is not None:
+            arr = extract_label_mask(arr, label)
         return nib.Nifti1Image(
-            data_zyx[z0 : z0 + zd, y0 : y0 + yd, x0 : x0 + xd],
+            arr,
             np.dot(self.affine, np.dot(shift, trans)),
         )
 
@@ -241,7 +249,7 @@ def fetch_neuroglancer(image: "Image", fetchkwargs: FetchKwargs) -> "nib.Nifti1I
         bbox=fetchkwargs["bbox"],
         max_download_GB=fetchkwargs["max_download_GB"],
     )
-    return scale.fetch(bbox=fetchkwargs["bbox"])
+    return scale.fetch(bbox=fetchkwargs["bbox"], label=image.volume_selection_options.get("label"))
 
 
 @fn_call_cache

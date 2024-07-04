@@ -11,6 +11,13 @@ if TYPE_CHECKING:
     from ....locations import BBox
 
 
+def extract_label_mask(nii: Nifti1Image, label: int):
+    return Nifti1Image(
+        (np.asanyarray(nii.dataobj) == label).astype('uint8'),
+        nii.affine
+    )
+
+
 def extract_voi(nifti: Nifti1Image, voi: "BBox"):
     bb_vox = voi.transform(np.linalg.inv(nifti.affine))
     (x0, y0, z0), (x1, y1, z1) = bb_vox.minpoint, bb_vox.maxpoint
@@ -24,14 +31,15 @@ def extract_voi(nifti: Nifti1Image, voi: "BBox"):
 
 
 def resample(nifti: Nifti1Image, resolution_mm: float = None, affine=None):
-    # TODO
-    # Instead of resmapling nifti to desired resolution_mm in `fetch` as
-    # discussed previously, consider an explicit method.
+    # TODO: Resample nifti to desired resolution_mm. Potentially to use in `fetch`
     raise NotImplementedError
 
 
 @register_volume_fetcher("nii", "image")
 def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
+    if fetchkwargs["color_channel"] is not None:
+        raise NotImplementedError
+
     _bytes = image.get_data()
     try:
         nii = Nifti1Image.from_bytes(gzip.decompress(_bytes))
@@ -45,5 +53,11 @@ def fetch_nifti(image: "Image", fetchkwargs: FetchKwargs) -> "Nifti1Image":
 
     if fetchkwargs["resolution_mm"] is not None:
         nii = resample(nii, fetchkwargs["resolution_mm"])
+
+    if image.volume_selection_options:
+        if "label" in image.volume_selection_options:
+            nii = extract_label_mask(nii, image.volume_selection_options["label"])
+        if "z" in image.volume_selection_options:
+            nii = nii.slicer[:, :, :, image.volume_selection_options["z"]]
 
     return nii
