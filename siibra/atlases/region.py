@@ -120,3 +120,8 @@ class Region(atlas_elements.AtlasElement, anytree.NodeMixin):
         via_space: Union[str, "Space", None] = None,
     ) -> "Nifti1Image":
         pass
+
+
+def filter_newest(regions: List[Region]) -> List[Region]:
+    _parcellations = {r.parcellation for r in regions}
+    return [r for r in regions if r.parcellation.next_version not in _parcellations]

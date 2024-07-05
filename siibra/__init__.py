@@ -34,6 +34,7 @@ from .cache import Warmup, WarmupLevel, CACHE as cache
 from . import factory as factory_new
 from . import retrieval_new
 from .atlases import Space, Parcellation, Region, parcellationmap
+from .atlases.region import filter_newest
 from .descriptions import Modality, RegionSpec, Gene
 from .descriptions.modality import vocab as modality_types
 from .locations import DataClsLocation
@@ -128,7 +129,7 @@ def get_region(parcellation_spec: str, regionspec: str):
             + "\n".join(f" - {str(r)}" for r in found_regions)
             + "\nSelecting the top most one from the newest versions."
         )
-    newest_versions = [r for r in found_regions if r.parcellation.is_newest_version]
+    newest_versions = filter_newest(found_regions)
     return collapse_nodes(newest_versions)[0]
 
 
