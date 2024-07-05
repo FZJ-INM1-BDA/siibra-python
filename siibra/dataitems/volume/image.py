@@ -1,7 +1,9 @@
 from dataclasses import dataclass, replace
-
+from typing import Union
 import numpy as np
 import nibabel as nib
+from pathlib import Path
+from hashlib import md5
 
 from ...commons import SIIBRA_MAX_FETCH_SIZE_GIB
 
@@ -53,13 +55,19 @@ class Image(Volume):
         raise NotImplementedError
 
 
-def from_nifti(nifti: nib.Nifti1Image, space_id: str) -> "Image":
-    """Builds an `Image` `Attribute` from a Nifti image."""
-    from hashlib import md5
+def from_nifti(nifti: Union[str, nib.Nifti1Image], space_id: str) -> "Image":
+    """Builds an `Image` `Attribute` from a Nifti image or path to a nifti file."""
     from ...cache import CACHE
-
-    filename = CACHE.build_filename(hash(md5(nifti.to_bytes())), suffix=".nii")
-    nib.save(nifti, filename)
+    filename = None
+    if isinstance(nifti, str):
+        filename = nifti
+        assert Path(filename).is_file(), f"Provided str {nifti=!r} des not exist"
+    if isinstance(nifti, (nib.Nifti1Image, nib.Nifti2Image)):
+        filename = CACHE.build_filename(md5(nifti.to_bytes()).hexdigest(), suffix=".nii")
+        if not Path(filename).exists():
+            nib.save(nifti, filename)
+    if not filename:
+        raise RuntimeError(f"nifti must be either str or NIftiImage, but you provided {type(nifti)}")
     return Image(
         fromat="nii",
         url=filename,
