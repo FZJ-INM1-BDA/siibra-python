@@ -1,4 +1,5 @@
-from siibra.dataitems.image import intersect_ptcld_image, PointCloud
+from siibra.dataitems.volume.image import intersect_ptcld_image
+from siibra.locations import PointCloud
 import numpy as np
 import nibabel as nib
 from unittest.mock import MagicMock
@@ -32,7 +33,7 @@ def test_insersect_ptcld_img():
 
     image = MagicMock()
 
-    image.data = mock_nii
+    image.fetch.return_value = mock_nii
     image.space_id = "foo"
 
     ptcld = PointCloud(
